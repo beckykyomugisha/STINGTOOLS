@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **80+ source files** (77+ C# + 3 XAML, ~100,000 lines of code) across 10 directories
-- **395+ `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **28 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **99 source files** (96 C# + 3 XAML, ~114,000 lines of code) across 10 directories
+- **506 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **42 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -41,7 +41,7 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (10 files, ~11,287 lines)
+    ├── Core/                           # Shared infrastructure (12 files, ~12,000 lines)
     │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker utility
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position constants
@@ -51,12 +51,15 @@ STINGTOOLS/
     │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater
     │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + conditional steps + result persistence + WorkflowTrendCommand
     │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline breakdown (DiscComplianceData)
-    │   └── OutputLocationHelper.cs     # Centralized output directory management with fallback chain + timestamped paths
+    │   ├── OutputLocationHelper.cs     # Centralized output directory management with fallback chain + timestamped paths
+    │   ├── IPanelCommand.cs            # Interface for WPF dockable panel commands + SafeApp/SafeDoc/SafeUIDoc extension methods
+    │   └── PerformanceTracker.cs       # Lightweight performance profiling engine for batch operations (per-element timing, LRU slowest tracking, CSV export)
     │
-    ├── Select/                         # Element selection + color commands (3 files, 29 commands)
+    ├── Select/                         # Element selection + color commands (4 files, ~30+ commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
     │   ├── StateSelectCommands.cs      # 5 state selectors + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview
-    │   └── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
+    │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
+    │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
     ├── UI/                             # WPF dockable panel UI + project wizard + theme engine (7 C# files + 3 XAML, ~12,770 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
@@ -69,7 +72,7 @@ STINGTOOLS/
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
-    ├── Docs/                           # Documentation commands (8 files, 27 commands)
+    ├── Docs/                           # Documentation commands (10 files, ~35+ commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
@@ -77,9 +80,11 @@ STINGTOOLS/
     │   ├── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │   ├── DocAutomationCommands.cs    # DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
     │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, handover manual
-    │   └── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
+    │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
+    │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (11 sheets), maintenance schedule, O&M manual, asset health report, space handover report
+    │   └── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
     │
-    ├── Tags/                           # Tagging commands (25 files, 113 commands)
+    ├── Tags/                           # Tagging commands (28 files, ~140+ commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view + TagNewOnly
     │   ├── BatchTagCommand.cs          # Tag all elements in project
     │   ├── TagAndCombineCommand.cs     # One-click: populate + tag + combine all
@@ -105,7 +110,10 @@ STINGTOOLS/
     │   ├── TagStyleEngine.cs           # Tag style engine: style presets, color schemes, paragraph depth control (128 style combinations)
     │   ├── Tag3DCommand.cs             # 1 command: Tag3D — tags elements in 3D views with spatial auto-detect
     │   ├── RepairDuplicateSeqCommand.cs # 1 command: RepairDuplicateSeq — smart duplicate SEQ repair with spatial proximity
-    │   └── FamilyParamCreatorCommand.cs # 1 command: FamilyParamCreator + FamilyParamEngine (shared param injection into .rfa files)
+    │   ├── FamilyParamCreatorCommand.cs # 1 command: FamilyParamCreator + FamilyParamEngine (shared param injection into .rfa files)
+    │   ├── NLPCommandProcessor.cs      # Natural language intent recognition engine — maps queries to STING commands (50+ patterns)
+    │   ├── TagIntelligenceCommands.cs  # 8 advanced tagging intelligence commands: rule engine, quality analysis, batch chain, version control, propagation, analytics, smart suggestion
+    │   └── TagStyleEngineCommands.cs   # Rule-based tag family type switching: 128 style combinations via JSON-driven TAG_STYLE_RULES.json
     │
     ├── Organise/                       # Tag management commands (1 file, 47 commands)
     │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1), AnomalyAutoFix (1), Clustering (2), DisplayMode (1), DiscCompliance (1), RetagStale (1), DeclusterTags (1) + LeaderHelper + AnnotationColorHelper
@@ -122,7 +130,7 @@ STINGTOOLS/
     │   ├── ModelEngine.cs              # Model creation engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + FamilyResolver
     │   └── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection
     │
-    ├── Temp/                           # Template commands (13 files, 66 commands)
+    ├── Temp/                           # Template commands (22 files, ~120+ commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
     │   ├── CheckDataCommand.cs         # Data file inventory with SHA-256
     │   ├── MasterSetupCommand.cs       # One-click full project setup (15 steps)
@@ -135,23 +143,35 @@ STINGTOOLS/
     │   ├── TemplateCommands.cs         # Filters, worksets, view templates (23 template defs + VG configuration)
     │   ├── TemplateExtCommands.cs      # Line patterns, phases, apply filters, cable trays, conduits, material schedules
     │   ├── TemplateManagerCommands.cs  # 18 template intelligence commands + TemplateManager engine (~3,892 lines)
-    │   └── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
+    │   ├── DataPipelineCommands.cs     # ValidateTemplate (45 checks), DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit
+    │   ├── DataPipelineEnhancementCommands.cs # Cross-validation: registry vs CSV drift detection, parameter coverage, field remapping
+    │   ├── AutoModelCommands.cs        # DWG-to-BIM automation: link DWG/DXF, tracing geometry extraction, batch import
+    │   ├── COBieDataCommands.cs        # COBie reference data management: type map browser, picklists, job templates, spare parts
+    │   ├── DWGImportCommands.cs        # CAD import with layer mapping: preview, auto-detect, 18-category pattern recognition
+    │   ├── IoTMaintenanceCommands.cs   # Asset condition (ISO 15686), maintenance scheduling, digital twin sync, energy analysis
+    │   ├── MEPCreationCommands.cs      # MEP equipment placement: HVAC, electrical, plumbing, fire, conduit, cable tray
+    │   ├── MEPScheduleCommands.cs      # 7 MEP schedules: panel, fixture, device, equipment, system, takeoff, sizing check
+    │   ├── ModelCreationCommands.cs    # Programmatic BIM element creation: walls, floors, ceilings, roofs, columns, beams, stairs
+    │   ├── OperationsCommands.cs       # Workflow & batch operations: preset sequences, PDF/IFC/COBie export, clash detection
+    │   ├── RoomSpaceCommands.cs        # Room audit, department assignment, room schedule with tag integration
+    │   └── StandardsEngine.cs          # Standards compliance: ISO 19650, CIBSE, BS 7671, Uniclass 2015, BS 8300, Part L
     │
-    └── Data/                           # Runtime data files (27 files)
+    └── Data/                           # Runtime data files (42 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
         ├── MR_PARAMETERS.txt           # Shared parameter file (1,549 params, 21 groups)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
+        ├── MATERIAL_LOOKUP.csv         # 237-row material reference database (density, thermal, fire rating, acoustic, embodied carbon, cost)
         ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
-        ├── SCHEDULE_FIELD_REMAP.csv    # 50 field deprecation remaps
+        ├── SCHEDULE_FIELD_REMAP.csv    # 50+ field deprecation remaps
         ├── BINDING_COVERAGE_MATRIX.csv # Parameter-category coverage
         ├── BOQ_TEMPLATE.csv            # Bill of Quantities template structure
         ├── CATEGORY_BINDINGS.csv       # 10,661 category bindings
         ├── FAMILY_PARAMETER_BINDINGS.csv   # 4,686 family bindings
-        ├── PARAMETER__CATEGORIES.csv   # Parameter-category cross-reference
-        ├── PARAMETER_REGISTRY.json     # Master parameter registry (v4.3) — single source of truth for ParamRegistry.cs
+        ├── PARAMETER_CATEGORIES.csv    # Parameter-category cross-reference
+        ├── PARAMETER_REGISTRY.json     # Master parameter registry — single source of truth for ParamRegistry.cs
         ├── LABEL_DEFINITIONS.json      # 10,775-line label/legend definition specs (v5.5, 126 categories, warnings aligned to TAG7)
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv    # 122 tag container definitions (v5.0)
         ├── TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv # 179 discipline/system/function code mappings (v5.0)
@@ -165,9 +185,21 @@ STINGTOOLS/
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
         ├── TAG_GUIDE_V3.csv            # Tag reference guide (newest CSV version)
         ├── TAG_PLACEMENT_PRESETS_DEFAULT.json  # Default tag placement preset (12 category rules)
+        ├── TAG_STYLE_RULES.json        # Tag style engine rules (v2.0, 128 type combinations, discipline presets)
         ├── WORKFLOW_DailyQA_Enhanced.json     # Enhanced Daily QA workflow (8 conditional steps)
         ├── cost_rates_5d.csv            # 5D cost rates (7-col: Category, MAT_CODE, MAT_DISCIPLINE, rates, Unit, Description)
-        └── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks, ported to C#)
+        ├── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks, ported to C#)
+        ├── COBIE_TYPE_MAP.csv          # 70+ equipment types with STING token mapping
+        ├── COBIE_SYSTEM_MAP.csv        # 31 building system mappings with Uniclass/CIBSE codes
+        ├── COBIE_PICKLISTS.csv         # COBie V2.4 controlled vocabularies (124 entries)
+        ├── COBIE_ATTRIBUTE_TEMPLATES.csv # Expected attributes per COBie entity type (82 entries)
+        ├── COBIE_JOB_TEMPLATES.csv     # SFG20/BS 8210 maintenance job templates (47 entries)
+        ├── COBIE_SPARE_PARTS.csv       # Spare parts per equipment type (38 entries)
+        ├── COBIE_DOCUMENT_TYPES.csv    # 28 O&M document types with regulatory references
+        ├── COBIE_ZONE_TYPES.csv        # 16 zone type classifications (fire, HVAC, lighting, acoustic, etc.)
+        ├── project_bep.json            # Project-specific BEP configuration template
+        ├── TAGGING_GUIDE.md            # Complete tagging guide documentation
+        └── TAG_FAMILY_CREATION_GUIDE.md # End-to-end tag family creation workflow guide
 ```
 
 ## Ribbon UI Architecture (Legacy)
@@ -377,9 +409,12 @@ STINGTOOLS/
 | `Core/WorkflowEngine.cs` | 4 (WorkflowPreset, ListPresets, CreatePreset, WorkflowTrend) + WorkflowEngine + WorkflowRunRecord + JSONL log rotation | 880 |
 | `Core/ComplianceScan.cs` | 0 (cached compliance scan + per-discipline DiscComplianceData + torn-read fix) | 219 |
 | `Core/OutputLocationHelper.cs` | 0 (centralized output directory management with fallback chain) | 222 |
+| `Core/IPanelCommand.cs` | 0 (interface + SafeApp/SafeDoc/SafeUIDoc extension methods) | 64 |
+| `Core/PerformanceTracker.cs` | 0 (performance profiling engine, per-element timing, CSV export) | 267 |
 | `Select/CategorySelectCommands.cs` | 16 (14 category selectors + SelectAllTaggable + SelectCustomCategory) | 322 |
 | `Select/StateSelectCommands.cs` | 10 (5 state + 2 spatial + BulkParamWrite + SelectStale + QuickTagPreview) | 835 |
 | `Select/ColorCommands.cs` | 5 (ColorByParameter, ClearOverrides, SavePreset, LoadPreset, CreateFilters) + ColorHelper | 922 |
+| `Select/TagSelectorCommands.cs` | 1+ (multi-criteria tag selector: text, size, arrowhead, leader, family, host, orientation, discipline) | 1,119 |
 | `Docs/SheetOrganizerCommand.cs` | 1 | 103 |
 | `Docs/ViewOrganizerCommand.cs` | 1 | 93 |
 | `Docs/SheetIndexCommand.cs` | 1 | 78 |
@@ -388,6 +423,8 @@ STINGTOOLS/
 | `Docs/DocAutomationCommands.cs` | 3 (DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets) | 459 |
 | `Docs/DocAutomationExtCommands.cs` | 12 (BatchViews, BatchSheets, DependentViews, ScopeBox, ViewTemplate, DocPackage, Sections, Elevations, DrawingRegister, BrowserOrganizer, RevisionCloudAutoCreate, HandoverManual) | 3,168 |
 | `Docs/ViewAutomationCommands.cs` | 6 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign) | 825 |
+| `Docs/HandoverExportCommands.cs` | 5+ (COBie 2.4 export, maintenance schedule, O&M manual, asset health report, space handover) | 1,316 |
+| `Docs/JournalParserCommand.cs` | 1 (Revit journal diagnostics: error/crash/command/memory analysis) | 494 |
 | `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 355 |
 | `Tags/BatchTagCommand.cs` | 3 (BatchTag, TagFormatMigration, TagChanged) | 621 |
 | `Tags/TagAndCombineCommand.cs` | 1 | 235 |
@@ -433,6 +470,20 @@ STINGTOOLS/
 | `Temp/TemplateExtCommands.cs` | 6 (LinePatterns, Phases, ApplyFilters, CableTrays, Conduits, MaterialSchedules) | 316 |
 | `Temp/TemplateManagerCommands.cs` | 18 (AutoAssign, Audit, Diff, Compliance, AutoFix, SyncOverrides, FillPatterns, LineStyles, ObjectStyles, TextStyles, DimStyles, VGOverrides, BatchFamilyParams, TemplateSchedules, SetupWizard, CloneTemplate, BatchVGReset, FamilyParameterProcessor) + TemplateManager engine | 3,893 |
 | `Temp/DataPipelineCommands.cs` | 11 (ValidateTemplate, DynamicBindings, SchemaValidate, BOQExport, TemplateVGAudit, ExportIfcPropertyMap, ValidateBepCompliance, ClashDetection, IFCExport, ExcelBOQImport, KeynoteSync) | 3,013 |
+| `Temp/DataPipelineEnhancementCommands.cs` | 5+ (cross-validation: registry vs CSV drift, parameter coverage, field remapping) | 645 |
+| `Temp/AutoModelCommands.cs` | 2+ (DWG-to-BIM automation, link DWG/DXF, batch import) | 1,462 |
+| `Temp/COBieDataCommands.cs` | 2+ (COBie reference data management, type map browser, picklists) | 1,533 |
+| `Temp/DWGImportCommands.cs` | 2+ (CAD import with layer mapping, 18-category pattern recognition) | 1,612 |
+| `Temp/IoTMaintenanceCommands.cs` | 4+ (asset condition ISO 15686, maintenance scheduling, digital twin, energy) | 745 |
+| `Temp/MEPCreationCommands.cs` | 2+ (MEP equipment placement: HVAC, electrical, plumbing, fire) | 601 |
+| `Temp/MEPScheduleCommands.cs` | 7 (panel, fixture, device, equipment, system, takeoff, sizing check schedules) | 705 |
+| `Temp/ModelCreationCommands.cs` | 5+ (programmatic BIM creation: walls, floors, ceilings, roofs, columns, beams, stairs) | 980 |
+| `Temp/OperationsCommands.cs` | 5+ (workflow presets, PDF/IFC/COBie export, clash detection, batch operations) | 1,005 |
+| `Temp/RoomSpaceCommands.cs` | 3+ (room audit, department assignment, room schedule with tag integration) | 623 |
+| `Temp/StandardsEngine.cs` | 0 (standards compliance: ISO 19650, CIBSE, BS 7671, Uniclass, BS 8300, Part L) | 795 |
+| `Tags/NLPCommandProcessor.cs` | 0 (NLP intent recognition engine, 50+ patterns) | 453 |
+| `Tags/TagIntelligenceCommands.cs` | 8+ (rule engine, quality analysis, batch chain, version control, propagation, analytics, smart suggestion) | 1,615 |
+| `Tags/TagStyleEngineCommands.cs` | 7+ (rule-based tag family type switching, 128 style combinations, JSON-driven rules) | 1,870 |
 | `Tags/Tag3DCommand.cs` | 1 (Tag3D — tags elements in 3D views) | 139 |
 | `Tags/RepairDuplicateSeqCommand.cs` | 1 (RepairDuplicateSeq — smart duplicate SEQ repair) | 124 |
 | `UI/StingCommandHandler.cs` | 1 (IExternalEventHandler — dispatches 590+ button tags to 376 commands + ~96 inline helpers) | 4,826 |
@@ -445,7 +496,7 @@ STINGTOOLS/
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **387 commands** | **~96,000** |
+| **Total** | **~506 commands** | **~114,000** |
 
 ## Core Classes
 
@@ -677,6 +728,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `StingProgressDialog` | `UI/StingProgressDialog.cs` | Modeless WPF progress window: progress bar, ETA, cancel button, Escape key detection |
 | `EscapeChecker` | `Core/StingLog.cs` | Win32 `GetAsyncKeyState` wrapper for Escape key cancellation detection |
 | `ThemeManager` | `UI/ThemeManager.cs` | WPF theme engine: 4 themes (Dark/Light/Grey/Corporate), 13 color resource keys, `ApplyTheme`, `CycleTheme`, `ApplyCorporateOverrides` |
+| `IPanelCommand` | `Core/IPanelCommand.cs` | Interface for WPF dockable panel commands; `SafeApp()`, `SafeDoc()`, `SafeUIDoc()` extension methods for robust UIApplication resolution |
+| `PerformanceTracker` | `Core/PerformanceTracker.cs` | Lightweight performance profiling: per-operation/element timing, LRU slowest tracking (100 entries), CSV export, thread-safe `ConcurrentDictionary` |
+| `NLPCommandProcessor` | `Tags/NLPCommandProcessor.cs` | Natural language intent recognition engine: 50+ patterns mapping queries to STING command classes with confidence scoring |
+| `StandardsEngine` | `Temp/StandardsEngine.cs` | Standards compliance framework: ISO 19650, CIBSE velocity limits, BS 7671 electrical, Uniclass 2015, BS 8300 accessibility, Part L energy |
 
 ## ISO 19650 Tag Format
 
@@ -1591,6 +1646,31 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 236. **ParamRegistry GUID supplement** — `LoadFromFile()` now supplements `_guidByName` dictionary from MR_PARAMETERS.txt at load time, bridging the gap between PARAMETER_REGISTRY.json (638 params) and MR file (1447+ params).
 237. **cost_rates_5d.csv** — Created with 7-column format (Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description) covering all Revit categories with STING DISC codes.
 238. **New command classes** — StingParamManagerCommand (browse/add/stats shared params), StingMaterialManagerCommand (browse/create/export materials), PrintSheetsCommand (PDF export with scope), MagicRenameCommand (universal rename with prefix/suffix/find-replace/case/numbering), ViewTabColourCommand (discipline view analysis), RibbonPanelStylerCommand (ribbon config info). All dispatch entries wired.
+
+#### Completed (Phase 28 — Module Expansion: FM Handover, MEP, CAD, Standards, Operations)
+
+256. **IPanelCommand interface** — `Core/IPanelCommand.cs` (64 lines): Interface for WPF dockable panel commands with `SafeApp()`, `SafeDoc()`, `SafeUIDoc()` extension methods preventing Revit crashes from ExternalCommandData reflection hacks.
+257. **Performance profiling** — `Core/PerformanceTracker.cs` (267 lines): Lightweight per-operation/per-element timing, session aggregation, slowest-element tracking (100-entry LRU), CSV export, thread-safe `ConcurrentDictionary`.
+258. **FM/O&M handover export** — `Docs/HandoverExportCommands.cs` (1,316 lines, 5+ commands): COBie 2.4 spreadsheet generation (11 sheets), maintenance schedule (PPM + ASTM E2018), O&M manual, asset health report (0-100 scoring), space handover report.
+259. **Revit journal diagnostics** — `Docs/JournalParserCommand.cs` (494 lines): Parse journal files for addin load status, errors, crashes, command timeline, memory usage with CSV export.
+260. **Multi-criteria tag selector** — `Select/TagSelectorCommands.cs` (1,119 lines): Select annotation tags by text, size, arrowhead, leader, family, host category, orientation, discipline via 3-page wizard.
+261. **NLP command processor** — `Tags/NLPCommandProcessor.cs` (453 lines): Natural language intent recognition mapping queries to STING commands with 50+ patterns and confidence scoring.
+262. **Tag intelligence commands** — `Tags/TagIntelligenceCommands.cs` (1,615 lines, 8+ commands): Configurable tag rule engine, deep quality analysis, batch command chains, tag version control, propagation, analytics dashboard, smart suggestion.
+263. **Tag style engine commands** — `Tags/TagStyleEngineCommands.cs` (1,870 lines, 7+ commands): Rule-based tag family type switching with 128 style combinations via JSON-driven TAG_STYLE_RULES.json.
+264. **DWG-to-BIM automation** — `Temp/AutoModelCommands.cs` (1,462 lines, 2+ commands): Link DWG/DXF with auto-level matching, tracing geometry extraction, batch import with progress.
+265. **COBie data management** — `Temp/COBieDataCommands.cs` (1,533 lines, 2+ commands): Browse COBie type map (70+ equipment types), picklists, job templates, spare parts, attribute templates with pagination.
+266. **CAD import with layer mapping** — `Temp/DWGImportCommands.cs` (1,612 lines, 2+ commands): Preview layer mappings, 18-category pattern recognition, auto-detect, mapping preview before commit.
+267. **Cross-validation pipeline** — `Temp/DataPipelineEnhancementCommands.cs` (645 lines, 5+ commands): Registry vs CSV drift detection, parameter coverage analysis, field remapping validation.
+268. **IoT & maintenance** — `Temp/IoTMaintenanceCommands.cs` (745 lines, 4+ commands): Asset condition assessment (ISO 15686), maintenance scheduling, digital twin sync, energy analysis, commissioning.
+269. **MEP equipment placement** — `Temp/MEPCreationCommands.cs` (601 lines, 2+ commands): Programmatic MEP creation covering HVAC, electrical, plumbing, fire, conduit, cable tray, data/IT, security, gas, solar, EV.
+270. **MEP schedules** — `Temp/MEPScheduleCommands.cs` (705 lines, 7 commands): Panel, fixture, device, equipment, system, takeoff, sizing check schedules with discipline-specific field population.
+271. **Programmatic BIM creation** — `Temp/ModelCreationCommands.cs` (980 lines, 5+ commands): Walls (generic/curtain/stacked/compound), floors, ceilings, roofs, doors, windows, columns, beams, stairs, rooms.
+272. **Workflow & batch operations** — `Temp/OperationsCommands.cs` (1,005 lines, 5+ commands): Preset sequences (Full Setup, Tag Pipeline, Export Package, QA, MEP Audit), PDF/IFC/COBie export, clash detection.
+273. **Room & space management** — `Temp/RoomSpaceCommands.cs` (623 lines, 3+ commands): Room audit (unnamed/unplaced/unbounded/zero-area), department auto-assignment, room schedule with tag integration.
+274. **Standards compliance engine** — `Temp/StandardsEngine.cs` (795 lines): ISO 19650, CIBSE velocity limits, BS 7671 electrical circuit protection, Uniclass 2015 classification, BS 8300 accessibility, Part L energy compliance.
+275. **COBie reference data files** — 8 new CSV files (COBIE_TYPE_MAP, COBIE_SYSTEM_MAP, COBIE_PICKLISTS, COBIE_ATTRIBUTE_TEMPLATES, COBIE_JOB_TEMPLATES, COBIE_SPARE_PARTS, COBIE_DOCUMENT_TYPES, COBIE_ZONE_TYPES) totalling ~444 rows of structured reference data.
+276. **Material lookup database** — `MATERIAL_LOOKUP.csv` (237 rows): Comprehensive material reference with density, thermal, fire rating, acoustic, embodied carbon, cost properties.
+277. **Tag style rules** — `TAG_STYLE_RULES.json`: 128 type catalog with discipline presets and top-down rule evaluation for automated tag family type switching.
 
 ### External Tool References
 
