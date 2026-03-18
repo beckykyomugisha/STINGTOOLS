@@ -1981,6 +1981,86 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- IoT / SENSOR DATA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="IoT — SENSOR DATA"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Live BMS/sensor feeds linked to tagged elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link" Tag="IoTSensorLink" Click="Cmd_Click"
+                                            ToolTip="Connect BMS/IoT sensor feeds to tagged elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IoT Dashboard" Tag="IoTDashboard" Click="Cmd_Click"
+                                            ToolTip="View live sensor data dashboard for tagged assets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig" Click="Cmd_Click"
+                                            ToolTip="Configure anomaly detection alerts for sensor feeds"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="History Export" Tag="IoTHistoryExport" Click="Cmd_Click"
+                                            ToolTip="Export historical sensor data for tagged elements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- STANDARDS / COMPLIANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STANDARDS — COMPLIANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Standards validation and compliance checking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO 19650" Tag="ISO19650Checker" Click="Cmd_Click"
+                                            ToolTip="Run ISO 19650 compliance checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BS 1192" Tag="BS1192Checker" Click="Cmd_Click"
+                                            ToolTip="Run BS 1192 naming convention checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Check" Tag="COBieValidator" Click="Cmd_Click"
+                                            ToolTip="Validate COBie data completeness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingConventionAudit" Click="Cmd_Click"
+                                            ToolTip="Audit element and view naming conventions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification" Tag="ClassificationAudit" Click="Cmd_Click"
+                                            ToolTip="Audit Uniclass/OmniClass classification codes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DATA PIPELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Export, import, and batch data operations" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="PDF Export" Tag="PDFExport" Click="Cmd_Click"
+                                            ToolTip="Export sheets to PDF"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Quantity Takeoff" Tag="QuantityTakeoff" Click="Cmd_Click"
+                                            ToolTip="Export quantity takeoff to Excel"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detection" Tag="ClashDetection" Click="Cmd_Click"
+                                            ToolTip="Run MEP vs structural clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Model Health" Tag="ModelHealthCheck" Click="Cmd_Click"
+                                            ToolTip="Run model health check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Params" Tag="BatchParameterExport" Click="Cmd_Click"
+                                            ToolTip="Export all tag parameters to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Project Dashboard" Tag="ProjectDashboard" Click="Cmd_Click"
+                                            ToolTip="Display project-wide statistics dashboard"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MEP SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Discipline-specific MEP schedule generation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="HVAC" Tag="MEPScheduleHVAC" Click="Cmd_Click"
+                                            ToolTip="Generate HVAC equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Electrical" Tag="MEPScheduleElec" Click="Cmd_Click"
+                                            ToolTip="Generate electrical equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="MEPSchedulePlumb" Click="Cmd_Click"
+                                            ToolTip="Generate plumbing equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="MEPScheduleFire" Click="Cmd_Click"
+                                            ToolTip="Generate fire protection schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All MEP" Tag="MEPScheduleAll" Click="Cmd_Click"
+                                            ToolTip="Generate all MEP discipline schedules"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CDE and DOCUMENT CONTROL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
                         <Border Style="{StaticResource GroupBorder}">

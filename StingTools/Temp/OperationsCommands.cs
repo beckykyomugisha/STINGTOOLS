@@ -1030,4 +1030,146 @@ namespace StingTools.Temp
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  PrintSheetsCommand — PDF/Print export for sheets
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export sheets to PDF. Supports scope selection (all sheets, selected
+    /// sheets, active view) via TaskDialog or ExtraParam "PdfScope".
+    /// Uses Revit's built-in PDF export API when available.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class PrintSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                // Check for ExtraParam scope override from StingCommandHandler
+                string scopeOverride = UI.StingCommandHandler.GetExtraParam("PdfScope");
+                UI.StingCommandHandler.ClearExtraParam("PdfScope");
+
+                string scope = scopeOverride;
+                if (string.IsNullOrEmpty(scope))
+                {
+                    var dlg = new TaskDialog("STING Print/PDF Export");
+                    dlg.MainInstruction = "PDF Export Scope";
+                    dlg.MainContent = "Select which sheets to export to PDF.";
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "All Sheets",
+                        "Export every sheet in the project.");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Selected Sheets",
+                        "Export only currently selected sheets.");
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Active View",
+                        "Export the currently active view/sheet.");
+                    dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                    var result = dlg.Show();
+                    if (result == TaskDialogResult.CommandLink1) scope = "All";
+                    else if (result == TaskDialogResult.CommandLink2) scope = "Selected";
+                    else if (result == TaskDialogResult.CommandLink3) scope = "Active";
+                    else return Result.Cancelled;
+                }
+
+                // Collect target sheets/views
+                var sheetIds = new List<ElementId>();
+
+                if (scope == "All")
+                {
+                    var sheets = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .Where(s => !s.IsPlaceholder)
+                        .OrderBy(s => s.SheetNumber)
+                        .ToList();
+                    sheetIds.AddRange(sheets.Select(s => s.Id));
+                }
+                else if (scope == "Selected")
+                {
+                    var sel = ctx.UIDoc.Selection.GetElementIds();
+                    foreach (var id in sel)
+                    {
+                        if (doc.GetElement(id) is ViewSheet sheet && !sheet.IsPlaceholder)
+                            sheetIds.Add(id);
+                    }
+                    if (sheetIds.Count == 0)
+                    {
+                        TaskDialog.Show("STING", "No sheets selected. Select sheets in the Project Browser first.");
+                        return Result.Cancelled;
+                    }
+                }
+                else if (scope == "Active")
+                {
+                    var view = ctx.ActiveView;
+                    if (view != null)
+                        sheetIds.Add(view.Id);
+                    else
+                    {
+                        TaskDialog.Show("STING", "No active view available.");
+                        return Result.Cancelled;
+                    }
+                }
+
+                if (sheetIds.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No sheets found for export.");
+                    return Result.Cancelled;
+                }
+
+                // Attempt PDF export using Revit API
+                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string pdfDir = Path.Combine(outputDir, "PDF_Export");
+                if (!Directory.Exists(pdfDir))
+                    Directory.CreateDirectory(pdfDir);
+
+                // Try Revit 2022+ PDF export API
+                try
+                {
+                    var pdfOptions = new PDFExportOptions();
+                    pdfOptions.FileName = doc.Title ?? "STING_Export";
+                    pdfOptions.Combine = sheetIds.Count > 1;
+
+                    bool exported = doc.Export(pdfDir, sheetIds, pdfOptions);
+                    if (exported)
+                    {
+                        TaskDialog.Show("PDF Export",
+                            $"Successfully exported {sheetIds.Count} sheet(s) to:\n{pdfDir}");
+                        StingLog.Info($"PrintSheets: exported {sheetIds.Count} sheets to {pdfDir}");
+                        return Result.Succeeded;
+                    }
+                    else
+                    {
+                        TaskDialog.Show("PDF Export",
+                            $"PDF export returned false for {sheetIds.Count} sheet(s).\n" +
+                            $"Check that a valid PDF printer is installed.\n\n" +
+                            $"Alternative: Use File > Export > PDF in Revit.");
+                        return Result.Failed;
+                    }
+                }
+                catch (Exception pdfEx)
+                {
+                    StingLog.Warn($"PDF export API failed: {pdfEx.Message}");
+                    TaskDialog.Show("PDF Export",
+                        $"PDF export is not available in this Revit version.\n\n" +
+                        $"Found {sheetIds.Count} sheet(s) for export.\n" +
+                        $"Use File > Export > PDF in Revit, or install a PDF printer driver\n" +
+                        $"and use File > Print.");
+                    return Result.Failed;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PrintSheetsCommand failed", ex);
+                try { TaskDialog.Show("STING", $"Print/PDF failed:\n{ex.Message}"); } catch { }
+                return Result.Failed;
+            }
+        }
+    }
 }

@@ -967,6 +967,10 @@ namespace StingTools.Core
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
 
+                // FIX-10.2: Restore auto-tagger visual setting
+                if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)
+                    try { Core.StingAutoTagger.SetVisualTagging(_avtb); } catch { }
+
                 // FL-03: Load separator history for cross-session tag validation compatibility
                 var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
                 if (sepHistory != null && sepHistory.Count > 0)
@@ -1236,7 +1240,8 @@ namespace StingTools.Core
                     ["COMPLIANCE_GATE_PCT"] = ComplianceGatePct,
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
-                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides
+                    ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
+                    ["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled
                 };
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -1251,6 +1256,24 @@ namespace StingTools.Core
             {
                 StingLog.Error($"TagConfig save failed to {path}: {ex.Message}", ex);
                 return false;
+            }
+        }
+
+        /// <summary>FIX-10.1: Set a single config key and persist to project_config.json (if ConfigSource is a file path).</summary>
+        public static void SetConfigValue(string key, object value)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
+                string json = File.ReadAllText(ConfigSource);
+                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                    ?? new Dictionary<string, object>();
+                data[key] = value;
+                File.WriteAllText(ConfigSource, JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
             }
         }
 

@@ -1406,3 +1406,66 @@ PARAM	1149f279-699c-59a4-80e1-2323f4215278	WARN_STR_STIFFENER_WELD	TEXT		18	1	Wa
 PARAM	f81ac5b3-62fc-5104-b9b8-2863203a6941	WARN_STR_TRUSS_SPAN	TEXT		18	1	Warning: Truss span limit [HIGH]	1
 PARAM	ad5b3ff0-5ad9-5b58-a40a-bef5eb9cef36	WARN_STR_WLD_STRENGTH_MPA	TEXT		18	1	Warning: Weld strength minimum [CRITICAL]	1
 PARAM	3346cfd2-c1b6-5b8d-81fe-594737dd5ca5	WARN_STR_WLD_THROAT_MM	TEXT		18	1	Warning: Weld throat thickness minimum [HIGH]	1
+PARAM	d9857cf9-f3c7-59ce-ac1e-1cb9e165403e	ASS_ASSEMBLY_CODE_TXT	TEXT		1	1	Assembly code from Revit type [ISO 19650-2:2018]	1
+PARAM	e1117fc3-6753-5569-ae84-e34014a48f19	ASS_ASSEMBLY_DESC_TXT	TEXT		1	1	Assembly description from Revit type [ISO 19650-2:2018]	1
+PARAM	b6be2fbe-d1ce-57c7-aac7-5ba84b0d7476	ASS_BOUNDING_VOL_CU_M	NUMBER		1	1	Element bounding volume in cubic metres	1
+PARAM	84faf301-8f26-5312-bcef-87712c25b9f8	ASS_CONNECTED_ELEMENTS_TXT	TEXT		1	1	Connected element tags (pipe/duct connections)	1
+PARAM	88e92abe-385f-55a3-8734-43458adb98f2	ASS_DESIGN_OPTION_TXT	TEXT		1	1	Design option name for element	1
+PARAM	6954e197-0524-5620-a2bb-aea7f274475a	ASS_DISPLAY_TXT	TEXT		17	1	Display mode tag text (short-form tag)	1
+PARAM	fe2d8cd1-5f3c-55d2-b303-29ca59f1d651	ASS_ELEVATION_M	NUMBER		1	1	Element elevation in metres from project base	1
+PARAM	d9a5078f-1c08-56f9-b4e0-5feeb97692e0	ASS_FLOW_RATE_TXT	TEXT		5	1	Flow rate for MEP elements	1
+PARAM	50f91aad-5ca3-55b6-8250-aa4d836d5bb7	ASS_HOST_ELEMENT_TXT	TEXT		1	1	Host element tag (wall/floor/ceiling hosting this element)	1
+PARAM	cfc716aa-126d-5e9e-a9e8-3c2a2b52d933	ASS_INSTALLATION_DATE_TXT	TEXT		1	1	Planned or actual installation date [ISO 19650-3:2020]	1
+PARAM	d4bf2fea-4aa2-524e-935b-84865b7b406a	ASS_NOTES_TXT	TEXT		1	1	General notes field for element-level annotations	1
+PARAM	fd9dbd9d-3e18-5576-a86f-a050d6262706	ASS_PHASE_CREATED_TXT	TEXT		1	1	Revit phase in which element was created	1
+PARAM	4eaba807-1932-5a6c-b83a-598c36830481	ASS_PHASE_DEMOLISHED_TXT	TEXT		1	1	Revit phase in which element is demolished	1
+PARAM	28c52839-f0b9-55f6-bc9e-7cad2149acc3	ASS_POWER_RATING_TXT	TEXT		4	1	Electrical power rating (kW/VA)	1
+PARAM	a626d6ee-8bc6-532b-8dc8-2d8a1a8637c3	ASS_ROOM_HEIGHT_MM	NUMBER		10	1	Room height in mm from room bounding geometry	1
+PARAM	a3325c40-fe23-5387-a8dc-2ae36f551d90	ASS_WORKSET_TXT	TEXT		1	1	Workset name for worksharing tracking	1
+PARAM	36f20bb4-9f62-59be-8747-9d96655a9136	BLE_PARKING_WIDTH_MM	LENGTH		10	1	Parking bay width in mm [BS 8300]	1
+PARAM	4075ffb1-b93e-5970-a963-501c205f1aba	BLE_RAIL_HEIGHT_MM	LENGTH		10	1	Handrail height in mm [BS 6180 / Building Regs K]	1
+PARAM	c1a47da9-f17f-5371-b3b4-e949133cb4c5	COM_BACKBONE_CAPACITY_TXT	TEXT		3	1	Communications backbone capacity (Gbps/fibre count)	1
+PARAM	90103260-cba6-50da-8114-31a1cb2bd1e8	COM_FIBER_TYPE_TXT	TEXT		3	1	Fibre optic cable type (SM/MM/OM3/OM4)	1
+PARAM	06dd171f-a679-57ad-92f2-630bd05e5634	COM_PROTOCOL_TXT	TEXT		3	1	Communications protocol (Ethernet/WiFi6/5G/BACnet)	1
+PARAM	a1361cc9-0cdf-5242-b174-e42be709cb9c	MEP_DESIGN_TEMP_C	NUMBER		5	1	Design temperature in degrees Celsius	1
+PARAM	cec7bae6-3598-5c85-8dff-05c918a32767	MEP_DELTA_PRESS_PA	NUMBER		5	1	Differential pressure in Pascals	1
+PARAM	b50e813b-04a9-5914-96f3-2b4eec5b23e5	MEP_DIVERSITY_FACTOR	NUMBER		5	1	Load diversity factor (0.0 to 1.0)	1
+PARAM	a1804903-df4f-55a5-a59c-34307c22f6f8	MEP_NOISE_LEVEL_DB	NUMBER		5	1	Noise level in decibels (dBA)	1
+PARAM	75818724-2312-52e3-bde3-7e3af87ef18d	MEP_PUMP_HEAD_M	NUMBER		5	1	Pump head pressure in metres of water	1
+PARAM	71d9f078-60f2-5ce4-8c4a-c791fb050a3a	MNT_CONDITION_GRADE_TXT	TEXT		1	1	Asset condition grade (1-5 scale per SFG20)	1
+PARAM	00096b96-c7c9-53fa-b4e3-b3c7cd61994b	MNT_CRITICALITY_RATING_TXT	TEXT		1	1	Asset criticality rating (Critical/High/Medium/Low)	1
+PARAM	2c5ded5d-fe6f-5631-b0fe-c3b0f2e77ed5	MNT_LAST_INSPECTION_TXT	TEXT		1	1	Date of last maintenance inspection	1
+PARAM	9f8f7d36-e0c3-59f6-9b3a-bc618fabe0f7	MNT_REPLACEMENT_YEAR	INTEGER		1	1	Planned replacement year for lifecycle planning	1
+PARAM	1c2c0236-5c2b-5eb9-8a61-93165c69a44c	MNT_WARRANTY_EXPIRY_TXT	TEXT		1	1	Warranty expiry date	1
+PARAM	6f0933e3-dd48-5c89-b7bd-1fcfb4dbd6e7	PER_CARBON_KG_CO2E	NUMBER		9	1	Embodied carbon in kg CO2 equivalent [EN 15978]	1
+PARAM	03059845-fddf-5d74-b4f2-9c5523f5e33e	PER_EMBODIED_ENERGY_MJ	NUMBER		9	1	Embodied energy in megajoules [EN 15978]	1
+PARAM	34af60d9-b0f4-5d16-8775-6bcafd7bd82e	PER_FIRE_RATING_MINS	INTEGER		9	1	Fire resistance rating in minutes [BS 476 / EN 13501]	1
+PARAM	e02216fb-9fc6-5af3-8ae8-dfb457b2ceb6	PER_U_VALUE_W_M2K	NUMBER		9	1	Thermal transmittance U-value W/m2K [BR Part L]	1
+PARAM	b110e059-12a9-577b-98d2-97bac3006b37	RGL_ACCESSIBILITY_GRADE_TXT	TEXT		15	1	Accessibility compliance grade [BS 8300 / Equality Act 2010]	1
+PARAM	0622ba9f-fe83-56e9-ab82-37d576db892c	RGL_BUILDING_REG_REF_TXT	TEXT		15	1	Building Regulations reference (Part A-P) [England/Wales]	1
+PARAM	368bc1e1-226d-56a3-b382-a0c2a5055b68	RGL_CDM_RISK_LEVEL_TXT	TEXT		15	1	CDM 2015 risk level (High/Medium/Low/Negligible)	1
+PARAM	83154e2f-33de-5bd2-ab98-62bfc2da97b9	STR_MATERIAL_GRADE_TXT	TEXT		16	1	Structural material grade (C30/37, S355, GL24h)	1
+PARAM	a261879e-2028-5098-991d-0b08317dba46	VIEW_COLOR_SCHEME_TXT	TEXT		17	1	Active color scheme name for view	1
+PARAM	d86c87a8-679e-5d55-8eb4-d8e8038a56c5	VIEW_DISC_FILTER_TXT	TEXT		17	1	Discipline filter codes for view (comma-separated)	1
+PARAM	e2d68782-f71e-5716-b559-e8795f7f5e5d	TAG_TEXT_COLOUR_TEXT	TEXT		17	1	Tag text colour override (RGB hex or named colour)	1
+PARAM	4ceac996-f3f3-5ba5-8049-06bbbd354ede	TAG_BOX_VISIBLE_BOOL	YESNO		17	1	Tag box/border visibility flag	1
+PARAM	1c702447-9f7c-52d4-bcd6-94effef32cf1	TAG_BOX_COLOR_TEXT	TEXT		17	1	Tag box border colour (RGB hex or named colour)	1
+PARAM	9147f06c-a402-5b7d-a518-7f0c8e3be909	TAG_BOX_LINE_WEIGHT	INTEGER		17	1	Tag box border line weight (1-16)	1
+PARAM	17cfe49e-f2a2-5c60-a750-124673a6eb80	TAG_BOX_STYLE_TEXT	TEXT		17	1	Tag box style (Solid/Dashed/None)	1
+PARAM	700f66dd-5fb4-56d4-b160-131462898bc9	TAG_BOX_PADDING_MM	NUMBER		17	1	Tag box padding in mm	1
+PARAM	e673009f-bfbc-59e9-b05f-1d1aa970cb51	TAG_LEADER_ARROW_STYLE_TEXT	TEXT		17	1	Leader arrowhead style (Filled/Open/Dot/None)	1
+PARAM	6474a716-f0ab-59d3-9379-2b4760ba13d5	TAG_LEADER_ELBOW_TYPE_TEXT	TEXT		17	1	Leader elbow type (Straight/45deg/90deg/Free)	1
+PARAM	f6ce6f37-83ee-5884-a33f-ee468978517e	TAG_LEADER_LINE_WEIGHT	INTEGER		17	1	Leader line weight (1-16)	1
+PARAM	a8194ccf-05ae-5eb4-87b5-38bacb4324fe	TAG_7_SECTION_VISIBLE_A_BOOL	YESNO		17	1	TAG7 Section A (Identity) visibility flag	1
+PARAM	b561a313-f873-5648-a127-3e917b5f5dd0	TAG_7_SECTION_VISIBLE_B_BOOL	YESNO		17	1	TAG7 Section B (System) visibility flag	1
+PARAM	0e535d1a-d2eb-5b15-b954-360ad46e1a57	TAG_7_SECTION_VISIBLE_C_BOOL	YESNO		17	1	TAG7 Section C (Spatial) visibility flag	1
+PARAM	74f5360e-4107-539f-af72-38389e7b64bd	TAG_7_SECTION_VISIBLE_D_BOOL	YESNO		17	1	TAG7 Section D (Lifecycle) visibility flag	1
+PARAM	fdb2ccfa-6128-545c-8b6c-6a656d418948	TAG_7_SECTION_VISIBLE_E_BOOL	YESNO		17	1	TAG7 Section E (Technical) visibility flag	1
+PARAM	329929ad-5f26-5d15-98b2-54604ecda858	TAG_7_SECTION_VISIBLE_F_BOOL	YESNO		17	1	TAG7 Section F (Classification) visibility flag	1
+PARAM	3ac69694-7584-5ba2-9bce-4d045ca21088	TAG_PARA_STATE_4_BOOL	YESNO		17	1	Paragraph depth state tier 4	1
+PARAM	c9045501-eee6-54ce-b725-3ea589ee8025	TAG_PARA_STATE_5_BOOL	YESNO		17	1	Paragraph depth state tier 5	1
+PARAM	9b913556-ac00-5a04-b53c-1e262498ad1d	TAG_PARA_STATE_6_BOOL	YESNO		17	1	Paragraph depth state tier 6	1
+PARAM	8eb03b28-aaf9-5803-8e87-f0655afbf08d	TAG_PARA_STATE_7_BOOL	YESNO		17	1	Paragraph depth state tier 7	1
+PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8	1
+PARAM	482475c4-be76-5db3-87a6-8aac4a53dc74	TAG_PARA_STATE_9_BOOL	YESNO		17	1	Paragraph depth state tier 9	1
+PARAM	8be3ef27-42ab-5668-8cd0-a376578c805a	TAG_PARA_STATE_10_BOOL	YESNO		17	1	Paragraph depth state tier 10	1

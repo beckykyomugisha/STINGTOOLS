@@ -928,6 +928,51 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
+                    // Operations Commands (OperationsCommands.cs, StingTools.Temp)
+                    case "PDFExport": RunCommand<Temp.PDFExportCommand>(app); break;
+                    case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "ModelHealthCheck": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
+                    case "BatchParameterExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
+                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardCommand>(app); break;
+                    case "WorkflowPreset": RunCommand<Temp.WorkflowPresetCommand>(app); break;
+                    case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
+                    case "PrintSheets": RunCommand<Temp.PrintSheetsCommand>(app); break;
+
+                    // IoT / Sensor Data (planned — informative stubs)
+                    case "IoTSensorLink":
+                    case "IoTDashboard":
+                    case "IoTAlertConfig":
+                    case "IoTHistoryExport":
+                        TaskDialog.Show("STING — IoT",
+                            $"'{tag}' IoT/sensor integration is planned for a future release.\n\n" +
+                            "This will connect live BMS/sensor feeds to tagged elements\n" +
+                            "for real-time performance monitoring and anomaly detection.");
+                        break;
+
+                    // Standards / Compliance (planned — informative stubs)
+                    case "ISO19650Checker":
+                    case "BS1192Checker":
+                    case "COBieValidator":
+                    case "UnicodeValidator":
+                    case "NamingConventionAudit":
+                    case "ClassificationAudit":
+                        TaskDialog.Show("STING — Standards",
+                            $"'{tag}' standards checker is planned for a future release.\n\n" +
+                            "Use 'Validate Tags' and 'Pre-Tag Audit' for current ISO 19650 compliance checking.");
+                        break;
+
+                    // MEP Schedule shortcuts
+                    case "MEPScheduleHVAC":
+                    case "MEPScheduleElec":
+                    case "MEPSchedulePlumb":
+                    case "MEPScheduleFire":
+                    case "MEPScheduleAll":
+                        TaskDialog.Show("STING — MEP Schedules",
+                            $"'{tag}' MEP-specific schedule generation is planned for a future release.\n\n" +
+                            "Use 'Batch Create Schedules' (TEMP tab) to create MEP schedules from CSV definitions.");
+                        break;
+
                     // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
                     case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
