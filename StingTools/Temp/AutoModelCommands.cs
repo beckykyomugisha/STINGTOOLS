@@ -1242,19 +1242,7 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    // Block name may contain text info
-                    string symbolName = geoInst.Symbol?.Name;
-                    if (!string.IsNullOrEmpty(symbolName) && symbolName.Length > 1)
-                    {
-                        var instTransform = geoInst.Transform;
-                        items.Add(new CadTextItem
-                        {
-                            Text = symbolName,
-                            Position = transform.OfPoint(instTransform.Origin)
-                        });
-                    }
-
-                    // Recurse into nested geometry
+                    // Recurse into nested geometry (block contents)
                     var instGeo = geoInst.GetInstanceGeometry();
                     if (instGeo != null)
                         ExtractTextFromGeometry(instGeo, Transform.Identity, items);
@@ -1272,28 +1260,28 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    string symbolName = geoInst.Symbol?.Name;
-                    if (!string.IsNullOrEmpty(symbolName))
+                    var instTransform = geoInst.Transform;
+                    XYZ origin = transform.OfPoint(instTransform.Origin);
+
+                    // Extract rotation from transform
+                    double rotation = 0;
+                    try
                     {
-                        var instTransform = geoInst.Transform;
-                        XYZ origin = transform.OfPoint(instTransform.Origin);
-
-                        // Extract rotation from transform
-                        double rotation = 0;
-                        try
-                        {
-                            XYZ basisX = instTransform.BasisX;
-                            rotation = Math.Atan2(basisX.Y, basisX.X);
-                        }
-                        catch { }
-
-                        items.Add(new CadBlockItem
-                        {
-                            BlockName = symbolName,
-                            Position = origin,
-                            Rotation = rotation
-                        });
+                        XYZ basisX = instTransform.BasisX;
+                        rotation = Math.Atan2(basisX.Y, basisX.X);
                     }
+                    catch { }
+
+                    // Use GeometryInstance index as block identifier
+                    // (Revit 2025 GeometryInstance does not expose symbol name directly)
+                    string blockName = $"Block_{items.Count + 1}";
+
+                    items.Add(new CadBlockItem
+                    {
+                        BlockName = blockName,
+                        Position = origin,
+                        Rotation = rotation
+                    });
                 }
             }
         }
