@@ -480,7 +480,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class LinkDWGCommand : IExternalCommand
+    public class LinkDWGAdvancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {

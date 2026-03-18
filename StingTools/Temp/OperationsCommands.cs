@@ -29,7 +29,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class WorkflowPresetCommand : IExternalCommand
+    public class WorkflowPresetRunnerCommand : IExternalCommand
     {
         internal static readonly Dictionary<string, string[]> Workflows = new()
         {
@@ -203,7 +203,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class IFCExportCommand : IExternalCommand
+    public class IFCExportEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -280,7 +280,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class COBieExportCommand : IExternalCommand
+    public class COBieExportEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -518,7 +518,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ClashDetectionCommand : IExternalCommand
+    public class ClashDetectionEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
@@ -832,7 +832,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class ProjectDashboardCommand : IExternalCommand
+    public class ProjectDashboardEnhancedCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)

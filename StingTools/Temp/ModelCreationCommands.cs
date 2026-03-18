@@ -30,7 +30,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class CreateWallsCommand : IExternalCommand
+    public class CreateWallsInteractiveCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -139,7 +139,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class CreateFloorsCommand : IExternalCommand
+    public class CreateFloorsInteractiveCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -234,7 +234,7 @@ namespace StingTools.Temp
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class CreateCeilingsCommand : IExternalCommand
+    public class CreateCeilingsInteractiveCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
