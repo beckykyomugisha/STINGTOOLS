@@ -32,8 +32,10 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
-            var doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var uidoc = _ctx.UIDoc;
+            var doc = _ctx.Doc;
 
             try
             {
@@ -207,7 +209,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -341,7 +345,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -478,7 +484,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -540,7 +548,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {
@@ -606,7 +616,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {

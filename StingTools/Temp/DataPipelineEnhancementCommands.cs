@@ -296,7 +296,9 @@ namespace StingTools.Temp
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = _ctx.Doc;
 
             try
             {

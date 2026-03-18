@@ -342,8 +342,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             // Load presets
             var presets = TagStyleEngine.LoadPresets();
@@ -469,8 +471,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             var presets = TagStyleEngine.LoadPresets();
             if (presets.Count == 0)
@@ -533,8 +537,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             // Step 1: Pick condition parameter
             TaskDialog step1 = new TaskDialog("Set Style Rule — Step 1/3");
@@ -709,8 +715,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             var (tags, _) = Organise.AnnotationColorHelper.GetTargetTags(uidoc);
             if (tags.Count == 0)
@@ -843,8 +851,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
 
             var presets = TagStyleEngine.LoadPresets();
             if (presets.Count == 0)
@@ -1494,8 +1504,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View view = doc.ActiveView;
 
             // Pick preset category first, then specific preset
@@ -1622,8 +1634,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View view = doc.ActiveView;
 
             // Pick preset
@@ -1688,8 +1702,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View view = doc.ActiveView;
 
             // Get tags for color clearing
@@ -1779,8 +1795,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            var _ctx = ParameterHelpers.GetContext(commandData);
+            if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = _ctx.UIDoc;
+            Document doc = _ctx.Doc;
             View view = doc.ActiveView;
 
             // Pick preset

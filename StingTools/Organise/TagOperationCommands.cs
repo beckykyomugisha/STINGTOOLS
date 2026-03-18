@@ -3013,7 +3013,10 @@ namespace StingTools.Organise
             }
 
             // Write to file — uses user-preferred output location
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
+            string path = OutputLocationHelper.PromptForExportPath(
+                doc, $"STING_Tag_Register_{System.DateTime.Now:yyyyMMdd}.csv",
+                "CSV Files|*.csv|All Files|*.*", "TagRegister")
+                ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
 
             try
             {
