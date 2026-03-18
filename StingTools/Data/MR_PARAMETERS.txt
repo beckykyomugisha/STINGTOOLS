@@ -2242,3 +2242,64 @@ PARAM	01256e6f-5896-5dda-b701-48afe7cac121	STING_NOTE_AUTHOR_TXT	TEXT		17	1	Stic
 PARAM	ee109391-b639-55bb-95c9-1490e4a84157	STING_NOTE_DATE_TXT	TEXT		17	1	Sticky note timestamp [ISO 19650-2:2018]	1
 PARAM	30aff8d6-72d0-5180-b453-856e5407da82	STING_PREDECESSOR_TAGS_TXT	TEXT		17	1	Predecessor element tags semicolon-delimited [ISO 19650-2:2018]	1
 PARAM	1aef2db5-5248-59c8-9f40-1f6de5921a51	STING_STICKY_NOTE_TXT	TEXT		17	1	Element sticky note text [ISO 19650-2:2018]	1
+# ── C# source code referenced params (not in tag configs or reference file) ──
+# Source: BIMManagerCommands.cs (COBie), IoTMaintenanceCommands.cs, TagConfig.cs,
+#   ParameterHelpers.cs, DataPipelineCommands.cs, StandardsEngine.cs, Tag3DCommand.cs
+PARAM	57990a87-2e05-565a-936e-bda3942a1360	ASS_AREA_M2_TXT	TEXT		1	1	Element area in square metres	1
+PARAM	22c7b71f-1fa4-51bf-bced-0372731750ef	ASS_BMS_ADDRESS_TXT	TEXT		1	1	BMS/IoT device address	1
+PARAM	6fbd8fc7-8944-5595-8bb8-6f3a5a8e5326	ASS_CLASS_COD_TXT	TEXT		1	1	Classification code (Uniclass/NRM)	1
+PARAM	35807609-4b9d-588d-8f7a-76d1081b331d	ASS_CLASS_DESC_TXT	TEXT		1	1	Classification description	1
+PARAM	22657931-3b38-5e00-b56d-9fd46e4cf9d0	ASS_COMMISSION_STATUS_TXT	TEXT		1	1	Commissioning status	1
+PARAM	0b1e7b9e-fe57-5151-b58c-d5d62ec91c76	ASS_CONDITION_DATE_TXT	TEXT		1	1	Condition assessment date	1
+PARAM	af9b247f-3ae2-5e9a-906b-1d6774cea08c	ASS_DEPT_TXT	TEXT		1	1	Department assignment	1
+PARAM	c2eb2acb-c38f-52a9-9d39-4303446b081e	ASS_DISCIPLINES_TXT	TEXT		1	1	Project discipline codes	1
+PARAM	8fbb8412-bd05-5ad7-9555-8fbc75fae579	ASS_GRID_REFERENCE_TXT	TEXT		1	1	Grid reference (COBie export)	1
+PARAM	f4c0c08d-1ae5-5430-844c-d815f1f6dd78	ASS_GRID_TXT	TEXT		1	1	Grid intersection reference	1
+PARAM	930f241d-9c78-580a-9576-b665f99064fe	ASS_MAINT_INTERVAL_TXT	TEXT		1	1	Maintenance interval schedule	1
+PARAM	ee8bbc8d-e28d-5123-91fc-d563ad7f2bfe	ASS_MAINT_NEXT_TXT	TEXT		1	1	Next maintenance date	1
+PARAM	92744d17-0d31-5ffa-9dfb-9c30d8d929af	ASS_MODEL_TXT	TEXT		1	1	Equipment model name	1
+PARAM	c5aed1e4-fedb-5e8b-9805-a1f8c1c66730	ASS_NRM_CODE_TXT	TEXT		1	1	NRM classification code	1
+PARAM	4a4a4183-ffee-56da-a335-e9bcb9285bad	ASS_ROOM_NUMBER_TXT	TEXT		1	1	Room number (COBie export)	1
+PARAM	eabfe6ca-51be-5c38-9482-c68f4708bb0f	ASS_ROOM_TXT	TEXT		1	1	Room name	1
+PARAM	e4cce2c3-0b70-553a-a375-6c9b59ee6f60	ASS_SERIAL_NUMBER_TXT	TEXT		1	1	Equipment serial number (COBie export)	1
+PARAM	57a75c25-166b-5246-a053-7ea761aed180	ASS_TAG_3D_TXT	TEXT		1	1	3D view tag text	1
+PARAM	211dbcbc-361e-513e-a25c-ba0c730c6409	ASS_UNICLASS_2015_TXT	TEXT		1	1	Uniclass 2015 classification code	1
+PARAM	098758fb-ab76-577c-baf4-7a3742783194	ASS_UNIT_COST_TXT	TEXT		1	1	Unit cost value	1
+PARAM	cff93906-a238-526b-8b29-af4c681f0032	ASS_WARRANTY_DURATION_LABOR_YRS	TEXT		1	1	Warranty duration labor in years (COBie)	1
+PARAM	2d93e44d-2520-5108-ae5c-680043fe53db	ASS_WARRANTY_DURATION_PARTS_YRS	TEXT		1	1	Warranty duration parts in years (COBie)	1
+PARAM	9017dda7-76d6-59ee-88da-2a6d0459a9b3	ASS_WARRANTY_EXPIRY_TXT	TEXT		1	1	Warranty expiry date	1
+PARAM	185175fb-822c-5978-9955-1ffd1fa2025c	ASS_WARRANTY_LABOR_TXT	TEXT		1	1	Warranty guarantor labor (COBie)	1
+PARAM	400e0672-13f4-5383-aa9d-9f276864d677	ASS_WARRANTY_PARTS_TXT	TEXT		1	1	Warranty guarantor parts (COBie)	1
+PARAM	36d5f430-fbc5-5aef-a5c2-cb7e95ac06f7	COM_COMMISSION_DATE_TXT	TEXT		3	1	Commissioning date (COBie)	1
+PARAM	3ce4b03f-192a-574b-85c8-99157e33e9b6	COM_COMMISSION_ENGINEER_TXT	TEXT		3	1	Commissioning engineer (COBie)	1
+PARAM	4d8b0acf-5149-5e0b-9195-15abaebf246f	COM_COMMISSION_STATUS_TXT	TEXT		3	1	Commissioning status (COBie)	1
+PARAM	f8a42943-9f11-52d1-b373-6b9b0b7db29f	COM_INSTALL_DATE_TXT	TEXT		3	1	Installation date (COBie)	1
+PARAM	4c40b92b-76eb-5140-ae41-8823580d4a5d	COM_WARRANTY_START_TXT	TEXT		3	1	Warranty start date (COBie)	1
+PARAM	a9e2d3cf-00ae-5057-a888-e88e97f0927a	ELC_CDT_FILL_RATIO	NUMBER		4	1	Conduit fill ratio	1
+PARAM	9f46b7d6-ffc3-5227-a59f-6fe99f932e3c	ELC_PNL_SPARE_WAYS_PCT	NUMBER		4	1	Panel spare ways percentage	1
+PARAM	46ba5500-b9b1-5ec2-99fc-bb61e8a19616	PLM_TRAP_SEAL_MM	NUMBER		6	1	Trap seal depth in mm	1
+PARAM	699655a9-e357-5a15-8784-bac95407f2be	LTG_ILLUMINANCE_LUX	NUMBER		7	1	Illuminance level in lux	1
+PARAM	882b643a-b0d8-5ebf-8151-d266ecac4378	MNT_NEXT_SERVICE_DATE_TXT	TEXT		9	1	Next service date	1
+PARAM	ea719aed-0995-52f7-b218-2c0bd4d47d10	MNT_SERVICE_INTERVAL_TXT	TEXT		9	1	Service interval (COBie)	1
+PARAM	345147ba-11e4-5c9e-8afc-d1c7dbe8d7d8	MNT_SERVICE_PROVIDER_TXT	TEXT		9	1	Service provider (COBie)	1
+PARAM	555f0a10-b936-5e45-bdf5-53a516834b05	MNT_SPARES_REQUIRED_TXT	TEXT		9	1	Spares required list (COBie)	1
+PARAM	232ea80c-7041-541c-8a5a-ccca68028b12	PER_ACOUSTIC_FLOOR_IIC	NUMBER		9	1	Floor Impact Insulation Class rating	1
+PARAM	bfca3e0a-4419-5e55-96c4-6e3ee363276e	PER_CARBON_FOOTPRINT_KG_NR	NUMBER		9	1	Carbon footprint in kg CO2e (COBie)	1
+PARAM	985b7405-1d46-55c0-a3aa-84f5f28b9aac	PER_EMBODIED_CARBON_KG_NR	NUMBER		9	1	Embodied carbon in kg CO2e (COBie)	1
+PARAM	72091908-f9ca-5ffb-9556-f4def7ea73b7	PER_ENERGY_RATING_TXT	TEXT		9	1	Energy rating classification (COBie)	1
+PARAM	5da0f8a9-e70e-5b23-bd2c-0b48d7c53346	PER_RECYCLED_CONTENT_PCT_NR	NUMBER		9	1	Recycled content percentage (COBie)	1
+PARAM	05e7966d-5288-5cf3-9bd3-8cc27be2e031	PER_VOC_EMISSIONS_UG_M3	NUMBER		9	1	VOC emissions in ug/m3	1
+PARAM	fcfbe043-f427-5f06-8b50-d7297033dad9	BLE_COLUMN_SLENDERNESS	NUMBER		10	1	Column slenderness ratio	1
+PARAM	10685bd1-43f8-5fe7-b2f7-c013c3ff734e	BLE_CW_PANEL_SHGC	NUMBER		10	1	Curtain wall panel solar heat gain coefficient	1
+PARAM	13ccc8b4-aa47-5661-89b4-08440a22a0b2	BLE_FIRE_RATING_TXT	TEXT		10	1	Element fire rating	1
+PARAM	fe1d4c69-165a-574a-a2e6-c13a2fe7712f	BLE_STRUCT_FDN_BEARING_KPA	NUMBER		10	1	Foundation bearing capacity in kPa	1
+PARAM	fbd9842c-1412-5fc9-9b7a-a6d8875eacaa	BLE_WINDOW_U_VALUE	NUMBER		10	1	Window U-value W/m2K	1
+PARAM	3adfc6e8-7199-5994-83b4-5905f093a225	RGL_ACCESSIBILITY_COMPLIANT_TXT	TEXT		15	1	Accessibility compliance status (COBie)	1
+PARAM	67da24bd-1e07-54d9-8eef-bcef22f2032d	RGL_CERTIFICATION_REF_TXT	TEXT		15	1	Certification reference (COBie)	1
+PARAM	2894aaba-6fe0-5245-85c1-ce55b2199110	RGL_COMPLIANCE_STATUS_TXT	TEXT		15	1	Compliance status (COBie)	1
+PARAM	cd75c8d0-e6ed-5f08-8933-c98b285081fa	RGL_FIRE_RATING_TXT	TEXT		15	1	Fire rating classification	1
+PARAM	776f9683-1c42-5aaa-b33d-533c31a49b68	RGL_INSPECTION_DATE_TXT	TEXT		15	1	Last inspection date (COBie)	1
+PARAM	c91cce5f-7e90-5f94-b521-ea71eb28d372	STR_BEAM_DEFLECTION	NUMBER		16	1	Beam deflection value	1
+PARAM	9e9e90d6-633d-5336-b7af-f0df0d016d31	STR_BEAM_SPAN_DEPTH	NUMBER		16	1	Beam span to depth ratio	1
+PARAM	685e2989-211c-5480-88ae-38b18321c06f	STR_WLD_STRENGTH_MPA	NUMBER		16	1	Weld strength in MPa	1
+PARAM	fee0fc86-3a13-5c30-82c1-9ae1c7660873	STR_WLD_THROAT_MM	NUMBER		16	1	Weld throat thickness in mm	1
