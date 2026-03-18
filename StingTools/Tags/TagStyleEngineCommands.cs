@@ -30,7 +30,7 @@ namespace StingTools.Tags
     /// Loads presets from TAG_STYLE_RULES.json, evaluates conditions against
     /// host element parameters, and resolves to tag family type names.
     /// </summary>
-    internal static class TagStyleEngine
+    internal static class TagStyleRuleEngine
     {
         // ── Data model ──────────────────────────────────────────────────
 
@@ -348,7 +348,7 @@ namespace StingTools.Tags
             Document doc = _ctx.Doc;
 
             // Load presets
-            var presets = TagStyleEngine.LoadPresets();
+            var presets = TagStyleRuleEngine.LoadPresets();
             if (presets.Count == 0)
             {
                 TaskDialog.Show("Apply Tag Styles",
@@ -390,7 +390,7 @@ namespace StingTools.Tags
             }
 
             var preset = presetList[picked];
-            var typeIndex = TagStyleEngine.BuildTagTypeIndex(doc);
+            var typeIndex = TagStyleRuleEngine.BuildTagTypeIndex(doc);
 
             // Apply
             int changed = 0;
@@ -406,10 +406,10 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        Element host = TagStyleEngine.GetTagHost(tag, doc);
+                        Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                         if (host == null) { noHost++; continue; }
 
-                        string targetTypeName = TagStyleEngine.ResolveTagType(doc, host, preset);
+                        string targetTypeName = TagStyleRuleEngine.ResolveTagType(doc, host, preset);
 
                         if (!typeCounts.ContainsKey(targetTypeName))
                             typeCounts[targetTypeName] = 0;
@@ -476,7 +476,7 @@ namespace StingTools.Tags
             UIDocument uidoc = _ctx.UIDoc;
             Document doc = _ctx.Doc;
 
-            var presets = TagStyleEngine.LoadPresets();
+            var presets = TagStyleRuleEngine.LoadPresets();
             if (presets.Count == 0)
             {
                 TaskDialog.Show("Preview Tag Styles", "No presets found.");
@@ -513,11 +513,11 @@ namespace StingTools.Tags
             }
 
             var preset = presetList[picked];
-            var typeIndex = TagStyleEngine.BuildTagTypeIndex(doc);
-            var preview = TagStyleEngine.Preview(doc, tags, preset, typeIndex);
+            var typeIndex = TagStyleRuleEngine.BuildTagTypeIndex(doc);
+            var preview = TagStyleRuleEngine.Preview(doc, tags, preset, typeIndex);
 
             TaskDialog.Show("Preview Tag Styles",
-                TagStyleEngine.FormatPreview(preview, preset.Name));
+                TagStyleRuleEngine.FormatPreview(preview, preset.Name));
             return Result.Succeeded;
         }
     }
@@ -605,7 +605,7 @@ namespace StingTools.Tags
             string condValue = sortedValues[valPicked];
 
             // Step 3: Pick target tag type — show loaded types
-            var typeIndex = TagStyleEngine.BuildTagTypeIndex(doc);
+            var typeIndex = TagStyleRuleEngine.BuildTagTypeIndex(doc);
             var typeNames = typeIndex.Keys
                 .Where(k => !k.Contains(":")) // type names only, not "Family: Type"
                 .OrderBy(n => n)
@@ -658,11 +658,11 @@ namespace StingTools.Tags
             string targetType = available[typePicked];
 
             // Save to preset — add to "Custom" preset or create it
-            var presets = TagStyleEngine.LoadPresets();
-            TagStyleEngine.StylePreset custom;
+            var presets = TagStyleRuleEngine.LoadPresets();
+            TagStyleRuleEngine.StylePreset custom;
             if (!presets.TryGetValue("Custom", out custom))
             {
-                custom = new TagStyleEngine.StylePreset
+                custom = new TagStyleRuleEngine.StylePreset
                 {
                     Name = "Custom",
                     Description = "User-created rules",
@@ -677,11 +677,11 @@ namespace StingTools.Tags
                 string.Equals(r.Conditions[paramName], condValue, StringComparison.OrdinalIgnoreCase));
 
             // Add new rule
-            var newRule = new TagStyleEngine.StyleRule { TagType = targetType };
+            var newRule = new TagStyleRuleEngine.StyleRule { TagType = targetType };
             newRule.Conditions[paramName] = condValue;
             custom.Rules.Add(newRule);
 
-            if (TagStyleEngine.SavePreset(custom))
+            if (TagStyleRuleEngine.SavePreset(custom))
             {
                 TaskDialog.Show("Set Style Rule",
                     $"Rule saved to 'Custom' preset:\n\n" +
@@ -734,7 +734,7 @@ namespace StingTools.Tags
 
             foreach (var tag in tags)
             {
-                Element host = TagStyleEngine.GetTagHost(tag, doc);
+                Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                 if (host == null) { noHost++; continue; }
 
                 string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
@@ -751,7 +751,7 @@ namespace StingTools.Tags
             }
 
             // Find the dominant tag type per discipline
-            var rules = new List<TagStyleEngine.StyleRule>();
+            var rules = new List<TagStyleRuleEngine.StyleRule>();
             string overallDefault = "2NOM_BLACK";
             int maxCount = 0;
 
@@ -770,7 +770,7 @@ namespace StingTools.Tags
                     continue;
                 }
 
-                var rule = new TagStyleEngine.StyleRule { TagType = dominant.Key };
+                var rule = new TagStyleRuleEngine.StyleRule { TagType = dominant.Key };
                 rule.Conditions[ParamRegistry.DISC] = disc;
                 rules.Add(rule);
 
@@ -811,7 +811,7 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
-            var preset = new TagStyleEngine.StylePreset
+            var preset = new TagStyleRuleEngine.StylePreset
             {
                 Name = presetName,
                 Description = $"Auto-learned from {tags.Count} tags in {doc.ActiveView.Name}",
@@ -819,7 +819,7 @@ namespace StingTools.Tags
                 Rules = rules
             };
 
-            if (TagStyleEngine.SavePreset(preset))
+            if (TagStyleRuleEngine.SavePreset(preset))
             {
                 TaskDialog.Show("Save Style Preset",
                     $"Saved preset '{presetName}' with {rules.Count} rules.\n" +
@@ -856,7 +856,7 @@ namespace StingTools.Tags
             UIDocument uidoc = _ctx.UIDoc;
             Document doc = _ctx.Doc;
 
-            var presets = TagStyleEngine.LoadPresets();
+            var presets = TagStyleRuleEngine.LoadPresets();
             if (presets.Count == 0)
             {
                 TaskDialog.Show("Load Style Preset", "No presets found.");
@@ -897,14 +897,14 @@ namespace StingTools.Tags
             }
 
             var preset = presetList[picked];
-            var typeIndex = TagStyleEngine.BuildTagTypeIndex(doc);
+            var typeIndex = TagStyleRuleEngine.BuildTagTypeIndex(doc);
 
             // Preview first
-            var preview = TagStyleEngine.Preview(doc, tags, preset, typeIndex);
+            var preview = TagStyleRuleEngine.Preview(doc, tags, preset, typeIndex);
 
             TaskDialog confirmDlg = new TaskDialog("Confirm Apply");
             confirmDlg.MainInstruction = $"Apply '{preset.Name}'?";
-            confirmDlg.MainContent = TagStyleEngine.FormatPreview(preview, preset.Name);
+            confirmDlg.MainContent = TagStyleRuleEngine.FormatPreview(preview, preset.Name);
             confirmDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
 
             if (confirmDlg.Show() == TaskDialogResult.Cancel)
@@ -919,10 +919,10 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        Element host = TagStyleEngine.GetTagHost(tag, doc);
+                        Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                         if (host == null) continue;
 
-                        string targetTypeName = TagStyleEngine.ResolveTagType(doc, host, preset);
+                        string targetTypeName = TagStyleRuleEngine.ResolveTagType(doc, host, preset);
                         if (!typeIndex.TryGetValue(targetTypeName, out ElementId targetTypeId))
                             continue;
 
@@ -1524,7 +1524,7 @@ namespace StingTools.Tags
 
             foreach (var tag in tags)
             {
-                Element host = TagStyleEngine.GetTagHost(tag, doc);
+                Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                 if (host == null) continue;
                 long hid = host.Id.Value;
                 hostElements[hid] = host;
@@ -1715,7 +1715,7 @@ namespace StingTools.Tags
             var hostIds = new HashSet<long>();
             foreach (var tag in tags)
             {
-                Element host = TagStyleEngine.GetTagHost(tag, doc);
+                Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                 if (host != null) hostIds.Add(host.Id.Value);
             }
 
@@ -1830,7 +1830,7 @@ namespace StingTools.Tags
             var tagsByHost = new Dictionary<long, List<IndependentTag>>();
             foreach (var tag in viewTags)
             {
-                Element host = TagStyleEngine.GetTagHost(tag, doc);
+                Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                 if (host == null) continue;
                 long hid = host.Id.Value;
                 if (!tagsByHost.ContainsKey(hid))

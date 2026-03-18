@@ -15,7 +15,7 @@ namespace StingTools.Core
     /// Safe command execution context — null-checked UIApplication, UIDocument,
     /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
     /// </summary>
-    public class CommandContext
+    public class CommandExecutionContext
     {
         public UIApplication App { get; init; }
         public UIDocument UIDoc { get; init; }
@@ -39,7 +39,7 @@ namespace StingTools.Core
         ///   var ctx = ParameterHelpers.GetContext(commandData);
         ///   if (ctx == null) { message = "No document open."; return Result.Failed; }
         /// </summary>
-        public static CommandContext GetContext(ExternalCommandData commandData)
+        public static CommandExecutionContext GetContext(ExternalCommandData commandData)
         {
             var app = GetApp(commandData);
             var uidoc = app.ActiveUIDocument;
@@ -48,7 +48,7 @@ namespace StingTools.Core
             if (doc == null) return null;
             View activeView = null;
             try { activeView = doc.ActiveView; } catch (Exception ex) { StingLog.Warn($"GetContext: no active view: {ex.Message}"); }
-            return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
+            return new CommandExecutionContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
         }
 
         /// <summary>
@@ -421,14 +421,6 @@ namespace StingTools.Core
             return sb.ToString();
         }
 
-        /// <summary>Find the solid fill pattern element in the document.</summary>
-        public static FillPatternElement GetSolidFillPattern(Document doc)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-        }
     }
 
     /// <summary>
