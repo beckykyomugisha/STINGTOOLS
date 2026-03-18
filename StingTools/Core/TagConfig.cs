@@ -4674,7 +4674,8 @@ namespace StingTools.Core
         /// <summary>
         /// Populate individual WARN_ parameters on an element with their evaluated warning text.
         /// Each WARN_ parameter gets its own text so tag family labels can display them via
-        /// calculated value formulas: if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// calculated value formulas (Type: Text): if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// All WARN_ parameters MUST be TEXT type to avoid Revit "Inconsistent Units" errors.
         /// Returns the number of WARN_ parameters written.
         /// </summary>
         public static int PopulateWarningParameters(Document doc, Element el, string categoryName)

@@ -1676,8 +1676,10 @@ namespace StingTools.Tags
                 {
                     sb.AppendLine();
                     sb.AppendLine("── TIER 2 (Standard+) ──");
-                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Numeric params (NUMBER/LENGTH/AREA) cause 'Inconsistent Units'.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier2, paramText);
                 }
@@ -1688,8 +1690,9 @@ namespace StingTools.Tags
                 {
                     sb.AppendLine();
                     sb.AppendLine("── TIER 3 (Comprehensive) ──");
-                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier3, paramText);
                 }
