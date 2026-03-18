@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **80 source files** (77 C# + 3 XAML, ~96,000 lines of code) across 10 directories
-- **387 `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **27 runtime data files** (CSV, JSON, TXT, XLSX, PY)
+- **80+ source files** (77+ C# + 3 XAML, ~100,000 lines of code) across 10 directories
+- **395+ `IExternalCommand` classes** (commands) + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **28 runtime data files** (CSV, JSON, TXT, XLSX, PY)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -166,6 +166,7 @@ STINGTOOLS/
         ├── TAG_GUIDE_V3.csv            # Tag reference guide (newest CSV version)
         ├── TAG_PLACEMENT_PRESETS_DEFAULT.json  # Default tag placement preset (12 category rules)
         ├── WORKFLOW_DailyQA_Enhanced.json     # Enhanced Daily QA workflow (8 conditional steps)
+        ├── cost_rates_5d.csv            # 5D cost rates (7-col: Category, MAT_CODE, MAT_DISCIPLINE, rates, Unit, Description)
         └── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks, ported to C#)
 ```
 
@@ -1558,6 +1559,24 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 221. **SaveSeqSidecar coverage** — Added to TagSelectedCommand, ReTagCommand, BulkReTagCommand, FullAutoPopulateCommand, ResolveAllIssuesCommand (both cancel + success paths), TagFormatMigrationCommand, TagChangedCommand, FixDuplicateTagsCommand.
 222. **StingAutoTagger.InvalidateContext pairing** — All `ComplianceScan.InvalidateCache()` calls now paired with `StingAutoTagger.InvalidateContext()` across TagSelectedCommand, ReTagCommand, DeleteTagsCommand, SwapTagsCommand, FixDuplicateTagsCommand, RetagStaleCommand, BatchTagCommand, BulkReTagCommand.
 223. **TaskDialog deadlock fixes** — Moved `TaskDialog.Show()` outside active transactions in `SetViewTagStyleCommand` (TagStyleCommands.cs) and `ScheduleColorCommand` (ScheduleEnhancementCommands.cs) to prevent Revit UI deadlocks.
+
+#### Completed (Phase 28 — STING_FINAL_PROMPT: Crash Fixes, Theme System, Pipeline Completion & New Commands)
+
+224. **Bulk null-ref crash fix** — Replaced all 105 occurrences of `commandData.Application.ActiveUIDocument` across 15 files (OperationsCommands, ModelCommands, ModelCreationCommands, TagStyleEngineCommands, TagIntelligenceCommands, RevisionManagementCommands, IoTMaintenanceCommands, AutoModelCommands, DWGImportCommands, MEPCreationCommands, MEPScheduleCommands, StandardsEngine, RoomSpaceCommands, DataPipelineEnhancementCommands, NLPCommandProcessor) with `ParameterHelpers.GetContext(commandData)` null-safe pattern.
+225. **ExcelLink pipeline completion** — Added `TokenAutoPopulator.TypeTokenInherit()` before `NativeParamMapper.MapAll` in both Import and RoundTrip paths. Fixed `GetGridRef` to capture return value and write to `ASS_GRID_REF_TXT` via `ParameterHelpers.SetIfEmpty`.
+226. **Theme DynamicResource system** — Added `ThemeManager.InitialiseResources()` to seed theme resource keys at startup. Converted all hardcoded hex colors in `StingDockPanel.xaml` Page.Resources to `{DynamicResource}` bindings (AccentBrush, BorderColor, ButtonBg, ButtonFg, PanelFg, SecondaryBg, PrimaryBg, HeaderBg, HeaderFg). Theme switching via `CycleTheme()` now works.
+227. **Leader/Elbow slider connections** — Added `SetLeaderElbowParams()` and `SetTagStyleParams()` helper methods to `StingDockPanel.xaml.cs` that read 15 slider/radio/combo values and pass as ExtraParams. `AdjustElbowsCommand` now checks ExtraParams before showing dialog.
+228. **Per-export folder navigation** — Added `OutputLocationHelper.PromptForExportPath()` with session-level folder memory per export type. Replaced hardcoded Desktop paths in PDF, IFC, COBie, Quantities, Clashes, BatchParams exports. Tag Register export also uses folder navigation.
+229. **IoT/Standards/DataPipeline/MEP dispatch** — Wired 30+ new dispatch entries in `StingCommandHandler.cs` for IoT Maintenance (AssetCondition, MaintenanceSchedule, DigitalTwinExport, etc.), Standards (ISO19650Deep, CibseVelocity, BS7671, Uniclass, BS8300, PartL), DataPipeline validation, and MEP Schedule commands. Added XAML buttons in BIM tab.
+230. **NLP functional execution** — Replaced stub `NLPCommandProcessorCommand` with functional command browser using `StingListPicker`. Supports Browse All, Quick Commands, and BIM Knowledge Base modes. Executes selected commands via `WorkflowEngine.ResolveCommandPublic()`. Added 20 missing command tags to `ResolveCommand`.
+231. **PurgeSharedParamsCommand** — New command in `LoadSharedParamsCommand.cs` with 3 modes: Audit (count bound vs MR file), Purge orphaned (remove params not in MR_PARAMETERS.txt), Purge all STING (remove all ASS_*/STING_* bindings). Dispatch + XAML button added.
+232. **FamilyParamCreator folder picker + purge** — Added `PurgeFirst` option to `ProcessOptions`. 4-mode dialog (single/batch × add/purge+inject). Replaced hardcoded DataPath with actual file/folder browser dialogs. Purge step removes existing STING params before fresh injection.
+233. **AutoTagger settings persistence** — `SetVisualTagging()` now persists `AUTO_TAGGER_VISUAL` to `project_config.json`. Restored on config load in `TagConfig.LoadFromFile()`.
+234. **GuidedDataEditorCommand** — New command for editing STING data files (project_config.json, MR_PARAMETERS.txt, MATERIAL_SCHEMA.json, PARAMETER_REGISTRY.json, LABEL_DEFINITIONS.json, TAG_PLACEMENT_PRESETS_DEFAULT.json, WORKFLOW_DailyQA_Enhanced.json) with system editor launch and sync/reload.
+235. **MR_PARAMETERS.txt expansion** — Appended 63 new parameter definitions (1384→1447 PARAM lines) covering ASS_*, BLE_*, COM_*, MEP_*, MNT_*, PER_*, RGL_*, STR_*, VIEW_*, TAG_* groups.
+236. **ParamRegistry GUID supplement** — `LoadFromFile()` now supplements `_guidByName` dictionary from MR_PARAMETERS.txt at load time, bridging the gap between PARAMETER_REGISTRY.json (638 params) and MR file (1447+ params).
+237. **cost_rates_5d.csv** — Created with 7-column format (Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description) covering all Revit categories with STING DISC codes.
+238. **New command classes** — StingParamManagerCommand (browse/add/stats shared params), StingMaterialManagerCommand (browse/create/export materials), PrintSheetsCommand (PDF export with scope), MagicRenameCommand (universal rename with prefix/suffix/find-replace/case/numbering), ViewTabColourCommand (discipline view analysis), RibbonPanelStylerCommand (ribbon config info). All dispatch entries wired.
 
 ### External Tool References
 
