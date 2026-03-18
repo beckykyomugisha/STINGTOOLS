@@ -1095,7 +1095,7 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
-                                    // FIX-NEW02: Inherit family-type token defaults before rebuild
+                                    // Inherit family-type token defaults before rebuild
                                     try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
                                     catch (Exception tiEx) { StingLog.Warn($"ExcelLink TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
                                     // FIX-10: Bridge native params before tag rebuild
@@ -1407,7 +1407,7 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
-                                    // FIX-NEW02: Inherit family-type token defaults before rebuild
+                                    // Inherit family-type token defaults before round-trip rebuild
                                     try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
                                     catch (Exception tiEx) { StingLog.Warn($"ExcelLink RoundTrip TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
                                     // Phase2: Bridge native params before tag rebuild

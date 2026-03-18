@@ -124,6 +124,27 @@ namespace StingTools.UI
             StingLog.Info($"ThemeManager: applied '{themeName}' theme");
         }
 
+        /// <summary>
+        /// FIX-3.1: Seed all theme resource keys into Application.Resources at startup.
+        /// Required before any DynamicResource binding resolves. Without this call,
+        /// DynamicResource keys do not exist at first render and bindings fail silently.
+        /// </summary>
+        public static void InitialiseResources()
+        {
+            var app = Application.Current;
+            if (app == null) return;
+            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Light";
+            foreach (var kvp in Themes[CurrentTheme])
+            {
+                try
+                {
+                    var color = (Color)ColorConverter.ConvertFromString(kvp.Value);
+                    app.Resources[kvp.Key] = new SolidColorBrush(color);
+                }
+                catch { }
+            }
+        }
+
         /// <summary>Cycle to the next theme in order: Dark -> Light -> Grey -> Corporate.</summary>
         public static string CycleTheme()
         {

@@ -235,6 +235,62 @@ namespace StingTools.Core
             return null;
         }
 
+        // FIX-5.1: Session-level folder memory per export type
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string>
+            _sessionFolders = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// FIX-5.1: Per-export folder navigation with session memory.
+        /// </summary>
+        public static string PromptForExportPath(Document doc, string defaultFileName,
+            string filter, string exportTypeKey = null)
+        {
+            _sessionFolders.TryGetValue(exportTypeKey ?? "", out string lastFolder);
+
+            if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
+            {
+                var qd = new Autodesk.Revit.UI.TaskDialog($"Export — {defaultFileName}");
+                qd.MainInstruction = "Choose export location";
+                qd.MainContent = $"Last used: {lastFolder}";
+                qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
+                    "Use last folder", lastFolder);
+                qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
+                    "Navigate to folder", "Open file browser");
+                string pd = Path.GetDirectoryName(doc?.PathName ?? "");
+                qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
+                    "Project folder", string.IsNullOrEmpty(pd) ? "Save project first" : pd);
+                qd.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel;
+                switch (qd.Show())
+                {
+                    case Autodesk.Revit.UI.TaskDialogResult.CommandLink1:
+                        return Path.Combine(lastFolder, defaultFileName);
+                    case Autodesk.Revit.UI.TaskDialogResult.CommandLink3:
+                        return string.IsNullOrEmpty(pd) ? null : Path.Combine(pd, defaultFileName);
+                    case Autodesk.Revit.UI.TaskDialogResult.CommandLink2: break;
+                    default: return null;
+                }
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = $"Export — {defaultFileName}",
+                FileName = defaultFileName,
+                Filter = string.IsNullOrEmpty(filter) ? "All Files|*.*" : filter,
+                InitialDirectory = GetOutputDirectory(doc)
+            };
+            if (dlg.ShowDialog() != true) return null;
+
+            string chosenDir = Path.GetDirectoryName(dlg.FileName);
+            if (!string.IsNullOrEmpty(chosenDir))
+            {
+                PreferredDirectory = chosenDir;
+                if (!string.IsNullOrEmpty(exportTypeKey))
+                    _sessionFolders[exportTypeKey] = chosenDir;
+            }
+            return dlg.FileName;
+        }
+
         private static bool TryEnsureDirectory(string path)
         {
             try
