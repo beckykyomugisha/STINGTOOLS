@@ -651,7 +651,7 @@ namespace StingTools.Tags
             // Save SEQ sidecar + invalidate caches after system push
             try
             {
-                var (_, sysSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc, new List<Element>());
+                var (_, sysSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 TagConfig.SaveSeqSidecar(doc, sysSeqCounters);
             }
             catch (Exception ssEx) { StingLog.Warn($"SystemParamPush SaveSeqSidecar: {ssEx.Message}"); }
