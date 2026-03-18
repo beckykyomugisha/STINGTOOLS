@@ -922,6 +922,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_ROOM_VENTILATION_SPACES,Ventilation rate < 10 L/s/person,Building Regs Part F / CIBSE Guide A,Common,Text,⚠ Warning: Space Ventilation Rate,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_VENTILATION_SPACES, """")"
 2,MEDIUM,WARN_HVC_AIR_CHANGES_PER_HR_SPACES,ACH < minimum for space type,CIBSE Guide B2 / HTM 03-01,Common,Text,⚠ Warning: Space Air Changes,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_AIR_CHANGES_PER_HR_SPACES, """")"
+3,MEDIUM,WARN_BLE_ROOM_OCCUPANCY_SPACES,Occupancy density exceeds maximum for space type,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Space Occupancy Density,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_OCCUPANCY_SPACES, """")"
 
 Tag Family #45: STING - Zones Tag
 TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
@@ -938,6 +939,8 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_HVC_CONTROL_TYPE_ZONES,Zone has no BMS control type assigned,CIBSE Guide H / BS EN ISO 16484,Common,Text,⚠ Warning: Zone Control,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_CONTROL_TYPE_ZONES, """")"
+2,MEDIUM,WARN_HVC_ZONE_AREA_ZONES,Zone area exceeds maximum for single control point,CIBSE Guide A / BS EN ISO 7730,Common,Text,⚠ Warning: Zone Area Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_ZONE_AREA_ZONES, """")"
+3,LOW,WARN_HVC_ZONE_SENSOR_ZONES,Zone temperature sensor not assigned,CIBSE Guide H / BSRIA BG 30,Common,Text,⚠ Warning: Zone Sensor Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_HVC_ZONE_SENSOR_ZONES, """")"
 
 6J — Tie-In Points (Battery Limits / Spool Terminations / P&ID Break Points)
 # ═══════════════════════════════════════════════════════════════════════════════
