@@ -991,7 +991,7 @@ namespace StingTools.Core
                     foreach (var kvp in catOverrides) CategoryTokenOverrides[kvp.Key] = kvp.Value;
 
 
-                ConfigSource = "project_config.json";
+                ConfigSource = path;
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
