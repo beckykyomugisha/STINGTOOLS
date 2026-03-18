@@ -41,7 +41,9 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
-            // FIX-3.2: Seed theme resource keys before DynamicResource bindings resolve
+            // Register this Page as the theme host so resources are set directly
+            // on the Page's own Resources dictionary (Revit dockable pane fix)
+            ThemeManager.RegisterHost(this);
             ThemeManager.InitialiseResources();
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
