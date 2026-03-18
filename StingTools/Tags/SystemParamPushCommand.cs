@@ -649,7 +649,11 @@ namespace StingTools.Tags
                 tx.Commit();
             }
             // Save SEQ sidecar + invalidate caches after system push
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            try
+            {
+                var (_, sysSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc, new List<Element>());
+                TagConfig.SaveSeqSidecar(doc, sysSeqCounters);
+            }
             catch (Exception ssEx) { StingLog.Warn($"SystemParamPush SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

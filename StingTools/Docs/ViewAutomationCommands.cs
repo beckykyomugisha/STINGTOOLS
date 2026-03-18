@@ -167,11 +167,8 @@ namespace StingTools.Docs
                 "UPPERCASE all names",
                 "Convert all view names to UPPERCASE for consistency");
             opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Standardise level names",
-                "Replace 'Level 1' with 'L01', 'Ground Floor' with 'GF', etc.");
-            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink5,
-                "Custom find/replace",
-                "Enter custom text to find and replace in all view names");
+                "Standardise level names / Custom find-replace",
+                "Replace 'Level 1' with 'L01', or enter custom find/replace text");
             opDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             int mode;
@@ -180,8 +177,14 @@ namespace StingTools.Docs
                 case TaskDialogResult.CommandLink1: mode = 1; break;
                 case TaskDialogResult.CommandLink2: mode = 2; break;
                 case TaskDialogResult.CommandLink3: mode = 3; break;
-                case TaskDialogResult.CommandLink4: mode = 4; break;
-                case TaskDialogResult.CommandLink5: mode = 5; break;
+                case TaskDialogResult.CommandLink4:
+                    // Sub-dialog: standardise vs custom
+                    TaskDialog subDlg = new TaskDialog("Mode");
+                    subDlg.MainInstruction = "Choose operation:";
+                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Standardise level names");
+                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Custom find/replace");
+                    mode = subDlg.Show() == TaskDialogResult.CommandLink2 ? 5 : 4;
+                    break;
                 default: return Result.Cancelled;
             }
 

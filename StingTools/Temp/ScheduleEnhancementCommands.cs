@@ -82,7 +82,7 @@ namespace StingTools.Temp
                 {
                     if (sched.Definition.IsItemized == false && sched.Definition.GetSortGroupFieldCount() > 0)
                         keyScheduleCount++;
-                    else if (sched.IsMaterialTakeoff)
+                    else if (sched.Definition.IsMaterialTakeoff)
                         materialTakeoffCount++;
                     else
                         elementScheduleCount++;

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 
@@ -1242,7 +1243,7 @@ namespace StingTools.Temp
                 if (gObj is GeometryInstance geoInst)
                 {
                     // Block name may contain text info
-                    string symbolName = geoInst.Symbol?.Name;
+                    string symbolName = geoInst.GetSymbol()?.Name;
                     if (!string.IsNullOrEmpty(symbolName) && symbolName.Length > 1)
                     {
                         var instTransform = geoInst.Transform;
@@ -1271,7 +1272,7 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    string symbolName = geoInst.Symbol?.Name;
+                    string symbolName = geoInst.GetSymbol()?.Name;
                     if (!string.IsNullOrEmpty(symbolName))
                     {
                         var instTransform = geoInst.Transform;
