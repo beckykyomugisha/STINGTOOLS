@@ -617,6 +617,8 @@ TAG7: ICT_TAG_7_PARA_TEL_TXT  •  Category: Telephone Devices
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ICT_OUTLET_TYPE_TELEPHONE,Port type unassigned,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Telephone Port Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_OUTLET_TYPE_TELEPHONE, """")"
+2,MEDIUM,WARN_ICT_CABLE_CATEGORY_TELEPHONE,Cable category below Cat 6 minimum for VoIP,TIA-568.2-D / BS EN 50173,Common,Text,⚠ Warning: Telephone Cable Category,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_CABLE_CATEGORY_TELEPHONE, """")"
+3,LOW,WARN_ICT_COVERAGE_TELEPHONE,Telephone outlet density below workplace standard,TIA-568 / BS EN 50173,Common,Text,⚠ Warning: Telephone Coverage,"if(TAG_WARN_VISIBLE_BOOL, WARN_ICT_COVERAGE_TELEPHONE, """")"
 6H — General
 Tag Family #27: STING - Generic Model Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
@@ -641,6 +643,8 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Generic Models
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_ASS_DESCRIPTION_GENERIC_MODEL,Description missing,ISO 19650 / COBie,Common,Text,⚠ Warning: Generic Model Description,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_DESCRIPTION_GENERIC_MODEL, """")"
+2,LOW,WARN_ASS_MANUFACTURER_GENERIC_MODEL,Manufacturer not specified — COBie data incomplete,ISO 19650 / COBie V2.4,Common,Text,⚠ Warning: Generic Model Manufacturer,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_MANUFACTURER_GENERIC_MODEL, """")"
+3,LOW,WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL,Expected life not assigned — affects FM planning,PAS 1192-3 / BS 8210,Common,Text,⚠ Warning: Generic Model Expected Life,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_EXPECTED_LIFE_GENERIC_MODEL, """")"
 Tag Family #28: STING - Specialty Equipment Tag
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -669,6 +673,8 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_ASS_CRITICALITY_SPECIALTY_EQUIP,Criticality rating > 3 without commissioning plan,ISO 55000 / PAS 1192-3,Common,Text,⚠ Warning: Specialty Equipment Criticality,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_CRITICALITY_SPECIALTY_EQUIP, """")"
+2,MEDIUM,WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP,Commissioning requirement not specified for critical asset,BSRIA BG 6 / CIBSE Commissioning Codes,Common,Text,⚠ Warning: Commissioning Not Specified,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_COMMISSIONING_SPECIALTY_EQUIP, """")"
+3,MEDIUM,WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP,Delivery lead time exceeds programme allowance,ISO 19650-2 / Project procurement schedule,Common,Text,⚠ Warning: Specialty Equipment Lead Time,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_LEAD_TIME_SPECIALTY_EQUIP, """")"
 6I — MEP Fabrication & Materials
 Tag Family #29: STING - Duct Insulation Tag
 TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
@@ -679,7 +685,9 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < required minimum,ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INS_THICKNESS_MM, """")"
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm minimum for duct insulation,BS 5422 / ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INS_THICKNESS_MM, """")"
+2,MEDIUM,WARN_INS_FIRE_CLASS_DUCT_INS,Insulation fire class not specified,BS 5422 / BS EN 13501-1 / Building Regs Part B,Common,Text,⚠ Warning: Duct Insulation Fire Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_FIRE_CLASS_DUCT_INS, """")"
+3,LOW,WARN_INS_VAPOUR_BARRIER_DUCT_INS,Vapour barrier not specified for cold duct insulation,BS 5422 / CIBSE Guide B3,Common,Text,⚠ Warning: Duct Insulation Vapour Barrier,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_VAPOUR_BARRIER_DUCT_INS, """")"
 Tag Family #30: STING - Duct Lining Tag
 TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -691,6 +699,8 @@ TAG7: HVC_TAG_7_PARA_DUCT_LINING_TXT  •  Category: Duct Lining
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_INS_THICKNESS_DUCT_LINING,Lining thickness < minimum,CIBSE DW/144 / ASHRAE,Common,Text,⚠ Warning: Duct Lining Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_THICKNESS_DUCT_LINING, """")"
+2,MEDIUM,WARN_INS_ACOUSTIC_DUCT_LINING,Acoustic absorption coefficient insufficient for noise requirement,CIBSE Guide B5 / BS 8233,Common,Text,⚠ Warning: Duct Lining Acoustic Performance,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_ACOUSTIC_DUCT_LINING, """")"
+3,LOW,WARN_INS_EROSION_DUCT_LINING,Duct lining velocity > erosion limit for material type,SMACNA / CIBSE DW/144,Common,Text,⚠ Warning: Duct Lining Erosion Risk,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_EROSION_DUCT_LINING, """")"
 Tag Family #31: STING - Pipe Insulation Tag
 TAG7: PLM_TAG_7_PARA_PIPE_INSULATION_TXT  •  Category: Pipe Insulation
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
