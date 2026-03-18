@@ -415,7 +415,7 @@ namespace StingTools.Temp
                                 csvLines.Add($"{sys},{tag},{el.Category?.Name},{family},{check},PENDING");
                                 totalChecks++;
                             }
-                            ParameterHelpers.SetString(el, "ASS_COMMISSION_STATUS_TXT", "PENDING", false);
+                            ParameterHelpers.SetString(el, "COM_COMMISSION_STATUS_TXT", "PENDING", false);
                         }
                     }
                     t.Commit();
@@ -595,7 +595,7 @@ namespace StingTools.Temp
                         {
                             string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                             ParameterHelpers.SetString(el, "ASS_WARRANTY_TXT", $"{yrs} years", false);
-                            ParameterHelpers.SetString(el, "ASS_WARRANTY_EXPIRY_TXT", expiry, false);
+                            ParameterHelpers.SetString(el, "ASS_WARRANTY_EXPIRATION_DATE_TXT", expiry, false);
                             csvLines.Add($"{tag},{name},{ParameterHelpers.GetFamilyName(el)},{yrs},{installDate},{expiry},ACTIVE");
                             total++;
                         }
