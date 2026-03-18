@@ -833,6 +833,7 @@ TAG7: HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT  •  Category: MEP Fabrication Duct
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_STIFF_TYPE_STIFFENERS,Stiffener type unassigned,SMACNA HVAC Duct,Common,Text,⚠ Warning: Stiffener Type,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_STIFF_TYPE_STIFFENERS, """")"
+2,MEDIUM,WARN_FAB_STIFF_SPACING_STIFFENERS,Stiffener spacing exceeds maximum for duct dimension,SMACNA HVAC Duct / CIBSE DW/144,Common,Text,⚠ Warning: Stiffener Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_STIFF_SPACING_STIFFENERS, """")"
 Tag Family #40: STING - MEP Fabrication Hangers Tag
 TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -842,7 +843,9 @@ TAG7: MEP_TAG_7_PARA_FAB_HANGERS_TXT  •  Category: MEP Fabrication Hangers
 4,T2,FAB_HANGER_LOAD_KN,Load:,kN,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, FAB_HANGER_LOAD_KN, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Check parameter value,Applicable codes,Common,Text,⚠ Warning: Hanger Overloaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")"
+1,MEDIUM,WARN_FAB_HANGER_LOAD_KN,Hanger load exceeds safe working load,BS EN 1991 / CIBSE Guide B / Manufacturer SWL,Common,Text,⚠ Warning: Hanger Overloaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_LOAD_KN, """")"
+2,MEDIUM,WARN_FAB_HANGER_SPACING,Hanger spacing exceeds maximum for service weight,SMACNA / CIBSE Guide B / BS EN 12056-5,Common,Text,⚠ Warning: Hanger Spacing Exceeded,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_SPACING, """")"
+3,HIGH,WARN_FAB_HANGER_SEISMIC,Seismic restraint not provided for critical services,BS EN 1998 / ASCE 7 (where applicable),Common,Text,⚠ Warning: Hanger Seismic Restraint,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_HANGER_SEISMIC, """")"
 Tag Family #41: STING - MEP Fabrication Pipework Tag
 TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
@@ -852,6 +855,8 @@ TAG7: PLM_TAG_7_PARA_FAB_PIPEWORK_TXT  •  Category: MEP Fabrication Pipework
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,MEDIUM,WARN_FAB_PIPE_DN_PIPEWORK,Pipe DN mismatch with design,BS EN 10255 / ASME B36,Common,Text,⚠ Warning: Fab Pipe DN,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_PIPE_DN_PIPEWORK, """")"
+2,MEDIUM,WARN_FAB_PIPE_WALL_PIPEWORK,Pipe wall thickness insufficient for pressure class,BS EN 10255 / BS EN 10216 / ASME B36,Common,Text,⚠ Warning: Fab Pipe Wall Thickness,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_PIPE_WALL_PIPEWORK, """")"
+3,MEDIUM,WARN_FAB_PIPE_WELD_PIPEWORK,Weld specification not assigned for pressure pipe,BS EN ISO 5817 / ASME IX,Common,Text,⚠ Warning: Fab Pipe Weld Spec,"if(TAG_WARN_VISIBLE_BOOL, WARN_FAB_PIPE_WELD_PIPEWORK, """")"
 Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
