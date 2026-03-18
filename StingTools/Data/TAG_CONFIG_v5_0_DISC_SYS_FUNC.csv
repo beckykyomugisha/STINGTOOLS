@@ -179,3 +179,22 @@ BIMGR,STING_4D_START_DATE_TXT,Construction start date (yyyy-MM-dd),4D timeline e
 BIMGR,STING_4D_END_DATE_TXT,Construction end date (yyyy-MM-dd),4D timeline export
 BIMGR,STING_5D_COST_RATE_NUM,Estimated unit cost rate (GBP),5D cost data export
 BIMGR,STING_BRIEFCASE_EXPORT_TXT,Last briefcase export timestamp,Document management
+#
+# SECTION 7: TIE-IN POINT SYSTEM MAPPINGS (v5.1 — ISO 19650-3 Interface Management)
+# Tie-in points inherit DISC/SYS from host element but require additional classification.
+# Format: TIEIN_SYS,HostCategory,DISC,DefaultSYS,TieInTagFamily
+#
+TIEIN_SYS,Pipes,P,DCW,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,P,DHW,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,P,HWS,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,P,SAN,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,P,RWD,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,M,HVAC,STING - Tie-In Point Tag (Pipe)
+TIEIN_SYS,Pipes,FP,FP,STING - Tie-In Point Tag (Fire Protection)
+TIEIN_SYS,Pipes,P,GAS,STING - Tie-In Point Tag (Gas)
+TIEIN_SYS,Ducts,M,HVAC,STING - Tie-In Point Tag (Duct)
+TIEIN_SYS,Conduits,E,LV,STING - Tie-In Point Tag (Conduit)
+TIEIN_SYS,Conduits,LV,COM,STING - Tie-In Point Tag (Conduit)
+TIEIN_SYS,Conduits,LV,ICT,STING - Tie-In Point Tag (Conduit)
+TIEIN_SYS,Cable Trays,E,LV,STING - Tie-In Point Tag (Cable Tray)
+TIEIN_SYS,Cable Trays,LV,COM,STING - Tie-In Point Tag (Cable Tray)
