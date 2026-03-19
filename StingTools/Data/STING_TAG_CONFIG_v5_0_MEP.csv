@@ -685,7 +685,7 @@ TAG7: HVC_TAG_7_PARA_DUCT_INSULATION_TXT  •  Category: Duct Insulation
 4,T2,INS_MATERIAL_TXT,,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, INS_MATERIAL_TXT, """")"
 "⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓, Calculated Value gates visibility)"
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm minimum for duct insulation,BS 5422 / ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INS_THICKNESS_MM, """")"
+1,MEDIUM,WARN_INS_THICKNESS_MM,Thickness < 25 mm minimum for duct insulation,BS 5422 / ASHRAE 90.1,Common,Text,⚠ Warning: Insulation Below Minimum,"if(TAG_WARN_VISIBLE_BOOL, WARN_PLM_INSULATION_THK_PIPES, """")"
 2,MEDIUM,WARN_INS_FIRE_CLASS_DUCT_INS,Insulation fire class not specified,BS 5422 / BS EN 13501-1 / Building Regs Part B,Common,Text,⚠ Warning: Duct Insulation Fire Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_FIRE_CLASS_DUCT_INS, """")"
 3,LOW,WARN_INS_VAPOUR_BARRIER_DUCT_INS,Vapour barrier not specified for cold duct insulation,BS 5422 / CIBSE Guide B3,Common,Text,⚠ Warning: Duct Insulation Vapour Barrier,"if(TAG_WARN_VISIBLE_BOOL, WARN_INS_VAPOUR_BARRIER_DUCT_INS, """")"
 Tag Family #30: STING - Duct Lining Tag

@@ -1742,6 +1742,9 @@ PARAM	3eb369b8-8e69-5ddf-9d08-6d955d75288e	STR_TAG_7_PARA_LOAD_TXT	TEXT		16	1	St
 PARAM	ddc05a50-d8a7-5ca5-8576-f80029fc03aa	STR_TAG_7_PARA_REBAR_TXT	TEXT		16	1	Structural TAG7 paragraph container for rebar	1
 PARAM	09353894-8a07-50cd-b794-4443ffbac271	STR_TAG_7_PARA_SLAB_TXT	TEXT		16	1	Structural TAG7 paragraph container for slab	1
 PARAM	63ff5128-2b34-57f2-bf52-80fd3437943a	STR_TAG_7_PARA_WALL_TXT	TEXT		16	1	Structural TAG7 paragraph container for wall	1
+PARAM	f57982c9-adf3-5c7c-b701-8770313f0cb5	STR_TAG_7_PARA_BOLT_TXT	TEXT		16	1	Structural TAG7 paragraph container for bolt connections	1
+PARAM	f066ecf4-0c8a-59da-860e-2f00f5873e3d	STR_TAG_7_PARA_WELD_TXT	TEXT		16	1	Structural TAG7 paragraph container for weld connections	1
+PARAM	8f96bff4-2a76-5aa5-bf5e-c03c837a817f	STR_TAG_7_PARA_WIRE_TXT	TEXT		16	1	Structural TAG7 paragraph container for wire/prestress	1
 PARAM	cb2018be-ff44-5095-9326-89b5c1759bda	STR_WALL_COVER_MM	TEXT		16	1	Str Wall Cover Mm [ISO 19650]	1
 PARAM	8e81983c-0759-5593-8603-d34196a80549	STR_WALL_REBAR_TXT	TEXT		16	1	Str Wall Rebar [ISO 19650]	1
 PARAM	f303a52a-a9b9-58b7-ad4c-b192ae8202e9	STR_WALL_TYPE_TXT	TEXT		16	1	Str Wall Type [ISO 19650]	1
@@ -2097,7 +2100,51 @@ PARAM	dcdab17c-7674-5289-845b-a8d5aed17942	WARN_STR_REBAR_SPACING_MM_AREA	TEXT		
 PARAM	8ba3c51b-278b-5cb0-b6a4-ff77b1409c3d	WARN_STR_SLAB_COVER_MM	TEXT		17	1	Tag warning: str slab cover mm	1
 PARAM	2e46136e-9d46-5cbd-b096-debb2dafb396	WARN_STR_WALL_SLENDERNESS	TEXT		17	1	Tag warning: str wall slenderness	1
 PARAM	e09ac3c7-bc85-59ab-8bda-be0987449a47	WARN_STR_WELD_SPEC_MISSING	TEXT		17	1	Tag warning: str weld spec missing	1
+PARAM	a602a2b7-3182-5d5a-aea8-fab8339c590a	WARN_ASS_TIEIN_NO_IFC_REF	TEXT		17	1	Tag warning: tie-in point missing IFC reference	1
+PARAM	60b8b130-ce5f-53bb-910b-38f65d684909	WARN_ASS_TIEIN_NO_PHASE	TEXT		17	1	Tag warning: tie-in point missing phase information	1
+PARAM	19f79ede-cc77-5e44-bb74-7b40a1b08e56	WARN_ASS_TIEIN_NO_RESPONSIBLE	TEXT		17	1	Tag warning: tie-in point missing responsible party	1
+PARAM	004a7bed-4c98-57b2-b600-610a507943c8	WARN_ELC_CIRCUIT_LOADING_PCT	TEXT		17	1	Tag warning: electrical circuit loading percentage exceeded	1
+PARAM	c92d990c-8439-5756-b7aa-9815b3264840	WARN_HVC_DUCT_VELOCITY_M_S_NR	TEXT		17	1	Tag warning: HVAC duct velocity exceeds CIBSE limit	1
+PARAM	4183fb0c-fc29-5d9c-ac12-354d2aa0f832	WARN_PER_CONDENSATION_RISK_BOOL	TEXT		17	1	Tag warning: condensation risk detected (generic)	1
+PARAM	8f1233a3-a77a-583b-8e95-0afd66d0a766	WARN_PER_EMBODIED_CARBON_KG_CO2_M2	TEXT		17	1	Tag warning: embodied carbon exceeds threshold (generic)	1
+PARAM	8cc36388-1f54-5501-ab42-8ca5005fb09f	WARN_PLM_PIPE_VELOCITY_M_S_NR	TEXT		17	1	Tag warning: plumbing pipe velocity exceeds limit	1
 
+PARAM	6c883d6a-6671-5c6c-be21-968aa8918e8c	ASS_CAPACITY_TXT	TEXT		4	1	Asset capacity specification [ISO 19650-2:2018]	1
+PARAM	bda7dbb2-896a-5d04-bed9-1d107522251c	ASS_DRIVE_TXT	TEXT		4	1	Asset drive type/mechanism [ISO 19650-2:2018]	1
+PARAM	288c4577-3730-5cb1-a8c2-203106b1604e	ASS_INSPECT_FREQ_TXT	TEXT		4	1	Asset inspection frequency [ISO 19650-2:2018]	1
+PARAM	f96aabb3-733f-5322-8ada-9f3de9546952	ASS_QA_CERT_TXT	TEXT		4	1	QA certificate reference [ISO 19650-2:2018]	1
+PARAM	13438d8d-6e18-5bdf-99ad-8076b7fc613d	ASS_QA_TEST_REPORT_TXT	TEXT		4	1	QA test report reference [ISO 19650-2:2018]	1
+PARAM	2e322a95-c90e-51fd-a609-a2c44353cdfc	BLE_BLOCK_SIZE_TXT	TEXT		2	1	Masonry block size specification [ISO 19650-2:2018]	1
+PARAM	2f3f6e13-97fb-5bc2-a455-8980ec202c90	BLE_BRICK_BOND_TYPE_TXT	TEXT		2	1	Brick bond type/pattern [ISO 19650-2:2018]	1
+PARAM	e86a21d4-4895-5cb3-85df-7f0e2e9c64c2	BLE_FINISH_TILE_SZ_TXT_W_MM	TEXT		2	1	Finish tile size width mm [ISO 19650-2:2018]	1
+PARAM	db2cbdfe-032d-5329-a43b-c153c9691156	BLE_MORTAR_MIX_TXT	TEXT		2	1	Mortar mix specification [ISO 19650-2:2018]	1
+PARAM	756d823a-24fa-5632-bd11-4f481a89ebc7	BLE_PAINT_TYPE_TXT	TEXT		2	1	Paint finish type [ISO 19650-2:2018]	1
+PARAM	57ee93eb-e4de-510c-bf0b-8d3571bafea8	BLE_PLASTER_TYPE_TXT	TEXT		2	1	Plaster type specification [ISO 19650-2:2018]	1
+PARAM	303650f4-f6a0-5025-85ef-4aebfab6d2e8	BLE_ROOF_LOAD_CLASS_TXT	TEXT		2	1	Roof load classification [ISO 19650-2:2018]	1
+PARAM	d6d4197e-47b8-5812-b0ba-05dfe895b8c4	BLE_ROOF_PITCH_DEG	TEXT		2	1	Roof pitch angle in degrees [ISO 19650-2:2018]	1
+PARAM	5394dcdb-bf63-5192-a44b-98ff7c579b2f	BLE_ROOF_SHEET_PROFILE_TXT	TEXT		2	1	Roof sheet profile type [ISO 19650-2:2018]	1
+PARAM	b699cbd1-09e5-53a2-84ce-f7bea8811fe1	BLE_SURFACE_CONDITION_TXT	TEXT		2	1	Surface condition assessment [ISO 19650-2:2018]	1
+PARAM	2942e34c-a113-5888-b0df-8f14f8ba33f8	BLE_TILE_JOINT_WIDTH_MM	TEXT		2	1	Tile joint width mm [ISO 19650-2:2018]	1
+PARAM	950b1a4e-2e93-5353-a8fa-8d9fb2312097	BLE_TILE_SIZE_TXT	TEXT		2	1	Tile size specification [ISO 19650-2:2018]	1
+PARAM	fcc68d9b-37c4-5295-b5c5-438282dceeaa	COM_C_MEAS_RANGE_TXT	TEXT		5	1	Comms measurement range [ISO 19650-2:2018]	1
+PARAM	2e0bccf5-7ebc-5fbd-86f6-ad5f651789c6	CST_FORMWORK_TYPE_TXT	TEXT		3	1	Formwork type specification [ISO 19650-2:2018]	1
+PARAM	014f5170-2464-5b91-892d-1c19a09eea55	CST_PLYWOOD_SIZE_TXT	TEXT		3	1	Plywood size specification [ISO 19650-2:2018]	1
+PARAM	265213c7-9a6a-57a5-8c66-92ff12f01292	CST_SAND_MOISTURE_TXT	TEXT		3	1	Sand moisture content [ISO 19650-2:2018]	1
+PARAM	53db82a5-53e3-5014-8c3c-2288f84980fb	CST_S_FRM_FORMWORK_AREA_SQ_M	TEXT		3	1	Formwork area in sq metres [ISO 19650-2:2018]	1
+PARAM	65bc76f7-b6fb-5a94-b7f1-c5d6ec13e3d4	CST_S_MAS_BLOCKS_NR	TEXT		3	1	Masonry block count [ISO 19650-2:2018]	1
+PARAM	09d5adab-de86-5f1e-bf12-083a39cca57d	CST_S_MAS_NET_WALL_AREA_SQ_M	TEXT		3	1	Net masonry wall area sq metres [ISO 19650-2:2018]	1
+PARAM	ee2009f5-91f9-5d8f-8d6a-ab26c653e25b	CST_S_REI_LAP_LENGTH_MM	TEXT		3	1	Rebar lap length mm [ISO 19650-2:2018]	1
+PARAM	70586494-468c-5799-a99f-37c141dc6701	CST_S_REI_TOTAL_WEIGHT_KG	TEXT		3	1	Rebar total weight kg [ISO 19650-2:2018]	1
+PARAM	ac344ae1-aef1-545b-8da5-7ac51d20de17	ELC_CBL_TYPE_TXT	TEXT		5	1	Electrical cable type [ISO 19650-2:2018]	1
+PARAM	8cde2943-5a1b-58c5-9e51-6607bafcddbc	FLS_SFTY_HEADS_PER_ZONE_NR	TEXT		5	1	Sprinkler heads per zone count [ISO 19650-2:2018]	1
+PARAM	b4ccaf83-24b0-5f98-a987-bb1102aa07ab	HVC_DCT_TERMINAL_SOUND_DB_NR	TEXT		5	1	Duct terminal sound level dB [ISO 19650-2:2018]	1
+PARAM	6123865a-d82e-5c99-b5cd-bffa452f29b6	HVC_EQP_TAG	TEXT		5	1	HVAC equipment tag container [ISO 19650-2:2018]	1
+PARAM	f7122eca-63be-51fe-9afe-dcb34ffcb46a	PER_ACOUSTICS_RT60_S	TEXT		6	1	Acoustic reverberation time RT60 seconds [ISO 19650-2:2018]	1
+PARAM	3c085ab1-764a-5f4e-9ed2-09e903b1ad7d	PER_SUST_CARBON_PER_M2_KG	TEXT		6	1	Sustainability carbon per sq metre kg [ISO 19650-2:2018]	1
+PARAM	d8a01a2d-3c1d-57bd-b567-1ebf9220c115	PER_SUST_GLAZING_RATIO_PCT	TEXT		6	1	Glazing ratio percentage [ISO 19650-2:2018]	1
+PARAM	d9240497-3f4c-5604-a92e-23dd6033d4c4	PER_SUST_SOLAR_GAIN_W	TEXT		6	1	Solar heat gain watts [ISO 19650-2:2018]	1
+PARAM	95fab87d-5702-5e71-bdff-8f573d99eae0	PLM_DRN_TRAP_EFFECTIVE_SEAL_MM	TEXT		5	1	Drain trap effective seal depth mm [ISO 19650-2:2018]	1
+PARAM	0dc2c254-ded2-57d1-bbfa-a724be0fe0b7	PLM_PPE_VELOCITY_CALC_MPS	TEXT		5	1	Pipe velocity calculated m/s [ISO 19650-2:2018]	1
 # ── TAG Style Matrix: 4 sizes × 4 styles × 8 colors = 128 BOOL params ────
 # Controls tag family label row visibility via TAG_{SIZE}{STYLE}_{COLOR}_BOOL
 # Sizes: 2, 2.5, 3, 3.5 | Styles: NOM, BOLD, ITALIC, BOLDITALIC
