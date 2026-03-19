@@ -1188,6 +1188,145 @@ namespace StingTools.UI
                         TaskDialog.Show("Tag Studio", "Gap review completed. See CLAUDE.md Phase 22+ for details.");
                         break;
 
+                    // ── Docs: Handover & Journal ──
+                    case "AssetHealthReport": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
+                    case "MaintenanceScheduleExport": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OAndMManualExport": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "SpaceHandoverReport": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Select: Tag Selectors ──
+                    case "SelectOverlappingTags": RunCommand<Select.SelectOverlappingTagsCommand>(app); break;
+                    case "SelectTagsByArrowhead": RunCommand<Select.SelectTagsByArrowheadCommand>(app); break;
+                    case "SelectTagsByDisciplineCode": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+                    case "SelectTagsByElbowAngle": RunCommand<Select.SelectTagsByElbowAngleCommand>(app); break;
+                    case "SelectTagsByFamily": RunCommand<Select.SelectTagsByFamilyCommand>(app); break;
+                    case "SelectTagsByHostCategory": RunCommand<Select.SelectTagsByHostCategoryCommand>(app); break;
+                    case "SelectTagsByLeaderState": RunCommand<Select.SelectTagsByLeaderStateCommand>(app); break;
+                    case "SelectTagsByLineWeight": RunCommand<Select.SelectTagsByLineWeightCommand>(app); break;
+                    case "SelectTagsByOrientation": RunCommand<Select.SelectTagsByOrientationCommand>(app); break;
+                    case "SelectTagsByText": RunCommand<Select.SelectTagsByTextCommand>(app); break;
+                    case "SelectTagsByTextSize": RunCommand<Select.SelectTagsByTextSizeCommand>(app); break;
+                    case "SelectTagsByToken": RunCommand<Select.SelectTagsByTokenCommand>(app); break;
+                    case "TagSelector": RunCommand<Select.TagSelectorCommand>(app); break;
+
+                    // ── Tags: Intelligence & NLP ──
+                    case "BimKnowledgeBase": RunCommand<Tags.BimKnowledgeBaseCommand>(app); break;
+                    case "CommandSuggestion": RunCommand<Tags.CommandSuggestionCommand>(app); break;
+                    case "ConfigurableTagFormat": RunCommand<Tags.ConfigurableTagFormatCommand>(app); break;
+                    case "NLPCommandProcessor": RunCommand<Tags.NLPCommandProcessorCommand>(app); break;
+                    case "SmartTagSuggest": RunCommand<Tags.SmartTagSuggestCommand>(app); break;
+                    case "TagAnalyticsDashboard": RunCommand<Tags.TagAnalyticsDashboardCommand>(app); break;
+                    case "TagBatchChain": RunCommand<Tags.TagBatchChainCommand>(app); break;
+                    case "TagPropagation": RunCommand<Tags.TagPropagationCommand>(app); break;
+                    case "TagQualityAnalyzer": RunCommand<Tags.TagQualityAnalyzerCommand>(app); break;
+                    case "TagRuleEngine": RunCommand<Tags.TagRuleEngineCommand>(app); break;
+                    case "TagVersionControl": RunCommand<Tags.TagVersionControlCommand>(app); break;
+
+                    // ── Organise: Extended ──
+                    case "DisciplineComplianceReport": RunCommand<Organise.DisciplineComplianceReportCommand>(app); break;
+                    case "NudgeTags": RunCommand<Organise.NudgeTagsCommand>(app); break;
+
+                    // ── Temp: COBie Reference Data ──
+                    case "COBieAttributeTemplates": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
+                    case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+                    case "COBieDocumentTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieExportEnhanced": RunCommand<Temp.COBieExportEnhancedCommand>(app); break;
+                    case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
+                    case "COBiePickLists": RunCommand<Temp.COBiePickListsCommand>(app); break;
+                    case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
+                    case "COBieSystemMap": RunCommand<Temp.COBieSystemMapCommand>(app); break;
+                    case "COBieTypeMap": RunCommand<Temp.COBieTypeMapCommand>(app); break;
+                    case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+
+                    // ── Temp: DWG/CAD Import ──
+                    case "AuditLinkedCAD": RunCommand<Temp.AuditLinkedCADCommand>(app); break;
+                    case "AutoModel": RunCommand<Temp.AutoModelCommand>(app); break;
+                    case "BatchImportDWG": RunCommand<Temp.BatchImportDWGCommand>(app); break;
+                    case "CADInventory": RunCommand<Temp.CADInventoryCommand>(app); break;
+                    case "DWGConversionPlan": RunCommand<Temp.DWGConversionPlanCommand>(app); break;
+                    case "ExportLayerMapping": RunCommand<Temp.ExportLayerMappingCommand>(app); break;
+                    case "ExtractRoomsFromCAD": RunCommand<Temp.ExtractRoomsFromCADCommand>(app); break;
+                    case "ImportDWG": RunCommand<Temp.ImportDWGCommand>(app); break;
+                    case "ImportDWGWithMapping": RunCommand<Temp.ImportDWGWithMappingCommand>(app); break;
+                    case "LayerMapping": RunCommand<Temp.LayerMappingCommand>(app); break;
+                    case "LinkDWG": RunCommand<Temp.LinkDWGCommand>(app); break;
+                    case "LinkDWGAdvanced": RunCommand<Temp.LinkDWGAdvancedCommand>(app); break;
+                    case "PlaceFamiliesFromCAD": RunCommand<Temp.PlaceFamiliesFromCADCommand>(app); break;
+                    case "PreviewDWGLayers": RunCommand<Temp.PreviewDWGLayersCommand>(app); break;
+                    case "RemoveLinkedCAD": RunCommand<Temp.RemoveLinkedCADCommand>(app); break;
+                    case "TraceWallsFromCAD": RunCommand<Temp.TraceWallsFromCADCommand>(app); break;
+
+                    // ── Temp: Model Creation ──
+                    case "AutoCreateRooms": RunCommand<Temp.AutoCreateRoomsCommand>(app); break;
+                    case "CreateCeilingsInteractive": RunCommand<Temp.CreateCeilingsInteractiveCommand>(app); break;
+                    case "CreateColumnsAtGrids": RunCommand<Temp.CreateColumnsAtGridsCommand>(app); break;
+                    case "CreateFloorsInteractive": RunCommand<Temp.CreateFloorsInteractiveCommand>(app); break;
+                    case "CreateGridsFromCSV": RunCommand<Temp.CreateGridsFromCSVCommand>(app); break;
+                    case "CreateLevelsFromCSV": RunCommand<Temp.CreateLevelsFromCSVCommand>(app); break;
+                    case "CreateWallsInteractive": RunCommand<Temp.CreateWallsInteractiveCommand>(app); break;
+                    case "PlaceDoors": RunCommand<Temp.PlaceDoorsCommand>(app); break;
+                    case "PlaceMEPEquipment": RunCommand<Temp.PlaceMEPEquipmentCommand>(app); break;
+                    case "PlaceWindows": RunCommand<Temp.PlaceWindowsCommand>(app); break;
+
+                    // ── Temp: MEP Schedules ──
+                    case "BatchMEPSchedules": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+                    case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "FireDeviceSchedule": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
+                    case "MechanicalEquipmentSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    case "PlumbingFixtureSchedule": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+
+                    // ── Temp: MEP Audits ──
+                    case "MEPConnectionAudit": RunCommand<Temp.MEPConnectionAuditCommand>(app); break;
+                    case "MEPSizingCheck": RunCommand<Temp.MEPSizingCheckCommand>(app); break;
+                    case "MEPSpaceAnalysis": RunCommand<Temp.MEPSpaceAnalysisCommand>(app); break;
+                    case "MEPSystemAudit": RunCommand<Temp.MEPSystemAuditCommand>(app); break;
+
+                    // ── Temp: Standards & Compliance ──
+                    case "Bs7671Compliance": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "Bs8300Accessibility": RunCommand<Temp.Bs8300AccessibilityCommand>(app); break;
+                    case "CibseVelocityCheck": RunCommand<Temp.CibseVelocityCheckCommand>(app); break;
+                    case "Iso19650DeepCompliance": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "PartLCompliance": RunCommand<Temp.PartLComplianceCommand>(app); break;
+                    case "StandardsDashboard": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UniclassClassify": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+
+                    // ── Temp: IoT & Maintenance ──
+                    case "AssetCondition": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "CommissioningChecklist": RunCommand<Temp.CommissioningChecklistCommand>(app); break;
+                    case "DigitalTwinExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+                    case "EnergyAnalysis": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "LifecycleCost": RunCommand<Temp.LifecycleCostCommand>(app); break;
+                    case "MaintenanceSchedule": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
+                    case "SensorPointMapper": RunCommand<Temp.SensorPointMapperCommand>(app); break;
+                    case "WarrantyTracker": RunCommand<Temp.WarrantyTrackerCommand>(app); break;
+
+                    // ── Temp: Room & Space ──
+                    case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "RoomBasedParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
+                    case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
+                    case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
+                    case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
+
+                    // ── Temp: Data Validation ──
+                    case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
+                    case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
+                    case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
+                    case "DataReport": RunCommand<Temp.DataReportCommand>(app); break;
+                    case "ExportUnifiedRegistry": RunCommand<Temp.ExportUnifiedRegistryCommand>(app); break;
+                    case "IFCExportEnhanced": RunCommand<Temp.IFCExportEnhancedCommand>(app); break;
+                    case "ModelElementAudit": RunCommand<Temp.ModelElementAuditCommand>(app); break;
+                    case "ValidateBindingMatrix": RunCommand<Temp.ValidateBindingMatrixCommand>(app); break;
+                    case "ValidateFamilyBindings": RunCommand<Temp.ValidateFamilyBindingsCommand>(app); break;
+                    case "ViewParameterMetadata": RunCommand<Temp.ViewParameterMetadataCommand>(app); break;
+
+                    // ── Temp: Handover & Export ──
+                    case "HandoverPackage": RunCommand<Temp.HandoverPackageCommand>(app); break;
+
                     // ── Unmapped / placeholder ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");

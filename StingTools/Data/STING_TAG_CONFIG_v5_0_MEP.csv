@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.0,CREATED=2026-03-16
+#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=1_param_name_mismatch_aligned_to_MR_PARAMETERS
 STING Tag Configuration v5.0 - MEP (COMPLETE with Warnings)
 6C — HVAC
 Tag Family #1: STING - Air Terminal Tag

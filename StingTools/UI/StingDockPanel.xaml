@@ -850,6 +850,7 @@
                                     <ComboBoxItem Content="A3"/>
                                     <ComboBoxItem Content="A4"/>
                                 </ComboBox>
+                                <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
                             </WrapPanel>
@@ -1109,6 +1110,10 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Magic Rename" Tag="MagicRename" Click="Cmd_Click"
+                                        ToolTip="Universal rename: prefix/suffix/find-replace/case/numbering"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Colours" Tag="ViewTabColour" Click="Cmd_Click"
+                                        ToolTip="Analyse views by discipline and colour-code tabs"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click"/>
