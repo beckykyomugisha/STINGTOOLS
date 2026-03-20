@@ -1210,6 +1210,10 @@ namespace StingTools.UI
                     _param2 = "";
                 }
 
+                // Clear ExtraParams to prevent cross-command state pollution
+                // (e.g., ElbowMode from tag command bleeding into next selection command)
+                ClearAllExtraParams();
+
                 // FIX-UI03: Notify panel that command completed so Tag Studio
                 // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
                 // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
