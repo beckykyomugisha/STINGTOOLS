@@ -180,7 +180,6 @@ namespace StingTools.Core
             return false;
         }
 
-        /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
         [ThreadStatic] private static int _readOnlySkipCount;
         /// <summary>Reset read-only skip counter at start of batch operation.</summary>
@@ -188,6 +187,7 @@ namespace StingTools.Core
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
         public static int ReadOnlySkipCount => _readOnlySkipCount;
 
+        /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
         {
