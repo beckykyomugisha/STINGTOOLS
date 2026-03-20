@@ -8,7 +8,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **102 source files** (99 C# + 3 XAML, ~123,600 lines of code) across 10 directories
+- **112 source files** (109 C# + 3 XAML, ~129,900 lines of code) across 10 directories
 - **515 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
@@ -61,19 +61,29 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard + theme engine (7 C# files + 3 XAML, ~12,770 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (21 C# files + 3 XAML, ~18,500 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 590+ button tags to 376 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
-    │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, category/family/type filters, 7 operations
-    │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with category picker, value display, 11-operator condition builder
-    │   ├── BulkOperationDialog.cs       # Unified WPF dialog for bulk parameter operations (replaces 5-step TaskDialog)
-    │   ├── CombineConfigDialog.cs      # Unified WPF dialog for Combine Parameters configuration (replaces 2-step picker)
-    │   ├── HeadingStyleDialog.cs       # Unified WPF dialog for TAG7 heading style (replaces 3-step TaskDialog)
-    │   ├── ThemeManager.cs             # WPF theme engine — Dark/Light/Grey/Corporate themes with 13 color resource keys
+    │   ├── StingModePicker.cs          # Reusable WPF mode picker dialog for command mode selection
+    │   ├── StingWizardDialog.cs        # Base multi-page WPF wizard framework (448 lines) — reusable page navigation, validation, summary
+    │   ├── StingDataGridDialog.cs      # Reusable WPF data grid dialog for tabular data display with search/filter
+    │   ├── StingExportDialog.cs        # BIMLink-style export dialog with column mapping, preview, and format selection
+    │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, 7 operations
+    │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with 11-operator condition builder
+    │   ├── BulkOperationDialog.cs      # Unified WPF dialog for bulk parameter operations (replaces 5-step TaskDialog)
+    │   ├── CombineConfigDialog.cs      # Unified WPF dialog for Combine Parameters configuration
+    │   ├── HeadingStyleDialog.cs       # Unified WPF dialog for TAG7 heading style
+    │   ├── COBieExportWizard.cs        # Multi-page COBie V2.4 export wizard with preset selection and sheet configuration
+    │   ├── ExcelExchangeWizard.cs      # Excel import/export wizard with column mapping and validation
+    │   ├── IssueWizard.cs              # BIM issue creation wizard with BCF integration
+    │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
+    │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
+    │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
+    │   ├── ThemeManager.cs             # WPF theme engine — Light/Warm/Cool/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
@@ -496,14 +506,27 @@ STINGTOOLS/
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 238 |
 | `UI/StingListPicker.cs` | 0 (reusable WPF list picker dialog with search/filter) | 323 |
-| `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 690 |
+| `UI/StingModePicker.cs` | 0 (reusable WPF mode picker dialog) | 200 |
+| `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
+| `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
+| `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
+| `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
 | `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
-| `UI/ThemeManager.cs` | 0 (WPF theme engine — Dark/Light/Grey/Corporate themes) | 149 |
+| `UI/BulkOperationDialog.cs` | 0 (unified bulk parameter operations dialog) | 891 |
+| `UI/CombineConfigDialog.cs` | 0 (combine parameters configuration dialog) | 551 |
+| `UI/HeadingStyleDialog.cs` | 0 (TAG7 heading style dialog) | 391 |
+| `UI/COBieExportWizard.cs` | 0 (multi-page COBie V2.4 export wizard) | 521 |
+| `UI/ExcelExchangeWizard.cs` | 0 (Excel import/export wizard) | 336 |
+| `UI/IssueWizard.cs` | 0 (BIM issue creation wizard with BCF) | 544 |
+| `UI/SmartPlacementWizard.cs` | 0 (smart tag placement configuration wizard) | 267 |
+| `UI/ThemeManager.cs` | 0 (WPF theme engine — Light/Warm/Cool/Corporate themes) | 149 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
+| `UI/BEPWizard.xaml.cs` | 0 (BEP generation wizard code-behind) | 300 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
+| `UI/BEPWizard.xaml` | — (WPF markup, BEP wizard dialog) | 400 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **~515 commands** | **~120,900** |
+| **Total** | **~515 commands** | **~129,900** |
 
 ## Core Classes
 
@@ -722,7 +745,17 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `OutputLocationHelper` | `Core/OutputLocationHelper.cs` | Centralized export path management: 4-level fallback chain (preferred → project → documents → temp), timestamped paths, config persistence |
 | `StingListPicker` | `UI/StingListPicker.cs` | Reusable WPF list picker dialog: search/filter, single/multi-select, corporate styling, replaces paginated TaskDialog workflows |
 | `BatchRenameDialog` | `UI/BatchRenameDialog.cs` | Single-step WPF batch rename dialog: category/family/type filters, 7 rename operations (find/replace with regex, prefix/suffix, case, sequential, level standardisation), live before/after preview with green highlight, Select All/None |
-| `ParameterLookupDialog` | `UI/ParameterLookupDialog.cs` | Enhanced WPF parameter lookup: category picker, searchable parameter list with priority sorting, value display with element counts, 11-operator condition builder (contains/equals/not equals/starts/ends/>/</>=/<=/ empty/not empty), live match count, Select Matching/Color By Value/Apply Filter actions |
+| `ParameterLookupDialog` | `UI/ParameterLookupDialog.cs` | Enhanced WPF parameter lookup: category picker, searchable parameter list with priority sorting, value display with element counts, 11-operator condition builder, Select Matching/Color By Value/Apply Filter actions |
+| `BulkOperationDialog` | `UI/BulkOperationDialog.cs` | Unified WPF dialog for bulk parameter operations: operation selector, dynamic token/value tile picker, element preview |
+| `CombineConfigDialog` | `UI/CombineConfigDialog.cs` | Unified WPF dialog for Combine Parameters: mode selector, searchable container group tree with checkbox multi-select |
+| `HeadingStyleDialog` | `UI/HeadingStyleDialog.cs` | Unified WPF dialog for TAG7 heading style: 4 visual style cards with live text preview |
+| `COBieExportWizard` | `UI/COBieExportWizard.cs` | Multi-page COBie V2.4 export wizard with preset selection and sheet configuration |
+| `ExcelExchangeWizard` | `UI/ExcelExchangeWizard.cs` | Excel import/export wizard with column mapping and validation |
+| `IssueWizard` | `UI/IssueWizard.cs` | BIM issue creation wizard with BCF integration |
+| `SmartPlacementWizard` | `UI/SmartPlacementWizard.cs` | Smart tag placement configuration wizard |
+| `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
+| `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
+| `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
