@@ -1173,13 +1173,9 @@ namespace StingTools.UI
                     // ── Tags: Configure Tag Format (alias for ConfigEditor) ──
                     case "ConfigureTagFormat": RunCommand<Tags.ConfigEditorCommand>(app); break;
 
-                    // ── Not-yet-implemented buttons (informational) ──
-                    case "ApplyClonedTags":
-                        TaskDialog.Show("STING", "Apply Cloned Tags — coming in a future release.\nUse Copy Tags (Organise tab) as the current alternative.");
-                        break;
-                    case "JSONExport":
-                        TaskDialog.Show("STING", "JSON Export — coming in a future release.\nUse CSV Export or Excel Export as the current alternative.");
-                        break;
+                    // ── Clone & Export commands ──
+                    case "ApplyClonedTags": RunCommand<Organise.ApplyClonedTagsCommand>(app); break;
+                    case "JSONExport": RunCommand<Organise.JSONExportCommand>(app); break;
 
                     // ── Docs: Handover & Journal (alternate tag names) ──
                     case "AssetHealthReport": RunCommand<Docs.AssetHealthReportCommand>(app); break;

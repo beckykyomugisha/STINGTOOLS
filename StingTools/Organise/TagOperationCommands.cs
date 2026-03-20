@@ -5573,4 +5573,351 @@ namespace StingTools.Organise
             return Result.Succeeded;
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  APPLY CLONED TAGS
+    //  Clones tag tokens from a selected source element to ALL untagged elements
+    //  of the same category in the project (or active view). Each target gets its
+    //  own unique SEQ via BuildAndWriteTag collision detection.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Clone tag tokens from a source element to all untagged elements of the same
+    /// category. Unlike Copy Tags (which targets manually selected elements), this
+    /// command auto-discovers targets by category match. Each target receives unique
+    /// SEQ numbers via collision detection.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ApplyClonedTagsCommand : IExternalCommand
+    {
+        private static readonly string[] CloneParams = new[]
+        {
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD,
+            ParamRegistry.STATUS,
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var selected = uidoc.Selection.GetElementIds().ToList();
+            if (selected.Count != 1)
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    "Select exactly 1 tagged element as the source.\n\n" +
+                    "Its tag tokens (DISC, LOC, ZONE, SYS, FUNC, PROD, STATUS) " +
+                    "will be cloned to all untagged elements of the same category.");
+                return Result.Succeeded;
+            }
+
+            Element source = doc.GetElement(selected[0]);
+            if (source == null || source.Category == null)
+            {
+                TaskDialog.Show("STING", "Invalid source element.");
+                return Result.Failed;
+            }
+
+            string sourceTag = ParameterHelpers.GetString(source, ParamRegistry.TAG1);
+            if (string.IsNullOrEmpty(sourceTag))
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    "Source element has no tag. Tag it first, then clone.");
+                return Result.Failed;
+            }
+
+            // Collect source token values
+            var sourceValues = new Dictionary<string, string>();
+            foreach (string p in CloneParams)
+                sourceValues[p] = ParameterHelpers.GetString(source, p);
+
+            string sourceCat = ParameterHelpers.GetCategoryName(source);
+            BuiltInCategory bic = (BuiltInCategory)source.Category.Id.IntegerValue;
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("Apply Cloned Tags — Scope");
+            scopeDlg.MainInstruction = $"Clone tags from: {sourceTag}";
+            scopeDlg.MainContent =
+                $"Category: {sourceCat}\n" +
+                $"DISC={sourceValues.GetValueOrDefault(ParamRegistry.DISC, "")}, " +
+                $"SYS={sourceValues.GetValueOrDefault(ParamRegistry.SYS, "")}, " +
+                $"PROD={sourceValues.GetValueOrDefault(ParamRegistry.PROD, "")}\n\n" +
+                "Choose scope for target elements:";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Active view only",
+                $"Clone to untagged {sourceCat} elements visible in current view");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Entire project",
+                $"Clone to ALL untagged {sourceCat} elements in the project");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            bool projectScope;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: projectScope = false; break;
+                case TaskDialogResult.CommandLink2: projectScope = true; break;
+                default: return Result.Cancelled;
+            }
+
+            // Collect targets
+            FilteredElementCollector collector = projectScope
+                ? new FilteredElementCollector(doc)
+                : new FilteredElementCollector(doc, doc.ActiveView.Id);
+
+            var targets = collector
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Id != source.Id)
+                .Where(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
+                .ToList();
+
+            if (targets.Count == 0)
+            {
+                TaskDialog.Show("STING — Apply Cloned Tags",
+                    $"No untagged {sourceCat} elements found in the selected scope.");
+                return Result.Succeeded;
+            }
+
+            // Confirm
+            TaskDialog confirmDlg = new TaskDialog("Confirm Clone");
+            confirmDlg.MainInstruction = $"Clone tags to {targets.Count} elements?";
+            confirmDlg.MainContent =
+                $"Source: {sourceTag}\n" +
+                $"Targets: {targets.Count} untagged {sourceCat} elements\n" +
+                $"Scope: {(projectScope ? "Entire project" : "Active view")}\n\n" +
+                "Each target will receive the same tokens but a unique SEQ number.";
+            confirmDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirmDlg.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            // Build tag index for collision detection
+            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = indexResult.Item1;
+            var seqCounters = indexResult.Item2;
+            var stats = new TaggingStats();
+
+            int cloned = 0, failed = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tags"))
+            {
+                tx.Start();
+                foreach (Element target in targets)
+                {
+                    try
+                    {
+                        // Write source tokens (LVL derived per-element from actual level)
+                        foreach (var kvp in sourceValues)
+                            ParameterHelpers.SetString(target, kvp.Key, kvp.Value, overwrite: true);
+
+                        // Derive LVL from the target's actual level
+                        string lvl = ParameterHelpers.GetLevelCode(doc, target);
+                        ParameterHelpers.SetString(target, ParamRegistry.LVL, lvl, overwrite: true);
+
+                        // Build unique tag with collision detection
+                        TagConfig.BuildAndWriteTag(doc, target, seqCounters,
+                            skipComplete: false, existingTags: existingTags,
+                            collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+
+                        // Write containers and TAG7
+                        string[] tokens = ParamRegistry.ReadTokenValues(target);
+                        ParamRegistry.WriteContainers(doc, target, tokens);
+                        TagConfig.WriteTag7All(doc, target, tokens);
+
+                        cloned++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        StingLog.Warn($"ApplyClonedTags element {target.Id}: {ex.Message}");
+                    }
+                }
+                tx.Commit();
+
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            TaskDialog.Show("STING — Apply Cloned Tags",
+                $"Cloned tags to {cloned} elements.\n" +
+                (failed > 0 ? $"Failed: {failed}\n" : "") +
+                $"Source: {sourceTag}\nScope: {(projectScope ? "Project" : "Active view")}");
+
+            StingLog.Info($"ApplyClonedTags: source={sourceTag}, cloned={cloned}, failed={failed}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  JSON EXPORT
+    //  Exports all tag data as structured JSON for integration with external
+    //  systems (CDE platforms, CAFM, digital twin, dashboards).
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export tag data as structured JSON. Outputs an array of element records
+    /// with full tag tokens, identity data, spatial data, and compliance status.
+    /// Designed for CDE/CAFM/digital twin integration.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class JSONExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // Scope selection
+            TaskDialog scopeDlg = new TaskDialog("STING JSON Export");
+            scopeDlg.MainInstruction = "Export tag data as JSON";
+            scopeDlg.MainContent = "Choose export scope and detail level:";
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Standard export (tags + identity)",
+                "Core tag tokens, category, family, level, room, compliance status");
+            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Full export (all parameters)",
+                "All STING parameters including MEP data, dimensions, TAG7 narrative");
+            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            bool fullExport;
+            switch (scopeDlg.Show())
+            {
+                case TaskDialogResult.CommandLink1: fullExport = false; break;
+                case TaskDialogResult.CommandLink2: fullExport = true; break;
+                default: return Result.Cancelled;
+            }
+
+            // Collect elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> exportElements;
+            if (catEnums != null && catEnums.Length > 0)
+                exportElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            else
+                exportElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            sb.AppendLine($"  \"exportDate\": \"{DateTime.Now:yyyy-MM-ddTHH:mm:ss}\",");
+            sb.AppendLine($"  \"project\": \"{JsonEscape(doc.Title ?? "Unknown")}\",");
+            sb.AppendLine($"  \"tagFormat\": \"{ParamRegistry.Separator}{ParamRegistry.NumPad}\",");
+            sb.AppendLine("  \"elements\": [");
+
+            int total = 0;
+            bool first = true;
+            foreach (Element elem in exportElements)
+            {
+                if (elem.Category == null) continue;
+                string cat = ParameterHelpers.GetCategoryName(elem);
+                if (!known.Contains(cat)) continue;
+
+                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag)) continue;
+
+                total++;
+                if (!first) sb.AppendLine(",");
+                first = false;
+
+                string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
+                string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                string seq = ParameterHelpers.GetString(elem, ParamRegistry.SEQ);
+                string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
+                string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
+                bool valid = TagConfig.TagIsComplete(tag);
+                bool resolved = TagConfig.TagIsFullyResolved(tag);
+
+                sb.AppendLine("    {");
+                sb.AppendLine($"      \"elementId\": {elem.Id.IntegerValue},");
+                sb.AppendLine($"      \"category\": \"{JsonEscape(cat)}\",");
+                sb.AppendLine($"      \"family\": \"{JsonEscape(ParameterHelpers.GetFamilyName(elem))}\",");
+                sb.AppendLine($"      \"type\": \"{JsonEscape(ParameterHelpers.GetFamilySymbolName(elem))}\",");
+                sb.AppendLine($"      \"tag\": \"{JsonEscape(tag)}\",");
+                sb.AppendLine("      \"tokens\": {");
+                sb.AppendLine($"        \"DISC\": \"{JsonEscape(disc)}\",");
+                sb.AppendLine($"        \"LOC\": \"{JsonEscape(loc)}\",");
+                sb.AppendLine($"        \"ZONE\": \"{JsonEscape(zone)}\",");
+                sb.AppendLine($"        \"LVL\": \"{JsonEscape(lvl)}\",");
+                sb.AppendLine($"        \"SYS\": \"{JsonEscape(sys)}\",");
+                sb.AppendLine($"        \"FUNC\": \"{JsonEscape(func)}\",");
+                sb.AppendLine($"        \"PROD\": \"{JsonEscape(prod)}\",");
+                sb.AppendLine($"        \"SEQ\": \"{JsonEscape(seq)}\"");
+                sb.AppendLine("      },");
+                sb.AppendLine($"      \"status\": \"{JsonEscape(status)}\",");
+                sb.AppendLine($"      \"revision\": \"{JsonEscape(rev)}\",");
+                sb.AppendLine($"      \"isComplete\": {(valid ? "true" : "false")},");
+
+                if (fullExport)
+                {
+                    string room = "";
+                    try
+                    {
+                        var r = ParameterHelpers.GetRoomAtElement(doc, elem);
+                        if (r != null) room = $"{r.Number} - {r.Name}";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"JSONExport room: {ex.Message}"); }
+
+                    string gridRef = ParameterHelpers.GetString(elem, "ASS_GRID_REF_TXT");
+                    string tag7a = ParameterHelpers.GetString(elem, ParamRegistry.TAG7A);
+
+                    sb.AppendLine($"      \"isFullyResolved\": {(resolved ? "true" : "false")},");
+                    sb.AppendLine($"      \"room\": \"{JsonEscape(room)}\",");
+                    sb.AppendLine($"      \"gridRef\": \"{JsonEscape(gridRef)}\",");
+                    sb.AppendLine($"      \"tag7Identity\": \"{JsonEscape(tag7a)}\"");
+                }
+                else
+                {
+                    sb.AppendLine($"      \"isFullyResolved\": {(resolved ? "true" : "false")}");
+                }
+
+                sb.Append("    }");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("  ],");
+            sb.AppendLine($"  \"totalElements\": {total}");
+            sb.AppendLine("}");
+
+            // Write to file
+            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tags.json");
+            try
+            {
+                System.IO.File.WriteAllText(path, sb.ToString());
+                BIMManager.BIMManagerEngine.AutoRegisterExport(doc, path, "SH", "JSON tag export");
+                TaskDialog.Show("STING JSON Export",
+                    $"Exported {total} tagged elements to:\n{path}\n\n" +
+                    $"Mode: {(fullExport ? "Full" : "Standard")}");
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("STING JSON Export", $"Export failed: {ex.Message}");
+                StingLog.Error("JSONExport failed", ex);
+            }
+
+            return Result.Succeeded;
+        }
+
+        private static string JsonEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+        }
+    }
 }
