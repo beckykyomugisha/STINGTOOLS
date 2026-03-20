@@ -488,6 +488,7 @@ namespace StingTools.BIMManager
                 }
                 // Invalidate compliance cache so dashboard reflects new revision
                 ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 StingLog.Info($"Revision created: {prefix} — {description}");
                 return Result.Succeeded;
@@ -1589,6 +1590,7 @@ namespace StingTools.BIMManager
 
                 // Invalidate compliance cache so dashboard shows fresh data
                 ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 TaskDialog.Show("StingTools Auto Revision",
                     $"Auto-Revision Created!\n\n" +

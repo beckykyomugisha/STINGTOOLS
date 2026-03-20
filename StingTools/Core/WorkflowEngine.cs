@@ -469,7 +469,7 @@ namespace StingTools.Core
             try
             {
                 double complianceAfter = 0;
-                try { ComplianceScan.InvalidateCache(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
+                try { ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
                 catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
 
                 var record = new WorkflowRunRecord

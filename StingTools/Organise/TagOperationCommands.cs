@@ -4954,7 +4954,7 @@ namespace StingTools.Organise
 
                     // After all token fixes for this element, rebuild TAG1 + containers + TAG7
                     // so the full tag string matches the corrected individual tokens
-                    if (issues.Count > 0)
+                    if (issues.Length > 0)
                     {
                         try
                         {

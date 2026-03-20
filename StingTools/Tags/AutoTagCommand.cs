@@ -149,6 +149,7 @@ namespace StingTools.Tags
             var stats = new TaggingStats();
 
             bool cancelled = false;
+            var progress = StingProgressDialog.Show("Auto Tag", taggable);
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
@@ -157,7 +158,7 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in sorted)
                 {
-                    if (processed % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    if (progress.IsCancelled)
                     {
                         StingLog.Info($"AutoTag: cancelled by user at {processed}/{taggable}");
                         cancelled = true;
@@ -181,12 +182,16 @@ namespace StingTools.Tags
                         StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
                         stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                     }
+
+                    progress.Increment($"Tagging element {processed}/{taggable}");
                 }
+
+                progress.Close();
 
                 if (cancelled)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("Auto Tag", $"Cancelled by user.\nAll changes rolled back.");
+                    TaskDialog.Show("Auto Tag", $"Cancelled by user at {processed}/{taggable}.\nAll changes rolled back.");
                     return Result.Cancelled;
                 }
 
@@ -194,9 +199,7 @@ namespace StingTools.Tags
                 // P6: Save SEQ sidecar after commit
                 TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-            TagConfig.CheckComplianceGate(doc, "AutoTag");
+            TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));

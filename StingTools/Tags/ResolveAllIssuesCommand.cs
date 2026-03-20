@@ -208,15 +208,25 @@ namespace StingTools.Tags
                                     { ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true); isoFixed = true; }
                                 }
 
-                                // If ISO codes were fixed, rebuild tag to incorporate corrections
+                                // If ISO codes were fixed, rebuild tag string from corrected tokens
+                                // without re-deriving (BuildAndWriteTag re-derives SYS/FUNC/PROD
+                                // which would overwrite the ISO corrections we just applied)
                                 if (isoFixed)
                                 {
-                                    TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                        skipComplete: false, existingTags: tagIndex,
-                                        collisionMode: TagCollisionMode.Overwrite, stats: stats,
-                                        cachedRev: popCtx.ProjectRev);
                                     string[] fixedToks = ParamRegistry.ReadTokenValues(el);
-                                    ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                    if (fixedToks != null && fixedToks.Length >= 8)
+                                    {
+                                        string fixedTag = string.Join(TagConfig.Separator,
+                                            fixedToks[0], fixedToks[1], fixedToks[2], fixedToks[3],
+                                            fixedToks[4], fixedToks[5], fixedToks[6], fixedToks[7]);
+                                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                            fixedTag = TagConfig.TagPrefix + TagConfig.Separator + fixedTag;
+                                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                            fixedTag = fixedTag + TagConfig.Separator + TagConfig.TagSuffix;
+                                        ParameterHelpers.SetString(el, ParamRegistry.TAG1, fixedTag, overwrite: true);
+                                        tagIndex.Add(fixedTag);
+                                        ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                    }
                                 }
                             }
 

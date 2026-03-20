@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.Docs
 {
@@ -141,56 +143,99 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var views = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
-                .Where(v => !v.IsTemplate && v.CanBePrinted)
-                .OrderBy(v => v.Name)
-                .ToList();
-
-            if (views.Count == 0)
+            // Step 1: Pick what category of elements to rename
+            var categoryItems = new List<StingListPicker.ListItem>
             {
-                TaskDialog.Show("Batch Rename Views", "No views found.");
+                new() { Label = "Views", Detail = "Floor plans, sections, elevations, 3D views", Tag = "views" },
+                new() { Label = "Sheets", Detail = "Sheet names and numbers", Tag = "sheets" },
+                new() { Label = "Schedules", Detail = "Schedule/quantity views", Tag = "schedules" },
+                new() { Label = "Families", Detail = "Loaded family names", Tag = "families" },
+                new() { Label = "Family Types", Detail = "Type names within families", Tag = "types" },
+                new() { Label = "Line Styles", Detail = "Project line style names", Tag = "linestyles" },
+                new() { Label = "Fill Patterns", Detail = "Fill pattern names", Tag = "fillpatterns" },
+                new() { Label = "Materials", Detail = "Material names", Tag = "materials" },
+                new() { Label = "Levels", Detail = "Level names", Tag = "levels" },
+                new() { Label = "Grids", Detail = "Grid line names", Tag = "grids" },
+                new() { Label = "View Templates", Detail = "View template names", Tag = "templates" },
+                new() { Label = "Worksets", Detail = "Workset names", Tag = "worksets" },
+            };
+
+            var catPick = StingListPicker.Show(
+                "Batch Rename — Select Category",
+                "Choose which element category to rename",
+                categoryItems, allowMultiSelect: false);
+
+            if (catPick == null || catPick.Count == 0) return Result.Cancelled;
+            string category = catPick[0].Tag as string;
+
+            // Step 2: Collect renameable elements for the selected category
+            var renameTargets = CollectRenameTargets(doc, category);
+            if (renameTargets.Count == 0)
+            {
+                TaskDialog.Show("Batch Rename", $"No {category} found in the project.");
                 return Result.Succeeded;
             }
 
-            // Common rename operations
-            TaskDialog opDlg = new TaskDialog("Batch Rename Views");
-            opDlg.MainInstruction = $"Rename {views.Count} views";
-            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Add 'STING - ' prefix",
-                "Prefix all views with 'STING - ' for project identification");
-            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Remove ' Copy' suffix",
-                "Clean up duplicated view names (removes ' Copy', ' Copy 2', etc.)");
-            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "UPPERCASE all names",
-                "Convert all view names to UPPERCASE for consistency");
-            opDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Standardise level names / Custom find-replace",
-                "Replace 'Level 1' with 'L01' etc., or enter custom find/replace text");
-            opDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            int mode;
-            switch (opDlg.Show())
+            // Step 3: Pick items to rename (multi-select, or Select All)
+            var targetItems = renameTargets.Select(t => new StingListPicker.ListItem
             {
-                case TaskDialogResult.CommandLink1: mode = 1; break;
-                case TaskDialogResult.CommandLink2: mode = 2; break;
-                case TaskDialogResult.CommandLink3: mode = 3; break;
-                case TaskDialogResult.CommandLink4:
-                    // Sub-dialog to choose between standardise and custom
-                    var subDlg = new TaskDialog("Standardise or Custom");
-                    subDlg.MainInstruction = "Choose operation:";
-                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Standardise level names");
-                    subDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Custom find/replace");
-                    subDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    var subResult = subDlg.Show();
-                    if (subResult == TaskDialogResult.CommandLink1) mode = 4;
-                    else if (subResult == TaskDialogResult.CommandLink2) mode = 5;
-                    else return Result.Cancelled;
-                    break;
-                default: return Result.Cancelled;
-            }
+                Label = t.Name,
+                Detail = t.Category,
+                Tag = t.Id
+            }).ToList();
+
+            var selectedItems = StingListPicker.Show(
+                $"Batch Rename — Select {category}",
+                $"{renameTargets.Count} items available. Select items to rename.",
+                targetItems, allowMultiSelect: true);
+
+            if (selectedItems == null || selectedItems.Count == 0) return Result.Cancelled;
+            var selectedIds = new HashSet<ElementId>(
+                selectedItems.Select(i => (ElementId)i.Tag).Where(id => id != null));
+
+            // Filter views to just selected ones (for the rename step below)
+            var views = renameTargets
+                .Where(t => selectedIds.Contains(t.Id))
+                .Select(t => doc.GetElement(t.Id))
+                .Where(e => e != null)
+                .ToList();
+
+            // Step 4: Pick rename operation
+            var opItems = new List<StingListPicker.ListItem>
+            {
+                new() { Label = "Add 'STING - ' prefix", Detail = "Prefix for project identification", Tag = "prefix" },
+                new() { Label = "Remove ' Copy' suffix", Detail = "Clean duplicated names", Tag = "removecopy" },
+                new() { Label = "UPPERCASE all names", Detail = "Convert to UPPERCASE", Tag = "upper" },
+                new() { Label = "lowercase all names", Detail = "Convert to lowercase", Tag = "lower" },
+                new() { Label = "Title Case", Detail = "Capitalize First Letter Of Each Word", Tag = "titlecase" },
+                new() { Label = "Standardise level names", Detail = "Replace 'Level 1' with 'L01' etc.", Tag = "stdlevels" },
+                new() { Label = "Custom find/replace", Detail = "Enter custom find and replace text", Tag = "findreplace" },
+                new() { Label = "Add numbering suffix", Detail = "Add sequential numbers (-001, -002, ...)", Tag = "number" },
+                new() { Label = "Remove prefix up to ' - '", Detail = "Remove everything before first ' - '", Tag = "removeprefix" },
+            };
+
+            var opPick = StingListPicker.Show(
+                "Batch Rename — Select Operation",
+                $"Renaming {selectedIds.Count} items",
+                opItems, allowMultiSelect: false);
+
+            if (opPick == null || opPick.Count == 0) return Result.Cancelled;
+            string modeTag = opPick[0].Tag as string;
+
+            int mode = modeTag switch
+            {
+                "prefix" => 1,
+                "removecopy" => 2,
+                "upper" => 3,
+                "stdlevels" => 4,
+                "findreplace" => 5,
+                "lower" => 6,
+                "titlecase" => 7,
+                "number" => 8,
+                "removeprefix" => 9,
+                _ => 0,
+            };
+            if (mode == 0) return Result.Cancelled;
 
             // FIX-C04: Prompt for custom find/replace strings when mode 5 selected
             string findText = null, replaceText = null;
@@ -246,13 +291,15 @@ namespace StingTools.Docs
             int renamed = 0;
             int failed = 0;
             var changes = new List<(string oldName, string newName)>();
+            int seqNum = 0;
 
-            using (Transaction tx = new Transaction(doc, "STING Batch Rename Views"))
+            using (Transaction tx = new Transaction(doc, "STING Batch Rename"))
             {
                 tx.Start();
-                foreach (View v in views)
+                foreach (Element el in views)
                 {
-                    string oldName = v.Name;
+                    string oldName = GetElementName(el);
+                    if (string.IsNullOrEmpty(oldName)) continue;
                     string newName = oldName;
 
                     switch (mode)
@@ -271,18 +318,33 @@ namespace StingTools.Docs
                         case 4: // Standardise levels
                             newName = StandardiseLevelName(oldName);
                             break;
-                        case 5: // FIX-C04: Custom find/replace
+                        case 5: // Custom find/replace
                             if (findText != null && oldName.Contains(findText))
                                 newName = oldName.Replace(findText, replaceText);
+                            break;
+                        case 6: // lowercase
+                            newName = oldName.ToLowerInvariant();
+                            break;
+                        case 7: // Title Case
+                            newName = System.Globalization.CultureInfo.CurrentCulture
+                                .TextInfo.ToTitleCase(oldName.ToLowerInvariant());
+                            break;
+                        case 8: // Add numbering
+                            seqNum++;
+                            newName = $"{oldName}-{seqNum:D3}";
+                            break;
+                        case 9: // Remove prefix up to ' - '
+                            int dashIdx = oldName.IndexOf(" - ");
+                            if (dashIdx >= 0 && dashIdx < oldName.Length - 3)
+                                newName = oldName.Substring(dashIdx + 3);
                             break;
                     }
 
                     if (newName == oldName) continue;
-                    if (ViewNameExists(doc, newName, v.Id)) continue;
 
                     try
                     {
-                        v.Name = newName;
+                        SetElementName(el, newName);
                         renamed++;
                         changes.Add((oldName, newName));
                     }
@@ -296,7 +358,7 @@ namespace StingTools.Docs
             }
 
             var report = new StringBuilder();
-            report.AppendLine($"Renamed {renamed} of {views.Count} views.");
+            report.AppendLine($"Renamed {renamed} of {views.Count} items.");
             if (failed > 0) report.AppendLine($"Failed: {failed}");
             report.AppendLine();
             foreach (var (old, nw) in changes.Take(15))
@@ -304,8 +366,110 @@ namespace StingTools.Docs
             if (changes.Count > 15)
                 report.AppendLine($"  ... and {changes.Count - 15} more");
 
-            TaskDialog.Show("Batch Rename Views", report.ToString());
+            TaskDialog.Show("Batch Rename", report.ToString());
             return Result.Succeeded;
+        }
+
+        private record RenameTarget(string Name, string Category, ElementId Id);
+
+        private static List<RenameTarget> CollectRenameTargets(Document doc, string category)
+        {
+            var results = new List<RenameTarget>();
+            switch (category)
+            {
+                case "views":
+                    foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                        .Where(v => !v.IsTemplate && v.CanBePrinted).OrderBy(v => v.Name))
+                        results.Add(new RenameTarget(v.Name, v.ViewType.ToString(), v.Id));
+                    break;
+                case "sheets":
+                    foreach (ViewSheet s in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                        .OrderBy(s => s.SheetNumber))
+                        results.Add(new RenameTarget($"{s.SheetNumber} - {s.Name}", "Sheet", s.Id));
+                    break;
+                case "schedules":
+                    foreach (ViewSchedule vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                        .Where(s => !s.IsTemplate).OrderBy(s => s.Name))
+                        results.Add(new RenameTarget(vs.Name, "Schedule", vs.Id));
+                    break;
+                case "families":
+                    foreach (Family f in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
+                        .OrderBy(f => f.Name))
+                        results.Add(new RenameTarget(f.Name, f.FamilyCategory?.Name ?? "", f.Id));
+                    break;
+                case "types":
+                    foreach (ElementType et in new FilteredElementCollector(doc).WhereElementIsElementType()
+                        .OfType<ElementType>().Where(e => e.Category != null).OrderBy(e => e.Name).Take(500))
+                        results.Add(new RenameTarget(et.Name, et.Category?.Name ?? "", et.Id));
+                    break;
+                case "linestyles":
+                    var linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                    if (linesCat?.SubCategories != null)
+                        foreach (Category sub in linesCat.SubCategories)
+                            results.Add(new RenameTarget(sub.Name, "Line Style", sub.Id));
+                    break;
+                case "fillpatterns":
+                    foreach (FillPatternElement fp in new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))
+                        .Cast<FillPatternElement>().OrderBy(fp => fp.Name))
+                        results.Add(new RenameTarget(fp.Name, fp.GetFillPattern()?.IsSolidFill == true ? "Solid" : "Pattern", fp.Id));
+                    break;
+                case "materials":
+                    foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material))
+                        .Cast<Material>().OrderBy(m => m.Name))
+                        results.Add(new RenameTarget(m.Name, "Material", m.Id));
+                    break;
+                case "levels":
+                    foreach (Level lv in new FilteredElementCollector(doc).OfClass(typeof(Level))
+                        .Cast<Level>().OrderBy(lv => lv.Elevation))
+                        results.Add(new RenameTarget(lv.Name, $"Elevation: {lv.Elevation:F2}", lv.Id));
+                    break;
+                case "grids":
+                    foreach (Grid g in new FilteredElementCollector(doc).OfClass(typeof(Grid))
+                        .Cast<Grid>().OrderBy(g => g.Name))
+                        results.Add(new RenameTarget(g.Name, "Grid", g.Id));
+                    break;
+                case "templates":
+                    foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                        .Where(v => v.IsTemplate).OrderBy(v => v.Name))
+                        results.Add(new RenameTarget(v.Name, "Template", v.Id));
+                    break;
+                case "worksets":
+                    if (doc.IsWorkshared)
+                    {
+                        var wsList = new FilteredWorksetCollector(doc)
+                            .OfKind(WorksetKind.UserWorkset).ToList();
+                        foreach (var ws in wsList.OrderBy(w => w.Name))
+                            results.Add(new RenameTarget(ws.Name, "Workset", new ElementId(ws.Id.IntegerValue)));
+                    }
+                    break;
+            }
+            return results;
+        }
+
+        private static string GetElementName(Element el)
+        {
+            if (el is ViewSheet sheet) return sheet.Name;
+            if (el is View view) return view.Name;
+            return el.Name;
+        }
+
+        private static void SetElementName(Element el, string name)
+        {
+            if (el is ViewSheet sheet)
+            {
+                // For sheets, rename both number and name if pattern matches
+                if (name.Contains(" - "))
+                {
+                    int idx = name.IndexOf(" - ");
+                    sheet.SheetNumber = name.Substring(0, idx);
+                    sheet.Name = name.Substring(idx + 3);
+                }
+                else sheet.Name = name;
+            }
+            else
+            {
+                el.Name = name;
+            }
         }
 
         private static string StandardiseLevelName(string name)

@@ -345,8 +345,8 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Show common tag params first, then all others
-            var priorityParams = new[]
+            // Step 1: Pick parameter via StingListPicker (shows ALL parameters, searchable)
+            var priorityParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
                 ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
@@ -354,61 +354,45 @@ namespace StingTools.Select
                 "Comments", "Type Name", "Family", "Level"
             };
 
-            var dlg = new TaskDialog("Color By Parameter — Pick Parameter");
-            dlg.MainInstruction = "Which parameter to color by?";
+            // Sort: priority params first, then alphabetical
+            var sortedParams = paramNames
+                .OrderByDescending(p => priorityParams.Contains(p))
+                .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            // Show up to 4 command links for the most useful params
-            var top4 = priorityParams.Where(p => paramNames.Contains(p)).Take(4).ToList();
-            string selectedParam = null;
-
-            if (top4.Count >= 1)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    top4[0], $"Color by {top4[0]}");
-            if (top4.Count >= 2)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    top4[1], $"Color by {top4[1]}");
-            if (top4.Count >= 3)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    top4[2], $"Color by {top4[2]}");
-            if (top4.Count >= 4)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                    top4[3], $"Color by {top4[3]}");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            dlg.FooterText = $"{paramNames.Count} parameters available. " +
-                "Cancel and re-run with elements selected to filter.";
-
-            var pick = dlg.Show();
-            switch (pick)
+            var paramItems = sortedParams.Select(p => new StingListPicker.ListItem
             {
-                case TaskDialogResult.CommandLink1: selectedParam = top4[0]; break;
-                case TaskDialogResult.CommandLink2: selectedParam = top4[1]; break;
-                case TaskDialogResult.CommandLink3: selectedParam = top4[2]; break;
-                case TaskDialogResult.CommandLink4: selectedParam = top4[3]; break;
-                default: return Result.Cancelled;
-            }
+                Label = p,
+                Detail = priorityParams.Contains(p) ? "STING" : "",
+                Tag = p
+            }).ToList();
 
-            // Step 2: Pick palette
-            var palDlg = new TaskDialog("Color By Parameter — Pick Palette");
-            palDlg.MainInstruction = $"Select color palette for '{selectedParam}'";
-            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "STING Discipline", "M=Blue, E=Gold, P=Green, A=Grey (8 colors)");
-            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "High Contrast", "Saturated primaries for QA checking (8 colors)");
-            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Accessible", "Colorblind-safe viridis palette (10 colors)");
-            palDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Spectral", "Rainbow gradient for continuous ranges (8 colors)");
-            palDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            var paramPick = StingListPicker.Show(
+                "Color By Parameter — Pick Parameter",
+                $"{elems.Count} elements in view | {paramNames.Count} parameters available",
+                paramItems, allowMultiSelect: false);
 
-            string paletteName;
-            switch (palDlg.Show())
+            if (paramPick == null || paramPick.Count == 0) return Result.Cancelled;
+            string selectedParam = paramPick[0].Tag as string;
+            if (string.IsNullOrEmpty(selectedParam)) return Result.Cancelled;
+
+            // Step 2: Pick palette via StingListPicker (shows ALL palettes)
+            var paletteItems = ColorHelper.Palettes.Select(kvp => new StingListPicker.ListItem
             {
-                case TaskDialogResult.CommandLink1: paletteName = "STING Discipline"; break;
-                case TaskDialogResult.CommandLink2: paletteName = "High Contrast"; break;
-                case TaskDialogResult.CommandLink3: paletteName = "Accessible"; break;
-                case TaskDialogResult.CommandLink4: paletteName = "Spectral"; break;
-                default: return Result.Cancelled;
-            }
+                Label = kvp.Key,
+                Detail = $"{kvp.Value.Length} colors",
+                Tag = kvp.Key
+            }).ToList();
+
+            var palettePick = StingListPicker.Show(
+                "Color By Parameter — Pick Palette",
+                $"Select color palette for '{selectedParam}'",
+                paletteItems, allowMultiSelect: false);
+
+            if (palettePick == null || palettePick.Count == 0) return Result.Cancelled;
+            string paletteName = palettePick[0].Tag as string;
+            if (string.IsNullOrEmpty(paletteName) || !ColorHelper.Palettes.ContainsKey(paletteName))
+                return Result.Cancelled;
 
             Color[] palette = ColorHelper.Palettes[paletteName];
 

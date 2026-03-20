@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.Temp
 {
@@ -55,6 +56,52 @@ namespace StingTools.Temp
             if (remapCount > 0)
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
+            // Parse all schedule definitions to let user choose categories/disciplines
+            var allLines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1)
+                .ToList();
+
+            // Extract unique disciplines and categories from CSV column 1 (Discipline) and 3 (Category)
+            var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
+            foreach (string rawLine in allLines)
+            {
+                string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
+                if (rawCols.Length < 4) continue;
+                string discCol = rawCols.Length > 1 ? rawCols[1].Trim() : "General";
+                string nameCol = rawCols[2].Trim();
+                string catCol = rawCols[3].Trim();
+                if (string.IsNullOrEmpty(nameCol)) continue;
+                scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
+            }
+
+            // Step: Let user pick which disciplines/categories to create
+            var discGroups = scheduleDefs
+                .GroupBy(s => s.discipline, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            var discItems = discGroups.Select(g => new Select.StingListPicker.ListItem
+            {
+                Label = g.Key,
+                Detail = $"{g.Count()} schedules",
+                Tag = g.Key
+            }).ToList();
+
+            var discPick = Select.StingListPicker.Show(
+                "Batch Create Schedules — Select Disciplines",
+                $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
+                discItems, allowMultiSelect: true);
+
+            if (discPick == null || discPick.Count == 0) return Result.Cancelled;
+
+            var selectedDiscs = new HashSet<string>(
+                discPick.Select(d => d.Tag as string).Where(s => !string.IsNullOrEmpty(s)),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Filter lines to selected disciplines only
+            var filteredDefs = scheduleDefs.Where(s => selectedDiscs.Contains(s.discipline)).ToList();
+
             int created = 0;
             int skipped = 0;
             int remapped = 0;
@@ -78,9 +125,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1); // skip header row
+                var lines = filteredDefs.Select(d => d.line);
 
                 int lineNum = 0;
                 foreach (string line in lines)

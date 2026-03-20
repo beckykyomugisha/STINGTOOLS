@@ -46,73 +46,23 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // Show options dialog — supports >4 options via paging
-            string value = null;
-            int page = 0;
-            const int pageSize = 4; // TaskDialog max command links
-
-            int itemsShown = 0; // tracks cumulative items shown across pages
-            while (value == null)
+            // Interactive dialog with search, select, cancel, OK
+            var optionItems = options.Select(o => new Select.StingListPicker.ListItem
             {
-                int startIdx = itemsShown;
-                // Reserve 1 link slot for "More..." if there are items beyond this page
-                int remaining = options.Length - startIdx;
-                bool hasMore = remaining > pageSize;
-                int showCount = hasMore ? pageSize - 1 : Math.Min(remaining, pageSize);
-                int endIdx = startIdx + showCount;
+                Label = o,
+                Detail = "",
+                Tag = o
+            }).ToList();
 
-                if (startIdx >= options.Length) break;
+            string scopeLabel = usingSelection ? "Selected elements" : "All taggable in view";
+            var picked = Select.StingListPicker.Show(
+                $"Set {label}",
+                $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
+                optionItems, allowMultiSelect: false);
 
-                TaskDialog td = new TaskDialog(label);
-                td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
-                string pageInfo = options.Length > pageSize
-                    ? $"\nPage {page + 1}: showing {options[startIdx]}..{options[endIdx - 1]}"
-                    : "";
-                td.MainContent = (usingSelection ? "(Selected elements)" : "(All taggable in view)") + pageInfo +
-                    "\n\nClick an option below to apply it:";
-
-                int linkCount = 0;
-                for (int i = startIdx; i < endIdx; i++)
-                {
-                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), options[i]);
-                    linkCount++;
-                }
-
-                // Add "More..." link on reserved slot
-                if (hasMore)
-                {
-                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), "More options...");
-                }
-
-                td.CommonButtons = TaskDialogCommonButtons.Cancel;
-                var result = td.Show();
-
-                int selectedLink = -1;
-                switch (result)
-                {
-                    case TaskDialogResult.CommandLink1: selectedLink = 0; break;
-                    case TaskDialogResult.CommandLink2: selectedLink = 1; break;
-                    case TaskDialogResult.CommandLink3: selectedLink = 2; break;
-                    case TaskDialogResult.CommandLink4: selectedLink = 3; break;
-                    default: return Result.Cancelled;
-                }
-
-                int actualIdx = startIdx + selectedLink;
-                // Check if "More options..." was selected
-                if (hasMore && selectedLink == showCount)
-                {
-                    itemsShown += showCount;
-                    page++;
-                    continue; // Show next page
-                }
-
-                if (actualIdx >= 0 && actualIdx < options.Length)
-                    value = options[actualIdx];
-                else
-                    return Result.Cancelled;
-            }
-
-            if (value == null) return Result.Cancelled;
+            if (picked == null || picked.Count == 0) return Result.Cancelled;
+            string value = picked[0].Tag as string;
+            if (string.IsNullOrEmpty(value)) return Result.Cancelled;
 
             // Validate the chosen value against ISO 19650 code lists
             string validationError = ISO19650Validator.ValidateToken(paramName, value);
@@ -255,10 +205,17 @@ namespace StingTools.Tags
                     // LOGIC-04: Include ZONE in group key for distinct sequences per zone
                     string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
                     if (string.IsNullOrEmpty(zone)) zone = "ZZ";
-                    string key = $"{disc}_{sys}_{lvl}_{zone}";
+                    string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                    string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                    // Use canonical BuildSeqKey for consistent key format across all commands
+                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                     if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
                     maxSeq[key]++;
-                    string seq = maxSeq[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    // Honor SeqScheme setting (Numeric/Alpha/ZonePrefix/DiscPrefix)
+                    string seqContext = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
+                                      : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                      : "";
+                    string seq = TagConfig.BuildSeqString(maxSeq[key], TagConfig.CurrentSeqScheme, seqContext);
                     ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                     assigned++;
                 }

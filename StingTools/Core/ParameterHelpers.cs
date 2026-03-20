@@ -2472,6 +2472,19 @@ namespace StingTools.Core
     internal static class TagPipelineHelper
     {
         /// <summary>
+        /// Centralized post-tagging cleanup: saves SEQ sidecar, invalidates caches,
+        /// checks compliance gate. Call after tx.Commit() in any tagging command.
+        /// </summary>
+        public static void PostTagCleanup(Document doc, Dictionary<string, int> seqCounters, string commandName)
+        {
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, commandName);
+        }
+
+        /// <summary>
         /// Run the complete tagging pipeline for a single element.
         /// All parameters are pre-built outside the loop for performance.
         /// </summary>
