@@ -719,9 +719,38 @@ namespace StingTools.Select
 
             if (paramName == "Manual" || string.IsNullOrEmpty(paramName))
             {
+                // Apply manual preset: apply each stored color to all view elements
+                // (users can then adjust manually)
+                var solidFillM = ColorHelper.FindSolidFill(doc);
+                int appliedM = 0;
+                using (Transaction txM = new Transaction(doc, $"STING Load Manual Preset '{selected}'"))
+                {
+                    txM.Start();
+                    // Apply colors cyclically to elements in the view
+                    var viewElems = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null)
+                        .ToList();
+                    var colorList = preset.ValueColors.Values.ToList();
+                    if (colorList.Count > 0)
+                    {
+                        int ci = 0;
+                        foreach (var el in viewElems)
+                        {
+                            var rgb = colorList[ci % colorList.Count];
+                            var color = new Color((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+                            var ogs = ColorHelper.BuildOverride(color, solidFillM);
+                            view.SetElementOverrides(el.Id, ogs);
+                            appliedM++;
+                            ci++;
+                        }
+                    }
+                    txM.Commit();
+                }
                 TaskDialog.Show("Load Color Preset",
-                    $"Preset '{selected}' was saved from manual overrides.\n" +
-                    "Re-apply using Color By Parameter with the original parameter.");
+                    $"Applied manual preset '{selected}': colored {appliedM} elements with {preset.ValueColors.Count} stored colors.\n\n" +
+                    "Note: Manual presets apply colors to all view elements. " +
+                    "For parameter-based coloring, use 'Color By Parameter' directly.");
                 return Result.Succeeded;
             }
 
