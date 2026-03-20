@@ -4960,11 +4960,17 @@ namespace StingTools.Organise
                     }
 
                     // After all token fixes for this element, rebuild TAG1 + containers + TAG7
-                    // so the full tag string matches the corrected individual tokens
+                    // so the full tag string matches the corrected individual tokens.
+                    // Remove old tag from index before rebuilding so collision detection
+                    // uses fresh state (token fixes may have changed seqKey/DISC/SYS).
                     if (issues.Length > 0)
                     {
                         try
                         {
+                            string oldTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(oldTag))
+                                tagIndex.Remove(oldTag);
+
                             NativeParamMapper.MapAll(doc, el);
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false, existingTags: tagIndex,

@@ -204,7 +204,15 @@ namespace StingTools.Tags
                     }
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    int tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                    // Only write TAG7 if core tokens (DISC, SYS, PROD) are populated to avoid
+                    // generating incomplete narratives from partially-tagged elements
+                    bool hasCoreTags = tokenValues.Length >= 8
+                        && !string.IsNullOrEmpty(tokenValues[0])   // DISC
+                        && !string.IsNullOrEmpty(tokenValues[4])   // SYS
+                        && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
+                    int tag7Writes = 0;
+                    if (hasCoreTags)
+                        tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
                     totalWrites += tag7Writes;
                     if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
                         writesPerGroup["UNIVERSAL"] += tag7Writes;
