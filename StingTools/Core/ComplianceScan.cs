@@ -153,21 +153,29 @@ namespace StingTools.Core
                             dd.Untagged++;
                             AddIssue(result, "Untagged");
                         }
-                        else if (TagConfig.TagIsFullyResolved(tag))
+                        else
                         {
-                            result.TaggedComplete++;
-                            result.FullyResolved++;
-                            dd.Tagged++;
-                        }
-                        else if (TagConfig.TagIsComplete(tag))
-                        {
-                            result.TaggedComplete++;
-                            dd.Tagged++;
+                            // Parse tag segments to determine completeness
                             string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
-                            // Account for TAG_PREFIX adding an extra segment at the start
                             int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
-                            if (parts.Length >= 8 + po)
+                            int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
+                            bool hasCorrectSegments = parts.Length >= 8 + po + so
+                                && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+
+                            if (!hasCorrectSegments)
                             {
+                                result.TaggedIncomplete++;
+                                AddIssue(result, "Incomplete tag");
+                            }
+                            else
+                            {
+                                bool hasPlaceholders = TagConfig.TagHasPlaceholders(tag);
+                                result.TaggedComplete++;
+                                dd.Tagged++;
+                                if (!hasPlaceholders)
+                                    result.FullyResolved++;
+
+                                // Drill into specific token issues regardless of placeholder status
                                 if (parts[po + 1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
                                 if (parts[po + 2] == "XX" || parts[po + 2] == "ZZ") AddIssue(result, "Missing ZONE");
                                 if (parts[po + 3] == "XX") AddIssue(result, "Missing LVL");
@@ -189,11 +197,6 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                        }
-                        else
-                        {
-                            result.TaggedIncomplete++;
-                            AddIssue(result, "Incomplete tag");
                         }
 
                         string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
