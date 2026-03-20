@@ -2979,8 +2979,39 @@ namespace StingTools.Core
             if (sidecar == null) return;
             foreach (var kvp in sidecar)
             {
-                if (!target.ContainsKey(kvp.Key) || kvp.Value > target[kvp.Key])
-                    target[kvp.Key] = kvp.Value;
+                string key = kvp.Key;
+
+                // Key format migration: if SeqIncludeZone changed between sessions,
+                // translate old-format keys to new-format keys using max-value strategy
+                if (!target.ContainsKey(key))
+                {
+                    // Try stripping zone segment: "M_Z01_HVAC_L01" → "M_HVAC_L01"
+                    // Old format (no zone): DISC_SYS_LVL (3 parts)
+                    // New format (with zone): DISC_ZONE_SYS_LVL (4 parts)
+                    string[] parts = key.Split('_');
+                    string altKey = null;
+                    if (SeqIncludeZone && parts.Length == 3)
+                    {
+                        // Sidecar has old format (no zone), current format includes zone
+                        // Can't determine zone, so merge into all matching zone keys
+                        altKey = null; // No single translation; just add as-is
+                    }
+                    else if (!SeqIncludeZone && parts.Length == 4)
+                    {
+                        // Sidecar has zone format, current format excludes zone — strip zone
+                        altKey = $"{parts[0]}_{parts[2]}_{parts[3]}";
+                    }
+
+                    if (altKey != null && target.ContainsKey(altKey))
+                    {
+                        if (kvp.Value > target[altKey])
+                            target[altKey] = kvp.Value;
+                        continue;
+                    }
+                }
+
+                if (!target.ContainsKey(key) || kvp.Value > target[key])
+                    target[key] = kvp.Value;
             }
         }
 
