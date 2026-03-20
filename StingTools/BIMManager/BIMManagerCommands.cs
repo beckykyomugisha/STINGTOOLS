@@ -1702,7 +1702,7 @@ namespace StingTools.BIMManager
 
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
-            ICollection<ElementId> elementIds, string viewName)
+            ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
             return new JObject
             {
@@ -1725,7 +1725,7 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? DateTime.Now.ToString("yyyyMMdd"),
+                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["comments"] = new JArray()
             };

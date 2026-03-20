@@ -3136,7 +3136,7 @@ namespace StingTools.Temp
                 {
                     StingLog.Error($"[{fileName}] Processing failed", ex);
                     perFamilyResults.Add($"[FAIL] {fileName} — {ex.Message}");
-                    try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close family document after failure: {ex.Message}"); }
+                    try { famDoc?.Close(false); } catch (Exception ex2) { StingLog.Warn($"Close family document after failure: {ex2.Message}"); }
                 }
             }
 

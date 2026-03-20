@@ -485,7 +485,7 @@ namespace StingTools.Core
                             UI.StingDockPanel.UpdateComplianceStatus(
                                 "Auto-Tagger DISABLED (errors — re-enable via toggle)", "RED");
                         }
-                        catch (Exception ex) { StingLog.Warn($"Auto-tagger status bar update failed: {ex.Message}"); }
+                        catch (Exception uiEx) { StingLog.Warn($"Auto-tagger status bar update failed: {uiEx.Message}"); }
                     }
                 }
             }

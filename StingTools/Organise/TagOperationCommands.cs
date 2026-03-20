@@ -5369,7 +5369,7 @@ namespace StingTools.Organise
                                                 .Cast<IndependentTag>()
                                                 .Where(t =>
                                                 {
-                                                    try { return t.TaggedLocalElementId == hostElId; }
+                                                    try { return t.GetTaggedLocalElementIds().Contains(hostElId); }
                                                     catch { return false; }
                                                 });
                                             foreach (var tag in tags)
