@@ -574,20 +574,23 @@ namespace StingTools.BIMManager
         {
             if (!File.Exists(path)) return new JObject();
             try { return JObject.Parse(File.ReadAllText(path)); }
-            catch { return new JObject(); }
+            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON {Path.GetFileName(path)}: {ex.Message}"); return new JObject(); }
         }
 
         internal static JArray LoadJsonArray(string path)
         {
             if (!File.Exists(path)) return new JArray();
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch { return new JArray(); }
+            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}"); return new JArray(); }
         }
 
         internal static void SaveJsonFile(string path, JToken data)
         {
             try
             {
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
                 File.WriteAllText(path, data.ToString(Formatting.Indented));
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }
