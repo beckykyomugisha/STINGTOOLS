@@ -2117,6 +2117,12 @@ namespace StingTools.BIMManager
                 for (int i = 0; i < statusCodes.Length; i++)
                     valSheet.Cell(i + 1, 6).Value = statusCodes[i];
 
+                // PROD codes (from ProdMap values — family-aware codes)
+                var prodCodes = new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.Ordinal);
+                var prodList = prodCodes.OrderBy(p => p).ToList();
+                for (int i = 0; i < prodList.Count; i++)
+                    valSheet.Cell(i + 1, 7).Value = prodList[i];
+
                 // ── Apply data validation to template columns (100 rows) ──
                 int validationRows = 100;
 
@@ -2135,6 +2141,7 @@ namespace StingTools.BIMManager
                 ApplyValidation("SYS", 4, sysCodes.Count);
                 ApplyValidation("FUNC", 5, funcList.Count);
                 ApplyValidation("STATUS", 6, statusCodes.Length);
+                ApplyValidation("PROD", 7, prodList.Count);
 
                 // ── Conditional formatting: highlight empty required cells ──
                 string[] requiredCols = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };

@@ -1705,6 +1705,8 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 298. **AnomalyAutoFixCommand expanded** — Added detection and auto-fix for 4 new anomaly types: FUNC (derived from SYS), PROD (family-aware with GEN/XX detection), TAG7 (narrative rebuild from tokens), and stale elements (flag cleared). Now uses canonical `BuildSeqKey` for SEQ counter keys. Added `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` after commit.
 299. **DisplayMode 5th mode** — `SetDisplayModeCommand` now offers 5 modes including full 8-segment tag display. Migrated from TaskDialog to `StingModePicker` for consistent UI.
 300. **DeclusterTags position restoration** — `DeclusterTagsCommand` now reads `CLUSTER_MEMBER_POS` parameter, parses stored `hostId:X,Y,Z` entries, and restores `IndependentTag.TagHeadPosition` for each clustered member before clearing cluster metadata.
+301. **GAP-007: Issue revision auto-populated** — `BIMManagerEngine.CreateIssue` now calls `PhaseAutoDetect.DetectProjectRevision(doc)` to populate the revision field automatically, with date-based fallback if no revision is defined.
+302. **Excel PROD validation list** — `ExportTemplateCommand` now includes PROD codes from `TagConfig.ProdMap` as a dropdown validation list in the hidden `_ValidationLists` sheet, preventing invalid product codes during Excel data entry.
 
 ### External Tool References
 
