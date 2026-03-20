@@ -1312,6 +1312,44 @@ namespace StingTools.UI
                     case "NavisworksTimeLiner": RunCommand<BIMManager.NavisworksTimeLinerExportCommand>(app); break;
                     case "ElementCostTrace": RunCommand<BIMManager.ElementCostTraceCommand>(app); break;
 
+                    // ── Unified WPF Dialog Wizards (Phase 36) ──
+                    case "DocWizard":
+                    {
+                        var dlgResult = UI.DocAutomationDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            // Dispatch to the selected operation command
+                            SetCommand(dlgResult.Operation);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "ModelWizard":
+                    {
+                        var dlgResult = UI.ModelCreationDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.ElementType))
+                        {
+                            // Store dimensions/options as ExtraParams then dispatch
+                            foreach (var kv in dlgResult.Dimensions)
+                                SetExtraParam(kv.Key, kv.Value.ToString("F1"));
+                            foreach (var kv in dlgResult.Options)
+                                SetExtraParam(kv.Key, kv.Value);
+                            SetCommand(dlgResult.ElementType);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "ScheduleWizard":
+                    {
+                        var dlgResult = UI.ScheduleWizardDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            Execute(app);
+                        }
+                        break;
+                    }
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");

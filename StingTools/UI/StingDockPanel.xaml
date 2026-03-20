@@ -1078,6 +1078,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ONE-CLICK"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Doc Wizard" Tag="DocWizard" Click="Cmd_Click" ToolTip="Unified documentation wizard: sheets, views, viewports, export in one dialog"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
@@ -1194,6 +1195,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Schedule Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Unified schedule wizard: create, populate, audit, export in one dialog"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
@@ -1867,6 +1869,13 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
+
+                        <!-- MODEL WIZARD -->
+                        <Border Style="{StaticResource GroupBorder}" Margin="0,0,0,4">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Model Wizard" Tag="ModelWizard" Click="Cmd_Click" ToolTip="Unified model creation dialog: select element type + dimensions in one step"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- ARCHITECTURAL -->

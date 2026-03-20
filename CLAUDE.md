@@ -61,7 +61,7 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (21 C# files + 3 XAML, ~18,500 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (24 C# files + 3 XAML, ~20,700 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 590+ button tags to 376 command classes + inline helpers
@@ -83,6 +83,9 @@ STINGTOOLS/
     │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
     │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
     │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
+    │   ├── DocAutomationDialog.cs      # 4-tab unified doc automation dialog (Sheets/Views/Viewports/Export)
+    │   ├── ModelCreationDialog.cs      # Unified model creation dialog with element type selector + dynamic options
+    │   ├── ScheduleWizardDialog.cs     # Unified schedule wizard dialog (create/populate/audit/export/manage)
     │   ├── ThemeManager.cs             # WPF theme engine — Light/Warm/Cool/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
@@ -1837,8 +1840,14 @@ Critical review of the tagging workflow identified the following logic, automati
 #### Completed (Phase 36 — Build Fix, PreTagAudit Token Validation & Gap Closure)
 
 345. **DisplayModeDefault duplicate removed** — Removed duplicate `public const int DisplayModeDefault = 2` from `TagConfig.cs` (was also defined in `ParamRegistry.cs`). `BuildDisplayTag(Element)` already references `ParamRegistry.DisplayModeDefault`. Also fixed malformed double `<summary>` XML documentation tags.
-346. **GAP-008: PreTagAudit ISO token validation** — `PreTagAuditCommand` now validates all predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes are recorded as `ISO_PREDICTED_TOKEN` audit issues. Report shows grouped violation counts with top-5 invalid codes. Validation runs inside the untagged element simulation loop, before `discStats` assignment, so violation counts are accurate.
-347. **Known gaps resolved** — All 10 Phase 34 gaps reclassified: GAP-001/002/008, ERR-002, FLEX-001/005, HC-001/003 marked as DONE; GAP-006 documented as by-design; ERR-003 accepted as inherent worksharing limitation; FLEX-003 mitigated via config-driven overrides.
+346. **GAP-008: PreTagAudit ISO token validation** — `PreTagAuditCommand` now validates all predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes are recorded as `ISO_PREDICTED_TOKEN` audit issues. Report shows grouped violation counts with top-5 invalid codes.
+347. **Known gaps resolved** — All 10 Phase 34 gaps reclassified as DONE/by-design/mitigated.
+348. **DocAutomationDialog** — `UI/DocAutomationDialog.cs` (692 lines): 4-tab unified WPF dialog (SHEETS/VIEWS/VIEWPORTS/EXPORT) replacing multi-step TaskDialog chains for documentation automation. Operation cards with scope selectors, alignment options, output path/format config. Dispatch wired via "DocWizard" tag.
+349. **ModelCreationDialog** — `UI/ModelCreationDialog.cs` (711 lines): 2-column unified WPF dialog with element type selector (18 types: Arch/Struct/MEP/Composite) and dynamic options panel showing type-specific dimension fields and options. Dispatch wired via "ModelWizard" tag.
+350. **ScheduleWizardDialog** — `UI/ScheduleWizardDialog.cs` (799 lines): 3-section unified WPF dialog for schedule management (Create/Populate/FullAuto/Audit/Export/Manage). Searchable schedule list with multi-select, dynamic options per operation, discipline filters. Dispatch wired via "ScheduleWizard" tag.
+351. **ColorByVariableCommand unified** — Replaced 3 sequential TaskDialogs (variable picker + spatial sub-picker + apply mode) with single WPF dialog. Left column: 6 variable radio buttons with descriptions. Right column: apply mode checkboxes (Elements/Styles/Boxes) with quick presets.
+352. **SetParagraphDepthExtCommand unified** — Replaced 2-3 step TaskDialog chain (preset group + custom tier) with single WPF slider dialog. Continuous 1-10 slider with tier labels, preset buttons (Compact/Extended/Full), warnings toggle.
+353. **SetBoxColorCommand unified** — Replaced 2-step TaskDialog (mode + color pick) with single WPF dialog. Mode radio buttons (Auto/Pick/Clear) with 8-color swatch grid that appears on "Pick" selection. Visual swatch selection with orange highlight border.
 
 ### External Tool References
 
