@@ -2059,65 +2059,69 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var doc = uidoc.Document;
             var view = uidoc.ActiveView;
             if (view == null) { TaskDialog.Show("Color By Parameter", "No active view."); return; }
+            // View capability check — must be a model view, not a schedule/sheet/browser
+            if (view is ViewSchedule || view.ViewType == ViewType.DrawingSheet ||
+                view.ViewType == ViewType.ProjectBrowser || view.ViewType == ViewType.SystemBrowser)
+            {
+                TaskDialog.Show("Color By Parameter", "This feature requires a model view (plan, section, elevation, or 3D).");
+                return;
+            }
             if (string.IsNullOrEmpty(paramName))
             {
                 TaskDialog.Show("Color By Parameter", "Select a parameter name first.");
                 return;
             }
 
-            // If elements are selected, color only the selection; otherwise color entire view
+            // Honour selected elements before full view scan
             var selIds = uidoc.Selection.GetElementIds();
             List<Element> elements;
             string scope;
             if (selIds.Count > 0)
             {
-                elements = selIds.Select(id => uidoc.Document.GetElement(id))
-                    .Where(e => e != null && e.IsValidObject)
+                elements = selIds.Select(id => doc.GetElement(id))
+                    .Where(e => e != null && e.IsValidObject && e.Category != null
+                             && e.Category.CategoryType == CategoryType.Model)
                     .ToList();
                 scope = $"{elements.Count} selected elements";
             }
             else
             {
-                elements = new FilteredElementCollector(uidoc.Document, view.Id)
+                elements = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
                     .ToList();
                 scope = $"{elements.Count} elements in view";
             }
 
+            // Group elements by parameter value with HasValue check
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
             {
-                string val = ParameterHelpers.GetString(el, paramName);
-                if (string.IsNullOrEmpty(val))
+                string val = null;
+                var p = el.LookupParameter(paramName);
+                if (p != null && p.HasValue)
                 {
-                    var p = el.LookupParameter(paramName);
-                    val = p?.AsValueString() ?? "<No Value>";
+                    val = p.StorageType == StorageType.String ? p.AsString()
+                        : p.AsValueString();
                 }
+                if (string.IsNullOrEmpty(val))
+                    val = "<No Value>";
                 if (!groups.ContainsKey(val))
                     groups[val] = new List<ElementId>();
                 groups[val].Add(el.Id);
             }
 
             Color[] palette = GetColorPalette(paletteName, groups.Count);
+            if (groups.Count > palette.Length)
+                StingLog.Warn($"ColorByParameter: {groups.Count} unique values exceeds palette size ({palette.Length}) — colors will cycle.");
 
-            FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try
-                {
-                    if (fpe.GetFillPattern().IsSolidFill)
-                    {
-                        solidFill = fpe;
-                        break;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
+            // Use cached solid fill pattern from ColorHelper
+            var solidFill = Select.ColorHelper.FindSolidFill(doc);
 
-            using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Parameter"))
+            using (Transaction tx = new Transaction(doc, "STING Color By Parameter"))
             {
                 tx.Start();
                 int colorIdx = 0;
@@ -2130,6 +2134,8 @@ namespace StingTools.UI
                     {
                         ogs.SetSurfaceForegroundPatternId(solidFill.Id);
                         ogs.SetSurfaceForegroundPatternColor(color);
+                        ogs.SetCutForegroundPatternId(solidFill.Id);
+                        ogs.SetCutForegroundPatternColor(color);
                     }
                     foreach (ElementId id in kvp.Value)
                         view.SetElementOverrides(id, ogs);

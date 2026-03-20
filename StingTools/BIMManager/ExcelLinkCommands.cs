@@ -10,6 +10,7 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -73,7 +74,7 @@ namespace StingTools.BIMManager
                 ["TAG6"]         = () => ParamRegistry.TAG6,
                 ["TAG7"]         = () => ParamRegistry.TAG7,
                 ["STATUS"]       = () => ParamRegistry.STATUS,
-                ["REV"]          = () => ParamRegistry.Ext("REV_COD"),
+                ["REV"]          = () => ParamRegistry.REV,
                 ["Description"]  = () => ParamRegistry.DESC,
                 ["Mark"]         = () => ParamRegistry.Ext("TYPE_MARK"),
                 ["Comments"]     = () => ParamRegistry.Ext("COMMENTS"),
@@ -1031,32 +1032,59 @@ namespace StingTools.BIMManager
                 // ── Validate changes ──
                 var validationWarnings = ExcelLinkEngine.ValidateChanges(changes);
 
-                // ── Preview changes and confirm ──
-                string summary = ExcelLinkEngine.BuildChangeSummary(changes, excelData.Count, validationWarnings);
+                // ── Preview changes in WPF DataGrid dialog ──
+                int distinctElements = actualChanges.Select(c => c.ElementId).Distinct().Count();
+                string subtitle = $"{actualChanges.Count} changes across {distinctElements} elements | " +
+                                  $"{validationWarnings.Count} validation warnings";
 
-                var confirmDlg = new TaskDialog("STING Excel Import — Preview Changes")
+                var previewDlg = new UI.StingDataGridDialog(
+                    "STING Excel Import — Preview Changes", subtitle, 1020, 580);
+                previewDlg.AddTextColumn("Element ID", "ElementId", 80);
+                previewDlg.AddTextColumn("Column", "Column", 120);
+                previewDlg.AddTextColumn("Current Value", "OldValue", 0, true, System.Windows.Media.Color.FromRgb(120, 120, 140));
+                previewDlg.AddTextColumn("New Value", "NewValue", 0, true, System.Windows.Media.Color.FromRgb(0, 100, 50));
+                previewDlg.AddTextColumn("Status", "StatusText", 80);
+                previewDlg.AddTextColumn("Validation", "ValidationError", 140,
+                    true, System.Windows.Media.Color.FromRgb(200, 50, 50));
+
+                // Build preview rows
+                var previewRows = actualChanges.Select(c => new
                 {
-                    MainInstruction = "Apply Changes?",
-                    MainContent = summary,
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                    DefaultButton = TaskDialogResult.Cancel,
-                };
-                confirmDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Apply {actualChanges.Count} changes (skip invalid)",
-                    $"Update {actualChanges.Select(c => c.ElementId).Distinct().Count()} elements, " +
-                    $"skip {validationWarnings.Count} invalid values");
+                    c.ElementId,
+                    c.Column,
+                    c.OldValue,
+                    c.NewValue,
+                    StatusText = c.Status.ToString(),
+                    ValidationError = c.ValidationError ?? ""
+                }).ToList();
 
+                // Add column filter
+                var columns = previewRows.Select(r => r.Column).Distinct().OrderBy(c => c).ToList();
+                columns.Insert(0, "All Columns");
+                previewDlg.AddFilter("Column", columns, col =>
+                {
+                    if (col == "All Columns") previewDlg.RefreshItems(previewRows);
+                    else previewDlg.RefreshItems(previewRows.Where(r => r.Column == col).ToList());
+                });
+
+                previewDlg.AddActionButton("Cancel", "Cancel");
                 if (validationWarnings.Count > 0)
-                {
-                    confirmDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        $"Force ALL {actualChanges.Count} changes (including invalid)",
-                        "Apply all values even if they fail validation");
-                }
+                    previewDlg.AddActionButton($"Force ALL ({actualChanges.Count})", "ForceAll");
+                previewDlg.AddActionButton($"Apply ({actualChanges.Count} valid)", "Apply", true);
 
-                var confirmResult = confirmDlg.Show();
+                previewDlg.SetItems(previewRows);
+                previewDlg.SetStatus(subtitle);
 
-                if (confirmResult == TaskDialogResult.Cancel)
+                if (previewDlg.ShowDialog() != true)
                     return Result.Cancelled;
+                string confirmAction = previewDlg.ResultAction;
+
+                // Map result action to original logic
+                TaskDialogResult confirmResult;
+                if (confirmAction == "ForceAll")
+                    confirmResult = TaskDialogResult.CommandLink2;
+                else
+                    confirmResult = TaskDialogResult.CommandLink1;
 
                 bool forceInvalid = (confirmResult == TaskDialogResult.CommandLink2);
 
@@ -1900,7 +1928,7 @@ namespace StingTools.BIMManager
                 if (confirmDlg.Show() != TaskDialogResult.CommandLink1)
                     return Result.Cancelled;
 
-                // ── Second pass: apply changes ──
+                // ── Second pass: apply changes via source element parameters ──
                 using (var tx = new Transaction(doc, "STING Import Schedules from Excel"))
                 {
                     tx.Start();
@@ -1938,7 +1966,7 @@ namespace StingTools.BIMManager
                             for (int c = 0; c < cols; c++)
                             {
                                 try { schedHeaders.Add(sched.GetCellText(SectionType.Header, headerRows - 1, c).Trim()); }
-                                catch { schedHeaders.Add(""); }
+                                catch (Exception ex) { schedHeaders.Add(""); StingLog.Warn($"Schedule header read: {ex.Message}"); }
                             }
                         }
 
@@ -1951,10 +1979,18 @@ namespace StingTools.BIMManager
                             catch (Exception ex) { StingLog.Warn($"Schedule field lookup failed at index {i}: {ex.Message}"); }
                         }
 
+                        // Collect source elements for this schedule in row order
+                        var schedElements = new FilteredElementCollector(doc, sched.Id)
+                            .WhereElementIsNotElementType()
+                            .ToList();
+
                         int excelRow = 2;
                         int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                         for (int r = 0; r < rows && excelRow <= lastRow; r++, excelRow++)
                         {
+                            // Resolve source element for this row
+                            Element srcElement = (r < schedElements.Count) ? schedElements[r] : null;
+
                             for (int ec = 0; ec < excelHeaders.Count; ec++)
                             {
                                 string header = excelHeaders[ec];
@@ -1974,10 +2010,62 @@ namespace StingTools.BIMManager
 
                                 if (field.IsCalculatedField) { skippedCells++; continue; }
 
-                                // For non-calculated fields, attempt to update
-                                // The schedule API does not support direct cell writes,
-                                // so we count the detected change as a tracked update
-                                updatedCells++;
+                                if (srcElement == null) { failedCells++; continue; }
+
+                                // Write to source element parameter
+                                bool written = false;
+                                try
+                                {
+                                    // Resolve parameter: try BuiltInParameter from FieldId, then by column name
+                                    Parameter param = null;
+                                    var paramId = field.ParameterId;
+                                    if (paramId != null && paramId != ElementId.InvalidElementId)
+                                    {
+                                        int bipInt = paramId.IntegerValue;
+                                        if (Enum.IsDefined(typeof(BuiltInParameter), bipInt))
+                                            param = srcElement.get_Parameter((BuiltInParameter)bipInt);
+                                    }
+
+                                    // Fallback: try by schedule column name as shared/project param
+                                    if (param == null)
+                                        param = srcElement.LookupParameter(header);
+
+                                    // Fallback: try by field's column header text
+                                    if (param == null)
+                                    {
+                                        string fieldName = field.GetName();
+                                        if (!string.IsNullOrEmpty(fieldName) && fieldName != header)
+                                            param = srcElement.LookupParameter(fieldName);
+                                    }
+
+                                    if (param != null && !param.IsReadOnly)
+                                    {
+                                        switch (param.StorageType)
+                                        {
+                                            case StorageType.String:
+                                                param.Set(excelVal);
+                                                written = true;
+                                                break;
+                                            case StorageType.Double:
+                                                if (double.TryParse(excelVal, out double dv))
+                                                { param.Set(dv); written = true; }
+                                                break;
+                                            case StorageType.Integer:
+                                                if (int.TryParse(excelVal, out int iv))
+                                                { param.Set(iv); written = true; }
+                                                break;
+                                        }
+                                    }
+                                }
+                                catch (Exception writeEx)
+                                {
+                                    StingLog.Warn($"Schedule import write [{sched.Name}] row {r + 1} col '{header}': {writeEx.Message}");
+                                }
+
+                                if (written)
+                                    updatedCells++;
+                                else
+                                    failedCells++;
                             }
                         }
                     }

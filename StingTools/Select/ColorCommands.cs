@@ -113,13 +113,23 @@ namespace StingTools.Select
         /// <summary>Default color for elements with empty/null parameter values.</summary>
         public static readonly Color NoValueColor = new Color(255, 0, 0); // Red — instant QA
 
-        /// <summary>Find the solid fill pattern (required for surface overrides).</summary>
+        /// <summary>Find the solid fill pattern (required for surface overrides). Cached per document.</summary>
+        private static readonly Dictionary<int, ElementId> _solidFillCache = new();
         public static FillPatternElement FindSolidFill(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            int docHash = doc.GetHashCode();
+            if (_solidFillCache.TryGetValue(docHash, out ElementId cachedId))
+            {
+                var cached = doc.GetElement(cachedId) as FillPatternElement;
+                if (cached != null && cached.IsValidObject) return cached;
+                _solidFillCache.Remove(docHash);
+            }
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            if (result != null) _solidFillCache[docHash] = result.Id;
+            return result;
         }
 
         /// <summary>Build OverrideGraphicSettings for a given color with full surface fill.</summary>
@@ -180,6 +190,7 @@ namespace StingTools.Select
                 }
             }
             if (p == null) return null;
+            if (!p.HasValue) return null;
 
             switch (p.StorageType)
             {
@@ -229,7 +240,7 @@ namespace StingTools.Select
                         }
                     }
                 }
-                if (++sampled >= 50) break;
+                if (++sampled >= 200) break;
             }
             var sorted = names.ToList();
             sorted.Sort(StringComparer.OrdinalIgnoreCase);
@@ -325,15 +336,34 @@ namespace StingTools.Select
             View view = ctx.ActiveView;
             if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
-            // Collect taggable elements in active view (include all categorized elements, not just HasMaterialQuantities)
-            var elems = new FilteredElementCollector(doc, view.Id)
-                .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
-                .ToList();
+            // Reject views that don't support graphic overrides
+            if (view is ViewSchedule || view.ViewType == ViewType.DrawingSheet ||
+                view.ViewType == ViewType.ProjectBrowser || view.ViewType == ViewType.SystemBrowser)
+            {
+                TaskDialog.Show("Color By Parameter", "This feature requires a model view (plan, section, elevation, or 3D).");
+                return Result.Failed;
+            }
+
+            // Collect elements — honour selection if present
+            var selected = uidoc.Selection.GetElementIds();
+            List<Element> elems;
+            if (selected.Count > 0)
+            {
+                elems = selected.Select(id => doc.GetElement(id))
+                    .Where(e => e != null && e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                    .ToList();
+            }
+            else
+            {
+                elems = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                    .ToList();
+            }
 
             if (elems.Count == 0)
             {
-                TaskDialog.Show("Color By Parameter", "No elements found in active view.");
+                TaskDialog.Show("Color By Parameter", "No elements found in active view.\nNote: Linked model elements are not currently supported.");
                 return Result.Succeeded;
             }
 
@@ -524,15 +554,17 @@ namespace StingTools.Select
                 foreach (ElementId id in idList)
                 {
                     var existing = view.GetElementOverrides(id);
-                    // Check all override types — projection, surface, cut, and transparency
+                    // Check all override types — projection, surface, cut, patterns, and transparency
                     bool hasOverride =
                         existing.ProjectionLineColor.IsValid ||
                         existing.ProjectionLineWeight > 0 ||
+                        existing.ProjectionLinePatternId != ElementId.InvalidElementId ||
                         existing.Halftone ||
                         existing.SurfaceForegroundPatternColor.IsValid ||
                         existing.SurfaceBackgroundPatternColor.IsValid ||
                         existing.CutLineColor.IsValid ||
                         existing.CutLineWeight > 0 ||
+                        existing.CutLinePatternId != ElementId.InvalidElementId ||
                         existing.CutForegroundPatternColor.IsValid ||
                         existing.CutBackgroundPatternColor.IsValid ||
                         existing.Transparency > 0 ||
@@ -600,28 +632,21 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Ask for preset name
-            TaskDialog nameDlg = new TaskDialog("Save Color Preset");
-            nameDlg.MainInstruction = $"Save {colorGroups.Count} color groups as preset?";
-            nameDlg.MainContent = $"Found {colorGroups.Count} distinct colors applied to " +
-                $"{colorGroups.Values.Sum(v => v.Count)} elements.\n\n" +
-                "Preset will be saved to COLOR_PRESETS.json in the data directory.";
-            nameDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Save as 'Default'", "Save with preset name 'Default'");
-            nameDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Save as 'Discipline'", "Save with preset name 'Discipline'");
-            nameDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Save as 'QA Check'", "Save with preset name 'QA Check'");
-            nameDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            string presetName;
-            switch (nameDlg.Show())
+            // Ask for preset name via searchable list with common options
+            var nameOptions = new List<string>
             {
-                case TaskDialogResult.CommandLink1: presetName = "Default"; break;
-                case TaskDialogResult.CommandLink2: presetName = "Discipline"; break;
-                case TaskDialogResult.CommandLink3: presetName = "QA Check"; break;
-                default: return Result.Cancelled;
-            }
+                "Default", "Discipline", "QA Check", "MEP Systems", "By Level",
+                "By Status", "By Zone", "By Location", "Compliance", "Custom"
+            };
+            // Include existing preset names for overwrite
+            var existing = ColorHelper.LoadPresets();
+            foreach (var name in existing.Keys)
+                if (!nameOptions.Contains(name)) nameOptions.Add(name);
+
+            string presetName = UI.StingListPicker.Show("Save Color Preset",
+                $"Save {colorGroups.Count} color groups ({colorGroups.Values.Sum(v => v.Count)} elements).\nSelect or type a preset name:",
+                nameOptions);
+            if (presetName == null) return Result.Cancelled;
 
             var preset = new ColorPreset
             {
@@ -681,42 +706,51 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            TaskDialog dlg = new TaskDialog("Load Color Preset");
-            dlg.MainInstruction = $"Load a color preset ({presets.Count} available)";
-            var presetNames = presets.Keys.ToList();
-
-            if (presetNames.Count >= 1)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    presetNames[0], $"Parameter: {presets[presetNames[0]].ParameterName}");
-            if (presetNames.Count >= 2)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    presetNames[1], $"Parameter: {presets[presetNames[1]].ParameterName}");
-            if (presetNames.Count >= 3)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    presetNames[2], $"Parameter: {presets[presetNames[2]].ParameterName}");
-            if (presetNames.Count >= 4)
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                    presetNames[3], $"Parameter: {presets[presetNames[3]].ParameterName}");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            string selected;
-            switch (dlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: selected = presetNames[0]; break;
-                case TaskDialogResult.CommandLink2: selected = presetNames[1]; break;
-                case TaskDialogResult.CommandLink3: selected = presetNames[2]; break;
-                case TaskDialogResult.CommandLink4: selected = presetNames[3]; break;
-                default: return Result.Cancelled;
-            }
+            // Show all presets in searchable list (no 4-item limit)
+            var presetItems = presets.Select(kvp => $"{kvp.Key} (Param: {kvp.Value.ParameterName})").ToList();
+            string pick = UI.StingListPicker.Show("Load Color Preset",
+                $"{presets.Count} presets available. Select one to apply:", presetItems);
+            if (pick == null) return Result.Cancelled;
+            string selected = pick.Split(new[] { " (Param:" }, StringSplitOptions.None)[0].Trim();
+            if (!presets.ContainsKey(selected)) return Result.Cancelled;
 
             var preset = presets[selected];
             string paramName = preset.ParameterName;
 
             if (paramName == "Manual" || string.IsNullOrEmpty(paramName))
             {
+                // Apply manual preset: apply each stored color to all view elements
+                // (users can then adjust manually)
+                var solidFillM = ColorHelper.FindSolidFill(doc);
+                int appliedM = 0;
+                using (Transaction txM = new Transaction(doc, $"STING Load Manual Preset '{selected}'"))
+                {
+                    txM.Start();
+                    // Apply colors cyclically to elements in the view
+                    var viewElems = new FilteredElementCollector(doc, view.Id)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Category != null)
+                        .ToList();
+                    var colorList = preset.ValueColors.Values.ToList();
+                    if (colorList.Count > 0)
+                    {
+                        int ci = 0;
+                        foreach (var el in viewElems)
+                        {
+                            var rgb = colorList[ci % colorList.Count];
+                            var color = new Color((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+                            var ogs = ColorHelper.BuildOverride(color, solidFillM);
+                            view.SetElementOverrides(el.Id, ogs);
+                            appliedM++;
+                            ci++;
+                        }
+                    }
+                    txM.Commit();
+                }
                 TaskDialog.Show("Load Color Preset",
-                    $"Preset '{selected}' was saved from manual overrides.\n" +
-                    "Re-apply using Color By Parameter with the original parameter.");
+                    $"Applied manual preset '{selected}': colored {appliedM} elements with {preset.ValueColors.Count} stored colors.\n\n" +
+                    "Note: Manual presets apply colors to all view elements. " +
+                    "For parameter-based coloring, use 'Color By Parameter' directly.");
                 return Result.Succeeded;
             }
 
@@ -779,28 +813,21 @@ namespace StingTools.Select
             View view = ctx.ActiveView;
             if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
-            // Ask which parameter was used for coloring
-            TaskDialog paramDlg = new TaskDialog("Create Filters — Parameter");
-            paramDlg.MainInstruction = "Which parameter were elements colored by?";
-            paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                ParamRegistry.DISC, "Discipline code (most common)");
-            paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                ParamRegistry.SYS, "System type");
-            paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                ParamRegistry.LOC, "Location code");
-            paramDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                ParamRegistry.ZONE, "Zone code");
-            paramDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Ask which parameter — dynamic list from view elements (not hardcoded to 4)
+            var viewElems = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
+                .ToList();
+            var availParams = ColorHelper.GetAvailableParameters(doc, viewElems);
+            // Put common STING params at top
+            var priority = new[] { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LOC,
+                ParamRegistry.ZONE, ParamRegistry.LVL, ParamRegistry.FUNC, ParamRegistry.PROD };
+            var sortedParams = priority.Where(p => availParams.Contains(p)).ToList();
+            sortedParams.AddRange(availParams.Where(p => !sortedParams.Contains(p)));
 
-            string paramName;
-            switch (paramDlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: paramName = ParamRegistry.DISC; break;
-                case TaskDialogResult.CommandLink2: paramName = ParamRegistry.SYS; break;
-                case TaskDialogResult.CommandLink3: paramName = ParamRegistry.LOC; break;
-                case TaskDialogResult.CommandLink4: paramName = ParamRegistry.ZONE; break;
-                default: return Result.Cancelled;
-            }
+            string paramName = UI.StingListPicker.Show("Create Filters — Parameter",
+                "Select the parameter to create filters for:", sortedParams);
+            if (paramName == null) return Result.Cancelled;
 
             // Get distinct values from elements
             var elems = new FilteredElementCollector(doc, view.Id)
@@ -835,12 +862,13 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Get categories that support this parameter
+            // Get categories from elements that actually have this parameter
             var categories = new List<ElementId>();
-            foreach (Category cat in doc.Settings.Categories)
+            var seenCats = new HashSet<int>();
+            foreach (var elem in elems)
             {
-                if (cat.AllowsBoundParameters && cat.CategoryType == CategoryType.Model)
-                    categories.Add(cat.Id);
+                if (elem.Category != null && seenCats.Add(elem.Category.Id.IntegerValue))
+                    categories.Add(elem.Category.Id);
             }
 
             if (categories.Count == 0)

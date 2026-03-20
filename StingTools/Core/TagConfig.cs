@@ -1673,7 +1673,7 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-0000")
+        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-GEN-", "-0000")
         /// that indicate incomplete or unresolved segments.
         /// </summary>
         public static bool TagHasPlaceholders(string tag)
@@ -1693,7 +1693,7 @@ namespace StingTools.Core
             return false;
         }
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -1891,10 +1891,11 @@ namespace StingTools.Core
             int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
             if (sequenceCounters[seqKey] > maxSeq)
             {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
-                sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
+                sequenceCounters[seqKey] = maxSeq; // Cap counter to prevent further drift
+                return false; // Skip element to prevent duplicate tags
             }
 
             // Build SEQ string using the configured numbering scheme
@@ -1921,10 +1922,11 @@ namespace StingTools.Core
                     // Overflow guard: cap SEQ at format capacity (9999 for NumPad=4)
                     if (sequenceCounters[seqKey] > maxSeq)
                     {
-                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                         StingLog.Warn(overflowMsg);
                         stats?.RecordWarning(overflowMsg);
-                        break;
+                        sequenceCounters[seqKey] = maxSeq;
+                        return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
@@ -1975,7 +1977,16 @@ namespace StingTools.Core
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                // Remove the derived-value tag from collision index (it may differ from actual)
+                if (existingTags != null && !string.IsNullOrEmpty(tag))
+                    existingTags.Remove(tag);
                 tag = string.Join(Separator, actualTokens);
+                // TW-03: Re-apply prefix/suffix to re-read tag
+                if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                // Update collision index with actual tag
+                if (existingTags != null)
+                    existingTags.Add(tag);
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];
@@ -2090,7 +2101,7 @@ namespace StingTools.Core
                 // Default tag style: 2.5mm Normal Black (most common AEC standard)
                 ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
             }
-            catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
+            catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
@@ -2118,8 +2129,20 @@ namespace StingTools.Core
                 case 2: return $"{tokens[6]}{sep}{tokens[7]}"; // PROD-SEQ
                 case 3: return $"{tokens[0]}{sep}{tokens[4]}{sep}{tokens[7]}"; // DISC-SYS-SEQ
                 case 4: return $"{tokens[0]}{sep}{tokens[6]}{sep}{tokens[7]}"; // DISC-PROD-SEQ
-                case 5: return string.Join(sep, tokens); // Full 8-segment
-                default: return string.Join(sep, tokens);
+                case 5:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
+                default:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
             }
         }
 
@@ -2956,8 +2979,39 @@ namespace StingTools.Core
             if (sidecar == null) return;
             foreach (var kvp in sidecar)
             {
-                if (!target.ContainsKey(kvp.Key) || kvp.Value > target[kvp.Key])
-                    target[kvp.Key] = kvp.Value;
+                string key = kvp.Key;
+
+                // Key format migration: if SeqIncludeZone changed between sessions,
+                // translate old-format keys to new-format keys using max-value strategy
+                if (!target.ContainsKey(key))
+                {
+                    // Try stripping zone segment: "M_Z01_HVAC_L01" → "M_HVAC_L01"
+                    // Old format (no zone): DISC_SYS_LVL (3 parts)
+                    // New format (with zone): DISC_ZONE_SYS_LVL (4 parts)
+                    string[] parts = key.Split('_');
+                    string altKey = null;
+                    if (SeqIncludeZone && parts.Length == 3)
+                    {
+                        // Sidecar has old format (no zone), current format includes zone
+                        // Can't determine zone, so merge into all matching zone keys
+                        altKey = null; // No single translation; just add as-is
+                    }
+                    else if (!SeqIncludeZone && parts.Length == 4)
+                    {
+                        // Sidecar has zone format, current format excludes zone — strip zone
+                        altKey = $"{parts[0]}_{parts[2]}_{parts[3]}";
+                    }
+
+                    if (altKey != null && target.ContainsKey(altKey))
+                    {
+                        if (kvp.Value > target[altKey])
+                            target[altKey] = kvp.Value;
+                        continue;
+                    }
+                }
+
+                if (!target.ContainsKey(key) || kvp.Value > target[key])
+                    target[key] = kvp.Value;
             }
         }
 
@@ -4442,6 +4496,8 @@ namespace StingTools.Core
 
             // ISO reference always added with connecting language
             string fullTag = string.Join(Separator, tokenValues);
+            if (!string.IsNullOrEmpty(TagPrefix)) fullTag = TagPrefix + Separator + fullTag;
+            if (!string.IsNullOrEmpty(TagSuffix)) fullTag = fullTag + Separator + TagSuffix;
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
             classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");

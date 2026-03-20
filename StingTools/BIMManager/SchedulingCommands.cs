@@ -554,9 +554,10 @@ namespace StingTools.BIMManager
                 if (totalHours <= 0) return 1;
                 return Math.Max(1, (int)Math.Ceiling(totalHours / 8.0));
             }
-            catch
+            catch (Exception xmlEx)
             {
                 // Fallback: manual parsing for non-standard formats
+                StingLog.Warn($"XmlConvert.ToTimeSpan failed for '{isoDuration}': {xmlEx.Message}");
                 try
                 {
                     string upper = isoDuration.ToUpper().Trim();
@@ -800,7 +801,17 @@ namespace StingTools.BIMManager
                     {
                         var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         double barLen = lenParam != null && lenParam.HasValue ? lenParam.AsDouble() * 0.3048 : 1;
-                        qty += barLen; // rate is per kg; approximate: 1m = ~1kg for rebar
+                        // Try to get bar diameter for accurate weight (kg/m = diameter_mm² × 0.00617)
+                        double kgPerMetre = 0.888; // default 12mm bar (most common)
+                        var diaParam = el.LookupParameter("Bar Diameter")
+                            ?? el.LookupParameter("Diameter");
+                        if (diaParam != null && diaParam.HasValue)
+                        {
+                            double diaMm = diaParam.AsDouble() * 304.8; // ft → mm
+                            if (diaMm > 0)
+                                kgPerMetre = diaMm * diaMm * 0.00617; // steel density formula
+                        }
+                        qty += barLen * kgPerMetre;
                     }
                 }
                 else
@@ -883,14 +894,20 @@ namespace StingTools.BIMManager
             int totalMonths = Math.Max(1, (int)Math.Ceiling((projEnd - projStart).TotalDays / 30.0));
 
             // Generate monthly cash flow (S-curve distribution)
+            // Normalize sigmoid so it maps exactly from 0 to 1 over the project duration
+            double sigAt0 = 1.0 / (1.0 + Math.Exp(-10 * (0.0 - 0.5)));
+            double sigAt1 = 1.0 / (1.0 + Math.Exp(-10 * (1.0 - 0.5)));
+            double sigRange = sigAt1 - sigAt0;
+
             var monthly = new JArray();
             double cumulative = 0;
             double prevSCurve = 0;
             for (int m = 0; m < totalMonths; m++)
             {
-                // S-curve formula: sigmoid distribution (differential between consecutive points)
+                // S-curve formula: normalized sigmoid so cumulative reaches exactly 100%
                 double t = (double)(m + 1) / totalMonths;
-                double sCurve = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                double rawSig = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                double sCurve = (rawSig - sigAt0) / sigRange; // normalized to [0, 1]
                 double monthlySpend = grandTotal > 0 ? grandTotal * (sCurve - prevSCurve) : 0;
                 if (monthlySpend < 0) monthlySpend = 0;
                 prevSCurve = sCurve;
