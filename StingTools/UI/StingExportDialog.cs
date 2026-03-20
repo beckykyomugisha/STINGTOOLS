@@ -65,13 +65,13 @@ namespace StingTools.UI
     public static class StingExportDialog
     {
         // ── Brand colours (match STING dark theme) ──
-        private static readonly Color BgDark = Color.FromRgb(45, 45, 48);
-        private static readonly Color BgMedium = Color.FromRgb(55, 55, 60);
-        private static readonly Color BgLight = Color.FromRgb(62, 62, 66);
-        private static readonly Color AccentOrange = Color.FromRgb(232, 145, 45);
-        private static readonly Color TextWhite = Color.FromRgb(241, 241, 241);
-        private static readonly Color TextGrey = Color.FromRgb(170, 170, 170);
-        private static readonly Color BorderDark = Color.FromRgb(70, 70, 74);
+        private static readonly System.Windows.Media.Color BgDark = System.Windows.Media.Color.FromRgb(45, 45, 48);
+        private static readonly System.Windows.Media.Color BgMedium = System.Windows.Media.Color.FromRgb(55, 55, 60);
+        private static readonly System.Windows.Media.Color BgLight = System.Windows.Media.Color.FromRgb(62, 62, 66);
+        private static readonly System.Windows.Media.Color AccentOrange = System.Windows.Media.Color.FromRgb(232, 145, 45);
+        private static readonly System.Windows.Media.Color TextWhite = System.Windows.Media.Color.FromRgb(241, 241, 241);
+        private static readonly System.Windows.Media.Color TextGrey = System.Windows.Media.Color.FromRgb(170, 170, 170);
+        private static readonly System.Windows.Media.Color BorderDark = System.Windows.Media.Color.FromRgb(70, 70, 74);
 
         /// <summary>
         /// Show the export dialog. Returns null if cancelled.

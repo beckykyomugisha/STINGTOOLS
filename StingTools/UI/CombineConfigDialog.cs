@@ -50,7 +50,7 @@ namespace StingTools.UI
         private static readonly SolidColorBrush AccentBrush = new(AccentColor);
         private static readonly SolidColorBrush FgBrush = new(FgColor);
         private static readonly SolidColorBrush DimBrush = new(DimFg);
-        private static readonly SolidColorBrush BorderBrush = new(BorderClr);
+        private static readonly new SolidColorBrush BorderBrush = new(BorderClr);
 
         // ── Controls ─────────────────────────────────────────────────
         private readonly List<GroupItem> _allGroups;
