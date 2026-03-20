@@ -339,21 +339,27 @@ namespace StingTools.BIMManager
             {
                 var el = doc.GetElement(new ElementId(change.ElementId));
                 if (el == null) continue;
-                string current = ParameterHelpers.GetString(el, ParamRegistry.REV);
-                if (current != revCode)
+                try
                 {
-                    ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
-                    stamped++;
+                    string current = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                    if (current != revCode)
+                    {
+                        ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
+                        stamped++;
+                    }
+                    // Also update STATUS based on change type
+                    if (change.ChangeType == "Added")
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+                    else if (change.ChangeType == "Modified")
+                    {
+                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(status))
+                            ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", false);
+                    }
                 }
-                // Also update STATUS based on change type
-                if (change.ChangeType == "Added")
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
-                else if (change.ChangeType == "Modified")
+                catch (Exception ex)
                 {
-                    // Only update STATUS if it's not already set to a phase-derived value
-                    string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-                    if (string.IsNullOrEmpty(status))
-                        ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", false);
+                    StingLog.Warn($"StampAffectedElements: Cannot write element {change.ElementId}: {ex.Message}");
                 }
             }
             return stamped;
@@ -1385,6 +1391,7 @@ namespace StingTools.BIMManager
                 }
 
                 int stamped = 0;
+                int skipped = 0;
                 using (var tx = new Transaction(doc, "STING Bulk Revision Stamp"))
                 {
                     tx.Start();
@@ -1392,14 +1399,24 @@ namespace StingTools.BIMManager
                     {
                         var el = doc.GetElement(id);
                         if (el == null) continue;
-                        ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
-                        stamped++;
+                        try
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
+                            stamped++;
+                        }
+                        catch (Exception elEx)
+                        {
+                            skipped++;
+                            StingLog.Warn($"BulkRevisionStamp: Cannot write element {id.Value}: {elEx.Message}");
+                        }
                     }
                     tx.Commit();
                 }
 
-                TaskDialog.Show("StingTools Bulk Revision Stamp",
-                    $"Stamped {stamped} elements with revision code '{revCode}'.");
+                string stampMsg = $"Stamped {stamped} elements with revision code '{revCode}'.";
+                if (skipped > 0)
+                    stampMsg += $"\n{skipped} elements skipped (read-only or on unowned workset).";
+                TaskDialog.Show("StingTools Bulk Revision Stamp", stampMsg);
                 StingLog.Info($"Bulk revision stamp: {stamped} elements → {revCode}");
                 return Result.Succeeded;
             }
