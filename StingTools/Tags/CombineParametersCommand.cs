@@ -32,54 +32,44 @@ namespace StingTools.Tags
 
             var allGroups = ParamRegistry.ContainerGroups;
 
-            // Step 1: Mode selection using StingModePicker
-            int totalContainers = allGroups.Sum(g => g.Params.Length);
-            var modeOptions = new List<UI.StingModePicker.ModeOption>
-            {
-                new("All Containers",
-                    $"Populate all {allGroups.Length} groups ({totalContainers} parameters)", "all", true),
-                new("Universal Only (ASS_TAG_1-6)",
-                    "6 universal containers applied to all tagged elements", "universal"),
-                new("Discipline Only",
-                    "MEP + Comms discipline-specific containers (excludes Universal and Material)", "discipline"),
-                new("Pick Container Groups...",
-                    "Interactively choose which groups to populate", "pick"),
-            };
-            string modeResult = UI.StingModePicker.Show(
-                "Combine Parameters",
-                "Assemble token parameters into tag containers",
-                modeOptions,
-                $"Available: {allGroups.Length} groups, {totalContainers} total containers");
+            // Build element counts per category for the dialog
+            var catCounts = BuildCategoryCounts(doc);
 
-            HashSet<string> selectedGroupCodes;
-            switch (modeResult)
-            {
-                case "all":
-                    selectedGroupCodes = new HashSet<string>(allGroups.Select(g => g.GroupCode));
-                    break;
-                case "universal":
-                    selectedGroupCodes = new HashSet<string> { "UNIVERSAL" };
-                    break;
-                case "discipline":
-                    selectedGroupCodes = new HashSet<string>(
-                        allGroups.Where(g => g.GroupCode != "UNIVERSAL" && g.GroupCode != "MAT_TAG")
-                                 .Select(g => g.GroupCode));
-                    break;
-                case "pick":
-                    selectedGroupCodes = ShowGroupPicker(doc, allGroups);
-                    if (selectedGroupCodes == null || selectedGroupCodes.Count == 0)
-                        return Result.Cancelled;
-                    break;
-                default:
-                    return Result.Cancelled;
-            }
+            // Unified single-dialog configuration
+            var configResult = UI.CombineConfigDialog.Show(allGroups, catCounts);
+            if (configResult.Cancelled)
+                return Result.Cancelled;
+
+            HashSet<string> selectedGroupCodes = configResult.SelectedGroupCodes;
 
             var activeGroups = allGroups.Where(g => selectedGroupCodes.Contains(g.GroupCode)).ToArray();
             return ExecuteCombine(doc, activeGroups);
         }
 
-        // ── Group picker: StingListPicker selection ─────────────────
+        // ── Category count builder for dialog ────────────────────────
 
+        private static Dictionary<string, int> BuildCategoryCounts(Document doc)
+        {
+            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var catCounts = new Dictionary<string, int>();
+            var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            foreach (Element el in coll)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCategories.Contains(cat)) continue;
+                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
+                else catCounts[cat] = 1;
+            }
+            return catCounts;
+        }
+
+        // ── Group picker (backup): StingListPicker selection ─────────
+        // Retained as fallback; primary UI is CombineConfigDialog.
+
+        [Obsolete("Replaced by CombineConfigDialog. Retained as backup.")]
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);

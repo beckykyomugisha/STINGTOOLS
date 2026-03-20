@@ -8,7 +8,7 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **99 source files** (96 C# + 3 XAML, ~120,900 lines of code) across 10 directories
+- **102 source files** (99 C# + 3 XAML, ~123,600 lines of code) across 10 directories
 - **515 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
@@ -70,6 +70,9 @@ STINGTOOLS/
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
     │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, category/family/type filters, 7 operations
     │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with category picker, value display, 11-operator condition builder
+    │   ├── BulkOperationDialog.cs       # Unified WPF dialog for bulk parameter operations (replaces 5-step TaskDialog)
+    │   ├── CombineConfigDialog.cs      # Unified WPF dialog for Combine Parameters configuration (replaces 2-step picker)
+    │   ├── HeadingStyleDialog.cs       # Unified WPF dialog for TAG7 heading style (replaces 3-step TaskDialog)
     │   ├── ThemeManager.cs             # WPF theme engine — Dark/Light/Grey/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
@@ -1777,6 +1780,26 @@ Critical review of the tagging workflow identified the following logic, automati
 | FLEX-005 | SEQ counter isolation | `TagConfig.cs` | When a batch tagging operation is cancelled mid-way, SEQ counters have already been incremented for processed elements. No rollback mechanism exists for SEQ counters on partial cancellation. |
 | HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | `CopyTokensFromNearest` uses a fixed 10 ft search radius. Dense models may need smaller radius; sparse models may need larger. Not configurable via project_config.json. |
 | HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | Batch size of 500 is hardcoded. Large models with fast hardware could benefit from larger batches; memory-constrained environments may need smaller. |
+
+#### Completed (Phase 35 — Unified WPF Dialogs, Streaming Export, Custom Validators & Automation)
+
+328. **CS0104 ambiguous reference fix** — Fully qualified `System.Windows.Controls.ComboBox`/`TextBox` in `IssueWizard.cs` to resolve 7 build errors from `System.Windows.Controls` vs `Autodesk.Revit.UI` namespace collision.
+329. **CopyTokensFromNearest implemented** — `TokenAutoPopulator.CopyTokensFromNearest()` (100+ lines) copies SYS/FUNC tokens from nearest already-tagged element of same category within configurable `TagConfig.ProximityRadiusFt` radius (default 10 ft, HC-001). Wired into `PopulateAll` when SYS/FUNC yield generic defaults (GEN/ARC/STR).
+330. **BulkOperationDialog** — `UI/BulkOperationDialog.cs` (891 lines): Unified WPF dialog replacing 5-step TaskDialog chain in `BulkParamWriteCommand`. Features: operation selector (Set Token / Auto-populate / Clear / Re-tag), dynamic token type + value tile picker, element preview panel, corporate dark theme (#2D2D30 background, #E8912D accents).
+331. **HeadingStyleDialog** — `UI/HeadingStyleDialog.cs` (391 lines): Unified WPF dialog replacing 3-step TaskDialog chain in `SetTag7HeadingStyleCommand`. Features: 4 visual style cards with live text preview, tier application checkboxes, current settings display.
+332. **CombineConfigDialog** — `UI/CombineConfigDialog.cs` (552 lines): Unified WPF dialog replacing 2-step StingModePicker + StingListPicker chain in `CombineParametersCommand`. Features: mode selector, searchable container group tree with checkbox multi-select, per-group element counts, Select All/Clear All.
+333. **Streaming COBie export dispatch** — `StreamingCOBieExportCommand` wired to dispatch ("StreamingCOBieExport") and XAML button added to BIM tab.
+334. **Navisworks TimeLiner dispatch** — `NavisworksTimeLinerExportCommand` wired to dispatch ("NavisworksTimeLiner") and XAML button added to BIM tab 4D/5D section.
+335. **Element cost trace dispatch** — `ElementCostTraceCommand` wired to dispatch ("ElementCostTrace") and XAML button added to BIM tab 4D/5D section.
+336. **Custom token validators (FLEX-001)** — `CUSTOM_VALID_DISC/SYS/FUNC/LOC/ZONE` arrays in `project_config.json` merged with built-in ISO 19650 code lists. `ISO19650Validator` properties compute union of hardcoded + custom codes.
+337. **Configurable proximity radius (HC-001)** — `TagConfig.ProximityRadiusFt` loaded from `PROXIMITY_RADIUS_FT` config key (1.0-200.0 ft range, default 10.0).
+338. **Configurable batch size (HC-003)** — `TagConfig.ResolveBatchSize` loaded from `RESOLVE_BATCH_SIZE` config key (default 500). Used by `ResolveAllIssuesCommand`.
+339. **COBie stream batch size** — `TagConfig.CobieStreamBatchSize` loaded from `COBIE_STREAM_BATCH_SIZE` config key (default 5000). Used by `StreamingCOBieExportCommand`.
+340. **SEQ counter rollback** — `BuildAndWriteTag` tracks `preIncrementValue` before incrementing. Rolls back to pre-increment on TAG1 write failure or overflow.
+341. **Read-only parameter diagnostics (ERR-002)** — `SetString` logs first 5 + every 100th read-only skip with `_readOnlySkipCount` throttle. `ResetReadOnlySkipCount()` for batch operation boundaries.
+342. **ComplianceScan enhanced** — Added `StatusDistribution` (value→count), `EmptyContainerCounts` (container→count), `TotalContainerChecks` for granular compliance reporting.
+343. **SmartTagPlacement data prerequisite** — `PlaceTagsInView` auto-runs `RunFullPipeline` on untagged elements before visual placement, ensuring data tags exist.
+344. **TagStyle visual grid dialog** — `TagStyleGridDialog` WPF dialog with 96 clickable cells (4 sizes × 3 styles × 8 colors) replacing 3-step TaskDialog in `ApplyTagStyleCommand`.
 
 ### External Tool References
 

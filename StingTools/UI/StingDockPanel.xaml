@@ -2129,6 +2129,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource PurpleBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
                                             ToolTip="Export full COBie V2.4: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Stream" Tag="StreamingCOBieExport" Click="Cmd_Click"
+                                            ToolTip="Streaming COBie export for 100K+ element models — low memory batched processing"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click"
                                             ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
@@ -2196,8 +2198,12 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 4D" Tag="Export4DTimeline" Click="Cmd_Click"
                                             ToolTip="Export 4D timeline data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Navisworks 4D" Tag="NavisworksTimeLiner" Click="Cmd_Click"
+                                            ToolTip="Export Navisworks TimeLiner CSV/XML with trade sequence ordering"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 5D" Tag="Export5DCostData" Click="Cmd_Click"
                                             ToolTip="Export 5D cost data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost Trace" Tag="ElementCostTrace" Click="Cmd_Click"
+                                            ToolTip="Per-element 5D cost traceability with geometry-derived quantities"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Link Predecessors" Tag="LinkPredecessors" Click="Cmd_Click"
                                             ToolTip="Auto-link task predecessors in 4D schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Phase Dates" Tag="AssignPhaseDates" Click="Cmd_Click"

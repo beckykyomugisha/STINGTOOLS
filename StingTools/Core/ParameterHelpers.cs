@@ -1507,6 +1507,24 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
             }
 
+            // HC-001: Proximity-based token copy for SYS/FUNC when detection yielded generic defaults
+            // Uses configurable ProximityRadiusFt from project_config.json (default 10 ft)
+            if (!overwrite)
+            {
+                string curSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string curFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                bool sysGeneric = string.IsNullOrEmpty(curSys) || curSys == "GEN" || curSys == "ARC" || curSys == "STR";
+                bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
+                if (sysGeneric || funcGeneric)
+                {
+                    var tokensToInherit = new List<string>();
+                    if (sysGeneric) tokensToInherit.Add(ParamRegistry.SYS);
+                    if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
+                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
+                    result.TokensSet += proxCopied;
+                }
+            }
+
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             if (string.IsNullOrEmpty(existingStatus) || overwrite)
@@ -1627,6 +1645,107 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"WriteGridReference: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Copies specified token values from the nearest already-tagged element of the same
+        /// category within a configurable radius (TagConfig.ProximityRadiusFt, default 10 ft).
+        /// Useful for inheriting SYS/FUNC from adjacent elements when MEP detection yields
+        /// empty or generic defaults.
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="el">Target element to copy tokens TO</param>
+        /// <param name="tokensToCopy">Parameter names to copy (e.g., ParamRegistry.SYS, ParamRegistry.FUNC)</param>
+        /// <param name="candidatePool">Pre-collected candidate elements (null = collect from doc)</param>
+        /// <returns>Number of tokens successfully copied</returns>
+        public static int CopyTokensFromNearest(Document doc, Element el,
+            string[] tokensToCopy, IList<Element> candidatePool = null)
+        {
+            if (el == null || tokensToCopy == null || tokensToCopy.Length == 0) return 0;
+
+            try
+            {
+                // Get element location
+                XYZ point = null;
+                var loc = el.Location;
+                if (loc is LocationPoint lp) point = lp.Point;
+                else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
+                if (point == null) return 0;
+
+                string elCat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(elCat)) return 0;
+
+                double radiusFt = TagConfig.ProximityRadiusFt;
+
+                // Collect candidates: same category, already tagged, within radius
+                IEnumerable<Element> candidates;
+                if (candidatePool != null)
+                {
+                    candidates = candidatePool;
+                }
+                else
+                {
+                    var catId = el.Category?.Id;
+                    if (catId == null) return 0;
+                    candidates = new FilteredElementCollector(doc)
+                        .OfCategoryId(catId)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Id != el.Id);
+                }
+
+                Element nearest = null;
+                double minDist = double.MaxValue;
+
+                foreach (var candidate in candidates)
+                {
+                    if (candidate.Id == el.Id) continue;
+                    string candidateCat = ParameterHelpers.GetCategoryName(candidate);
+                    if (candidateCat != elCat) continue;
+
+                    // Must have a non-empty TAG1
+                    string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    // Get candidate location
+                    XYZ cPoint = null;
+                    var cLoc = candidate.Location;
+                    if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                    else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                    if (cPoint == null) continue;
+
+                    double dist = point.DistanceTo(cPoint);
+                    if (dist < minDist && dist <= radiusFt)
+                    {
+                        minDist = dist;
+                        nearest = candidate;
+                    }
+                }
+
+                if (nearest == null) return 0;
+
+                int copied = 0;
+                foreach (string tokenName in tokensToCopy)
+                {
+                    string existingVal = ParameterHelpers.GetString(el, tokenName);
+                    if (!string.IsNullOrEmpty(existingVal)) continue; // don't overwrite
+
+                    string sourceVal = ParameterHelpers.GetString(nearest, tokenName);
+                    if (string.IsNullOrEmpty(sourceVal)) continue;
+
+                    if (ParameterHelpers.SetIfEmpty(el, tokenName, sourceVal))
+                        copied++;
+                }
+
+                if (copied > 0)
+                    StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+
+                return copied;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CopyTokensFromNearest: {ex.Message}");
+                return 0;
             }
         }
 

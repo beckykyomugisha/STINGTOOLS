@@ -148,8 +148,8 @@ namespace StingTools.UI
         private class IssuePriorityPage : WizardPage
         {
             private readonly Dictionary<string, RadioButton> _priorityRadios = new();
-            private ComboBox _assignCombo;
-            private TextBox _customAssignee;
+            private System.Windows.Controls.ComboBox _assignCombo;
+            private System.Windows.Controls.TextBox _customAssignee;
 
             public IssuePriorityPage()
             {
@@ -277,11 +277,11 @@ namespace StingTools.UI
         {
             private readonly Document _doc;
             private readonly UIDocument _uidoc;
-            private TextBox _titleBox;
-            private TextBox _descBox;
-            private ComboBox _discCombo;
-            private TextBox _locationBox;
-            private TextBox _dueDateBox;
+            private System.Windows.Controls.TextBox _titleBox;
+            private System.Windows.Controls.TextBox _descBox;
+            private System.Windows.Controls.ComboBox _discCombo;
+            private System.Windows.Controls.TextBox _locationBox;
+            private System.Windows.Controls.TextBox _dueDateBox;
 
             public IssueDetailsPage(Document doc, UIDocument uidoc)
             {

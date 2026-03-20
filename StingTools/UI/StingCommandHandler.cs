@@ -1285,6 +1285,11 @@ namespace StingTools.UI
                     // ── Temp: Handover & Export ──
                     case "HandoverPackage": RunCommand<Temp.HandoverPackageCommand>(app); break;
 
+                    // ── Streaming COBie / 4D-5D Exports (Phase 35) ──
+                    case "StreamingCOBieExport": RunCommand<Docs.StreamingCOBieExportCommand>(app); break;
+                    case "NavisworksTimeLiner": RunCommand<BIMManager.NavisworksTimeLinerExportCommand>(app); break;
+                    case "ElementCostTrace": RunCommand<BIMManager.ElementCostTraceCommand>(app); break;
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
