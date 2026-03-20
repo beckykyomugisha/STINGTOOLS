@@ -1227,7 +1227,7 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // If multiple BCF files, let user choose
+                // If multiple BCF files, let user choose via searchable list
                 string selectedBcf;
                 if (bcfFiles.Count == 1)
                 {
@@ -1235,36 +1235,15 @@ namespace StingTools.BIMManager
                 }
                 else
                 {
-                    var chooseDlg = new TaskDialog("STING BCF Import — Select File");
-                    chooseDlg.MainInstruction = $"Found {bcfFiles.Count} BCF files. Select one:";
-                    var sb = new StringBuilder();
-                    for (int i = 0; i < Math.Min(bcfFiles.Count, 4); i++)
+                    var bcfLabels = bcfFiles.Select(f =>
                     {
-                        var fi = new FileInfo(bcfFiles[i]);
-                        sb.AppendLine($"{i + 1}. {fi.Name} ({fi.Length / 1024.0:F0} KB, {fi.LastWriteTime:yyyy-MM-dd HH:mm})");
-                    }
-                    chooseDlg.MainContent = sb.ToString();
-                    chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        $"Import: {Path.GetFileName(bcfFiles[0])}");
-                    if (bcfFiles.Count > 1)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                            $"Import: {Path.GetFileName(bcfFiles[1])}");
-                    if (bcfFiles.Count > 2)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                            $"Import: {Path.GetFileName(bcfFiles[2])}");
-                    if (bcfFiles.Count > 3)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                            $"Import: {Path.GetFileName(bcfFiles[3])}");
-
-                    var choice = chooseDlg.Show();
-                    int idx = choice switch
-                    {
-                        TaskDialogResult.CommandLink1 => 0,
-                        TaskDialogResult.CommandLink2 => 1,
-                        TaskDialogResult.CommandLink3 => 2,
-                        TaskDialogResult.CommandLink4 => 3,
-                        _ => -1
-                    };
+                        var fi = new FileInfo(f);
+                        return $"{fi.Name} ({fi.Length / 1024.0:F0} KB, {fi.LastWriteTime:yyyy-MM-dd HH:mm})";
+                    }).ToList();
+                    string pick = StingListPicker.Show("BCF Import — Select File",
+                        $"Found {bcfFiles.Count} BCF files. Select one to import:", bcfLabels);
+                    if (pick == null) return Result.Cancelled;
+                    int idx = bcfLabels.IndexOf(pick);
                     if (idx < 0 || idx >= bcfFiles.Count) return Result.Cancelled;
                     selectedBcf = bcfFiles[idx];
                 }

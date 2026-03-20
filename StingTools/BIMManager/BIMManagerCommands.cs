@@ -3727,6 +3727,20 @@ namespace StingTools.BIMManager
 
     #region ── Command 6: Issue Dashboard ──
 
+    internal class IssueRow
+    {
+        public string IssueId { get; set; }
+        public string Title { get; set; }
+        public string Status { get; set; }
+        public string Priority { get; set; }
+        public string Type { get; set; }
+        public string DateRaised { get; set; }
+        public string DateDue { get; set; }
+        public string Overdue { get; set; }
+        public int ElementCount { get; set; }
+        public JObject RawJson { get; set; }
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class IssueDashboardCommand : IExternalCommand
@@ -3747,71 +3761,119 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            var report = new StringBuilder();
-            report.AppendLine("STING Issue Tracker — Dashboard");
-            report.AppendLine(new string('═', 55));
-            report.AppendLine($"  Total Issues: {issues.Count}");
-            report.AppendLine();
-
-            var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY STATUS:");
-            foreach (var g in byStatus) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY TYPE:");
-            foreach (var g in byType) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY PRIORITY:");
-            foreach (var g in byPriority) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            // Overdue issues
+            // Build row data for DataGrid
             var now = DateTime.Now;
-            var overdue = issues.Where(i =>
+            var rows = issues.Select(i =>
             {
-                string s = i["status"]?.ToString() ?? "";
-                if (s == "CLOSED" || s == "VOID" || s == "ACCEPTED") return false;
-                string due = i["date_due"]?.ToString() ?? "";
-                return DateTime.TryParse(due, out DateTime d) && d < now;
+                string status = i["status"]?.ToString() ?? "?";
+                string dueDateStr = i["date_due"]?.ToString() ?? "";
+                bool isOverdue = false;
+                if (status != "CLOSED" && status != "VOID" && status != "ACCEPTED"
+                    && DateTime.TryParse(dueDateStr, out DateTime dueDate) && dueDate < now)
+                    isOverdue = true;
+
+                return new IssueRow
+                {
+                    IssueId = i["issue_id"]?.ToString() ?? "",
+                    Title = i["title"]?.ToString() ?? "(untitled)",
+                    Status = status,
+                    Priority = i["priority"]?.ToString() ?? "?",
+                    Type = i["type"]?.ToString() ?? "?",
+                    DateRaised = i["date_raised"]?.ToString() ?? "",
+                    DateDue = dueDateStr,
+                    Overdue = isOverdue ? "OVERDUE" : "",
+                    ElementCount = (i["element_ids"] as JArray)?.Count ?? 0,
+                    RawJson = i
+                };
             }).ToList();
-            if (overdue.Count > 0)
-            {
-                report.AppendLine($"  OVERDUE: {overdue.Count} issue(s)");
-                foreach (var o in overdue.Take(5))
-                    report.AppendLine($"    {o["issue_id"],-16} {o["priority"],-10} due {o["date_due"]}  {o["title"]}");
-                report.AppendLine();
-            }
 
-            // Recent
-            report.AppendLine("  RECENT (last 10):");
-            foreach (var issue in issues.Reverse().Take(10))
-            {
-                string title = issue["title"]?.ToString() ?? "(untitled)";
-                if (title.Length > 35) title = title.Substring(0, 32) + "...";
-                report.AppendLine($"    {issue["issue_id"],-16} {issue["status"],-12} {issue["priority"],-10} {title}");
-            }
-            report.AppendLine();
-            // GAP-021: Add element count context and compliance tie-in
-            int issuesWithElements = issues.Count(i =>
-            {
-                var elIds = i["element_ids"];
-                return elIds != null && elIds.HasValues;
-            });
-            if (issuesWithElements > 0)
-                report.AppendLine($"  Issues with element links: {issuesWithElements}");
-
-            // Show compliance context if available
+            int overdueCount = rows.Count(r => r.Overdue == "OVERDUE");
             var compScan = ComplianceScan.Scan(doc);
-            if (compScan != null)
-                report.AppendLine($"  Model compliance: {compScan.StatusBarText}");
+            string subtitle = $"{issues.Count} issues | {overdueCount} overdue"
+                + (compScan != null ? $" | Model: {compScan.StatusBarText}" : "");
 
-            report.AppendLine();
-            report.AppendLine($"  File: {issuesPath}");
+            var dlg = new StingDataGridDialog("STING Issue Tracker", subtitle, 1100, 680);
+            dlg.AddTextColumn("Issue ID", "IssueId", 130);
+            dlg.AddTextColumn("Title", "Title");
+            dlg.AddTextColumn("Status", "Status", 90);
+            dlg.AddTextColumn("Priority", "Priority", 80);
+            dlg.AddTextColumn("Type", "Type", 80);
+            dlg.AddTextColumn("Raised", "DateRaised", 90);
+            dlg.AddTextColumn("Due", "DateDue", 90);
+            dlg.AddTextColumn("Overdue", "Overdue", 70, foreground: System.Windows.Media.Color.FromRgb(200, 30, 30));
+            dlg.AddTextColumn("Elements", "ElementCount", 60);
 
-            TaskDialog.Show("STING Issue Tracker", report.ToString());
+            // Filters
+            var allStatuses = new[] { "All" }.Concat(rows.Select(r => r.Status).Distinct().OrderBy(s => s)).ToList();
+            var allPriorities = new[] { "All" }.Concat(rows.Select(r => r.Priority).Distinct().OrderBy(s => s)).ToList();
+            string filterStatus = "All", filterPriority = "All";
+
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterStatus != "All") filtered = filtered.Where(r => r.Status == filterStatus);
+                if (filterPriority != "All") filtered = filtered.Where(r => r.Priority == filterPriority);
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.IssueId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} issues");
+            }
+
+            dlg.AddFilter("Status", allStatuses, s => { filterStatus = s; ApplyFilters(); });
+            dlg.AddFilter("Priority", allPriorities, s => { filterPriority = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            // Action buttons
+            dlg.AddActionButton("Select Elements", "SelectElements");
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "SelectElements")
+                {
+                    var sel = dlg.SelectedItems.OfType<IssueRow>().ToList();
+                    if (sel.Count == 0) return;
+                    var ids = new List<ElementId>();
+                    foreach (var r in sel)
+                    {
+                        var elIds = r.RawJson["element_ids"] as JArray;
+                        if (elIds != null)
+                            foreach (var eid in elIds)
+                                if (int.TryParse(eid.ToString(), out int id))
+                                    ids.Add(new ElementId(id));
+                    }
+                    if (ids.Count > 0)
+                    {
+                        try
+                        {
+                            var uidoc = new UIDocument(doc);
+                            uidoc.Selection.SetElementIds(ids);
+                        }
+                        catch (Exception ex) { StingLog.Warn($"SelectIssueElements: {ex.Message}"); }
+                    }
+                }
+                else if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "IssueTracker", ".csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
+                        foreach (var r in rows)
+                            sb.AppendLine($"\"{r.IssueId}\",\"{r.Title}\",\"{r.Status}\",\"{r.Priority}\",\"{r.Type}\",\"{r.DateRaised}\",\"{r.DateDue}\",\"{r.Overdue}\",{r.ElementCount}");
+                        File.WriteAllText(csvPath, sb.ToString());
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"IssueExportCSV: {ex.Message}"); }
+                }
+            };
+
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
             return Result.Succeeded;
         }
     }
@@ -4044,6 +4106,19 @@ namespace StingTools.BIMManager
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
+    internal class DocRegisterRow
+    {
+        public string DocId { get; set; }
+        public string Title { get; set; }
+        public string Type { get; set; }
+        public string Direction { get; set; }
+        public string Suitability { get; set; }
+        public string SuitDesc { get; set; }
+        public string CDEStatus { get; set; }
+        public string Revision { get; set; }
+        public string Date { get; set; }
+    }
+
     public class DocumentRegisterCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
@@ -4056,37 +4131,97 @@ namespace StingTools.BIMManager
             string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
             var docs = BIMManagerEngine.LoadJsonArray(docsPath);
 
-            var report = new StringBuilder();
-            report.AppendLine("STING Document Register");
-            report.AppendLine(new string('═', 55));
-            report.AppendLine($"  Total: {docs.Count}  |  In: {docs.Count(d => d["direction"]?.ToString() == "IN")}  |  Out: {docs.Count(d => d["direction"]?.ToString() == "OUT")}");
-            report.AppendLine();
-
-            var bySuit = docs.GroupBy(d => d["suitability"]?.ToString() ?? "N/A").OrderBy(g => g.Key);
-            report.AppendLine("  BY SUITABILITY:");
-            foreach (var g in bySuit)
+            if (docs.Count == 0)
             {
-                string desc = BIMManagerEngine.SuitabilityCodes.ContainsKey(g.Key) ? BIMManagerEngine.SuitabilityCodes[g.Key] : g.Key;
-                report.AppendLine($"    {g.Key,-4} {desc,-30} {g.Count(),4}");
+                TaskDialog.Show("STING Document Register", "No documents registered.\nUse 'Add Document' to register one.");
+                return Result.Succeeded;
             }
-            report.AppendLine();
 
-            var byCDE = docs.GroupBy(d => d["cde_status"]?.ToString() ?? "N/A").OrderBy(g => g.Key);
-            report.AppendLine("  BY CDE STATUS:");
-            foreach (var g in byCDE) report.AppendLine($"    {g.Key,-12} {g.Count(),4}");
-            report.AppendLine();
-
-            report.AppendLine("  RECENT (last 10):");
-            foreach (var d in docs.Reverse().Take(10))
+            var rows = docs.Select(d =>
             {
-                string title = d["title"]?.ToString() ?? "";
-                if (title.Length > 30) title = title.Substring(0, 27) + "...";
-                report.AppendLine($"    {d["doc_id"],-24} {d["direction"],-4} {d["suitability"],-4} {title}");
-            }
-            report.AppendLine();
-            report.AppendLine($"  File: {docsPath}");
+                string suit = d["suitability"]?.ToString() ?? "N/A";
+                string suitDesc = BIMManagerEngine.SuitabilityCodes.ContainsKey(suit) ? BIMManagerEngine.SuitabilityCodes[suit] : suit;
+                return new DocRegisterRow
+                {
+                    DocId = d["doc_id"]?.ToString() ?? "",
+                    Title = d["title"]?.ToString() ?? "",
+                    Type = d["doc_type"]?.ToString() ?? "",
+                    Direction = d["direction"]?.ToString() ?? "",
+                    Suitability = suit,
+                    SuitDesc = suitDesc,
+                    CDEStatus = d["cde_status"]?.ToString() ?? "",
+                    Revision = d["revision"]?.ToString() ?? "",
+                    Date = d["date"]?.ToString() ?? ""
+                };
+            }).ToList();
 
-            TaskDialog.Show("STING BIM Manager", report.ToString());
+            int inCount = rows.Count(r => r.Direction == "IN");
+            int outCount = rows.Count(r => r.Direction == "OUT");
+            var dlg = new StingDataGridDialog("STING Document Register",
+                $"{docs.Count} documents | {inCount} incoming | {outCount} outgoing", 1100, 640);
+
+            dlg.AddTextColumn("Document ID", "DocId", 200);
+            dlg.AddTextColumn("Title", "Title");
+            dlg.AddTextColumn("Type", "Type", 50);
+            dlg.AddTextColumn("Dir", "Direction", 40);
+            dlg.AddTextColumn("Suit.", "Suitability", 45);
+            dlg.AddTextColumn("Suitability", "SuitDesc", 140);
+            dlg.AddTextColumn("CDE Status", "CDEStatus", 80);
+            dlg.AddTextColumn("Rev", "Revision", 45);
+            dlg.AddTextColumn("Date", "Date", 90);
+
+            // Filters
+            var allDirs = new[] { "All", "IN", "OUT" };
+            var allCDE = new[] { "All" }.Concat(rows.Select(r => r.CDEStatus).Distinct().OrderBy(s => s)).ToList();
+            string filterDir = "All", filterCDE = "All";
+
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterDir != "All") filtered = filtered.Where(r => r.Direction == filterDir);
+                if (filterCDE != "All") filtered = filtered.Where(r => r.CDEStatus == filterCDE);
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.DocId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} documents");
+            }
+
+            dlg.AddFilter("Direction", allDirs, s => { filterDir = s; ApplyFilters(); });
+            dlg.AddFilter("CDE Status", allCDE, s => { filterCDE = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Open Folder", "OpenFolder");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "DocumentRegister", ".csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
+                        foreach (var r in rows)
+                            sb.AppendLine($"\"{r.DocId}\",\"{r.Title}\",\"{r.Type}\",\"{r.Direction}\",\"{r.Suitability}\",\"{r.CDEStatus}\",\"{r.Revision}\",\"{r.Date}\"");
+                        File.WriteAllText(csvPath, sb.ToString());
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DocRegisterExportCSV: {ex.Message}"); }
+                }
+                else if (tag == "OpenFolder")
+                {
+                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true }); }
+                    catch (Exception ex) { StingLog.Warn($"OpenFolder: {ex.Message}"); }
+                }
+            };
+
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
             return Result.Succeeded;
         }
     }
@@ -4106,98 +4241,29 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Direction
-            var dirDlg = new TaskDialog("STING Doc Register — Direction");
-            dirDlg.MainInstruction = "Document direction:";
-            dirDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "INCOMING — Received from external party");
-            dirDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "OUTGOING — Issued to external party");
-            var dirResult = dirDlg.Show();
-            string direction = dirResult == TaskDialogResult.CommandLink1 ? "IN" :
-                               dirResult == TaskDialogResult.CommandLink2 ? "OUT" : null;
-            if (direction == null) return Result.Cancelled;
+            // Direction — simple 2-option picker
+            var dirItems = new List<string> { "IN — Incoming (received from external party)", "OUT — Outgoing (issued to external party)" };
+            string dirPick = StingListPicker.Show("Document Direction", "Select document direction:", dirItems);
+            if (dirPick == null) return Result.Cancelled;
+            string direction = dirPick.StartsWith("IN") ? "IN" : "OUT";
 
-            // Document type — paginated to cover all 30+ types
-            var typeDlg = new TaskDialog("STING Doc Register — Type (Page 1/4)");
-            typeDlg.MainInstruction = "Select document type:";
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "M3 — 3D Model");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DR — Drawing (2D)");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SP — Specification");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-            var typeResult = typeDlg.Show();
-            string docType;
-            switch (typeResult)
-            {
-                case TaskDialogResult.CommandLink1: docType = "M3"; break;
-                case TaskDialogResult.CommandLink2: docType = "DR"; break;
-                case TaskDialogResult.CommandLink3: docType = "SP"; break;
-                case TaskDialogResult.CommandLink4:
-                    var pg2 = new TaskDialog("STING Doc Register — Type (Page 2/4)");
-                    pg2.MainInstruction = "Select document type:";
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RP — Report");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RI — Request for Information");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SH — Schedule");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-                    var pg2Result = pg2.Show();
-                    switch (pg2Result)
-                    {
-                        case TaskDialogResult.CommandLink1: docType = "RP"; break;
-                        case TaskDialogResult.CommandLink2: docType = "RI"; break;
-                        case TaskDialogResult.CommandLink3: docType = "SH"; break;
-                        case TaskDialogResult.CommandLink4:
-                            var pg3 = new TaskDialog("STING Doc Register — Type (Page 3/4)");
-                            pg3.MainInstruction = "Select document type:";
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BQ — Bill of Quantities");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CA — Calculations");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CP — Cost Plan");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-                            var pg3Result = pg3.Show();
-                            switch (pg3Result)
-                            {
-                                case TaskDialogResult.CommandLink1: docType = "BQ"; break;
-                                case TaskDialogResult.CommandLink2: docType = "CA"; break;
-                                case TaskDialogResult.CommandLink3: docType = "CP"; break;
-                                case TaskDialogResult.CommandLink4:
-                                    var pg4 = new TaskDialog("STING Doc Register — Type (Page 4/4)");
-                                    pg4.MainInstruction = "Select document type:";
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "IE — COBie Data Exchange");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "HS — Health and Safety");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MS — Method Statement");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "PP/MI/SN/TN/VS/AF/CR/SU...");
-                                    var pg4Result = pg4.Show();
-                                    docType = pg4Result switch
-                                    {
-                                        TaskDialogResult.CommandLink1 => "IE",
-                                        TaskDialogResult.CommandLink2 => "HS",
-                                        TaskDialogResult.CommandLink3 => "MS",
-                                        TaskDialogResult.CommandLink4 => "MR",
-                                        _ => "RP"
-                                    };
-                                    break;
-                                default: docType = "RP"; break;
-                            }
-                            break;
-                        default: docType = "RP"; break;
-                    }
-                    break;
-                default: return Result.Cancelled;
-            }
+            // Document type — all types in searchable list (replaces 4-page paginated TaskDialog)
+            var typeItems = BIMManagerEngine.DocumentTypes
+                .Select(kvp => $"{kvp.Key} — {kvp.Value}")
+                .OrderBy(s => s)
+                .ToList();
+            string typePick = StingListPicker.Show("Document Type", "Select ISO 19650 document type:", typeItems);
+            if (typePick == null) return Result.Cancelled;
+            string docType = typePick.Split(new[] { ' ' }, 2)[0].Trim();
 
-            // Suitability
-            var suitDlg = new TaskDialog("STING Doc Register — Suitability");
-            suitDlg.MainInstruction = "ISO 19650 suitability code:";
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S0 — Work In Progress");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
-            var suitResult = suitDlg.Show();
-            string suitability = suitResult switch
-            {
-                TaskDialogResult.CommandLink1 => "S0",
-                TaskDialogResult.CommandLink2 => "S2",
-                TaskDialogResult.CommandLink3 => "S3",
-                TaskDialogResult.CommandLink4 => "S4",
-                _ => "S0"
-            };
+            // Suitability — all codes in searchable list
+            var suitItems = BIMManagerEngine.SuitabilityCodes
+                .Select(kvp => $"{kvp.Key} — {kvp.Value}")
+                .OrderBy(s => s)
+                .ToList();
+            string suitPick = StingListPicker.Show("Suitability Code", "Select ISO 19650 suitability code:", suitItems);
+            if (suitPick == null) return Result.Cancelled;
+            string suitability = suitPick.Split(new[] { ' ' }, 2)[0].Trim();
 
             // Generate ISO 19650 document ID
             var pi = doc.ProjectInformation;
