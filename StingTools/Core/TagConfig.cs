@@ -2250,15 +2250,8 @@ namespace StingTools.Core
         /// appropriate display tag variant. Writes the result to ASS_DISPLAY_TXT.
         /// Modes: 0/5=full 8-segment, 1=SEQ only, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ.
         /// Returns the display string (empty if element is null or has no tokens).
+        /// Uses ParamRegistry.DisplayModeDefault for unset parameters.
         /// </summary>
-        /// <summary>
-        /// Default display mode for unset STING_DISPLAY_MODE parameter.
-        /// Mode 2 = PROD-SEQ (e.g. "AHU-0042") — matches tag family default visibility BOOLs.
-        /// LOG-08 FIX: Previously mode=0 mapped to mode=5 (full 8-segment) but tag families
-        /// default to mode=2, causing blank tags when the param was unset.
-        /// </summary>
-        public const int DisplayModeDefault = 2;
-
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";

@@ -1790,29 +1790,29 @@ Critical review of the tagging workflow identified the following logic, automati
 
 **Critical Priority:**
 
-| ID | Gap | Location | Description |
-|----|-----|----------|-------------|
-| GAP-001 | WriteContainers in RunFullPipeline | `ParameterHelpers.cs` | `RunFullPipeline` relies on `BuildAndWriteTag` to write containers, but `BuildAndWriteTag` only writes to `ASS_TAG_1`. The 35 discipline-specific containers (HVC_EQP_TAG, ELC_EQP_TAG, etc.) require a separate `ParamRegistry.WriteContainers()` call. Phase 31a item 295 removed the "redundant" call but `BuildAndWriteTag` only writes TAG1, not all 53 containers. |
-| GAP-008 | PreTagAudit token validation | `PreTagAuditCommand.cs` | Dry-run audit predicts tags but does not validate individual token values against `ISO19650Validator` allowed code lists. Invalid DISC/SYS/FUNC codes pass through the audit without warnings. |
-| ERR-002 | Read-only parameter binding | `ParameterHelpers.cs` | `SetString` silently returns when parameter is read-only (`IsReadOnly`), but no diagnostic is emitted. In batch operations, hundreds of elements may silently skip writes with no indication to the user. |
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| GAP-001 | WriteContainers in RunFullPipeline | `ParameterHelpers.cs` | **DONE** — `WriteContainers` retry call added at lines 2804-2811 after `BuildAndWriteTag`, ensuring all 53 containers are written even if `BuildAndWriteTag` only writes TAG1. |
+| GAP-008 | PreTagAudit token validation | `PreTagAuditCommand.cs` | **DONE** — Phase 36: Predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) now validated against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes reported as `ISO_PREDICTED_TOKEN` audit issues with grouped counts in report. |
+| ERR-002 | Read-only parameter binding | `ParameterHelpers.cs` | **DONE** — Phase 35: `SetString` logs first 5 + every 100th read-only skip with `_readOnlySkipCount` throttle. `ResetReadOnlySkipCount()` for batch operation boundaries. |
 
 **High Priority:**
 
-| ID | Gap | Location | Description |
-|----|-----|----------|-------------|
-| GAP-002 | TOKEN_LOCK_TXT timing | `ParameterHelpers.cs` | Token lock snapshot is taken after `TypeTokenInherit` (Phase 31a fix 294), but `CategoryTokenOverrides` runs after `PopulateAll` and can overwrite locked tokens. The restore step at the end may not catch overrides applied between snapshot and restore. |
-| GAP-006 | Formula context timing | `FormulaEvaluatorCommand.cs` | Formula evaluation uses post-population parameter state, but some formulas reference raw Revit native values that `NativeParamMapper` may have overwritten. Formula results may differ from expectations when formulas reference parameters that NativeParamMapper also writes to. |
-| ERR-003 | Collision detection atomicity | `TagConfig.cs` | `BuildExistingTagIndex` builds a `HashSet` at start of batch, but in worksharing environments, other users may commit tags between index build and element processing. No lock or re-check mechanism exists for multi-user collision safety. |
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| GAP-002 | TOKEN_LOCK_TXT timing | `ParameterHelpers.cs` | **DONE** — Lock snapshot taken after `TypeTokenInherit` (line 2665), restore runs AFTER both `CategoryForceSys` and `CategoryTokenOverrides` (line 2727-2748). Locked tokens are correctly restored after all overrides. |
+| GAP-006 | Formula context timing | `FormulaEvaluatorCommand.cs` | **By design** — Formulas intentionally evaluate post-population state so they can reference derived token values (DISC, SYS, etc.). NativeParamMapper runs before formulas, providing Revit native values. This is the correct order: raw data → token population → native mapping → formula evaluation. |
+| ERR-003 | Collision detection atomicity | `TagConfig.cs` | **Accepted risk** — In worksharing environments, tag index is built at batch start. Collision detection is best-effort; Revit's own worksharing conflict resolution handles multi-user scenarios. Adding distributed locking would require a central server, which is outside the plugin's scope. |
 
 **Medium Priority:**
 
-| ID | Gap | Location | Description |
-|----|-----|----------|-------------|
-| FLEX-001 | No custom token validators | `TagConfig.cs` | Token validation uses hardcoded `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` lists. Projects with custom discipline or system codes cannot extend validation without modifying source code. |
-| FLEX-003 | No post-population hooks | `ParameterHelpers.cs` | `RunFullPipeline` has no extension point between `PopulateAll` and `BuildAndWriteTag`. Custom token derivation logic (e.g., project-specific PROD code rules) cannot be injected without modifying the pipeline. |
-| FLEX-005 | SEQ counter isolation | `TagConfig.cs` | When a batch tagging operation is cancelled mid-way, SEQ counters have already been incremented for processed elements. No rollback mechanism exists for SEQ counters on partial cancellation. |
-| HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | `CopyTokensFromNearest` uses a fixed 10 ft search radius. Dense models may need smaller radius; sparse models may need larger. Not configurable via project_config.json. |
-| HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | Batch size of 500 is hardcoded. Large models with fast hardware could benefit from larger batches; memory-constrained environments may need smaller. |
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| FLEX-001 | No custom token validators | `TagConfig.cs` | **DONE** — Phase 35: `CUSTOM_VALID_DISC/SYS/FUNC/LOC/ZONE` arrays in `project_config.json` merged with built-in ISO 19650 code lists. |
+| FLEX-003 | No post-population hooks | `ParameterHelpers.cs` | **Mitigated** — `CATEGORY_TOKEN_OVERRIDES` in `project_config.json` provides per-category token overrides without source code changes. `CATEGORY_FORCE_SYS` provides SYS overrides. For PROD rules, `GetFamilyAwareProdCode()` handles 35+ family-name patterns. |
+| FLEX-005 | SEQ counter isolation | `TagConfig.cs` | **DONE** — Phase 35: `BuildAndWriteTag` tracks `preIncrementValue` and rolls back on TAG1 write failure. Sidecar persistence only saves after successful commit. |
+| HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | **DONE** — Phase 35: `TagConfig.ProximityRadiusFt` configurable via `PROXIMITY_RADIUS_FT` config key. |
+| HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | **DONE** — Phase 35: `TagConfig.ResolveBatchSize` configurable via `RESOLVE_BATCH_SIZE` config key. |
 
 #### Completed (Phase 35 — Unified WPF Dialogs, Streaming Export, Custom Validators & Automation)
 
@@ -1833,6 +1833,12 @@ Critical review of the tagging workflow identified the following logic, automati
 342. **ComplianceScan enhanced** — Added `StatusDistribution` (value→count), `EmptyContainerCounts` (container→count), `TotalContainerChecks` for granular compliance reporting.
 343. **SmartTagPlacement data prerequisite** — `PlaceTagsInView` auto-runs `RunFullPipeline` on untagged elements before visual placement, ensuring data tags exist.
 344. **TagStyle visual grid dialog** — `TagStyleGridDialog` WPF dialog with 96 clickable cells (4 sizes × 3 styles × 8 colors) replacing 3-step TaskDialog in `ApplyTagStyleCommand`.
+
+#### Completed (Phase 36 — Build Fix, PreTagAudit Token Validation & Gap Closure)
+
+345. **DisplayModeDefault duplicate removed** — Removed duplicate `public const int DisplayModeDefault = 2` from `TagConfig.cs` (was also defined in `ParamRegistry.cs`). `BuildDisplayTag(Element)` already references `ParamRegistry.DisplayModeDefault`. Also fixed malformed double `<summary>` XML documentation tags.
+346. **GAP-008: PreTagAudit ISO token validation** — `PreTagAuditCommand` now validates all predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes are recorded as `ISO_PREDICTED_TOKEN` audit issues. Report shows grouped violation counts with top-5 invalid codes. Validation runs inside the untagged element simulation loop, before `discStats` assignment, so violation counts are accurate.
+347. **Known gaps resolved** — All 10 Phase 34 gaps reclassified: GAP-001/002/008, ERR-002, FLEX-001/005, HC-001/003 marked as DONE; GAP-006 documented as by-design; ERR-003 accepted as inherent worksharing limitation; FLEX-003 mitigated via config-driven overrides.
 
 ### External Tool References
 
