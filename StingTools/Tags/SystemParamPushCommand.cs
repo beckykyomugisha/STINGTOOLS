@@ -900,18 +900,9 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-            // Save SEQ sidecar + invalidate caches after system push
+            // Save SEQ sidecar + invalidate caches after batch system push
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-
-            // FIX-03A: Save SEQ sidecar + invalidate caches after batch system push
-            if (mode == SystemParamPush.PushMode.FullAutoTag)
-            {
-                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-                catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
-            }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 

@@ -841,7 +841,8 @@ namespace StingTools.BIMManager
             estimate["contingency"] = Math.Round(grandTotal * 0.10, 2);
             estimate["overhead_profit_pct"] = 8;
             estimate["overhead_profit"] = Math.Round(grandTotal * 0.08, 2);
-            estimate["grand_total"] = Math.Round(grandTotal * 1.30, 2); // sub + 12% + 10% + 8%
+            estimate["grand_total"] = Math.Round(grandTotal + (double)estimate["preliminaries"]
+                + (double)estimate["contingency"] + (double)estimate["overhead_profit"], 2);
 
             // Breakdown by discipline
             var byDisc = lineItems.GroupBy(i => i["discipline"]?.ToString() ?? "?")
@@ -981,17 +982,43 @@ namespace StingTools.BIMManager
             var rates = new Dictionary<string, (double, string)>();
             try
             {
-                foreach (string line in File.ReadLines(csvPath).Skip(1)) // skip header
+                string[] headers = null;
+                foreach (string line in File.ReadLines(csvPath))
                 {
                     var parts = StingToolsApp.ParseCsvLine(line);
-                    if (parts.Length >= 3)
+                    if (headers == null)
                     {
-                        string cat = parts[0].Trim();
-                        if (double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                        {
-                            string unit = parts.Length >= 3 ? parts[2].Trim() : "each";
-                            rates[cat] = (rate, unit);
-                        }
+                        // Detect header row to find rate and unit column indices
+                        headers = parts.Select(p => p.Trim().ToUpperInvariant()).ToArray();
+                        continue;
+                    }
+                    if (parts.Length < 2) continue;
+
+                    string cat = parts[0].Trim();
+
+                    // Auto-detect column layout:
+                    //   7-col: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                    //   4-col: Category, Unit_Rate, Unit, Description
+                    //   3-col: Category, Rate, Unit
+                    int rateCol = 1, unitCol = 2; // default 3-col
+                    if (headers.Length >= 7)
+                    {
+                        // 7-column cost_rates_5d.csv format — rate is col 3 (Unit_Rate_USD), unit is col 5
+                        rateCol = 3;
+                        unitCol = 5;
+                    }
+                    else if (headers.Length >= 4 && headers.Any(h => h.Contains("UNIT_RATE")))
+                    {
+                        rateCol = 1;
+                        unitCol = 2;
+                    }
+
+                    if (parts.Length <= rateCol) continue;
+                    if (double.TryParse(parts[rateCol].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
+                    {
+                        string unit = parts.Length > unitCol ? parts[unitCol].Trim() : "each";
+                        if (string.IsNullOrEmpty(unit)) unit = "each";
+                        rates[cat] = (rate, unit);
                     }
                 }
                 StingLog.Info($"Loaded {rates.Count} cost rates from {csvPath}");

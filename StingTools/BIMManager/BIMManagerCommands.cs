@@ -2412,7 +2412,7 @@ namespace StingTools.BIMManager
                     ["Name"] = impactName,
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["ImpactType"] = "Environment",
-                    ["ImpactStage"] = "Operation",
+                    ["ImpactStage"] = !string.IsNullOrEmpty(embodied) ? "Construction" : "Operation",
                     ["SheetName"] = "Component", ["RowName"] = comp["Name"],
                     ["Value"] = impactValue,
                     ["Unit"] = impactUnit,

@@ -1719,6 +1719,21 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 309. **3 missing XAML buttons added** — PrintSheets "All Sheets" button, MagicRename button, ViewTabColour button in dockable panel.
 310. **Empty tag family detection** — VerifyFamilyHasParams() checks existing .rfa files for STING params; empty families from failed runs are deleted and recreated.
 
+#### Completed (Phase 32 — Deep Review: Tagging Pipeline, BIM/COBie, UI & Automation Fixes)
+
+311. **AnomalyAutoFixCommand TAG1 rebuild** — After fixing individual tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD), now rebuilds TAG1 via `BuildAndWriteTag`, writes containers via `WriteContainers`, and rebuilds TAG7 narrative. Previously tokens were fixed but TAG1/containers remained stale.
+312. **SwapTagsCommand TAG_PREFIX/TAG_SUFFIX** — Inline TAG1 rebuild now applies `TagConfig.TagPrefix` and `TagConfig.TagSuffix` to match project tag format settings.
+313. **Tag3DCommand dead code removed** — Removed WriteContainers/WriteTag7All calls targeting the annotation FamilyInstance (`fi`) which has no STING parameters. Source element (`el`) already has containers written by RunFullPipeline.
+314. **Cost rate CSV loader auto-detect** — `LoadCostRatesFromCSV` now auto-detects column layout (3-col, 4-col, or 7-col `cost_rates_5d.csv` format) by reading headers. Previously hardcoded to cols 1/2, producing garbage when loading the 7-column pre-built data file.
+315. **5D grand total calculation** — Replaced hardcoded `subtotal * 1.30` with computed `subtotal + preliminaries + contingency + overhead_profit`, so customised percentage fields are reflected in the grand total.
+316. **BCF viewpoint camera data** — `CreateBcfViewpoint` now generates BCF 2.1 compliant `<OrthogonalCamera>` with CameraViewPoint, CameraDirection, CameraUpVector, and ViewToWorldScale. Previously BCF viewpoints lacked camera data, making them unusable in external BCF tools.
+317. **BCF import revision auto-detect** — `ParseBcfTopicToIssue` now calls `PhaseAutoDetect.DetectProjectRevision(doc)` instead of hardcoding "P01" for the revision field.
+318. **COBie Impact lifecycle stage** — Embodied carbon records now tagged as "Construction" stage instead of "Operation". Operational energy/carbon remains "Operation".
+319. **ExcelLink FUNC/PROD/SEQ validation** — `ValidateValue` expanded from 4 to 7 token columns: FUNC validated against `TagConfig.FuncMap`, PROD against `TagConfig.ProdMap`, SEQ against numeric format. Previously invalid codes passed through import unchecked.
+320. **Selection scope consistency** — `SelectEmptyMarkCommand`, `SelectPinnedCommand`, and `SelectUnpinnedCommand` now use `SelectionScopeHelper.GetCollector()` to honour project/view scope toggle, matching `SelectUntaggedCommand`/`SelectTaggedCommand` behaviour.
+321. **SmartOrganise dispatch differentiation** — OrgQuick/OrgDeep/OrgAnneal buttons now set `ExtraParam("ArrangeMode")` before dispatching to `ArrangeTagsCommand`. LeaderLength025/05/1 buttons set `ExtraParam("LeaderLength")` before `SnapLeaderElbowCommand`.
+322. **Redundant double operations removed** — Eliminated duplicate `SaveSeqSidecar` + `InvalidateCache` + `InvalidateContext` calls in: ReTagCommand, BulkRetag (StateSelectCommands), BatchSystemPushCommand, FullAutoPopulateCommand. Each had 2 consecutive identical cleanup blocks from overlapping fix phases.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

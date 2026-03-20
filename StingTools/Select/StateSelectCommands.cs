@@ -81,7 +81,7 @@ namespace StingTools.Select
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -93,7 +93,8 @@ namespace StingTools.Select
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -106,13 +107,14 @@ namespace StingTools.Select
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Pinned)
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -126,13 +128,14 @@ namespace StingTools.Select
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e => !e.Pinned && e.Category != null && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -691,12 +694,6 @@ namespace StingTools.Select
                 tx.Commit();
             }
             // Save SEQ sidecar + invalidate caches after bulk re-tag
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-            catch (Exception ssEx) { StingLog.Warn($"BulkReTagCommand SaveSeqSidecar: {ssEx.Message}"); }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-
-            // Save SEQ sidecar + invalidate caches after bulk retag
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();

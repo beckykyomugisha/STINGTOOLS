@@ -313,10 +313,10 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
-                    case "LeaderLength025":
-                    case "LeaderLength05":
-                    case "LeaderLength1":
-                    case "LeaderEqualSpacing":
+                    case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderEqualSpacing": SetExtraParam("LeaderLength", "equal"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderEqualise": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
                     // ── Appearance (annotation colors) ──
@@ -627,11 +627,10 @@ namespace StingTools.UI
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
                     // ════════════════════════════════════════════════════════
 
-                    case "SmartOrganise":
-                    case "OrgQuick":
-                    case "OrgDeep":
-                    case "OrgAnneal":
-                        RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "SmartOrganise": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgQuick": SetExtraParam("ArrangeMode", "Quick"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgDeep": SetExtraParam("ArrangeMode", "Deep"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgAnneal": SetExtraParam("ArrangeMode", "Anneal"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
                     case "OrgUndo":

@@ -252,10 +252,6 @@ namespace StingTools.Organise
                     // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
                 tx.Commit();
-
-                // FIX-R01b: Save SEQ sidecar inside using block after commit
-                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-                catch (Exception ssEx) { StingLog.Warn($"ReTag SaveSeqSidecar: {ssEx.Message}"); }
             }
             // Save SEQ sidecar + invalidate caches after re-tagging
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -1228,7 +1224,9 @@ namespace StingTools.Organise
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
                     if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
                     {
-                        string rebuiltTagA = string.Join(ParamRegistry.Separator, tokensA);
+                        string rebuiltTagA = (TagConfig.TagPrefix ?? "") +
+                            string.Join(ParamRegistry.Separator, tokensA) +
+                            (TagConfig.TagSuffix ?? "");
                         ParameterHelpers.SetString(a, ParamRegistry.TAG1, rebuiltTagA, overwrite: true);
                         ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
                     }
@@ -1238,7 +1236,9 @@ namespace StingTools.Organise
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
                     if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
                     {
-                        string rebuiltTagB = string.Join(ParamRegistry.Separator, tokensB);
+                        string rebuiltTagB = (TagConfig.TagPrefix ?? "") +
+                            string.Join(ParamRegistry.Separator, tokensB) +
+                            (TagConfig.TagSuffix ?? "");
                         ParameterHelpers.SetString(b, ParamRegistry.TAG1, rebuiltTagB, overwrite: true);
                         ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
                     }
@@ -4949,6 +4949,27 @@ namespace StingTools.Organise
                             // Clear stale flag — the token fixes above address the root cause
                             ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0);
                             fixed_stale++;
+                        }
+                    }
+
+                    // After all token fixes for this element, rebuild TAG1 + containers + TAG7
+                    // so the full tag string matches the corrected individual tokens
+                    if (issues.Count > 0)
+                    {
+                        try
+                        {
+                            NativeParamMapper.MapAll(doc, el);
+                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                skipComplete: false, existingTags: tagIndex,
+                                collisionMode: TagCollisionMode.Overwrite);
+                            string catN = ParameterHelpers.GetCategoryName(el);
+                            string[] tv = ParamRegistry.ReadTokenValues(el);
+                            ParamRegistry.WriteContainers(el, tv, catN, overwrite: true);
+                            TagConfig.WriteTag7All(doc, el, catN, tv, overwrite: true);
+                        }
+                        catch (Exception rebuildEx)
+                        {
+                            StingLog.Warn($"AnomalyAutoFix TAG1 rebuild for {el.Id}: {rebuildEx.Message}");
                         }
                     }
                 }

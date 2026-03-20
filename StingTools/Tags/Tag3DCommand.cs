@@ -93,18 +93,9 @@ namespace StingTools.Tags
                         // Write tag value to label parameter
                         ParameterHelpers.SetString(fi, TAG_3D_LABEL, tag1, overwrite: true);
 
-                        // A6: Write full container pipeline for 3D-tagged instances
-                        try
-                        {
-                            string catName3D = ParameterHelpers.GetCategoryName(fi);
-                            string[] tokens3D = ParamRegistry.ReadTokenValues(fi);
-                            ParamRegistry.WriteContainers(fi, tokens3D, catName3D);
-                            TagConfig.WriteTag7All(doc, fi, catName3D, tokens3D, overwrite: false);
-                        }
-                        catch (Exception pEx3D)
-                        {
-                            StingLog.Warn($"Tag3D container write for {fi.Id}: {pEx3D.Message}");
-                        }
+                        // Note: Containers/TAG7 already written to source element (el) by
+                        // RunFullPipeline above. The annotation instance (fi) is just a
+                        // visual marker — it has no STING token parameters bound.
 
                         placed++;
                     }

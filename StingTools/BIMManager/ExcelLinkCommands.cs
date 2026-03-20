@@ -119,6 +119,20 @@ namespace StingTools.BIMManager
                     if (!TagConfig.ZoneCodes.Contains(value))
                         return $"ZONE '{value}' not in valid codes: {string.Join(", ", TagConfig.ZoneCodes)}";
                     break;
+                case "FUNC":
+                    var validFunc = new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
+                    if (!validFunc.Contains(value))
+                        return $"FUNC '{value}' not in valid codes: {string.Join(", ", validFunc.OrderBy(v => v))}";
+                    break;
+                case "PROD":
+                    var validProd = new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
+                    if (!validProd.Contains(value))
+                        return $"PROD '{value}' not in valid codes: {string.Join(", ", validProd.OrderBy(v => v).Take(20))}...";
+                    break;
+                case "SEQ":
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d{1,6}$"))
+                        return $"SEQ '{value}' must be numeric (1-6 digits)";
+                    break;
             }
             return null;
         }
