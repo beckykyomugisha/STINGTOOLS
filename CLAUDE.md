@@ -1748,6 +1748,36 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 326. **MagicRenameCommand unified** — Replaced 3-step TaskDialog flow (element type → rename mode → parameters) with single `BatchRenameDialog.Show()` call. Now loads Views, Sheets, Rooms, and Family Types simultaneously with live preview.
 327. **Parameter lookup dispatch unified** — All 7 dispatch entries (ParamLookupRefresh, RefreshParamList, CondAdd, CondRemove, CondClear, CondPreview, CondApply) now route to `OpenParameterLookupDialog()` which uses `ParameterLookupDialog.Show()` with Revit API callbacks via `ColorHelper.GetParameterValue()` for accurate instance+type parameter reading. Legacy inline condition system (`_conditions` list, `GetConditionMatches`) removed.
 
+#### Known Gaps — Tagging Pipeline Deep Review (Phase 34)
+
+Critical review of the tagging workflow identified the following logic, automation, and flexibility gaps across tagging, BIM/BEP/COBie systems:
+
+**Critical Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| GAP-001 | WriteContainers in RunFullPipeline | `ParameterHelpers.cs` | `RunFullPipeline` relies on `BuildAndWriteTag` to write containers, but `BuildAndWriteTag` only writes to `ASS_TAG_1`. The 35 discipline-specific containers (HVC_EQP_TAG, ELC_EQP_TAG, etc.) require a separate `ParamRegistry.WriteContainers()` call. Phase 31a item 295 removed the "redundant" call but `BuildAndWriteTag` only writes TAG1, not all 53 containers. |
+| GAP-008 | PreTagAudit token validation | `PreTagAuditCommand.cs` | Dry-run audit predicts tags but does not validate individual token values against `ISO19650Validator` allowed code lists. Invalid DISC/SYS/FUNC codes pass through the audit without warnings. |
+| ERR-002 | Read-only parameter binding | `ParameterHelpers.cs` | `SetString` silently returns when parameter is read-only (`IsReadOnly`), but no diagnostic is emitted. In batch operations, hundreds of elements may silently skip writes with no indication to the user. |
+
+**High Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| GAP-002 | TOKEN_LOCK_TXT timing | `ParameterHelpers.cs` | Token lock snapshot is taken after `TypeTokenInherit` (Phase 31a fix 294), but `CategoryTokenOverrides` runs after `PopulateAll` and can overwrite locked tokens. The restore step at the end may not catch overrides applied between snapshot and restore. |
+| GAP-006 | Formula context timing | `FormulaEvaluatorCommand.cs` | Formula evaluation uses post-population parameter state, but some formulas reference raw Revit native values that `NativeParamMapper` may have overwritten. Formula results may differ from expectations when formulas reference parameters that NativeParamMapper also writes to. |
+| ERR-003 | Collision detection atomicity | `TagConfig.cs` | `BuildExistingTagIndex` builds a `HashSet` at start of batch, but in worksharing environments, other users may commit tags between index build and element processing. No lock or re-check mechanism exists for multi-user collision safety. |
+
+**Medium Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| FLEX-001 | No custom token validators | `TagConfig.cs` | Token validation uses hardcoded `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` lists. Projects with custom discipline or system codes cannot extend validation without modifying source code. |
+| FLEX-003 | No post-population hooks | `ParameterHelpers.cs` | `RunFullPipeline` has no extension point between `PopulateAll` and `BuildAndWriteTag`. Custom token derivation logic (e.g., project-specific PROD code rules) cannot be injected without modifying the pipeline. |
+| FLEX-005 | SEQ counter isolation | `TagConfig.cs` | When a batch tagging operation is cancelled mid-way, SEQ counters have already been incremented for processed elements. No rollback mechanism exists for SEQ counters on partial cancellation. |
+| HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | `CopyTokensFromNearest` uses a fixed 10 ft search radius. Dense models may need smaller radius; sparse models may need larger. Not configurable via project_config.json. |
+| HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | Batch size of 500 is hardcoded. Large models with fast hardware could benefit from larger batches; memory-constrained environments may need smaller. |
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
