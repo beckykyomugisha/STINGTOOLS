@@ -287,10 +287,12 @@ namespace StingTools.Tags
                     if (elem == null) continue;
 
                     // FIX-B01: Delegate to unified pipeline (handles all 11 canonical steps)
+                    // overwrite: false — preserves manually-set token values;
+                    // PopulateAll only fills empty tokens, respecting user edits
                     bool ok = TagPipelineHelper.RunFullPipeline(
                         doc, elem, popCtx, existingTags, seqCounters,
                         formulas, gridLines,
-                        overwrite: true, skipComplete: false,
+                        overwrite: false, skipComplete: false,
                         collisionMode: TagCollisionMode.AutoIncrement);
 
                     if (ok) built++;

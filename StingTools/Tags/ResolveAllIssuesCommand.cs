@@ -226,6 +226,9 @@ namespace StingTools.Tags
                                         ParameterHelpers.SetString(el, ParamRegistry.TAG1, fixedTag, overwrite: true);
                                         tagIndex.Add(fixedTag);
                                         ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                        // Rebuild TAG7 narrative with corrected tokens
+                                        try { TagConfig.WriteTag7All(doc, el, catName, fixedToks, overwrite: true); }
+                                        catch (Exception t7Ex) { StingLog.Warn($"ResolveAllIssues TAG7 rebuild: {t7Ex.Message}"); }
                                     }
                                 }
                             }

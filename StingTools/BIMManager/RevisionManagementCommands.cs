@@ -116,7 +116,7 @@ namespace StingTools.BIMManager
                         snapshot[el.Id.Value] = tokens;
                     }
                 }
-                catch { /* Category may not exist */ }
+                catch (Exception catEx) { Core.StingLog.Warn($"Snapshot category error: {catEx.Message}"); }
             }
             return snapshot;
         }
@@ -567,13 +567,13 @@ namespace StingTools.BIMManager
                     int numSheets = sheets.Count(s =>
                     {
                         try { return s.GetAdditionalRevisionIds().Contains(rev.Id); }
-                        catch { return false; }
+                        catch (Exception revEx) { Core.StingLog.Warn($"Revision sequence check: {revEx.Message}"); return false; }
                     });
                     string vis = rev.Visibility == RevisionVisibility.Hidden ? "Hidden" :
                                  rev.Visibility == RevisionVisibility.CloudAndTagVisible ? "Clouds+Tags" :
                                  "Tags Only";
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { numStr = "—"; }
+                    try { numStr = rev.RevisionNumber; } catch (Exception rnEx) { numStr = "—"; Core.StingLog.Warn($"Revision number access: {rnEx.Message}"); }
 
                     rows.Add(new RevisionRow
                     {
@@ -760,7 +760,7 @@ namespace StingTools.BIMManager
                             RevisionCloud.Create(doc, view, latestRevision.Id, curves);
                             cloudsCreated++;
                         }
-                        catch { cloudsSkipped++; }
+                        catch (Exception clEx) { cloudsSkipped++; Core.StingLog.Warn($"RevCloud creation: {clEx.Message}"); }
                     }
                     tx.Commit();
                 }

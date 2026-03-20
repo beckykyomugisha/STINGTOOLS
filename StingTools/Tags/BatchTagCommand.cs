@@ -768,15 +768,15 @@ namespace StingTools.Tags
                         // Rebuild tag only once per element
                         if (processedElements.Add(el.Id))
                         {
+                            // Bridge native params BEFORE tag assembly so dependent values are current
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false,
                                 existingTags: tagIndex,
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
-
-                            // FIX-04: Bridge native params after delta token update
-                            try { NativeParamMapper.MapAll(doc, el); }
-                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
 
                             // FIX-R03: Evaluate formulas after native mapper
                             if (tcFormulas != null && tcFormulas.Count > 0)

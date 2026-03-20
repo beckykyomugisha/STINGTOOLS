@@ -1023,6 +1023,7 @@ namespace StingTools.Core
         /// </summary>
         public static string DetectProjectRevision(Document doc)
         {
+            if (doc == null) return null;
             try
             {
                 var revisions = new FilteredElementCollector(doc)
