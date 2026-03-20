@@ -305,7 +305,7 @@ namespace StingTools.BIMManager
                 if (phaseDemoParam != null)
                 {
                     var demoPhaseid = phaseDemoParam.AsElementId();
-                    if (demoPhaseid != null && demoPhaseid.Value > 0)
+                    if (demoPhaseid != ElementId.InvalidElementId)
                         continue; // Element is scheduled for demolition
                 }
                 // Also check STING STATUS parameter for DEMOLISHED/TEMPORARY

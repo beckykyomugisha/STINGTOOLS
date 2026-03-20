@@ -90,7 +90,7 @@ namespace StingTools.BIMManager
                     if (!parms.Contains(ct.param))
                         parms.Add(ct.param);
             }
-            catch { /* GetContainerTuples may not be available */ }
+            catch (Exception ex) { StingLog.Warn($"RevisionEngine: GetContainerTuples failed, discipline containers may not be tracked: {ex.Message}"); }
             return parms.ToArray();
         }
 
