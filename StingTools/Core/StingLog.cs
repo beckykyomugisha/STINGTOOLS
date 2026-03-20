@@ -131,7 +131,7 @@ namespace StingTools.Core
 
         private static void DisposeWriter()
         {
-            try { _writer?.Dispose(); } catch { }
+            try { _writer?.Dispose(); } catch (Exception) { } // Cannot log from logger itself
             _writer = null;
         }
 

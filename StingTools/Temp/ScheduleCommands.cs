@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.Temp
 {
@@ -55,6 +56,52 @@ namespace StingTools.Temp
             if (remapCount > 0)
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
+            // Parse all schedule definitions to let user choose categories/disciplines
+            var allLines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1)
+                .ToList();
+
+            // Extract unique disciplines and categories from CSV column 1 (Discipline) and 3 (Category)
+            var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
+            foreach (string rawLine in allLines)
+            {
+                string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
+                if (rawCols.Length < 4) continue;
+                string discCol = rawCols.Length > 1 ? rawCols[1].Trim() : "General";
+                string nameCol = rawCols[2].Trim();
+                string catCol = rawCols[3].Trim();
+                if (string.IsNullOrEmpty(nameCol)) continue;
+                scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
+            }
+
+            // Step: Let user pick which disciplines/categories to create
+            var discGroups = scheduleDefs
+                .GroupBy(s => s.discipline, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            var discItems = discGroups.Select(g => new Select.StingListPicker.ListItem
+            {
+                Label = g.Key,
+                Detail = $"{g.Count()} schedules",
+                Tag = g.Key
+            }).ToList();
+
+            var discPick = Select.StingListPicker.Show(
+                "Batch Create Schedules — Select Disciplines",
+                $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
+                discItems, allowMultiSelect: true);
+
+            if (discPick == null || discPick.Count == 0) return Result.Cancelled;
+
+            var selectedDiscs = new HashSet<string>(
+                discPick.Select(d => d.Tag as string).Where(s => !string.IsNullOrEmpty(s)),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Filter lines to selected disciplines only
+            var filteredDefs = scheduleDefs.Where(s => selectedDiscs.Contains(s.discipline)).ToList();
+
             int created = 0;
             int skipped = 0;
             int remapped = 0;
@@ -78,9 +125,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1); // skip header row
+                var lines = filteredDefs.Select(d => d.line);
 
                 int lineNum = 0;
                 foreach (string line in lines)
@@ -927,9 +972,6 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-            // NG6: Save SEQ sidecar for consistency with all other RunFullPipeline callers
-            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-            catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
             sw.Stop();
             // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -1244,7 +1286,7 @@ namespace StingTools.Temp
                 projAddress = pi?.Address ?? "";
                 projStatus = pi?.Status ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read project information fields: {ex.Message}"); }
 
             // ── STING tag parameters from Project Information ──
             string projLoc = ParameterHelpers.GetString(pi, ParamRegistry.LOC);
@@ -1304,7 +1346,7 @@ namespace StingTools.Temp
                 // Remove old schedule if exists
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing title block schedule: {ex.Message}"); }
                 }
 
                 // Create drafting view
@@ -1445,7 +1487,7 @@ namespace StingTools.Temp
                     foreach (var rev in revisions.TakeLast(10))
                     {
                         string revDate = "";
-                        try { revDate = rev.RevisionDate; } catch { }
+                        try { revDate = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Read revision date: {ex.Message}"); }
                         PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
                             smallTypeId, lineSpacing);
                     }
@@ -1640,7 +1682,7 @@ namespace StingTools.Temp
                                     ? "FOR INFORMATION" : "PRELIMINARY";
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read sheet revision data: {ex.Message}"); }
                 }
 
                 if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";
@@ -1669,7 +1711,7 @@ namespace StingTools.Temp
                 // Remove existing if applicable
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing drawing register: {ex.Message}"); }
                 }
 
                 // Create drafting view

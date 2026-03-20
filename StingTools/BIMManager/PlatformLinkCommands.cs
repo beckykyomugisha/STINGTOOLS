@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Globalization;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -284,13 +285,34 @@ namespace StingTools.BIMManager
             return markup;
         }
 
-        // ── Create BCF viewpoint.bcfv XML (minimal) ──
-        internal static XDocument CreateBcfViewpoint(string guid)
+        // ── Create BCF viewpoint.bcfv XML with camera data ──
+        internal static XDocument CreateBcfViewpoint(string guid,
+            XYZ cameraPos = null, XYZ cameraDir = null, XYZ cameraUp = null, double viewSize = 50.0)
         {
+            // Default camera: top-down orthogonal if no position supplied
+            if (cameraPos == null) cameraPos = new XYZ(0, 0, 30);
+            if (cameraDir == null) cameraDir = new XYZ(0, 0, -1);
+            if (cameraUp == null) cameraUp = new XYZ(0, 1, 0);
+
             return new XDocument(
                 new XDeclaration("1.0", "utf-8", null),
                 new XElement("VisualizationInfo",
                     new XAttribute("Guid", guid),
+                    new XElement("OrthogonalCamera",
+                        new XElement("CameraViewPoint",
+                            new XElement("X", cameraPos.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraPos.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraPos.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("CameraDirection",
+                            new XElement("X", cameraDir.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraDir.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraDir.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("CameraUpVector",
+                            new XElement("X", cameraUp.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraUp.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraUp.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("ViewToWorldScale", viewSize.ToString("F6", CultureInfo.InvariantCulture))
+                    ),
                     new XElement("Components",
                         new XElement("Selection"),
                         new XElement("Visibility",
@@ -339,7 +361,7 @@ namespace StingTools.BIMManager
         }
 
         // ── Parse BCF issue back to STING JObject ──
-        internal static JObject ParseBcfTopicToIssue(XDocument markup, string existingNextId)
+        internal static JObject ParseBcfTopicToIssue(XDocument markup, string existingNextId, Document doc = null)
         {
             var topic = markup.Root?.Element("Topic");
             if (topic == null) return null;
@@ -387,7 +409,7 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(),
                 ["view_name"] = "",
-                ["revision"] = "P01",
+                ["revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01",
                 ["bcf_guid"] = bcfGuid,
                 ["import_source"] = "BCF 2.1",
                 ["comments"] = new JArray()
@@ -1274,7 +1296,7 @@ namespace StingTools.BIMManager
                             }
 
                             string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
-                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId);
+                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId, doc);
                             if (issue != null)
                             {
                                 existingIssues.Add(issue);

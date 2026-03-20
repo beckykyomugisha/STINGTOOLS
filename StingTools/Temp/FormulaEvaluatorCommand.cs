@@ -617,7 +617,7 @@ namespace StingTools.Temp
                 if (p != null && p.StorageType == StorageType.Double)
                     return p.AsDouble() * ftToMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read dimension '{name}' from element: {ex.Message}"); }
 
             return null;
         }
@@ -839,7 +839,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Write formula result to parameter: {ex.Message}"); }
 
             return false;
         }

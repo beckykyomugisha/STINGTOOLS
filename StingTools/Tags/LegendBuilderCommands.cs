@@ -116,7 +116,7 @@ namespace StingTools.Tags
                 View newLegend = doc.GetElement(newId) as View;
                 if (newLegend != null)
                 {
-                    try { newLegend.Name = name; } catch { }
+                    try { newLegend.Name = name; } catch (Exception ex) { StingLog.Warn($"Set legend view name '{name}': {ex.Message}"); }
 
                     // Delete all existing elements from the duplicated legend (batch)
                     var existingElements = new FilteredElementCollector(doc, newLegend.Id)
@@ -126,7 +126,7 @@ namespace StingTools.Tags
                     if (existingElements.Count > 0)
                     {
                         try { doc.Delete(existingElements); }
-                        catch { foreach (var eid in existingElements) { try { doc.Delete(eid); } catch { } } }
+                        catch (Exception ex) { StingLog.Warn($"Batch delete legend elements: {ex.Message}"); foreach (var eid in existingElements) { try { doc.Delete(eid); } catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); } } }
                     }
                 }
                 return newLegend;
@@ -380,7 +380,7 @@ namespace StingTools.Tags
                     ft.SetItalicStatus(new TextRange(0, footerText.Length), true);
                     footerNote.SetFormattedText(ft);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Format footer italic text: {ex.Message}"); }
             }
         }
 
@@ -922,7 +922,7 @@ namespace StingTools.Tags
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Measure legend view size: {ex.Message}"); }
 
             return (w, h);
         }
@@ -1066,7 +1066,7 @@ namespace StingTools.Tags
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Sample zone detection from rooms: {ex.Message}"); }
 
             foreach (var catGroup in byCat)
             {
@@ -1235,7 +1235,7 @@ namespace StingTools.Tags
                 }
 
                 ViewDrafting draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
-                try { draftView.Name = viewName; } catch { }
+                try { draftView.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Set drafting view name '{viewName}': {ex.Message}"); }
                 draftView.Scale = 1;
                 legendView = draftView;
             }
@@ -1283,7 +1283,7 @@ namespace StingTools.Tags
                 ft.SetBoldStatus(new TextRange(0, title.Length), true);
                 titleNote.SetFormattedText(ft);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Format title bold text: {ex.Message}"); }
             y -= rowH * 1.2;
 
             // ── Subtitle ──
@@ -1364,7 +1364,7 @@ namespace StingTools.Tags
                             DrawDetailLine(doc, legendView, p3, p4);
                             DrawDetailLine(doc, legendView, p4, p1);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Create legend swatch: {ex.Message}"); }
                     }
                     x += swatchW + colGap;
 
@@ -1431,7 +1431,7 @@ namespace StingTools.Tags
                         ft.SetItalicStatus(new TextRange(0, entry.SampleTag.Length), true);
                         tagNote.SetFormattedText(ft);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Format sample tag italic: {ex.Message}"); }
                     x += sampleTagColW;
 
                     // Col 5: Element count
@@ -1468,7 +1468,7 @@ namespace StingTools.Tags
                 fft.SetItalicStatus(new TextRange(0, footer.Length), true);
                 footNote.SetFormattedText(fft);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Format footer italic: {ex.Message}"); }
 
             StingLog.Info($"TagLegendBuilder: populated {entries.Count} entries — {annotationPlaced} live annotations, {drawnFallback} drawn fallback");
         }
@@ -1483,7 +1483,7 @@ namespace StingTools.Tags
                 ft.SetBoldStatus(new TextRange(0, text.Length), true);
                 note.SetFormattedText(ft);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"DrawBoldText failed: {ex.Message}"); }
         }
 
         /// <summary>Get or create a smaller TextNoteType for legend details.</summary>
@@ -1567,7 +1567,7 @@ namespace StingTools.Tags
                             break;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Search legend view for seed component: {ex.Message}"); }
                 }
 
                 if (seedComponent == null) return null;
@@ -2911,7 +2911,7 @@ namespace StingTools.Tags
                     "Find under 'Legends' or 'Drafting Views' in the Project Browser.\n" +
                     "Place on sheets using 'Insert > Views'.");
 
-                try { uidoc.ActiveView = legendView; } catch { }
+                try { uidoc.ActiveView = legendView; } catch (Exception ex) { StingLog.Warn($"Set active view to legend: {ex.Message}"); }
             }
             else
             {
@@ -3205,7 +3205,7 @@ namespace StingTools.Tags
                     if (existingElements.Count > 0)
                     {
                         try { doc.Delete(existingElements); }
-                        catch { foreach (var eid in existingElements) { try { doc.Delete(eid); } catch { } } }
+                        catch (Exception ex) { StingLog.Warn($"Batch delete legend content: {ex.Message}"); foreach (var eid in existingElements) { try { doc.Delete(eid); } catch (Exception ex2) { StingLog.Warn($"Delete element {eid}: {ex2.Message}"); } } }
                     }
 
                     // Detect legend type from name and re-populate
@@ -5302,7 +5302,7 @@ namespace StingTools.Tags
                     var clsParam = mat.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
                     if (clsParam != null) cls = clsParam.AsString() ?? "";
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read material description: {ex.Message}"); }
 
                 // Derive a category from material name
                 string group = DeriveMaterialGroup(mat.Name);
@@ -5421,7 +5421,7 @@ namespace StingTools.Tags
                                 layerInfo = $"{cs.LayerCount} layers, {cs.GetWidth() * 304.8:F0}mm";
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read compound structure layers: {ex.Message}"); }
 
                     // Shift color slightly per type for visual distinction
                     byte r = (byte)Math.Min(255, baseColor.Red + colorShift * 8);
@@ -5495,7 +5495,7 @@ namespace StingTools.Tags
                         if (!string.IsNullOrEmpty(flow)) sizing = flow;
                         else if (!string.IsNullOrEmpty(power)) sizing = power;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read equipment sizing params: {ex.Message}"); }
 
                     byte r = (byte)Math.Max(0, baseColor.Red - shift * 10);
                     byte g = (byte)Math.Max(0, baseColor.Green - shift * 8);
@@ -5549,7 +5549,7 @@ namespace StingTools.Tags
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read fire rating parameter: {ex.Message}"); }
 
                 if (string.IsNullOrEmpty(rating)) continue;
                 if (!ratingCounts.ContainsKey(rating)) ratingCounts[rating] = 0;
@@ -6871,7 +6871,7 @@ namespace StingTools.Tags
             for (int i = 0; i < shown; i++)
             {
                 int filterCount = 0;
-                try { filterCount = templates[i].GetFilters().Count; } catch { }
+                try { filterCount = templates[i].GetFilters().Count; } catch (Exception ex) { StingLog.Warn($"Get template filter count: {ex.Message}"); }
                 dlg.AddCommandLink(commands[i],
                     templates[i].Name,
                     $"{filterCount} filters applied");

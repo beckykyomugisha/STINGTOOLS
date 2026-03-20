@@ -1970,6 +1970,7 @@ namespace StingTools.Core
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
+            if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
             var containers = ContainersForCategory(categoryName);
             foreach (var c in containers)

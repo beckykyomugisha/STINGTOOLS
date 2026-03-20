@@ -143,7 +143,7 @@ namespace StingTools.Core
                     UpdaterRegistry.UnregisterUpdater(_updaterId);
                 StingLog.Info("StingAutoTagger: unregistered");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"StingAutoTagger unregister failed: {ex.Message}"); }
         }
 
         /// <summary>Toggle the auto-tagger on/off.</summary>
@@ -485,7 +485,7 @@ namespace StingTools.Core
                             UI.StingDockPanel.UpdateComplianceStatus(
                                 "Auto-Tagger DISABLED (errors — re-enable via toggle)", "RED");
                         }
-                        catch { }
+                        catch (Exception uiEx) { StingLog.Warn($"Auto-tagger status bar update failed: {uiEx.Message}"); }
                     }
                 }
             }
@@ -835,7 +835,7 @@ namespace StingTools.Core
                 if (_instance != null)
                     UpdaterRegistry.UnregisterUpdater(_updaterId);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"StingStaleMarker unregister failed: {ex.Message}"); }
         }
 
         private const int MaxElementsPerTrigger = 20;

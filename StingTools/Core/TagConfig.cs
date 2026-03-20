@@ -996,7 +996,7 @@ namespace StingTools.Core
 
                 // FIX-10.2: Restore auto-tagger visual setting (use SetVisualTaggingQuiet to avoid re-save loop)
                 if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)
-                    try { Core.StingAutoTagger.SetVisualTaggingQuiet(_avtb); } catch { }
+                    try { Core.StingAutoTagger.SetVisualTaggingQuiet(_avtb); } catch (Exception ex) { StingLog.Warn($"Restore auto-tagger visual setting: {ex.Message}"); }
 
                 // FL-03: Load separator history for cross-session tag validation compatibility
                 var sepHistory = TryDeserialize<List<string>>(data, "SEPARATOR_HISTORY");
@@ -1471,7 +1471,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
                 if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"HVAC sub-function detection failed: {ex.Message}"); }
             return null;
         }
 
@@ -1504,7 +1504,7 @@ namespace StingTools.Core
                 if (familyName.Contains("RADIATOR") || familyName.Contains("UNDERFLOOR")) return "HTG";
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"HWS sub-function detection failed: {ex.Message}"); }
             return null;
         }
 
@@ -2223,7 +2223,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"SYS detection from connector failed: {ex.Message}"); }
             return null;
         }
 
@@ -2251,7 +2251,7 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"SYS detection from system type param failed: {ex.Message}"); }
             return null;
         }
 
@@ -2293,7 +2293,7 @@ namespace StingTools.Core
                         return "LV";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"SYS detection from electrical circuit failed: {ex.Message}"); }
             return null;
         }
 
@@ -2376,7 +2376,7 @@ namespace StingTools.Core
                     Parameter deptParam = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT);
                     if (deptParam != null) dept = (deptParam.AsString() ?? "").ToUpperInvariant();
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Room department read failed: {ex.Message}"); }
 
                 string combined = $"{roomName} {dept}";
                 string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
@@ -2461,7 +2461,7 @@ namespace StingTools.Core
                         return "SEC";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"SYS detection from room type failed: {ex.Message}"); }
             return null;
         }
 
@@ -4563,6 +4563,7 @@ namespace StingTools.Core
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
         {
+            if (tokenValues == null || tokenValues.Length < 8) return 0;
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 
@@ -4674,7 +4675,8 @@ namespace StingTools.Core
         /// <summary>
         /// Populate individual WARN_ parameters on an element with their evaluated warning text.
         /// Each WARN_ parameter gets its own text so tag family labels can display them via
-        /// calculated value formulas: if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// calculated value formulas (Type: Text): if(TAG_WARN_VISIBLE_BOOL, WARN_xxx, "").
+        /// All WARN_ parameters MUST be TEXT type to avoid Revit "Inconsistent Units" errors.
         /// Returns the number of WARN_ parameters written.
         /// </summary>
         public static int PopulateWarningParameters(Document doc, Element el, string categoryName)

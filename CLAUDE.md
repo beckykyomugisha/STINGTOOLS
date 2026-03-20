@@ -8,9 +8,9 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **99 source files** (96 C# + 3 XAML, ~114,000 lines of code) across 10 directories
-- **506 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **42 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
+- **99 source files** (96 C# + 3 XAML, ~120,900 lines of code) across 10 directories
+- **515 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
 ## Technology Stack
@@ -80,7 +80,7 @@ STINGTOOLS/
     │   ├── ViewportCommands.cs         # Align, Renumber, TextCase, SumAreas
     │   ├── DocAutomationCommands.cs    # DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
     │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, handover manual
-    │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign
+    │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign, MagicRename, ViewTabColour
     │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (11 sheets), maintenance schedule, O&M manual, asset health report, space handover report
     │   └── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
     │
@@ -159,7 +159,7 @@ STINGTOOLS/
     └── Data/                           # Runtime data files (42 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
-        ├── MR_PARAMETERS.txt           # Shared parameter file (1,560+ params, 21 groups, 13 datatype fixes)
+        ├── MR_PARAMETERS.txt           # Shared parameter file (2,307 params, 18 groups, all data files cross-referenced)
         ├── MR_PARAMETERS.csv           # Parameter definitions
         ├── MR_SCHEDULES.csv            # 168 schedule definitions
         ├── MATERIAL_SCHEMA.json        # 77-column material schema (v2.3)
@@ -422,7 +422,7 @@ STINGTOOLS/
 | `Docs/ViewportCommands.cs` | 4 (Align, Renumber, TextCase, SumAreas) | 412 |
 | `Docs/DocAutomationCommands.cs` | 3 (DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets) | 459 |
 | `Docs/DocAutomationExtCommands.cs` | 12 (BatchViews, BatchSheets, DependentViews, ScopeBox, ViewTemplate, DocPackage, Sections, Elevations, DrawingRegister, BrowserOrganizer, RevisionCloudAutoCreate, HandoverManual) | 3,168 |
-| `Docs/ViewAutomationCommands.cs` | 6 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign) | 825 |
+| `Docs/ViewAutomationCommands.cs` | 8 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign, MagicRename, ViewTabColour) | 1,200 |
 | `Docs/HandoverExportCommands.cs` | 5+ (COBie 2.4 export, maintenance schedule, O&M manual, asset health report, space handover) | 1,316 |
 | `Docs/JournalParserCommand.cs` | 1 (Revit journal diagnostics: error/crash/command/memory analysis) | 494 |
 | `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 355 |
@@ -496,7 +496,7 @@ STINGTOOLS/
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **~506 commands** | **~114,000** |
+| **Total** | **~515 commands** | **~120,900** |
 
 ## Core Classes
 
@@ -1692,6 +1692,47 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 288. **ThemeManager dual-write** — Resources applied to both Page.Resources and Application.Current.Resources for reliable DynamicResource resolution in Revit's hosted WPF.
 289. **Tab styling** — TabItem uses DynamicResource for Foreground/Background with selected tab matching content area colour.
 290. **Theme toggle** — CycleTheme handled directly in WPF click handler (no ExternalEvent round-trip needed).
+
+#### Completed (Phase 31a — Deep Review: Pipeline Logic, UI Wiring, Anomaly Detection & Automation Gaps)
+
+291. **256 bare catch blocks fixed** — All 256 `catch { }` blocks across 47 files replaced with `catch (Exception ex) { StingLog.Warn(...); }` for diagnostic visibility. `StingLog.cs` uses parameter-less catch to avoid circular dependency.
+292. **Grid collection cached in PopulationContext** — `CachedGrids` property added to `PopulationContext.Build()`. `WriteGridReference()` accepts optional cached grids, eliminating O(n²) `FilteredElementCollector` per element.
+293. **RunFullPipeline return value checked** — All 8 callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, TagSelected, ReTag, RetagStale, PreviewTag) now capture and handle the `bool` return from `RunFullPipeline`. False results logged or counted as errors.
+294. **LOGIC-001: Token lock snapshot reordered** — In `RunFullPipeline`, locked token snapshot now taken AFTER `TypeTokenInherit` but BEFORE `PopulateAll`, so inherited type values are preserved in the lock.
+295. **LOGIC-005: Removed redundant WriteContainers** — `BuildAndWriteTag` already writes all containers; removed duplicate `WriteContainers` call from `RunFullPipeline` to eliminate double-write overhead.
+296. **STABILITY-001/002: Array bounds guards** — `ParamRegistry.WriteContainers()` and `TagConfig.WriteTag7All()` now return 0 immediately if `tokenValues` is null or has fewer than 8 elements.
+297. **43 dead XAML buttons wired** — Added dispatch entries in `StingCommandHandler.cs` for: 10 COBie reference data commands, 7 MEP schedule commands, 5 room/space commands, 4 FM handover commands, 13 tag selector commands, 2 docs commands (DrawingRegister, JournalParser), 1 config alias (ConfigureTagFormat), 2 informational stubs (ApplyClonedTags, JSONExport).
+298. **AnomalyAutoFixCommand expanded** — Added detection and auto-fix for 4 new anomaly types: FUNC (derived from SYS), PROD (family-aware with GEN/XX detection), TAG7 (narrative rebuild from tokens), and stale elements (flag cleared). Now uses canonical `BuildSeqKey` for SEQ counter keys. Added `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` after commit.
+299. **DisplayMode 5th mode** — `SetDisplayModeCommand` now offers 5 modes including full 8-segment tag display. Migrated from TaskDialog to `StingModePicker` for consistent UI.
+300. **DeclusterTags position restoration** — `DeclusterTagsCommand` now reads `CLUSTER_MEMBER_POS` parameter, parses stored `hostId:X,Y,Z` entries, and restores `IndependentTag.TagHeadPosition` for each clustered member before clearing cluster metadata.
+301. **GAP-007: Issue revision auto-populated** — `BIMManagerEngine.CreateIssue` now calls `PhaseAutoDetect.DetectProjectRevision(doc)` to populate the revision field automatically, with date-based fallback if no revision is defined.
+302. **Excel PROD validation list** — `ExportTemplateCommand` now includes PROD codes from `TagConfig.ProdMap` as a dropdown validation list in the hidden `_ValidationLists` sheet, preventing invalid product codes during Excel data entry.
+
+#### Completed (Phase 31b — Data Alignment, Command Wiring & UI Completion)
+
+303. **20 parameter name mismatches fixed** — Deep cross-reference audit found 20 WARN_ parameters in tag config CSVs that didn't match MR_PARAMETERS.txt (wrong prefix ASS_→BLE_, typo REDCTION, RISE→RISER, CST_S_REI→STR_REBAR, missing _CO2_M2 segment). All fixed in ARCH/MEP/STR CSVs.
+304. **47 missing parameters added to MR_PARAMETERS.txt** — 3 STR_TAG_7_PARA_ (BOLT/WELD/WIRE), 8 validation warnings (tie-in, circuit, velocity), 36 formula input params. Total: 2,307 parameters.
+305. **MR_PARAMETERS.csv regenerated** — Rebuilt from MR_PARAMETERS.txt with proper CSV quoting (was 35% incomplete with malformed rows).
+306. **2 missing formula params** — RGL_PARKING_SPACES_NR, RGL_PLOT_FAR_NR added for parking/FAR formulas.
+307. **Tag config version bump** — All 4 STING_TAG_CONFIG_v5_0 files updated to v5.1 with fix annotations.
+308. **111 undispatched commands wired** — All IExternalCommand classes now have dispatch entries in StingCommandHandler.cs: 5 Docs, 13 Select, 11 Tags, 2 Organise, 77 Temp (COBie, DWG, MEP, Standards, IoT, Room, Model, Data).
+309. **3 missing XAML buttons added** — PrintSheets "All Sheets" button, MagicRename button, ViewTabColour button in dockable panel.
+310. **Empty tag family detection** — VerifyFamilyHasParams() checks existing .rfa files for STING params; empty families from failed runs are deleted and recreated.
+
+#### Completed (Phase 32 — Deep Review: Tagging Pipeline, BIM/COBie, UI & Automation Fixes)
+
+311. **AnomalyAutoFixCommand TAG1 rebuild** — After fixing individual tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD), now rebuilds TAG1 via `BuildAndWriteTag`, writes containers via `WriteContainers`, and rebuilds TAG7 narrative. Previously tokens were fixed but TAG1/containers remained stale.
+312. **SwapTagsCommand TAG_PREFIX/TAG_SUFFIX** — Inline TAG1 rebuild now applies `TagConfig.TagPrefix` and `TagConfig.TagSuffix` to match project tag format settings.
+313. **Tag3DCommand dead code removed** — Removed WriteContainers/WriteTag7All calls targeting the annotation FamilyInstance (`fi`) which has no STING parameters. Source element (`el`) already has containers written by RunFullPipeline.
+314. **Cost rate CSV loader auto-detect** — `LoadCostRatesFromCSV` now auto-detects column layout (3-col, 4-col, or 7-col `cost_rates_5d.csv` format) by reading headers. Previously hardcoded to cols 1/2, producing garbage when loading the 7-column pre-built data file.
+315. **5D grand total calculation** — Replaced hardcoded `subtotal * 1.30` with computed `subtotal + preliminaries + contingency + overhead_profit`, so customised percentage fields are reflected in the grand total.
+316. **BCF viewpoint camera data** — `CreateBcfViewpoint` now generates BCF 2.1 compliant `<OrthogonalCamera>` with CameraViewPoint, CameraDirection, CameraUpVector, and ViewToWorldScale. Previously BCF viewpoints lacked camera data, making them unusable in external BCF tools.
+317. **BCF import revision auto-detect** — `ParseBcfTopicToIssue` now calls `PhaseAutoDetect.DetectProjectRevision(doc)` instead of hardcoding "P01" for the revision field.
+318. **COBie Impact lifecycle stage** — Embodied carbon records now tagged as "Construction" stage instead of "Operation". Operational energy/carbon remains "Operation".
+319. **ExcelLink FUNC/PROD/SEQ validation** — `ValidateValue` expanded from 4 to 7 token columns: FUNC validated against `TagConfig.FuncMap`, PROD against `TagConfig.ProdMap`, SEQ against numeric format. Previously invalid codes passed through import unchecked.
+320. **Selection scope consistency** — `SelectEmptyMarkCommand`, `SelectPinnedCommand`, and `SelectUnpinnedCommand` now use `SelectionScopeHelper.GetCollector()` to honour project/view scope toggle, matching `SelectUntaggedCommand`/`SelectTaggedCommand` behaviour.
+321. **SmartOrganise dispatch differentiation** — OrgQuick/OrgDeep/OrgAnneal buttons now set `ExtraParam("ArrangeMode")` before dispatching to `ArrangeTagsCommand`. LeaderLength025/05/1 buttons set `ExtraParam("LeaderLength")` before `SnapLeaderElbowCommand`.
+322. **Redundant double operations removed** — Eliminated duplicate `SaveSeqSidecar` + `InvalidateCache` + `InvalidateContext` calls in: ReTagCommand, BulkRetag (StateSelectCommands), BatchSystemPushCommand, FullAutoPopulateCommand. Each had 2 consecutive identical cleanup blocks from overlapping fix phases.
 
 ### External Tool References
 

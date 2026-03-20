@@ -574,20 +574,23 @@ namespace StingTools.BIMManager
         {
             if (!File.Exists(path)) return new JObject();
             try { return JObject.Parse(File.ReadAllText(path)); }
-            catch { return new JObject(); }
+            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON {Path.GetFileName(path)}: {ex.Message}"); return new JObject(); }
         }
 
         internal static JArray LoadJsonArray(string path)
         {
             if (!File.Exists(path)) return new JArray();
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch { return new JArray(); }
+            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}"); return new JArray(); }
         }
 
         internal static void SaveJsonFile(string path, JToken data)
         {
             try
             {
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
                 File.WriteAllText(path, data.ToString(Formatting.Indented));
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }
@@ -1702,7 +1705,7 @@ namespace StingTools.BIMManager
 
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
-            ICollection<ElementId> elementIds, string viewName)
+            ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
             return new JObject
             {
@@ -1725,7 +1728,7 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = "",  // GAP-007: populated by caller with actual current revision
+                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["comments"] = new JArray()
             };
@@ -2050,7 +2053,7 @@ namespace StingTools.BIMManager
                             if (phase != null) installDate = phase.Name;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Phase install date lookup failed: {ex.Message}"); }
                 }
                 string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
                 string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
@@ -2243,7 +2246,7 @@ namespace StingTools.BIMManager
                             if (mat.ThermalAssetId != ElementId.InvalidElementId)
                                 thermal = "Thermal";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Thermal asset check failed: {ex.Message}"); }
                         fireRating = ParameterHelpers.GetString(wallType, "RGL_FIRE_RATING_TXT");
                     }
                     layerProps.Add($"{layerName} ({layer.Width * 304.8:F0}mm{(thermal.Length > 0 ? ", " + thermal : "")})");
@@ -2318,7 +2321,7 @@ namespace StingTools.BIMManager
                             else if (dirStr == "In") connDirection = "Return";
                             else if (dirStr == "Bidirectional") connDirection = "Bidirectional";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Connector direction lookup failed: {ex.Message}"); }
                         string connType = conn.Domain.ToString();
                         if (connType.Contains("Hvac")) connType = "HVAC";
                         else if (connType.Contains("Piping")) connType = "Piping";
@@ -2412,7 +2415,7 @@ namespace StingTools.BIMManager
                     ["Name"] = impactName,
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["ImpactType"] = "Environment",
-                    ["ImpactStage"] = "Operation",
+                    ["ImpactStage"] = !string.IsNullOrEmpty(embodied) ? "Construction" : "Operation",
                     ["SheetName"] = "Component", ["RowName"] = comp["Name"],
                     ["Value"] = impactValue,
                     ["Unit"] = impactUnit,
@@ -2433,7 +2436,7 @@ namespace StingTools.BIMManager
                     if (thermalId != ElementId.InvalidElementId)
                         thermalStr = "Thermal asset present";
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Thermal asset lookup for impact failed: {ex.Message}"); }
                 if (string.IsNullOrEmpty(thermalStr)) continue;
                 impactSeen.Add(impactName);
                 impacts.Add(new Dictionary<string, string>
@@ -3696,7 +3699,7 @@ namespace StingTools.BIMManager
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
 
             // GAP-007 fix: Link issue to current project revision
-            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
 
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
@@ -4439,7 +4442,7 @@ namespace StingTools.BIMManager
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"TX_{transmittal["transmittal_id"]}_{DateTime.Now:yyyyMMdd}.txt");
             try { File.WriteAllText(txtPath, note.ToString()); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Transmittal text file write failed: {ex.Message}"); }
 
             TaskDialog.Show("STING Transmittal", note.ToString());
             StingLog.Info($"Transmittal: {transmittal["transmittal_id"]}, {outgoingIds.Count} docs");
@@ -4828,7 +4831,7 @@ namespace StingTools.BIMManager
                     csv.AppendLine(string.Join(",", headers.Select(h =>
                         $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
                 try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
 
             // Update BEP if exists
@@ -4897,7 +4900,7 @@ namespace StingTools.BIMManager
                 foreach (var item in cat)
                 {
                     long sizekb = 0;
-                    try { sizekb = new FileInfo(item.FilePath).Length / 1024; } catch { }
+                    try { sizekb = new FileInfo(item.FilePath).Length / 1024; } catch (Exception ex) { StingLog.Warn($"File size read failed for {item.FilePath}: {ex.Message}"); }
                     report.AppendLine($"    {idx}. {item.Title,-35} {sizekb,5} KB  {item.Description}");
                     idx++;
                 }
@@ -7207,7 +7210,7 @@ namespace StingTools.BIMManager
                         return int.Parse(stageStr[0].ToString());
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"BEP stage detection failed: {ex.Message}"); }
 
             // Fallback: infer from project phases
             var phases = new FilteredElementCollector(doc)

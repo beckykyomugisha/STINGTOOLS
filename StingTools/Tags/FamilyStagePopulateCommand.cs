@@ -43,7 +43,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("FamilyStagePopulateCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Family Stage Populate failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Family Stage Populate failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }

@@ -702,7 +702,7 @@ namespace StingTools.Select
                     if (bb != null)
                         boxes.Add((tag.Id, bb.Min.X, bb.Min.Y, bb.Max.X, bb.Max.Y));
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get tag bounding box failed: {ex.Message}"); }
             }
 
             var overlapping = new HashSet<ElementId>();
@@ -969,12 +969,12 @@ namespace StingTools.Select
                         int catWeight = cat.GetLineWeight(GraphicsStyleType.Projection) ?? -1;
                         if (catWeight > 0) return catWeight;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Get category line weight failed: {ex.Message}"); }
                 }
 
                 return -1;
             }
-            catch { return -1; }
+            catch (Exception ex) { StingLog.Warn($"Get tag line weight failed: {ex.Message}"); return -1; }
         }
 
         private static string GetElbowAngleCategory(Document doc, IndependentTag tag, View view)
@@ -1097,7 +1097,7 @@ namespace StingTools.Select
                 if (hostIds != null && hostIds.Count > 0)
                     return doc.GetElement(hostIds.First());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Get host element from tag failed: {ex.Message}"); }
             return null;
         }
 

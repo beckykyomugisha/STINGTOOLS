@@ -232,7 +232,7 @@ namespace StingTools.Core
                                 if (emptyCount > 0) result.ContainersMissing++;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
 
                         // FIX-12: Count elements marked as stale (FIX-N01: moved inside foreach loop)
                         try
@@ -244,7 +244,7 @@ namespace StingTools.Core
                                 AddIssue(result, "Stale element");
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Stale element check failed: {ex.Message}"); }
                     }
                 }
                 catch (Exception ex)

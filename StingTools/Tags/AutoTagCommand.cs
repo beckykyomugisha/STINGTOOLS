@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -36,7 +37,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("AutoTagCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -106,27 +107,28 @@ namespace StingTools.Tags
             TagCollisionMode collisionMode = TagCollisionMode.Skip;
             if (alreadyTagged > 0)
             {
-                TaskDialog modeDlg = new TaskDialog("Auto Tag — Collision Mode");
                 string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
-                modeDlg.MainInstruction = $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}";
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Skip existing — tag {untagged} new only",
-                    "Only tag untagged elements in this view");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    $"Overwrite all {taggable}",
-                    "Re-derive and overwrite all tags including existing ones");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    "Auto-increment on collision",
-                    "Tag untagged; auto-increment SEQ if collision found");
-                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                switch (modeDlg.Show())
+                var modeOptions = new List<UI.StingModePicker.ModeOption>
                 {
-                    case TaskDialogResult.CommandLink1: collisionMode = TagCollisionMode.Skip; break;
-                    case TaskDialogResult.CommandLink2: collisionMode = TagCollisionMode.Overwrite; break;
-                    case TaskDialogResult.CommandLink3: collisionMode = TagCollisionMode.AutoIncrement; break;
-                    default: return Result.Cancelled;
-                }
+                    new($"Skip existing — tag {untagged} new only",
+                        "Only tag untagged elements in this view", "skip", true),
+                    new($"Overwrite all {taggable}",
+                        "Re-derive and overwrite all tags including existing ones", "overwrite"),
+                    new("Auto-increment on collision",
+                        "Tag untagged; auto-increment SEQ if collision found", "increment"),
+                };
+                string modeResult = UI.StingModePicker.Show(
+                    "Auto Tag — Collision Mode",
+                    $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}",
+                    modeOptions);
+
+                if (modeResult == null) return Result.Cancelled;
+                collisionMode = modeResult switch
+                {
+                    "overwrite" => TagCollisionMode.Overwrite,
+                    "increment" => TagCollisionMode.AutoIncrement,
+                    _ => TagCollisionMode.Skip,
+                };
             }
 
             // GAP-020: Pre-flight audit trail log
@@ -147,6 +149,7 @@ namespace StingTools.Tags
             var stats = new TaggingStats();
 
             bool cancelled = false;
+            var progress = StingProgressDialog.Show("Auto Tag", taggable);
 
             using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
             {
@@ -155,7 +158,7 @@ namespace StingTools.Tags
                 int processed = 0;
                 foreach (Element el in sorted)
                 {
-                    if (processed % 100 == 0 && EscapeChecker.IsEscapePressed())
+                    if (progress.IsCancelled)
                     {
                         StingLog.Info($"AutoTag: cancelled by user at {processed}/{taggable}");
                         cancelled = true;
@@ -167,32 +170,34 @@ namespace StingTools.Tags
                     {
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                         bool ow = (collisionMode == TagCollisionMode.Overwrite);
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, sequenceCounters, formulas, gridLines,
                             overwrite: ow, skipComplete: skipComplete,
                             collisionMode: collisionMode, stats: stats);
+                        if (!pipelineOk)
+                            StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
                     }
                     catch (Exception ex)
                     {
                         StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
                         stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
                     }
+
+                    progress.Increment($"Tagging element {processed}/{taggable}");
                 }
+
+                progress.Close();
 
                 if (cancelled)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("Auto Tag", $"Cancelled by user.\nAll changes rolled back.");
+                    TaskDialog.Show("Auto Tag", $"Cancelled by user at {processed}/{taggable}.\nAll changes rolled back.");
                     return Result.Cancelled;
                 }
 
                 tx.Commit();
-                // P6: Save SEQ sidecar after commit
-                TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-            TagConfig.CheckComplianceGate(doc, "AutoTag");
+            TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
@@ -351,10 +356,12 @@ namespace StingTools.Tags
 
                     try
                     {
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: false, skipComplete: true,
                             collisionMode: TagCollisionMode.Skip, stats: stats);
+                        if (!pipelineOk)
+                            StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
                     }
                     catch (Exception ex)
                     {
@@ -371,13 +378,9 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
-                // P6: Save SEQ sidecar after commit
-                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             sw.Stop();
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-            TagConfig.CheckComplianceGate(doc, "TagNewOnly");
+            TagPipelineHelper.PostTagCleanup(doc, seqCounters, "TagNewOnly");
 
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");

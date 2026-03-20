@@ -778,12 +778,12 @@ namespace StingTools.Core
                         if (isHoriz && dist < minY) { minY = dist; nearY = g.Name; }
                         else if (!isHoriz && dist < minX) { minX = dist; nearX = g.Name; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Grid distance calculation failed for grid '{g.Name}': {ex.Message}"); }
                 }
                 if (nearX != null && nearY != null) return $"{nearX}/{nearY}";
                 return nearX ?? nearY;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
     }
 
@@ -1139,6 +1139,9 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>Cached grid lines for O(1) WriteGridReference instead of per-element O(n) collector.</summary>
+            public List<Grid> CachedGrids { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -1155,6 +1158,10 @@ namespace StingTools.Core
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .ToList();
+                var grids = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid))
+                    .Cast<Grid>()
+                    .ToList();
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
@@ -1163,6 +1170,7 @@ namespace StingTools.Core
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
                     CachedPhases = phases,
                     LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
+                    CachedGrids = grids,
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -1251,7 +1259,9 @@ namespace StingTools.Core
                 foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
                 {
                     if (conn == null || !conn.IsConnected) continue;
-                    foreach (Connector otherConn in conn.AllRefs)
+                    var allRefs = conn.AllRefs;
+                    if (allRefs == null) continue;
+                    foreach (Connector otherConn in allRefs)
                     {
                         if (otherConn?.Owner == null || otherConn.Owner.Id == el.Id) continue;
                         Element connected = otherConn.Owner;
@@ -1536,16 +1546,17 @@ namespace StingTools.Core
                 if (levelId != null && levelId != ElementId.InvalidElementId)
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL_ELEM_ID, levelId.Value.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"RunFullPipeline LevelId: {ex.Message}"); }
 
-            // Phase 19: Write nearest grid intersection reference
-            WriteGridReference(doc, el);
+            // Phase 19: Write nearest grid intersection reference (uses cached grids for O(1) per element)
+            WriteGridReference(doc, el, ctx?.CachedGrids);
 
             return result;
         }
 
-        /// <summary>Phase 19: Write nearest grid intersection reference for element.</summary>
-        private static void WriteGridReference(Document doc, Element el)
+        /// <summary>Phase 19: Write nearest grid intersection reference for element.
+        /// Accepts pre-cached grids to avoid per-element FilteredElementCollector (O(n²) → O(n)).</summary>
+        private static void WriteGridReference(Document doc, Element el, List<Grid> cachedGrids = null)
         {
             try
             {
@@ -1555,7 +1566,7 @@ namespace StingTools.Core
                 else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
                 if (point == null) return;
 
-                var grids = new FilteredElementCollector(doc)
+                var grids = cachedGrids ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
@@ -1581,7 +1592,7 @@ namespace StingTools.Core
                             if (dist < minDistY) { minDistY = dist; nearestY = grid; }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"WriteGridReference grid '{grid?.Name}': {ex.Message}"); }
                 }
 
                 if (nearestX != null)
@@ -1736,7 +1747,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -2057,7 +2068,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2079,7 +2090,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair width mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2098,7 +2109,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Ramp slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2111,7 +2122,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(typeName))
                     return SetIfEmptyInt(el, targetParam, typeName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Structural type mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2134,7 +2145,7 @@ namespace StingTools.Core
                     written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                         dept.AsString() ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Room name/number mapping failed: {ex.Message}"); }
             return written;
         }
 
@@ -2164,7 +2175,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(origin))
                     written += SetIfEmptyInt(el, ParamRegistry.ORIGIN, origin);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ORIGIN mapping from ProjectInformation failed: {ex.Message}"); }
 
             // PROJECT: set from project name if available
             try
@@ -2173,7 +2184,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(projName))
                     written += SetIfEmptyInt(el, ParamRegistry.PROJECT, projName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"PROJECT mapping from ProjectInformation failed: {ex.Message}"); }
             return written;
         }
 
@@ -2461,6 +2472,19 @@ namespace StingTools.Core
     internal static class TagPipelineHelper
     {
         /// <summary>
+        /// Centralized post-tagging cleanup: saves SEQ sidecar, invalidates caches,
+        /// checks compliance gate. Call after tx.Commit() in any tagging command.
+        /// </summary>
+        public static void PostTagCleanup(Document doc, Dictionary<string, int> seqCounters, string commandName)
+        {
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, commandName);
+        }
+
+        /// <summary>
         /// Run the complete tagging pipeline for a single element.
         /// All parameters are pre-built outside the loop for performance.
         /// </summary>
@@ -2485,8 +2509,25 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // FIX-DEEP01: Snapshot locked token values before TypeTokenInherit/PopulateAll/overrides
-                // so they can be restored afterward (lockedTokens checked below)
+                // AL-06: Capture previous tag value and timestamp for audit trail
+                try
+                {
+                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                }
+                catch (Exception auditEx)
+                {
+                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
+                }
+
+                // P4: Inherit token values from family type before populating
+                TokenAutoPopulator.TypeTokenInherit(doc, el);
+
+                // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
+                // values are preserved, but BEFORE PopulateAll/overrides can change them
                 var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
@@ -2514,25 +2555,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                catch { /* ASS_TOKEN_LOCK_TXT not bound — safe to skip */ }
-
-                // AL-06: Capture previous tag value and timestamp for audit trail
-                try
-                {
-                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                }
-                catch (Exception auditEx)
-                {
-                    // Params not bound yet — add ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT to MR_PARAMETERS.csv
-                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
-                }
-
-                // P4: Inherit token values from family type before populating
-                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
 
                 // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                 TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
@@ -2550,7 +2573,7 @@ namespace StingTools.Core
                         StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
                     }
                 }
-                catch { /* Param not bound yet — safe to skip */ }
+                catch (Exception lockReadEx) { StingLog.Warn($"Token lock read for locked set: {lockReadEx.Message}"); }
 
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
@@ -2650,12 +2673,10 @@ namespace StingTools.Core
                     stats: stats,
                     cachedRev: ctx?.ProjectRev);
 
-                // P1: Write all container parameters
+                // P1: Write TAG7 rich narrative (A-F sub-sections)
+                // NOTE: Container write is already handled inside BuildAndWriteTag above.
+                // Only TAG7 needs separate handling here since it uses the narrative builder.
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                ParamRegistry.WriteContainers(el, tokenVals, catName,
-                    overwrite: overwrite, skipParam: ParamRegistry.TAG1);
-
-                // Core: Write TAG7 rich narrative (A-F sub-sections)
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
@@ -2708,7 +2729,7 @@ namespace StingTools.Core
                     .Cast<Grid>()
                     .ToList();
             }
-            catch { return new List<Grid>(); }
+            catch (Exception ex) { StingLog.Warn($"LoadGridLines: {ex.Message}"); return new List<Grid>(); }
         }
     }
 }

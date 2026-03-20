@@ -113,7 +113,7 @@ namespace StingTools.Tags
                             return (BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixtures", "P");
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Detect family category from parameters: {ex.Message}"); }
                 }
 
                 // Map to discipline code
@@ -200,7 +200,7 @@ namespace StingTools.Tags
                 finally
                 {
                     try { app.SharedParametersFilename = origFile; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Restore shared parameters filename: {ex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -709,7 +709,7 @@ namespace StingTools.Tags
                             var (tpAdded, _) = InjectSharedParams(famDoc, app, tagPosList);
                             result.TagPosInjected = tpAdded > 0;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inject TAG_POS shared param: {ex.Message}"); }
                     }
 
                     // Inject formulas
@@ -752,7 +752,7 @@ namespace StingTools.Tags
             finally
             {
                 try { famDoc?.Close(false); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Close family document: {ex.Message}"); }
             }
 
             return result;
@@ -798,46 +798,39 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null)
+            {
+                StingLog.Warn("FamilyParamCreator: No document open — cannot access Revit Application.");
+                TaskDialog.Show("STING — Family Param Creator",
+                    "A Revit document must be open to use Family Param Creator.\n\n" +
+                    "Open any Revit project (even a blank one) to provide the\n" +
+                    "Revit Application context needed for opening .rfa files.");
+                return Result.Failed;
+            }
 
             var app = ctx.App.Application;
 
-            // FIX-9.3: Mode selection with purge options and file/folder browser
-            var modeTd = new TaskDialog("STING — Family Param Creator");
-            modeTd.MainInstruction = "Family Parameter Injection Mode";
-            modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Single family — Add params", "Pick one .rfa file and inject STING parameters");
-            modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Batch folder — Add params", "Pick a folder and inject params into all .rfa files");
-            modeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Purge + Inject (single or batch)", "Remove existing ASS_*/STING_* params first, then re-inject");
-            modeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var modeResult = modeTd.Show();
-
-            if (modeResult != TaskDialogResult.CommandLink1 &&
-                modeResult != TaskDialogResult.CommandLink2 &&
-                modeResult != TaskDialogResult.CommandLink3)
-                return Result.Cancelled;
-
-            bool purgeFirst = modeResult == TaskDialogResult.CommandLink3;
-            bool isBatch;
-            if (purgeFirst)
+            // Mode selection using StingListPicker for polished UI
+            var modeItems = new List<Select.StingListPicker.ListItem>
             {
-                // Ask single or batch for purge mode
-                var scopeTd = new TaskDialog("STING — Purge + Inject Scope");
-                scopeTd.MainInstruction = "Purge + Inject: Single file or batch folder?";
-                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Single family file");
-                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Batch folder");
-                scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
-                var scopeResult = scopeTd.Show();
-                if (scopeResult == TaskDialogResult.CommandLink1) isBatch = false;
-                else if (scopeResult == TaskDialogResult.CommandLink2) isBatch = true;
-                else return Result.Cancelled;
-            }
-            else
-            {
-                isBatch = modeResult == TaskDialogResult.CommandLink2;
-            }
+                new Select.StingListPicker.ListItem
+                    { Label = "Single Family — Add Params", Detail = "Pick one .rfa file", Tag = "single" },
+                new Select.StingListPicker.ListItem
+                    { Label = "Batch Folder — Add Params", Detail = "Process all .rfa in folder", Tag = "batch" },
+                new Select.StingListPicker.ListItem
+                    { Label = "Single Family — Purge + Inject", Detail = "Remove old STING params, re-inject", Tag = "purge_single" },
+                new Select.StingListPicker.ListItem
+                    { Label = "Batch Folder — Purge + Inject", Detail = "Purge + re-inject entire folder", Tag = "purge_batch" },
+            };
+            var selected = Select.StingListPicker.Show(
+                "STING — Family Param Creator",
+                "Inject STING shared parameters into .rfa family files",
+                modeItems);
+            if (selected == null || selected.Count == 0) return Result.Cancelled;
+            string mode = selected[0].Tag as string ?? "single";
+
+            bool purgeFirst = mode.StartsWith("purge");
+            bool isBatch = mode.Contains("batch");
 
             // Options
             var opts = new FamilyParamEngine.ProcessOptions
@@ -854,28 +847,32 @@ namespace StingTools.Tags
 
             if (isBatch)
             {
-                // Use WPF-compatible SaveFileDialog to pick a folder (same pattern as OutputLocationHelper)
-                var dlg = new Microsoft.Win32.SaveFileDialog
+                // Use OpenFileDialog multi-select to pick .rfa files from a folder.
+                // User selects one or more files; we process all .rfa in that directory.
+                var dlg = new Microsoft.Win32.OpenFileDialog
                 {
-                    Title = "Select folder containing .rfa files (pick any file in target folder)",
+                    Title = "Select any .rfa file in the target folder (all .rfa will be processed)",
                     Filter = "Revit Family Files (*.rfa)|*.rfa",
-                    FileName = "select_this_folder.rfa",
+                    Multiselect = true,
                     InitialDirectory = StingToolsApp.DataPath ?? ""
                 };
                 if (dlg.ShowDialog() != true)
                     return Result.Cancelled;
                 string selectedDir = Path.GetDirectoryName(dlg.FileName);
                 if (string.IsNullOrEmpty(selectedDir) || !Directory.Exists(selectedDir))
+                {
+                    TaskDialog.Show("STING", "Invalid folder selected.");
                     return Result.Cancelled;
+                }
                 rfaFiles = Directory.GetFiles(selectedDir, "*.rfa", SearchOption.AllDirectories).ToList();
                 outputDir = selectedDir;
+                StingLog.Info($"FamilyParamCreator: batch mode — found {rfaFiles.Count} .rfa files in {selectedDir}");
             }
             else
             {
-                // Use WPF-compatible OpenFileDialog for single file selection
                 var ofd = new Microsoft.Win32.OpenFileDialog
                 {
-                    Title = "Select .rfa family file",
+                    Title = "Select .rfa family file to process",
                     Filter = "Revit Family Files (*.rfa)|*.rfa",
                     InitialDirectory = StingToolsApp.DataPath ?? ""
                 };
@@ -883,9 +880,13 @@ namespace StingTools.Tags
                     return Result.Cancelled;
                 string selectedFile = ofd.FileName;
                 if (string.IsNullOrEmpty(selectedFile) || !File.Exists(selectedFile))
+                {
+                    TaskDialog.Show("STING", "Selected file not found.");
                     return Result.Cancelled;
+                }
                 rfaFiles = new List<string> { selectedFile };
                 outputDir = Path.GetDirectoryName(selectedFile);
+                StingLog.Info($"FamilyParamCreator: single mode — processing {selectedFile}");
             }
 
             if (rfaFiles.Count == 0)

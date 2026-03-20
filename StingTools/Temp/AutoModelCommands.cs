@@ -971,7 +971,7 @@ namespace StingTools.Temp
                                 }
                                 else if (mapped == "Hidden" || mapped == "Ignore")
                                 {
-                                    try { activeView.SetCategoryHidden(sub.Id, true); } catch { }
+                                    try { activeView.SetCategoryHidden(sub.Id, true); } catch (Exception ex) { StingLog.Warn($"Hide category in view: {ex.Message}"); }
                                 }
                             }
                             t.Commit();
@@ -1204,7 +1204,7 @@ namespace StingTools.Temp
                         if (p0.DistanceTo(p1) > 0.01)
                             lines.Add(Line.CreateBound(p0, p1));
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Extract line geometry from CAD: {ex.Message}"); }
                 }
                 else if (gObj is PolyLine polyline)
                 {
@@ -1218,7 +1218,7 @@ namespace StingTools.Temp
                             if (p0.DistanceTo(p1) > 0.01)
                                 lines.Add(Line.CreateBound(p0, p1));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Extract polyline segment from CAD: {ex.Message}"); }
                     }
                 }
                 else if (gObj is GeometryInstance geoInst)
@@ -1242,19 +1242,7 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    // Block name may contain text info
-                    string symbolName = geoInst.GetSymbol()?.Name;
-                    if (!string.IsNullOrEmpty(symbolName) && symbolName.Length > 1)
-                    {
-                        var instTransform = geoInst.Transform;
-                        items.Add(new CadTextItem
-                        {
-                            Text = symbolName,
-                            Position = transform.OfPoint(instTransform.Origin)
-                        });
-                    }
-
-                    // Recurse into nested geometry
+                    // Recurse into nested geometry (block contents)
                     var instGeo = geoInst.GetInstanceGeometry();
                     if (instGeo != null)
                         ExtractTextFromGeometry(instGeo, Transform.Identity, items);
@@ -1272,28 +1260,28 @@ namespace StingTools.Temp
             {
                 if (gObj is GeometryInstance geoInst)
                 {
-                    string symbolName = geoInst.GetSymbol()?.Name;
-                    if (!string.IsNullOrEmpty(symbolName))
+                    var instTransform = geoInst.Transform;
+                    XYZ origin = transform.OfPoint(instTransform.Origin);
+
+                    // Extract rotation from transform
+                    double rotation = 0;
+                    try
                     {
-                        var instTransform = geoInst.Transform;
-                        XYZ origin = transform.OfPoint(instTransform.Origin);
-
-                        // Extract rotation from transform
-                        double rotation = 0;
-                        try
-                        {
-                            XYZ basisX = instTransform.BasisX;
-                            rotation = Math.Atan2(basisX.Y, basisX.X);
-                        }
-                        catch { }
-
-                        items.Add(new CadBlockItem
-                        {
-                            BlockName = symbolName,
-                            Position = origin,
-                            Rotation = rotation
-                        });
+                        XYZ basisX = instTransform.BasisX;
+                        rotation = Math.Atan2(basisX.Y, basisX.X);
                     }
+                    catch (Exception ex) { StingLog.Warn($"Extract block rotation from CAD: {ex.Message}"); }
+
+                    // Use GeometryInstance index as block identifier
+                    // (Revit 2025 GeometryInstance does not expose symbol name directly)
+                    string blockName = $"Block_{items.Count + 1}";
+
+                    items.Add(new CadBlockItem
+                    {
+                        BlockName = blockName,
+                        Position = origin,
+                        Rotation = rotation
+                    });
                 }
             }
         }

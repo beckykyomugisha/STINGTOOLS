@@ -43,7 +43,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("MasterSetupCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

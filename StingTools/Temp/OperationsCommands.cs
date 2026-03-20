@@ -1167,7 +1167,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("PrintSheetsCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Print/PDF failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"Print/PDF failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

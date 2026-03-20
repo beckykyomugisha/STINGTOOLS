@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -31,45 +32,40 @@ namespace StingTools.Tags
 
             var allGroups = ParamRegistry.ContainerGroups;
 
-            // Step 1: Mode selection
+            // Step 1: Mode selection using StingModePicker
             int totalContainers = allGroups.Sum(g => g.Params.Length);
-            TaskDialog modeDlg = new TaskDialog("Combine Parameters");
-            modeDlg.MainInstruction = "Which tag containers to populate?";
-            modeDlg.MainContent =
-                "Reads token parameters (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) " +
-                "and assembles them into tag container parameters.\n\n" +
-                $"Available: {allGroups.Length} groups, {totalContainers} total containers";
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "All Containers",
-                $"Populate all {allGroups.Length} groups ({totalContainers} parameters)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Universal Only (ASS_TAG_1-6)",
-                "6 universal containers applied to all tagged elements");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Discipline Only",
-                "MEP + Comms discipline-specific containers (excludes Universal and Material)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Pick Container Groups...",
-                "Interactively choose which groups to populate");
-            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var modeResult = modeDlg.Show();
+            var modeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new("All Containers",
+                    $"Populate all {allGroups.Length} groups ({totalContainers} parameters)", "all", true),
+                new("Universal Only (ASS_TAG_1-6)",
+                    "6 universal containers applied to all tagged elements", "universal"),
+                new("Discipline Only",
+                    "MEP + Comms discipline-specific containers (excludes Universal and Material)", "discipline"),
+                new("Pick Container Groups...",
+                    "Interactively choose which groups to populate", "pick"),
+            };
+            string modeResult = UI.StingModePicker.Show(
+                "Combine Parameters",
+                "Assemble token parameters into tag containers",
+                modeOptions,
+                $"Available: {allGroups.Length} groups, {totalContainers} total containers");
 
             HashSet<string> selectedGroupCodes;
             switch (modeResult)
             {
-                case TaskDialogResult.CommandLink1:
+                case "all":
                     selectedGroupCodes = new HashSet<string>(allGroups.Select(g => g.GroupCode));
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "universal":
                     selectedGroupCodes = new HashSet<string> { "UNIVERSAL" };
                     break;
-                case TaskDialogResult.CommandLink3:
+                case "discipline":
                     selectedGroupCodes = new HashSet<string>(
                         allGroups.Where(g => g.GroupCode != "UNIVERSAL" && g.GroupCode != "MAT_TAG")
                                  .Select(g => g.GroupCode));
                     break;
-                case TaskDialogResult.CommandLink4:
+                case "pick":
                     selectedGroupCodes = ShowGroupPicker(doc, allGroups);
                     if (selectedGroupCodes == null || selectedGroupCodes.Count == 0)
                         return Result.Cancelled;
@@ -82,7 +78,7 @@ namespace StingTools.Tags
             return ExecuteCombine(doc, activeGroups);
         }
 
-        // ── Group picker: paged TaskDialog selection ─────────────────
+        // ── Group picker: StingListPicker selection ─────────────────
 
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
@@ -100,71 +96,27 @@ namespace StingTools.Tags
                 else catCounts[cat] = 1;
             }
 
-            var selected = new HashSet<string>();
-            int page = 0;
-            int pageSize = 4;
-
-            while (true)
+            var groupItems = allGroups.Select(g =>
             {
-                int start = page * pageSize;
-                if (start >= allGroups.Length)
+                int elemCount = g.Categories != null
+                    ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
+                    : catCounts.Values.Sum();
+                return new Select.StingListPicker.ListItem
                 {
-                    break; // Always exit — caller checks selected.Count
-                }
+                    Label = g.Group,
+                    Detail = $"{g.Params.Length} containers | {elemCount} elements",
+                    Tag = g.GroupCode
+                };
+            }).ToList();
 
-                int count = Math.Min(pageSize, allGroups.Length - start);
-                var pageGroups = allGroups.Skip(start).Take(count).ToArray();
-                int totalPages = (int)Math.Ceiling((double)allGroups.Length / pageSize);
+            var picked = Select.StingListPicker.Show(
+                "Combine Parameters — Select Groups",
+                $"{allGroups.Length} container groups available. Select groups to populate.",
+                groupItems, allowMultiSelect: true);
 
-                TaskDialog picker = new TaskDialog("Select Container Groups");
-                picker.MainInstruction = $"Toggle groups (page {page + 1}/{totalPages})";
-                picker.MainContent = selected.Count > 0
-                    ? $"Selected: {string.Join(", ", allGroups.Where(g => selected.Contains(g.GroupCode)).Select(g => g.Group))}"
-                    : "Click a group to select/deselect it. Cancel when done selecting.";
-
-                for (int i = 0; i < pageGroups.Length; i++)
-                {
-                    var g = pageGroups[i];
-                    int elemCount = g.Categories != null
-                        ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
-                        : catCounts.Values.Sum();
-                    string mark = selected.Contains(g.GroupCode) ? "[X] " : "[ ] ";
-                    picker.AddCommandLink(
-                        (TaskDialogCommandLinkId)(i + 1001),
-                        $"{mark}{g.Group}",
-                        $"{g.Params.Length} containers | {elemCount} elements");
-                }
-
-                picker.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                var pickResult = picker.Show();
-
-                int linkIndex = -1;
-                switch (pickResult)
-                {
-                    case TaskDialogResult.CommandLink1: linkIndex = 0; break;
-                    case TaskDialogResult.CommandLink2: linkIndex = 1; break;
-                    case TaskDialogResult.CommandLink3: linkIndex = 2; break;
-                    case TaskDialogResult.CommandLink4: linkIndex = 3; break;
-                    default:
-                        page++;
-                        if (page * pageSize >= allGroups.Length)
-                            break;
-                        continue;
-                }
-
-                if (linkIndex >= 0 && linkIndex < pageGroups.Length)
-                {
-                    string code = pageGroups[linkIndex].GroupCode;
-                    if (selected.Contains(code))
-                        selected.Remove(code);
-                    else
-                        selected.Add(code);
-                    continue;
-                }
-            }
-
-            return selected.Count > 0 ? selected : null;
+            if (picked == null || picked.Count == 0) return null;
+            return new HashSet<string>(
+                picked.Select(p => p.Tag as string).Where(s => !string.IsNullOrEmpty(s)));
         }
 
         // ── Core combine logic ───────────────────────────────────────

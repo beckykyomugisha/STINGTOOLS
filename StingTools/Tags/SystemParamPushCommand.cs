@@ -615,10 +615,13 @@ namespace StingTools.Tags
                 tx.Start();
                 result = SystemParamPush.ExecutePush(doc, systemElementList, mode, parentTokens);
 
-                // If FullAutoTag mode, also build tags
+                // If FullAutoTag mode, run full canonical pipeline on untagged elements
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
                     (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var formulas = TagPipelineHelper.LoadFormulas();
+                    var gridLines = TagPipelineHelper.LoadGridLines(doc);
                     var stats = new TaggingStats();
 
                     foreach (var el in systemElementList)
@@ -627,38 +630,32 @@ namespace StingTools.Tags
                         if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                             continue;
 
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            skipComplete: true, existingTags,
-                            TagCollisionMode.AutoIncrement, stats);
-
-                        // Write TAG7 + containers
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                            // NP7: Write containers after system param push
-                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
-                                skipParam: ParamRegistry.TAG1);
+                            // Use unified pipeline for all 11 canonical steps
+                            TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, existingTags, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false, skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
                         }
-                        catch (Exception tag7Ex)
+                        catch (Exception pipeEx)
                         {
-                            StingLog.Warn($"SystemParamPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Warn($"SystemParamPush pipeline for {el.Id}: {pipeEx.Message}");
                         }
                     }
                 }
 
                 tx.Commit();
             }
-            // Save SEQ sidecar + invalidate caches after system push
-            try
+            // Centralized post-tag cleanup (SEQ sidecar + cache invalidation + compliance gate)
+            if (seqCounters != null)
+                TagPipelineHelper.PostTagCleanup(doc, seqCounters, "SystemParamPush");
+            else
             {
-                var (_, sysSeqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-                TagConfig.SaveSeqSidecar(doc, sysSeqCounters);
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
             }
-            catch (Exception ssEx) { StingLog.Warn($"SystemParamPush SaveSeqSidecar: {ssEx.Message}"); }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
 
             result.SystemName = string.Join(", ", systemNames);
 
@@ -900,18 +897,9 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-            // Save SEQ sidecar + invalidate caches after system push
+            // Save SEQ sidecar + invalidate caches after batch system push
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-
-            // FIX-03A: Save SEQ sidecar + invalidate caches after batch system push
-            if (mode == SystemParamPush.PushMode.FullAutoTag)
-            {
-                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-                catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
-            }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 

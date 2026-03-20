@@ -492,7 +492,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Schema version read failed for {filePath}: {ex.Message}"); }
             return null;
         }
 

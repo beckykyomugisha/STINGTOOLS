@@ -277,7 +277,7 @@ namespace StingTools.Core
             bool cancelled = false;
             double complianceBefore = 0;
             try { var scan = ComplianceScan.Scan(doc); complianceBefore = scan.CompliancePercent; }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Pre-workflow compliance scan failed: {ex.Message}"); }
             var totalSw = Stopwatch.StartNew();
 
             // LOG-06: Wrap in TransactionGroup when rollback_on_failure is enabled
@@ -429,7 +429,7 @@ namespace StingTools.Core
                     catch (Exception tgEx)
                     {
                         StingLog.Warn($"Workflow TransactionGroup cleanup: {tgEx.Message}");
-                        try { tg.RollBack(); } catch { }
+                        try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"TransactionGroup rollback failed: {rbEx.Message}"); }
                     }
                     tg.Dispose();
                 }
@@ -445,11 +445,11 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Post-workflow cache invalidation failed: {ex.Message}"); }
 
             // FIX-B09: Check compliance gate after workflow chain completes
             try { TagConfig.CheckComplianceGate(doc, $"Workflow:{preset.Name}"); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Post-workflow compliance gate check failed: {ex.Message}"); }
 
             report.AppendLine(new string('─', 50));
             report.AppendLine($"  Complete: {passed}/{preset.Steps.Count} steps OK");
@@ -469,8 +469,8 @@ namespace StingTools.Core
             try
             {
                 double complianceAfter = 0;
-                try { ComplianceScan.InvalidateCache(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
-                catch { }
+                try { ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
+                catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
 
                 var record = new WorkflowRunRecord
                 {
@@ -804,7 +804,7 @@ namespace StingTools.Core
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                     dir = Path.GetDirectoryName(doc.PathName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Workflow log path resolution failed: {ex.Message}"); }
             if (string.IsNullOrEmpty(dir))
                 dir = StingToolsApp.DataPath ?? Path.GetTempPath();
             return Path.Combine(dir, LogFileName);
@@ -873,7 +873,7 @@ namespace StingTools.Core
                         if (rec != null)
                             records.Add(rec);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Workflow run record parse failed: {ex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -985,7 +985,7 @@ namespace StingTools.Core
             {
                 var r = records[i];
                 string date = r.Timestamp;
-                try { date = DateTime.Parse(r.Timestamp).ToString("yyyy-MM-dd HH:mm"); } catch { }
+                try { date = DateTime.Parse(r.Timestamp).ToString("yyyy-MM-dd HH:mm"); } catch (Exception ex) { StingLog.Warn($"Timestamp parse failed: {ex.Message}"); }
                 string result = r.Cancelled ? "CANCELLED" :
                     r.Failed > 0 ? $"WARN ({r.Failed})" : "OK";
                 report.AppendLine($"  {date,-20} {r.PresetName,-20} {result,-12} {r.DurationSeconds,7:F1}s");

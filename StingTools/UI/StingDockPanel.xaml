@@ -8,7 +8,7 @@
         <!-- FIX-3.3: DynamicResource bindings — ThemeManager.CycleTheme() now works -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Margin" Value="0,6,0,3"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
@@ -80,10 +80,11 @@
             <Setter Property="BorderBrush" Value="#00796B"/>
         </Style>
         <Style x:Key="SectionLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontSize" Value="10.5"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Margin" Value="0,5,0,2"/>
+            <Setter Property="Margin" Value="0,6,0,2"/>
             <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Opacity" Value="1.0"/>
         </Style>
         <Style x:Key="SubLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="9"/>
@@ -110,16 +111,16 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.8"/>
+                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource HeaderFg}"/>
+                    <TextBlock x:Name="txtStatus" Text="Ready" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
                         FontSize="9" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="3" Content="&#x263E;" Width="26" Height="20"
-                        FontSize="11" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
-                        ToolTip="Toggle theme (Dark/Light/Grey/Corporate)" Tag="CycleTheme" Click="Cmd_Click"/>
+                <Button Grid.Column="3" Content="&#x2600;" Width="26" Height="20"
+                        FontSize="13" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
+                        ToolTip="Cycle theme: Light / Warm / Cool / Corporate" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
         </Border>
 
@@ -849,6 +850,7 @@
                                     <ComboBoxItem Content="A3"/>
                                     <ComboBoxItem Content="A4"/>
                                 </ComboBox>
+                                <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
                             </WrapPanel>
@@ -1108,6 +1110,10 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Magic Rename" Tag="MagicRename" Click="Cmd_Click"
+                                        ToolTip="Universal rename: prefix/suffix/find-replace/case/numbering"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Colours" Tag="ViewTabColour" Click="Cmd_Click"
+                                        ToolTip="Analyse views by discipline and colour-code tabs"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click"/>

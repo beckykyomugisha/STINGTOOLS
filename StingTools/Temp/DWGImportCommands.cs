@@ -390,7 +390,7 @@ namespace StingTools.Temp
                     foreach (var el in result.ConvertedElements)
                     {
                         try { if (CADElementCreator.CreateRevitElement(doc, el) != null) created++; }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Create Revit element from DWG: {ex.Message}"); }
                     }
                     t.Commit();
 

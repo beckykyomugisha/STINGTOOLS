@@ -603,7 +603,7 @@ namespace StingTools.Temp
                         connectors.Add(c);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Get element connectors: {ex.Message}"); }
             return connectors;
         }
     }

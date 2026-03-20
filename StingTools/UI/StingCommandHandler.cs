@@ -313,10 +313,10 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
-                    case "LeaderLength025":
-                    case "LeaderLength05":
-                    case "LeaderLength1":
-                    case "LeaderEqualSpacing":
+                    case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderEqualSpacing": SetExtraParam("LeaderLength", "equal"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderEqualise": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
                     // ── Appearance (annotation colors) ──
@@ -627,11 +627,10 @@ namespace StingTools.UI
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
                     // ════════════════════════════════════════════════════════
 
-                    case "SmartOrganise":
-                    case "OrgQuick":
-                    case "OrgDeep":
-                    case "OrgAnneal":
-                        RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "SmartOrganise": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgQuick": SetExtraParam("ArrangeMode", "Quick"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgDeep": SetExtraParam("ArrangeMode", "Deep"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgAnneal": SetExtraParam("ArrangeMode", "Anneal"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
                     case "OrgUndo":
@@ -959,39 +958,26 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
-                    // IoT / Sensor Data (planned — informative stubs)
-                    case "IoTSensorLink":
-                    case "IoTDashboard":
-                    case "IoTAlertConfig":
-                    case "IoTHistoryExport":
-                        TaskDialog.Show("STING — IoT",
-                            $"'{tag}' IoT/sensor integration is planned for a future release.\n\n" +
-                            "This will connect live BMS/sensor feeds to tagged elements\n" +
-                            "for real-time performance monitoring and anomaly detection.");
-                        break;
+                    // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
+                    case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
+                    case "IoTAlertConfig": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "IoTHistoryExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
 
-                    // Standards / Compliance (planned — informative stubs)
-                    case "ISO19650Checker":
-                    case "BS1192Checker":
-                    case "COBieValidator":
-                    case "UnicodeValidator":
-                    case "NamingConventionAudit":
-                    case "ClassificationAudit":
-                        TaskDialog.Show("STING — Standards",
-                            $"'{tag}' standards checker is planned for a future release.\n\n" +
-                            "Use 'Validate Tags' and 'Pre-Tag Audit' for current ISO 19650 compliance checking.");
-                        break;
+                    // Standards / Compliance (wired to StandardsEngine.cs commands)
+                    case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "COBieValidator": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
+                    case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
 
-                    // MEP Schedule shortcuts
-                    case "MEPScheduleHVAC":
-                    case "MEPScheduleElec":
-                    case "MEPSchedulePlumb":
-                    case "MEPScheduleFire":
-                    case "MEPScheduleAll":
-                        TaskDialog.Show("STING — MEP Schedules",
-                            $"'{tag}' MEP-specific schedule generation is planned for a future release.\n\n" +
-                            "Use 'Batch Create Schedules' (TEMP tab) to create MEP schedules from CSV definitions.");
-                        break;
+                    // MEP Schedule shortcuts (wired to MEPScheduleCommands.cs)
+                    case "MEPScheduleHVAC": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "MEPScheduleElec": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MEPSchedulePlumb": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "MEPScheduleFire": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "MEPScheduleAll": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
 
                     // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
@@ -1008,14 +994,15 @@ namespace StingTools.UI
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    // Third-party platform integrations — route to CDE Package which
+                    // generates ISO 19650 folder structure compatible with any CDE platform
                     case "ProcorePackage":
                     case "TrimbleExport":
                     case "AconexPackage":
                     case "ProjectWiseExport":
-                    case "PlatformDashboard":
-                    case "WebhookPayload":
-                        TaskDialog.Show("StingTools", $"'{tag}' platform integration is planned for a future release.");
-                        break;
+                        RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.BCFExportCommand>(app); break;
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
@@ -1042,63 +1029,12 @@ namespace StingTools.UI
                     case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
                     case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
 
-                    // FIX-UI02: TagStudio AI / analysis stubs — commands not yet implemented,
-                    // show descriptive message instead of generic "not available" error
-                    case "TagStudio_APIGaps":
-                        TaskDialog.Show("STING — API Notes",
-                            "Tag Studio API Notes\n\n" +
-                            "This panel documents known Revit API limitations affecting tag placement:\n" +
-                            "  • IndependentTag.ArrowheadType is not writable via API\n" +
-                            "  • Tag leader endpoint positions have limited programmatic control\n" +
-                            "  • Multi-category tag families require manual leader attachment\n\n" +
-                            "Use the Leader & Elbow controls to work around these limitations.");
-                        break;
-                    case "TagStudio_Explain":
-                        TaskDialog.Show("STING — Pipeline Explain",
-                            "Tag Pipeline Step Explanation\n\n" +
-                            "The full tagging pipeline for each element:\n" +
-                            "  1. TypeTokenInherit — inherit family type defaults\n" +
-                            "  2. PopulateAll — auto-derive 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)\n" +
-                            "  3. NativeParamMapper — bridge Revit built-ins → STING shared params\n" +
-                            "  4. FormulaEngine — evaluate computed fields (areas, volumes, costs)\n" +
-                            "  5. BuildAndWriteTag — assemble ISO 19650 tag + assign SEQ\n" +
-                            "  6. WriteContainers — populate all 53 discipline containers\n" +
-                            "  7. WriteTag7All — write TAG7 rich narrative (A–F sub-sections)\n" +
-                            "  8. GetGridRef — assign nearest grid intersection reference\n" +
-                            "  9. SaveSeqSidecar — persist sequence counters to disk");
-                        break;
-                    case "TagStudio_Pipeline":
-                        TaskDialog.Show("STING — Pipeline Status",
-                            "Tag Pipeline Coverage\n\n" +
-                            "Commands that run the full 9-step pipeline:\n" +
-                            "  Auto Tag, Batch Tag, Tag & Combine\n" +
-                            "  Tag Selected, Re-Tag, Tag New Only\n" +
-                            "  Retag Stale, Full Auto-Populate\n" +
-                            "  Resolve All Issues, Repair Duplicate SEQ\n" +
-                            "  Tag 3D, System Param Push, Excel Import\n\n" +
-                            "Run 'Pre-Tag Audit' for a full prediction before committing.");
-                        break;
-                    case "TagStudio_Generate":
-                        TaskDialog.Show("STING — Generate",
-                            "Tag Code Generation\n\n" +
-                            "Use 'Family Stage Populate' to pre-populate all 9 token fields\n" +
-                            "on selected elements before running the tagging pipeline.\n\n" +
-                            "Use 'Full Auto-Populate' for zero-manual-input population\n" +
-                            "across the entire project.\n\n" +
-                            "This Generate panel is reserved for future AI-assisted\n" +
-                            "token derivation features.");
-                        break;
-                    case "TagStudio_GapReview":
-                        TaskDialog.Show("STING — Gap Review",
-                            "Tag Gap Analysis\n\n" +
-                            "Use these commands to identify and fix gaps:\n" +
-                            "  • 'Pre-Tag Audit' — dry-run prediction before tagging\n" +
-                            "  • 'Validate Tags' — ISO 19650 code validation\n" +
-                            "  • 'Completeness Dashboard' — per-discipline token coverage\n" +
-                            "  • 'Resolve All Issues' — one-click 100% compliance fix\n\n" +
-                            "The compliance status bar shows live RAG status.\n" +
-                            "GREEN = >=80% tagged, AMBER = 50-80%, RED = <50%.");
-                        break;
+                    // Tag Studio analysis — wired to real commands
+                    case "TagStudio_APIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudio_Explain": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "TagStudio_Pipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudio_Generate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudio_GapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
                     // UI-03: Tag position switching
                     case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
@@ -1171,28 +1107,192 @@ namespace StingTools.UI
                     // already has "ListWorkflows". Add alias so both tags work.
                     case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
 
-                    // ── Tag Studio AI informational stubs ──
-                    case "TagStudioAPIGaps":
-                        TaskDialog.Show("Tag Studio", "API Gap analysis is available in CLAUDE.md.");
+                    // ── Tag Studio informational stubs → routed to real commands ──
+                    case "TagStudioAPIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudioExplain": RunCommand<Tags.ValidateTagsCommand>(app);
                         break;
-                    case "TagStudioExplain":
-                        TaskDialog.Show("Tag Studio", "Pipeline explanation:\n1. TypeTokenInherit\n2. PopulateAll\n3. NativeMapper\n4. Formulas\n5. BuildTag\n6. Containers\n7. TAG7\n8. GridRef");
+                    case "TagStudioPipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudioGenerate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudioGapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
+
+                    // ── COBie Reference Data (COBieDataCommands.cs, StingTools.Temp) ──
+                    case "COBieTypeMap": RunCommand<Temp.COBieTypeMapCommand>(app); break;
+                    case "COBieSystemMap": RunCommand<Temp.COBieSystemMapCommand>(app); break;
+                    case "COBiePickLists": RunCommand<Temp.COBiePickListsCommand>(app); break;
+                    case "COBieAttributes": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
+                    case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
+                    case "COBieDocTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+                    case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
+                    case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+
+                    // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
+                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
+                    case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MechEquipSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "PlumbingFixtureSchedule": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "FireDeviceSchedule": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "BatchMEPSchedules": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+
+                    // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
+                    case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
+                    case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
+                    case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
+
+                    // ── FM Handover Export (HandoverExportCommands.cs, StingTools.Docs) ──
+                    case "MaintenanceSchedule": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OMManual": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "AssetHealth": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "SpaceHandover": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Tag Selector (TagSelectorCommands.cs, StingTools.Select) ──
+                    case "TagSelector": RunCommand<Select.TagSelectorCommand>(app); break;
+                    case "SelectTagsByText": RunCommand<Select.SelectTagsByTextCommand>(app); break;
+                    case "SelectTagsByTextSize": RunCommand<Select.SelectTagsByTextSizeCommand>(app); break;
+                    case "SelectTagsByArrowhead": RunCommand<Select.SelectTagsByArrowheadCommand>(app); break;
+                    case "SelectTagsByLeaderState": RunCommand<Select.SelectTagsByLeaderStateCommand>(app); break;
+                    case "SelectTagsByFamily": RunCommand<Select.SelectTagsByFamilyCommand>(app); break;
+                    case "SelectTagsByHostCategory": RunCommand<Select.SelectTagsByHostCategoryCommand>(app); break;
+                    case "SelectTagsByOrientation": RunCommand<Select.SelectTagsByOrientationCommand>(app); break;
+                    case "SelectTagsByDiscipline": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+                    case "SelectTagsByLineWeight": RunCommand<Select.SelectTagsByLineWeightCommand>(app); break;
+                    case "SelectTagsByElbowAngle": RunCommand<Select.SelectTagsByElbowAngleCommand>(app); break;
+                    case "SelectTagsByToken": RunCommand<Select.SelectTagsByTokenCommand>(app); break;
+                    case "SelectOverlappingTags": RunCommand<Select.SelectOverlappingTagsCommand>(app); break;
+
+                    // ── Docs: Drawing Register + Journal Parser ──
+                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
+
+                    // ── Tags: Configure Tag Format (alias for ConfigEditor) ──
+                    case "ConfigureTagFormat": RunCommand<Tags.ConfigEditorCommand>(app); break;
+
+                    // ── Not-yet-implemented buttons (informational) ──
+                    case "ApplyClonedTags":
+                        TaskDialog.Show("STING", "Apply Cloned Tags — coming in a future release.\nUse Copy Tags (Organise tab) as the current alternative.");
                         break;
-                    case "TagStudioPipeline":
-                        TaskDialog.Show("Tag Studio", "Pipeline runs via TagPipelineHelper.RunFullPipeline().");
-                        break;
-                    case "TagStudioGenerate":
-                        TaskDialog.Show("Tag Studio", "Tag generation uses TagConfig.BuildAndWriteTag().");
-                        break;
-                    case "TagStudioGapReview":
-                        TaskDialog.Show("Tag Studio", "Gap review completed. See CLAUDE.md Phase 22+ for details.");
+                    case "JSONExport":
+                        TaskDialog.Show("STING", "JSON Export — coming in a future release.\nUse CSV Export or Excel Export as the current alternative.");
                         break;
 
-                    // ── Unmapped / placeholder ──
+                    // ── Docs: Handover & Journal (alternate tag names) ──
+                    case "AssetHealthReport": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "MaintenanceScheduleExport": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OAndMManualExport": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "SpaceHandoverReport": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Select: Tag Selectors (alternate tag names) ──
+                    case "SelectTagsByDisciplineCode": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+
+                    // ── Tags: Intelligence & NLP ──
+                    case "BimKnowledgeBase": RunCommand<Tags.BimKnowledgeBaseCommand>(app); break;
+                    case "CommandSuggestion": RunCommand<Tags.CommandSuggestionCommand>(app); break;
+                    case "ConfigurableTagFormat": RunCommand<Tags.ConfigurableTagFormatCommand>(app); break;
+                    case "NLPCommandProcessor": RunCommand<Tags.NLPCommandProcessorCommand>(app); break;
+                    case "SmartTagSuggest": RunCommand<Tags.SmartTagSuggestCommand>(app); break;
+                    case "TagAnalyticsDashboard": RunCommand<Tags.TagAnalyticsDashboardCommand>(app); break;
+                    case "TagBatchChain": RunCommand<Tags.TagBatchChainCommand>(app); break;
+                    case "TagPropagation": RunCommand<Tags.TagPropagationCommand>(app); break;
+                    case "TagQualityAnalyzer": RunCommand<Tags.TagQualityAnalyzerCommand>(app); break;
+                    case "TagRuleEngine": RunCommand<Tags.TagRuleEngineCommand>(app); break;
+                    case "TagVersionControl": RunCommand<Tags.TagVersionControlCommand>(app); break;
+
+                    // ── Organise: Extended ──
+                    case "DisciplineComplianceReport": RunCommand<Organise.DisciplineComplianceReportCommand>(app); break;
+                    case "NudgeTags": RunCommand<Organise.NudgeTagsCommand>(app); break;
+
+                    // ── Temp: COBie Reference Data (alternate tag names) ──
+                    case "COBieAttributeTemplates": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieDocumentTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieExportEnhanced": RunCommand<Temp.COBieExportEnhancedCommand>(app); break;
+
+                    // ── Temp: DWG/CAD Import ──
+                    case "AuditLinkedCAD": RunCommand<Temp.AuditLinkedCADCommand>(app); break;
+                    case "AutoModel": RunCommand<Temp.AutoModelCommand>(app); break;
+                    case "BatchImportDWG": RunCommand<Temp.BatchImportDWGCommand>(app); break;
+                    case "CADInventory": RunCommand<Temp.CADInventoryCommand>(app); break;
+                    case "DWGConversionPlan": RunCommand<Temp.DWGConversionPlanCommand>(app); break;
+                    case "ExportLayerMapping": RunCommand<Temp.ExportLayerMappingCommand>(app); break;
+                    case "ExtractRoomsFromCAD": RunCommand<Temp.ExtractRoomsFromCADCommand>(app); break;
+                    case "ImportDWG": RunCommand<Temp.ImportDWGCommand>(app); break;
+                    case "ImportDWGWithMapping": RunCommand<Temp.ImportDWGWithMappingCommand>(app); break;
+                    case "LayerMapping": RunCommand<Temp.LayerMappingCommand>(app); break;
+                    case "LinkDWG": RunCommand<Temp.LinkDWGCommand>(app); break;
+                    case "LinkDWGAdvanced": RunCommand<Temp.LinkDWGAdvancedCommand>(app); break;
+                    case "PlaceFamiliesFromCAD": RunCommand<Temp.PlaceFamiliesFromCADCommand>(app); break;
+                    case "PreviewDWGLayers": RunCommand<Temp.PreviewDWGLayersCommand>(app); break;
+                    case "RemoveLinkedCAD": RunCommand<Temp.RemoveLinkedCADCommand>(app); break;
+                    case "TraceWallsFromCAD": RunCommand<Temp.TraceWallsFromCADCommand>(app); break;
+
+                    // ── Temp: Model Creation ──
+                    case "AutoCreateRooms": RunCommand<Temp.AutoCreateRoomsCommand>(app); break;
+                    case "CreateCeilingsInteractive": RunCommand<Temp.CreateCeilingsInteractiveCommand>(app); break;
+                    case "CreateColumnsAtGrids": RunCommand<Temp.CreateColumnsAtGridsCommand>(app); break;
+                    case "CreateFloorsInteractive": RunCommand<Temp.CreateFloorsInteractiveCommand>(app); break;
+                    case "CreateGridsFromCSV": RunCommand<Temp.CreateGridsFromCSVCommand>(app); break;
+                    case "CreateLevelsFromCSV": RunCommand<Temp.CreateLevelsFromCSVCommand>(app); break;
+                    case "CreateWallsInteractive": RunCommand<Temp.CreateWallsInteractiveCommand>(app); break;
+                    case "PlaceDoors": RunCommand<Temp.PlaceDoorsCommand>(app); break;
+                    case "PlaceMEPEquipment": RunCommand<Temp.PlaceMEPEquipmentCommand>(app); break;
+                    case "PlaceWindows": RunCommand<Temp.PlaceWindowsCommand>(app); break;
+
+                    // ── Temp: MEP Schedules (alternate tag names) ──
+                    case "MechanicalEquipmentSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+
+                    // ── Temp: MEP Audits ──
+                    case "MEPConnectionAudit": RunCommand<Temp.MEPConnectionAuditCommand>(app); break;
+                    case "MEPSizingCheck": RunCommand<Temp.MEPSizingCheckCommand>(app); break;
+                    case "MEPSpaceAnalysis": RunCommand<Temp.MEPSpaceAnalysisCommand>(app); break;
+                    case "MEPSystemAudit": RunCommand<Temp.MEPSystemAuditCommand>(app); break;
+
+                    // ── Temp: Standards & Compliance (alternate tag names) ──
+                    case "Bs7671Compliance": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "Bs8300Accessibility": RunCommand<Temp.Bs8300AccessibilityCommand>(app); break;
+                    case "CibseVelocityCheck": RunCommand<Temp.CibseVelocityCheckCommand>(app); break;
+                    case "Iso19650DeepCompliance": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "PartLCompliance": RunCommand<Temp.PartLComplianceCommand>(app); break;
+                    case "StandardsDashboard": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UniclassClassify": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+
+                    // ── Temp: IoT & Maintenance (extended) ──
+                    case "AssetCondition": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "CommissioningChecklist": RunCommand<Temp.CommissioningChecklistCommand>(app); break;
+                    case "DigitalTwinExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+                    case "EnergyAnalysis": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "LifecycleCost": RunCommand<Temp.LifecycleCostCommand>(app); break;
+                    case "SensorPointMapper": RunCommand<Temp.SensorPointMapperCommand>(app); break;
+                    case "WarrantyTracker": RunCommand<Temp.WarrantyTrackerCommand>(app); break;
+
+                    // ── Temp: Room & Space (alternate tag names) ──
+                    case "RoomBasedParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
+
+                    // ── Temp: Data Validation ──
+                    case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
+                    case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
+                    case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
+                    case "DataReport": RunCommand<Temp.DataReportCommand>(app); break;
+                    case "ExportUnifiedRegistry": RunCommand<Temp.ExportUnifiedRegistryCommand>(app); break;
+                    case "IFCExportEnhanced": RunCommand<Temp.IFCExportEnhancedCommand>(app); break;
+                    case "ModelElementAudit": RunCommand<Temp.ModelElementAuditCommand>(app); break;
+                    case "ValidateBindingMatrix": RunCommand<Temp.ValidateBindingMatrixCommand>(app); break;
+                    case "ValidateFamilyBindings": RunCommand<Temp.ValidateFamilyBindingsCommand>(app); break;
+                    case "ViewParameterMetadata": RunCommand<Temp.ViewParameterMetadataCommand>(app); break;
+
+                    // ── Temp: Handover & Export ──
+                    case "HandoverPackage": RunCommand<Temp.HandoverPackageCommand>(app); break;
+
+                    // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("StingTools",
-                            $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
+                        TaskDialog.Show("STING — Unknown Command",
+                            $"Command '{tag}' could not be matched to a handler.\n\n" +
+                            "This may be a button from a newer version of the panel.\n" +
+                            "Try updating the plugin or check the TAGS/BIM/TEMP tabs for the equivalent command.");
                         break;
                 }
             }
@@ -1215,6 +1315,10 @@ namespace StingTools.UI
                     _param1 = "";
                     _param2 = "";
                 }
+
+                // Clear ExtraParams to prevent cross-command state pollution
+                // (e.g., ElbowMode from tag command bleeding into next selection command)
+                ClearAllExtraParams();
 
                 // FIX-UI03: Notify panel that command completed so Tag Studio
                 // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
@@ -1669,9 +1773,11 @@ namespace StingTools.UI
                     var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
                     var formulas = Core.TagPipelineHelper.LoadFormulas();
                     var grids = Core.TagPipelineHelper.LoadGridLines(doc);
-                    Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
+                    bool previewOk = Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
                         formulas, grids, overwrite: true, skipComplete: false,
                         collisionMode: Core.TagCollisionMode.AutoIncrement);
+                    if (!previewOk)
+                        Core.StingLog.Warn($"PreviewTag: pipeline returned false for element {el?.Id}");
                     predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
                     string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);
                     string loc   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC);
@@ -5378,7 +5484,7 @@ namespace StingTools.UI
                                 moved++;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Tag position switch failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();

@@ -1183,7 +1183,7 @@ namespace StingTools.Temp
 
             // ── Project info ──
             string projInfo = "";
-            try { projInfo = doc.ProjectInformation?.Name ?? ""; } catch { }
+            try { projInfo = doc.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Read project information name: {ex.Message}"); }
 
             // ═══════════════════════════════════════════════════════════════
             //  COVER PAGE
@@ -1310,7 +1310,7 @@ namespace StingTools.Temp
                                         tag7DescCount++;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Build BOQ description for '{sample.FamilyName}': {ex.Message}"); }
                             if (string.IsNullOrEmpty(desc))
                             {
                                 desc = !string.IsNullOrEmpty(sample.Description)
@@ -1996,7 +1996,7 @@ namespace StingTools.Temp
                             break;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read discipline colour override: {ex.Message}"); }
                 }
             }
             if (issues == 0) report.AppendLine("  All discipline colours consistent.");
@@ -2022,7 +2022,7 @@ namespace StingTools.Temp
                             transIssues++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read presentation transparency: {ex.Message}"); }
                 }
             }
             if (transIssues == 0) report.AppendLine("  All presentation transparencies in range.");
@@ -2516,7 +2516,7 @@ namespace StingTools.Temp
                                     clashes.Add((mepEl, otherMep, $"{mepCat} vs {otherCat} (cross-discipline)"));
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Clash detection solid intersection: {ex.Message}"); }
                     }
                 }
 
@@ -3580,7 +3580,7 @@ namespace StingTools.Temp
                     {
                         catBics[catName] = (BuiltInCategory)el.Category.Id.Value;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Cast category ID to BuiltInCategory for '{catName}': {ex.Message}"); }
                 }
                 catCounts[catName]++;
             }
@@ -4193,7 +4193,7 @@ namespace StingTools.Temp
                 if (volP != null && volP.AsDouble() > 0 && !dims.ContainsKey("VOLUME"))
                     dims["VOLUME"] = Math.Round(volP.AsDouble() * 0.0283168, 2).ToString();
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read element dimensions for BOQ: {ex.Message}"); }
 
             // ── Mode selection: NRM2 template vs TAG7 narrative ──
             string result;
@@ -4316,7 +4316,7 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(mat)) return mat;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read element material for BOQ: {ex.Message}"); }
             return "";
         }
 

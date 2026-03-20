@@ -932,7 +932,7 @@ namespace StingTools.Tags
                             changed++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Apply style preset to tag {tag.Id}: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1872,7 +1872,7 @@ namespace StingTools.Tags
                         if (!distribution.ContainsKey(key)) distribution[key] = 0;
                         distribution[key]++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }
 
                 tx.Commit();

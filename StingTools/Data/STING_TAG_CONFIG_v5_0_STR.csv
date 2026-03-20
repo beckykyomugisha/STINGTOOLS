@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.0,CREATED=2026-03-16
+#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=8_param_name_mismatches_aligned_to_MR_PARAMETERS
 STING Tag Configuration v5.0 - STR (COMPLETE with Warnings)
 6B — Structural
 Tag Family #1: STING - Structural Column Tag
@@ -33,7 +33,7 @@ TAG7: STR_TAG_7_PARA_COL_TXT  •  Category: Structural Columns
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999 Table 10,Common,Text,⚠ Warning: Column Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_COLUMNS, """")"
 2,HIGH,WARN_STR_LOAD_AXIAL_KN_COLUMNS,Axial load exceeds section capacity,BS EN 1993-1-1 / EC3,Common,Text,⚠ Warning: Column Load,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_AXIAL_KN_COLUMNS, """")"
 3,HIGH,WARN_STR_COL_SLENDERNESS,Slenderness ratio exceeds limit for section,BS EN 1993-1-1 / EC3 6.3.1,Common,Text,⚠ Warning: Column Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_SLENDERNESS, """")"
-4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge (structural),Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EMBODIED_CARBON_KG_STR, """")"
+4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge (structural),Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_STR, """")"
 5,MEDIUM,WARN_STR_COL_BASE_PLATE,Base plate connection not specified,BS EN 1993-1-8 / EC3,Common,Text,⚠ Warning: Base Plate Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_COL_BASE_PLATE, """")"
 
 Tag Family #2: STING - Structural Framing Tag
@@ -68,7 +68,7 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Framing
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Beam Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_STR_BEAMS, """")"
 2,HIGH,WARN_STR_BEAM_DEFLECTION,Deflection exceeds L/360 (live) or L/240 (total),BS EN 1993-1-1 / EC3 NA.2.23,Common,Text,⚠ Warning: Beam Deflection,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_DEFLECTION, """")"
 3,HIGH,WARN_STR_BEAM_SPAN_DEPTH,Span/depth ratio exceeds guidance,SCI P363 / Steel Designer Manual,Common,Text,⚠ Warning: Span-Depth Ratio,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_SPAN_DEPTH, """")"
-4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Beam Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EMBODIED_CARBON_KG_STR_BEAMS, """")"
+4,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS,Carbon > 600 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Beam Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_STR_BEAMS, """")"
 5,MEDIUM,WARN_STR_BEAM_LATERAL_BRACING,Lateral bracing interval not specified,BS EN 1993-1-1 / EC3 6.3.2,Common,Text,⚠ Warning: Lateral Bracing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BEAM_LATERAL_BRACING, """")"
 
 Tag Family #3: STING - Structural Foundation Tag
@@ -195,8 +195,8 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_COVER_MM, """")"
-2,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < required,BS EN 1992-1-1 / EC2 8.7,Common,Text,⚠ Warning: Rebar Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_OVERLAP_LENGTH_MM, """")"
+1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")"
+2,HIGH,WARN_STR_RBR_LAP_LENGTH_MM,Lap length < required,BS EN 1992-1-1 / EC2 8.7,Common,Text,⚠ Warning: Rebar Lap Length,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_LAP_LENGTH_MM, """")"
 
 Tag Family #8: STING - Structural Connection Tag
 TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Structural Connections
@@ -329,7 +329,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_COVER_MM_FABRIC, """")"
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_FABRIC, """")"
 
 Tag Family #15: STING - Structural Area Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
@@ -346,8 +346,8 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_COVER_MM_AREA, """")"
-2,HIGH,WARN_STR_REBAR_SPACING_MM_AREA,Bar spacing exceeds maximum for crack control,BS EN 1992-1-1 / EC2 7.3.3,Common,Text,⚠ Warning: Area Rebar Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_SPACING_MM_AREA, """")"
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_AREA, """")"
+2,HIGH,WARN_STR_REBAR_SPACING_MM_AREA,Bar spacing exceeds maximum for crack control,BS EN 1992-1-1 / EC2 7.3.3,Common,Text,⚠ Warning: Area Rebar Spacing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_SPACING_MM_AREA, """")"
 
 Tag Family #16: STING - Structural Path Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
@@ -364,4 +364,4 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_CST_S_REI_COVER_MM_PATH, """")"
+1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_PATH, """")"

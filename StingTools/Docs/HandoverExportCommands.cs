@@ -267,17 +267,27 @@ namespace StingTools.Docs
                 string jobPath = Path.Combine(outputDir, $"{prefix}_Job.csv");
                 string resPath = Path.Combine(outputDir, $"{prefix}_Resource.csv");
 
-                File.WriteAllText(facilityPath, "\uFEFF" + string.Join("\n", facilityLines));
-                File.WriteAllText(floorPath, "\uFEFF" + string.Join("\n", floorLines));
-                File.WriteAllText(spacePath, "\uFEFF" + string.Join("\n", spaceLines));
-                File.WriteAllText(typePath, "\uFEFF" + string.Join("\n", typeLines));
-                File.WriteAllText(compPath, "\uFEFF" + string.Join("\n", compLines));
-                File.WriteAllText(sysPath, "\uFEFF" + string.Join("\n", sysLines));
-                File.WriteAllText(zonePath, "\uFEFF" + string.Join("\n", zoneLines));
-                File.WriteAllText(contactPath, "\uFEFF" + string.Join("\n", contactLines));
-                File.WriteAllText(attrPath, "\uFEFF" + string.Join("\n", attrLines));
-                File.WriteAllText(jobPath, "\uFEFF" + string.Join("\n", jobLines));
-                File.WriteAllText(resPath, "\uFEFF" + string.Join("\n", resLines));
+                int filesWritten = 0;
+                var cobieFiles = new (string path, List<string> lines)[]
+                {
+                    (facilityPath, facilityLines), (floorPath, floorLines),
+                    (spacePath, spaceLines), (typePath, typeLines),
+                    (compPath, compLines), (sysPath, sysLines),
+                    (zonePath, zoneLines), (contactPath, contactLines),
+                    (attrPath, attrLines), (jobPath, jobLines), (resPath, resLines),
+                };
+                foreach (var (path, lines) in cobieFiles)
+                {
+                    try
+                    {
+                        File.WriteAllText(path, "\uFEFF" + string.Join("\n", lines));
+                        filesWritten++;
+                    }
+                    catch (Exception writeEx)
+                    {
+                        StingLog.Error($"COBie export failed to write {Path.GetFileName(path)}", writeEx);
+                    }
+                }
 
                 string report = $"COBie 2.4 Export Complete\n\n" +
                     $"11 COBie sheets exported:\n" +
