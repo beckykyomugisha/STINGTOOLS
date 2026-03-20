@@ -164,22 +164,23 @@ namespace StingTools.Core
                             result.TaggedComplete++;
                             dd.Tagged++;
                             string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
-                            if (parts.Length >= 8)
+                            // Account for TAG_PREFIX adding an extra segment at the start
+                            int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
+                            if (parts.Length >= 8 + po)
                             {
-                                if (parts[1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
-                                if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
-                                if (parts[3] == "XX") AddIssue(result, "Missing LVL");
-                                if (parts[4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
-                                if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
-                                if (parts[6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
-                                if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
+                                if (parts[po + 1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
+                                if (parts[po + 2] == "XX" || parts[po + 2] == "ZZ") AddIssue(result, "Missing ZONE");
+                                if (parts[po + 3] == "XX") AddIssue(result, "Missing LVL");
+                                if (parts[po + 4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
+                                if (parts[po + 5] == "GEN") AddIssue(result, "Generic FUNC");
+                                if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
+                                if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
 
                                 // AE-05: Per-token empty/placeholder counting
                                 string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
-                                int prefixOffset = (!string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0);
-                                for (int ti = 0; ti < tokenKeys.Length && (ti + prefixOffset) < parts.Length; ti++)
+                                for (int ti = 0; ti < tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
-                                    string part = parts[ti + prefixOffset];
+                                    string part = parts[ti + po];
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
                                         || part == "GEN" || part == "0000")
                                     {

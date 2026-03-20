@@ -2560,21 +2560,6 @@ namespace StingTools.Core
                 // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                 TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                // FE-01: Read token lock list — skip auto-derivation for locked tokens
-                HashSet<string> lockedTokens = null;
-                try
-                {
-                    string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
-                    if (!string.IsNullOrWhiteSpace(lockStr))
-                    {
-                        lockedTokens = new HashSet<string>(
-                            lockStr.Split(',').Select(s => s.Trim().ToUpperInvariant()),
-                            StringComparer.OrdinalIgnoreCase);
-                        StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
-                    }
-                }
-                catch (Exception lockReadEx) { StingLog.Warn($"Token lock read for locked set: {lockReadEx.Message}"); }
-
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                     && !string.IsNullOrEmpty(forcedSys))
