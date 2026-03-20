@@ -467,7 +467,7 @@ namespace StingTools.BIMManager
             {
                 string relPath = d.FilePath;
                 try { relPath = Path.GetRelativePath(packageDir, d.FilePath); }
-                catch { relPath = Path.GetFileName(d.FilePath); }
+                catch (Exception rpEx) { StingLog.Warn($"GetRelativePath failed: {rpEx.Message}"); relPath = Path.GetFileName(d.FilePath); }
 
                 files.Add(new JObject
                 {
@@ -1147,7 +1147,7 @@ namespace StingTools.BIMManager
                 {
                     // Clean up temp directory
                     try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
-                    catch { /* best-effort cleanup */ }
+                    catch (Exception cleanEx) { StingLog.Warn($"BCF temp cleanup: {cleanEx.Message}"); }
                 }
 
                 // Auto-register
@@ -1307,7 +1307,7 @@ namespace StingTools.BIMManager
                 finally
                 {
                     try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
-                    catch { /* best-effort cleanup */ }
+                    catch (Exception cleanEx) { StingLog.Warn($"BCF extract cleanup: {cleanEx.Message}"); }
                 }
 
                 StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped");
