@@ -1315,7 +1315,7 @@ namespace StingTools.UI
                     // ── Unified WPF Dialog Wizards (Phase 36) ──
                     case "DocWizard":
                     {
-                        var dlgResult = UI.DocAutomationDialog.Show();
+                        var dlgResult = UI.DocAutomationDialog.Show(doc);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
                         {
                             // Dispatch to the selected operation command

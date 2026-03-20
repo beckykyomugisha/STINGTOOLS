@@ -2365,7 +2365,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Export cost summary CSV
-                string outputDir = OutputLocationHelper.GetOutputPath(doc);
+                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
                 string csvPath = Path.Combine(outputDir, $"STING_5D_CostTrace_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 using (var writer = new StreamWriter(csvPath, false, Encoding.UTF8))
                 {

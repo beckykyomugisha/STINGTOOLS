@@ -2179,7 +2179,7 @@ namespace StingTools.Core
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
                 // display variant immediately (default = PROD-SEQ mode 2)
-                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", DisplayModeDefault.ToString());
+                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
 
                 // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
                 // Tier 1 content is visible in tag families after tagging)

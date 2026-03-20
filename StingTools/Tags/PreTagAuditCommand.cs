@@ -334,8 +334,8 @@ namespace StingTools.Tags
                     string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
                     simCounters[seqKey]++;
-                    string seqSchemeCtx = TagConfig.CurrentSeqScheme == TagConfig.SeqScheme.ZonePrefix ? currentZone
-                                        : TagConfig.CurrentSeqScheme == TagConfig.SeqScheme.DiscPrefix ? disc
+                    string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
+                                        : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                         : "";
                     string seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
 

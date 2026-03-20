@@ -1349,7 +1349,7 @@ namespace StingTools.Docs
             if (doc == null) { TaskDialog.Show("Streaming COBie", "No document open."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            string outputDir = OutputLocationHelper.PromptForExportPath("COBie", doc);
+            string outputDir = OutputLocationHelper.PromptForExportPath(doc, "STING_COBie_Export.xlsx", "Excel Files|*.xlsx", "COBie");
             if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string prefix = $"STING_COBie_Stream_{timestamp}";

@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using Grid = System.Windows.Controls.Grid;
+using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {

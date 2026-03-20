@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
+using Color = System.Windows.Media.Color;
 using StingTools.Core;
 
 namespace StingTools.UI

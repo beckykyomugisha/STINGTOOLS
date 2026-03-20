@@ -643,7 +643,7 @@ namespace StingTools.Select
             foreach (var name in existing.Keys)
                 if (!nameOptions.Contains(name)) nameOptions.Add(name);
 
-            string presetName = UI.StingListPicker.Show("Save Color Preset",
+            string presetName = StingListPicker.Show("Save Color Preset",
                 $"Save {colorGroups.Count} color groups ({colorGroups.Values.Sum(v => v.Count)} elements).\nSelect or type a preset name:",
                 nameOptions);
             if (presetName == null) return Result.Cancelled;
@@ -708,7 +708,7 @@ namespace StingTools.Select
 
             // Show all presets in searchable list (no 4-item limit)
             var presetItems = presets.Select(kvp => $"{kvp.Key} (Param: {kvp.Value.ParameterName})").ToList();
-            string pick = UI.StingListPicker.Show("Load Color Preset",
+            string pick = StingListPicker.Show("Load Color Preset",
                 $"{presets.Count} presets available. Select one to apply:", presetItems);
             if (pick == null) return Result.Cancelled;
             string selected = pick.Split(new[] { " (Param:" }, StringSplitOptions.None)[0].Trim();
@@ -825,7 +825,7 @@ namespace StingTools.Select
             var sortedParams = priority.Where(p => availParams.Contains(p)).ToList();
             sortedParams.AddRange(availParams.Where(p => !sortedParams.Contains(p)));
 
-            string paramName = UI.StingListPicker.Show("Create Filters — Parameter",
+            string paramName = StingListPicker.Show("Create Filters — Parameter",
                 "Select the parameter to create filters for:", sortedParams);
             if (paramName == null) return Result.Cancelled;
 

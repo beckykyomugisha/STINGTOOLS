@@ -255,7 +255,7 @@ namespace StingTools.UI
         }
 
         /// <summary>Access the underlying DataGrid for advanced configuration.</summary>
-        public DataGrid Grid => _grid;
+        public DataGrid DataGrid => _grid;
 
         /// <summary>Access the search text.</summary>
         public string SearchText => _searchBox.Text?.Trim() ?? "";
