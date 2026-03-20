@@ -615,12 +615,14 @@ namespace StingTools.UI
 
                     case "BulkBrain": BulkBrainSuggest(app); break;
                     case "ParamLookupRefresh":
-                    case "RefreshParamList": RefreshParamList(app); break;
-                    case "CondAdd": ConditionAdd(app, p1, p2); break;
-                    case "CondRemove": ConditionRemove(app); break;
-                    case "CondClear": ConditionClear(app); break;
-                    case "CondPreview": ConditionPreview(app); break;
-                    case "CondApply": ConditionApply(app); break;
+                    case "RefreshParamList":
+                    case "CondAdd":
+                    case "CondRemove":
+                    case "CondClear":
+                    case "CondPreview":
+                    case "CondApply":
+                    case "ParamLookupDialog":
+                        OpenParameterLookupDialog(app); break;
                     case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
@@ -1653,68 +1655,165 @@ namespace StingTools.UI
 
         private static void RefreshParamList(UIApplication app)
         {
+            // Legacy method — redirects to the enhanced dialog
+            OpenParameterLookupDialog(app);
+        }
+
+        /// <summary>
+        /// Open the enhanced Parameter Lookup dialog with category picker,
+        /// searchable parameter list, value display, and condition filtering.
+        /// Replaces the old RefreshParamList + Condition* methods.
+        /// </summary>
+        private static void OpenParameterLookupDialog(UIApplication app)
+        {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
             var view = doc.ActiveView;
             if (view == null)
             {
-                TaskDialog.Show("Parameter List", "No active view — switch to a model view first.");
+                TaskDialog.Show("Parameter Lookup", "No active view — switch to a model view first.");
                 return;
             }
 
-            // Collect parameter names from selected element (or first taggable in view)
-            var ids = uidoc.Selection.GetElementIds();
-            Element target = null;
-            if (ids.Count > 0)
-                target = doc.GetElement(ids.First());
-            if (target == null)
-            {
-                target = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType()
-                    .FirstOrDefault(e => e.Category != null);
-            }
+            // Collect elements from the active view
+            var viewElements = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .ToList();
 
-            if (target == null)
+            if (viewElements.Count == 0)
             {
-                TaskDialog.Show("Parameter List", "No elements found in current view.");
+                TaskDialog.Show("Parameter Lookup", "No elements found in current view.");
                 return;
             }
 
-            // Build param list: registry params + element instance params
-            var paramNames = new SortedSet<string>(StringComparer.Ordinal);
+            // Build parameter list from elements + registry
+            var paramNames = Select.ColorHelper.GetAvailableParameters(doc, viewElements);
             foreach (string p in ParamRegistry.AllParamGuids.Keys)
-                paramNames.Add(p);
-
-            foreach (Parameter p in target.Parameters)
             {
-                if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
-                    paramNames.Add(p.Definition.Name);
+                if (!paramNames.Contains(p))
+                    paramNames.Add(p);
             }
+            paramNames.Sort(StringComparer.OrdinalIgnoreCase);
 
-            // Populate all three parameter dropdowns in the dockable panel
-            StingDockPanel.PopulateParamDropdowns(paramNames);
+            // Build category list
+            var categories = viewElements
+                .Select(e => e.Category?.Name)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
 
-            var msg = new StringBuilder();
-            msg.AppendLine($"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total):\n");
-            int shown = 0;
-            foreach (string name in paramNames)
+            // Also populate the dockable panel dropdowns
+            StingDockPanel.PopulateParamDropdowns(new SortedSet<string>(paramNames));
+
+            // Query function: get values for a parameter across elements
+            Func<string, string, List<ParameterLookupDialog.ParamValueEntry>> queryFunc =
+                (paramName, category) =>
+                {
+                    var filtered = category != null
+                        ? viewElements.Where(e => e.Category?.Name == category)
+                        : viewElements;
+
+                    var groups = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+                    var storageTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var el in filtered)
+                    {
+                        string val = Select.ColorHelper.GetParameterValue(el, paramName) ?? "";
+                        if (!groups.TryGetValue(val, out var ids))
+                        {
+                            ids = new List<long>();
+                            groups[val] = ids;
+                        }
+                        ids.Add(el.Id.Value);
+
+                        if (!storageTypes.ContainsKey(val))
+                        {
+                            var p = el.LookupParameter(paramName);
+                            if (p != null) storageTypes[val] = p.StorageType.ToString();
+                        }
+                    }
+
+                    return groups.Select(g => new ParameterLookupDialog.ParamValueEntry
+                    {
+                        ParameterName = paramName,
+                        Value = g.Key,
+                        ElementCount = g.Value.Count,
+                        ElementIds = g.Value,
+                        StorageType = storageTypes.TryGetValue(g.Key, out var st) ? st : ""
+                    }).ToList();
+                };
+
+            // Filter function: evaluate conditions and return matching element IDs
+            Func<List<ParameterLookupDialog.Condition>, string, List<long>> filterFunc =
+                (conditions, category) =>
+                {
+                    var filtered = category != null
+                        ? viewElements.Where(e => e.Category?.Name == category)
+                        : viewElements;
+
+                    var matchIds = new List<long>();
+                    foreach (var el in filtered)
+                    {
+                        bool allMatch = true;
+                        foreach (var cond in conditions)
+                        {
+                            string actual = Select.ColorHelper.GetParameterValue(el, cond.Parameter) ?? "";
+                            bool match = cond.Operator switch
+                            {
+                                "contains" => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0,
+                                "equals" => string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "not equals" => !string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "starts with" => actual.StartsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "ends with" => actual.EndsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                ">" => double.TryParse(actual, out var av) && double.TryParse(cond.Value, out var cv) && av > cv,
+                                "<" => double.TryParse(actual, out var av2) && double.TryParse(cond.Value, out var cv2) && av2 < cv2,
+                                ">=" => double.TryParse(actual, out var av3) && double.TryParse(cond.Value, out var cv3) && av3 >= cv3,
+                                "<=" => double.TryParse(actual, out var av4) && double.TryParse(cond.Value, out var cv4) && av4 <= cv4,
+                                "is empty" => string.IsNullOrEmpty(actual),
+                                "is not empty" => !string.IsNullOrEmpty(actual),
+                                _ => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0
+                            };
+                            if (!match) { allMatch = false; break; }
+                        }
+                        if (allMatch) matchIds.Add(el.Id.Value);
+                    }
+                    return matchIds;
+                };
+
+            // Show the dialog
+            var result = ParameterLookupDialog.Show(paramNames, categories, queryFunc, filterFunc);
+            if (result == null) return;
+
+            // Handle the result action
+            if (result.Action == "Select" && result.MatchedElementIds.Count > 0)
             {
-                if (shown++ > 80) { msg.AppendLine($"  ... and {paramNames.Count - 80} more"); break; }
-                string val = ParameterHelpers.GetString(target, name);
-                if (!string.IsNullOrEmpty(val))
-                    msg.AppendLine($"  {name} = {val}");
-                else
-                    msg.AppendLine($"  {name}");
+                var elementIds = result.MatchedElementIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(elementIds);
+                TaskDialog.Show("Parameter Lookup",
+                    $"Selected {elementIds.Count} matching elements.");
+                StingLog.Info($"ParamLookup Select: {elementIds.Count} elements");
             }
-
-            var td = new TaskDialog("STING Tools - Parameter List");
-            td.MainInstruction = $"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total)";
-            td.MainContent = msg.ToString();
-            td.CommonButtons = TaskDialogCommonButtons.Ok;
-            td.DefaultButton = TaskDialogResult.Ok;
-            td.Show();
-            StingLog.Info($"RefreshParamList: {paramNames.Count} params for {ParameterHelpers.GetCategoryName(target)}");
+            else if (result.Action == "Color" && !string.IsNullOrEmpty(result.SelectedParameter))
+            {
+                // Delegate to ColorByParameter with the selected parameter
+                SetExtraParam("ColorParam", result.SelectedParameter);
+                RunCommand<Select.ColorByParameterCommand>(app);
+            }
+            else if (result.Action == "Apply" && result.MatchedElementIds.Count > 0)
+            {
+                var elementIds = result.MatchedElementIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(elementIds);
+                TaskDialog.Show("Parameter Lookup",
+                    $"Applied filter: {elementIds.Count} elements selected from {result.Conditions.Count} condition(s).");
+                StingLog.Info($"ParamLookup Apply: {elementIds.Count} elements, {result.Conditions.Count} conditions");
+            }
+            else if (result.MatchedElementIds.Count == 0 && result.Conditions.Count > 0)
+            {
+                TaskDialog.Show("Parameter Lookup", "No elements matched the specified conditions.");
+            }
         }
 
         private static void QuickParamFilter(UIApplication app, string paramName)
@@ -4832,110 +4931,14 @@ namespace StingTools.UI
             }
         }
 
-        // ── Conditional selection builder ─────────────────────────────
+        // ── Conditional selection builder (legacy — kept for ClearStaticState) ──
 
         private static readonly List<(string param, string op, string value)> _conditions
             = new List<(string, string, string)>();
 
-        private static void ConditionAdd(UIApplication app, string paramName, string value)
-        {
-            if (string.IsNullOrEmpty(paramName))
-            {
-                TaskDialog.Show("Condition", "Specify parameter name.");
-                return;
-            }
-            _conditions.Add((paramName, "=", value ?? ""));
-            TaskDialog.Show("Condition Builder",
-                $"Added: {paramName} = {value}\nConditions: {_conditions.Count}");
-        }
-
-        private static void ConditionRemove(UIApplication app)
-        {
-            if (_conditions.Count > 0)
-            {
-                var last = _conditions[_conditions.Count - 1];
-                _conditions.RemoveAt(_conditions.Count - 1);
-                TaskDialog.Show("Condition Builder",
-                    $"Removed: {last.param} {last.op} {last.value}\nRemaining: {_conditions.Count}");
-            }
-            else
-                TaskDialog.Show("Condition Builder", "No conditions to remove.");
-        }
-
-        private static void ConditionClear(UIApplication app)
-        {
-            int count = _conditions.Count;
-            _conditions.Clear();
-            TaskDialog.Show("Condition Builder", $"Cleared {count} conditions.");
-        }
-
-        private static void ConditionPreview(UIApplication app)
-        {
-            if (_conditions.Count == 0)
-            {
-                TaskDialog.Show("Condition Preview", "No conditions defined.\nUse '+ Add' to build conditions.");
-                return;
-            }
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-            var doc = uidoc.Document;
-
-            int matchCount = CountConditionMatches(doc, doc.ActiveView.Id);
-            var sb = new StringBuilder();
-            sb.AppendLine("Conditions:");
-            foreach (var c in _conditions)
-                sb.AppendLine($"  {c.param} {c.op} \"{c.value}\"");
-            sb.AppendLine($"\nMatching elements: {matchCount}");
-            TaskDialog.Show("Condition Preview", sb.ToString());
-        }
-
-        private static void ConditionApply(UIApplication app)
-        {
-            if (_conditions.Count == 0)
-            {
-                TaskDialog.Show("Condition Apply", "No conditions defined.");
-                return;
-            }
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-            var doc = uidoc.Document;
-
-            var matches = GetConditionMatches(doc, doc.ActiveView.Id);
-            uidoc.Selection.SetElementIds(matches);
-            TaskDialog.Show("Condition Apply",
-                $"Selected {matches.Count} elements matching {_conditions.Count} condition(s).");
-            StingLog.Info($"ConditionApply: {matches.Count} matches for {_conditions.Count} conditions");
-        }
-
-        private static int CountConditionMatches(Document doc, ElementId viewId)
-        {
-            return GetConditionMatches(doc, viewId).Count;
-        }
-
-        private static List<ElementId> GetConditionMatches(Document doc, ElementId viewId)
-        {
-            var results = new List<ElementId>();
-            foreach (Element el in new FilteredElementCollector(doc, viewId).WhereElementIsNotElementType())
-            {
-                bool allMatch = true;
-                foreach (var (param, op, value) in _conditions)
-                {
-                    string actual = ParameterHelpers.GetString(el, param);
-                    if (string.IsNullOrEmpty(actual))
-                    {
-                        var p = el.LookupParameter(param);
-                        actual = p?.AsValueString() ?? "";
-                    }
-                    if (!string.Equals(actual, value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        allMatch = false;
-                        break;
-                    }
-                }
-                if (allMatch) results.Add(el.Id);
-            }
-            return results;
-        }
+        // Legacy condition methods removed — replaced by OpenParameterLookupDialog()
+        // which provides a unified WPF dialog with full condition builder, 11 operators,
+        // live match count, and Select/Color/Apply actions.
 
         // ── Remaining stub implementations ────────────────────────────
 

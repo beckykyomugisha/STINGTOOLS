@@ -68,6 +68,8 @@ STINGTOOLS/
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
+    │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, category/family/type filters, 7 operations
+    │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with category picker, value display, 11-operator condition builder
     │   ├── ThemeManager.cs             # WPF theme engine — Dark/Light/Grey/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
@@ -251,7 +253,7 @@ STINGTOOLS/
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
 | Duplicate View | `Docs.DuplicateViewCommand` | Manual | Duplicate view with Detailing, View-only, or Dependent mode |
-| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Bulk rename views with pattern templates |
+| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Single-step dialog with category/family filters, 7 operations, live preview |
 | Copy View Settings | `Docs.CopyViewSettingsCommand` | Manual | Copy filters, graphic overrides, and template from source view |
 | Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Auto-place and scale viewports on sheets |
 | Crop to Content | `Docs.CropToContentCommand` | Manual | Smart crop region generation based on element extents |
@@ -491,6 +493,8 @@ STINGTOOLS/
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 238 |
 | `UI/StingListPicker.cs` | 0 (reusable WPF list picker dialog with search/filter) | 323 |
+| `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 690 |
+| `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
 | `UI/ThemeManager.cs` | 0 (WPF theme engine — Dark/Light/Grey/Corporate themes) | 149 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
@@ -714,6 +718,8 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `RevisionEngine` | `BIMManager/RevisionManagementCommands.cs` | Revision management: tag snapshot/compare, revision sequence tracking, change delta computation, element tracking across revisions |
 | `OutputLocationHelper` | `Core/OutputLocationHelper.cs` | Centralized export path management: 4-level fallback chain (preferred → project → documents → temp), timestamped paths, config persistence |
 | `StingListPicker` | `UI/StingListPicker.cs` | Reusable WPF list picker dialog: search/filter, single/multi-select, corporate styling, replaces paginated TaskDialog workflows |
+| `BatchRenameDialog` | `UI/BatchRenameDialog.cs` | Single-step WPF batch rename dialog: category/family/type filters, 7 rename operations (find/replace with regex, prefix/suffix, case, sequential, level standardisation), live before/after preview with green highlight, Select All/None |
+| `ParameterLookupDialog` | `UI/ParameterLookupDialog.cs` | Enhanced WPF parameter lookup: category picker, searchable parameter list with priority sorting, value display with element counts, 11-operator condition builder (contains/equals/not equals/starts/ends/>/</>=/<=/ empty/not empty), live match count, Select Matching/Color By Value/Apply Filter actions |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
@@ -1733,6 +1739,44 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 320. **Selection scope consistency** — `SelectEmptyMarkCommand`, `SelectPinnedCommand`, and `SelectUnpinnedCommand` now use `SelectionScopeHelper.GetCollector()` to honour project/view scope toggle, matching `SelectUntaggedCommand`/`SelectTaggedCommand` behaviour.
 321. **SmartOrganise dispatch differentiation** — OrgQuick/OrgDeep/OrgAnneal buttons now set `ExtraParam("ArrangeMode")` before dispatching to `ArrangeTagsCommand`. LeaderLength025/05/1 buttons set `ExtraParam("LeaderLength")` before `SnapLeaderElbowCommand`.
 322. **Redundant double operations removed** — Eliminated duplicate `SaveSeqSidecar` + `InvalidateCache` + `InvalidateContext` calls in: ReTagCommand, BulkRetag (StateSelectCommands), BatchSystemPushCommand, FullAutoPopulateCommand. Each had 2 consecutive identical cleanup blocks from overlapping fix phases.
+
+#### Completed (Phase 33 — Enhanced Batch Rename & Parameter Lookup Dialogs)
+
+323. **BatchRenameDialog** — `UI/BatchRenameDialog.cs` (690 lines): New single-step WPF batch rename dialog replacing the 4-step `StingListPicker` flow. Features: category/family/type filter dropdowns, 7 rename operations (Find & Replace with regex, Add Prefix/Suffix, Change Case, Sequential Number, Standardise Levels, Remove Copy suffix, Remove prefix up to dash), live before/after preview with green highlight for changes and strikethrough on originals, Select All/None buttons, Ctrl+Enter shortcut.
+324. **ParameterLookupDialog** — `UI/ParameterLookupDialog.cs` (590 lines): New enhanced WPF parameter lookup dialog replacing the broken inline condition system. Features: category picker dropdown, searchable parameter list with priority sorting (STING params highlighted), value display showing distinct values with element counts sorted by frequency, 11-operator condition builder (contains, equals, not equals, starts with, ends with, >, <, >=, <=, is empty, is not empty), live match count, double-click condition removal. Action buttons: Select Matching (sets Revit selection), Color By Value (delegates to ColorByParameter), Apply Filter.
+325. **BatchRenameViewsCommand unified** — Replaced 4-step `StingListPicker` flow (category → items → operation → input) with single `BatchRenameDialog.Show()` call. Now loads ALL 12 category types (views, sheets, schedules, families, types, line styles, fill patterns, materials, levels, grids, templates, worksets) simultaneously with category/family filtering in the dialog.
+326. **MagicRenameCommand unified** — Replaced 3-step TaskDialog flow (element type → rename mode → parameters) with single `BatchRenameDialog.Show()` call. Now loads Views, Sheets, Rooms, and Family Types simultaneously with live preview.
+327. **Parameter lookup dispatch unified** — All 7 dispatch entries (ParamLookupRefresh, RefreshParamList, CondAdd, CondRemove, CondClear, CondPreview, CondApply) now route to `OpenParameterLookupDialog()` which uses `ParameterLookupDialog.Show()` with Revit API callbacks via `ColorHelper.GetParameterValue()` for accurate instance+type parameter reading. Legacy inline condition system (`_conditions` list, `GetConditionMatches`) removed.
+
+#### Known Gaps — Tagging Pipeline Deep Review (Phase 34)
+
+Critical review of the tagging workflow identified the following logic, automation, and flexibility gaps across tagging, BIM/BEP/COBie systems:
+
+**Critical Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| GAP-001 | WriteContainers in RunFullPipeline | `ParameterHelpers.cs` | `RunFullPipeline` relies on `BuildAndWriteTag` to write containers, but `BuildAndWriteTag` only writes to `ASS_TAG_1`. The 35 discipline-specific containers (HVC_EQP_TAG, ELC_EQP_TAG, etc.) require a separate `ParamRegistry.WriteContainers()` call. Phase 31a item 295 removed the "redundant" call but `BuildAndWriteTag` only writes TAG1, not all 53 containers. |
+| GAP-008 | PreTagAudit token validation | `PreTagAuditCommand.cs` | Dry-run audit predicts tags but does not validate individual token values against `ISO19650Validator` allowed code lists. Invalid DISC/SYS/FUNC codes pass through the audit without warnings. |
+| ERR-002 | Read-only parameter binding | `ParameterHelpers.cs` | `SetString` silently returns when parameter is read-only (`IsReadOnly`), but no diagnostic is emitted. In batch operations, hundreds of elements may silently skip writes with no indication to the user. |
+
+**High Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| GAP-002 | TOKEN_LOCK_TXT timing | `ParameterHelpers.cs` | Token lock snapshot is taken after `TypeTokenInherit` (Phase 31a fix 294), but `CategoryTokenOverrides` runs after `PopulateAll` and can overwrite locked tokens. The restore step at the end may not catch overrides applied between snapshot and restore. |
+| GAP-006 | Formula context timing | `FormulaEvaluatorCommand.cs` | Formula evaluation uses post-population parameter state, but some formulas reference raw Revit native values that `NativeParamMapper` may have overwritten. Formula results may differ from expectations when formulas reference parameters that NativeParamMapper also writes to. |
+| ERR-003 | Collision detection atomicity | `TagConfig.cs` | `BuildExistingTagIndex` builds a `HashSet` at start of batch, but in worksharing environments, other users may commit tags between index build and element processing. No lock or re-check mechanism exists for multi-user collision safety. |
+
+**Medium Priority:**
+
+| ID | Gap | Location | Description |
+|----|-----|----------|-------------|
+| FLEX-001 | No custom token validators | `TagConfig.cs` | Token validation uses hardcoded `ValidDiscCodes`, `ValidSysCodes`, `ValidFuncCodes` lists. Projects with custom discipline or system codes cannot extend validation without modifying source code. |
+| FLEX-003 | No post-population hooks | `ParameterHelpers.cs` | `RunFullPipeline` has no extension point between `PopulateAll` and `BuildAndWriteTag`. Custom token derivation logic (e.g., project-specific PROD code rules) cannot be injected without modifying the pipeline. |
+| FLEX-005 | SEQ counter isolation | `TagConfig.cs` | When a batch tagging operation is cancelled mid-way, SEQ counters have already been incremented for processed elements. No rollback mechanism exists for SEQ counters on partial cancellation. |
+| HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | `CopyTokensFromNearest` uses a fixed 10 ft search radius. Dense models may need smaller radius; sparse models may need larger. Not configurable via project_config.json. |
+| HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | Batch size of 500 is hardcoded. Large models with fast hardware could benefit from larger batches; memory-constrained environments may need smaller. |
 
 ### External Tool References
 
