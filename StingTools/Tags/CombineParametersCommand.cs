@@ -165,7 +165,20 @@ namespace StingTools.Tags
 
                     totalElements++;
 
-                    // Read all source tokens once
+                    // Gap fix: Inherit type tokens and bridge native params before
+                    // reading tokens, so containers reflect current element context
+                    // (not stale values from initial tagging)
+                    try
+                    {
+                        TokenAutoPopulator.TypeTokenInherit(doc, el);
+                        NativeParamMapper.MapAll(doc, el);
+                    }
+                    catch (Exception enrichEx)
+                    {
+                        StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}");
+                    }
+
+                    // Read all source tokens once (after enrichment)
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
 
                     // Ensure TAG1 is current: rebuild from tokens if empty or stale
@@ -204,10 +217,13 @@ namespace StingTools.Tags
                     }
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    // Only write TAG7 if core tokens (DISC, SYS, PROD) are populated to avoid
+                    // Only write TAG7 if core + spatial tokens are populated to avoid
                     // generating incomplete narratives from partially-tagged elements
                     bool hasCoreTags = tokenValues.Length >= 8
                         && !string.IsNullOrEmpty(tokenValues[0])   // DISC
+                        && !string.IsNullOrEmpty(tokenValues[1])   // LOC
+                        && !string.IsNullOrEmpty(tokenValues[2])   // ZONE
+                        && !string.IsNullOrEmpty(tokenValues[3])   // LVL
                         && !string.IsNullOrEmpty(tokenValues[4])   // SYS
                         && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
                     int tag7Writes = 0;

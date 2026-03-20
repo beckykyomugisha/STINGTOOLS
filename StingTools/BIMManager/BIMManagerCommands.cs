@@ -3587,117 +3587,37 @@ namespace StingTools.BIMManager
 
             var selectedIds = uidoc.Selection.GetElementIds();
 
-            // Step 1: Issue type
-            var typeDlg = new TaskDialog("STING Issue — Type");
-            typeDlg.MainInstruction = "Select issue type:";
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RFI — Request for Information");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CLASH — Coordination Clash");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DESIGN — Design Issue/Query");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types... (NCR, SNAGGING, CHANGE, RISK, SITE, ACTION)");
-            var typeResult = typeDlg.Show();
-            string issueType;
-            switch (typeResult)
-            {
-                case TaskDialogResult.CommandLink1: issueType = "RFI"; break;
-                case TaskDialogResult.CommandLink2: issueType = "CLASH"; break;
-                case TaskDialogResult.CommandLink3: issueType = "DESIGN"; break;
-                case TaskDialogResult.CommandLink4:
-                    var moreDlg = new TaskDialog("STING Issue — More Types");
-                    moreDlg.MainInstruction = "Select issue type:";
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NCR — Non-Conformance Report");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SNAGGING — Snagging/Defect");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CHANGE — Change Request");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "SITE — Site Observation");
-                    var moreResult = moreDlg.Show();
-                    issueType = moreResult switch
-                    {
-                        TaskDialogResult.CommandLink1 => "NCR",
-                        TaskDialogResult.CommandLink2 => "SNAGGING",
-                        TaskDialogResult.CommandLink3 => "CHANGE",
-                        TaskDialogResult.CommandLink4 => "SITE",
-                        _ => null
-                    };
-                    break;
-                default: issueType = null; break;
-            }
-            if (issueType == null) return Result.Cancelled;
+            // Launch the Issue Wizard for interactive configuration
+            var wizResult = IssueWizard.Show(doc, uidoc);
+            if (wizResult == null) return Result.Cancelled;
 
-            // Step 2: Priority
-            var priDlg = new TaskDialog("STING Issue — Priority");
-            priDlg.MainInstruction = "Select priority:";
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "CRITICAL — Blocks progress, immediate action");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "HIGH — Action within 24 hours");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MEDIUM — Action within 1 week");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "LOW — Action at convenience");
-            var priResult = priDlg.Show();
-            string priority = priResult switch
-            {
-                TaskDialogResult.CommandLink1 => "CRITICAL",
-                TaskDialogResult.CommandLink2 => "HIGH",
-                TaskDialogResult.CommandLink3 => "MEDIUM",
-                TaskDialogResult.CommandLink4 => "LOW",
-                _ => "MEDIUM"
-            };
-
-            // Auto-detect discipline and build title from context
-            string discipline = "";
-            string autoTitle = "";
-            if (selectedIds.Count > 0)
-            {
-                var firstEl = doc.GetElement(selectedIds.First());
-                discipline = ParameterHelpers.GetString(firstEl, ParamRegistry.DISC);
-                string cat = ParameterHelpers.GetCategoryName(firstEl);
-                string tag = ParameterHelpers.GetString(firstEl, ParamRegistry.TAG1);
-                autoTitle = $"{issueType}: {cat}";
-                if (!string.IsNullOrEmpty(tag)) autoTitle += $" [{tag}]";
-                if (selectedIds.Count > 1) autoTitle += $" (+{selectedIds.Count - 1} more)";
-            }
-            else
-            {
-                autoTitle = $"{issueType}: {uidoc.ActiveView?.Name ?? "General"}";
-            }
+            string issueType = wizResult.IssueType;
+            string priority = wizResult.Priority;
+            string assignee = wizResult.AssignedTo;
+            string discipline = wizResult.Discipline;
+            string autoTitle = wizResult.Title;
+            string description = wizResult.Description;
             if (string.IsNullOrEmpty(discipline)) discipline = "Z";
 
-            // Step 3: Assignee
-            var assignDlg = new TaskDialog("STING Issue — Assign To");
-            assignDlg.MainInstruction = "Assign issue to:";
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, Environment.UserName, "Assign to yourself");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM Coordinator", "Assign to BIM Coordinator");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Design Lead", "Assign to discipline design lead");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Unassigned", "Leave unassigned for now");
-            var assignResult = assignDlg.Show();
-            string assignee = assignResult switch
-            {
-                TaskDialogResult.CommandLink1 => Environment.UserName,
-                TaskDialogResult.CommandLink2 => "BIM Coordinator",
-                TaskDialogResult.CommandLink3 => "Design Lead",
-                TaskDialogResult.CommandLink4 => "",
-                _ => ""
-            };
+            // Add priority to description if not already there
+            if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
+                description += $" Priority: {priority}.";
 
-            // Auto-generate description from context
-            string description = $"{issueType} raised against ";
-            if (selectedIds.Count > 0)
-            {
-                var firstEl = doc.GetElement(selectedIds.First());
-                string cat = ParameterHelpers.GetCategoryName(firstEl);
-                string lvl = ParameterHelpers.GetString(firstEl, ParamRegistry.LVL);
-                description += $"{cat} on {(string.IsNullOrEmpty(lvl) ? "unknown level" : lvl)}";
-                if (selectedIds.Count > 1) description += $" and {selectedIds.Count - 1} other element(s)";
-            }
-            else
-            {
-                description += $"view '{uidoc.ActiveView?.Name ?? "unknown"}'";
-            }
-            description += $". Priority: {priority}.";
-
-            // Create issue with auto-generated title, description, and assignee
+            // Create issue with wizard-collected data
             string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
             var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
             string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
+
+            // Set due date from wizard if provided
+            if (!string.IsNullOrEmpty(wizResult.DueDate))
+                issue["date_due"] = wizResult.DueDate;
+
+            // Set location from wizard if provided
+            if (!string.IsNullOrEmpty(wizResult.Location))
+                issue["location"] = wizResult.Location;
 
             // GAP-007 fix: Link issue to current project revision
             try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
@@ -4319,73 +4239,114 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Select COBie preset for project type
-            string selectedPreset = null;
-            var presetItems = new List<string> { "Full Export (all worksheets, no preset filter)" };
-            foreach (var kvp in BIMManagerEngine.COBiePresets)
-                presetItems.Add($"{kvp.Key} — {kvp.Value.Name}");
-            string presetPick = StingListPicker.Show("COBie Project Type", "Select COBie project type preset:", presetItems);
-            if (presetPick == null) return Result.Cancelled;
-            if (!presetPick.StartsWith("Full"))
-                selectedPreset = presetPick.Split(new[] { ' ' }, 2)[0].Trim();
+            // Launch the COBie Export Wizard for interactive configuration
+            var settings = COBieExportWizard.Show(doc);
+            if (settings == null) return Result.Cancelled;
 
-            StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={selectedPreset ?? "full"})...");
-            var cobieData = BIMManagerEngine.BuildCOBieData(doc, selectedPreset);
+            StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={settings.PresetKey ?? "full"}, worksheets={settings.SelectedWorksheets?.Count ?? 0})...");
+            var cobieData = BIMManagerEngine.BuildCOBieData(doc, settings.PresetKey);
 
-            string cobieDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
-                $"COBie_V24_{DateTime.Now:yyyyMMdd}");
+            // Enhance Resource worksheet if requested
+            if (settings.IncludeResourceEnhanced && cobieData.ContainsKey("Resource"))
+                EnhanceResourceWorksheet(cobieData["Resource"]);
+
+            // Enhance Impact worksheet if requested
+            if (settings.IncludeImpactEnhanced && cobieData.ContainsKey("Impact"))
+                EnhanceImpactWorksheet(doc, cobieData["Impact"]);
+
+            // Filter worksheets based on wizard selection
+            if (settings.SelectedWorksheets != null && settings.SelectedWorksheets.Count > 0)
+            {
+                var toRemove = cobieData.Keys.Where(k => !settings.SelectedWorksheets.Contains(k)).ToList();
+                foreach (var key in toRemove) cobieData.Remove(key);
+            }
+
+            string cobieDir = settings.OutputDir;
+            if (string.IsNullOrEmpty(cobieDir))
+                cobieDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), $"COBie_V24_{DateTime.Now:yyyyMMdd}");
             if (!Directory.Exists(cobieDir)) Directory.CreateDirectory(cobieDir);
 
             int totalRows = 0;
             var summary = new StringBuilder();
 
+            // Use streaming export with progress dialog when enabled
+            StingProgressDialog progress = null;
+            int wsCount = cobieData.Count;
+            if (settings.StreamingExport && wsCount > 3)
+                progress = StingProgressDialog.Show("COBie Export", wsCount);
+
+            int wsIdx = 0;
             foreach (var ws in cobieData)
             {
                 totalRows += ws.Value.Count;
                 string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
                     ? BIMManagerEngine.COBieWorksheets[ws.Key]
                     : (ws.Value.Count > 0 ? ws.Value[0].Keys.ToArray() : Array.Empty<string>());
-                if (headers.Length == 0) continue;
+                if (headers.Length == 0) { wsIdx++; continue; }
 
-                var csv = new StringBuilder();
-                csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
-                foreach (var row in ws.Value)
-                    csv.AppendLine(string.Join(",", headers.Select(h =>
-                        $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                // Apply column exclusions from wizard
+                if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                {
+                    var excluded = settings.ExcludedColumns[ws.Key];
+                    headers = headers.Where(h => !excluded.Contains(h)).ToArray();
+                }
 
-                try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
-                catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
+                if (settings.ExportCSV)
+                {
+                    var csv = new StringBuilder();
+                    csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
+                    foreach (var row in ws.Value)
+                        csv.AppendLine(string.Join(",", headers.Select(h =>
+                            $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+
+                    try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                    catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
+                }
+
                 summary.AppendLine($"    {ws.Key,-16} {ws.Value.Count,6} rows");
+                wsIdx++;
+                progress?.Increment($"Writing {ws.Key}...");
             }
 
             // XLSX export
-            try
+            if (settings.ExportXLSX)
             {
-                string xlsxPath = Path.Combine(cobieDir, "COBie_V24_Complete.xlsx");
-                using (var wb = new ClosedXML.Excel.XLWorkbook())
+                try
                 {
-                    foreach (var ws in cobieData)
+                    string xlsxPath = Path.Combine(cobieDir, "COBie_V24_Complete.xlsx");
+                    progress?.Increment("Generating XLSX workbook...");
+                    using (var wb = new ClosedXML.Excel.XLWorkbook())
                     {
-                        string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
-                        var sheet = wb.Worksheets.Add(name);
-                        if (ws.Value.Count == 0) continue;
-                        string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                            ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
-                        for (int c = 0; c < headers.Length; c++)
+                        foreach (var ws in cobieData)
                         {
-                            sheet.Cell(1, c + 1).Value = headers[c];
-                            sheet.Cell(1, c + 1).Style.Font.Bold = true;
-                            sheet.Cell(1, c + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
-                        }
-                        for (int r = 0; r < ws.Value.Count; r++)
+                            string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
+                            var sheet = wb.Worksheets.Add(name);
+                            if (ws.Value.Count == 0) continue;
+                            string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
+                                ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
+
+                            // Apply column exclusions
+                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                                headers = headers.Where(h => !settings.ExcludedColumns[ws.Key].Contains(h)).ToArray();
+
                             for (int c = 0; c < headers.Length; c++)
-                                sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
-                        sheet.Columns().AdjustToContents(1, 100);
+                            {
+                                sheet.Cell(1, c + 1).Value = headers[c];
+                                sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                                sheet.Cell(1, c + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+                            }
+                            for (int r = 0; r < ws.Value.Count; r++)
+                                for (int c = 0; c < headers.Length; c++)
+                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
+                            sheet.Columns().AdjustToContents(1, 100);
+                        }
+                        wb.SaveAs(xlsxPath);
                     }
-                    wb.SaveAs(xlsxPath);
                 }
+                catch (Exception ex) { StingLog.Warn($"COBie XLSX: {ex.Message}"); }
             }
-            catch (Exception ex) { StingLog.Warn($"COBie XLSX: {ex.Message}"); }
+
+            progress?.Close();
 
             var report = new StringBuilder();
             report.AppendLine("COBie V2.4 Export Complete");
@@ -4393,6 +4354,8 @@ namespace StingTools.BIMManager
             report.AppendLine($"  Standard:   COBie V2.4 (BS 1192-4:2014)");
             report.AppendLine($"  Worksheets: {cobieData.Count}");
             report.AppendLine($"  Total rows: {totalRows}");
+            if (settings.IncludeResourceEnhanced) report.AppendLine($"  Resources:  Enhanced (skills, rates, certifications)");
+            if (settings.IncludeImpactEnhanced) report.AppendLine($"  Impact:     Enhanced (lifecycle cost, carbon/m², benchmarks)");
             report.AppendLine();
             report.Append(summary);
             report.AppendLine();
@@ -4401,6 +4364,116 @@ namespace StingTools.BIMManager
             TaskDialog.Show("STING BIM Manager — COBie", report.ToString());
             StingLog.Info($"COBie: {cobieData.Count} worksheets, {totalRows} rows");
             return Result.Succeeded;
+        }
+
+        /// <summary>Enhance Resource worksheet with skill requirements, hourly rates, and certifications.</summary>
+        private static void EnhanceResourceWorksheet(List<Dictionary<string, string>> resources)
+        {
+            var enhancements = new Dictionary<string, (string skills, string rate, string cert)>
+            {
+                ["FM Technician"] = ("General maintenance, HVAC basic, plumbing basic, electrical basic", "£35/hr", "City & Guilds, CSCS"),
+                ["Electrical Engineer"] = ("HV/LV systems, emergency lighting, fire alarm, data cabling", "£55/hr", "BS 7671 18th Edition, JIB Gold Card"),
+                ["Mechanical Engineer"] = ("HVAC design, BMS, commissioning, energy management", "£55/hr", "CIBSE Chartered, F-Gas"),
+                ["Plumber"] = ("Hot/cold water, drainage, sanitary ware, water treatment", "£40/hr", "City & Guilds 6035, WRAS"),
+                ["Fire Safety Officer"] = ("Fire risk assessment, suppression systems, fire door inspection", "£50/hr", "IFE Member, NEBOSH Fire"),
+                ["HVAC Specialist"] = ("AHU maintenance, chiller plant, heat pumps, controls", "£48/hr", "F-Gas Category I, BSRIA"),
+                ["BMS Engineer"] = ("Building management systems, controls, sensors, integration", "£52/hr", "Trend/Honeywell certified"),
+                ["Lift Engineer"] = ("Passenger/goods lifts, escalators, stairlifts, access platforms", "£55/hr", "SAFed, LEIA registered"),
+                ["Security Specialist"] = ("Access control, CCTV, intruder alarm, key management", "£45/hr", "SIA Licensed, NSI Gold"),
+                ["Cleaning Supervisor"] = ("Contract management, deep clean, specialist surfaces, waste", "£28/hr", "BICSc certified"),
+                ["Energy Manager"] = ("Energy auditing, carbon reporting, utility management, BREEAM", "£60/hr", "CIBSE LCEA, ISO 50001 Lead Auditor"),
+                ["Health & Safety Officer"] = ("Risk assessments, COSHH, CDM, permit to work, incident investigation", "£50/hr", "NEBOSH NGC, IOSH Managing Safely")
+            };
+
+            // Enhance existing resources
+            foreach (var res in resources)
+            {
+                string name = res.ContainsKey("Name") ? res["Name"] : "";
+                if (enhancements.TryGetValue(name, out var enh))
+                {
+                    res["Description"] = $"Skills: {enh.skills}. Rate: {enh.rate}. Certifications: {enh.cert}";
+                }
+            }
+
+            // Add missing resource types
+            string createdBy = resources.Count > 0 && resources[0].ContainsKey("CreatedBy") ? resources[0]["CreatedBy"] : Environment.UserName;
+            string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
+            var existing = new HashSet<string>(resources.Select(r => r.ContainsKey("Name") ? r["Name"] : ""));
+
+            foreach (var kvp in enhancements)
+            {
+                if (existing.Contains(kvp.Key)) continue;
+                resources.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = "Labour",
+                    ["ExternalSystem"] = "STING", ["ExternalObject"] = "Resource",
+                    ["ExternalIdentifier"] = kvp.Key.Replace(" ", "_"),
+                    ["Description"] = $"Skills: {kvp.Value.skills}. Rate: {kvp.Value.rate}. Certifications: {kvp.Value.cert}"
+                });
+            }
+        }
+
+        /// <summary>Enhance Impact worksheet with lifecycle cost analysis, carbon per m², and energy benchmarks.</summary>
+        private static void EnhanceImpactWorksheet(Document doc, List<Dictionary<string, string>> impacts)
+        {
+            string createdBy = impacts.Count > 0 && impacts[0].ContainsKey("CreatedBy") ? impacts[0]["CreatedBy"] : Environment.UserName;
+            string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
+            var seen = new HashSet<string>(impacts.Select(i => i.ContainsKey("Name") ? i["Name"] : ""));
+
+            // Add building-level energy benchmarks
+            var benchmarks = new[]
+            {
+                ("Energy-Benchmark-Heating", "Heating Energy", "120", "kWh/m²/yr", "Operation", "TM46 benchmark for heating energy consumption"),
+                ("Energy-Benchmark-Cooling", "Cooling Energy", "30", "kWh/m²/yr", "Operation", "TM46 benchmark for cooling energy consumption"),
+                ("Energy-Benchmark-Lighting", "Lighting Energy", "40", "kWh/m²/yr", "Operation", "TM46 benchmark for lighting energy consumption"),
+                ("Energy-Benchmark-DHW", "DHW Energy", "25", "kWh/m²/yr", "Operation", "TM46 benchmark for domestic hot water energy"),
+                ("Carbon-Benchmark-Operational", "Operational Carbon", "50", "kgCO2e/m²/yr", "Operation", "Operational carbon benchmark per CIBSE TM54"),
+                ("Carbon-Benchmark-Embodied", "Embodied Carbon", "500", "kgCO2e/m²", "Construction", "LETI 2030 embodied carbon target for new buildings"),
+                ("Water-Benchmark", "Water Consumption", "6", "m³/person/yr", "Operation", "BREEAM Wat 01 benchmark for water consumption"),
+                ("Waste-Benchmark", "Construction Waste", "3.2", "tonnes/100m²", "Construction", "BREEAM Wst 01 benchmark for construction waste")
+            };
+
+            foreach (var (name, impactType, value, unit, stage, desc) in benchmarks)
+            {
+                if (seen.Contains(name)) continue;
+                seen.Add(name);
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = name, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Environment", ["ImpactStage"] = stage,
+                    ["SheetName"] = "Facility", ["RowName"] = doc.ProjectInformation?.Name ?? "Project",
+                    ["Value"] = value, ["Unit"] = unit,
+                    ["LeadInTime"] = "", ["Duration"] = "60", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = unit, ["Description"] = desc
+                });
+            }
+
+            // Add lifecycle cost projections
+            var lifecycleCosts = new[]
+            {
+                ("Lifecycle-Maintenance", "Maintenance Cost", "25", "£/m²/yr", "Operation", "Annual planned maintenance cost benchmark"),
+                ("Lifecycle-Replacement", "Replacement Reserve", "15", "£/m²/yr", "Operation", "Annual lifecycle replacement reserve fund"),
+                ("Lifecycle-Energy", "Energy Cost", "18", "£/m²/yr", "Operation", "Annual energy cost benchmark (electricity + gas)"),
+                ("Lifecycle-Water", "Water Cost", "3", "£/m²/yr", "Operation", "Annual water and sewerage cost benchmark"),
+                ("Lifecycle-Insurance", "Insurance Cost", "5", "£/m²/yr", "Operation", "Building insurance cost benchmark"),
+                ("Lifecycle-TotalOpex", "Total Operational Cost", "66", "£/m²/yr", "Operation", "Total annual operational expenditure benchmark")
+            };
+
+            foreach (var (name, impactType, value, unit, stage, desc) in lifecycleCosts)
+            {
+                if (seen.Contains(name)) continue;
+                seen.Add(name);
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = name, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Economic", ["ImpactStage"] = stage,
+                    ["SheetName"] = "Facility", ["RowName"] = doc.ProjectInformation?.Name ?? "Project",
+                    ["Value"] = value, ["Unit"] = unit,
+                    ["LeadInTime"] = "", ["Duration"] = "60", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = unit, ["Description"] = desc
+                });
+            }
         }
     }
 

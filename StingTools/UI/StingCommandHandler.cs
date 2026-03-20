@@ -988,6 +988,7 @@ namespace StingTools.UI
                     case "ExportSchedulesToExcel": RunCommand<BIMManager.ExportSchedulesToExcelCommand>(app); break;
                     case "ImportSchedulesFromExcel": RunCommand<BIMManager.ImportSchedulesFromExcelCommand>(app); break;
                     case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
+                    case "ExcelExchangeWizard": RunCommand<BIMManager.ExcelExchangeWizardCommand>(app); break;
 
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;

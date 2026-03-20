@@ -2661,9 +2661,22 @@ namespace StingTools.Core
                     cachedRev: ctx?.ProjectRev);
 
                 // P1: Write TAG7 rich narrative (A-F sub-sections)
-                // NOTE: Container write is already handled inside BuildAndWriteTag above.
-                // Only TAG7 needs separate handling here since it uses the narrative builder.
+                // Re-read token values AFTER BuildAndWriteTag + formulas so containers
+                // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+
+                // Verify container write succeeded inside BuildAndWriteTag.
+                // If it failed silently (exception caught at TagConfig line 2068-2072),
+                // retry here so TAG1 and containers are never out of sync (Gap G001 fix).
+                try
+                {
+                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwrite);
+                }
+                catch (Exception containerEx)
+                {
+                    StingLog.Warn($"TagPipeline: container retry failed for {el.Id}: {containerEx.Message}");
+                }
+
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available

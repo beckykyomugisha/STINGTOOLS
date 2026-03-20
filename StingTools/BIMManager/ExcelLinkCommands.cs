@@ -2378,4 +2378,228 @@ namespace StingTools.BIMManager
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  ExcelExchangeWizardCommand — Consolidated wizard for Export/Import/RoundTrip
+    // ════════════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExcelExchangeWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // Launch the Excel Exchange Wizard
+            var settings = ExcelExchangeWizard.Show(doc);
+            if (settings == null) return Result.Cancelled;
+
+            StingLog.Info($"ExcelLink Wizard: mode={settings.Mode}, scope={settings.Scope}, file={settings.FilePath}");
+
+            // Dispatch based on selected mode
+            switch (settings.Mode)
+            {
+                case "Export":
+                    return ExecuteExport(doc, uidoc, settings, ref message);
+                case "Import":
+                    return ExecuteImport(doc, uidoc, settings, ref message);
+                case "RoundTrip":
+                    return ExecuteRoundTrip(doc, uidoc, settings, ref message);
+                case "Template":
+                    return ExecuteTemplate(doc, settings, ref message);
+                default:
+                    TaskDialog.Show("STING", $"Unknown mode: {settings.Mode}");
+                    return Result.Failed;
+            }
+        }
+
+        private Result ExecuteExport(Document doc, UIDocument uidoc, ExcelExchangeSettings settings, ref string message)
+        {
+            try
+            {
+                bool selectionOnly = settings.Scope == "Selected";
+                var (elems, scope) = ExcelLinkEngine.CollectElements(doc, uidoc, selectionOnly);
+                if (elems.Count == 0)
+                {
+                    TaskDialog.Show("STING Excel Exchange", "No taggable elements found in the selected scope.");
+                    return Result.Succeeded;
+                }
+
+                using var wb = ExcelLinkEngine.BuildWorkbook(doc, elems);
+                string outputPath = settings.FilePath;
+                if (string.IsNullOrEmpty(outputPath))
+                    outputPath = OutputLocationHelper.GetOutputPath(doc, $"STING_Excel_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+
+                wb.SaveAs(outputPath);
+                StingLog.Info($"ExcelLink Wizard: Exported {elems.Count} elements to {outputPath}");
+
+                TaskDialog.Show("STING Excel Exchange",
+                    $"Export Complete\n\nExported {elems.Count} elements ({scope}) to:\n{outputPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExcelLink Wizard Export failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteImport(Document doc, UIDocument uidoc, ExcelExchangeSettings settings, ref string message)
+        {
+            try
+            {
+                string filePath = settings.FilePath;
+                if (!File.Exists(filePath))
+                {
+                    TaskDialog.Show("STING Excel Exchange", $"File not found:\n{filePath}");
+                    return Result.Failed;
+                }
+
+                StingLog.Info($"ExcelLink Wizard: Importing from {filePath}");
+                var excelData = ExcelLinkEngine.ReadExcelFile(filePath);
+                if (excelData.Count == 0)
+                {
+                    TaskDialog.Show("STING Excel Exchange", "No data rows found in the Excel file.");
+                    return Result.Succeeded;
+                }
+
+                var changes = ExcelLinkEngine.ComputeChanges(doc, excelData);
+                var actualChanges = changes.Where(c => c.Status == ExcelLinkEngine.ChangeStatus.Changed).ToList();
+                if (actualChanges.Count == 0)
+                {
+                    TaskDialog.Show("STING Excel Exchange", "No changes detected in the Excel file.");
+                    return Result.Succeeded;
+                }
+
+                using (Transaction tx = new Transaction(doc, "STING Excel Import (Wizard)"))
+                {
+                    tx.Start();
+                    var (applied, skippedI, failedI) = ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
+                    tx.Commit();
+                }
+
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+
+                TaskDialog.Show("STING Excel Exchange",
+                    $"Import Complete\n\nApplied {actualChanges.Count} changes from:\n{filePath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExcelLink Wizard Import failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteRoundTrip(Document doc, UIDocument uidoc, ExcelExchangeSettings settings, ref string message)
+        {
+            try
+            {
+                // Export
+                bool selectionOnly = settings.Scope == "Selected";
+                var (elems, scope) = ExcelLinkEngine.CollectElements(doc, uidoc, selectionOnly);
+                if (elems.Count == 0)
+                {
+                    TaskDialog.Show("STING Excel Exchange", "No taggable elements found.");
+                    return Result.Succeeded;
+                }
+
+                string filePath = settings.FilePath;
+                if (string.IsNullOrEmpty(filePath))
+                    filePath = OutputLocationHelper.GetOutputPath(doc, $"STING_RoundTrip_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+
+                using (var wb = ExcelLinkEngine.BuildWorkbook(doc, elems))
+                    wb.SaveAs(filePath);
+
+                // Open in Excel
+                TaskDialog.Show("STING Excel Exchange",
+                    $"Exported {elems.Count} elements to:\n{filePath}\n\n" +
+                    "Edit the file in Excel, save it, then click OK to import changes.");
+
+                // Import
+                if (File.Exists(filePath))
+                {
+                    var excelData = ExcelLinkEngine.ReadExcelFile(filePath);
+                    var changes = ExcelLinkEngine.ComputeChanges(doc, excelData);
+                    var actualChanges = changes.Where(c => c.Status == ExcelLinkEngine.ChangeStatus.Changed).ToList();
+                    if (actualChanges.Count > 0)
+                    {
+                        using (Transaction tx = new Transaction(doc, "STING Excel RoundTrip Import"))
+                        {
+                            tx.Start();
+                            ExcelLinkEngine.ApplyChanges(doc, actualChanges, tx);
+                            tx.Commit();
+                        }
+                        ComplianceScan.InvalidateCache();
+                        StingAutoTagger.InvalidateContext();
+                    }
+
+                    TaskDialog.Show("STING Excel Exchange",
+                        $"Round-Trip Complete\n\nApplied {actualChanges.Count} changes.");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExcelLink Wizard RoundTrip failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private Result ExecuteTemplate(Document doc, ExcelExchangeSettings settings, ref string message)
+        {
+            try
+            {
+                // Delegate to the existing ExportTemplateCommand for template generation
+                string filePath = settings.FilePath;
+                if (string.IsNullOrEmpty(filePath))
+                    filePath = OutputLocationHelper.GetOutputPath(doc, $"STING_Template_{DateTime.Now:yyyyMMdd}.xlsx");
+
+                // Build template inline (same logic as ExportTemplateCommand)
+                using (var wb = new XLWorkbook())
+                {
+                    var ws = wb.AddWorksheet("Data_Entry_Template");
+                    for (int i = 0; i < ExcelLinkEngine.ColumnHeaders.Length; i++)
+                    {
+                        var cell = ws.Cell(1, i + 1);
+                        cell.Value = ExcelLinkEngine.ColumnHeaders[i];
+                        cell.Style.Font.Bold = true;
+                        cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        if (ExcelLinkEngine.ReadOnlyColumns.Contains(ExcelLinkEngine.ColumnHeaders[i]))
+                        {
+                            cell.Style.Fill.BackgroundColor = XLColor.FromArgb(158, 158, 158);
+                            cell.Style.Font.FontColor = XLColor.White;
+                        }
+                        else
+                        {
+                            cell.Style.Fill.BackgroundColor = XLColor.FromArgb(27, 94, 32);
+                            cell.Style.Font.FontColor = XLColor.White;
+                        }
+                    }
+                    ws.Columns().AdjustToContents(1, 50);
+                    wb.SaveAs(filePath);
+                }
+
+                StingLog.Info($"ExcelLink Wizard: Template exported to {filePath}");
+                TaskDialog.Show("STING Excel Exchange", $"Template exported to:\n{filePath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ExcelLink Wizard Template failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

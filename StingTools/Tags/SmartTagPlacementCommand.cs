@@ -1304,47 +1304,13 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            TaskDialog optDlg = new TaskDialog("Smart Place Tags");
-            optDlg.MainInstruction = "Place annotation tags in active view";
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Tag untagged elements only",
-                "Skip elements that already have an annotation tag in this view");
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Tag ALL elements",
-                "Place tags on every taggable element (may create duplicates)");
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Tag selected elements only",
-                $"Tag {uidoc.Selection.GetElementIds().Count} selected elements");
-            optDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Launch Smart Placement Wizard for interactive configuration
+            var wizSettings = UI.SmartPlacementWizard.Show();
+            if (wizSettings == null) return Result.Cancelled;
 
-            bool tagUntaggedOnly;
-            bool selectedOnly = false;
-            switch (optDlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: tagUntaggedOnly = true; break;
-                case TaskDialogResult.CommandLink2: tagUntaggedOnly = false; break;
-                case TaskDialogResult.CommandLink3: tagUntaggedOnly = false; selectedOnly = true; break;
-                default: return Result.Cancelled;
-            }
-
-            TaskDialog leaderDlg = new TaskDialog("Smart Place Tags — Leaders");
-            leaderDlg.MainInstruction = "Leader line mode";
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Auto (recommended)", "Add leaders only when tag must be placed far from element");
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Always show leaders", "Add leader lines to all placed tags");
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "No leaders", "Never add leader lines");
-            leaderDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            bool addLeaders;
-            switch (leaderDlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: addLeaders = false; break;
-                case TaskDialogResult.CommandLink2: addLeaders = true; break;
-                case TaskDialogResult.CommandLink3: addLeaders = false; break;
-                default: return Result.Cancelled;
-            }
+            bool tagUntaggedOnly = wizSettings.Scope == "Untagged";
+            bool selectedOnly = wizSettings.Scope == "Selected";
+            bool addLeaders = wizSettings.LeaderMode == "Always";
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int placed, skipped, collisions;
@@ -1373,6 +1339,32 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc, "STING Smart Place Tags (Selected)"))
                 {
                     tx.Start();
+
+                    // Gap fix: Run data tagging pipeline on untagged elements before
+                    // creating visual annotations, so tags display meaningful content.
+                    var pipelineCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                    foreach (ElementId pid in selectedIds)
+                    {
+                        Element pEl = doc.GetElement(pid);
+                        if (pEl?.Category == null) continue;
+                        string existingTag = ParameterHelpers.GetString(pEl, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(existingTag))
+                        {
+                            try
+                            {
+                                ParameterHelpers.RunFullPipeline(doc, pEl, pipelineCtx,
+                                    tagIdx, seqCtrs, null, null,
+                                    overwrite: false, skipComplete: true,
+                                    collisionMode: TagCollisionMode.AutoIncrement);
+                            }
+                            catch (Exception pipeEx)
+                            {
+                                StingLog.Warn($"SmartPlace pipeline for {pEl.Id}: {pipeEx.Message}");
+                            }
+                        }
+                    }
+
                     var tagTypeCache = new Dictionary<ElementId, ElementId>();
 
                     foreach (ElementId id in selectedIds)
@@ -1444,13 +1436,43 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc, "STING Smart Place Tags"))
                 {
                     tx.Start();
+
+                    // Gap fix: Pre-tag untagged elements before visual placement
+                    if (tagUntaggedOnly)
+                    {
+                        var pipeCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                        var (tIdx, sCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                        foreach (Element vEl in new FilteredElementCollector(doc, view.Id)
+                            .WhereElementIsNotElementType())
+                        {
+                            if (vEl?.Category == null) continue;
+                            string et = ParameterHelpers.GetString(vEl, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(et))
+                            {
+                                try
+                                {
+                                    ParameterHelpers.RunFullPipeline(doc, vEl, pipeCtx,
+                                        tIdx, sCtrs, null, null,
+                                        overwrite: false, skipComplete: true,
+                                        collisionMode: TagCollisionMode.AutoIncrement);
+                                }
+                                catch (Exception pEx)
+                                {
+                                    StingLog.Warn($"SmartPlace pipeline (view) {vEl.Id}: {pEx.Message}");
+                                }
+                            }
+                        }
+                    }
+
                     (placed, skipped, collisions) =
                         TagPlacementEngine.PlaceTagsInView(doc, view, addLeaders, tagUntaggedOnly);
                     tx.Commit();
                 }
             }
 
-            // Invalidate caches so dashboard reflects visual tag changes
+            // Persist SEQ counters and invalidate caches
+            try { var (_, spSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, spSeq); }
+            catch (Exception ex) { StingLog.Warn($"SmartPlace SEQ sidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 

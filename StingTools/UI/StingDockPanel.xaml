@@ -2234,6 +2234,8 @@
                                             ToolTip="One-click: export → edit in Excel → import on return" FontWeight="Bold"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Excel Wizard" Tag="ExcelExchangeWizard" Click="Cmd_Click"
+                                            ToolTip="Interactive wizard for Export/Import/RoundTrip with column selection and validation options" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Export Schedules" Tag="ExportSchedulesToExcel" Click="Cmd_Click"
                                             ToolTip="Export all Revit schedules to Excel (one worksheet per schedule)"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Import Schedules" Tag="ImportSchedulesFromExcel" Click="Cmd_Click"
