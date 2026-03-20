@@ -751,7 +751,7 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        // Update the stale token
+                        // Update the stale token (skip if locked)
                         string paramName = token switch
                         {
                             "LVL" => ParamRegistry.LVL,
@@ -763,11 +763,21 @@ namespace StingTools.Tags
                             _ => null
                         };
                         if (paramName != null)
-                            ParameterHelpers.SetString(el, paramName, current, overwrite: true);
+                        {
+                            // Respect token lock: skip overwrite if this token is locked
+                            string lockStr = ParameterHelpers.GetString(el, ParamRegistry.Ext("TOKEN_LOCK"));
+                            bool isLocked = !string.IsNullOrEmpty(lockStr) &&
+                                lockStr.Split(',').Any(lk => lk.Trim().Equals(token, StringComparison.OrdinalIgnoreCase));
+                            if (!isLocked)
+                                ParameterHelpers.SetString(el, paramName, current, overwrite: true);
+                        }
 
-                        // Rebuild tag only once per element
+                        // Rebuild tag only once per element (first stale token triggers full rebuild)
                         if (processedElements.Add(el.Id))
                         {
+                            // Inherit type-level tokens before tag rebuild
+                            try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                            catch (Exception tiEx) { StingLog.Warn($"TagChanged TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
                             // Bridge native params BEFORE tag assembly so dependent values are current
                             try { NativeParamMapper.MapAll(doc, el); }
                             catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }

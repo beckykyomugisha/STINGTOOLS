@@ -1891,10 +1891,11 @@ namespace StingTools.Core
             int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
             if (sequenceCounters[seqKey] > maxSeq)
             {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
-                sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
+                sequenceCounters[seqKey] = maxSeq; // Cap counter to prevent further drift
+                return false; // Skip element to prevent duplicate tags
             }
 
             // Build SEQ string using the configured numbering scheme
@@ -1921,10 +1922,11 @@ namespace StingTools.Core
                     // Overflow guard: cap SEQ at format capacity (9999 for NumPad=4)
                     if (sequenceCounters[seqKey] > maxSeq)
                     {
-                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                         StingLog.Warn(overflowMsg);
                         stats?.RecordWarning(overflowMsg);
-                        break;
+                        sequenceCounters[seqKey] = maxSeq;
+                        return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);

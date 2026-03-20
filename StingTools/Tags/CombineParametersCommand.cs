@@ -150,14 +150,33 @@ namespace StingTools.Tags
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (string.IsNullOrEmpty(disc))
                     {
-                        skippedNoDisc++;
-                        continue;
+                        // Auto-detect DISC from category before skipping
+                        disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
+                        if (!string.IsNullOrEmpty(disc))
+                        {
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                        }
+                        else
+                        {
+                            skippedNoDisc++;
+                            continue;
+                        }
                     }
 
                     totalElements++;
 
                     // Read all source tokens once
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+
+                    // Ensure TAG1 is current: rebuild from tokens if empty or stale
+                    string currentTag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string rebuiltTag1 = string.Join(ParamRegistry.Separator, tokenValues);
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        rebuiltTag1 = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag1;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        rebuiltTag1 = rebuiltTag1 + ParamRegistry.Separator + TagConfig.TagSuffix;
+                    if (string.IsNullOrEmpty(currentTag1) || currentTag1 != rebuiltTag1)
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG1, rebuiltTag1, overwrite: true);
 
                     foreach (var group in activeGroups)
                     {

@@ -331,13 +331,21 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(func))
                         func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
 
-                    string seqKey = $"{disc}_{sys}_{lvl}";
+                    string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
                     simCounters[seqKey]++;
-                    string seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    string seqSchemeCtx = TagConfig.CurrentSeqScheme == TagConfig.SeqScheme.ZonePrefix ? currentZone
+                                        : TagConfig.CurrentSeqScheme == TagConfig.SeqScheme.DiscPrefix ? disc
+                                        : "";
+                    string seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
 
                     predictedTag = string.Join(ParamRegistry.Separator,
                         disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                    // Apply TAG_PREFIX/TAG_SUFFIX for accurate collision simulation
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                     // Check collision
                     int collisionCount = 0;
@@ -345,9 +353,13 @@ namespace StingTools.Tags
                     {
                         collisionCount++;
                         simCounters[seqKey]++;
-                        seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
                         predictedTag = string.Join(ParamRegistry.Separator,
                             disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                     }
                     if (collisionCount > 0) predictedCollisions++;
                     simTags.Add(predictedTag);
