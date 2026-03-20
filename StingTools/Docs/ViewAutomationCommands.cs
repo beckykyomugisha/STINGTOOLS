@@ -128,9 +128,10 @@ namespace StingTools.Docs
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Batch rename views using find/replace patterns.
-    /// Supports common BIM renaming: adding prefixes, removing suffixes,
-    /// standardising discipline codes, and level name updates.
+    /// Batch rename elements using a single-page WPF DataGrid dialog.
+    /// Shows Original Name → New Name (editable) with category/family filters,
+    /// operation presets, search/filter, Select All, and live preview.
+    /// Supports views, sheets, schedules, families, types, materials, levels, grids, etc.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -143,231 +144,518 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Step 1: Pick what category of elements to rename
-            var categoryItems = new List<StingListPicker.ListItem>
+            // Collect ALL rename targets across all categories
+            var allTargets = new List<RenameRow>();
+            CollectAllTargets(doc, allTargets);
+
+            if (allTargets.Count == 0)
             {
-                new() { Label = "Views", Detail = "Floor plans, sections, elevations, 3D views", Tag = "views" },
-                new() { Label = "Sheets", Detail = "Sheet names and numbers", Tag = "sheets" },
-                new() { Label = "Schedules", Detail = "Schedule/quantity views", Tag = "schedules" },
-                new() { Label = "Families", Detail = "Loaded family names", Tag = "families" },
-                new() { Label = "Family Types", Detail = "Type names within families", Tag = "types" },
-                new() { Label = "Line Styles", Detail = "Project line style names", Tag = "linestyles" },
-                new() { Label = "Fill Patterns", Detail = "Fill pattern names", Tag = "fillpatterns" },
-                new() { Label = "Materials", Detail = "Material names", Tag = "materials" },
-                new() { Label = "Levels", Detail = "Level names", Tag = "levels" },
-                new() { Label = "Grids", Detail = "Grid line names", Tag = "grids" },
-                new() { Label = "View Templates", Detail = "View template names", Tag = "templates" },
-                new() { Label = "Worksets", Detail = "Workset names", Tag = "worksets" },
-            };
-
-            var catPick = StingListPicker.Show(
-                "Batch Rename — Select Category",
-                "Choose which element category to rename",
-                categoryItems, allowMultiSelect: false);
-
-            if (catPick == null || catPick.Count == 0) return Result.Cancelled;
-            string category = catPick[0].Tag as string;
-
-            // Step 2: Collect renameable elements for the selected category
-            var renameTargets = CollectRenameTargets(doc, category);
-            if (renameTargets.Count == 0)
-            {
-                TaskDialog.Show("Batch Rename", $"No {category} found in the project.");
+                TaskDialog.Show("STING Batch Rename", "No renameable items found in the project.");
                 return Result.Succeeded;
             }
 
-            // Step 3: Pick items to rename (multi-select, or Select All)
-            var targetItems = renameTargets.Select(t => new StingListPicker.ListItem
+            // Show single-page WPF DataGrid dialog
+            var dialog = new BatchRenameDialog(allTargets);
+            try
             {
-                Label = t.Name,
-                Detail = t.Category,
-                Tag = t.Id
-            }).ToList();
-
-            var selectedItems = StingListPicker.Show(
-                $"Batch Rename — Select {category}",
-                $"{renameTargets.Count} items available. Select items to rename.",
-                targetItems, allowMultiSelect: true);
-
-            if (selectedItems == null || selectedItems.Count == 0) return Result.Cancelled;
-            var selectedIds = new HashSet<ElementId>(
-                selectedItems.Select(i => (ElementId)i.Tag).Where(id => id != null));
-
-            // Filter views to just selected ones (for the rename step below)
-            var views = renameTargets
-                .Where(t => selectedIds.Contains(t.Id))
-                .Select(t => doc.GetElement(t.Id))
-                .Where(e => e != null)
-                .ToList();
-
-            // Step 4: Pick rename operation
-            var opItems = new List<StingListPicker.ListItem>
-            {
-                new() { Label = "Add 'STING - ' prefix", Detail = "Prefix for project identification", Tag = "prefix" },
-                new() { Label = "Remove ' Copy' suffix", Detail = "Clean duplicated names", Tag = "removecopy" },
-                new() { Label = "UPPERCASE all names", Detail = "Convert to UPPERCASE", Tag = "upper" },
-                new() { Label = "lowercase all names", Detail = "Convert to lowercase", Tag = "lower" },
-                new() { Label = "Title Case", Detail = "Capitalize First Letter Of Each Word", Tag = "titlecase" },
-                new() { Label = "Standardise level names", Detail = "Replace 'Level 1' with 'L01' etc.", Tag = "stdlevels" },
-                new() { Label = "Custom find/replace", Detail = "Enter custom find and replace text", Tag = "findreplace" },
-                new() { Label = "Add numbering suffix", Detail = "Add sequential numbers (-001, -002, ...)", Tag = "number" },
-                new() { Label = "Remove prefix up to ' - '", Detail = "Remove everything before first ' - '", Tag = "removeprefix" },
-            };
-
-            var opPick = StingListPicker.Show(
-                "Batch Rename — Select Operation",
-                $"Renaming {selectedIds.Count} items",
-                opItems, allowMultiSelect: false);
-
-            if (opPick == null || opPick.Count == 0) return Result.Cancelled;
-            string modeTag = opPick[0].Tag as string;
-
-            int mode = modeTag switch
-            {
-                "prefix" => 1,
-                "removecopy" => 2,
-                "upper" => 3,
-                "stdlevels" => 4,
-                "findreplace" => 5,
-                "lower" => 6,
-                "titlecase" => 7,
-                "number" => 8,
-                "removeprefix" => 9,
-                _ => 0,
-            };
-            if (mode == 0) return Result.Cancelled;
-
-            // FIX-C04: Prompt for custom find/replace strings when mode 5 selected
-            string findText = null, replaceText = null;
-            if (mode == 5)
-            {
-                TaskDialog findDlg = new TaskDialog("Custom Find/Replace");
-                findDlg.MainInstruction = "Enter the text to find:";
-                findDlg.MainContent = "Type the text you want to search for in view names.\n" +
-                    "This will be replaced in ALL matching views.";
-                findDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-
-                // Use a simple approach: prompt via two sequential TaskDialogs
-                // Since TaskDialog doesn't have text input, use a workaround with
-                // Microsoft.VisualBasic.Interaction.InputBox or a simple WPF input
-                try
-                {
-                    var inputWin = new System.Windows.Window
-                    {
-                        Title = "Find Text",
-                        Width = 400, Height = 160,
-                        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
-                        ResizeMode = System.Windows.ResizeMode.NoResize
-                    };
-                    var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(10) };
-                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Find:", Margin = new System.Windows.Thickness(0, 0, 0, 5) });
-                    var findBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 5) };
-                    stack.Children.Add(findBox);
-                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Replace with:", Margin = new System.Windows.Thickness(0, 5, 0, 5) });
-                    var replaceBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 10) };
-                    stack.Children.Add(replaceBox);
-                    var okBtn = new System.Windows.Controls.Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-                    okBtn.Click += (s, ev) => { inputWin.DialogResult = true; inputWin.Close(); };
-                    stack.Children.Add(okBtn);
-                    inputWin.Content = stack;
-                    findBox.Focus();
-
-                    if (inputWin.ShowDialog() != true || string.IsNullOrEmpty(findBox.Text))
-                    {
-                        TaskDialog.Show("Batch Rename Views", "Find text cannot be empty.");
-                        return Result.Cancelled;
-                    }
-                    findText = findBox.Text;
-                    replaceText = replaceBox.Text ?? "";
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"BatchRenameViews custom input: {ex.Message}");
-                    TaskDialog.Show("Batch Rename Views", "Could not open input dialog.");
-                    return Result.Failed;
-                }
+                var helper = new System.Windows.Interop.WindowInteropHelper(dialog);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
+            catch (Exception ex) { StingLog.Warn($"Set window owner: {ex.Message}"); }
 
-            int renamed = 0;
-            int failed = 0;
-            var changes = new List<(string oldName, string newName)>();
-            int seqNum = 0;
+            if (dialog.ShowDialog() != true) return Result.Cancelled;
 
+            var toRename = dialog.GetRenameResults();
+            if (toRename.Count == 0) return Result.Cancelled;
+
+            int renamed = 0, failed = 0;
             using (Transaction tx = new Transaction(doc, "STING Batch Rename"))
             {
                 tx.Start();
-                foreach (Element el in views)
+                foreach (var row in toRename)
                 {
-                    string oldName = GetElementName(el);
-                    if (string.IsNullOrEmpty(oldName)) continue;
-                    string newName = oldName;
-
-                    switch (mode)
-                    {
-                        case 1: // Add prefix
-                            if (!oldName.StartsWith("STING - "))
-                                newName = "STING - " + oldName;
-                            break;
-                        case 2: // Remove Copy suffix
-                            newName = System.Text.RegularExpressions.Regex.Replace(
-                                oldName, @"\s*Copy\s*\d*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                            break;
-                        case 3: // UPPERCASE
-                            newName = oldName.ToUpperInvariant();
-                            break;
-                        case 4: // Standardise levels
-                            newName = StandardiseLevelName(oldName);
-                            break;
-                        case 5: // Custom find/replace
-                            if (findText != null && oldName.Contains(findText))
-                                newName = oldName.Replace(findText, replaceText);
-                            break;
-                        case 6: // lowercase
-                            newName = oldName.ToLowerInvariant();
-                            break;
-                        case 7: // Title Case
-                            newName = System.Globalization.CultureInfo.CurrentCulture
-                                .TextInfo.ToTitleCase(oldName.ToLowerInvariant());
-                            break;
-                        case 8: // Add numbering
-                            seqNum++;
-                            newName = $"{oldName}-{seqNum:D3}";
-                            break;
-                        case 9: // Remove prefix up to ' - '
-                            int dashIdx = oldName.IndexOf(" - ");
-                            if (dashIdx >= 0 && dashIdx < oldName.Length - 3)
-                                newName = oldName.Substring(dashIdx + 3);
-                            break;
-                    }
-
-                    if (newName == oldName) continue;
-
+                    if (string.IsNullOrEmpty(row.NewName) || row.NewName == row.OriginalName) continue;
+                    Element el = doc.GetElement(row.Id);
+                    if (el == null) { failed++; continue; }
                     try
                     {
-                        SetElementName(el, newName);
+                        SetElementName(el, row.NewName);
                         renamed++;
-                        changes.Add((oldName, newName));
                     }
                     catch (Exception ex)
                     {
                         failed++;
-                        StingLog.Warn($"Rename '{oldName}': {ex.Message}");
+                        StingLog.Warn($"Rename '{row.OriginalName}' → '{row.NewName}': {ex.Message}");
                     }
                 }
                 tx.Commit();
             }
 
-            var report = new StringBuilder();
-            report.AppendLine($"Renamed {renamed} of {views.Count} items.");
-            if (failed > 0) report.AppendLine($"Failed: {failed}");
-            report.AppendLine();
-            foreach (var (old, nw) in changes.Take(15))
-                report.AppendLine($"  {old} → {nw}");
-            if (changes.Count > 15)
-                report.AppendLine($"  ... and {changes.Count - 15} more");
-
-            TaskDialog.Show("Batch Rename", report.ToString());
+            TaskDialog.Show("STING Batch Rename",
+                $"Renamed: {renamed}\nFailed: {failed}\nTotal selected: {toRename.Count}");
+            StingLog.Info($"BatchRename: renamed={renamed}, failed={failed}");
             return Result.Succeeded;
+        }
+
+        // ── Rename row model ──
+        internal class RenameRow : System.ComponentModel.INotifyPropertyChanged
+        {
+            public ElementId Id { get; set; }
+            public string OriginalName { get; set; }
+            private string _newName;
+            public string NewName
+            {
+                get => _newName;
+                set { _newName = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(NewName))); }
+            }
+            public string Category { get; set; }
+            public string Family { get; set; }
+            public bool IsSelected { get; set; }
+            public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+        }
+
+        // ── WPF DataGrid dialog ──
+        internal class BatchRenameDialog : System.Windows.Window
+        {
+            private readonly List<RenameRow> _allRows;
+            private readonly System.Windows.Controls.DataGrid _grid;
+            private readonly System.Windows.Controls.ComboBox _categoryFilter;
+            private readonly System.Windows.Controls.ComboBox _familyFilter;
+            private readonly System.Windows.Controls.TextBox _searchBox;
+            private readonly System.Windows.Controls.ComboBox _operationCombo;
+            private readonly System.Windows.Controls.TextBlock _statusText;
+            private List<RenameRow> _filteredRows;
+
+            public BatchRenameDialog(List<RenameRow> rows)
+            {
+                _allRows = rows;
+                _filteredRows = new List<RenameRow>(rows);
+
+                Title = "STING Batch Rename";
+                Width = 960; Height = 640;
+                MinWidth = 700; MinHeight = 400;
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
+                Background = new SolidColorBrush(Color.FromRgb(250, 250, 252));
+                FontFamily = new FontFamily("Segoe UI");
+                ResizeMode = ResizeMode.CanResizeWithGrip;
+
+                var root = new Grid();
+                root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Header
+                root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Filters
+                root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Operation
+                root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Grid
+                root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Buttons
+
+                // ── Header ──
+                var header = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(88, 44, 131)),
+                    Padding = new Thickness(16, 12, 16, 12)
+                };
+                var headerStack = new StackPanel();
+                headerStack.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "STING Batch Rename",
+                    FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White
+                });
+                headerStack.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = $"{rows.Count} items loaded",
+                    FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+                header.Child = headerStack;
+                Grid.SetRow(header, 0);
+                root.Children.Add(header);
+
+                // ── Filter bar ──
+                var filterPanel = new System.Windows.Controls.WrapPanel
+                {
+                    Margin = new Thickness(12, 8, 12, 4)
+                };
+
+                filterPanel.Children.Add(MakeLabel("Category"));
+                _categoryFilter = new System.Windows.Controls.ComboBox { Width = 180, Margin = new Thickness(4, 0, 16, 0) };
+                _categoryFilter.SelectionChanged += (s, e) => ApplyFilters();
+                filterPanel.Children.Add(_categoryFilter);
+
+                filterPanel.Children.Add(MakeLabel("Family"));
+                _familyFilter = new System.Windows.Controls.ComboBox { Width = 180, Margin = new Thickness(4, 0, 16, 0) };
+                _familyFilter.SelectionChanged += (s, e) => ApplyFilters();
+                filterPanel.Children.Add(_familyFilter);
+
+                filterPanel.Children.Add(MakeLabel("Search / Filter"));
+                _searchBox = new System.Windows.Controls.TextBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                _searchBox.TextChanged += (s, e) => ApplyFilters();
+                filterPanel.Children.Add(_searchBox);
+
+                Grid.SetRow(filterPanel, 1);
+                root.Children.Add(filterPanel);
+
+                // ── Operation bar ──
+                var opPanel = new System.Windows.Controls.WrapPanel { Margin = new Thickness(12, 4, 12, 4) };
+                opPanel.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Operation:", FontWeight = FontWeights.SemiBold, FontSize = 12,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0)
+                });
+                _operationCombo = new System.Windows.Controls.ComboBox { Width = 280, FontSize = 12 };
+                _operationCombo.Items.Add("(Manual edit — type in New Name column)");
+                _operationCombo.Items.Add("Add 'STING - ' prefix");
+                _operationCombo.Items.Add("Remove ' Copy' suffix");
+                _operationCombo.Items.Add("UPPERCASE all names");
+                _operationCombo.Items.Add("lowercase all names");
+                _operationCombo.Items.Add("Title Case");
+                _operationCombo.Items.Add("Standardise Levels");
+                _operationCombo.Items.Add("Custom find/replace...");
+                _operationCombo.Items.Add("Add numbering suffix (-001, -002, ...)");
+                _operationCombo.Items.Add("Remove prefix up to ' - '");
+                _operationCombo.SelectedIndex = 0;
+                _operationCombo.SelectionChanged += (s, e) => ApplyOperation();
+                opPanel.Children.Add(_operationCombo);
+
+                var applyOpBtn = new System.Windows.Controls.Button
+                {
+                    Content = "Apply", Width = 70, Height = 26, Margin = new Thickness(8, 0, 0, 0),
+                    Background = new SolidColorBrush(Color.FromRgb(88, 44, 131)),
+                    Foreground = Brushes.White, FontSize = 12, Cursor = System.Windows.Input.Cursors.Hand
+                };
+                applyOpBtn.Click += (s, e) => ApplyOperation();
+                opPanel.Children.Add(applyOpBtn);
+
+                Grid.SetRow(opPanel, 2);
+                root.Children.Add(opPanel);
+
+                // ── DataGrid ──
+                _grid = new System.Windows.Controls.DataGrid
+                {
+                    Margin = new Thickness(12, 4, 12, 8),
+                    AutoGenerateColumns = false,
+                    CanUserAddRows = false,
+                    CanUserDeleteRows = false,
+                    SelectionMode = System.Windows.Controls.DataGridSelectionMode.Extended,
+                    GridLinesVisibility = System.Windows.Controls.DataGridGridLinesVisibility.Horizontal,
+                    HeadersVisibility = System.Windows.Controls.DataGridHeadersVisibility.Column,
+                    RowHeaderWidth = 0,
+                    AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 248, 252)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)),
+                    BorderThickness = new Thickness(1),
+                    FontSize = 12
+                };
+
+                // Checkbox column for selection
+                var checkCol = new System.Windows.Controls.DataGridCheckBoxColumn
+                {
+                    Header = "",
+                    Binding = new System.Windows.Data.Binding("IsSelected") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                    Width = 30
+                };
+                _grid.Columns.Add(checkCol);
+
+                // Original Name (read-only)
+                var origCol = new System.Windows.Controls.DataGridTextColumn
+                {
+                    Header = "Original Name",
+                    Binding = new System.Windows.Data.Binding("OriginalName"),
+                    IsReadOnly = true,
+                    Width = new System.Windows.Controls.DataGridLength(1, System.Windows.Controls.DataGridLengthUnitType.Star),
+                    Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 90))
+                };
+                _grid.Columns.Add(origCol);
+
+                // New Name (editable)
+                var newCol = new System.Windows.Controls.DataGridTextColumn
+                {
+                    Header = "New Name",
+                    Binding = new System.Windows.Data.Binding("NewName") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged },
+                    IsReadOnly = false,
+                    Width = new System.Windows.Controls.DataGridLength(1, System.Windows.Controls.DataGridLengthUnitType.Star),
+                    Foreground = new SolidColorBrush(Color.FromRgb(40, 40, 50)),
+                    FontStyle = System.Windows.FontStyles.Normal
+                };
+                _grid.Columns.Add(newCol);
+
+                // Category (read-only)
+                var catCol = new System.Windows.Controls.DataGridTextColumn
+                {
+                    Header = "Category",
+                    Binding = new System.Windows.Data.Binding("Category"),
+                    IsReadOnly = true,
+                    Width = 120,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 120))
+                };
+                _grid.Columns.Add(catCol);
+
+                // Family (read-only)
+                var famCol = new System.Windows.Controls.DataGridTextColumn
+                {
+                    Header = "Family",
+                    Binding = new System.Windows.Data.Binding("Family"),
+                    IsReadOnly = true,
+                    Width = 140,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 120))
+                };
+                _grid.Columns.Add(famCol);
+
+                Grid.SetRow(_grid, 3);
+                root.Children.Add(_grid);
+
+                // ── Button bar ──
+                var btnBar = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(245, 245, 248)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Padding = new Thickness(12, 8, 12, 8)
+                };
+                var btnGrid = new Grid();
+                btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                btnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                _statusText = new System.Windows.Controls.TextBlock
+                {
+                    FontSize = 11, VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 120))
+                };
+                Grid.SetColumn(_statusText, 0);
+                btnGrid.Children.Add(_statusText);
+
+                var rightButtons = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+
+                var selectAllBtn = MakeButton("Select All", false);
+                selectAllBtn.Click += (s, e) => { foreach (var r in _filteredRows) r.IsSelected = true; RefreshGrid(); };
+                rightButtons.Children.Add(selectAllBtn);
+
+                var selectNoneBtn = MakeButton("Select None", false);
+                selectNoneBtn.Margin = new Thickness(8, 0, 16, 0);
+                selectNoneBtn.Click += (s, e) => { foreach (var r in _filteredRows) r.IsSelected = false; RefreshGrid(); };
+                rightButtons.Children.Add(selectNoneBtn);
+
+                var cancelBtn = MakeButton("Cancel", false);
+                cancelBtn.Click += (s, e) => { DialogResult = false; Close(); };
+                rightButtons.Children.Add(cancelBtn);
+
+                var applyBtn = MakeButton("Apply Rename", true);
+                applyBtn.Margin = new Thickness(8, 0, 0, 0);
+                applyBtn.Click += (s, e) => { DialogResult = true; Close(); };
+                rightButtons.Children.Add(applyBtn);
+
+                Grid.SetColumn(rightButtons, 1);
+                btnGrid.Children.Add(rightButtons);
+                btnBar.Child = btnGrid;
+                Grid.SetRow(btnBar, 4);
+                root.Children.Add(btnBar);
+
+                Content = root;
+                PopulateFilters();
+                RefreshGrid();
+            }
+
+            private void PopulateFilters()
+            {
+                var categories = _allRows.Select(r => r.Category).Where(c => !string.IsNullOrEmpty(c))
+                    .Distinct().OrderBy(c => c).ToList();
+                _categoryFilter.Items.Clear();
+                _categoryFilter.Items.Add("All Categories");
+                foreach (var c in categories) _categoryFilter.Items.Add(c);
+                _categoryFilter.SelectedIndex = 0;
+
+                PopulateFamilyFilter();
+            }
+
+            private void PopulateFamilyFilter()
+            {
+                string catFilter = _categoryFilter.SelectedItem as string;
+                var source = _allRows.AsEnumerable();
+                if (catFilter != null && catFilter != "All Categories")
+                    source = source.Where(r => r.Category == catFilter);
+
+                var families = source.Select(r => r.Family).Where(f => !string.IsNullOrEmpty(f))
+                    .Distinct().OrderBy(f => f).ToList();
+                _familyFilter.Items.Clear();
+                _familyFilter.Items.Add("All Families");
+                foreach (var f in families) _familyFilter.Items.Add(f);
+                _familyFilter.SelectedIndex = 0;
+            }
+
+            private void ApplyFilters()
+            {
+                string catFilter = _categoryFilter.SelectedItem as string;
+                string famFilter = _familyFilter.SelectedItem as string;
+                string search = _searchBox.Text?.Trim() ?? "";
+
+                _filteredRows = _allRows.Where(r =>
+                {
+                    if (catFilter != null && catFilter != "All Categories" && r.Category != catFilter) return false;
+                    if (famFilter != null && famFilter != "All Families" && r.Family != famFilter) return false;
+                    if (!string.IsNullOrEmpty(search))
+                    {
+                        return r.OriginalName.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               (r.Family ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+                    }
+                    return true;
+                }).ToList();
+
+                // Update family filter when category changes
+                if (_categoryFilter.IsDropDownOpen || _familyFilter.Items.Count <= 1)
+                    PopulateFamilyFilter();
+
+                RefreshGrid();
+            }
+
+            private void RefreshGrid()
+            {
+                _grid.ItemsSource = null;
+                _grid.ItemsSource = _filteredRows;
+                int willChange = _filteredRows.Count(r => r.IsSelected && !string.IsNullOrEmpty(r.NewName) && r.NewName != r.OriginalName);
+                int selected = _filteredRows.Count(r => r.IsSelected);
+                _statusText.Text = $"{_filteredRows.Count} items shown | {willChange} will change | {selected} selected for rename";
+            }
+
+            private void ApplyOperation()
+            {
+                int opIdx = _operationCombo.SelectedIndex;
+                if (opIdx <= 0) return; // Manual edit mode
+
+                string findText = null, replaceText = null;
+                if (opIdx == 7) // Custom find/replace
+                {
+                    var inputWin = new System.Windows.Window
+                    {
+                        Title = "Custom Find/Replace", Width = 400, Height = 170,
+                        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                        ResizeMode = ResizeMode.NoResize, Owner = this
+                    };
+                    var stack = new StackPanel { Margin = new Thickness(12) };
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Find:", FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
+                    var findBox = new System.Windows.Controls.TextBox { FontSize = 12, Margin = new Thickness(0, 0, 0, 8) };
+                    stack.Children.Add(findBox);
+                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Replace with:", FontSize = 12, Margin = new Thickness(0, 0, 0, 4) });
+                    var replaceBox = new System.Windows.Controls.TextBox { FontSize = 12, Margin = new Thickness(0, 0, 0, 10) };
+                    stack.Children.Add(replaceBox);
+                    var okBtn = new System.Windows.Controls.Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
+                    okBtn.Click += (s2, e2) => { inputWin.DialogResult = true; };
+                    stack.Children.Add(okBtn);
+                    inputWin.Content = stack;
+                    if (inputWin.ShowDialog() != true || string.IsNullOrEmpty(findBox.Text)) return;
+                    findText = findBox.Text;
+                    replaceText = replaceBox.Text ?? "";
+                }
+
+                int seqNum = 0;
+                foreach (var row in _filteredRows)
+                {
+                    string name = row.OriginalName;
+                    string result = name;
+                    switch (opIdx)
+                    {
+                        case 1: result = name.StartsWith("STING - ") ? name : "STING - " + name; break;
+                        case 2: result = System.Text.RegularExpressions.Regex.Replace(name, @"\s*Copy\s*\d*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase); break;
+                        case 3: result = name.ToUpperInvariant(); break;
+                        case 4: result = name.ToLowerInvariant(); break;
+                        case 5: result = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.ToLowerInvariant()); break;
+                        case 6: result = StandardiseLevelName(name); break;
+                        case 7: result = findText != null && name.Contains(findText) ? name.Replace(findText, replaceText) : name; break;
+                        case 8: seqNum++; result = $"{name}-{seqNum:D3}"; break;
+                        case 9:
+                            int dashIdx = name.IndexOf(" - ");
+                            result = dashIdx >= 0 && dashIdx < name.Length - 3 ? name.Substring(dashIdx + 3) : name;
+                            break;
+                    }
+                    row.NewName = result;
+                    row.IsSelected = (result != name);
+                }
+                RefreshGrid();
+            }
+
+            public List<RenameRow> GetRenameResults()
+            {
+                return _allRows.Where(r => r.IsSelected && !string.IsNullOrEmpty(r.NewName) && r.NewName != r.OriginalName).ToList();
+            }
+
+            private static System.Windows.Controls.TextBlock MakeLabel(string text)
+            {
+                return new System.Windows.Controls.TextBlock
+                {
+                    Text = text, FontSize = 11, FontWeight = FontWeights.SemiBold,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 70)),
+                    Margin = new Thickness(0, 0, 4, 0)
+                };
+            }
+
+            private static System.Windows.Controls.Button MakeButton(string text, bool primary)
+            {
+                var btn = new System.Windows.Controls.Button
+                {
+                    Content = text, MinWidth = 80, Height = 30, FontSize = 12,
+                    Padding = new Thickness(12, 4, 12, 4), Cursor = System.Windows.Input.Cursors.Hand
+                };
+                if (primary)
+                {
+                    btn.Background = new SolidColorBrush(Color.FromRgb(88, 44, 131));
+                    btn.Foreground = Brushes.White;
+                }
+                else
+                {
+                    btn.Background = Brushes.White;
+                    btn.Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 70));
+                    btn.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                }
+                return btn;
+            }
+        }
+
+        // ── Collect ALL renameable elements ──
+        private static void CollectAllTargets(Document doc, List<RenameRow> rows)
+        {
+            // Views
+            foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate && v.CanBePrinted && !(v is ViewSheet)).OrderBy(v => v.Name))
+            {
+                string family = "";
+                try { family = v.ViewType.ToString(); } catch { /* ignore */ }
+                rows.Add(new RenameRow { Id = v.Id, OriginalName = v.Name, NewName = v.Name, Category = "View", Family = family });
+            }
+            // Sheets
+            foreach (ViewSheet s in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber))
+                rows.Add(new RenameRow { Id = s.Id, OriginalName = s.Name, NewName = s.Name, Category = "Sheet", Family = s.SheetNumber });
+            // Schedules
+            foreach (ViewSchedule vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                .Where(s => !s.IsTemplate).OrderBy(s => s.Name))
+                rows.Add(new RenameRow { Id = vs.Id, OriginalName = vs.Name, NewName = vs.Name, Category = "Schedule", Family = "" });
+            // Families
+            foreach (Family f in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
+                .OrderBy(f => f.Name))
+                rows.Add(new RenameRow { Id = f.Id, OriginalName = f.Name, NewName = f.Name, Category = f.FamilyCategory?.Name ?? "Family", Family = f.FamilyCategory?.Name ?? "" });
+            // Family Types
+            foreach (ElementType et in new FilteredElementCollector(doc).WhereElementIsElementType()
+                .OfType<ElementType>().Where(e => e.Category != null).OrderBy(e => e.Name).Take(2000))
+                rows.Add(new RenameRow { Id = et.Id, OriginalName = et.Name, NewName = et.Name, Category = et.Category?.Name ?? "Type", Family = GetFamilyNameSafe(et) });
+            // Levels
+            foreach (Level lv in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(lv => lv.Elevation))
+                rows.Add(new RenameRow { Id = lv.Id, OriginalName = lv.Name, NewName = lv.Name, Category = "Level", Family = $"Elev: {lv.Elevation * 0.3048:F1}m" });
+            // Grids
+            foreach (Grid g in new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>()
+                .OrderBy(g => g.Name))
+                rows.Add(new RenameRow { Id = g.Id, OriginalName = g.Name, NewName = g.Name, Category = "Grid", Family = "" });
+            // Materials
+            foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material))
+                .Cast<Material>().OrderBy(m => m.Name))
+                rows.Add(new RenameRow { Id = m.Id, OriginalName = m.Name, NewName = m.Name, Category = "Material", Family = "" });
+        }
+
+        private static string GetFamilyNameSafe(ElementType et)
+        {
+            try
+            {
+                if (et is FamilySymbol fs) return fs.FamilyName;
+                return et.FamilyName ?? "";
+            }
+            catch { return ""; }
         }
 
         private record RenameTarget(string Name, string Category, ElementId Id);

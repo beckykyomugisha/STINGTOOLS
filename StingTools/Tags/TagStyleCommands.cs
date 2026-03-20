@@ -271,22 +271,22 @@ namespace StingTools.Tags
             if (doc == null) return Result.Failed;
 
             var dlg = new TaskDialog("Paragraph Depth — Extended");
-            dlg.MainInstruction = "Select paragraph visibility depth (1-10 tiers):";
+            dlg.MainInstruction = "Select paragraph visibility depth (.01–.10 tiers):";
             dlg.MainContent =
                 "Each tier adds more detail to tag labels.\n" +
-                "Tiers 1-3 = original compact/standard/comprehensive.\n" +
-                "Tiers 4-10 = extended detail for specifications and BOQ.";
+                "Tiers .01–.03 = original compact/standard/comprehensive.\n" +
+                "Tiers .04–.10 = extended detail for specifications and BOQ.";
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Tier 1-3: Compact → Standard → Comprehensive",
+                "Tier .01–.03: Compact → Standard → Comprehensive",
                 "Original 3-tier system (quick, engineering, detailed)");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Tier 4-6: Extended detail",
+                "Tier .04–.06: Extended detail",
                 "MEP specs, material properties, classification codes");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Tier 7-10: Full specification",
+                "Tier .07–.10: Full specification",
                 "Complete BOQ data, maintenance info, lifecycle data");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Custom tier (pick 1-10)...",
+                "Custom tier (pick .01–.10)...",
                 "Set exact tier cutoff");
             dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
@@ -305,10 +305,10 @@ namespace StingTools.Tags
                 case TaskDialogResult.CommandLink4:
                     var tierDlg = new TaskDialog("Custom Tier");
                     tierDlg.MainInstruction = "Select maximum visible tier:";
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tier 1 (minimal)", "Tag code only");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Tier 2 (compact)", "Code + type name");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Tier 5 (moderate)", "Through extended properties");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Tier 8 (detailed)", "Through maintenance data");
+                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tier .01 (minimal)", "Tag code only");
+                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Tier .02 (compact)", "Code + type name");
+                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Tier .05 (moderate)", "Through extended properties");
+                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Tier .08 (detailed)", "Through maintenance data");
                     tierDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                     switch (tierDlg.Show())
@@ -324,14 +324,14 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
-            using (Transaction tx = new Transaction(doc, $"STING Paragraph Depth: Tier {maxTier}"))
+            using (Transaction tx = new Transaction(doc, $"STING Paragraph Depth: Tier .{maxTier:D2}"))
             {
                 tx.Start();
                 int updated = TagStyleEngine.SetParagraphDepth(doc, maxTier, warn);
                 tx.Commit();
 
                 TaskDialog.Show("Paragraph Depth",
-                    $"Depth: Tier {maxTier} of 10\n" +
+                    $"Depth: Tier .{maxTier:D2} of .10\n" +
                     $"Warnings: {(warn ? "ON" : "OFF")}\n" +
                     $"Element types updated: {updated}");
             }

@@ -12,6 +12,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -988,31 +989,39 @@ namespace StingTools.BIMManager
 
                 StingLog.Info($"PlatformLink: CDE package complete — {copied} files in {packageDir}");
 
-                var sb = new StringBuilder();
-                sb.AppendLine($"Deliverables packaged: {deliverables.Count}");
-                sb.AppendLine($"Files copied: {copied}");
-                sb.AppendLine($"Package: {Path.GetFileName(packageDir)}");
-                if (namingIssues.Count > 0)
+                // Show CDE package result in corporate WPF DataGrid dialog
+                var resultRows = deliverables.Select(d => new
                 {
-                    sb.AppendLine();
-                    sb.AppendLine($"ISO 19650 naming warnings ({namingIssues.Count}):");
-                    foreach (string issue in namingIssues.Take(10))
-                        sb.AppendLine(issue);
-                    if (namingIssues.Count > 10)
-                        sb.AppendLine($"  ... and {namingIssues.Count - 10} more");
-                }
-                sb.AppendLine();
-                sb.AppendLine("Contents:");
-                sb.AppendLine("  - manifest.json (deliverable index with SHA-256 hashes)");
-                sb.AppendLine("  - model_reference.json (Revit model metadata)");
-                if (File.Exists(bepPath)) sb.AppendLine("  - bep.json (BIM Execution Plan)");
-                if (compScan != null) sb.AppendLine("  - compliance_summary.json (tag compliance)");
-                sb.AppendLine($"  - {copied} deliverable files");
+                    FileName = Path.GetFileName(d.FilePath),
+                    Category = d.Category ?? "—",
+                    Status = File.Exists(d.FilePath) ? "Packaged" : "Missing",
+                    NamingOk = PlatformLinkEngine.ValidateISO19650FileName(Path.GetFileName(d.FilePath), out _) ? "OK" : "Warning",
+                    Size = File.Exists(d.FilePath) ? $"{new FileInfo(d.FilePath).Length / 1024.0:F0} KB" : "—"
+                }).ToList();
 
-                var resultDlg = new TaskDialog("STING CDE Package — Complete");
-                resultDlg.MainInstruction = "CDE deliverable package created";
-                resultDlg.MainContent = sb.ToString();
-                resultDlg.Show();
+                string statusLine = $"{copied} files packaged | {namingIssues.Count} naming warnings | {Path.GetFileName(packageDir)}";
+                var resDlg = new UI.StingDataGridDialog("STING CDE Package — Complete", statusLine, 900, 480);
+                resDlg.AddTextColumn("File Name", "FileName");
+                resDlg.AddTextColumn("Category", "Category", 100);
+                resDlg.AddTextColumn("Status", "Status", 80);
+                resDlg.AddTextColumn("ISO 19650", "NamingOk", 80);
+                resDlg.AddTextColumn("Size", "Size", 80);
+
+                resDlg.AddActionButton("Open Folder", "OpenFolder");
+                resDlg.AddActionButton("Close", "Cancel");
+
+                resDlg.ActionClicked += action =>
+                {
+                    if (action == "OpenFolder")
+                    {
+                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true }); }
+                        catch (Exception ex) { StingLog.Warn($"Open folder: {ex.Message}"); }
+                    }
+                };
+
+                resDlg.SetItems(resultRows);
+                resDlg.SetStatus(statusLine);
+                resDlg.ShowDialog();
 
                 return Result.Succeeded;
             }

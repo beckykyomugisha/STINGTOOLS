@@ -10,6 +10,7 @@ using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -1031,32 +1032,59 @@ namespace StingTools.BIMManager
                 // ── Validate changes ──
                 var validationWarnings = ExcelLinkEngine.ValidateChanges(changes);
 
-                // ── Preview changes and confirm ──
-                string summary = ExcelLinkEngine.BuildChangeSummary(changes, excelData.Count, validationWarnings);
+                // ── Preview changes in WPF DataGrid dialog ──
+                int distinctElements = actualChanges.Select(c => c.ElementId).Distinct().Count();
+                string subtitle = $"{actualChanges.Count} changes across {distinctElements} elements | " +
+                                  $"{validationWarnings.Count} validation warnings";
 
-                var confirmDlg = new TaskDialog("STING Excel Import — Preview Changes")
+                var previewDlg = new UI.StingDataGridDialog(
+                    "STING Excel Import — Preview Changes", subtitle, 1020, 580);
+                previewDlg.AddTextColumn("Element ID", "ElementId", 80);
+                previewDlg.AddTextColumn("Column", "Column", 120);
+                previewDlg.AddTextColumn("Current Value", "OldValue", 0, true, System.Windows.Media.Color.FromRgb(120, 120, 140));
+                previewDlg.AddTextColumn("New Value", "NewValue", 0, true, System.Windows.Media.Color.FromRgb(0, 100, 50));
+                previewDlg.AddTextColumn("Status", "StatusText", 80);
+                previewDlg.AddTextColumn("Validation", "ValidationError", 140,
+                    true, System.Windows.Media.Color.FromRgb(200, 50, 50));
+
+                // Build preview rows
+                var previewRows = actualChanges.Select(c => new
                 {
-                    MainInstruction = "Apply Changes?",
-                    MainContent = summary,
-                    CommonButtons = TaskDialogCommonButtons.Cancel,
-                    DefaultButton = TaskDialogResult.Cancel,
-                };
-                confirmDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Apply {actualChanges.Count} changes (skip invalid)",
-                    $"Update {actualChanges.Select(c => c.ElementId).Distinct().Count()} elements, " +
-                    $"skip {validationWarnings.Count} invalid values");
+                    c.ElementId,
+                    c.Column,
+                    c.OldValue,
+                    c.NewValue,
+                    StatusText = c.Status.ToString(),
+                    ValidationError = c.ValidationError ?? ""
+                }).ToList();
 
+                // Add column filter
+                var columns = previewRows.Select(r => r.Column).Distinct().OrderBy(c => c).ToList();
+                columns.Insert(0, "All Columns");
+                previewDlg.AddFilter("Column", columns, col =>
+                {
+                    if (col == "All Columns") previewDlg.RefreshItems(previewRows);
+                    else previewDlg.RefreshItems(previewRows.Where(r => r.Column == col).ToList());
+                });
+
+                previewDlg.AddActionButton("Cancel", "Cancel");
                 if (validationWarnings.Count > 0)
-                {
-                    confirmDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        $"Force ALL {actualChanges.Count} changes (including invalid)",
-                        "Apply all values even if they fail validation");
-                }
+                    previewDlg.AddActionButton($"Force ALL ({actualChanges.Count})", "ForceAll");
+                previewDlg.AddActionButton($"Apply ({actualChanges.Count} valid)", "Apply", true);
 
-                var confirmResult = confirmDlg.Show();
+                previewDlg.SetItems(previewRows);
+                previewDlg.SetStatus(subtitle);
 
-                if (confirmResult == TaskDialogResult.Cancel)
+                if (previewDlg.ShowDialog() != true)
                     return Result.Cancelled;
+                string confirmAction = previewDlg.ResultAction;
+
+                // Map result action to original logic
+                TaskDialogResult confirmResult;
+                if (confirmAction == "ForceAll")
+                    confirmResult = TaskDialogResult.CommandLink2;
+                else
+                    confirmResult = TaskDialogResult.CommandLink1;
 
                 bool forceInvalid = (confirmResult == TaskDialogResult.CommandLink2);
 
