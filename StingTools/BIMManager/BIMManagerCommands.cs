@@ -4321,37 +4321,13 @@ namespace StingTools.BIMManager
 
             // Select COBie preset for project type
             string selectedPreset = null;
-            var presetDlg = new TaskDialog("STING COBie — Project Type");
-            presetDlg.MainInstruction = "Select COBie project type preset:";
-            presetDlg.MainContent = "Choose a project type to tailor the COBie export, or use the default full export.";
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Full Export (all worksheets, no preset filter)");
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Select from 22 project type presets...");
-            var presetResult = presetDlg.Show();
-            if (presetResult == TaskDialogResult.CommandLink2)
-            {
-                // Build preset selection list
-                var presetNames = BIMManagerEngine.COBiePresets.Keys.ToList();
-                var sb2 = new StringBuilder();
-                for (int i = 0; i < presetNames.Count; i++)
-                    sb2.AppendLine($"  {i + 1}. {BIMManagerEngine.COBiePresets[presetNames[i]].Name}");
-
-                var pickDlg = new TaskDialog("STING COBie — Select Preset");
-                pickDlg.MainInstruction = "Available COBie presets:";
-                pickDlg.MainContent = sb2.ToString() + "\nEnter preset number in the supplemental text below, or click Default.";
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Use default (Commercial Office)");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Use Healthcare (NHS)");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Use Data Centre");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Use Residential (High-Rise)");
-                var pickResult = pickDlg.Show();
-                selectedPreset = pickResult switch
-                {
-                    TaskDialogResult.CommandLink1 => "COMMERCIAL_OFFICE",
-                    TaskDialogResult.CommandLink2 => "HEALTHCARE_NHS",
-                    TaskDialogResult.CommandLink3 => "DATA_CENTRE",
-                    TaskDialogResult.CommandLink4 => "RESIDENTIAL_HIGH_RISE",
-                    _ => null
-                };
-            }
+            var presetItems = new List<string> { "Full Export (all worksheets, no preset filter)" };
+            foreach (var kvp in BIMManagerEngine.COBiePresets)
+                presetItems.Add($"{kvp.Key} — {kvp.Value.Name}");
+            string presetPick = StingListPicker.Show("COBie Project Type", "Select COBie project type preset:", presetItems);
+            if (presetPick == null) return Result.Cancelled;
+            if (!presetPick.StartsWith("Full"))
+                selectedPreset = presetPick.Split(new[] { ' ' }, 2)[0].Trim();
 
             StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={selectedPreset ?? "full"})...");
             var cobieData = BIMManagerEngine.BuildCOBieData(doc, selectedPreset);

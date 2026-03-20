@@ -1928,7 +1928,7 @@ namespace StingTools.BIMManager
                 if (confirmDlg.Show() != TaskDialogResult.CommandLink1)
                     return Result.Cancelled;
 
-                // ── Second pass: apply changes ──
+                // ── Second pass: apply changes via source element parameters ──
                 using (var tx = new Transaction(doc, "STING Import Schedules from Excel"))
                 {
                     tx.Start();
@@ -1966,7 +1966,7 @@ namespace StingTools.BIMManager
                             for (int c = 0; c < cols; c++)
                             {
                                 try { schedHeaders.Add(sched.GetCellText(SectionType.Header, headerRows - 1, c).Trim()); }
-                                catch { schedHeaders.Add(""); }
+                                catch (Exception ex) { schedHeaders.Add(""); StingLog.Warn($"Schedule header read: {ex.Message}"); }
                             }
                         }
 
@@ -1979,10 +1979,18 @@ namespace StingTools.BIMManager
                             catch (Exception ex) { StingLog.Warn($"Schedule field lookup failed at index {i}: {ex.Message}"); }
                         }
 
+                        // Collect source elements for this schedule in row order
+                        var schedElements = new FilteredElementCollector(doc, sched.Id)
+                            .WhereElementIsNotElementType()
+                            .ToList();
+
                         int excelRow = 2;
                         int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                         for (int r = 0; r < rows && excelRow <= lastRow; r++, excelRow++)
                         {
+                            // Resolve source element for this row
+                            Element srcElement = (r < schedElements.Count) ? schedElements[r] : null;
+
                             for (int ec = 0; ec < excelHeaders.Count; ec++)
                             {
                                 string header = excelHeaders[ec];
@@ -2002,10 +2010,62 @@ namespace StingTools.BIMManager
 
                                 if (field.IsCalculatedField) { skippedCells++; continue; }
 
-                                // For non-calculated fields, attempt to update
-                                // The schedule API does not support direct cell writes,
-                                // so we count the detected change as a tracked update
-                                updatedCells++;
+                                if (srcElement == null) { failedCells++; continue; }
+
+                                // Write to source element parameter
+                                bool written = false;
+                                try
+                                {
+                                    // Resolve parameter: try BuiltInParameter from FieldId, then by column name
+                                    Parameter param = null;
+                                    var paramId = field.ParameterId;
+                                    if (paramId != null && paramId != ElementId.InvalidElementId)
+                                    {
+                                        int bipInt = paramId.IntegerValue;
+                                        if (Enum.IsDefined(typeof(BuiltInParameter), bipInt))
+                                            param = srcElement.get_Parameter((BuiltInParameter)bipInt);
+                                    }
+
+                                    // Fallback: try by schedule column name as shared/project param
+                                    if (param == null)
+                                        param = srcElement.LookupParameter(header);
+
+                                    // Fallback: try by field's column header text
+                                    if (param == null)
+                                    {
+                                        string fieldName = field.GetName();
+                                        if (!string.IsNullOrEmpty(fieldName) && fieldName != header)
+                                            param = srcElement.LookupParameter(fieldName);
+                                    }
+
+                                    if (param != null && !param.IsReadOnly)
+                                    {
+                                        switch (param.StorageType)
+                                        {
+                                            case StorageType.String:
+                                                param.Set(excelVal);
+                                                written = true;
+                                                break;
+                                            case StorageType.Double:
+                                                if (double.TryParse(excelVal, out double dv))
+                                                { param.Set(dv); written = true; }
+                                                break;
+                                            case StorageType.Integer:
+                                                if (int.TryParse(excelVal, out int iv))
+                                                { param.Set(iv); written = true; }
+                                                break;
+                                        }
+                                    }
+                                }
+                                catch (Exception writeEx)
+                                {
+                                    StingLog.Warn($"Schedule import write [{sched.Name}] row {r + 1} col '{header}': {writeEx.Message}");
+                                }
+
+                                if (written)
+                                    updatedCells++;
+                                else
+                                    failedCells++;
                             }
                         }
                     }
