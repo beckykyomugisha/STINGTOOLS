@@ -81,14 +81,14 @@ namespace StingTools.Temp
                 .OrderBy(g => g.Key)
                 .ToList();
 
-            var discItems = discGroups.Select(g => new Select.StingListPicker.ListItem
+            var discItems = discGroups.Select(g => new StingListPicker.ListItem
             {
                 Label = g.Key,
                 Detail = $"{g.Count()} schedules",
                 Tag = g.Key
             }).ToList();
 
-            var discPick = Select.StingListPicker.Show(
+            var discPick = StingListPicker.Show(
                 "Batch Create Schedules — Select Disciplines",
                 $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
                 discItems, allowMultiSelect: true);

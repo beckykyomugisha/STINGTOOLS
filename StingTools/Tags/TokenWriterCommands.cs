@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.Tags
 {
@@ -47,7 +48,7 @@ namespace StingTools.Tags
             }
 
             // Interactive dialog with search, select, cancel, OK
-            var optionItems = options.Select(o => new Select.StingListPicker.ListItem
+            var optionItems = options.Select(o => new StingListPicker.ListItem
             {
                 Label = o,
                 Detail = "",
@@ -55,7 +56,7 @@ namespace StingTools.Tags
             }).ToList();
 
             string scopeLabel = usingSelection ? "Selected elements" : "All taggable in view";
-            var picked = Select.StingListPicker.Show(
+            var picked = StingListPicker.Show(
                 $"Set {label}",
                 $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
                 optionItems, allowMultiSelect: false);

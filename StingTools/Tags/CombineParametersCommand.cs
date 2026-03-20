@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Tags
@@ -91,7 +92,7 @@ namespace StingTools.Tags
                 int elemCount = g.Categories != null
                     ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
                     : catCounts.Values.Sum();
-                return new Select.StingListPicker.ListItem
+                return new StingListPicker.ListItem
                 {
                     Label = g.Group,
                     Detail = $"{g.Params.Length} containers | {elemCount} elements",
@@ -99,7 +100,7 @@ namespace StingTools.Tags
                 };
             }).ToList();
 
-            var picked = Select.StingListPicker.Show(
+            var picked = StingListPicker.Show(
                 "Combine Parameters — Select Groups",
                 $"{allGroups.Length} container groups available. Select groups to populate.",
                 groupItems, allowMultiSelect: true);

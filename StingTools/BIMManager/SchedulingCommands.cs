@@ -2068,7 +2068,7 @@ namespace StingTools.BIMManager
                 Document doc = ctx.Doc;
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-                string outputDir = OutputLocationHelper.PromptForExportPath("Navisworks", doc);
+                string outputDir = OutputLocationHelper.PromptForExportPath(doc, "STING_Navisworks_TimeLiner.csv", "CSV Files|*.csv", "Navisworks");
                 if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
 
                 // Collect and group elements by level + trade

@@ -5723,8 +5723,8 @@ namespace StingTools.Organise
 
                         // Write containers and TAG7
                         string[] tokens = ParamRegistry.ReadTokenValues(target);
-                        ParamRegistry.WriteContainers(doc, target, tokens);
                         string catName = ParameterHelpers.GetCategoryName(target);
+                        ParamRegistry.WriteContainers(target, tokens, catName);
                         TagConfig.WriteTag7All(doc, target, catName, tokens);
 
                         cloned++;

@@ -1315,6 +1315,8 @@ namespace StingTools.UI
                     // ── Unified WPF Dialog Wizards (Phase 36) ──
                     case "DocWizard":
                     {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING", "No document open."); break; }
                         var dlgResult = UI.DocAutomationDialog.Show(doc);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
                         {

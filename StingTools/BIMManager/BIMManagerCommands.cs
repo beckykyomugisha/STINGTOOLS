@@ -12,6 +12,7 @@ using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.BIMManager
@@ -3704,7 +3705,7 @@ namespace StingTools.BIMManager
                     DateDue = dueDateStr,
                     Overdue = isOverdue ? "OVERDUE" : "",
                     ElementCount = (i["element_ids"] as JArray)?.Count ?? 0,
-                    RawJson = i as JObject
+                    RawJson = (JObject)i
                 };
             }).ToList();
 
@@ -4164,7 +4165,7 @@ namespace StingTools.BIMManager
 
             // Direction — simple 2-option picker
             var dirItems = new List<string> { "IN — Incoming (received from external party)", "OUT — Outgoing (issued to external party)" };
-            string dirPick = Select.StingListPicker.Show("Document Direction", "Select document direction:", dirItems);
+            string dirPick = StingListPicker.Show("Document Direction", "Select document direction:", dirItems);
             if (dirPick == null) return Result.Cancelled;
             string direction = dirPick.StartsWith("IN") ? "IN" : "OUT";
 
@@ -4173,7 +4174,7 @@ namespace StingTools.BIMManager
                 .Select(kvp => $"{kvp.Key} — {kvp.Value}")
                 .OrderBy(s => s)
                 .ToList();
-            string typePick = Select.StingListPicker.Show("Document Type", "Select ISO 19650 document type:", typeItems);
+            string typePick = StingListPicker.Show("Document Type", "Select ISO 19650 document type:", typeItems);
             if (typePick == null) return Result.Cancelled;
             string docType = typePick.Split(new[] { ' ' }, 2)[0].Trim();
 
@@ -4182,7 +4183,7 @@ namespace StingTools.BIMManager
                 .Select(kvp => $"{kvp.Key} — {kvp.Value}")
                 .OrderBy(s => s)
                 .ToList();
-            string suitPick = Select.StingListPicker.Show("Suitability Code", "Select ISO 19650 suitability code:", suitItems);
+            string suitPick = StingListPicker.Show("Suitability Code", "Select ISO 19650 suitability code:", suitItems);
             if (suitPick == null) return Result.Cancelled;
             string suitability = suitPick.Split(new[] { ' ' }, 2)[0].Trim();
 

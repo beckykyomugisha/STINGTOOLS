@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Tags
@@ -811,18 +812,18 @@ namespace StingTools.Tags
             var app = ctx.App.Application;
 
             // Mode selection using StingListPicker for polished UI
-            var modeItems = new List<Select.StingListPicker.ListItem>
+            var modeItems = new List<StingListPicker.ListItem>
             {
-                new Select.StingListPicker.ListItem
+                new StingListPicker.ListItem
                     { Label = "Single Family — Add Params", Detail = "Pick one .rfa file", Tag = "single" },
-                new Select.StingListPicker.ListItem
+                new StingListPicker.ListItem
                     { Label = "Batch Folder — Add Params", Detail = "Process all .rfa in folder", Tag = "batch" },
-                new Select.StingListPicker.ListItem
+                new StingListPicker.ListItem
                     { Label = "Single Family — Purge + Inject", Detail = "Remove old STING params, re-inject", Tag = "purge_single" },
-                new Select.StingListPicker.ListItem
+                new StingListPicker.ListItem
                     { Label = "Batch Folder — Purge + Inject", Detail = "Purge + re-inject entire folder", Tag = "purge_batch" },
             };
-            var selected = Select.StingListPicker.Show(
+            var selected = StingListPicker.Show(
                 "STING — Family Param Creator",
                 "Inject STING shared parameters into .rfa family files",
                 modeItems);

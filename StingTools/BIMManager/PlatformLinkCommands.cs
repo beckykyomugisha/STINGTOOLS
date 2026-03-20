@@ -13,6 +13,7 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.BIMManager
@@ -1243,7 +1244,7 @@ namespace StingTools.BIMManager
                         var fi = new FileInfo(f);
                         return $"{fi.Name} ({fi.Length / 1024.0:F0} KB, {fi.LastWriteTime:yyyy-MM-dd HH:mm})";
                     }).ToList();
-                    string pick = Select.StingListPicker.Show("BCF Import — Select File",
+                    string pick = StingListPicker.Show("BCF Import — Select File",
                         $"Found {bcfFiles.Count} BCF files. Select one to import:", bcfLabels);
                     if (pick == null) return Result.Cancelled;
                     int idx = bcfLabels.IndexOf(pick);
