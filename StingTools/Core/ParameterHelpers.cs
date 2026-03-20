@@ -181,12 +181,28 @@ namespace StingTools.Core
         }
 
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
+        /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
+        [ThreadStatic] private static int _readOnlySkipCount;
+        /// <summary>Reset read-only skip counter at start of batch operation.</summary>
+        public static void ResetReadOnlySkipCount() => _readOnlySkipCount = 0;
+        /// <summary>Get cumulative read-only skip count since last reset.</summary>
+        public static int ReadOnlySkipCount => _readOnlySkipCount;
+
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
-            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+            if (p == null) return false;
+            if (p.IsReadOnly)
+            {
+                // ERR-002: Diagnostic logging for read-only parameter skips
+                _readOnlySkipCount++;
+                if (_readOnlySkipCount <= 5 || _readOnlySkipCount % 100 == 0)
+                    StingLog.Warn($"SetString '{paramName}' on {el.Id}: parameter is read-only (skip #{_readOnlySkipCount})");
+                return false;
+            }
+            if (p.StorageType != StorageType.String)
                 return false;
 
             string existing = p.AsString() ?? string.Empty;

@@ -37,8 +37,14 @@ namespace StingTools.Core
             public Dictionary<string, int> RevisionDistribution { get; set; } = new Dictionary<string, int>();
             /// <summary>A5: Elements with empty STATUS parameter.</summary>
             public int StatusMissing { get; set; }
+            /// <summary>STATUS value distribution for dashboard display.</summary>
+            public Dictionary<string, int> StatusDistribution { get; set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             /// <summary>A5: Elements with at least one empty discipline container.</summary>
             public int ContainersMissing { get; set; }
+            /// <summary>Per-container empty counts for granular compliance drill-down.</summary>
+            public Dictionary<string, int> EmptyContainerCounts { get; set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>Total container parameter checks performed.</summary>
+            public int TotalContainerChecks { get; set; }
             /// <summary>FIX-12: Elements marked as stale (spatial context may have changed).</summary>
             public int StaleCount { get; set; }
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
@@ -213,15 +219,21 @@ namespace StingTools.Core
                             AddIssue(result, "Missing REV");
                         }
 
-                        // A5: STATUS completeness (FIX-N01: moved inside foreach loop)
+                        // A5: STATUS completeness with value distribution tracking
                         string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
                         if (string.IsNullOrEmpty(status))
                         {
                             result.StatusMissing++;
                             AddIssue(result, "Missing STATUS");
                         }
+                        else
+                        {
+                            if (!result.StatusDistribution.ContainsKey(status))
+                                result.StatusDistribution[status] = 0;
+                            result.StatusDistribution[status]++;
+                        }
 
-                        // A5: Container check — all applicable containers (FIX-B06: removed Math.Min(3) limit for full accuracy)
+                        // A5: Container check with per-container tracking
                         try
                         {
                             var containers = ParamRegistry.ContainersForCategory(cat);
@@ -230,8 +242,15 @@ namespace StingTools.Core
                                 int emptyCount = 0;
                                 for (int ci = 0; ci < containers.Length; ci++)
                                 {
+                                    result.TotalContainerChecks++;
                                     if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                    {
                                         emptyCount++;
+                                        string cName = containers[ci].ParamName;
+                                        if (!result.EmptyContainerCounts.ContainsKey(cName))
+                                            result.EmptyContainerCounts[cName] = 0;
+                                        result.EmptyContainerCounts[cName]++;
+                                    }
                                 }
                                 if (emptyCount > 0) result.ContainersMissing++;
                             }

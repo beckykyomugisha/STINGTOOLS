@@ -663,6 +663,39 @@ namespace StingTools.Tags
 
             if (elements.Count == 0) return (0, 0, 0);
 
+            // SmartTagPlacement data-tag prerequisite: run RunFullPipeline on untagged
+            // elements before placing visual annotations. This ensures TAG1 + containers
+            // are populated so the visual tags display meaningful data.
+            int pipelineRan = 0;
+            try
+            {
+                var untaggedForPipeline = elements.Where(e =>
+                    string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1))).ToList();
+                if (untaggedForPipeline.Count > 0)
+                {
+                    var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                    var formulas = TagPipelineHelper.LoadFormulas();
+                    var grids = TagPipelineHelper.LoadGridLines(doc);
+                    foreach (var el in untaggedForPipeline)
+                    {
+                        if (TagPipelineHelper.RunFullPipeline(doc, el, popCtx, tagIdx, seqCtrs,
+                            formulas, grids, overwrite: false, skipComplete: true,
+                            collisionMode: TagCollisionMode.AutoIncrement))
+                            pipelineRan++;
+                    }
+                    if (pipelineRan > 0)
+                    {
+                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
+                        StingLog.Info($"SmartTagPlacement: auto-tagged {pipelineRan} untagged elements before visual placement");
+                    }
+                }
+            }
+            catch (Exception pipeEx)
+            {
+                StingLog.Warn($"SmartTagPlacement data-tag prerequisite: {pipeEx.Message}");
+            }
+
             double offset = GetModelOffset(view);
             double tagWidth = offset * 3.0;
             double tagHeight = offset * 1.0;

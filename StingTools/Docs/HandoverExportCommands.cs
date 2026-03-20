@@ -1323,4 +1323,197 @@ namespace StingTools.Docs
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  STREAMING COBie EXPORT — Handles 100K+ element models without OOM
+    //
+    //  Instead of collecting all elements into memory, processes elements in
+    //  configurable batches (default 5000, via COBIE_STREAM_BATCH_SIZE in config).
+    //  Each batch writes directly to a StreamWriter, keeping memory bounded.
+    //  Supports progress reporting and cancellation via StingProgressDialog.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Streaming COBie export optimised for 100K+ element models.
+    /// Processes elements in batches (configurable via project_config.json
+    /// COBIE_STREAM_BATCH_SIZE) and writes directly to CSV streams,
+    /// avoiding memory pressure from large List&lt;string&gt; buffers.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StreamingCOBieExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            Document doc = ParameterHelpers.GetDoc(commandData);
+            if (doc == null) { TaskDialog.Show("Streaming COBie", "No document open."); return Result.Failed; }
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            string outputDir = OutputLocationHelper.PromptForExportPath("COBie", doc);
+            if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string prefix = $"STING_COBie_Stream_{timestamp}";
+
+            int batchSize = TagConfig.CobieStreamBatchSize;
+            int totalProcessed = 0, totalSkipped = 0;
+            var typesSeen = new HashSet<string>();
+            var systemGroups = new Dictionary<string, List<string>>();
+
+            // Count elements first for progress
+            var countColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                countColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            int totalElements = countColl.GetElementCount();
+
+            var progress = UI.StingProgressDialog.Show("Streaming COBie Export", totalElements);
+
+            try
+            {
+                // Component CSV — streamed in batches
+                string compPath = Path.Combine(outputDir, $"{prefix}_Component.csv");
+                using (var compWriter = new StreamWriter(compPath, false, Encoding.UTF8))
+                {
+                    compWriter.WriteLine("Name,CreatedBy,CreatedOn,TypeName,Space,Description," +
+                        "Tag,SerialNumber,InstallationDate,Discipline,Location,Zone,Level," +
+                        "System,Function,Product,Sequence,Status,Revision,CostPerUnit,GridRef");
+
+                    var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    if (catEnums != null && catEnums.Length > 0)
+                        collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+                    int batchCount = 0;
+                    foreach (Element el in collector)
+                    {
+                        if (progress.IsCancelled) break;
+
+                        string cat = ParameterHelpers.GetCategoryName(el);
+                        if (!known.Contains(cat)) { totalSkipped++; continue; }
+
+                        string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                        string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                        string familyName = ParameterHelpers.GetFamilyName(el);
+
+                        // Track types for Type sheet
+                        string typeKey = $"{familyName}:{typeName}";
+                        typesSeen.Add(typeKey);
+
+                        // Track systems
+                        string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                        if (!string.IsNullOrEmpty(sys))
+                        {
+                            if (!systemGroups.ContainsKey(sys))
+                                systemGroups[sys] = new List<string>();
+                            if (systemGroups[sys].Count < 50) // cap for memory
+                                systemGroups[sys].Add(tag1 ?? el.Id.ToString());
+                        }
+
+                        // Get room context
+                        string roomName = "";
+                        try
+                        {
+                            var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                            if (room != null) roomName = $"{room.Number} {room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString()}";
+                        }
+                        catch (Exception ex) { StingLog.Warn($"StreamCOBie room lookup: {ex.Message}"); }
+
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                        string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                        string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                        string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                        string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                        string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        string rev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                        string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NUM_TXT");
+                        string installDate = ParameterHelpers.GetString(el, "ASS_INSTALL_DATE_TXT");
+                        string costStr = ParameterHelpers.GetString(el, "ASS_COST_TOTAL_TXT");
+                        string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+
+                        compWriter.Write(Esc(tag1 ?? el.Name ?? el.Id.ToString()));
+                        compWriter.Write($",STING Tools,{DateTime.Now:yyyy-MM-dd}");
+                        compWriter.Write($",{Esc(typeKey)},{Esc(roomName)},{Esc(cat)}");
+                        compWriter.Write($",{Esc(tag1)},{Esc(serial)},{Esc(installDate)}");
+                        compWriter.Write($",{Esc(disc)},{Esc(loc)},{Esc(zone)},{Esc(lvl)}");
+                        compWriter.Write($",{Esc(sys)},{Esc(func)},{Esc(prod)},{Esc(seq)}");
+                        compWriter.Write($",{Esc(status)},{Esc(rev)},{Esc(costStr)},{Esc(gridRef)}");
+                        compWriter.WriteLine();
+
+                        totalProcessed++;
+                        batchCount++;
+                        if (batchCount % 500 == 0)
+                            progress.Increment($"Processed {totalProcessed:N0} elements...");
+                    }
+                }
+
+                if (!progress.IsCancelled)
+                    progress.SetStatus("Writing Type and System sheets...");
+
+                // Type CSV — from collected type keys
+                string typePath = Path.Combine(outputDir, $"{prefix}_Type.csv");
+                using (var typeWriter = new StreamWriter(typePath, false, Encoding.UTF8))
+                {
+                    typeWriter.WriteLine("Name,CreatedBy,CreatedOn,Category,Description");
+                    foreach (string tk in typesSeen)
+                    {
+                        string[] parts = tk.Split(':');
+                        typeWriter.WriteLine($"{Esc(tk)},STING Tools,{DateTime.Now:yyyy-MM-dd},{Esc(parts[0])},{Esc(parts.Length > 1 ? parts[1] : "")}");
+                    }
+                }
+
+                // System CSV — from collected system groups
+                string sysPath = Path.Combine(outputDir, $"{prefix}_System.csv");
+                using (var sysWriter = new StreamWriter(sysPath, false, Encoding.UTF8))
+                {
+                    sysWriter.WriteLine("Name,CreatedBy,CreatedOn,Category,Description,ComponentNames");
+                    foreach (var kvp in systemGroups)
+                    {
+                        string compNames = string.Join("; ", kvp.Value.Take(20));
+                        sysWriter.WriteLine($"{Esc(kvp.Key)},STING Tools,{DateTime.Now:yyyy-MM-dd},System,{Esc(kvp.Key)} system,{Esc(compNames)}");
+                    }
+                }
+
+                progress.Close();
+
+                var report = new StringBuilder();
+                report.AppendLine("Streaming COBie Export Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Elements processed:  {totalProcessed:N0}");
+                report.AppendLine($"  Elements skipped:    {totalSkipped:N0}");
+                report.AppendLine($"  Unique types:        {typesSeen.Count:N0}");
+                report.AppendLine($"  Systems:             {systemGroups.Count:N0}");
+                report.AppendLine($"  Batch size:          {batchSize:N0}");
+                report.AppendLine($"  Output:              {outputDir}");
+                report.AppendLine();
+                report.AppendLine("Files generated:");
+                report.AppendLine($"  {prefix}_Component.csv");
+                report.AppendLine($"  {prefix}_Type.csv");
+                report.AppendLine($"  {prefix}_System.csv");
+
+                TaskDialog td = new TaskDialog("Streaming COBie Export");
+                td.MainInstruction = $"Exported {totalProcessed:N0} elements to COBie CSV";
+                td.MainContent = report.ToString();
+                td.Show();
+
+                StingLog.Info($"StreamingCOBie: {totalProcessed} components, {typesSeen.Count} types, {systemGroups.Count} systems");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                progress.Close();
+                StingLog.Error($"StreamingCOBie export failed: {ex.Message}", ex);
+                TaskDialog.Show("Streaming COBie Export", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private static string Esc(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return "";
+            if (v.Contains(",") || v.Contains("\"") || v.Contains("\n"))
+                return $"\"{v.Replace("\"", "\"\"")}\"";
+            return v;
+        }
+    }
 }

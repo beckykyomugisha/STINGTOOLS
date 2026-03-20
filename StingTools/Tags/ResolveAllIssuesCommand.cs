@@ -112,7 +112,8 @@ namespace StingTools.Tags
             // SmartSortElements calls GetMepSystemAwareSysCode() per element (MEP
             // connector traversal) which can take several seconds on large models.
             bool cancelled = false;
-            const int BatchSize = 500;
+            // HC-003: Configurable batch size from project_config.json (default 500)
+            int BatchSize = TagConfig.ResolveBatchSize;
             int processed = 0;
             var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
             progress.SetStatus($"Sorting {totalTaggable} elements by level/discipline...");

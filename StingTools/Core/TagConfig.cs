@@ -208,11 +208,35 @@ namespace StingTools.Core
     /// </summary>
     public static class ISO19650Validator
     {
-        /// <summary>Valid discipline codes per ISO 19650.</summary>
-        public static readonly HashSet<string> ValidDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>FLEX-001: Custom DISC codes from project_config.json CUSTOM_VALID_DISC.
+        /// When non-empty, these are ADDED to the built-in codes for validation.</summary>
+        public static HashSet<string> CustomDiscCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom SYS codes from project_config.json CUSTOM_VALID_SYS.</summary>
+        public static HashSet<string> CustomSysCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom FUNC codes from project_config.json CUSTOM_VALID_FUNC.</summary>
+        public static HashSet<string> CustomFuncCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom LOC codes from project_config.json CUSTOM_VALID_LOC.</summary>
+        public static HashSet<string> CustomLocCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom ZONE codes from project_config.json CUSTOM_VALID_ZONE.</summary>
+        public static HashSet<string> CustomZoneCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Built-in valid discipline codes per ISO 19650.</summary>
+        private static readonly HashSet<string> _builtInDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "M", "E", "P", "A", "S", "FP", "LV", "G"
         };
+
+        /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001).</summary>
+        public static HashSet<string> ValidDiscCodes
+        {
+            get
+            {
+                if (CustomDiscCodes.Count == 0) return _builtInDiscCodes;
+                var combined = new HashSet<string>(_builtInDiscCodes, StringComparer.OrdinalIgnoreCase);
+                foreach (string c in CustomDiscCodes) combined.Add(c);
+                return combined;
+            }
+        }
 
         /// <summary>
         /// Valid system codes per CIBSE / Uniclass 2015 / ISO 19650.
@@ -279,6 +303,9 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
+                // FLEX-001: Accept custom LOC codes from config before strict/lenient check
+                if (CustomLocCodes.Count > 0 && CustomLocCodes.Contains(value))
+                    return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
                     if (!TagConfig.LocCodes.Contains(value))
@@ -293,6 +320,9 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.ZONE)
             {
+                // FLEX-001: Accept custom ZONE codes from config before strict/lenient check
+                if (CustomZoneCodes.Count > 0 && CustomZoneCodes.Contains(value))
+                    return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
                     if (!TagConfig.ZoneCodes.Contains(value))
@@ -606,6 +636,15 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
+        /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
+        public static double ProximityRadiusFt { get; internal set; } = 10.0;
+
+        /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
+        public static int ResolveBatchSize { get; internal set; } = 500;
+
+        /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
+        public static int CobieStreamBatchSize { get; internal set; } = 5000;
+
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
@@ -856,7 +895,11 @@ namespace StingTools.Core
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
-                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER"
+                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
+                    "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
+                    "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
+                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
+                    "COBIE_STREAM_BATCH_SIZE"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -985,6 +1028,49 @@ namespace StingTools.Core
                 var forceSys = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_FORCE_SYS");
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
+
+                // FLEX-001: Load custom token validators from config
+                ISO19650Validator.CustomDiscCodes = LoadCustomCodes(data, "CUSTOM_VALID_DISC");
+                ISO19650Validator.CustomSysCodes = LoadCustomCodes(data, "CUSTOM_VALID_SYS");
+                ISO19650Validator.CustomFuncCodes = LoadCustomCodes(data, "CUSTOM_VALID_FUNC");
+                ISO19650Validator.CustomLocCodes = LoadCustomCodes(data, "CUSTOM_VALID_LOC");
+                ISO19650Validator.CustomZoneCodes = LoadCustomCodes(data, "CUSTOM_VALID_ZONE");
+                int customCount = ISO19650Validator.CustomDiscCodes.Count + ISO19650Validator.CustomSysCodes.Count
+                    + ISO19650Validator.CustomFuncCodes.Count + ISO19650Validator.CustomLocCodes.Count
+                    + ISO19650Validator.CustomZoneCodes.Count;
+                if (customCount > 0)
+                    StingLog.Info($"TagConfig: loaded {customCount} custom validator codes from project_config.json");
+
+                // HC-001: Configurable proximity radius for CopyTokensFromNearest
+                ProximityRadiusFt = 10.0; // default 10 ft
+                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxObj))
+                {
+                    if (proxObj is double pd) ProximityRadiusFt = pd;
+                    else if (proxObj is long pl) ProximityRadiusFt = pl;
+                    else if (double.TryParse(proxObj?.ToString(), out double pv)) ProximityRadiusFt = pv;
+                    if (ProximityRadiusFt < 1.0) ProximityRadiusFt = 1.0;
+                    if (ProximityRadiusFt > 200.0) ProximityRadiusFt = 200.0;
+                }
+
+                // HC-003: Configurable batch size for ResolveAllIssues
+                ResolveBatchSize = 500; // default
+                if (data.TryGetValue("RESOLVE_BATCH_SIZE", out object bsObj))
+                {
+                    if (bsObj is long bl) ResolveBatchSize = (int)bl;
+                    else if (int.TryParse(bsObj?.ToString(), out int bi)) ResolveBatchSize = bi;
+                    if (ResolveBatchSize < 50) ResolveBatchSize = 50;
+                    if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
+                }
+
+                // Streaming COBie batch size
+                CobieStreamBatchSize = 5000; // default
+                if (data.TryGetValue("COBIE_STREAM_BATCH_SIZE", out object csObj))
+                {
+                    if (csObj is long cl) CobieStreamBatchSize = (int)cl;
+                    else if (int.TryParse(csObj?.ToString(), out int ci)) CobieStreamBatchSize = ci;
+                    if (CobieStreamBatchSize < 500) CobieStreamBatchSize = 500;
+                    if (CobieStreamBatchSize > 50000) CobieStreamBatchSize = 50000;
+                }
 
                 // AL-05: Compliance gate threshold
                 ComplianceGatePct = 0;
@@ -1884,6 +1970,10 @@ namespace StingTools.Core
 
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
+
+            // SEQ counter fix: tentatively increment, but track pre-increment value
+            // so we can rollback if TAG1 write fails (FLEX-005 partial cancellation safety)
+            int preIncrementValue = sequenceCounters[seqKey];
             sequenceCounters[seqKey]++;
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
@@ -1894,7 +1984,7 @@ namespace StingTools.Core
                 string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
-                sequenceCounters[seqKey] = maxSeq; // Cap counter to prevent further drift
+                sequenceCounters[seqKey] = preIncrementValue; // Rollback on overflow
                 return false; // Skip element to prevent duplicate tags
             }
 
@@ -2007,7 +2097,16 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
                 return false;
             }
-            ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+            bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // SEQ counter fix: rollback increment if TAG1 write failed
+            if (!tagWriteSucceeded)
+            {
+                sequenceCounters[seqKey] = preIncrementValue;
+                StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
+                stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
+                return false;
+            }
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
@@ -3036,6 +3135,17 @@ namespace StingTools.Core
                 return JsonConvert.DeserializeObject<T>(json);
             }
             catch (Exception ex) { StingLog.Warn($"TagConfig deserialize '{key}': {ex.Message}"); return null; }
+        }
+
+        /// <summary>FLEX-001: Load custom validation codes from config as a HashSet.</summary>
+        private static HashSet<string> LoadCustomCodes(Dictionary<string, object> data, string key)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var codes = TryDeserialize<List<string>>(data, key);
+            if (codes != null)
+                foreach (var code in codes)
+                    if (!string.IsNullOrWhiteSpace(code)) result.Add(code.Trim());
+            return result;
         }
 
         // ══════════════════════════════════════════════════════════════════

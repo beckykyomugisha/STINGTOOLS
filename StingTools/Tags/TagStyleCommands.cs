@@ -25,8 +25,176 @@ namespace StingTools.Tags
     // 1. APPLY TAG STYLE — Pick size×style×color
     // ══════════════════════════════════════════════════════════════════
 
+    // ── Tag Style Grid Dialog — replaces 3-step TaskDialog with single visual grid ──
+
+    /// <summary>
+    /// WPF visual color grid dialog for tag style selection.
+    /// Shows a 4×3×8 matrix (sizes × styles × colors = 96 cells + 32 extended)
+    /// with colored preview cells. User clicks one cell to select the combination.
+    /// </summary>
+    internal static class TagStyleGridDialog
+    {
+        private static readonly string[] Sizes = { "2", "2.5", "3", "3.5" };
+        private static readonly string[] Styles = { "NOM", "BOLD", "ITALIC" };
+        private static readonly string[] Colors = { "BLACK", "BLUE", "GREEN", "RED", "YELLOW", "ORANGE", "PURPLE", "WHITE" };
+
+        private static readonly Dictionary<string, System.Windows.Media.Color> ColorMap =
+            new Dictionary<string, System.Windows.Media.Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["BLACK"]  = System.Windows.Media.Color.FromRgb(30, 30, 30),
+                ["BLUE"]   = System.Windows.Media.Color.FromRgb(40, 100, 200),
+                ["GREEN"]  = System.Windows.Media.Color.FromRgb(40, 160, 60),
+                ["RED"]    = System.Windows.Media.Color.FromRgb(200, 40, 40),
+                ["YELLOW"] = System.Windows.Media.Color.FromRgb(200, 180, 30),
+                ["ORANGE"] = System.Windows.Media.Color.FromRgb(220, 120, 30),
+                ["PURPLE"] = System.Windows.Media.Color.FromRgb(130, 50, 180),
+                ["WHITE"]  = System.Windows.Media.Color.FromRgb(240, 240, 240),
+            };
+
+        /// <summary>
+        /// Show the visual grid dialog. Returns (size, style, color) tuple, or null if cancelled.
+        /// </summary>
+        public static (string size, string style, string color)? Show()
+        {
+            (string size, string style, string color)? result = null;
+
+            var window = new System.Windows.Window
+            {
+                Title = "Tag Style — Visual Grid",
+                Width = 680, Height = 480,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
+            };
+
+            // Set Revit as owner for modality
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"TagStyleGrid owner: {ex.Message}"); }
+
+            var mainPanel = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+
+            // Header
+            var header = new System.Windows.Controls.TextBlock
+            {
+                Text = "Select tag style: Size × Weight × Color",
+                FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 10)
+            };
+            mainPanel.Children.Add(header);
+
+            // Column headers (colors)
+            var colHeaderGrid = new System.Windows.Controls.Grid();
+            colHeaderGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
+            foreach (var color in Colors)
+            {
+                colHeaderGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(65) });
+                var colLabel = new System.Windows.Controls.TextBlock
+                {
+                    Text = color, FontSize = 10, FontWeight = System.Windows.FontWeights.SemiBold,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Foreground = new System.Windows.Media.SolidColorBrush(ColorMap.TryGetValue(color, out var c) ? c : System.Windows.Media.Colors.Black)
+                };
+                System.Windows.Controls.Grid.SetColumn(colLabel, Colors.ToList().IndexOf(color) + 1);
+                colHeaderGrid.Children.Add(colLabel);
+            }
+            mainPanel.Children.Add(colHeaderGrid);
+
+            // Grid cells: rows = Size×Style combos, cols = Colors
+            foreach (string size in Sizes)
+            {
+                foreach (string style in Styles)
+                {
+                    var rowGrid = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(0, 1, 0, 1) };
+                    rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
+
+                    // Row label
+                    string sizeLabel = $"{size}mm {style}";
+                    var rowLabel = new System.Windows.Controls.TextBlock
+                    {
+                        Text = sizeLabel, FontSize = 10, VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                        FontStyle = style == "ITALIC" ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
+                        FontWeight = style == "BOLD" ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
+                    };
+                    System.Windows.Controls.Grid.SetColumn(rowLabel, 0);
+                    rowGrid.Children.Add(rowLabel);
+
+                    for (int ci = 0; ci < Colors.Length; ci++)
+                    {
+                        string color = Colors[ci];
+                        rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(65) });
+
+                        var cellColor = ColorMap.TryGetValue(color, out var mc) ? mc : System.Windows.Media.Colors.Gray;
+                        var btn = new System.Windows.Controls.Button
+                        {
+                            Width = 58, Height = 22,
+                            Background = new System.Windows.Media.SolidColorBrush(cellColor),
+                            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkGray),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Content = new System.Windows.Controls.TextBlock
+                            {
+                                Text = "Aa", FontSize = double.Parse(size) * 3.5,
+                                Foreground = new System.Windows.Media.SolidColorBrush(
+                                    color == "WHITE" || color == "YELLOW" ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White),
+                                FontStyle = style == "ITALIC" ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
+                                FontWeight = style == "BOLD" ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
+                            },
+                            Cursor = System.Windows.Input.Cursors.Hand,
+                            ToolTip = $"TAG_{size.Replace(".", "")}{style}_{color}_BOOL"
+                        };
+
+                        string capturedSize = size, capturedStyle = style, capturedColor = color;
+                        btn.Click += (s, e) =>
+                        {
+                            result = (capturedSize, capturedStyle, capturedColor);
+                            window.DialogResult = true;
+                            window.Close();
+                        };
+
+                        System.Windows.Controls.Grid.SetColumn(btn, ci + 1);
+                        rowGrid.Children.Add(btn);
+                    }
+
+                    mainPanel.Children.Add(rowGrid);
+                }
+
+                // Separator between size groups
+                mainPanel.Children.Add(new System.Windows.Controls.Separator
+                {
+                    Margin = new System.Windows.Thickness(0, 4, 0, 4),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.LightGray)
+                });
+            }
+
+            // Cancel button
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "Cancel", Width = 100, Height = 30,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0)
+            };
+            cancelBtn.Click += (s, e) => { window.DialogResult = false; window.Close(); };
+            mainPanel.Children.Add(cancelBtn);
+
+            var scroll = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Content = mainPanel
+            };
+            window.Content = scroll;
+            window.ShowDialog();
+
+            return result;
+        }
+    }
+
     /// <summary>
     /// Applies a specific tag style (size, weight, color) to all element types.
+    /// Uses a visual color grid dialog instead of 3 sequential TaskDialogs.
     /// Sets exactly one TAG_{SIZE}{STYLE}_{COLOR}_BOOL to true, making that
     /// label row visible in tag families.
     /// </summary>
@@ -40,63 +208,13 @@ namespace StingTools.Tags
             var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
-            // Step 1: Pick size
-            var sizeDlg = new TaskDialog("Tag Style — Size");
-            sizeDlg.MainInstruction = "Select tag text size (mm):";
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "2.0 mm", "Compact — minimal annotation");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2.5 mm", "Standard — everyday drawings");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3.0 mm", "Large — presentation sheets");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "3.5 mm", "Extra-large — titles and emphasis");
-            sizeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var sizeChoice = sizeDlg.Show();
+            // Single-step visual grid dialog replaces 3-step TaskDialog flow
+            var selection = TagStyleGridDialog.Show();
+            if (selection == null) return Result.Cancelled;
 
-            string size;
-            switch (sizeChoice)
-            {
-                case TaskDialogResult.CommandLink1: size = "2"; break;
-                case TaskDialogResult.CommandLink2: size = "2.5"; break;
-                case TaskDialogResult.CommandLink3: size = "3"; break;
-                case TaskDialogResult.CommandLink4: size = "3.5"; break;
-                default: return Result.Cancelled;
-            }
-
-            // Step 2: Pick style
-            var styleDlg = new TaskDialog("Tag Style — Weight");
-            styleDlg.MainInstruction = "Select tag text style:";
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Normal (NOM)", "Standard weight text");
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Bold (BOLD)", "Heavy emphasis text");
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Italic (ITALIC)", "Slanted emphasis text");
-            styleDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var styleChoice = styleDlg.Show();
-
-            string style;
-            switch (styleChoice)
-            {
-                case TaskDialogResult.CommandLink1: style = "NOM"; break;
-                case TaskDialogResult.CommandLink2: style = "BOLD"; break;
-                case TaskDialogResult.CommandLink3: style = "ITALIC"; break;
-                default: return Result.Cancelled;
-            }
-
-            // Step 3: Pick color
-            var colorDlg = new TaskDialog("Tag Style — Color");
-            colorDlg.MainInstruction = "Select tag text color:";
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Black", "Standard print-ready");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Blue", "MEP / mechanical emphasis");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Green", "Plumbing / environmental");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Red", "Structural / fire / highlight");
-            colorDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var colorChoice = colorDlg.Show();
-
-            string color;
-            switch (colorChoice)
-            {
-                case TaskDialogResult.CommandLink1: color = "BLACK"; break;
-                case TaskDialogResult.CommandLink2: color = "BLUE"; break;
-                case TaskDialogResult.CommandLink3: color = "GREEN"; break;
-                case TaskDialogResult.CommandLink4: color = "RED"; break;
-                default: return Result.Cancelled;
-            }
+            string size = selection.Value.size;
+            string style = selection.Value.style;
+            string color = selection.Value.color;
 
             var preset = new StylePreset { Name = $"{size}{style}_{color}", Size = size, Style = style, Color = color };
 
