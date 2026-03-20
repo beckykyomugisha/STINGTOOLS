@@ -1386,7 +1386,7 @@ namespace StingTools.Tags
                         {
                             try
                             {
-                                ParameterHelpers.RunFullPipeline(doc, pEl, pipelineCtx,
+                                TagPipelineHelper.RunFullPipeline(doc, pEl, pipelineCtx,
                                     tagIdx, seqCtrs, null, null,
                                     overwrite: false, skipComplete: true,
                                     collisionMode: TagCollisionMode.AutoIncrement);
@@ -1484,7 +1484,7 @@ namespace StingTools.Tags
                             {
                                 try
                                 {
-                                    ParameterHelpers.RunFullPipeline(doc, vEl, pipeCtx,
+                                    TagPipelineHelper.RunFullPipeline(doc, vEl, pipeCtx,
                                         tIdx, sCtrs, null, null,
                                         overwrite: false, skipComplete: true,
                                         collisionMode: TagCollisionMode.AutoIncrement);

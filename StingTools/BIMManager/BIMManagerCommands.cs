@@ -5318,7 +5318,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     outputDir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                        OutputLocationHelper.GetOutputDirectory(doc),
                         $"STING_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
 

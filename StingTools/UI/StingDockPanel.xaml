@@ -1511,6 +1511,8 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                        ToolTip="BIMLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
@@ -2227,6 +2229,17 @@
                         </Border>
 
                         <!-- EXCEL LINK — BIDIRECTIONAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA EXPORT — BIMLINK STYLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E8912D">
+                            <StackPanel>
+                                <TextBlock Text="Unified export with category, parameter, family/type filtering and format choice" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                            ToolTip="BIMLink-style unified export: choose categories, parameters, family/type filters, format (CSV/Excel/JSON), and location" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL LINK — BIDIRECTIONAL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
                             <StackPanel>

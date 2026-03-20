@@ -990,6 +990,28 @@ namespace StingTools.UI
                     case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
                     case "ExcelExchangeWizard": RunCommand<BIMManager.ExcelExchangeWizardCommand>(app); break;
 
+                    // BIMLink-style Data Export (unified export dialog)
+                    case "StingDataExport":
+                    case "DataExport":
+                    case "UnifiedExport":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING", "No document open."); break; }
+                        var exportSettings = StingExportDialog.Show(doc);
+                        if (exportSettings == null) break;
+                        try
+                        {
+                            DataExportEngine.Execute(doc, app.ActiveUIDocument, exportSettings);
+                            TaskDialog.Show("STING Export", $"Exported successfully to:\n{exportSettings.OutputPath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Error($"Data export failed: {ex.Message}", ex);
+                            TaskDialog.Show("STING Export", $"Export failed: {ex.Message}");
+                        }
+                        break;
+                    }
+
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
@@ -3031,13 +3053,8 @@ namespace StingTools.UI
             foreach (string zone in Core.TagConfig.ZoneCodes)
                 report.AppendLine($"  {zone}");
 
-            // Export to project file location (fallback to data path)
-            string exportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
-                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
-                : null;
-            if (string.IsNullOrEmpty(exportDir))
-                exportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
-            string exportPath = System.IO.Path.Combine(exportDir, "TAG_DICTIONARY.txt");
+            // Export to user-preferred output directory
+            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -3180,12 +3197,7 @@ namespace StingTools.UI
             }
 
             // Export to project file location (fallback to data path)
-            string clExportDir = !string.IsNullOrEmpty(app.ActiveUIDocument?.Document?.PathName)
-                ? System.IO.Path.GetDirectoryName(app.ActiveUIDocument.Document.PathName)
-                : null;
-            if (string.IsNullOrEmpty(clExportDir))
-                clExportDir = StingToolsApp.DataPath ?? System.IO.Path.GetTempPath();
-            string exportPath = System.IO.Path.Combine(clExportDir, "COLOR_LEGEND.txt");
+            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -3235,9 +3247,8 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
             }
 
-            string exportPath = Path.Combine(
-                StingToolsApp.DataPath ?? Path.GetTempPath(),
-                $"SHEET_REGISTER_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+            string exportPath = OutputLocationHelper.GetTimestampedPath(
+                app.ActiveUIDocument?.Document, "SHEET_REGISTER", ".csv");
             try
             {
                 System.IO.File.WriteAllText(exportPath, sb.ToString());

@@ -4954,7 +4954,7 @@ namespace StingTools.Organise
                         else if (issue == "STALE:true")
                         {
                             // Clear stale flag — the token fixes above address the root cause
-                            ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0);
+                            ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0, overwrite: true);
                             fixed_stale++;
                         }
                     }

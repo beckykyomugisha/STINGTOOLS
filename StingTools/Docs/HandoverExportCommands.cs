@@ -40,7 +40,7 @@ namespace StingTools.Docs
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class COBieExportCommand : IExternalCommand
+    public class COBieHandoverExportCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {

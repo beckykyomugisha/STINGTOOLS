@@ -191,6 +191,8 @@ namespace StingTools.UI
             _operationPicker.Items.Add("Standardise Levels");
             _operationPicker.Items.Add("Remove ' Copy' suffix");
             _operationPicker.Items.Add("Remove prefix up to ' - '");
+            _operationPicker.Items.Add("Trim Whitespace");
+            _operationPicker.Items.Add("Replace Spaces with Underscores");
             _operationPicker.SelectedIndex = 0;
             _operationPicker.SelectionChanged += (s, e) => { ShowActiveOpPanel(); ApplyFiltersAndPreview(); };
             Grid.SetColumn(_operationPicker, 1);
@@ -456,6 +458,8 @@ namespace StingTools.UI
                     4 => StandardiseLevelName(name),
                     5 => Regex.Replace(name, @"\s*Copy\s*\d*$", "", RegexOptions.IgnoreCase),
                     6 => RemovePrefixUpToDash(name),
+                    7 => name.Trim(),
+                    8 => name.Replace(' ', '_'),
                     _ => name
                 };
             }

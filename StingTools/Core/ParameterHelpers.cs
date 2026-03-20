@@ -263,9 +263,10 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Set an integer parameter. Returns true if set successfully.
+        /// Set an integer parameter unconditionally (ignores existing value).
+        /// Prefer <see cref="SetInt(Element,string,int,bool)"/> when overwrite control is needed.
         /// </summary>
-        public static bool SetInt(Element el, string paramName, int value)
+        public static bool SetIntForce(Element el, string paramName, int value)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
