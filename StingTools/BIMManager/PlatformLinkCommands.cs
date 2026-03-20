@@ -410,7 +410,7 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(),
                 ["view_name"] = "",
-                ["revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01",
+                ["revision"] = doc != null ? (PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01") : "P01",
                 ["bcf_guid"] = bcfGuid,
                 ["import_source"] = "BCF 2.1",
                 ["comments"] = new JArray()
@@ -714,6 +714,7 @@ namespace StingTools.BIMManager
         public string FilePath { get; }
         public string Description { get; }
         public string DocType { get; }
+        public string Category { get; set; }
         public string Suitability { get; set; }
         public string CDEState { get; set; }
 
@@ -722,6 +723,7 @@ namespace StingTools.BIMManager
             FilePath = filePath;
             Description = description;
             DocType = docType;
+            Category = docType; // default Category to DocType
             Suitability = suitability;
             CDEState = cdeState;
         }

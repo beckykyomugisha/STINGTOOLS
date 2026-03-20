@@ -74,7 +74,7 @@ namespace StingTools.BIMManager
                 ["TAG6"]         = () => ParamRegistry.TAG6,
                 ["TAG7"]         = () => ParamRegistry.TAG7,
                 ["STATUS"]       = () => ParamRegistry.STATUS,
-                ["REV"]          = () => ParamRegistry.Ext("REV_COD"),
+                ["REV"]          = () => ParamRegistry.REV,
                 ["Description"]  = () => ParamRegistry.DESC,
                 ["Mark"]         = () => ParamRegistry.Ext("TYPE_MARK"),
                 ["Comments"]     = () => ParamRegistry.Ext("COMMENTS"),
