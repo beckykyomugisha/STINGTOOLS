@@ -440,7 +440,7 @@ namespace StingTools.Tags
             // GAP-005 fix: Show revision distribution and stale revision detection
             var revDistribution = new Dictionary<string, int>();
             string currentProjectRev = "";
-            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Get current project revision failed: {ex.Message}"); }
             int staleRevCount = 0;
             foreach (Element elem2 in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {

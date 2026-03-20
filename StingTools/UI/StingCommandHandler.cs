@@ -1599,9 +1599,11 @@ namespace StingTools.UI
                     var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
                     var formulas = Core.TagPipelineHelper.LoadFormulas();
                     var grids = Core.TagPipelineHelper.LoadGridLines(doc);
-                    Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
+                    bool previewOk = Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
                         formulas, grids, overwrite: true, skipComplete: false,
                         collisionMode: Core.TagCollisionMode.AutoIncrement);
+                    if (!previewOk)
+                        Core.StingLog.Warn($"PreviewTag: pipeline returned false for element {el?.Id}");
                     predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
                     string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);
                     string loc   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC);
@@ -5308,7 +5310,7 @@ namespace StingTools.UI
                                 moved++;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Tag position switch failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();

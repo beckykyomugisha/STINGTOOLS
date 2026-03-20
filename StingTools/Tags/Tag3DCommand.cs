@@ -155,7 +155,7 @@ namespace StingTools.Tags
                         return fs;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Tag family name check failed for '{fs?.Name}': {ex.Message}"); }
             }
 
             // Second try: any Generic Model family

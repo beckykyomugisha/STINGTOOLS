@@ -330,7 +330,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing room schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
@@ -412,7 +412,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Add schedule field '{fieldName}': {ex.Message}"); }
         }
 
         private static void AddFieldByBuiltIn(ScheduleDefinition defs,
@@ -429,7 +429,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Add schedule field by built-in parameter: {ex.Message}"); }
         }
     }
 
@@ -561,7 +561,7 @@ namespace StingTools.Temp
                         .ToList();
                     allElements.AddRange(elems);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Collect elements by category for room param push: {ex.Message}"); }
             }
 
             if (allElements.Count == 0)

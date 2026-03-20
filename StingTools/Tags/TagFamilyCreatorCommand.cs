@@ -1024,7 +1024,7 @@ namespace StingTools.Tags
                                                 false);
                                             paramCount++;
                                         }
-                                        catch { }
+                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
                                         break;
                                     }
                                 }

@@ -775,7 +775,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("CreateBLEMaterialsCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"BLE Materials failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"BLE Materials failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }
@@ -804,7 +804,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("CreateMEPMaterialsCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"MEP Materials failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"MEP Materials failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }
@@ -924,9 +924,9 @@ namespace StingTools.Temp
                             var c = mat.Color;
                             if (c != null && c.IsValid) color = $"RGB({c.Red},{c.Green},{c.Blue})";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Read material color for '{name}': {ex.Message}"); }
                         int transparency = 0;
-                        try { transparency = mat.Transparency; } catch { }
+                        try { transparency = mat.Transparency; } catch (Exception ex) { StingLog.Warn($"Read material transparency: {ex.Message}"); }
                         sb.AppendLine($"\"{name}\",\"{matClass}\",\"{color}\",{transparency}");
                     }
 
@@ -941,7 +941,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("StingMaterialManagerCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"Material Manager failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

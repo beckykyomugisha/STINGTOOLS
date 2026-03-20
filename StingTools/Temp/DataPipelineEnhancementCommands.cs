@@ -410,7 +410,7 @@ namespace StingTools.Temp
                 if (File.Exists(hashFile))
                 {
                     try { previousHashes = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(hashFile)); }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Load integrity hashes: {ex.Message}"); }
                 }
 
                 var currentHashes = new Dictionary<string, string>();
@@ -447,7 +447,7 @@ namespace StingTools.Temp
                         if (Path.GetExtension(file).ToLower() != ".xlsx")
                             lineCount = File.ReadLines(file).Count();
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Count lines in '{Path.GetFileName(file)}': {ex.Message}"); }
 
                     sb.AppendLine($"  [{status,-7}] {fileName,-40} {fileInfo.Length / 1024,6}KB {lineCount,7} lines  {hash}");
                 }

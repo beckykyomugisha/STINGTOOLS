@@ -778,12 +778,12 @@ namespace StingTools.Core
                         if (isHoriz && dist < minY) { minY = dist; nearY = g.Name; }
                         else if (!isHoriz && dist < minX) { minX = dist; nearX = g.Name; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Grid distance calculation failed for grid '{g.Name}': {ex.Message}"); }
                 }
                 if (nearX != null && nearY != null) return $"{nearX}/{nearY}";
                 return nearX ?? nearY;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
     }
 
@@ -1139,6 +1139,9 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>Cached grid lines for O(1) WriteGridReference instead of per-element O(n) collector.</summary>
+            public List<Grid> CachedGrids { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -1155,6 +1158,10 @@ namespace StingTools.Core
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .ToList();
+                var grids = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid))
+                    .Cast<Grid>()
+                    .ToList();
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
@@ -1163,6 +1170,7 @@ namespace StingTools.Core
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
                     CachedPhases = phases,
                     LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
+                    CachedGrids = grids,
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -1540,14 +1548,15 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"RunFullPipeline LevelId: {ex.Message}"); }
 
-            // Phase 19: Write nearest grid intersection reference
-            WriteGridReference(doc, el);
+            // Phase 19: Write nearest grid intersection reference (uses cached grids for O(1) per element)
+            WriteGridReference(doc, el, ctx?.CachedGrids);
 
             return result;
         }
 
-        /// <summary>Phase 19: Write nearest grid intersection reference for element.</summary>
-        private static void WriteGridReference(Document doc, Element el)
+        /// <summary>Phase 19: Write nearest grid intersection reference for element.
+        /// Accepts pre-cached grids to avoid per-element FilteredElementCollector (O(n²) → O(n)).</summary>
+        private static void WriteGridReference(Document doc, Element el, List<Grid> cachedGrids = null)
         {
             try
             {
@@ -1557,7 +1566,7 @@ namespace StingTools.Core
                 else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
                 if (point == null) return;
 
-                var grids = new FilteredElementCollector(doc)
+                var grids = cachedGrids ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
@@ -1583,7 +1592,7 @@ namespace StingTools.Core
                             if (dist < minDistY) { minDistY = dist; nearestY = grid; }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"WriteGridReference grid '{grid?.Name}': {ex.Message}"); }
                 }
 
                 if (nearestX != null)
@@ -1738,7 +1747,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -2059,7 +2068,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2081,7 +2090,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair width mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2100,7 +2109,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Ramp slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2113,7 +2122,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(typeName))
                     return SetIfEmptyInt(el, targetParam, typeName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Structural type mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2136,7 +2145,7 @@ namespace StingTools.Core
                     written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                         dept.AsString() ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Room name/number mapping failed: {ex.Message}"); }
             return written;
         }
 
@@ -2166,7 +2175,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(origin))
                     written += SetIfEmptyInt(el, ParamRegistry.ORIGIN, origin);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ORIGIN mapping from ProjectInformation failed: {ex.Message}"); }
 
             // PROJECT: set from project name if available
             try
@@ -2175,7 +2184,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(projName))
                     written += SetIfEmptyInt(el, ParamRegistry.PROJECT, projName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"PROJECT mapping from ProjectInformation failed: {ex.Message}"); }
             return written;
         }
 
@@ -2710,7 +2719,7 @@ namespace StingTools.Core
                     .Cast<Grid>()
                     .ToList();
             }
-            catch { return new List<Grid>(); }
+            catch (Exception ex) { StingLog.Warn($"LoadGridLines: {ex.Message}"); return new List<Grid>(); }
         }
     }
 }

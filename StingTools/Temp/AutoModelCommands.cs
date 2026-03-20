@@ -971,7 +971,7 @@ namespace StingTools.Temp
                                 }
                                 else if (mapped == "Hidden" || mapped == "Ignore")
                                 {
-                                    try { activeView.SetCategoryHidden(sub.Id, true); } catch { }
+                                    try { activeView.SetCategoryHidden(sub.Id, true); } catch (Exception ex) { StingLog.Warn($"Hide category in view: {ex.Message}"); }
                                 }
                             }
                             t.Commit();
@@ -1204,7 +1204,7 @@ namespace StingTools.Temp
                         if (p0.DistanceTo(p1) > 0.01)
                             lines.Add(Line.CreateBound(p0, p1));
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Extract line geometry from CAD: {ex.Message}"); }
                 }
                 else if (gObj is PolyLine polyline)
                 {
@@ -1218,7 +1218,7 @@ namespace StingTools.Temp
                             if (p0.DistanceTo(p1) > 0.01)
                                 lines.Add(Line.CreateBound(p0, p1));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Extract polyline segment from CAD: {ex.Message}"); }
                     }
                 }
                 else if (gObj is GeometryInstance geoInst)
@@ -1285,7 +1285,7 @@ namespace StingTools.Temp
                             XYZ basisX = instTransform.BasisX;
                             rotation = Math.Atan2(basisX.Y, basisX.X);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Extract block rotation from CAD: {ex.Message}"); }
 
                         items.Add(new CadBlockItem
                         {

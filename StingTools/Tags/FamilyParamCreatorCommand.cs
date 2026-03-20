@@ -113,7 +113,7 @@ namespace StingTools.Tags
                             return (BuiltInCategory.OST_PlumbingFixtures, "Plumbing Fixtures", "P");
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Detect family category from parameters: {ex.Message}"); }
                 }
 
                 // Map to discipline code
@@ -200,7 +200,7 @@ namespace StingTools.Tags
                 finally
                 {
                     try { app.SharedParametersFilename = origFile; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Restore shared parameters filename: {ex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -709,7 +709,7 @@ namespace StingTools.Tags
                             var (tpAdded, _) = InjectSharedParams(famDoc, app, tagPosList);
                             result.TagPosInjected = tpAdded > 0;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Inject TAG_POS shared param: {ex.Message}"); }
                     }
 
                     // Inject formulas
@@ -752,7 +752,7 @@ namespace StingTools.Tags
             finally
             {
                 try { famDoc?.Close(false); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Close family document: {ex.Message}"); }
             }
 
             return result;

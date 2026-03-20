@@ -1244,7 +1244,7 @@ namespace StingTools.Temp
                 projAddress = pi?.Address ?? "";
                 projStatus = pi?.Status ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read project information fields: {ex.Message}"); }
 
             // ── STING tag parameters from Project Information ──
             string projLoc = ParameterHelpers.GetString(pi, ParamRegistry.LOC);
@@ -1304,7 +1304,7 @@ namespace StingTools.Temp
                 // Remove old schedule if exists
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing title block schedule: {ex.Message}"); }
                 }
 
                 // Create drafting view
@@ -1445,7 +1445,7 @@ namespace StingTools.Temp
                     foreach (var rev in revisions.TakeLast(10))
                     {
                         string revDate = "";
-                        try { revDate = rev.RevisionDate; } catch { }
+                        try { revDate = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Read revision date: {ex.Message}"); }
                         PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
                             smallTypeId, lineSpacing);
                     }
@@ -1640,7 +1640,7 @@ namespace StingTools.Temp
                                     ? "FOR INFORMATION" : "PRELIMINARY";
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read sheet revision data: {ex.Message}"); }
                 }
 
                 if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";
@@ -1669,7 +1669,7 @@ namespace StingTools.Temp
                 // Remove existing if applicable
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing drawing register: {ex.Message}"); }
                 }
 
                 // Create drafting view

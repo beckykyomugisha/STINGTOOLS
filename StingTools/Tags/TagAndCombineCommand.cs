@@ -42,7 +42,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("TagAndCombineCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -160,10 +160,11 @@ namespace StingTools.Tags
                         totalProcessed++;
 
                         // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
                             collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+                        if (!pipelineOk) errors++;
                     }
                     catch (Exception ex)
                     {

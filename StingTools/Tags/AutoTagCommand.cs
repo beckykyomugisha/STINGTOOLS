@@ -37,7 +37,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("AutoTagCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Auto Tag failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -169,10 +169,12 @@ namespace StingTools.Tags
                     {
                         bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                         bool ow = (collisionMode == TagCollisionMode.Overwrite);
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, sequenceCounters, formulas, gridLines,
                             overwrite: ow, skipComplete: skipComplete,
                             collisionMode: collisionMode, stats: stats);
+                        if (!pipelineOk)
+                            StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
                     }
                     catch (Exception ex)
                     {
@@ -353,10 +355,12 @@ namespace StingTools.Tags
 
                     try
                     {
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: false, skipComplete: true,
                             collisionMode: TagCollisionMode.Skip, stats: stats);
+                        if (!pipelineOk)
+                            StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
                     }
                     catch (Exception ex)
                     {

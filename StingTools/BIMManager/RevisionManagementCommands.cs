@@ -136,11 +136,11 @@ namespace StingTools.BIMManager
                 if (latest != null)
                 {
                     string num = "";
-                    try { num = latest.RevisionNumber; } catch { }
+                    try { num = latest.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     if (!string.IsNullOrEmpty(num)) return num;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Current project revision lookup failed: {ex.Message}"); }
             // Fallback to PhaseAutoDetect
             return PhaseAutoDetect.DetectProjectRevision(doc);
         }
@@ -740,7 +740,7 @@ namespace StingTools.BIMManager
                 {
                     int numClouds = clouds.ContainsKey(rev.Id.Value) ? clouds[rev.Id.Value] : 0;
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { }
+                    try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     string namingValid = RevisionEngine.ValidateRevisionNumber(numStr) == null ? "Valid" : "Invalid";
                     string issued = rev.Issued ? "Yes" : "No";
                     string vis = rev.Visibility == RevisionVisibility.Hidden ? "Hidden" :
@@ -968,7 +968,7 @@ namespace StingTools.BIMManager
                 // Use the latest un-issued revision
                 var targetRev = revisions[0];
                 string revNum = "";
-                try { revNum = targetRev.RevisionNumber; } catch { }
+                try { revNum = targetRev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
 
                 var sheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
@@ -1075,7 +1075,7 @@ namespace StingTools.BIMManager
                     foreach (var rev in revisions)
                     {
                         string numStr = "";
-                        try { numStr = rev.RevisionNumber; } catch { }
+                        try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                         string error = RevisionEngine.ValidateRevisionNumber(numStr);
                         if (error == null)
                         {
@@ -1160,7 +1160,7 @@ namespace StingTools.BIMManager
                 }
 
                 string revNum = "";
-                try { revNum = latestRev.RevisionNumber; } catch { }
+                try { revNum = latestRev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                 string revCode = !string.IsNullOrEmpty(revNum) ? revNum : $"R{latestRev.SequenceNumber:D2}";
 
                 // Find elements in revision clouds
@@ -1297,7 +1297,7 @@ namespace StingTools.BIMManager
                 {
                     var latest = revisions[0];
                     string numStr = "";
-                    try { numStr = latest.RevisionNumber; } catch { }
+                    try { numStr = latest.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     revCode = !string.IsNullOrEmpty(numStr) ? numStr : $"R{latest.SequenceNumber:D2}";
                 }
                 else
@@ -1378,7 +1378,7 @@ namespace StingTools.BIMManager
                 foreach (var rev in revisions)
                 {
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { }
+                    try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     wsReg.Cell(row, 1).Value = rev.SequenceNumber;
                     wsReg.Cell(row, 2).Value = numStr;
                     wsReg.Cell(row, 3).Value = rev.RevisionDate ?? "";
@@ -1564,7 +1564,7 @@ namespace StingTools.BIMManager
                         string assignedNum = rev.RevisionNumber;
                         if (!string.IsNullOrEmpty(assignedNum)) revCode = assignedNum;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Assigned revision number read failed: {ex.Message}"); }
 
                     // Stamp affected elements with revision code + update STATUS
                     stamped = RevisionEngine.StampAffectedElements(doc, changes, revCode);

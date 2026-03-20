@@ -85,7 +85,7 @@ namespace StingTools.Temp
                             .Cast<PanelScheduleView>()
                             .FirstOrDefault(ps => ps.GetPanel() == panel.Id);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Check existing panel schedule for '{panelName}': {ex.Message}"); }
 
                     if (existingPanelSchedule != null)
                     {
@@ -112,7 +112,7 @@ namespace StingTools.Temp
                                     psv = PanelScheduleView.CreateInstanceView(doc, tid, panel.Id);
                                     if (psv != null) break;
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Create panel schedule with template: {ex.Message}"); }
                             }
                         }
 
@@ -181,7 +181,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
@@ -262,7 +262,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
@@ -338,7 +338,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
@@ -413,7 +413,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
@@ -487,7 +487,7 @@ namespace StingTools.Temp
 
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing schedule: {ex.Message}"); }
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,

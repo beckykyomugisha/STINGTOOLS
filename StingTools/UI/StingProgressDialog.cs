@@ -211,10 +211,10 @@ namespace StingTools.UI
                 // CRASH FIX: Use BeginInvoke to avoid deadlock on close
                 _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    try { _window.Close(); } catch { }
+                    try { _window.Close(); } catch (Exception ex) { StingLog.Warn($"Progress window close failed: {ex.Message}"); }
                 }));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Progress dialog dispose failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -228,10 +228,10 @@ namespace StingTools.UI
                 string msg = statusMessage ?? "";
                 _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    try { _statusText.Text = msg; } catch { }
+                    try { _statusText.Text = msg; } catch (Exception ex) { StingLog.Warn($"Status text update failed: {ex.Message}"); }
                 }));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Progress status dispatch failed: {ex.Message}"); }
         }
     }
 }

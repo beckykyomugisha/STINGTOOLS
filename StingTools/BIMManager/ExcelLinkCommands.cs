@@ -236,7 +236,7 @@ namespace StingTools.BIMManager
             foreach (var kvp in ParamColumnMap)
             {
                 string paramName = null;
-                try { paramName = kvp.Value(); } catch { }
+                try { paramName = kvp.Value(); } catch (Exception ex) { StingLog.Warn($"Param column map evaluation failed for {kvp.Key}: {ex.Message}"); }
                 row[kvp.Key] = string.IsNullOrEmpty(paramName)
                     ? ""
                     : ParameterHelpers.GetString(el, paramName);
@@ -276,7 +276,7 @@ namespace StingTools.BIMManager
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Phase name lookup failed: {ex.Message}"); }
             row["Phase"] = phaseName;
 
             string worksetName = "";
@@ -289,7 +289,7 @@ namespace StingTools.BIMManager
                         worksetName = wsParam.AsValueString() ?? "";
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Workset name lookup failed: {ex.Message}"); }
             row["Workset"] = worksetName;
 
             string designOption = "";
@@ -299,7 +299,7 @@ namespace StingTools.BIMManager
                 if (doParam != null && doParam.HasValue)
                     designOption = doParam.AsValueString() ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Design option lookup failed: {ex.Message}"); }
             row["DesignOption"] = designOption;
 
             return row;
@@ -451,11 +451,11 @@ namespace StingTools.BIMManager
                         if (vs.Definition?.CategoryId != null)
                             catName = Category.GetCategory(doc, vs.Definition.CategoryId)?.Name ?? "";
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Schedule category name lookup failed: {ex.Message}"); }
                     schedWs.Cell(row, 2).Value = catName;
 
                     int fieldCount = 0;
-                    try { fieldCount = vs.Definition.GetFieldCount(); } catch { }
+                    try { fieldCount = vs.Definition.GetFieldCount(); } catch (Exception ex) { StingLog.Warn($"Schedule field count lookup failed: {ex.Message}"); }
                     schedWs.Cell(row, 3).Value = fieldCount;
 
                     int rowCount = 0;
@@ -465,11 +465,11 @@ namespace StingTools.BIMManager
                         var body = tableData.GetSectionData(SectionType.Body);
                         rowCount = body.NumberOfRows;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Schedule row count lookup failed: {ex.Message}"); }
                     schedWs.Cell(row, 4).Value = rowCount;
 
                     bool hasFilters = false;
-                    try { hasFilters = vs.Definition.GetFilterCount() > 0; } catch { }
+                    try { hasFilters = vs.Definition.GetFilterCount() > 0; } catch (Exception ex) { StingLog.Warn($"Schedule filter count lookup failed: {ex.Message}"); }
                     schedWs.Cell(row, 5).Value = hasFilters ? "Yes" : "No";
 
                     schedWs.Cell(row, 6).Value = vs.IsTemplate ? "Yes" : "No";
@@ -1174,7 +1174,7 @@ namespace StingTools.BIMManager
 
                 // ── Write change log CSV ──
                 string userName = "";
-                try { userName = doc.Application.Username ?? ""; } catch { }
+                try { userName = doc.Application.Username ?? ""; } catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
                 ExcelLinkEngine.WriteChangeLog(filePath, changes, userName);
 
                 // ── Report results ──
@@ -1485,7 +1485,7 @@ namespace StingTools.BIMManager
 
                 // ── Write change log ──
                 string userName = "";
-                try { userName = doc.Application.Username ?? ""; } catch { }
+                try { userName = doc.Application.Username ?? ""; } catch (Exception ex) { StingLog.Warn($"Username lookup failed: {ex.Message}"); }
                 ExcelLinkEngine.WriteChangeLog(outputPath, changes, userName);
 
                 int valSkipped = changes.Count(c => c.Status == ExcelLinkEngine.ChangeStatus.ValidationSkipped);
@@ -1643,7 +1643,7 @@ namespace StingTools.BIMManager
                                     string cellText = vs.GetCellText(SectionType.Body, r, c);
                                     ws.Cell(r + 2, c + 1).Value = cellText;
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Schedule cell read failed at row {r}, col {c}: {ex.Message}"); }
                             }
                             dataRows++;
                         }
@@ -1660,7 +1660,7 @@ namespace StingTools.BIMManager
                             if (vs.Definition?.CategoryId != null)
                                 catName = Category.GetCategory(doc, vs.Definition.CategoryId)?.Name ?? "";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Schedule index category lookup failed: {ex.Message}"); }
                         indexWs.Cell(indexRow, 2).Value = catName;
                         indexWs.Cell(indexRow, 3).Value = cols;
                         indexWs.Cell(indexRow, 4).Value = dataRows;
@@ -1707,7 +1707,7 @@ namespace StingTools.BIMManager
                         if (!string.IsNullOrEmpty(dir))
                             Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Open export folder failed: {ex.Message}"); }
                 }
 
                 StingLog.Info($"ExcelLink: {exported} schedules exported to {outputPath}");
@@ -1934,7 +1934,7 @@ namespace StingTools.BIMManager
                         for (int i = 0; i < fieldOrder.Count && i < cols; i++)
                         {
                             try { fieldMap[i] = sched.Definition.GetField(fieldOrder[i]); }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Schedule field lookup failed at index {i}: {ex.Message}"); }
                         }
 
                         int excelRow = 2;
@@ -2254,7 +2254,7 @@ namespace StingTools.BIMManager
                         if (!string.IsNullOrEmpty(dir))
                             Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Open template folder failed: {ex.Message}"); }
                 }
 
                 StingLog.Info($"ExcelLink: Template exported to {outputPath}");

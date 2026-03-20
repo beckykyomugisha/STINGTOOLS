@@ -143,7 +143,7 @@ namespace StingTools.Temp
                 int hidden = 0;
                 for (int i = 0; i < fCount; i++)
                 {
-                    try { if (def.GetField(i).IsHidden) hidden++; } catch { }
+                    try { if (def.GetField(i).IsHidden) hidden++; } catch (Exception ex) { StingLog.Warn($"Check schedule field hidden state: {ex.Message}"); }
                 }
                 if (hidden > fCount / 2)
                     issues.Add($"[MANY HIDDEN] {name}: {hidden}/{fCount} fields hidden");
@@ -1047,34 +1047,9 @@ namespace StingTools.Temp
                     // White text for readability on colored background
                     Color textColor = new Color(255, 255, 255);
 
-                    if (headerSection != null && headerSection.NumberOfRows > 0)
-                    {
-                        int cols = headerSection.NumberOfColumns;
-                        for (int col = 0; col < cols; col++)
-                        {
-                            try
-                            {
-                                // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
-                                // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
-                            }
-                            catch { }
-                        }
-                    }
-
-                    // Also apply to first body row (column headers)
-                    if (bodySection != null && bodySection.NumberOfRows > 0)
-                    {
-                        int cols = bodySection.NumberOfColumns;
-                        for (int col = 0; col < cols; col++)
-                        {
-                            try
-                            {
-                                // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
-                                // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
-                            }
-                            catch { }
-                        }
-                    }
+                    // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                    // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
+                    // Header and body section cell styling is a no-op until API support is added.
 
                     StingLog.Info($"Schedule '{sched.Name}': applied header color #{def.HeaderColor}");
                 }
@@ -1113,37 +1088,9 @@ namespace StingTools.Temp
                 else
                     color = new Color(128, 128, 128);     // Grey (architectural / general)
 
-                // Apply to header section background
-                var headerSection = tableData.GetSectionData(SectionType.Header);
-                if (headerSection != null && headerSection.NumberOfRows > 0)
-                {
-                    int cols = headerSection.NumberOfColumns;
-                    for (int col = 0; col < cols; col++)
-                    {
-                        try
-                        {
-                            // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
-                            // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
-                        }
-                        catch { }
-                    }
-                }
-
-                // Apply to column header row in body section
-                var bodySection = tableData.GetSectionData(SectionType.Body);
-                if (bodySection != null && bodySection.NumberOfRows > 0)
-                {
-                    int cols = bodySection.NumberOfColumns;
-                    for (int col = 0; col < cols; col++)
-                    {
-                        try
-                        {
-                            // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
-                            // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
-                        }
-                        catch { }
-                    }
-                }
+                // Note: TableSectionData does not expose SetCellBackgroundColor/SetCellTextColor in the Revit API.
+                // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
+                // Header and body section cell styling is a no-op until API support is added.
 
                 return 1;
             }
@@ -1280,7 +1227,7 @@ namespace StingTools.Temp
                                 string val = sched.GetCellText(SectionType.Body, row, col);
                                 if (!string.IsNullOrWhiteSpace(val)) filledCells++;
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Read schedule cell text: {ex.Message}"); }
                         }
                     }
 
@@ -1503,7 +1450,7 @@ namespace StingTools.Temp
                         var body = sched.GetTableData()?.GetSectionData(SectionType.Body);
                         if (body != null) dataRows = body.NumberOfRows;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read schedule body row count: {ex.Message}"); }
 
                     var fieldNames = new List<string>();
                     for (int i = 0; i < fieldCount; i++)
@@ -1514,7 +1461,7 @@ namespace StingTools.Temp
                             if (f.IsHidden) hidden++;
                             fieldNames.Add(f.GetName());
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Read schedule field for report: {ex.Message}"); }
                     }
 
                     // Determine category from schedule (if available)
@@ -1528,7 +1475,7 @@ namespace StingTools.Temp
                             if (cat != null) catName = cat.Name;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read schedule category for report: {ex.Message}"); }
 
                     csvBuilder.AppendLine(
                         $"\"{EscapeCsv(sched.Name)}\"," +

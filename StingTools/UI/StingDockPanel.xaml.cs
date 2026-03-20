@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -217,7 +218,7 @@ namespace StingTools.UI
                     (cmbArrowStyle?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "None");
                 StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read leader/elbow params failed: {ex.Message}"); }
         }
 
         /// <summary>FIX-4.1: Read Style &amp; Color sliders for style commands.</summary>
@@ -237,7 +238,7 @@ namespace StingTools.UI
                 else if (rbColorWhite?.IsChecked == true) c = "White";
                 StingCommandHandler.SetExtraParam("TagTextColor", c);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read tag style params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-05: Read scope radio state and pass to commands.</summary>
@@ -285,7 +286,7 @@ namespace StingTools.UI
                 // No direction override selected — clear
                 StingCommandHandler.ClearExtraParam("DirOverride");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read direction override params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-07: Read batch warning suppression checkbox.</summary>
@@ -299,7 +300,7 @@ namespace StingTools.UI
                 else
                     StingCommandHandler.ClearExtraParam("SuppressWarningsDuringBatch");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read batch warning params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-08: Read 16-position compass preferred position.</summary>
@@ -319,7 +320,7 @@ namespace StingTools.UI
                 // Default to position 1 (above/north)
                 StingCommandHandler.SetExtraParam("PreferredTagPos", "1");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read preferred position param failed: {ex.Message}"); }
         }
 
         private void BtnPin_Click(object sender, RoutedEventArgs e)
@@ -653,7 +654,7 @@ namespace StingTools.UI
                     _instance.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         try { _instance.UpdateStatus(statusText); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Status bar update failed: {ex.Message}"); }
                     }));
                 }
                 else

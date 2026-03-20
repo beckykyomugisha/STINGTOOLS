@@ -39,7 +39,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("BatchTagCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Batch Tag failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Batch Tag failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -163,10 +163,12 @@ namespace StingTools.Tags
                         {
                             bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
                             bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                            TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                                 tagIndex, sequenceCounters, formulas, gridLines,
                                 overwrite: overwriteMode, skipComplete: skipComplete,
                                 collisionMode: collisionMode, stats: stats);
+                            if (!pipelineOk)
+                                StingLog.Warn($"BatchTag: pipeline returned false for element {el?.Id}");
                         }
                         catch (Exception ex)
                         {
@@ -488,7 +490,7 @@ namespace StingTools.Tags
                                                 Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
                                         }
                                     }
-                                    catch { }
+                                    catch (Exception frmEx) { StingLog.Warn($"Formula eval for element {el.Id}: {frmEx.Message}"); }
                                 }
                             }
                             catch (Exception fExMf)

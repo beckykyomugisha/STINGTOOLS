@@ -2538,7 +2538,7 @@ namespace StingTools.Docs
                                 if (el != null && el.get_BoundingBox(view) != null)
                                     visibleChanged.Add(kvp.Key);
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Check element visibility failed: {ex.Message}"); }
                         }
 
                         if (visibleChanged.Count == 0) continue;
@@ -2589,7 +2589,7 @@ namespace StingTools.Docs
                                 sheet.SetAdditionalRevisionIds(newRevIds);
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Set sheet revision IDs failed: {ex.Message}"); }
                     }
                 }
 
@@ -2844,7 +2844,7 @@ namespace StingTools.Docs
                     {
                         string levelName = room.Level?.Name ?? "Unknown";
                         string dept = "";
-                        try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                        try { dept = room.LookupParameter("Department")?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Read room Department failed: {ex.Message}"); }
                         double areaM2 = room.Area * 0.092903;
                         double heightM = 0;
                         try
@@ -2852,7 +2852,7 @@ namespace StingTools.Docs
                             var ubh = room.LookupParameter("Unbounded Height");
                             if (ubh != null) heightM = ubh.AsDouble() * 0.3048;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Read room Unbounded Height failed: {ex.Message}"); }
 
                         WriteRow(wsSpc, spcRow++,
                             $"{room.Number} - {room.Name}", createdBy, createdOn,
@@ -2875,7 +2875,7 @@ namespace StingTools.Docs
                         .GroupBy(r =>
                         {
                             string dept = "";
-                            try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch { }
+                            try { dept = r.LookupParameter("Department")?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Read zone room Department failed: {ex.Message}"); }
                             return string.IsNullOrEmpty(dept) ? "General" : dept;
                         })
                         .OrderBy(g => g.Key);

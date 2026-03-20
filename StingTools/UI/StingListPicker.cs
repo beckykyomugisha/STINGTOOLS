@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using StingTools.Core;
 
 namespace StingTools.Select
 {
@@ -323,7 +324,7 @@ namespace StingTools.Select
                 var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Set window owner failed: {ex.Message}"); }
 
             dlg.ShowDialog();
             return dlg._result;

@@ -2050,7 +2050,7 @@ namespace StingTools.BIMManager
                             if (phase != null) installDate = phase.Name;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Phase install date lookup failed: {ex.Message}"); }
                 }
                 string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
                 string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
@@ -2243,7 +2243,7 @@ namespace StingTools.BIMManager
                             if (mat.ThermalAssetId != ElementId.InvalidElementId)
                                 thermal = "Thermal";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Thermal asset check failed: {ex.Message}"); }
                         fireRating = ParameterHelpers.GetString(wallType, "RGL_FIRE_RATING_TXT");
                     }
                     layerProps.Add($"{layerName} ({layer.Width * 304.8:F0}mm{(thermal.Length > 0 ? ", " + thermal : "")})");
@@ -2318,7 +2318,7 @@ namespace StingTools.BIMManager
                             else if (dirStr == "In") connDirection = "Return";
                             else if (dirStr == "Bidirectional") connDirection = "Bidirectional";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Connector direction lookup failed: {ex.Message}"); }
                         string connType = conn.Domain.ToString();
                         if (connType.Contains("Hvac")) connType = "HVAC";
                         else if (connType.Contains("Piping")) connType = "Piping";
@@ -2433,7 +2433,7 @@ namespace StingTools.BIMManager
                     if (thermalId != ElementId.InvalidElementId)
                         thermalStr = "Thermal asset present";
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Thermal asset lookup for impact failed: {ex.Message}"); }
                 if (string.IsNullOrEmpty(thermalStr)) continue;
                 impactSeen.Add(impactName);
                 impacts.Add(new Dictionary<string, string>
@@ -3696,7 +3696,7 @@ namespace StingTools.BIMManager
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
 
             // GAP-007 fix: Link issue to current project revision
-            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+            try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
 
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
@@ -4439,7 +4439,7 @@ namespace StingTools.BIMManager
             string txtPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"TX_{transmittal["transmittal_id"]}_{DateTime.Now:yyyyMMdd}.txt");
             try { File.WriteAllText(txtPath, note.ToString()); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Transmittal text file write failed: {ex.Message}"); }
 
             TaskDialog.Show("STING Transmittal", note.ToString());
             StingLog.Info($"Transmittal: {transmittal["transmittal_id"]}, {outgoingIds.Count} docs");
@@ -4828,7 +4828,7 @@ namespace StingTools.BIMManager
                     csv.AppendLine(string.Join(",", headers.Select(h =>
                         $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
                 try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"COBie CSV write failed for {ws.Key}: {ex.Message}"); }
             }
 
             // Update BEP if exists
@@ -4897,7 +4897,7 @@ namespace StingTools.BIMManager
                 foreach (var item in cat)
                 {
                     long sizekb = 0;
-                    try { sizekb = new FileInfo(item.FilePath).Length / 1024; } catch { }
+                    try { sizekb = new FileInfo(item.FilePath).Length / 1024; } catch (Exception ex) { StingLog.Warn($"File size read failed for {item.FilePath}: {ex.Message}"); }
                     report.AppendLine($"    {idx}. {item.Title,-35} {sizekb,5} KB  {item.Description}");
                     idx++;
                 }
@@ -7207,7 +7207,7 @@ namespace StingTools.BIMManager
                         return int.Parse(stageStr[0].ToString());
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"BEP stage detection failed: {ex.Message}"); }
 
             // Fallback: infer from project phases
             var phases = new FilteredElementCollector(doc)

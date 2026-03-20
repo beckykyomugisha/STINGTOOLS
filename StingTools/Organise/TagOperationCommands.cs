@@ -92,7 +92,7 @@ namespace StingTools.Organise
                         foreach (ElementId hid in vt.GetTaggedLocalElementIds())
                             existingVisualTags.Add(hid);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Get tagged element IDs failed: {ex.Message}"); }
                 }
             }
 
@@ -109,13 +109,15 @@ namespace StingTools.Organise
                     // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
                     // → Formulas → BuildTag → Containers → TAG7 → GridRef
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                    TagPipelineHelper.RunFullPipeline(
+                    bool pipelineOk = TagPipelineHelper.RunFullPipeline(
                         doc, elem, tsPopCtx, tagIndex, seqCounters,
                         tsFormulas, tsGridLines,
                         overwrite: collisionMode == TagCollisionMode.Overwrite,
                         skipComplete: skipComplete,
                         collisionMode: collisionMode,
                         stats: stats);
+                    if (!pipelineOk)
+                        StingLog.Warn($"TagSelected: pipeline returned false for element {elem?.Id}");
                     // RunFullPipeline already handles TAG7 + containers — no double-write needed
 
                     // Place visual IndependentTag annotation if not already present
@@ -239,13 +241,13 @@ namespace StingTools.Organise
                     if (elem == null) continue;
 
                     // NG4: Full pipeline for ReTag — ensures TypeTokenInherit + PopulateAll run
-                    TagPipelineHelper.RunFullPipeline(
+                    bool pipelineOk = TagPipelineHelper.RunFullPipeline(
                         doc, elem, rtPopCtx, tagIndex, seqCounters,
                         rtFormulas, rtGridLines,
                         overwrite: true,
                         skipComplete: false,
                         collisionMode: TagCollisionMode.Overwrite);
-                    if (TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
+                    if (pipelineOk && TagConfig.TagIsComplete(ParameterHelpers.GetString(elem, ParamRegistry.TAG1)))
                         retagged++;
                     // RunFullPipeline already handles TAG7 + containers — no double-write needed
                 }
@@ -1747,7 +1749,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         colored++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set tag text color override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1812,7 +1814,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         colored++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set leader color override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1883,13 +1885,13 @@ namespace StingTools.Organise
                 foreach (var tag in allTags)
                 {
                     try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set split text color override failed: {ex.Message}"); }
                 }
                 // Then override leader-bearing tags with leader color
                 foreach (var tag in withLeaders)
                 {
                     try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set split leader color override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -1938,7 +1940,7 @@ namespace StingTools.Organise
                 foreach (var tag in tags)
                 {
                     try { view.SetElementOverrides(tag.Id, blank); cleared++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Clear annotation color override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2031,12 +2033,12 @@ namespace StingTools.Organise
                 foreach (var tag in withoutLeaders)
                 {
                     try { view.SetElementOverrides(tag.Id, textOgs); textColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set tag appearance override failed: {ex.Message}"); }
                 }
                 foreach (var tag in withLeaders)
                 {
                     try { view.SetElementOverrides(tag.Id, leaderOgs); leaderColored++; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set leader appearance override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2198,7 +2200,7 @@ namespace StingTools.Organise
                         }
                         modified++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set tag box appearance failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2269,7 +2271,7 @@ namespace StingTools.Organise
                     try
                     {
                         bool hasLeader = false;
-                        try { hasLeader = tag.HasLeader; } catch { }
+                        try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Check tag leader state failed: {ex.Message}"); }
 
                         OverrideGraphicSettings ogs;
 
@@ -2329,7 +2331,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         styled++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Apply quick tag style failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2422,7 +2424,7 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         modified++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set tag line weight override failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2471,7 +2473,7 @@ namespace StingTools.Organise
                         if (host != null) { hostElements.Add(host); break; }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Resolve tag host element failed: {ex.Message}"); }
             }
 
             if (hostElements.Count == 0)
@@ -2552,7 +2554,7 @@ namespace StingTools.Organise
                     if (!groups.ContainsKey(val)) groups[val] = new List<IndependentTag>();
                     groups[val].Add(tag);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Group tag by parameter value failed: {ex.Message}"); }
             }
 
             // Assign colors
@@ -2570,7 +2572,7 @@ namespace StingTools.Organise
                     foreach (var tag in kvp.Value)
                     {
                         try { view.SetElementOverrides(tag.Id, ogs); colored++; }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Set color-by-param override failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -2651,7 +2653,7 @@ namespace StingTools.Organise
                     if (!currentTypes.ContainsKey(typeName)) currentTypes[typeName] = 0;
                     currentTypes[typeName]++;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get tag type distribution failed: {ex.Message}"); }
             }
 
             // Pick target tag type (top 4 by prevalence)
@@ -3304,7 +3306,7 @@ namespace StingTools.Organise
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Measure tag width failed: {ex.Message}"); }
             }
             // Use average width if max seems unreliable, scale-based fallback as last resort
             if (maxTagWidth < 0.001)
@@ -3370,7 +3372,7 @@ namespace StingTools.Organise
                             if (h > maxTagHeight) maxTagHeight = h;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Measure tag height failed: {ex.Message}"); }
                 }
                 if (maxTagHeight < 0.001)
                     maxTagHeight = view.Scale * 0.003;
@@ -3692,7 +3694,7 @@ namespace StingTools.Organise
                     if (taggedIds.Any(id => hostIds.Contains(id)))
                         tags.Add(tag);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Resolve annotation tag from host failed: {ex.Message}"); }
             }
             return tags;
         }
@@ -3766,7 +3768,7 @@ namespace StingTools.Organise
                         if (elbow != null) reference = elbow;
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get leader elbow reference failed: {ex.Message}"); }
 
                 XYZ tagHead = tag.TagHeadPosition;
                 double dx = tagHead.X - reference.X;
@@ -4590,7 +4592,7 @@ namespace StingTools.Organise
                     tag.TagHeadPosition = tag.TagHeadPosition + offset;
                     nudged++;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Nudge tag position failed: {ex.Message}"); }
             }
             return nudged;
         }
@@ -4988,7 +4990,7 @@ namespace StingTools.Organise
                         ParameterHelpers.SetString(el, ParamRegistry.DISPLAY_TXT, displayTag, overwrite: true);
                         updated++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set display mode on element failed: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -5062,7 +5064,7 @@ namespace StingTools.Organise
                                 tagGroups[groupKey] = new List<(IndependentTag, XYZ, Element)>();
                             tagGroups[groupKey].Add((tag, pos, host));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Cluster tag grouping failed: {ex.Message}"); }
                     }
 
                     // Cluster within each group
@@ -5098,7 +5100,7 @@ namespace StingTools.Organise
                                         doc.Delete(items[cluster[k]].tag.Id);
                                         tagsConsolidated++;
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Delete clustered tag failed: {ex.Message}"); }
                                     used.Add(cluster[k]);
                                 }
 
@@ -5126,7 +5128,7 @@ namespace StingTools.Organise
                                         posPar.Set(string.Join("|", memberPositions));
                                     }
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Write cluster metadata failed: {ex.Message}"); }
                             }
                         }
                     }
@@ -5269,7 +5271,7 @@ namespace StingTools.Organise
                             if (lbl != null && !lbl.IsReadOnly) lbl.Set("");
                             cleared++;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Clear cluster metadata failed: {ex.Message}"); }
                     }
 
                     tx.Commit();
@@ -5382,16 +5384,22 @@ namespace StingTools.Organise
                             return Result.Cancelled;
                         }
 
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             existingTags, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
                             collisionMode: TagCollisionMode.AutoIncrement);
 
-                        // Clear stale flag
-                        Parameter staleP = el.LookupParameter(ParamRegistry.STALE);
-                        if (staleP != null && !staleP.IsReadOnly) staleP.Set(0);
-
-                        retagged++;
+                        if (pipelineOk)
+                        {
+                            // Clear stale flag
+                            Parameter staleP = el.LookupParameter(ParamRegistry.STALE);
+                            if (staleP != null && !staleP.IsReadOnly) staleP.Set(0);
+                            retagged++;
+                        }
+                        else
+                        {
+                            failed++;
+                        }
                     }
                     catch (Exception ex)
                     {

@@ -185,7 +185,7 @@ namespace StingTools.Tags
                 if (matCat != null && matCat.AllowsBoundParameters && !coreCats.Contains(matCat))
                     coreCats.Insert(matCat);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Add Materials category to core set: {ex.Message}"); }
 
             StingLog.Info($"Core CategorySet: {coreCats.Size} categories");
 
@@ -475,7 +475,7 @@ namespace StingTools.Tags
                 if (cat != null && cat.AllowsBoundParameters)
                     set.Insert(cat);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Insert category {bic}: {ex.Message}"); }
         }
 
         private static CategorySet BuildCatSet(Document doc, BuiltInCategory[] enums)
@@ -554,7 +554,7 @@ namespace StingTools.Tags
                             return resolved;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"File search path probe failed: {ex.Message}"); }
                 }
             }
 
@@ -567,7 +567,7 @@ namespace StingTools.Tags
                     string aboveData = Path.Combine(StingToolsApp.DataPath, "..", fileName);
                     if (File.Exists(aboveData)) return Path.GetFullPath(aboveData);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"DataPath file search failed: {ex.Message}"); }
             }
 
             StingLog.Warn($"{fileName} not found in any search path");
@@ -790,7 +790,7 @@ namespace StingTools.Tags
                         foreach (var kvp in ParamRegistry.AllParamGuids)
                             stingNames.Add(kvp.Key);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Load param registry GUIDs: {ex.Message}"); }
 
                     while (iter.MoveNext())
                     {
@@ -843,7 +843,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("StingParamManagerCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Parameter Manager failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"Parameter Manager failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }

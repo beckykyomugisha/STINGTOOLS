@@ -353,7 +353,7 @@ namespace StingTools.Temp
                                             ogs.Transparency > 0)
                                             overridden++;
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Read filter overrides for scoring: {ex.Message}"); }
                                 }
                                 earned = filters.Count > 0
                                     ? weight * overridden / filters.Count : 0;
@@ -380,7 +380,7 @@ namespace StingTools.Temp
                             Parameter pp = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
                             if (pp != null && pp.HasValue) earned = weight;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Read view phase parameter: {ex.Message}"); }
                         break;
                     case "VGConsistent":
                         earned = view.ViewTemplateId != ElementId.InvalidElementId
@@ -562,7 +562,7 @@ namespace StingTools.Temp
                         ogs.Transparency > 0)
                     { anyOverride = true; break; }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read filter overrides for audit: {ex.Message}"); }
             }
             if (!anyOverride && template.GetFilters().Count > 0)
             {
@@ -1584,7 +1584,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             int totalIssues = 0;
             int totalFixed = 0;
@@ -1711,7 +1711,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             int synced = 0, failed = 0;
             bool cancelled = false;
@@ -2179,7 +2179,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             // Cross-hatch pattern for demolition
             FillPatternElement crossHatch = null;
@@ -2193,7 +2193,7 @@ namespace StingTools.Temp
                         return n.Contains("Crosshatch") || n.Contains("Cross") || n.Contains("STING - Crosshatch");
                     });
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find crosshatch fill pattern: {ex.Message}"); }
 
             int viewsConfigured = 0;
             int filtersApplied = 0;
@@ -2336,7 +2336,7 @@ namespace StingTools.Temp
                                         if (ws.Name.StartsWith("Z-Linked"))
                                         {
                                             try { target.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden); }
-                                            catch { }
+                                            catch (Exception ex) { StingLog.Warn($"Hide linked workset '{ws.Name}': {ex.Message}"); }
                                         }
                                     }
                                 }
@@ -2423,7 +2423,7 @@ namespace StingTools.Temp
                                             schemesApplied++;
                                         }
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Apply category override for VG scheme: {ex.Message}"); }
                                 }
                             }
                         }
@@ -2620,7 +2620,7 @@ namespace StingTools.Temp
                                         perCategory[catName] = 0;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Resolve category '{catName}' for binding: {ex.Message}"); }
                         }
                     }
 
@@ -2638,7 +2638,7 @@ namespace StingTools.Temp
                         var existing = bmap.get_Item(extDef);
                         if (existing != null) alreadyBound = true;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Check existing parameter binding: {ex.Message}"); }
 
                     if (alreadyBound)
                     {
@@ -2923,7 +2923,7 @@ namespace StingTools.Temp
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} — not a family document");
                         skippedNoCategory++;
-                        try { famDoc?.Close(false); } catch { }
+                        try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close non-family document: {ex.Message}"); }
                         continue;
                     }
 
@@ -3094,7 +3094,7 @@ namespace StingTools.Temp
                             famDoc = null; // prevent double-close below
                             File.Copy(familyPath, backupPath, true);
                             File.Copy(tempPath, familyPath, true);
-                            try { File.Delete(tempPath); } catch { }
+                            try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Delete temp file '{tempPath}': {ex.Message}"); }
                         }
                         catch (Exception ex)
                         {
@@ -3136,7 +3136,7 @@ namespace StingTools.Temp
                 {
                     StingLog.Error($"[{fileName}] Processing failed", ex);
                     perFamilyResults.Add($"[FAIL] {fileName} — {ex.Message}");
-                    try { famDoc?.Close(false); } catch { }
+                    try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close family document after failure: {ex.Message}"); }
                 }
             }
 
@@ -3344,7 +3344,7 @@ namespace StingTools.Temp
                                     { sd.AddField(sf); break; }
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Add schedule field '{fieldName}': {ex.Message}"); }
                         }
                         created++;
                     }
@@ -3691,7 +3691,7 @@ namespace StingTools.Temp
                         if (lc.Green > 150 && lc.Red < 50 && lc.Blue < 50) { detectedDisc = "P"; break; }
                         if (lc.Red > 150 && lc.Green < 50 && lc.Blue < 50) { detectedDisc = "S"; break; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Detect discipline from line color: {ex.Message}"); }
                 }
             }
 
@@ -3766,7 +3766,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             using (Transaction tx = new Transaction(doc, "STING Clone Template"))
             {
@@ -3915,7 +3915,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
                 var stingTemplates = TemplateManager.GetStingTemplates(doc);
                 int p1Idx = 0;
@@ -4024,7 +4024,7 @@ namespace StingTools.Temp
                                         cleared++;
                                     }
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Clear element override in '{view.Name}': {ex.Message}"); }
                             }
 
                             if (cleared > 0)

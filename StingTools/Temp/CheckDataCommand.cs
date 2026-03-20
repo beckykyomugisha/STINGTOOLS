@@ -28,7 +28,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("CheckDataCommand crashed", ex);
-                try { TaskDialog.Show("Check Data", $"Error: {ex.Message}"); } catch { }
+                try { TaskDialog.Show("Check Data", $"Error: {ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

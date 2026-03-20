@@ -1137,7 +1137,7 @@ namespace StingTools.Docs
             catch (Exception ex)
             {
                 StingLog.Error("MagicRenameCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Magic Rename failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"Magic Rename failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -1216,7 +1216,7 @@ namespace StingTools.Docs
             catch (Exception ex)
             {
                 StingLog.Error("ViewTabColourCommand failed", ex);
-                try { TaskDialog.Show("STING", $"View Tab Colour failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"View Tab Colour failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -1276,7 +1276,7 @@ namespace StingTools.Docs
             catch (Exception ex)
             {
                 StingLog.Error("RibbonPanelStylerCommand failed", ex);
-                try { TaskDialog.Show("STING", $"Ribbon Styler failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING", $"Ribbon Styler failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }

@@ -1622,7 +1622,7 @@ namespace StingTools.BIMManager
                 foreach (var m in monthly)
                     csv.AppendLine($"{m["month_name"]},{m["planned_spend"]},{m["cumulative"]},{m["percent_complete"]}");
             try { File.WriteAllText(csvPath, csv.ToString()); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Cash flow CSV write failed: {ex.Message}"); }
 
             report.AppendLine($"  Saved: {cashFlowPath}");
             report.AppendLine($"  CSV:   {csvPath}");
