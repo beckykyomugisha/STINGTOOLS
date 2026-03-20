@@ -68,6 +68,8 @@ STINGTOOLS/
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
+    │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, category/family/type filters, 7 operations
+    │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with category picker, value display, 11-operator condition builder
     │   ├── ThemeManager.cs             # WPF theme engine — Dark/Light/Grey/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
@@ -251,7 +253,7 @@ STINGTOOLS/
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
 | Duplicate View | `Docs.DuplicateViewCommand` | Manual | Duplicate view with Detailing, View-only, or Dependent mode |
-| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Bulk rename views with pattern templates |
+| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Single-step dialog with category/family filters, 7 operations, live preview |
 | Copy View Settings | `Docs.CopyViewSettingsCommand` | Manual | Copy filters, graphic overrides, and template from source view |
 | Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Auto-place and scale viewports on sheets |
 | Crop to Content | `Docs.CropToContentCommand` | Manual | Smart crop region generation based on element extents |
@@ -491,6 +493,8 @@ STINGTOOLS/
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 238 |
 | `UI/StingListPicker.cs` | 0 (reusable WPF list picker dialog with search/filter) | 323 |
+| `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 690 |
+| `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
 | `UI/ThemeManager.cs` | 0 (WPF theme engine — Dark/Light/Grey/Corporate themes) | 149 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
@@ -714,6 +718,8 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `RevisionEngine` | `BIMManager/RevisionManagementCommands.cs` | Revision management: tag snapshot/compare, revision sequence tracking, change delta computation, element tracking across revisions |
 | `OutputLocationHelper` | `Core/OutputLocationHelper.cs` | Centralized export path management: 4-level fallback chain (preferred → project → documents → temp), timestamped paths, config persistence |
 | `StingListPicker` | `UI/StingListPicker.cs` | Reusable WPF list picker dialog: search/filter, single/multi-select, corporate styling, replaces paginated TaskDialog workflows |
+| `BatchRenameDialog` | `UI/BatchRenameDialog.cs` | Single-step WPF batch rename dialog: category/family/type filters, 7 rename operations (find/replace with regex, prefix/suffix, case, sequential, level standardisation), live before/after preview with green highlight, Select All/None |
+| `ParameterLookupDialog` | `UI/ParameterLookupDialog.cs` | Enhanced WPF parameter lookup: category picker, searchable parameter list with priority sorting, value display with element counts, 11-operator condition builder (contains/equals/not equals/starts/ends/>/</>=/<=/ empty/not empty), live match count, Select Matching/Color By Value/Apply Filter actions |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
@@ -1733,6 +1739,14 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 320. **Selection scope consistency** — `SelectEmptyMarkCommand`, `SelectPinnedCommand`, and `SelectUnpinnedCommand` now use `SelectionScopeHelper.GetCollector()` to honour project/view scope toggle, matching `SelectUntaggedCommand`/`SelectTaggedCommand` behaviour.
 321. **SmartOrganise dispatch differentiation** — OrgQuick/OrgDeep/OrgAnneal buttons now set `ExtraParam("ArrangeMode")` before dispatching to `ArrangeTagsCommand`. LeaderLength025/05/1 buttons set `ExtraParam("LeaderLength")` before `SnapLeaderElbowCommand`.
 322. **Redundant double operations removed** — Eliminated duplicate `SaveSeqSidecar` + `InvalidateCache` + `InvalidateContext` calls in: ReTagCommand, BulkRetag (StateSelectCommands), BatchSystemPushCommand, FullAutoPopulateCommand. Each had 2 consecutive identical cleanup blocks from overlapping fix phases.
+
+#### Completed (Phase 33 — Enhanced Batch Rename & Parameter Lookup Dialogs)
+
+323. **BatchRenameDialog** — `UI/BatchRenameDialog.cs` (690 lines): New single-step WPF batch rename dialog replacing the 4-step `StingListPicker` flow. Features: category/family/type filter dropdowns, 7 rename operations (Find & Replace with regex, Add Prefix/Suffix, Change Case, Sequential Number, Standardise Levels, Remove Copy suffix, Remove prefix up to dash), live before/after preview with green highlight for changes and strikethrough on originals, Select All/None buttons, Ctrl+Enter shortcut.
+324. **ParameterLookupDialog** — `UI/ParameterLookupDialog.cs` (590 lines): New enhanced WPF parameter lookup dialog replacing the broken inline condition system. Features: category picker dropdown, searchable parameter list with priority sorting (STING params highlighted), value display showing distinct values with element counts sorted by frequency, 11-operator condition builder (contains, equals, not equals, starts with, ends with, >, <, >=, <=, is empty, is not empty), live match count, double-click condition removal. Action buttons: Select Matching (sets Revit selection), Color By Value (delegates to ColorByParameter), Apply Filter.
+325. **BatchRenameViewsCommand unified** — Replaced 4-step `StingListPicker` flow (category → items → operation → input) with single `BatchRenameDialog.Show()` call. Now loads ALL 12 category types (views, sheets, schedules, families, types, line styles, fill patterns, materials, levels, grids, templates, worksets) simultaneously with category/family filtering in the dialog.
+326. **MagicRenameCommand unified** — Replaced 3-step TaskDialog flow (element type → rename mode → parameters) with single `BatchRenameDialog.Show()` call. Now loads Views, Sheets, Rooms, and Family Types simultaneously with live preview.
+327. **Parameter lookup dispatch unified** — All 7 dispatch entries (ParamLookupRefresh, RefreshParamList, CondAdd, CondRemove, CondClear, CondPreview, CondApply) now route to `OpenParameterLookupDialog()` which uses `ParameterLookupDialog.Show()` with Revit API callbacks via `ColorHelper.GetParameterValue()` for accurate instance+type parameter reading. Legacy inline condition system (`_conditions` list, `GetConditionMatches`) removed.
 
 ### External Tool References
 

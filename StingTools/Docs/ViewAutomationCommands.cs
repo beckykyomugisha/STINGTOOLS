@@ -143,222 +143,84 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Step 1: Pick what category of elements to rename
-            var categoryItems = new List<StingListPicker.ListItem>
+            // Collect ALL renameable targets across all categories
+            var allCategories = new[] { "views", "sheets", "schedules", "families", "types",
+                "linestyles", "fillpatterns", "materials", "levels", "grids", "templates", "worksets" };
+
+            var allItems = new List<UI.BatchRenameDialog.RenameItem>();
+            foreach (string cat in allCategories)
             {
-                new() { Label = "Views", Detail = "Floor plans, sections, elevations, 3D views", Tag = "views" },
-                new() { Label = "Sheets", Detail = "Sheet names and numbers", Tag = "sheets" },
-                new() { Label = "Schedules", Detail = "Schedule/quantity views", Tag = "schedules" },
-                new() { Label = "Families", Detail = "Loaded family names", Tag = "families" },
-                new() { Label = "Family Types", Detail = "Type names within families", Tag = "types" },
-                new() { Label = "Line Styles", Detail = "Project line style names", Tag = "linestyles" },
-                new() { Label = "Fill Patterns", Detail = "Fill pattern names", Tag = "fillpatterns" },
-                new() { Label = "Materials", Detail = "Material names", Tag = "materials" },
-                new() { Label = "Levels", Detail = "Level names", Tag = "levels" },
-                new() { Label = "Grids", Detail = "Grid line names", Tag = "grids" },
-                new() { Label = "View Templates", Detail = "View template names", Tag = "templates" },
-                new() { Label = "Worksets", Detail = "Workset names", Tag = "worksets" },
-            };
+                var targets = CollectRenameTargets(doc, cat);
+                foreach (var t in targets)
+                {
+                    string familyName = "";
+                    string typeName = "";
+                    var el = doc.GetElement(t.Id);
+                    if (el is FamilyInstance fi)
+                    {
+                        familyName = fi.Symbol?.Family?.Name ?? "";
+                        typeName = fi.Symbol?.Name ?? "";
+                    }
+                    else if (el is FamilySymbol fs)
+                    {
+                        familyName = fs.Family?.Name ?? "";
+                        typeName = fs.Name ?? "";
+                    }
 
-            var catPick = StingListPicker.Show(
-                "Batch Rename — Select Category",
-                "Choose which element category to rename",
-                categoryItems, allowMultiSelect: false);
+                    allItems.Add(new UI.BatchRenameDialog.RenameItem
+                    {
+                        OriginalName = t.Name,
+                        NewName = t.Name,
+                        Category = t.Category,
+                        Family = familyName,
+                        TypeName = typeName,
+                        ElementRef = t.Id
+                    });
+                }
+            }
 
-            if (catPick == null || catPick.Count == 0) return Result.Cancelled;
-            string category = catPick[0].Tag as string;
-
-            // Step 2: Collect renameable elements for the selected category
-            var renameTargets = CollectRenameTargets(doc, category);
-            if (renameTargets.Count == 0)
+            if (allItems.Count == 0)
             {
-                TaskDialog.Show("Batch Rename", $"No {category} found in the project.");
+                TaskDialog.Show("Batch Rename", "No renameable elements found in the project.");
                 return Result.Succeeded;
             }
 
-            // Step 3: Pick items to rename (multi-select, or Select All)
-            var targetItems = renameTargets.Select(t => new StingListPicker.ListItem
-            {
-                Label = t.Name,
-                Detail = t.Category,
-                Tag = t.Id
-            }).ToList();
+            // Show unified single-step dialog
+            var result = UI.BatchRenameDialog.Show("STING Batch Rename", allItems);
+            if (result == null || !result.Confirmed || result.Items.Count == 0)
+                return Result.Cancelled;
 
-            var selectedItems = StingListPicker.Show(
-                $"Batch Rename — Select {category}",
-                $"{renameTargets.Count} items available. Select items to rename.",
-                targetItems, allowMultiSelect: true);
-
-            if (selectedItems == null || selectedItems.Count == 0) return Result.Cancelled;
-            var selectedIds = new HashSet<ElementId>(
-                selectedItems.Select(i => (ElementId)i.Tag).Where(id => id != null));
-
-            // Filter views to just selected ones (for the rename step below)
-            var views = renameTargets
-                .Where(t => selectedIds.Contains(t.Id))
-                .Select(t => doc.GetElement(t.Id))
-                .Where(e => e != null)
-                .ToList();
-
-            // Step 4: Pick rename operation
-            var opItems = new List<StingListPicker.ListItem>
-            {
-                new() { Label = "Add 'STING - ' prefix", Detail = "Prefix for project identification", Tag = "prefix" },
-                new() { Label = "Remove ' Copy' suffix", Detail = "Clean duplicated names", Tag = "removecopy" },
-                new() { Label = "UPPERCASE all names", Detail = "Convert to UPPERCASE", Tag = "upper" },
-                new() { Label = "lowercase all names", Detail = "Convert to lowercase", Tag = "lower" },
-                new() { Label = "Title Case", Detail = "Capitalize First Letter Of Each Word", Tag = "titlecase" },
-                new() { Label = "Standardise level names", Detail = "Replace 'Level 1' with 'L01' etc.", Tag = "stdlevels" },
-                new() { Label = "Custom find/replace", Detail = "Enter custom find and replace text", Tag = "findreplace" },
-                new() { Label = "Add numbering suffix", Detail = "Add sequential numbers (-001, -002, ...)", Tag = "number" },
-                new() { Label = "Remove prefix up to ' - '", Detail = "Remove everything before first ' - '", Tag = "removeprefix" },
-            };
-
-            var opPick = StingListPicker.Show(
-                "Batch Rename — Select Operation",
-                $"Renaming {selectedIds.Count} items",
-                opItems, allowMultiSelect: false);
-
-            if (opPick == null || opPick.Count == 0) return Result.Cancelled;
-            string modeTag = opPick[0].Tag as string;
-
-            int mode = modeTag switch
-            {
-                "prefix" => 1,
-                "removecopy" => 2,
-                "upper" => 3,
-                "stdlevels" => 4,
-                "findreplace" => 5,
-                "lower" => 6,
-                "titlecase" => 7,
-                "number" => 8,
-                "removeprefix" => 9,
-                _ => 0,
-            };
-            if (mode == 0) return Result.Cancelled;
-
-            // FIX-C04: Prompt for custom find/replace strings when mode 5 selected
-            string findText = null, replaceText = null;
-            if (mode == 5)
-            {
-                TaskDialog findDlg = new TaskDialog("Custom Find/Replace");
-                findDlg.MainInstruction = "Enter the text to find:";
-                findDlg.MainContent = "Type the text you want to search for in view names.\n" +
-                    "This will be replaced in ALL matching views.";
-                findDlg.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-
-                // Use a simple approach: prompt via two sequential TaskDialogs
-                // Since TaskDialog doesn't have text input, use a workaround with
-                // Microsoft.VisualBasic.Interaction.InputBox or a simple WPF input
-                try
-                {
-                    var inputWin = new System.Windows.Window
-                    {
-                        Title = "Find Text",
-                        Width = 400, Height = 160,
-                        WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
-                        ResizeMode = System.Windows.ResizeMode.NoResize
-                    };
-                    var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(10) };
-                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Find:", Margin = new System.Windows.Thickness(0, 0, 0, 5) });
-                    var findBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 5) };
-                    stack.Children.Add(findBox);
-                    stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Replace with:", Margin = new System.Windows.Thickness(0, 5, 0, 5) });
-                    var replaceBox = new System.Windows.Controls.TextBox { Margin = new System.Windows.Thickness(0, 0, 0, 10) };
-                    stack.Children.Add(replaceBox);
-                    var okBtn = new System.Windows.Controls.Button { Content = "OK", Width = 80, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
-                    okBtn.Click += (s, ev) => { inputWin.DialogResult = true; inputWin.Close(); };
-                    stack.Children.Add(okBtn);
-                    inputWin.Content = stack;
-                    findBox.Focus();
-
-                    if (inputWin.ShowDialog() != true || string.IsNullOrEmpty(findBox.Text))
-                    {
-                        TaskDialog.Show("Batch Rename Views", "Find text cannot be empty.");
-                        return Result.Cancelled;
-                    }
-                    findText = findBox.Text;
-                    replaceText = replaceBox.Text ?? "";
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"BatchRenameViews custom input: {ex.Message}");
-                    TaskDialog.Show("Batch Rename Views", "Could not open input dialog.");
-                    return Result.Failed;
-                }
-            }
-
+            // Apply renames
             int renamed = 0;
             int failed = 0;
             var changes = new List<(string oldName, string newName)>();
-            int seqNum = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Batch Rename"))
             {
                 tx.Start();
-                foreach (Element el in views)
+                foreach (var item in result.Items)
                 {
-                    string oldName = GetElementName(el);
-                    if (string.IsNullOrEmpty(oldName)) continue;
-                    string newName = oldName;
-
-                    switch (mode)
-                    {
-                        case 1: // Add prefix
-                            if (!oldName.StartsWith("STING - "))
-                                newName = "STING - " + oldName;
-                            break;
-                        case 2: // Remove Copy suffix
-                            newName = System.Text.RegularExpressions.Regex.Replace(
-                                oldName, @"\s*Copy\s*\d*$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                            break;
-                        case 3: // UPPERCASE
-                            newName = oldName.ToUpperInvariant();
-                            break;
-                        case 4: // Standardise levels
-                            newName = StandardiseLevelName(oldName);
-                            break;
-                        case 5: // Custom find/replace
-                            if (findText != null && oldName.Contains(findText))
-                                newName = oldName.Replace(findText, replaceText);
-                            break;
-                        case 6: // lowercase
-                            newName = oldName.ToLowerInvariant();
-                            break;
-                        case 7: // Title Case
-                            newName = System.Globalization.CultureInfo.CurrentCulture
-                                .TextInfo.ToTitleCase(oldName.ToLowerInvariant());
-                            break;
-                        case 8: // Add numbering
-                            seqNum++;
-                            newName = $"{oldName}-{seqNum:D3}";
-                            break;
-                        case 9: // Remove prefix up to ' - '
-                            int dashIdx = oldName.IndexOf(" - ");
-                            if (dashIdx >= 0 && dashIdx < oldName.Length - 3)
-                                newName = oldName.Substring(dashIdx + 3);
-                            break;
-                    }
-
-                    if (newName == oldName) continue;
+                    if (item.ElementRef is not ElementId eid) continue;
+                    Element el = doc.GetElement(eid);
+                    if (el == null) continue;
 
                     try
                     {
-                        SetElementName(el, newName);
+                        SetElementName(el, item.NewName);
                         renamed++;
-                        changes.Add((oldName, newName));
+                        changes.Add((item.OriginalName, item.NewName));
                     }
                     catch (Exception ex)
                     {
                         failed++;
-                        StingLog.Warn($"Rename '{oldName}': {ex.Message}");
+                        StingLog.Warn($"Rename '{item.OriginalName}': {ex.Message}");
                     }
                 }
                 tx.Commit();
             }
 
             var report = new StringBuilder();
-            report.AppendLine($"Renamed {renamed} of {views.Count} items.");
+            report.AppendLine($"Renamed {renamed} items ({result.Operation}).");
             if (failed > 0) report.AppendLine($"Failed: {failed}");
             report.AppendLine();
             foreach (var (old, nw) in changes.Take(15))
@@ -367,6 +229,7 @@ namespace StingTools.Docs
                 report.AppendLine($"  ... and {changes.Count - 15} more");
 
             TaskDialog.Show("Batch Rename", report.ToString());
+            StingLog.Info($"BatchRename: {renamed} renamed, {failed} failed, op={result.Operation}");
             return Result.Succeeded;
         }
 
@@ -1076,226 +939,120 @@ namespace StingTools.Docs
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
-                // Step 1: Choose element type
-                var typeDlg = new TaskDialog("STING Magic Rename");
-                typeDlg.MainInstruction = "What do you want to rename?";
-                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Views",
-                    "Rename floor plans, sections, elevations, 3D views, etc.");
-                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Sheets",
-                    "Rename sheet names (preserves sheet numbers).");
-                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Rooms",
-                    "Rename room names.");
-                typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Families",
-                    "Rename family types loaded in the project.");
-                typeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                // Collect elements across Views, Sheets, Rooms, and Families
+                var items = new List<UI.BatchRenameDialog.RenameItem>();
 
-                var typeResult = typeDlg.Show();
-                string elementType;
-                if (typeResult == TaskDialogResult.CommandLink1) elementType = "Views";
-                else if (typeResult == TaskDialogResult.CommandLink2) elementType = "Sheets";
-                else if (typeResult == TaskDialogResult.CommandLink3) elementType = "Rooms";
-                else if (typeResult == TaskDialogResult.CommandLink4) elementType = "Families";
-                else return Result.Cancelled;
-
-                // Step 2: Choose rename mode
-                var modeDlg = new TaskDialog("STING Magic Rename");
-                modeDlg.MainInstruction = "Rename mode";
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Add Prefix/Suffix",
-                    "Add text before or after existing names.");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Find & Replace",
-                    "Replace text within names.");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Change Case",
-                    "Convert to UPPER, lower, or Title Case.");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Sequential Number",
-                    "Add sequential numbers (001, 002, ...).");
-                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                var modeResult = modeDlg.Show();
-                string mode;
-                if (modeResult == TaskDialogResult.CommandLink1) mode = "PrefixSuffix";
-                else if (modeResult == TaskDialogResult.CommandLink2) mode = "FindReplace";
-                else if (modeResult == TaskDialogResult.CommandLink3) mode = "Case";
-                else if (modeResult == TaskDialogResult.CommandLink4) mode = "Sequential";
-                else return Result.Cancelled;
-
-                // Collect elements
-                var targetElements = new List<Element>();
-                if (elementType == "Views")
+                foreach (View v in new FilteredElementCollector(doc)
+                    .OfClass(typeof(View)).Cast<View>()
+                    .Where(v => !v.IsTemplate && v.ViewType != ViewType.DrawingSheet)
+                    .OrderBy(v => v.Name))
                 {
-                    targetElements.AddRange(new FilteredElementCollector(doc)
-                        .OfClass(typeof(View))
-                        .Cast<View>()
-                        .Where(v => !v.IsTemplate && v.ViewType != ViewType.DrawingSheet)
-                        .Cast<Element>());
-                }
-                else if (elementType == "Sheets")
-                {
-                    targetElements.AddRange(new FilteredElementCollector(doc)
-                        .OfClass(typeof(ViewSheet))
-                        .Cast<Element>());
-                }
-                else if (elementType == "Rooms")
-                {
-                    targetElements.AddRange(new FilteredElementCollector(doc)
-                        .OfCategory(BuiltInCategory.OST_Rooms)
-                        .WhereElementIsNotElementType()
-                        .Cast<Element>());
-                }
-                else if (elementType == "Families")
-                {
-                    targetElements.AddRange(new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilySymbol))
-                        .Cast<Element>());
+                    items.Add(new UI.BatchRenameDialog.RenameItem
+                    {
+                        OriginalName = v.Name ?? "", NewName = v.Name ?? "",
+                        Category = v.ViewType.ToString(), ElementRef = v.Id
+                    });
                 }
 
-                if (targetElements.Count == 0)
+                foreach (ViewSheet s in new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                    .OrderBy(s => s.SheetNumber))
                 {
-                    TaskDialog.Show("STING", $"No {elementType.ToLower()} found in the project.");
+                    items.Add(new UI.BatchRenameDialog.RenameItem
+                    {
+                        OriginalName = s.Name ?? "", NewName = s.Name ?? "",
+                        Category = "Sheet", ElementRef = s.Id
+                    });
+                }
+
+                foreach (Element r in new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType())
+                {
+                    var rp = r.get_Parameter(BuiltInParameter.ROOM_NAME);
+                    string rName = rp?.AsString() ?? r.Name ?? "";
+                    items.Add(new UI.BatchRenameDialog.RenameItem
+                    {
+                        OriginalName = rName, NewName = rName,
+                        Category = "Room", ElementRef = r.Id
+                    });
+                }
+
+                foreach (FamilySymbol fs in new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                    .OrderBy(f => f.Name))
+                {
+                    items.Add(new UI.BatchRenameDialog.RenameItem
+                    {
+                        OriginalName = fs.Name ?? "", NewName = fs.Name ?? "",
+                        Category = "Family Type",
+                        Family = fs.Family?.Name ?? "",
+                        ElementRef = fs.Id
+                    });
+                }
+
+                if (items.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No renameable elements found.");
                     return Result.Cancelled;
                 }
 
-                // Get rename parameters via input dialogs
-                string prefix = "", suffix = "", findText = "", replaceText = "", caseMode = "UPPER";
-                int seqStart = 1;
-
-                if (mode == "PrefixSuffix")
-                {
-                    var inp = new TaskDialog("Prefix/Suffix");
-                    inp.MainInstruction = "Enter prefix and/or suffix";
-                    inp.MainContent = $"Found {targetElements.Count} {elementType.ToLower()}.\n" +
-                        "Enter prefix in the format: PREFIX_ or _SUFFIX or PREFIX_*_SUFFIX\n" +
-                        "(Use * as placeholder for existing name)";
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Add 'STING - ' prefix");
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Add ' - REV' suffix");
-                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                    var r = inp.Show();
-                    if (r == TaskDialogResult.CommandLink1) { prefix = "STING - "; }
-                    else if (r == TaskDialogResult.CommandLink2) { suffix = " - REV"; }
-                    else return Result.Cancelled;
-                }
-                else if (mode == "FindReplace")
-                {
-                    // Simple preset-based find/replace
-                    var inp = new TaskDialog("Find & Replace");
-                    inp.MainInstruction = $"Find & Replace in {targetElements.Count} {elementType.ToLower()}";
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Remove 'Copy' / 'Copy 1'",
-                        "Clean up duplicated view names.");
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Replace '-' with ' - '",
-                        "Standardise dash spacing.");
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Remove leading/trailing spaces",
-                        "Trim whitespace from names.");
-                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                    var r = inp.Show();
-                    if (r == TaskDialogResult.CommandLink1) { findText = " Copy"; replaceText = ""; }
-                    else if (r == TaskDialogResult.CommandLink2) { findText = "-"; replaceText = " - "; }
-                    else if (r == TaskDialogResult.CommandLink3) { mode = "Trim"; }
-                    else return Result.Cancelled;
-                }
-                else if (mode == "Case")
-                {
-                    var inp = new TaskDialog("Case Change");
-                    inp.MainInstruction = "Select case mode";
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "UPPER CASE");
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "lower case");
-                    inp.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Title Case");
-                    inp.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                    var r = inp.Show();
-                    if (r == TaskDialogResult.CommandLink1) caseMode = "UPPER";
-                    else if (r == TaskDialogResult.CommandLink2) caseMode = "lower";
-                    else if (r == TaskDialogResult.CommandLink3) caseMode = "Title";
-                    else return Result.Cancelled;
-                }
+                // Show unified single-step dialog
+                var result = UI.BatchRenameDialog.Show("STING Magic Rename", items);
+                if (result == null || !result.Confirmed || result.Items.Count == 0)
+                    return Result.Cancelled;
 
                 // Apply renames
-                int renamed = 0, skipped = 0;
+                int renamed = 0, failed = 0;
                 using (var tx = new Transaction(doc, "STING Magic Rename"))
                 {
                     tx.Start();
-                    int seq = seqStart;
-                    foreach (var el in targetElements)
+                    foreach (var item in result.Items)
                     {
+                        if (item.ElementRef is not ElementId eid) continue;
+                        Element el = doc.GetElement(eid);
+                        if (el == null) continue;
+
                         try
                         {
-                            string currentName = "";
-                            Parameter nameParam = null;
-
-                            if (el is View v)
+                            if (el is ViewSheet sheet)
                             {
-                                currentName = v.Name ?? "";
-                                nameParam = el.get_Parameter(BuiltInParameter.VIEW_NAME);
+                                sheet.Name = item.NewName;
                             }
-                            else if (el is ViewSheet s)
+                            else if (el is View view)
                             {
-                                currentName = s.Name ?? "";
-                                nameParam = el.get_Parameter(BuiltInParameter.SHEET_NAME);
+                                var nameParam = el.get_Parameter(BuiltInParameter.VIEW_NAME);
+                                if (nameParam != null && !nameParam.IsReadOnly) nameParam.Set(item.NewName);
+                                else el.Name = item.NewName;
                             }
                             else if (el.Category?.BuiltInCategory == BuiltInCategory.OST_Rooms)
                             {
-                                nameParam = el.get_Parameter(BuiltInParameter.ROOM_NAME);
-                                currentName = nameParam?.AsString() ?? "";
+                                var nameParam = el.get_Parameter(BuiltInParameter.ROOM_NAME);
+                                if (nameParam != null && !nameParam.IsReadOnly) nameParam.Set(item.NewName);
+                                else el.Name = item.NewName;
                             }
-                            else if (el is FamilySymbol fs)
-                            {
-                                currentName = fs.Name ?? "";
-                                nameParam = null; // Will use Name property
-                            }
-
-                            if (string.IsNullOrEmpty(currentName)) { skipped++; continue; }
-
-                            string newName = currentName;
-
-                            switch (mode)
-                            {
-                                case "PrefixSuffix":
-                                    newName = prefix + currentName + suffix;
-                                    break;
-                                case "FindReplace":
-                                    newName = currentName.Replace(findText, replaceText);
-                                    break;
-                                case "Trim":
-                                    newName = currentName.Trim();
-                                    break;
-                                case "Case":
-                                    newName = caseMode switch
-                                    {
-                                        "UPPER" => currentName.ToUpperInvariant(),
-                                        "lower" => currentName.ToLowerInvariant(),
-                                        "Title" => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(currentName.ToLowerInvariant()),
-                                        _ => currentName
-                                    };
-                                    break;
-                                case "Sequential":
-                                    newName = $"{currentName} {seq:D3}";
-                                    seq++;
-                                    break;
-                            }
-
-                            if (newName == currentName) { skipped++; continue; }
-
-                            if (nameParam != null && !nameParam.IsReadOnly)
-                                nameParam.Set(newName);
                             else if (el is FamilySymbol fsSym)
-                                fsSym.Name = newName;
+                            {
+                                fsSym.Name = item.NewName;
+                            }
                             else
-                                el.Name = newName;
-
+                            {
+                                el.Name = item.NewName;
+                            }
                             renamed++;
                         }
                         catch (Exception ex)
                         {
-                            StingLog.Warn($"MagicRename: failed to rename '{el.Name}': {ex.Message}");
-                            skipped++;
+                            failed++;
+                            StingLog.Warn($"MagicRename '{item.OriginalName}': {ex.Message}");
                         }
                     }
                     tx.Commit();
                 }
 
                 TaskDialog.Show("Magic Rename",
-                    $"Renamed: {renamed}\nSkipped: {skipped}\nTotal: {targetElements.Count}");
-                StingLog.Info($"MagicRename: {mode} on {elementType}, renamed={renamed}, skipped={skipped}");
+                    $"Renamed: {renamed}\nFailed: {failed}\nOperation: {result.Operation}");
+                StingLog.Info($"MagicRename: renamed={renamed}, failed={failed}, op={result.Operation}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
