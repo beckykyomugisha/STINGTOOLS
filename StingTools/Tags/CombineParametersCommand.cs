@@ -78,7 +78,7 @@ namespace StingTools.Tags
             return ExecuteCombine(doc, activeGroups);
         }
 
-        // ── Group picker: paged TaskDialog selection ─────────────────
+        // ── Group picker: StingListPicker selection ─────────────────
 
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
@@ -96,71 +96,27 @@ namespace StingTools.Tags
                 else catCounts[cat] = 1;
             }
 
-            var selected = new HashSet<string>();
-            int page = 0;
-            int pageSize = 4;
-
-            while (true)
+            var groupItems = allGroups.Select(g =>
             {
-                int start = page * pageSize;
-                if (start >= allGroups.Length)
+                int elemCount = g.Categories != null
+                    ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
+                    : catCounts.Values.Sum();
+                return new Select.StingListPicker.ListItem
                 {
-                    break; // Always exit — caller checks selected.Count
-                }
+                    Label = g.Group,
+                    Detail = $"{g.Params.Length} containers | {elemCount} elements",
+                    Tag = g.GroupCode
+                };
+            }).ToList();
 
-                int count = Math.Min(pageSize, allGroups.Length - start);
-                var pageGroups = allGroups.Skip(start).Take(count).ToArray();
-                int totalPages = (int)Math.Ceiling((double)allGroups.Length / pageSize);
+            var picked = Select.StingListPicker.Show(
+                "Combine Parameters — Select Groups",
+                $"{allGroups.Length} container groups available. Select groups to populate.",
+                groupItems, allowMultiSelect: true);
 
-                TaskDialog picker = new TaskDialog("Select Container Groups");
-                picker.MainInstruction = $"Toggle groups (page {page + 1}/{totalPages})";
-                picker.MainContent = selected.Count > 0
-                    ? $"Selected: {string.Join(", ", allGroups.Where(g => selected.Contains(g.GroupCode)).Select(g => g.Group))}"
-                    : "Click a group to select/deselect it. Cancel when done selecting.";
-
-                for (int i = 0; i < pageGroups.Length; i++)
-                {
-                    var g = pageGroups[i];
-                    int elemCount = g.Categories != null
-                        ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
-                        : catCounts.Values.Sum();
-                    string mark = selected.Contains(g.GroupCode) ? "[X] " : "[ ] ";
-                    picker.AddCommandLink(
-                        (TaskDialogCommandLinkId)(i + 1001),
-                        $"{mark}{g.Group}",
-                        $"{g.Params.Length} containers | {elemCount} elements");
-                }
-
-                picker.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                var pickResult = picker.Show();
-
-                int linkIndex = -1;
-                switch (pickResult)
-                {
-                    case TaskDialogResult.CommandLink1: linkIndex = 0; break;
-                    case TaskDialogResult.CommandLink2: linkIndex = 1; break;
-                    case TaskDialogResult.CommandLink3: linkIndex = 2; break;
-                    case TaskDialogResult.CommandLink4: linkIndex = 3; break;
-                    default:
-                        page++;
-                        if (page * pageSize >= allGroups.Length)
-                            break;
-                        continue;
-                }
-
-                if (linkIndex >= 0 && linkIndex < pageGroups.Length)
-                {
-                    string code = pageGroups[linkIndex].GroupCode;
-                    if (selected.Contains(code))
-                        selected.Remove(code);
-                    else
-                        selected.Add(code);
-                    continue;
-                }
-            }
-
-            return selected.Count > 0 ? selected : null;
+            if (picked == null || picked.Count == 0) return null;
+            return new HashSet<string>(
+                picked.Select(p => p.Tag as string).Where(s => !string.IsNullOrEmpty(s)));
         }
 
         // ── Core combine logic ───────────────────────────────────────

@@ -1450,6 +1450,10 @@ namespace StingTools.Tags
                 }
             }
 
+            // Invalidate caches so dashboard reflects visual tag changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             sw.Stop();
             var report = new StringBuilder();
             report.AppendLine($"Placed: {placed} annotation tags");

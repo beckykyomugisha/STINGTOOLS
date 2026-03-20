@@ -196,8 +196,6 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
-                // P6: Save SEQ sidecar after commit
-                TagConfig.SaveSeqSidecar(doc, sequenceCounters);
             }
             TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
             var report = new StringBuilder();
@@ -380,13 +378,9 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
-                // P6: Save SEQ sidecar after commit
-                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
             sw.Stop();
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
-            TagConfig.CheckComplianceGate(doc, "TagNewOnly");
+            TagPipelineHelper.PostTagCleanup(doc, seqCounters, "TagNewOnly");
 
             var report = new StringBuilder();
             report.AppendLine($"Tag New Only — {untagged.Count} elements");
