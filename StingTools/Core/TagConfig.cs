@@ -4563,6 +4563,7 @@ namespace StingTools.Core
         /// </summary>
         public static int WriteTag7All(Document doc, Element el, string categoryName, string[] tokenValues, bool overwrite = true)
         {
+            if (tokenValues == null || tokenValues.Length < 8) return 0;
             var tag7 = BuildTag7Sections(doc, el, categoryName, tokenValues);
             int written = 0;
 

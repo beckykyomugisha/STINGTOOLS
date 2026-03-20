@@ -1116,6 +1116,70 @@ namespace StingTools.UI
                     case "TagStudioGenerate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
                     case "TagStudioGapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
+                    // ── COBie Reference Data (COBieDataCommands.cs, StingTools.Temp) ──
+                    case "COBieTypeMap": RunCommand<Temp.COBieTypeMapCommand>(app); break;
+                    case "COBieSystemMap": RunCommand<Temp.COBieSystemMapCommand>(app); break;
+                    case "COBiePickLists": RunCommand<Temp.COBiePickListsCommand>(app); break;
+                    case "COBieAttributes": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
+                    case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
+                    case "COBieDocTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+                    case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
+                    case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+
+                    // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
+                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
+                    case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MechEquipSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "PlumbingFixtureSchedule": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "FireDeviceSchedule": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "BatchMEPSchedules": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+
+                    // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
+                    case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
+                    case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
+                    case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
+
+                    // ── FM Handover Export (HandoverExportCommands.cs, StingTools.Docs) ──
+                    case "MaintenanceSchedule": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OMManual": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "AssetHealth": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "SpaceHandover": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Tag Selector (TagSelectorCommands.cs, StingTools.Select) ──
+                    case "TagSelector": RunCommand<Select.TagSelectorCommand>(app); break;
+                    case "SelectTagsByText": RunCommand<Select.SelectTagsByTextCommand>(app); break;
+                    case "SelectTagsByTextSize": RunCommand<Select.SelectTagsByTextSizeCommand>(app); break;
+                    case "SelectTagsByArrowhead": RunCommand<Select.SelectTagsByArrowheadCommand>(app); break;
+                    case "SelectTagsByLeaderState": RunCommand<Select.SelectTagsByLeaderStateCommand>(app); break;
+                    case "SelectTagsByFamily": RunCommand<Select.SelectTagsByFamilyCommand>(app); break;
+                    case "SelectTagsByHostCategory": RunCommand<Select.SelectTagsByHostCategoryCommand>(app); break;
+                    case "SelectTagsByOrientation": RunCommand<Select.SelectTagsByOrientationCommand>(app); break;
+                    case "SelectTagsByDiscipline": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+                    case "SelectTagsByLineWeight": RunCommand<Select.SelectTagsByLineWeightCommand>(app); break;
+                    case "SelectTagsByElbowAngle": RunCommand<Select.SelectTagsByElbowAngleCommand>(app); break;
+                    case "SelectTagsByToken": RunCommand<Select.SelectTagsByTokenCommand>(app); break;
+                    case "SelectOverlappingTags": RunCommand<Select.SelectOverlappingTagsCommand>(app); break;
+
+                    // ── Docs: Drawing Register + Journal Parser ──
+                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
+
+                    // ── Tags: Configure Tag Format (alias for ConfigEditor) ──
+                    case "ConfigureTagFormat": RunCommand<Tags.ConfigEditorCommand>(app); break;
+
+                    // ── Not-yet-implemented buttons (informational) ──
+                    case "ApplyClonedTags":
+                        TaskDialog.Show("STING", "Apply Cloned Tags — coming in a future release.\nUse Copy Tags (Organise tab) as the current alternative.");
+                        break;
+                    case "JSONExport":
+                        TaskDialog.Show("STING", "JSON Export — coming in a future release.\nUse CSV Export or Excel Export as the current alternative.");
+                        break;
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");

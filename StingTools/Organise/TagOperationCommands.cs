@@ -4736,6 +4736,7 @@ namespace StingTools.Organise
             // Identify anomalies
             int emptyDisc = 0, wrongDisc = 0, emptyLoc = 0, emptyZone = 0;
             int placeholderSeq = 0, emptyLvl = 0, emptySys = 0;
+            int emptyFunc = 0, emptyProd = 0, emptyTag7 = 0, staleCount = 0;
             int totalAnomalies = 0;
             var fixable = new List<(Element el, string[] issues)>();
 
@@ -4749,7 +4750,10 @@ namespace StingTools.Organise
                 string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                 string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                 string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
                 string seq = ParameterHelpers.GetString(el, ParamRegistry.SEQ);
+                string tag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
 
                 // Empty DISC — derive from category
                 if (string.IsNullOrEmpty(disc))
@@ -4768,7 +4772,28 @@ namespace StingTools.Organise
                 if (string.IsNullOrEmpty(zone)) { issues.Add("ZONE:empty"); emptyZone++; }
                 if (string.IsNullOrEmpty(lvl)) { issues.Add("LVL:empty"); emptyLvl++; }
                 if (string.IsNullOrEmpty(sys)) { issues.Add("SYS:empty"); emptySys++; }
+                if (string.IsNullOrEmpty(func)) { issues.Add("FUNC:empty"); emptyFunc++; }
+                if (string.IsNullOrEmpty(prod) || prod == "GEN" || prod == "XX")
+                {
+                    issues.Add("PROD:empty"); emptyProd++;
+                }
                 if (seq == "0000" || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
+
+                // TAG7 missing — element has TAG1 but no TAG7 narrative
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag1) && string.IsNullOrEmpty(tag7))
+                {
+                    issues.Add("TAG7:missing");
+                    emptyTag7++;
+                }
+
+                // Stale elements — geometry changed since last tag
+                int staleVal = ParameterHelpers.GetInt(el, ParamRegistry.STALE, 0);
+                if (staleVal == 1)
+                {
+                    issues.Add("STALE:true");
+                    staleCount++;
+                }
 
                 if (issues.Count > 0)
                 {
@@ -4789,12 +4814,16 @@ namespace StingTools.Organise
             confirm.MainInstruction = $"Found {totalAnomalies} anomalies on {fixable.Count} elements";
             confirm.MainContent =
                 $"Scanned: {allElements.Count} taggable elements\n\n" +
-                $"  Empty DISC:    {emptyDisc}\n" +
-                $"  Wrong DISC:    {wrongDisc}\n" +
-                $"  Empty LOC:     {emptyLoc}\n" +
-                $"  Empty ZONE:    {emptyZone}\n" +
-                $"  Empty LVL:     {emptyLvl}\n" +
-                $"  Empty SYS:     {emptySys}\n" +
+                $"  Empty DISC:      {emptyDisc}\n" +
+                $"  Wrong DISC:      {wrongDisc}\n" +
+                $"  Empty LOC:       {emptyLoc}\n" +
+                $"  Empty ZONE:      {emptyZone}\n" +
+                $"  Empty LVL:       {emptyLvl}\n" +
+                $"  Empty SYS:       {emptySys}\n" +
+                $"  Empty FUNC:      {emptyFunc}\n" +
+                $"  Empty/Generic PROD: {emptyProd}\n" +
+                $"  Missing TAG7:    {emptyTag7}\n" +
+                $"  Stale elements:  {staleCount}\n" +
                 $"  Placeholder SEQ: {placeholderSeq}\n\n" +
                 "Fix all automatically?";
             confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
@@ -4807,8 +4836,9 @@ namespace StingTools.Organise
 
             // Apply fixes
             int fixed_disc = 0, fixed_loc = 0, fixed_zone = 0, fixed_lvl = 0, fixed_sys = 0;
-            int fixed_seq = 0, fixed_wrongDisc = 0;
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            int fixed_seq = 0, fixed_wrongDisc = 0, fixed_func = 0, fixed_prod = 0;
+            int fixed_tag7 = 0, fixed_stale = 0;
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Anomaly Auto-Fix"))
             {
@@ -4866,27 +4896,72 @@ namespace StingTools.Organise
                                 fixed_sys++;
                             }
                         }
+                        else if (issue == "FUNC:empty")
+                        {
+                            string currentSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (!string.IsNullOrEmpty(currentSys))
+                            {
+                                string funcCode = TagConfig.GetFuncCode(currentSys);
+                                if (!string.IsNullOrEmpty(funcCode))
+                                {
+                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, funcCode, overwrite: true);
+                                    fixed_func++;
+                                }
+                            }
+                        }
+                        else if (issue == "PROD:empty")
+                        {
+                            string prodCode = TagConfig.GetFamilyAwareProdCode(el, catName);
+                            if (!string.IsNullOrEmpty(prodCode) && prodCode != "GEN" && prodCode != "XX")
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.PROD, prodCode, overwrite: true);
+                                fixed_prod++;
+                            }
+                        }
                         else if (issue == "SEQ:placeholder")
                         {
-                            // Re-derive a unique SEQ from existing counters
+                            // Re-derive a unique SEQ from existing counters using canonical key format
                             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                            string key = $"{disc}_{sys}_{lvl}";
+                            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                            string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                             if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
                             seqCounters[key]++;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             ParameterHelpers.SetString(el, ParamRegistry.SEQ, newSeq, overwrite: true);
                             fixed_seq++;
                         }
+                        else if (issue == "TAG7:missing")
+                        {
+                            // Rebuild TAG7 narrative from current token values
+                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                            if (tokenVals != null && tokenVals.Length >= 8)
+                            {
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                fixed_tag7++;
+                            }
+                        }
+                        else if (issue == "STALE:true")
+                        {
+                            // Clear stale flag — the token fixes above address the root cause
+                            ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0);
+                            fixed_stale++;
+                        }
                     }
                 }
 
                 tx.Commit();
+                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             int totalFixed = fixed_disc + fixed_wrongDisc + fixed_loc + fixed_zone +
-                             fixed_lvl + fixed_sys + fixed_seq;
+                             fixed_lvl + fixed_sys + fixed_func + fixed_prod +
+                             fixed_seq + fixed_tag7 + fixed_stale;
             TaskDialog.Show("Anomaly Auto-Fix",
                 $"Fixed {totalFixed} of {totalAnomalies} anomalies:\n\n" +
                 $"  DISC (empty → derived):    {fixed_disc}\n" +
@@ -4895,6 +4970,10 @@ namespace StingTools.Organise
                 $"  ZONE (spatial detect):     {fixed_zone}\n" +
                 $"  LVL (level derive):        {fixed_lvl}\n" +
                 $"  SYS (MEP system derive):   {fixed_sys}\n" +
+                $"  FUNC (from SYS):           {fixed_func}\n" +
+                $"  PROD (family-aware):       {fixed_prod}\n" +
+                $"  TAG7 (narrative rebuild):  {fixed_tag7}\n" +
+                $"  Stale (flag cleared):      {fixed_stale}\n" +
                 $"  SEQ (unique reassign):     {fixed_seq}");
 
             StingLog.Info($"AnomalyAutoFix: fixed {totalFixed}/{totalAnomalies} on {fixable.Count} elements");
@@ -4923,22 +5002,20 @@ namespace StingTools.Organise
             var td = new TaskDialog("STING — Display Mode");
             td.MainInstruction = "Select tag display mode";
             td.MainContent = "Controls which segments of the ISO tag are visible in annotations.";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1 — SEQ only (e.g. 0042)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2 — PROD-SEQ (e.g. AHU-0042)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3 — DISC-SYS-SEQ (e.g. M-HVAC-0042)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "4 — DISC-PROD-SEQ (e.g. M-AHU-0042)");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var result = td.Show();
-
-            int mode;
-            switch (result)
+            var modeOptions = new List<UI.StingModePicker.ModeOption>
             {
-                case TaskDialogResult.CommandLink1: mode = 1; break;
-                case TaskDialogResult.CommandLink2: mode = 2; break;
-                case TaskDialogResult.CommandLink3: mode = 3; break;
-                case TaskDialogResult.CommandLink4: mode = 4; break;
-                default: return Result.Cancelled;
-            }
+                new("SEQ only", "e.g. 0042", "1"),
+                new("PROD-SEQ", "e.g. AHU-0042", "2", true),
+                new("DISC-SYS-SEQ", "e.g. M-HVAC-0042", "3"),
+                new("DISC-PROD-SEQ", "e.g. M-AHU-0042", "4"),
+                new("Full 8-segment", "e.g. M-BLD1-Z01-L02-HVAC-SUP-AHU-0003", "5"),
+            };
+            string modeResult = UI.StingModePicker.Show(
+                "Display Mode",
+                "Controls which segments of the ISO tag are visible in annotations",
+                modeOptions);
+            if (string.IsNullOrEmpty(modeResult)) return Result.Cancelled;
+            int mode = int.Parse(modeResult);
 
             // Scope dialog
             var scopeTd = new TaskDialog("STING — Scope");
@@ -5264,6 +5341,49 @@ namespace StingTools.Organise
                     {
                         try
                         {
+                            // Restore member tag positions from CLUSTER_MEMBER_POS
+                            Parameter posPar = el.LookupParameter(ParamRegistry.CLUSTER_MEMBER_POS);
+                            if (posPar != null)
+                            {
+                                string posData = posPar.AsString();
+                                if (!string.IsNullOrEmpty(posData))
+                                {
+                                    foreach (string entry in posData.Split('|'))
+                                    {
+                                        try
+                                        {
+                                            int colonIdx = entry.IndexOf(':');
+                                            if (colonIdx < 0) continue;
+                                            long hostId = long.Parse(entry.Substring(0, colonIdx));
+                                            string[] coords = entry.Substring(colonIdx + 1).Split(',');
+                                            if (coords.Length < 3) continue;
+                                            var pos = new XYZ(
+                                                double.Parse(coords[0]),
+                                                double.Parse(coords[1]),
+                                                double.Parse(coords[2]));
+
+                                            // Find IndependentTag for this host element in the view
+                                            var hostElId = new ElementId(hostId);
+                                            var tags = new FilteredElementCollector(doc, view.Id)
+                                                .OfClass(typeof(IndependentTag))
+                                                .Cast<IndependentTag>()
+                                                .Where(t =>
+                                                {
+                                                    try { return t.TaggedLocalElementId == hostElId; }
+                                                    catch { return false; }
+                                                });
+                                            foreach (var tag in tags)
+                                            {
+                                                try { tag.TagHeadPosition = pos; }
+                                                catch (Exception ex2) { StingLog.Warn($"Restore tag position failed: {ex2.Message}"); }
+                                            }
+                                        }
+                                        catch (Exception ex3) { StingLog.Warn($"Parse cluster member entry failed: {ex3.Message}"); }
+                                    }
+                                }
+                                if (!posPar.IsReadOnly) posPar.Set("");
+                            }
+
                             Parameter p = el.LookupParameter(ParamRegistry.CLUSTER_COUNT);
                             if (p != null && !p.IsReadOnly) p.Set(0);
 

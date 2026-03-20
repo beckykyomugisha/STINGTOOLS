@@ -1693,6 +1693,19 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 289. **Tab styling** — TabItem uses DynamicResource for Foreground/Background with selected tab matching content area colour.
 290. **Theme toggle** — CycleTheme handled directly in WPF click handler (no ExternalEvent round-trip needed).
 
+#### Completed (Phase 31 — Deep Review: Pipeline Logic, UI Wiring, Anomaly Detection & Automation Gaps)
+
+291. **256 bare catch blocks fixed** — All 256 `catch { }` blocks across 47 files replaced with `catch (Exception ex) { StingLog.Warn(...); }` for diagnostic visibility. `StingLog.cs` uses parameter-less catch to avoid circular dependency.
+292. **Grid collection cached in PopulationContext** — `CachedGrids` property added to `PopulationContext.Build()`. `WriteGridReference()` accepts optional cached grids, eliminating O(n²) `FilteredElementCollector` per element.
+293. **RunFullPipeline return value checked** — All 8 callers (AutoTag, TagNewOnly, BatchTag, TagAndCombine, TagSelected, ReTag, RetagStale, PreviewTag) now capture and handle the `bool` return from `RunFullPipeline`. False results logged or counted as errors.
+294. **LOGIC-001: Token lock snapshot reordered** — In `RunFullPipeline`, locked token snapshot now taken AFTER `TypeTokenInherit` but BEFORE `PopulateAll`, so inherited type values are preserved in the lock.
+295. **LOGIC-005: Removed redundant WriteContainers** — `BuildAndWriteTag` already writes all containers; removed duplicate `WriteContainers` call from `RunFullPipeline` to eliminate double-write overhead.
+296. **STABILITY-001/002: Array bounds guards** — `ParamRegistry.WriteContainers()` and `TagConfig.WriteTag7All()` now return 0 immediately if `tokenValues` is null or has fewer than 8 elements.
+297. **43 dead XAML buttons wired** — Added dispatch entries in `StingCommandHandler.cs` for: 10 COBie reference data commands, 7 MEP schedule commands, 5 room/space commands, 4 FM handover commands, 13 tag selector commands, 2 docs commands (DrawingRegister, JournalParser), 1 config alias (ConfigureTagFormat), 2 informational stubs (ApplyClonedTags, JSONExport).
+298. **AnomalyAutoFixCommand expanded** — Added detection and auto-fix for 4 new anomaly types: FUNC (derived from SYS), PROD (family-aware with GEN/XX detection), TAG7 (narrative rebuild from tokens), and stale elements (flag cleared). Now uses canonical `BuildSeqKey` for SEQ counter keys. Added `SaveSeqSidecar` + `ComplianceScan.InvalidateCache` + `StingAutoTagger.InvalidateContext` after commit.
+299. **DisplayMode 5th mode** — `SetDisplayModeCommand` now offers 5 modes including full 8-segment tag display. Migrated from TaskDialog to `StingModePicker` for consistent UI.
+300. **DeclusterTags position restoration** — `DeclusterTagsCommand` now reads `CLUSTER_MEMBER_POS` parameter, parses stored `hostId:X,Y,Z` entries, and restores `IndependentTag.TagHeadPosition` for each clustered member before clearing cluster metadata.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

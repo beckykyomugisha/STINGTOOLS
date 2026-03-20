@@ -2496,8 +2496,25 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // FIX-DEEP01: Snapshot locked token values before TypeTokenInherit/PopulateAll/overrides
-                // so they can be restored afterward (lockedTokens checked below)
+                // AL-06: Capture previous tag value and timestamp for audit trail
+                try
+                {
+                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                }
+                catch (Exception auditEx)
+                {
+                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
+                }
+
+                // P4: Inherit token values from family type before populating
+                TokenAutoPopulator.TypeTokenInherit(doc, el);
+
+                // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
+                // values are preserved, but BEFORE PopulateAll/overrides can change them
                 var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
@@ -2525,25 +2542,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                catch { /* ASS_TOKEN_LOCK_TXT not bound — safe to skip */ }
-
-                // AL-06: Capture previous tag value and timestamp for audit trail
-                try
-                {
-                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                }
-                catch (Exception auditEx)
-                {
-                    // Params not bound yet — add ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT to MR_PARAMETERS.csv
-                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
-                }
-
-                // P4: Inherit token values from family type before populating
-                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
 
                 // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                 TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
@@ -2561,7 +2560,7 @@ namespace StingTools.Core
                         StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
                     }
                 }
-                catch { /* Param not bound yet — safe to skip */ }
+                catch (Exception lockReadEx) { StingLog.Warn($"Token lock read for locked set: {lockReadEx.Message}"); }
 
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
@@ -2661,12 +2660,10 @@ namespace StingTools.Core
                     stats: stats,
                     cachedRev: ctx?.ProjectRev);
 
-                // P1: Write all container parameters
+                // P1: Write TAG7 rich narrative (A-F sub-sections)
+                // NOTE: Container write is already handled inside BuildAndWriteTag above.
+                // Only TAG7 needs separate handling here since it uses the narrative builder.
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                ParamRegistry.WriteContainers(el, tokenVals, catName,
-                    overwrite: overwrite, skipParam: ParamRegistry.TAG1);
-
-                // Core: Write TAG7 rich narrative (A-F sub-sections)
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
