@@ -9,9 +9,6 @@ using Autodesk.Revit.UI;
 namespace StingTools.Core
 {
     /// <summary>
-    /// Ported from tag_logic.py — parameter read/write helpers for Revit elements.
-    /// </summary>
-    /// <summary>
     /// Safe command execution context — null-checked UIApplication, UIDocument,
     /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
     /// </summary>
