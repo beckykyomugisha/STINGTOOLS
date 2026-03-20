@@ -3029,7 +3029,8 @@ namespace StingTools.BIMManager
         private static readonly Dictionary<string, int> _seqCounters = new Dictionary<string, int>();
         internal static string GetNextSequentialId(string context, string prefix)
         {
-            string key = $"{prefix}_{context}";
+            // Use prefix-only key to match SyncSequentialCounter
+            string key = $"{prefix}_";
             if (!_seqCounters.ContainsKey(key)) _seqCounters[key] = 0;
             _seqCounters[key]++;
             return $"{prefix}-{_seqCounters[key]:D4}";
