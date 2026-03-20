@@ -279,12 +279,16 @@ namespace StingTools.BIMManager
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             var elementsByLevelAndCat = new Dictionary<string, Dictionary<string, int>>();
 
-            // Build set of demolished/temporary phase IDs to exclude from scheduling
+            // Build set of demolished/temporary phase IDs to exclude from scheduling.
+            // Uses both name-based matching (for standard phase names) and Revit's
+            // built-in phase status detection for coded/numbered phases.
             var demolishedPhaseIds = new HashSet<long>();
             foreach (Phase ph in phases)
             {
                 string phaseName = ph.Name?.ToUpperInvariant() ?? "";
-                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("TEMPORARY"))
+                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("DEMOLITION") ||
+                    phaseName.Contains("TEMPORARY") || phaseName.Contains("DEMO") ||
+                    phaseName.Contains("REMOVED") || phaseName.Contains("TO BE DEMOLISHED"))
                     demolishedPhaseIds.Add(ph.Id.Value);
             }
 

@@ -122,8 +122,13 @@ namespace StingTools.Tags
             progress.SetStatus("Building pipeline context...");
 
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            var sequenceCounters = new Dictionary<string, int>(); // Fresh counters — rebuild all SEQ from scratch
-            var tagIndex = new HashSet<string>(); // Fresh index — no pre-existing tags (we're overwriting all)
+            // Use existing SEQ counters so we don't collide with tags on elements
+            // that may be excluded from this run (e.g., unfamiliar categories).
+            // BuildTagIndexAndCounters merges sidecar data for session continuity.
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            // Clear tag index since we're overwriting all elements — the index will
+            // be rebuilt as we process. Keep counters to preserve high-water marks.
+            tagIndex.Clear();
             var stats = new TaggingStats();
             // GAP-03: Load pipeline context once (formulas + grid lines) for RunFullPipeline
             var formulas = TagPipelineHelper.LoadFormulas();
@@ -246,16 +251,14 @@ namespace StingTools.Tags
 
             progress.Close();
 
-            // Phase2: Save SEQ sidecar after all batches committed
+            // Save SEQ sidecar once after all batches are committed (or cancelled)
             try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
             catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             if (cancelled)
             {
-                try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
-                catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar (cancel): {ssEx.Message}"); }
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
                 TaskDialog.Show("Resolve All Issues",
                     $"Cancelled by user at {processed}/{totalTaggable}.\n" +
                     $"Previously committed batches were saved.\n" +
@@ -264,16 +267,7 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
-            // Save SEQ sidecar + invalidate caches after resolving all issues
-            try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
-            catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
-            ComplianceScan.InvalidateCache();
-            StingAutoTagger.InvalidateContext();
             duplicatesResolved = stats.TotalCollisions;
-
-            // TAG-04: Invalidate compliance cache immediately after fixes
-            // so the dashboard shows updated GREEN status, not stale RED
-            ComplianceScan.InvalidateCache();
 
             // FIX-B09: Check compliance gate after resolving all issues
             TagConfig.CheckComplianceGate(doc, "ResolveAllIssues");

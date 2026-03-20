@@ -45,28 +45,27 @@ namespace StingTools.Organise
             TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement;
             if (alreadyTagged > 0)
             {
-                TaskDialog modeDlg = new TaskDialog("Tag Selected — Collision Mode");
-                modeDlg.MainInstruction = $"{alreadyTagged} of {selected.Count} elements already have tags.";
-                modeDlg.MainContent = "Choose how to handle already-tagged elements:";
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "Skip already-tagged (Recommended)",
-                    "Only tag elements that don't have complete tags");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Overwrite all tags",
-                    "Re-derive and overwrite ALL tokens, including already-tagged elements");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    "Auto-increment on collision",
-                    "Tag all; auto-increment SEQ if generated tag already exists");
-                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
-
-                switch (modeDlg.Show())
+                var modeOptions = new List<UI.StingModePicker.ModeOption>
                 {
-                    case TaskDialogResult.CommandLink1:
+                    new("Skip already-tagged",
+                        "Only tag elements that don't have complete tags", "skip", true),
+                    new("Overwrite all tags",
+                        "Re-derive and overwrite ALL tokens, including already-tagged elements", "overwrite"),
+                    new("Auto-increment on collision",
+                        "Tag all; auto-increment SEQ if generated tag already exists", "increment"),
+                };
+                string modeResult = UI.StingModePicker.Show(
+                    "Tag Selected — Collision Mode",
+                    $"{alreadyTagged} of {selected.Count} elements already have tags",
+                    modeOptions);
+
+                switch (modeResult)
+                {
+                    case "skip":
                         collisionMode = TagCollisionMode.Skip; break;
-                    case TaskDialogResult.CommandLink2:
+                    case "overwrite":
                         collisionMode = TagCollisionMode.Overwrite; break;
-                    case TaskDialogResult.CommandLink3:
+                    case "increment":
                         collisionMode = TagCollisionMode.AutoIncrement; break;
                     default:
                         return Result.Cancelled;

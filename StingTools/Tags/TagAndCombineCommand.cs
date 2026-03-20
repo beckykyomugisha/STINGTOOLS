@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -54,36 +55,28 @@ namespace StingTools.Tags
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            // Step 0: Choose scope
-            TaskDialog scopeDlg = new TaskDialog("Tag & Combine All");
-            scopeDlg.MainInstruction = "Tag and populate all containers";
-            scopeDlg.MainContent =
-                "This will:\n" +
-                "  1. Auto-detect LOC/ZONE from spatial data + worksets\n" +
-                "  2. Auto-populate all tokens (DISC, PROD, SYS, FUNC, LVL)\n" +
-                "  3. Auto-detect STATUS from Revit phases + worksets\n" +
-                "  4. Auto-detect REV from project revision sequence\n" +
-                "  5. Tag all untagged elements (continuing from existing numbers)\n" +
-                "  6. Combine tokens into ALL 53 tag containers\n\n" +
-                "Choose scope:";
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Active View",
-                "Process only elements visible in the current view");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Selected Elements",
-                $"{uidoc.Selection.GetElementIds().Count} elements selected");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Entire Project",
-                "Process all taggable elements across the entire model");
-            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var scopeResult = scopeDlg.Show();
+            // Step 0: Choose scope using StingModePicker
+            int selCount = uidoc.Selection.GetElementIds().Count;
+            var scopeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new("Active View",
+                    "Process only elements visible in the current view", "view", true),
+                new("Selected Elements",
+                    $"{selCount} elements currently selected", "selected"),
+                new("Entire Project",
+                    "Process all taggable elements across the entire model", "project"),
+            };
+            string scopeResult = UI.StingModePicker.Show(
+                "Tag & Combine All",
+                "Auto-populate tokens, tag, and combine into all 53 containers",
+                scopeOptions,
+                "Auto-detects LOC/ZONE/STATUS/REV from spatial data and phases");
 
             ICollection<ElementId> targetIds;
             string scopeLabel;
             switch (scopeResult)
             {
-                case TaskDialogResult.CommandLink1:
+                case "view":
                     if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
                     {
                         // Performance: use ElementMulticategoryFilter to skip non-taggable elements
@@ -96,7 +89,7 @@ namespace StingTools.Tags
                     }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "selected":
                     targetIds = uidoc.Selection.GetElementIds();
                     if (targetIds.Count == 0)
                     {
@@ -105,7 +98,7 @@ namespace StingTools.Tags
                     }
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
-                case TaskDialogResult.CommandLink3:
+                case "project":
                     {
                         // Performance: use ElementMulticategoryFilter to skip non-taggable elements
                         var projCollector = new FilteredElementCollector(doc)

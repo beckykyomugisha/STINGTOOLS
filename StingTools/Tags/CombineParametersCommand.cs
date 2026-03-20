@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -31,45 +32,40 @@ namespace StingTools.Tags
 
             var allGroups = ParamRegistry.ContainerGroups;
 
-            // Step 1: Mode selection
+            // Step 1: Mode selection using StingModePicker
             int totalContainers = allGroups.Sum(g => g.Params.Length);
-            TaskDialog modeDlg = new TaskDialog("Combine Parameters");
-            modeDlg.MainInstruction = "Which tag containers to populate?";
-            modeDlg.MainContent =
-                "Reads token parameters (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ) " +
-                "and assembles them into tag container parameters.\n\n" +
-                $"Available: {allGroups.Length} groups, {totalContainers} total containers";
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "All Containers",
-                $"Populate all {allGroups.Length} groups ({totalContainers} parameters)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Universal Only (ASS_TAG_1-6)",
-                "6 universal containers applied to all tagged elements");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Discipline Only",
-                "MEP + Comms discipline-specific containers (excludes Universal and Material)");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Pick Container Groups...",
-                "Interactively choose which groups to populate");
-            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var modeResult = modeDlg.Show();
+            var modeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new("All Containers",
+                    $"Populate all {allGroups.Length} groups ({totalContainers} parameters)", "all", true),
+                new("Universal Only (ASS_TAG_1-6)",
+                    "6 universal containers applied to all tagged elements", "universal"),
+                new("Discipline Only",
+                    "MEP + Comms discipline-specific containers (excludes Universal and Material)", "discipline"),
+                new("Pick Container Groups...",
+                    "Interactively choose which groups to populate", "pick"),
+            };
+            string modeResult = UI.StingModePicker.Show(
+                "Combine Parameters",
+                "Assemble token parameters into tag containers",
+                modeOptions,
+                $"Available: {allGroups.Length} groups, {totalContainers} total containers");
 
             HashSet<string> selectedGroupCodes;
             switch (modeResult)
             {
-                case TaskDialogResult.CommandLink1:
+                case "all":
                     selectedGroupCodes = new HashSet<string>(allGroups.Select(g => g.GroupCode));
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "universal":
                     selectedGroupCodes = new HashSet<string> { "UNIVERSAL" };
                     break;
-                case TaskDialogResult.CommandLink3:
+                case "discipline":
                     selectedGroupCodes = new HashSet<string>(
                         allGroups.Where(g => g.GroupCode != "UNIVERSAL" && g.GroupCode != "MAT_TAG")
                                  .Select(g => g.GroupCode));
                     break;
-                case TaskDialogResult.CommandLink4:
+                case "pick":
                     selectedGroupCodes = ShowGroupPicker(doc, allGroups);
                     if (selectedGroupCodes == null || selectedGroupCodes.Count == 0)
                         return Result.Cancelled;

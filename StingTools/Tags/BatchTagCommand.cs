@@ -78,35 +78,31 @@ namespace StingTools.Tags
             }
 
             // Step 2: Choose collision handling mode (with pre-flight counts)
-            TaskDialog modeDlg = new TaskDialog("Batch Tag — Collision Mode");
-            modeDlg.MainInstruction = $"Batch tag {totalTaggable:N0} elements";
-            modeDlg.MainContent =
-                $"  Taggable:       {totalTaggable:N0}\n" +
-                $"  Already tagged: {alreadyTagged:N0}\n" +
-                $"  Untagged:       {untagged:N0}\n\n" +
-                "Click an option below to start tagging:";
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                $"Skip existing — tag {untagged:N0} new only (Recommended)",
-                "Only tag untagged elements. Already-tagged elements are left unchanged.");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                $"Overwrite all {totalTaggable:N0}",
-                "Re-derive and overwrite ALL tag tokens, even on already-tagged elements.");
-            modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                $"Auto-increment on collision",
-                "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.");
-            modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            modeDlg.DefaultButton = TaskDialogResult.CommandLink1;
+            var modeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new($"Skip existing — tag {untagged:N0} new only",
+                    "Only tag untagged elements. Already-tagged elements are left unchanged.", "skip", true),
+                new($"Overwrite all {totalTaggable:N0}",
+                    "Re-derive and overwrite ALL tag tokens, even on already-tagged elements.", "overwrite"),
+                new("Auto-increment on collision",
+                    "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.", "increment"),
+            };
+            string modeResult = UI.StingModePicker.Show(
+                "Batch Tag — Collision Mode",
+                $"Batch tag {totalTaggable:N0} elements",
+                modeOptions,
+                $"Taggable: {totalTaggable:N0}  |  Already tagged: {alreadyTagged:N0}  |  Untagged: {untagged:N0}");
 
             TagCollisionMode collisionMode;
-            switch (modeDlg.Show())
+            switch (modeResult)
             {
-                case TaskDialogResult.CommandLink1:
+                case "skip":
                     collisionMode = TagCollisionMode.Skip;
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "overwrite":
                     collisionMode = TagCollisionMode.Overwrite;
                     break;
-                case TaskDialogResult.CommandLink3:
+                case "increment":
                     collisionMode = TagCollisionMode.AutoIncrement;
                     break;
                 default:
@@ -543,9 +539,8 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
-                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
-            // Save SEQ sidecar + invalidate caches after migration
+            // Save SEQ sidecar once + invalidate caches after migration
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"TagFormatMigration SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
@@ -841,9 +836,8 @@ namespace StingTools.Tags
                 }
 
                 tx.Commit();
-                TagConfig.SaveSeqSidecar(doc, seqCounters);
             }
-            // Save SEQ sidecar + invalidate caches after delta update
+            // Save SEQ sidecar once + invalidate caches after delta update
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"TagChanged SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();

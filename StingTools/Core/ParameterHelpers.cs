@@ -1251,7 +1251,9 @@ namespace StingTools.Core
                 foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
                 {
                     if (conn == null || !conn.IsConnected) continue;
-                    foreach (Connector otherConn in conn.AllRefs)
+                    var allRefs = conn.AllRefs;
+                    if (allRefs == null) continue;
+                    foreach (Connector otherConn in allRefs)
                     {
                         if (otherConn?.Owner == null || otherConn.Owner.Id == el.Id) continue;
                         Element connected = otherConn.Owner;
@@ -1536,7 +1538,7 @@ namespace StingTools.Core
                 if (levelId != null && levelId != ElementId.InvalidElementId)
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL_ELEM_ID, levelId.Value.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"RunFullPipeline LevelId: {ex.Message}"); }
 
             // Phase 19: Write nearest grid intersection reference
             WriteGridReference(doc, el);

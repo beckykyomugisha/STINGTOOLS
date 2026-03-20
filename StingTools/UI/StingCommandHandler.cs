@@ -959,39 +959,26 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
-                    // IoT / Sensor Data (planned — informative stubs)
-                    case "IoTSensorLink":
-                    case "IoTDashboard":
-                    case "IoTAlertConfig":
-                    case "IoTHistoryExport":
-                        TaskDialog.Show("STING — IoT",
-                            $"'{tag}' IoT/sensor integration is planned for a future release.\n\n" +
-                            "This will connect live BMS/sensor feeds to tagged elements\n" +
-                            "for real-time performance monitoring and anomaly detection.");
-                        break;
+                    // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
+                    case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
+                    case "IoTAlertConfig": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "IoTHistoryExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
 
-                    // Standards / Compliance (planned — informative stubs)
-                    case "ISO19650Checker":
-                    case "BS1192Checker":
-                    case "COBieValidator":
-                    case "UnicodeValidator":
-                    case "NamingConventionAudit":
-                    case "ClassificationAudit":
-                        TaskDialog.Show("STING — Standards",
-                            $"'{tag}' standards checker is planned for a future release.\n\n" +
-                            "Use 'Validate Tags' and 'Pre-Tag Audit' for current ISO 19650 compliance checking.");
-                        break;
+                    // Standards / Compliance (wired to StandardsEngine.cs commands)
+                    case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "COBieValidator": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
+                    case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
 
-                    // MEP Schedule shortcuts
-                    case "MEPScheduleHVAC":
-                    case "MEPScheduleElec":
-                    case "MEPSchedulePlumb":
-                    case "MEPScheduleFire":
-                    case "MEPScheduleAll":
-                        TaskDialog.Show("STING — MEP Schedules",
-                            $"'{tag}' MEP-specific schedule generation is planned for a future release.\n\n" +
-                            "Use 'Batch Create Schedules' (TEMP tab) to create MEP schedules from CSV definitions.");
-                        break;
+                    // MEP Schedule shortcuts (wired to MEPScheduleCommands.cs)
+                    case "MEPScheduleHVAC": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "MEPScheduleElec": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MEPSchedulePlumb": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "MEPScheduleFire": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "MEPScheduleAll": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
 
                     // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
@@ -1008,14 +995,15 @@ namespace StingTools.UI
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    // Third-party platform integrations — route to CDE Package which
+                    // generates ISO 19650 folder structure compatible with any CDE platform
                     case "ProcorePackage":
                     case "TrimbleExport":
                     case "AconexPackage":
                     case "ProjectWiseExport":
-                    case "PlatformDashboard":
-                    case "WebhookPayload":
-                        TaskDialog.Show("StingTools", $"'{tag}' platform integration is planned for a future release.");
-                        break;
+                        RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.BCFExportCommand>(app); break;
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
@@ -1042,63 +1030,12 @@ namespace StingTools.UI
                     case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
                     case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
 
-                    // FIX-UI02: TagStudio AI / analysis stubs — commands not yet implemented,
-                    // show descriptive message instead of generic "not available" error
-                    case "TagStudio_APIGaps":
-                        TaskDialog.Show("STING — API Notes",
-                            "Tag Studio API Notes\n\n" +
-                            "This panel documents known Revit API limitations affecting tag placement:\n" +
-                            "  • IndependentTag.ArrowheadType is not writable via API\n" +
-                            "  • Tag leader endpoint positions have limited programmatic control\n" +
-                            "  • Multi-category tag families require manual leader attachment\n\n" +
-                            "Use the Leader & Elbow controls to work around these limitations.");
-                        break;
-                    case "TagStudio_Explain":
-                        TaskDialog.Show("STING — Pipeline Explain",
-                            "Tag Pipeline Step Explanation\n\n" +
-                            "The full tagging pipeline for each element:\n" +
-                            "  1. TypeTokenInherit — inherit family type defaults\n" +
-                            "  2. PopulateAll — auto-derive 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)\n" +
-                            "  3. NativeParamMapper — bridge Revit built-ins → STING shared params\n" +
-                            "  4. FormulaEngine — evaluate computed fields (areas, volumes, costs)\n" +
-                            "  5. BuildAndWriteTag — assemble ISO 19650 tag + assign SEQ\n" +
-                            "  6. WriteContainers — populate all 53 discipline containers\n" +
-                            "  7. WriteTag7All — write TAG7 rich narrative (A–F sub-sections)\n" +
-                            "  8. GetGridRef — assign nearest grid intersection reference\n" +
-                            "  9. SaveSeqSidecar — persist sequence counters to disk");
-                        break;
-                    case "TagStudio_Pipeline":
-                        TaskDialog.Show("STING — Pipeline Status",
-                            "Tag Pipeline Coverage\n\n" +
-                            "Commands that run the full 9-step pipeline:\n" +
-                            "  Auto Tag, Batch Tag, Tag & Combine\n" +
-                            "  Tag Selected, Re-Tag, Tag New Only\n" +
-                            "  Retag Stale, Full Auto-Populate\n" +
-                            "  Resolve All Issues, Repair Duplicate SEQ\n" +
-                            "  Tag 3D, System Param Push, Excel Import\n\n" +
-                            "Run 'Pre-Tag Audit' for a full prediction before committing.");
-                        break;
-                    case "TagStudio_Generate":
-                        TaskDialog.Show("STING — Generate",
-                            "Tag Code Generation\n\n" +
-                            "Use 'Family Stage Populate' to pre-populate all 9 token fields\n" +
-                            "on selected elements before running the tagging pipeline.\n\n" +
-                            "Use 'Full Auto-Populate' for zero-manual-input population\n" +
-                            "across the entire project.\n\n" +
-                            "This Generate panel is reserved for future AI-assisted\n" +
-                            "token derivation features.");
-                        break;
-                    case "TagStudio_GapReview":
-                        TaskDialog.Show("STING — Gap Review",
-                            "Tag Gap Analysis\n\n" +
-                            "Use these commands to identify and fix gaps:\n" +
-                            "  • 'Pre-Tag Audit' — dry-run prediction before tagging\n" +
-                            "  • 'Validate Tags' — ISO 19650 code validation\n" +
-                            "  • 'Completeness Dashboard' — per-discipline token coverage\n" +
-                            "  • 'Resolve All Issues' — one-click 100% compliance fix\n\n" +
-                            "The compliance status bar shows live RAG status.\n" +
-                            "GREEN = >=80% tagged, AMBER = 50-80%, RED = <50%.");
-                        break;
+                    // Tag Studio analysis — wired to real commands
+                    case "TagStudio_APIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudio_Explain": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "TagStudio_Pipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudio_Generate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudio_GapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
                     // UI-03: Tag position switching
                     case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
@@ -1171,28 +1108,21 @@ namespace StingTools.UI
                     // already has "ListWorkflows". Add alias so both tags work.
                     case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
 
-                    // ── Tag Studio AI informational stubs ──
-                    case "TagStudioAPIGaps":
-                        TaskDialog.Show("Tag Studio", "API Gap analysis is available in CLAUDE.md.");
+                    // ── Tag Studio informational stubs → routed to real commands ──
+                    case "TagStudioAPIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudioExplain": RunCommand<Tags.ValidateTagsCommand>(app);
                         break;
-                    case "TagStudioExplain":
-                        TaskDialog.Show("Tag Studio", "Pipeline explanation:\n1. TypeTokenInherit\n2. PopulateAll\n3. NativeMapper\n4. Formulas\n5. BuildTag\n6. Containers\n7. TAG7\n8. GridRef");
-                        break;
-                    case "TagStudioPipeline":
-                        TaskDialog.Show("Tag Studio", "Pipeline runs via TagPipelineHelper.RunFullPipeline().");
-                        break;
-                    case "TagStudioGenerate":
-                        TaskDialog.Show("Tag Studio", "Tag generation uses TagConfig.BuildAndWriteTag().");
-                        break;
-                    case "TagStudioGapReview":
-                        TaskDialog.Show("Tag Studio", "Gap review completed. See CLAUDE.md Phase 22+ for details.");
-                        break;
+                    case "TagStudioPipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudioGenerate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudioGapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
-                    // ── Unmapped / placeholder ──
+                    // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("StingTools",
-                            $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
+                        TaskDialog.Show("STING — Unknown Command",
+                            $"Command '{tag}' could not be matched to a handler.\n\n" +
+                            "This may be a button from a newer version of the panel.\n" +
+                            "Try updating the plugin or check the TAGS/BIM/TEMP tabs for the equivalent command.");
                         break;
                 }
             }

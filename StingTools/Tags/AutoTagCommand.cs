@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -106,27 +107,28 @@ namespace StingTools.Tags
             TagCollisionMode collisionMode = TagCollisionMode.Skip;
             if (alreadyTagged > 0)
             {
-                TaskDialog modeDlg = new TaskDialog("Auto Tag — Collision Mode");
                 string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
-                modeDlg.MainInstruction = $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}";
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Skip existing — tag {untagged} new only",
-                    "Only tag untagged elements in this view");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    $"Overwrite all {taggable}",
-                    "Re-derive and overwrite all tags including existing ones");
-                modeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                    "Auto-increment on collision",
-                    "Tag untagged; auto-increment SEQ if collision found");
-                modeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                switch (modeDlg.Show())
+                var modeOptions = new List<UI.StingModePicker.ModeOption>
                 {
-                    case TaskDialogResult.CommandLink1: collisionMode = TagCollisionMode.Skip; break;
-                    case TaskDialogResult.CommandLink2: collisionMode = TagCollisionMode.Overwrite; break;
-                    case TaskDialogResult.CommandLink3: collisionMode = TagCollisionMode.AutoIncrement; break;
-                    default: return Result.Cancelled;
-                }
+                    new($"Skip existing — tag {untagged} new only",
+                        "Only tag untagged elements in this view", "skip", true),
+                    new($"Overwrite all {taggable}",
+                        "Re-derive and overwrite all tags including existing ones", "overwrite"),
+                    new("Auto-increment on collision",
+                        "Tag untagged; auto-increment SEQ if collision found", "increment"),
+                };
+                string modeResult = UI.StingModePicker.Show(
+                    "Auto Tag — Collision Mode",
+                    $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}",
+                    modeOptions);
+
+                if (modeResult == null) return Result.Cancelled;
+                collisionMode = modeResult switch
+                {
+                    "overwrite" => TagCollisionMode.Overwrite,
+                    "increment" => TagCollisionMode.AutoIncrement,
+                    _ => TagCollisionMode.Skip,
+                };
             }
 
             // GAP-020: Pre-flight audit trail log
