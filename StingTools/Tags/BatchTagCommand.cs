@@ -386,6 +386,11 @@ namespace StingTools.Tags
                 var (el, currentTag) = tagged[i];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX to match actual tag format for accurate comparison
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    rebuilt = TagConfig.TagPrefix + ParamRegistry.Separator + rebuilt;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    rebuilt = rebuilt + ParamRegistry.Separator + TagConfig.TagSuffix;
                 bool changed = !string.Equals(currentTag, rebuilt, StringComparison.Ordinal);
                 if (changed) wouldChange++;
 

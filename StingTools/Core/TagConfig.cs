@@ -1673,7 +1673,7 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-0000")
+        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-GEN-", "-0000")
         /// that indicate incomplete or unresolved segments.
         /// </summary>
         public static bool TagHasPlaceholders(string tag)
@@ -1693,7 +1693,7 @@ namespace StingTools.Core
             return false;
         }
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -2127,8 +2127,20 @@ namespace StingTools.Core
                 case 2: return $"{tokens[6]}{sep}{tokens[7]}"; // PROD-SEQ
                 case 3: return $"{tokens[0]}{sep}{tokens[4]}{sep}{tokens[7]}"; // DISC-SYS-SEQ
                 case 4: return $"{tokens[0]}{sep}{tokens[6]}{sep}{tokens[7]}"; // DISC-PROD-SEQ
-                case 5: return string.Join(sep, tokens); // Full 8-segment
-                default: return string.Join(sep, tokens);
+                case 5:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
+                default:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
             }
         }
 
@@ -4451,6 +4463,8 @@ namespace StingTools.Core
 
             // ISO reference always added with connecting language
             string fullTag = string.Join(Separator, tokenValues);
+            if (!string.IsNullOrEmpty(TagPrefix)) fullTag = TagPrefix + Separator + fullTag;
+            if (!string.IsNullOrEmpty(TagSuffix)) fullTag = fullTag + Separator + TagSuffix;
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
             classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");

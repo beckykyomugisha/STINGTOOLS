@@ -875,6 +875,11 @@ namespace StingTools.Select
                 string[] tokens = ParamRegistry.ReadTokenValues(elem);
                 string currentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 string predictedTag = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX for accurate display
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                 // Check for empty tokens
                 int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");
