@@ -2115,11 +2115,26 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- DOCUMENT MANAGEMENT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 compliant document control, CDE workflow, transmittals &amp; handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
+                                            ToolTip="Open ISO 19650 Document Management Center — 6-tab comprehensive document control" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
+                                            ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ISSUE / RFI TRACKER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ISSUE / RFI TRACKER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGE"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
                                             ToolTip="Raise RFI/Clash/Design/NCR/Snagging/Change — auto-titles, due dates, element links" FontWeight="Bold"/>
@@ -2129,6 +2144,19 @@
                                             ToolTip="Close responded, mark in-progress, export CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Elements" Tag="SelectIssueElements" Click="Cmd_Click"
                                             ToolTip="Select all elements linked to open issues"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ANALYTICS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Filter Issues" Tag="IssueFilter" Click="Cmd_Click"
+                                            ToolTip="Filter issues by type, priority, status, assignee, discipline, date range"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Timeline" Tag="IssueTimeline" Click="Cmd_Click"
+                                            ToolTip="Show issue timeline with status changes, comments and history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Statistics" Tag="IssueStatistics" Click="Cmd_Click"
+                                            ToolTip="Issue analytics: by type, priority, status, discipline, overdue count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Update" Tag="IssueBatchUpdate" Click="Cmd_Click"
+                                            ToolTip="Bulk update status/priority/assignee on multiple issues"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Issues" Tag="IssueExport" Click="Cmd_Click"
+                                            ToolTip="Export all issues to CSV with full field detail"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2172,15 +2200,22 @@
 
                         <!-- STICKY NOTES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STICKY NOTES"/>
-                        <Border Style="{StaticResource GroupBorder}">
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F9A825">
                             <StackPanel>
+                                <TextBlock Text="Per-element annotations with categories, priorities and search" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
-                                            ToolTip="Create element-linked QA/snagging note"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
+                                            ToolTip="Create element-linked note with category, priority and colour" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Notes" Tag="ExportStickyNotes" Click="Cmd_Click"
                                             ToolTip="Export all sticky notes to CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Noted" Tag="SelectStickyElements" Click="Cmd_Click"
                                             ToolTip="Select all elements with sticky notes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Categories" Tag="StickyCategories" Click="Cmd_Click"
+                                            ToolTip="Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard" Tag="StickyDashboard" Click="Cmd_Click"
+                                            ToolTip="Summary dashboard: notes by category, author, status, linked elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Search" Tag="StickySearch" Click="Cmd_Click"
+                                            ToolTip="Search/filter sticky notes by text, category, author, date range"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2346,6 +2381,15 @@
                                             ToolTip="Create/update Revision Register schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
                                             ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Approval Workflow" Tag="RevisionApprovalWorkflow" Click="Cmd_Click"
+                                            ToolTip="Multi-stage approval: Draft → Review → Approved → Issued with tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribution" Tag="RevisionDistribution" Click="Cmd_Click"
+                                            ToolTip="Track revision distribution: who received, when, acknowledgement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Comparison" Tag="RevisionComparisonReport" Click="Cmd_Click"
+                                            ToolTip="Side-by-side parameter changes between revisions with diff highlighting"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

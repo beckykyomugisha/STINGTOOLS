@@ -926,6 +926,18 @@ namespace StingTools.UI
                     case "ExportStickyNotes": RunCommand<BIMManager.ExportStickyNotesCommand>(app); break;
                     case "SelectStickyElements": RunCommand<BIMManager.SelectStickyElementsCommand>(app); break;
 
+                    // Sticky Notes — Enhanced
+                    case "StickyCategories": RunCommand<BIMManager.StickyNoteCategoriesCommand>(app); break;
+                    case "StickyDashboard": RunCommand<BIMManager.StickyNoteDashboardCommand>(app); break;
+                    case "StickySearch": RunCommand<BIMManager.StickyNoteSearchCommand>(app); break;
+
+                    // Issue Tracker — Enhanced
+                    case "IssueFilter": RunCommand<BIMManager.IssueFilterCommand>(app); break;
+                    case "IssueTimeline": RunCommand<BIMManager.IssueTimelineCommand>(app); break;
+                    case "IssueStatistics": RunCommand<BIMManager.IssueStatisticsCommand>(app); break;
+                    case "IssueBatchUpdate": RunCommand<BIMManager.IssueBatchUpdateCommand>(app); break;
+                    case "IssueExport": RunCommand<BIMManager.IssueExportCommand>(app); break;
+
                     // Model Health
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
@@ -1042,6 +1054,39 @@ namespace StingTools.UI
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
+
+                    // Revision Management — Enhanced
+                    case "RevisionApprovalWorkflow": RunCommand<BIMManager.RevisionApprovalWorkflowCommand>(app); break;
+                    case "RevisionDistribution": RunCommand<BIMManager.RevisionDistributionCommand>(app); break;
+                    case "RevisionComparisonReport": RunCommand<BIMManager.RevisionComparisonReportCommand>(app); break;
+
+                    // Document Management Center
+                    case "DocumentManager":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null)
+                        {
+                            var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
+                            if (dmResult != null && dmResult.Confirmed && !string.IsNullOrEmpty(dmResult.Operation))
+                            {
+                                // Re-dispatch to the selected sub-operation
+                                SetCommand(dmResult.Operation);
+                                Execute(app);
+                            }
+                        }
+                        break;
+                    }
+                    case "DataExchange":
+                    {
+                        var deDoc = app.ActiveUIDocument?.Document;
+                        if (deDoc != null)
+                        {
+                            var deResult = UI.StingDataExchangeDialog.Show(deDoc);
+                            if (deResult != null)
+                                UI.DataExchangeEngine.Execute(deDoc, app.ActiveUIDocument, deResult);
+                        }
+                        break;
+                    }
 
                     // ════════════════════════════════════════════════════════
                     // TAG STUDIO — Smart Placement Wire-ups (UI-01)

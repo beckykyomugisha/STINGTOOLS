@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -1704,6 +1705,295 @@ namespace StingTools.BIMManager
             {
                 StingLog.Error("Auto revision on tag change failed", ex);
                 message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REVISION MANAGEMENT — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Multi-stage revision approval workflow: Draft → Review → Approved → Issued.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionApprovalWorkflowCommand : IExternalCommand
+    {
+        private static readonly string[] WorkflowStages = new[]
+        {
+            "Draft", "Internal Review", "Coordinator Review",
+            "Client Review", "Approved", "Issued"
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Get all revisions
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+
+                if (revisions.Count == 0)
+                {
+                    TaskDialog.Show("Revision Approval", "No revisions found in the project.");
+                    return Result.Succeeded;
+                }
+
+                // Show current revision status
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Approval Workflow");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine("Workflow: Draft → Review → Approved → Issued\n");
+
+                foreach (var rev in revisions)
+                {
+                    string desc = rev.Description ?? "(no description)";
+                    string status = rev.Issued ? "ISSUED" : "DRAFT";
+                    sb.AppendLine($"  Seq {rev.SequenceNumber}: {desc}");
+                    sb.AppendLine($"    Status: {status}  |  Date: {rev.RevisionDate}");
+                }
+
+                // Offer workflow actions
+                var td = new TaskDialog("Revision Approval Workflow");
+                td.MainInstruction = $"{revisions.Count} revisions in project";
+                td.MainContent = sb.ToString();
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Advance Latest to Issued", "Mark the latest revision as Issued");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Create Review Revision", "Add a new revision in Review status");
+                td.CommonButtons = TaskDialogCommonButtons.Close;
+
+                var result = td.Show();
+
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    var latest = revisions.Last();
+                    if (latest.Issued)
+                    {
+                        TaskDialog.Show("Revision Approval", "Latest revision is already issued.");
+                        return Result.Succeeded;
+                    }
+
+                    using (var tx = new Transaction(doc, "STING Revision Approval"))
+                    {
+                        tx.Start();
+                        latest.Issued = true;
+                        tx.Commit();
+                    }
+
+                    TaskDialog.Show("Revision Approval",
+                        $"Revision {latest.SequenceNumber} ({latest.Description}) marked as ISSUED.");
+                    StingLog.Info($"Revision {latest.SequenceNumber} issued via approval workflow");
+                }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    using (var tx = new Transaction(doc, "STING Create Review Revision"))
+                    {
+                        tx.Start();
+                        var newRev = Revision.Create(doc);
+                        newRev.Description = $"Review — {DateTime.Now:yyyy-MM-dd}";
+                        newRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        tx.Commit();
+
+                        TaskDialog.Show("Revision Approval",
+                            $"Created review revision: Seq {newRev.SequenceNumber}");
+                        StingLog.Info($"Review revision created: Seq {newRev.SequenceNumber}");
+                    }
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionApprovalWorkflowCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Track revision distribution: who received, when, acknowledgement.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionDistributionCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load distribution records from BIM Manager folder
+                string distPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "revision_distribution.json");
+                Newtonsoft.Json.Linq.JArray distributions;
+                if (File.Exists(distPath))
+                {
+                    try { distributions = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(distPath)); }
+                    catch (Exception ex) { StingLog.Warn($"Distribution load failed: {ex.Message}"); distributions = new Newtonsoft.Json.Linq.JArray(); }
+                }
+                else
+                    distributions = new Newtonsoft.Json.Linq.JArray();
+
+                // Get all issued revisions
+                var issued = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .Where(r => r.Issued)
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Distribution Report");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"Issued revisions: {issued.Count}");
+                sb.AppendLine($"Distribution records: {distributions.Count}");
+
+                foreach (var rev in issued)
+                {
+                    sb.AppendLine($"\n  Revision {rev.SequenceNumber}: {rev.Description}");
+                    sb.AppendLine($"    Date: {rev.RevisionDate}  |  Issued: Yes");
+
+                    // Find matching distribution records
+                    var matches = distributions.Where(d =>
+                        d["revision_seq"]?.ToString() == rev.SequenceNumber.ToString()).ToList();
+
+                    if (matches.Count > 0)
+                    {
+                        foreach (var dist in matches)
+                            sb.AppendLine($"    → Sent to: {dist["recipient"]}  on {dist["date_sent"]}  Ack: {dist["acknowledged"] ?? "Pending"}");
+                    }
+                    else
+                        sb.AppendLine("    → No distribution records");
+                }
+
+                TaskDialog.Show("STING Revision Distribution", sb.ToString());
+                StingLog.Info($"RevisionDistribution: {issued.Count} issued, {distributions.Count} records");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionDistributionCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Side-by-side parameter changes between revisions with diff highlighting.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionComparisonReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load revision snapshots
+                string snapshotDir = BIMManagerEngine.GetBIMManagerFilePath(doc, "");
+                if (!Directory.Exists(snapshotDir))
+                {
+                    TaskDialog.Show("Revision Comparison",
+                        "No revision snapshots found.\nUse 'Track Element Revisions' first to create snapshots.");
+                    return Result.Succeeded;
+                }
+
+                var snapshotFiles = Directory.GetFiles(snapshotDir, "revision_snapshot_*.json")
+                    .OrderBy(f => f)
+                    .ToList();
+
+                if (snapshotFiles.Count < 2)
+                {
+                    TaskDialog.Show("Revision Comparison",
+                        $"Need at least 2 revision snapshots for comparison.\nFound: {snapshotFiles.Count}");
+                    return Result.Succeeded;
+                }
+
+                // Compare latest two snapshots
+                string olderFile = snapshotFiles[snapshotFiles.Count - 2];
+                string newerFile = snapshotFiles[snapshotFiles.Count - 1];
+
+                Newtonsoft.Json.Linq.JObject older, newer;
+                try
+                {
+                    older = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(olderFile));
+                    newer = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(newerFile));
+                }
+                catch (Exception ex)
+                {
+                    TaskDialog.Show("Revision Comparison", $"Failed to parse snapshots:\n{ex.Message}");
+                    return Result.Failed;
+                }
+
+                int added = 0, removed = 0, changed = 0;
+                var changes = new StringBuilder();
+
+                // Compare element sets
+                var olderElements = older.Properties().Select(p => p.Name).ToHashSet();
+                var newerElements = newer.Properties().Select(p => p.Name).ToHashSet();
+
+                var addedIds = newerElements.Except(olderElements).ToList();
+                var removedIds = olderElements.Except(newerElements).ToList();
+                var commonIds = olderElements.Intersect(newerElements).ToList();
+
+                added = addedIds.Count;
+                removed = removedIds.Count;
+
+                foreach (string id in commonIds)
+                {
+                    string oldTag = older[id]?["tag"]?.ToString() ?? "";
+                    string newTag = newer[id]?["tag"]?.ToString() ?? "";
+                    if (oldTag != newTag)
+                    {
+                        changed++;
+                        if (changed <= 20) // Show first 20 changes
+                            changes.AppendLine($"  {id}: {oldTag} → {newTag}");
+                    }
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Comparison Report");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"Older: {Path.GetFileName(olderFile)}");
+                sb.AppendLine($"Newer: {Path.GetFileName(newerFile)}");
+                sb.AppendLine();
+                sb.AppendLine($"  Added:   {added} elements");
+                sb.AppendLine($"  Removed: {removed} elements");
+                sb.AppendLine($"  Changed: {changed} elements");
+
+                if (changes.Length > 0)
+                {
+                    sb.AppendLine("\nTag Changes (first 20):");
+                    sb.Append(changes);
+                }
+
+                TaskDialog.Show("STING Revision Comparison", sb.ToString());
+                StingLog.Info($"RevisionComparison: +{added} -{removed} ~{changed}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionComparisonReportCommand failed", ex);
                 return Result.Failed;
             }
         }

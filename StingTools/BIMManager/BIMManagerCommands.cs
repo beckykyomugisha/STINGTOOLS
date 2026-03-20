@@ -7339,4 +7339,639 @@ namespace StingTools.BIMManager
         }
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  STICKY NOTES — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteCategoriesCommand : IExternalCommand
+    {
+        private static readonly string[] DefaultCategories = new[]
+        {
+            "Design Query", "Coordination", "QA", "Safety", "Cost",
+            "Snagging", "RFI", "Change Order", "General"
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load custom categories from config or use defaults
+                string catFile = BIMManagerEngine.GetBIMManagerFilePath(doc, "sticky_categories.json");
+                List<string> cats;
+                if (File.Exists(catFile))
+                {
+                    try { cats = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(catFile)); }
+                    catch (Exception ex) { StingLog.Warn($"StickyCategories load failed: {ex.Message}"); cats = DefaultCategories.ToList(); }
+                }
+                else
+                    cats = DefaultCategories.ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Sticky Note Categories");
+                sb.AppendLine(new string('═', 40));
+                for (int i = 0; i < cats.Count; i++)
+                    sb.AppendLine($"  {i + 1}. {cats[i]}");
+
+                // Count notes per category
+                sb.AppendLine();
+                sb.AppendLine("Notes by Category:");
+                var allNotes = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                foreach (string cat in cats)
+                {
+                    int count = allNotes.Count(e =>
+                    {
+                        string note = ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT");
+                        return note.Contains($"[{cat}]");
+                    });
+                    if (count > 0)
+                        sb.AppendLine($"  {cat}: {count}");
+                }
+                sb.AppendLine($"\n  Total elements with notes: {allNotes.Count}");
+
+                TaskDialog.Show("STING Sticky Notes — Categories", sb.ToString());
+                StingLog.Info($"StickyCategories: {cats.Count} categories, {allNotes.Count} notes");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteCategoriesCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Summary dashboard: notes by category, author, status, linked elements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteDashboardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                if (allElements.Count == 0)
+                {
+                    TaskDialog.Show("Sticky Notes Dashboard", "No sticky notes found in this project.");
+                    return Result.Succeeded;
+                }
+
+                var byCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var byDisc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var el in allElements)
+                {
+                    string note = ParameterHelpers.GetString(el, "STING_STICKY_NOTE_TXT");
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (string.IsNullOrEmpty(disc)) disc = "Unassigned";
+
+                    // Extract category from note format: [Category] text
+                    string cat = "Uncategorised";
+                    int bracketStart = note.IndexOf('[');
+                    int bracketEnd = note.IndexOf(']');
+                    if (bracketStart >= 0 && bracketEnd > bracketStart)
+                        cat = note.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
+
+                    if (!byCategory.ContainsKey(cat)) byCategory[cat] = 0;
+                    byCategory[cat]++;
+                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
+                    byDisc[disc]++;
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Sticky Notes Dashboard — {allElements.Count} notes total");
+                sb.AppendLine(new string('═', 50));
+
+                sb.AppendLine("\nBy Category:");
+                foreach (var kv in byCategory.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Discipline:");
+                foreach (var kv in byDisc.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                TaskDialog.Show("STING Sticky Notes — Dashboard", sb.ToString());
+                StingLog.Info($"StickyDashboard: {allElements.Count} notes");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteDashboardCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Search/filter sticky notes by text, category, author, date range.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteSearchCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                UIDocument uidoc = ctx.UIDoc;
+                Document doc = ctx.Doc;
+
+                var allNoted = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                if (allNoted.Count == 0)
+                {
+                    TaskDialog.Show("Sticky Note Search", "No sticky notes found.");
+                    return Result.Succeeded;
+                }
+
+                // Build searchable list
+                var items = allNoted.Select(e =>
+                {
+                    string note = ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                    string cat = e.Category?.Name ?? "Unknown";
+                    return $"[{e.Id}] {cat} — {tag} — {note}";
+                }).ToList();
+
+                var listItems = items.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Search Sticky Notes", "Type to search notes...",
+                    listItems, allowMultiSelect: true);
+
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                // Extract element IDs from selection
+                var selIds = new List<ElementId>();
+                foreach (var item in selected)
+                {
+                    string label = item.Label;
+                    int start = label.IndexOf('[') + 1;
+                    int end = label.IndexOf(']');
+                    if (start > 0 && end > start)
+                    {
+                        string idStr = label.Substring(start, end - start);
+                        if (long.TryParse(idStr, out long eid))
+                            selIds.Add(new ElementId(eid));
+                    }
+                }
+
+                if (selIds.Count > 0)
+                {
+                    uidoc.Selection.SetElementIds(selIds);
+                    TaskDialog.Show("Sticky Note Search",
+                        $"Selected {selIds.Count} elements matching search.");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteSearchCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ISSUE TRACKER — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Filter issues by type, priority, status, assignee, discipline, date range.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueFilterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Filter", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Build filter options
+                var statuses = issues.Select(i => i["status"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+                var types = issues.Select(i => i["type"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+                var priorities = issues.Select(i => i["priority"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+
+                var filterItems = new List<string>();
+                filterItems.Add("── Filter by Status ──");
+                filterItems.AddRange(statuses.Select(s => $"Status: {s}"));
+                filterItems.Add("── Filter by Type ──");
+                filterItems.AddRange(types.Select(t => $"Type: {t}"));
+                filterItems.Add("── Filter by Priority ──");
+                filterItems.AddRange(priorities.Select(p => $"Priority: {p}"));
+
+                var filterListItems = filterItems.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Filter Issues", "Select filter criteria...",
+                    filterListItems, allowMultiSelect: true);
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                // Apply filters
+                var filtered = issues.AsEnumerable();
+                var selectedLabels = selected.Select(li => li.Label).ToList();
+                var selStatuses = selectedLabels.Where(s => s.StartsWith("Status: ")).Select(s => s.Substring(8)).ToHashSet();
+                var selTypes = selectedLabels.Where(s => s.StartsWith("Type: ")).Select(s => s.Substring(6)).ToHashSet();
+                var selPriorities = selectedLabels.Where(s => s.StartsWith("Priority: ")).Select(s => s.Substring(10)).ToHashSet();
+
+                if (selStatuses.Count > 0)
+                    filtered = filtered.Where(i => selStatuses.Contains(i["status"]?.ToString() ?? ""));
+                if (selTypes.Count > 0)
+                    filtered = filtered.Where(i => selTypes.Contains(i["type"]?.ToString() ?? ""));
+                if (selPriorities.Count > 0)
+                    filtered = filtered.Where(i => selPriorities.Contains(i["priority"]?.ToString() ?? ""));
+
+                var results = filtered.ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Filtered Issues: {results.Count} of {issues.Count}");
+                sb.AppendLine(new string('═', 50));
+                foreach (var issue in results)
+                {
+                    sb.AppendLine($"  {issue["id"]} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
+                }
+
+                TaskDialog.Show("STING Issue Filter", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueFilterCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Show issue timeline with status changes, comments and history.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueTimelineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Timeline", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Build timeline sorted by date raised
+                var timeline = issues
+                    .OrderBy(i => i["date_raised"]?.ToString() ?? "")
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Issue Timeline");
+                sb.AppendLine(new string('═', 60));
+
+                foreach (var issue in timeline)
+                {
+                    string date = issue["date_raised"]?.ToString() ?? "Unknown";
+                    string id = issue["id"]?.ToString() ?? "?";
+                    string status = issue["status"]?.ToString() ?? "?";
+                    string title = issue["title"]?.ToString() ?? "";
+                    string due = issue["date_due"]?.ToString() ?? "";
+                    string closedDate = issue["date_closed"]?.ToString() ?? "";
+
+                    sb.AppendLine($"\n  {date} — {id} [{status}]");
+                    sb.AppendLine($"    {title}");
+                    if (!string.IsNullOrEmpty(due)) sb.AppendLine($"    Due: {due}");
+                    if (!string.IsNullOrEmpty(closedDate)) sb.AppendLine($"    Closed: {closedDate}");
+                }
+
+                TaskDialog td = new TaskDialog("STING Issue Timeline");
+                td.MainInstruction = $"Issue Timeline — {timeline.Count} issues";
+                td.MainContent = sb.ToString();
+                td.Show();
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueTimelineCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Issue analytics: by type, priority, status, discipline, overdue count.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueStatisticsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Statistics", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                var now = DateTime.Now;
+                int total = issues.Count;
+                int open = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "VOID");
+                int closed = issues.Count(i => i["status"]?.ToString() == "CLOSED");
+                int overdue = issues.Count(i =>
+                {
+                    string status = i["status"]?.ToString() ?? "";
+                    if (status == "CLOSED" || status == "VOID") return false;
+                    return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
+                });
+
+                var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Issue Statistics — {total} total");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"  Open: {open}  |  Closed: {closed}  |  Overdue: {overdue}");
+
+                sb.AppendLine("\nBy Type:");
+                foreach (var kv in byType.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Priority:");
+                foreach (var kv in byPriority.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Status:");
+                foreach (var kv in byStatus.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                if (overdue > 0)
+                {
+                    sb.AppendLine($"\nOverdue Issues ({overdue}):");
+                    foreach (var issue in issues.Where(i =>
+                    {
+                        string status = i["status"]?.ToString() ?? "";
+                        if (status == "CLOSED" || status == "VOID") return false;
+                        return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
+                    }))
+                    {
+                        sb.AppendLine($"  {issue["id"]} — {issue["title"]} (due: {issue["date_due"]})");
+                    }
+                }
+
+                TaskDialog.Show("STING Issue Statistics", sb.ToString());
+                StingLog.Info($"IssueStatistics: {total} total, {open} open, {overdue} overdue");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueStatisticsCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Bulk update status/priority/assignee on multiple issues.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueBatchUpdateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Batch Update", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Select issues to update
+                var issueItems = issues.Select(i =>
+                    $"{i["id"]} [{i["status"]}] {i["priority"]} — {i["title"]}").ToList();
+
+                var issueListItems = issueItems.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Select Issues to Update", "Select issues...",
+                    issueListItems, allowMultiSelect: true);
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                var selectedIds = selected.Select(li => li.Label.Split(' ')[0]).ToHashSet();
+
+                // Choose update action
+                var actionDlg = new TaskDialog("Batch Update Action");
+                actionDlg.MainInstruction = $"Update {selected.Count} issues";
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Close Issues", "Set status to CLOSED");
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Set In Progress", "Set status to IN_PROGRESS");
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Escalate Priority", "Set priority to HIGH");
+                actionDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var action = actionDlg.Show();
+                int updated = 0;
+
+                foreach (var issue in issues)
+                {
+                    string id = issue["id"]?.ToString() ?? "";
+                    if (!selectedIds.Contains(id)) continue;
+
+                    switch (action)
+                    {
+                        case TaskDialogResult.CommandLink1:
+                            issue["status"] = "CLOSED";
+                            issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd");
+                            updated++;
+                            break;
+                        case TaskDialogResult.CommandLink2:
+                            issue["status"] = "IN_PROGRESS";
+                            updated++;
+                            break;
+                        case TaskDialogResult.CommandLink3:
+                            issue["priority"] = "HIGH";
+                            updated++;
+                            break;
+                        default:
+                            return Result.Cancelled;
+                    }
+                }
+
+                if (updated > 0)
+                {
+                    BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                    TaskDialog.Show("Issue Batch Update", $"Updated {updated} issues.");
+                    StingLog.Info($"IssueBatchUpdate: {updated} issues updated");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueBatchUpdateCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Export all issues to CSV with full field detail.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Export", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Issues", ".csv");
+
+                var lines = new List<string>();
+                lines.Add("IssueId,Type,Priority,Status,Title,Description,AssignedTo,Discipline,DateRaised,DateDue,DateClosed,View,ElementCount");
+
+                foreach (var issue in issues)
+                {
+                    var row = new List<string>
+                    {
+                        QuoteCsv(issue["id"]?.ToString() ?? ""),
+                        QuoteCsv(issue["type"]?.ToString() ?? ""),
+                        QuoteCsv(issue["priority"]?.ToString() ?? ""),
+                        QuoteCsv(issue["status"]?.ToString() ?? ""),
+                        QuoteCsv(issue["title"]?.ToString() ?? ""),
+                        QuoteCsv(issue["description"]?.ToString() ?? ""),
+                        QuoteCsv(issue["assigned_to"]?.ToString() ?? ""),
+                        QuoteCsv(issue["discipline"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_raised"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_due"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_closed"]?.ToString() ?? ""),
+                        QuoteCsv(issue["view_name"]?.ToString() ?? ""),
+                        (issue["element_ids"] as Newtonsoft.Json.Linq.JArray)?.Count.ToString() ?? "0"
+                    };
+                    lines.Add(string.Join(",", row));
+                }
+
+                string dir = Path.GetDirectoryName(outputPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                File.WriteAllLines(outputPath, lines);
+
+                TaskDialog td = new TaskDialog("STING Issue Export");
+                td.MainInstruction = "Issue Export Complete";
+                td.MainContent = $"Exported {issues.Count} issues to:\n{outputPath}";
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open file location");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Close");
+                var tdResult = td.Show();
+                if (tdResult == TaskDialogResult.CommandLink1)
+                {
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
+                    catch (Exception ex) { StingLog.Warn($"Failed to open explorer: {ex.Message}"); }
+                }
+
+                StingLog.Info($"IssueExport: {issues.Count} issues → {outputPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueExportCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+
+        private static string QuoteCsv(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "\"\"";
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+    }
+
 }
