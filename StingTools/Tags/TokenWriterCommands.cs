@@ -163,8 +163,8 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
-            // Use shared sequence counter scan (continues from highest existing SEQ per group)
-            var maxSeq = TagConfig.GetExistingSequenceCounters(doc);
+            // Use canonical BuildTagIndexAndCounters (merges sidecar data for session continuity)
+            var (_, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int assigned = 0;
             using (Transaction tx = new Transaction(doc, "STING Assign Numbers"))

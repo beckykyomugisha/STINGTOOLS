@@ -320,8 +320,11 @@ namespace StingTools.Organise
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            // Use canonical BuildTagIndexAndCounters which merges sidecar data
+            var (existingTagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var tagIndex = new HashSet<string>(tagMap.Keys, StringComparer.Ordinal);
+            // Merge existing tags for complete collision detection
+            foreach (string t in existingTagIndex) tagIndex.Add(t);
             int fixedCount = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
@@ -1146,7 +1149,7 @@ namespace StingTools.Organise
             }
 
             // FIX-DEEP03: Persist SEQ state after tag copy (rebuilt TAG1 affects sidecar)
-            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            try { var (_, cpSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, cpSeq); }
             catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
@@ -1224,9 +1227,11 @@ namespace StingTools.Organise
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
                     if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
                     {
-                        string rebuiltTagA = (TagConfig.TagPrefix ?? "") +
-                            string.Join(ParamRegistry.Separator, tokensA) +
-                            (TagConfig.TagSuffix ?? "");
+                        string rebuiltTagA = string.Join(ParamRegistry.Separator, tokensA);
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            rebuiltTagA = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTagA;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            rebuiltTagA = rebuiltTagA + ParamRegistry.Separator + TagConfig.TagSuffix;
                         ParameterHelpers.SetString(a, ParamRegistry.TAG1, rebuiltTagA, overwrite: true);
                         ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
                     }
@@ -1236,9 +1241,11 @@ namespace StingTools.Organise
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
                     if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
                     {
-                        string rebuiltTagB = (TagConfig.TagPrefix ?? "") +
-                            string.Join(ParamRegistry.Separator, tokensB) +
-                            (TagConfig.TagSuffix ?? "");
+                        string rebuiltTagB = string.Join(ParamRegistry.Separator, tokensB);
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            rebuiltTagB = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTagB;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            rebuiltTagB = rebuiltTagB + ParamRegistry.Separator + TagConfig.TagSuffix;
                         ParameterHelpers.SetString(b, ParamRegistry.TAG1, rebuiltTagB, overwrite: true);
                         ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
                     }

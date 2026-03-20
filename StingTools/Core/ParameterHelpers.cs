@@ -2583,6 +2583,11 @@ namespace StingTools.Core
                 // FE-06: Apply full per-category token overrides
                 if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
                 {
+                    // Check SKIP flag FIRST — avoid writing tokens to skipped categories
+                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                        return false;
+
                     foreach (var kv in tokenOverrides)
                     {
                         if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
@@ -2597,10 +2602,6 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(paramName))
                             ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
                     }
-                    // Handle SKIP flag
-                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
-                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return false;
                 }
 
                 // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
@@ -2648,7 +2649,7 @@ namespace StingTools.Core
                             {
                                 string result = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
                                 if (result != null && targetParam.StorageType == StorageType.String
-                                    && string.IsNullOrEmpty(targetParam.AsString()))
+                                    && (overwrite || string.IsNullOrEmpty(targetParam.AsString())))
                                     targetParam.Set(result);
                             }
                             else

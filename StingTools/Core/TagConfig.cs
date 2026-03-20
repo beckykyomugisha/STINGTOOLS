@@ -1975,7 +1975,16 @@ namespace StingTools.Core
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                // Remove the derived-value tag from collision index (it may differ from actual)
+                if (existingTags != null && !string.IsNullOrEmpty(tag))
+                    existingTags.Remove(tag);
                 tag = string.Join(Separator, actualTokens);
+                // TW-03: Re-apply prefix/suffix to re-read tag
+                if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                // Update collision index with actual tag
+                if (existingTags != null)
+                    existingTags.Add(tag);
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];
@@ -2090,7 +2099,7 @@ namespace StingTools.Core
                 // Default tag style: 2.5mm Normal Black (most common AEC standard)
                 ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
             }
-            catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
+            catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;

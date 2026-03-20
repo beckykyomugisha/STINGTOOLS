@@ -240,7 +240,7 @@ namespace StingTools.Select
                         }
                     }
                 }
-                if (++sampled >= 50) break;
+                if (++sampled >= 200) break;
             }
             var sorted = names.ToList();
             sorted.Sort(StringComparer.OrdinalIgnoreCase);
