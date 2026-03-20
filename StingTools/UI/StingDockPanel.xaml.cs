@@ -169,6 +169,9 @@ namespace StingTools.UI
                 if (cmdTag == "CycleTheme")
                 {
                     string next = ThemeManager.CycleTheme();
+                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane
+                    InvalidateVisual();
+                    UpdateLayout();
                     UpdateStatus($"Theme: {next}");
                     return;
                 }

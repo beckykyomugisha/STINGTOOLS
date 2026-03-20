@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.0,CREATED=2026-03-16
+#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,FIXES=11_param_name_mismatches_aligned_to_MR_PARAMETERS
 STING Tag Configuration v5.0 - ARCH (COMPLETE with Warnings)
 6A — Architectural
 Tag Family #1: STING - Wall Tag
@@ -31,9 +31,9 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Walls
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,U > 0.70 W/m²K,Building Regs Part L2A / Uganda ES,Common,Text,⚠ Warning: Wall U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS, """")"
 2,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_WALLS,Fire rating < 1.0 hr,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_WALLS, """")"
-3,MEDIUM,WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS,STC < 50,Building Regs Part E,Common,Text,⚠ Warning: Acoustic Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR_NR_WALLS, """")"
+3,MEDIUM,WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS,STC < 50,Building Regs Part E,Common,Text,⚠ Warning: Acoustic Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_STC_RATING_NR_WALLS, """")"
 4,HIGH,WARN_PER_CONDENSATION_RISK_BOOL_WALLS,Condensation risk = TRUE,BS 5250:2021,Common,Text,⚠ Warning: Condensation Risk,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_CONDENSATION_RISK_BOOL_WALLS, """")"
-5,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_WALLS,Carbon > 500 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EMBODIED_CARBON_KG_WALLS, """")"
+5,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_WALLS,Carbon > 500 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_WALLS, """")"
 6,HIGH,WARN_BLE_WALL_SLENDERNESS_RATIO_WALLS,Wall height/thickness ratio > 20:1,BS EN 1996-1-1 / Eurocode 6,Common,Text,⚠ Warning: Wall Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WALL_SLENDERNESS_RATIO_WALLS, """")"
 
 Tag Family #2: STING - Floor Tag
@@ -66,7 +66,7 @@ TAG7: ARCH_TAG_7_PARA_FLOOR_TXT  •  Category: Floors
 3,HIGH,WARN_BLE_FLOOR_SLIP_RESISTANCE_FLOORS,Slip resistance < PTV 36 (wet),BS 7976-2 / UK Slip Resistance Group,Common,Text,⚠ Warning: Slip Resistance,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLOOR_SLIP_RESISTANCE_FLOORS, """")"
 4,HIGH,WARN_BLE_FLOOR_LOAD_KN_M2_FLOORS,Imposed load capacity < 2.5 kPa,BS EN 1991-1-1 / Eurocode 1,Common,Text,⚠ Warning: Floor Load Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FLOOR_LOAD_KN_M2_FLOORS, """")"
 5,MEDIUM,WARN_PER_ACOUSTIC_IIC_RATING_FLOORS,Impact insulation class IIC < 65,Building Regs Part E / BS EN ISO 717-2,Common,Text,⚠ Warning: Floor Acoustic IIC,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_IIC_RATING_FLOORS, """")"
-6,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS,Carbon > 400 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EMBODIED_CARBON_KG_FLOORS, """")"
+6,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS,Carbon > 400 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_FLOORS, """")"
 
 Tag Family #3: STING - Ceiling Tag
 TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
@@ -90,7 +90,7 @@ TAG7: ARCH_TAG_7_PARA_CEIL_TXT  •  Category: Ceilings
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_PER_FIRE_RATING_HR_NR_CEILINGS,Fire rating < 0.5 hr,Building Regs Part B,Common,Text,⚠ Warning: Ceiling Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_FIRE_RATING_HR_NR_CEILINGS, """")"
-2,MEDIUM,WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS,NRC < 0.70,BB93 / Building Bulletin 93,Common,Text,⚠ Warning: Ceiling Acoustic NRC,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR_CEILINGS, """")"
+2,MEDIUM,WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS,NRC < 0.70,BB93 / Building Bulletin 93,Common,Text,⚠ Warning: Ceiling Acoustic NRC,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_NRC_RATING_CEILINGS, """")"
 3,HIGH,WARN_BLE_CEILING_HEIGHT_MM_CEILINGS,Ceiling height < 2400mm,Building Regulations Approved Documents,Common,Text,⚠ Warning: Ceiling Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_CEILING_HEIGHT_MM_CEILINGS, """")"
 
 Tag Family #4: STING - Roof Tag
@@ -121,7 +121,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Roofs
 3,HIGH,WARN_PER_CONDENSATION_RISK_BOOL_ROOFS,Condensation risk = TRUE,BS 5250:2021,Common,Text,⚠ Warning: Condensation Risk,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_CONDENSATION_RISK_BOOL_ROOFS, """")"
 4,MEDIUM,WARN_BLE_ROOF_DRAINAGE_ROOFS,No drainage provision or fall < 1:80,BS EN 12056-3 / BS 6229,Common,Text,⚠ Warning: Roof Drainage,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_DRAINAGE_ROOFS, """")"
 5,HIGH,WARN_BLE_ROOF_SLOPE_DEG_ROOFS,Slope < 10° (flat) or > 60° (steep),BS 5534 / BS 8217,Common,Text,⚠ Warning: Roof Slope,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOF_SLOPE_DEG_ROOFS, """")"
-6,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS,Carbon > 450 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EMBODIED_CARBON_KG_ROOFS, """")"
+6,MEDIUM,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS,Carbon > 450 kgCO₂/m²,RIBA 2030 Climate Challenge,Common,Text,⚠ Warning: Embodied Carbon,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ROOFS, """")"
 
 Tag Family #5: STING - Door Tag
 TAG7: ARCH_TAG_7_PARA_DOOR_TXT  •  Category: Doors
@@ -176,7 +176,7 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS,U > 2.00 W/m²K,Building Regs Part L2A,Common,Text,⚠ Warning: Window U-Value,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_THERM_U_VALUE_W_M2K_NR_WINDOWS, """")"
-2,MEDIUM,WARN_PER_SOLAR_G_VALUE_NR_WINDOWS,g-value > 0.40,Building Regs Part L / CIBSE Guide A,Common,Text,⚠ Warning: Solar Gain,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR_NR_WINDOWS, """")"
+2,MEDIUM,WARN_PER_SOLAR_G_VALUE_NR_WINDOWS,g-value > 0.40,Building Regs Part L / CIBSE Guide A,Common,Text,⚠ Warning: Solar Gain,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SOLAR_G_VALUE_NR_WINDOWS, """")"
 3,HIGH,WARN_BLE_WIN_VENT_AREA_WINDOWS,Ventilation area < 1/20 floor area,Building Regs Part F / BS EN 16798,Common,Text,⚠ Warning: Ventilation Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WIN_VENT_AREA_WINDOWS, """")"
 4,MEDIUM,WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS,Acoustic rating STC < 30 dB,Building Regs Part E / BS 8233,Common,Text,⚠ Warning: Window Acoustic Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS, """")"
 5,HIGH,WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS,Safety glass not specified below 800mm,Building Regs Part N / BS EN 12600,Common,Text,⚠ Warning: Safety Glass,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS, """")"
@@ -204,7 +204,7 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_BLE_HEADROOM_MM_NR_ROOMS,Headroom < 2100mm,Building Regs Part K / BS 8300,Common,Text,⚠ Warning: Room Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_HEADROOM_MM_NR_ROOMS, """")"
-2,MEDIUM,WARN_BLE_ROOM_AREA_SQ_M_ROOMS,Area < minimum for use,Building Regs Approved Doc,Common,Text,⚠ Warning: Room Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_SQ_M_ROOMS, """")"
+2,MEDIUM,WARN_BLE_ROOM_AREA_SQ_M_ROOMS,Area < minimum for use,Building Regs Approved Doc,Common,Text,⚠ Warning: Room Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_ROOMS, """")"
 3,HIGH,WARN_BLE_ROOM_VENTILATION_ROOMS,Ventilation rate < 10 L/s/person,Building Regs Part F / CIBSE Guide A,Common,Text,⚠ Warning: Room Ventilation,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_VENTILATION_ROOMS, """")"
 4,HIGH,WARN_BLE_ROOM_HEIGHT_MM_ROOMS,Room height < 2400mm,Building Regulations Approved Documents,Common,Text,⚠ Warning: Room Height,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_HEIGHT_MM_ROOMS, """")"
 5,CRITICAL,WARN_BLE_ROOM_FIRE_ESCAPE_ROOMS,Fire escape capacity insufficient for occupancy,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Fire Escape Capacity,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_FIRE_ESCAPE_ROOMS, """")"
@@ -229,7 +229,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stairs
 15,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIRS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE_MM_STAIRS, """")"
+1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIRS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISER_MM_STAIRS, """")"
 2,HIGH,WARN_BLE_STAIR_GOING_MM_STAIRS,Going < 220mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Going,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING_MM_STAIRS, """")"
 3,CRITICAL,WARN_BLE_STAIR_HEADROOM_MM_STAIRS,Headroom < 2000mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Headroom,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_HEADROOM_MM_STAIRS, """")"
 4,HIGH,WARN_BLE_STAIR_WIDTH_MM_STAIRS,Width < 1000mm (escape stair),Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Stair Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM_STAIRS, """")"
@@ -420,7 +420,7 @@ TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Areas
 9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_BLE_ROOM_AREA_SQ_M_AREAS,Area < minimum for designated use,Building Regs Approved Documents,Common,Text,⚠ Warning: Area Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_SQ_M_AREAS, """")"
+1,MEDIUM,WARN_BLE_ROOM_AREA_SQ_M_AREAS,Area < minimum for designated use,Building Regs Approved Documents,Common,Text,⚠ Warning: Area Size,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_AREAS, """")"
 2,LOW,WARN_BLE_AREA_EFFICIENCY_AREAS,Net-to-gross area ratio < 75%,RICS Code of Measuring Practice,Common,Text,⚠ Warning: Area Efficiency,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_AREA_EFFICIENCY_AREAS, """")"
 
 Tag Family #18: STING - Wall Sweeps Tag
@@ -522,7 +522,7 @@ TAG7: ARCH_TAG_7_PARA_WALL_TXT  •  Category: Mass
 7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,LOW,WARN_BLE_ROOM_AREA_SQ_M_MASS,Mass element area not verified,RIBA Plan of Work / NBS,Common,Text,⚠ Warning: Mass Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_ROOM_AREA_SQ_M_MASS, """")"
+1,LOW,WARN_BLE_ROOM_AREA_SQ_M_MASS,Mass element area not verified,RIBA Plan of Work / NBS,Common,Text,⚠ Warning: Mass Area,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_AREA_SQ_M_MASS, """")"
 2,LOW,WARN_BLE_MASS_VOLUME_MASS,Mass element volume not verified against brief,RIBA Plan of Work Stage 2,Common,Text,⚠ Warning: Mass Volume,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_MASS_VOLUME_MASS, """")"
 
 Tag Family #24: STING - Furniture Systems Tag
@@ -612,7 +612,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Stair Runs
 10,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIR_RUNS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Run Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISE_MM_STAIR_RUNS, """")"
+1,HIGH,WARN_BLE_STAIR_RISER_MM_STAIR_RUNS,Riser > 220mm or < 150mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Run Riser,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_RISER_MM_STAIR_RUNS, """")"
 2,HIGH,WARN_BLE_STAIR_GOING_MM_STAIR_RUNS,Going < 220mm,Building Regs Part K,Common,Text,⚠ Warning: Stair Run Going,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_GOING_MM_STAIR_RUNS, """")"
 3,HIGH,WARN_BLE_STAIR_WIDTH_MM_STAIR_RUNS,Width < 800mm,Building Regs Part K / BS 5395-1,Common,Text,⚠ Warning: Stair Run Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_WIDTH_MM_STAIR_RUNS, """")"
 4,MEDIUM,WARN_BLE_STAIR_NOSING_STAIR_RUNS,Nosing not provided or not contrasting,Building Regs Part K / BS 8300-2,Common,Text,⚠ Warning: Stair Nosing,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_STAIR_NOSING_STAIR_RUNS, """")"

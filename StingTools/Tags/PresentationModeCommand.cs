@@ -259,12 +259,12 @@ namespace StingTools.Tags
 
             // Tier 2
             sb.AppendLine("  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──");
-            sb.AppendLine("  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+            sb.AppendLine("  Calculated value (Type: Text): if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
             FormatTierParams(sb, catDef["tier_2"] as JArray, paramText);
 
             // Tier 3
             sb.AppendLine("  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──");
-            sb.AppendLine("  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+            sb.AppendLine("  Calculated value (Type: Text): if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
             FormatTierParams(sb, catDef["tier_3"] as JArray, paramText);
 
             sb.AppendLine();
