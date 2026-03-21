@@ -148,11 +148,11 @@ namespace StingTools.Select
             items.Insert(0, "— Create New Set —");
 
             var picked = StingListPicker.Show("Save Selection Set",
-                $"Save {selected.Count} elements. Choose set name:", items, false);
-            if (picked == null || picked.Count == 0) return Result.Succeeded;
+                $"Save {selected.Count} elements. Choose set name:", items);
+            if (picked == null) return Result.Succeeded;
 
             string name;
-            if (picked[0].StartsWith("—"))
+            if (picked.StartsWith("—"))
             {
                 // New set — use default name based on category of first element
                 var firstEl = ctx.Doc.GetElement(selected.First());
@@ -161,9 +161,9 @@ namespace StingTools.Select
             }
             else
             {
-                name = picked[0].Split(' ')[0]; // Extract name before the count
+                name = picked.Split(' ')[0]; // Extract name before the count
                 // Use full name from existing set
-                var matchSet = existingSets.FirstOrDefault(s => picked[0].StartsWith(s.Name));
+                var matchSet = existingSets.FirstOrDefault(s => picked.StartsWith(s.Name));
                 if (matchSet != null) name = matchSet.Name;
             }
 
@@ -194,10 +194,10 @@ namespace StingTools.Select
             }
 
             var items = sets.Select(s => $"{s.Name} ({s.Count} elements, {s.Timestamp:MMM dd HH:mm})").ToList();
-            var picked = StingListPicker.Show("Recall Selection Set", "Choose a set to recall:", items, false);
-            if (picked == null || picked.Count == 0) return Result.Succeeded;
+            var picked = StingListPicker.Show("Recall Selection Set", "Choose a set to recall:", items);
+            if (picked == null) return Result.Succeeded;
 
-            var matchSet = sets.FirstOrDefault(s => picked[0].StartsWith(s.Name));
+            var matchSet = sets.FirstOrDefault(s => picked.StartsWith(s.Name));
             if (matchSet == null) return Result.Succeeded;
 
             var ids = SelectionSetEngine.LoadSet(ctx.Doc, matchSet.Name);
@@ -249,13 +249,13 @@ namespace StingTools.Select
 
             if (result == TaskDialogResult.CommandLink1)
             {
-                var items = sets.Select(s => s.Name).ToList();
+                var items = sets.Select(s => new StingListPicker.ListItem { Label = s.Name }).ToList();
                 var picked = StingListPicker.Show("Delete Set", "Select set(s) to delete:", items, true);
                 if (picked != null)
                 {
                     int deleted = 0;
-                    foreach (var name in picked)
-                        if (SelectionSetEngine.DeleteSet(ctx.Doc, name)) deleted++;
+                    foreach (var item in picked)
+                        if (SelectionSetEngine.DeleteSet(ctx.Doc, item.Label)) deleted++;
                     TaskDialog.Show("Selection Sets", $"Deleted {deleted} set(s).");
                 }
             }

@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Docs
@@ -169,14 +170,14 @@ namespace StingTools.Docs
             }
             else if (choice == TaskDialogResult.CommandLink2)
             {
-                var discItems = sheetGroups.Select(g => $"{g.Key} ({g.Value.Count} sheets)").ToList();
+                var discItems = sheetGroups.Select(g => new StingListPicker.ListItem { Label = $"{g.Key} ({g.Value.Count} sheets)" }).ToList();
                 var picked = StingListPicker.Show("Select Disciplines", "Pick discipline(s) to export:", discItems, true);
                 if (picked == null || picked.Count == 0) return Result.Succeeded;
 
                 sheetsToExport = new List<ViewSheet>();
                 foreach (var item in picked)
                 {
-                    string disc = item.Split(' ')[0];
+                    string disc = item.Label.Split(' ')[0];
                     if (sheetGroups.TryGetValue(disc, out var sheets))
                         sheetsToExport.AddRange(sheets);
                 }
@@ -184,7 +185,7 @@ namespace StingTools.Docs
             else return Result.Succeeded;
 
             // Get output path
-            string outputDir = OutputLocationHelper.PromptForExportPath(doc, "PDF");
+            string outputDir = OutputLocationHelper.PromptForExportPath(doc, "Sheets.pdf", "PDF files|*.pdf", "PDF");
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             string projectCode = doc.ProjectInformation?.Number ?? "";

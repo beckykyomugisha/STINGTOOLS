@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Docs
@@ -424,7 +425,7 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string outputPath = OutputLocationHelper.GetOutputPath(doc, "SheetSet", ".csv");
+            string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "SheetSet", ".csv");
 
             try
             {

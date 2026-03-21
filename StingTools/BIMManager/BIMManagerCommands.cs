@@ -12,8 +12,8 @@ using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
-using StingTools.Select;
 using StingTools.UI;
+using StingTools.Select;
 
 namespace StingTools.BIMManager
 {
@@ -3905,13 +3905,13 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            var items = openIssues.Select((i, idx) => new UI.StingListPicker.ListItem
+            var items = openIssues.Select((i, idx) => new StingListPicker.ListItem
             {
                 Label = $"[{i["issue_id"]}] {i["type"]} — {i["title"]}",
                 Detail = $"Priority: {i["priority"]} | Due: {i["date_due"]}",
                 Tag = idx
             }).ToList();
-            var selected = UI.StingListPicker.Show("Bulk Close Issues",
+            var selected = StingListPicker.Show("Bulk Close Issues",
                 "Select issues to close", items, allowMultiSelect: true);
             if (selected == null || selected.Count == 0) return Result.Cancelled;
 

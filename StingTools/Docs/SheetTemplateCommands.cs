@@ -7,6 +7,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Docs
 {
@@ -131,31 +132,15 @@ namespace StingTools.Docs
                 return Result.Cancelled;
             }
 
-            // Get template name from user
             var td = new TaskDialog("Save Sheet Template")
             {
-                MainInstruction = "Enter a name for this template:",
+                MainInstruction = "Save this sheet as a reusable template?",
                 MainContent = $"Sheet: {view.SheetNumber} - {view.Name}\nViewports: {view.GetAllViewports().Count}",
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel
             };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Save as: " + view.Name + " Template");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Save with custom name...");
-            var result = td.Show();
+            if (td.Show() != TaskDialogResult.Ok) return Result.Cancelled;
 
-            string templateName;
-            if (result == TaskDialogResult.CommandLink1)
-            {
-                templateName = view.Name + " Template";
-            }
-            else if (result == TaskDialogResult.CommandLink2)
-            {
-                templateName = view.Name + " Template"; // Default; Revit API has no text input dialog
-            }
-            else
-            {
-                return Result.Cancelled;
-            }
-
+            string templateName = view.Name + " Template";
             var template = SheetTemplateEngine.SaveTemplateFromSheet(doc, view, templateName);
 
             TaskDialog.Show("Save Template",
@@ -182,27 +167,27 @@ namespace StingTools.Docs
             TaskDialog.Show("ISO 19650 Sheet Compliance", report);
 
             // Offer to select non-compliant sheets
-            var failedIds = new List<ElementId>();
+            var failIds = new List<ElementId>();
             foreach (var r in results.Where(r => !r.IsCompliant))
             {
                 var sheet = new FilteredElementCollector(ctx.Doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
                     .FirstOrDefault(s => s.SheetNumber == r.SheetNumber);
-                if (sheet != null) failedIds.Add(sheet.Id);
+                if (sheet != null) failIds.Add(sheet.Id);
             }
 
-            if (failedIds.Count > 0 && ctx.UIDoc != null)
+            if (failIds.Count > 0 && ctx.UIDoc != null)
             {
-                var td = new TaskDialog("Compliance Results")
+                var td2 = new TaskDialog("Compliance Results")
                 {
-                    MainInstruction = $"{failedIds.Count} non-compliant sheets found.",
+                    MainInstruction = $"{failIds.Count} non-compliant sheets found.",
                     CommonButtons = TaskDialogCommonButtons.Close
                 };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Select {failedIds.Count} non-compliant sheets");
-                if (td.Show() == TaskDialogResult.CommandLink1)
-                    ctx.UIDoc.Selection.SetElementIds(failedIds);
+                td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    $"Select {failIds.Count} non-compliant sheets");
+                if (td2.Show() == TaskDialogResult.CommandLink1)
+                    ctx.UIDoc.Selection.SetElementIds(failIds);
             }
 
             return Result.Succeeded;
@@ -269,28 +254,26 @@ namespace StingTools.Docs
                 return Result.Cancelled;
             }
 
-            // Pick alignment direction
+            // Pick alignment direction — StingModePicker.Show returns string (Tag)
             var modes = new List<StingModePicker.ModeOption>
             {
-                new StingModePicker.ModeOption { Label = "Left", Description = "Align left edges" },
-                new StingModePicker.ModeOption { Label = "Right", Description = "Align right edges" },
-                new StingModePicker.ModeOption { Label = "Top", Description = "Align top edges" },
-                new StingModePicker.ModeOption { Label = "Bottom", Description = "Align bottom edges" },
-                new StingModePicker.ModeOption { Label = "Center H", Description = "Centre horizontally" },
-                new StingModePicker.ModeOption { Label = "Center V", Description = "Centre vertically" }
+                new StingModePicker.ModeOption("Left", "Align left edges", "LEFT"),
+                new StingModePicker.ModeOption("Right", "Align right edges", "RIGHT"),
+                new StingModePicker.ModeOption("Top", "Align top edges", "TOP"),
+                new StingModePicker.ModeOption("Bottom", "Align bottom edges", "BOTTOM"),
+                new StingModePicker.ModeOption("Center H", "Centre horizontally", "CENTER_H"),
+                new StingModePicker.ModeOption("Center V", "Centre vertically", "CENTER_V")
             };
 
-            var mode = StingModePicker.Show("Align Viewport Edges", "Select alignment direction", modes);
-            if (mode == null) return Result.Cancelled;
-
-            string edge = mode.Label.Replace(" ", "_").ToUpperInvariant();
+            string edge = StingModePicker.Show("Align Viewport Edges", "Select alignment direction", modes);
+            if (edge == null) return Result.Cancelled;
 
             using (var tx = new Transaction(doc, "STING Align Viewport Edges"))
             {
                 tx.Start();
                 int count = SheetTemplateEngine.AlignViewportEdges(doc, sheet, edge);
                 tx.Commit();
-                TaskDialog.Show("Align Edges", $"Aligned {count} viewport(s) to {mode.Label}.");
+                TaskDialog.Show("Align Edges", $"Aligned {count} viewport(s) to {edge} edge.");
             }
             return Result.Succeeded;
         }
@@ -324,21 +307,22 @@ namespace StingTools.Docs
 
             var modes = new List<StingModePicker.ModeOption>
             {
-                new StingModePicker.ModeOption { Label = "Horizontal", Description = "Distribute evenly left to right" },
-                new StingModePicker.ModeOption { Label = "Vertical", Description = "Distribute evenly top to bottom" }
+                new StingModePicker.ModeOption("Horizontal", "Distribute evenly left to right", "H"),
+                new StingModePicker.ModeOption("Vertical", "Distribute evenly top to bottom", "V")
             };
 
-            var mode = StingModePicker.Show("Distribute Viewports", "Select distribution direction", modes);
-            if (mode == null) return Result.Cancelled;
+            string dir = StingModePicker.Show("Distribute Viewports", "Select distribution direction", modes);
+            if (dir == null) return Result.Cancelled;
 
-            bool horizontal = mode.Label == "Horizontal";
+            bool horizontal = dir == "H";
 
             using (var tx = new Transaction(doc, "STING Distribute Viewports"))
             {
                 tx.Start();
                 int count = SheetTemplateEngine.DistributeViewports(doc, sheet, horizontal);
                 tx.Commit();
-                TaskDialog.Show("Distribute", $"Distributed {count} viewport(s) {mode.Label.ToLower()}ly.");
+                TaskDialog.Show("Distribute",
+                    $"Distributed {count} viewport(s) {(horizontal ? "horizontally" : "vertically")}.");
             }
             return Result.Succeeded;
         }
@@ -360,21 +344,24 @@ namespace StingTools.Docs
             // Pick scope
             var modes = new List<StingModePicker.ModeOption>
             {
-                new StingModePicker.ModeOption { Label = "All Sheets", Description = "Export all sheets to PDF" },
-                new StingModePicker.ModeOption { Label = "By Discipline", Description = "Export sheets for one discipline" },
-                new StingModePicker.ModeOption { Label = "Selected Sheets", Description = "Pick sheets to export" }
+                new StingModePicker.ModeOption("All Sheets", "Export all sheets to PDF", "ALL"),
+                new StingModePicker.ModeOption("By Discipline", "Export sheets for one discipline", "DISC"),
+                new StingModePicker.ModeOption("Selected Sheets", "Pick sheets to export", "SEL")
             };
 
-            var mode = StingModePicker.Show("Batch Print / PDF", "Select export scope", modes);
-            if (mode == null) return Result.Cancelled;
+            string scope = StingModePicker.Show("Batch Print / PDF", "Select export scope", modes);
+            if (scope == null) return Result.Cancelled;
 
-            string outputDir = OutputLocationHelper.PromptForExportPath("SheetPDF",
-                Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
+            string outputDir = OutputLocationHelper.PromptForExportPath(doc,
+                $"SheetPDF_{DateTime.Now:yyyyMMdd}.pdf", "PDF Files|*.pdf", "SheetPDF");
             if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
+
+            // Use directory portion only
+            outputDir = Path.GetDirectoryName(outputDir) ?? outputDir;
 
             int exported = 0;
 
-            if (mode.Label == "All Sheets")
+            if (scope == "ALL")
             {
                 var sheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
@@ -384,7 +371,7 @@ namespace StingTools.Docs
                     .ToList();
                 exported = SheetTemplateEngine.ExportSheetsToPDF(doc, sheets, outputDir);
             }
-            else if (mode.Label == "By Discipline")
+            else if (scope == "DISC")
             {
                 var disciplines = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
@@ -402,11 +389,11 @@ namespace StingTools.Docs
                     return Result.Cancelled;
                 }
 
-                var discPick = StingListPicker.Show("Select Discipline", "Pick discipline to export", disciplines);
+                string discPick = StingListPicker.Show("Select Discipline", "Pick discipline to export", disciplines);
                 if (discPick == null) return Result.Cancelled;
                 exported = SheetTemplateEngine.ExportDisciplineToPDF(doc, discPick, outputDir);
             }
-            else // Selected Sheets
+            else // SEL
             {
                 var allSheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
@@ -448,12 +435,9 @@ namespace StingTools.Docs
             if (ctx.Doc == null) return Result.Failed;
             var doc = ctx.Doc;
 
-            string outputDir = OutputLocationHelper.PromptForExportPath("SheetRegister",
-                Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
-            if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
-
-            string filePath = Path.Combine(outputDir,
-                $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string filePath = OutputLocationHelper.PromptForExportPath(doc,
+                $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv", "CSV Files|*.csv", "SheetRegister");
+            if (string.IsNullOrEmpty(filePath)) return Result.Cancelled;
 
             SheetTemplateEngine.ExportSheetRegister(doc, filePath);
 

@@ -1297,7 +1297,7 @@ namespace StingTools.BIMManager
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
                 if (rebuilt > 0)
-                    StingLog.Info($"ExcelLink: Rebuilt tags for {rebuilt}/{affectedIds.Count} elements");
+                    StingLog.Info($"ExcelLink: Rebuilt tags for {rebuilt} elements");
 
                 // ── Write change log CSV ──
                 string userName = "";
@@ -1622,7 +1622,7 @@ namespace StingTools.BIMManager
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
                 if (rebuilt > 0)
-                    StingLog.Info($"ExcelLink RoundTrip: Rebuilt tags for {rebuilt}/{affectedIds.Count} elements");
+                    StingLog.Info($"ExcelLink RoundTrip: Rebuilt tags for {rebuilt} elements");
 
                 // ── Write change log ──
                 string userName = "";

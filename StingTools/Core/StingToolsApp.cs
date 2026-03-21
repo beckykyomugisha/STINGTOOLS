@@ -354,12 +354,12 @@ namespace StingTools.Core
                 try
                 {
                     var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
-                    int missing = mLines.Count(l => {
+                    int missingScripts = mLines.Count(l => {
                         var p = ParseCsvLine(l);
                         return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());
                     });
-                    if (missing > 0)
-                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missing} script path(s) not found on disk.");
+                    if (missingScripts > 0)
+                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missingScripts} script path(s) not found on disk.");
                 }
                 catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
             }

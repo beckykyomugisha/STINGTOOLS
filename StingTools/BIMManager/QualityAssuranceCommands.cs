@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.BIMManager
@@ -213,7 +214,6 @@ namespace StingTools.BIMManager
             checks.Add(new SetupCheck("Worksharing", doc.IsWorkshared, doc.IsWorkshared ? "Enabled" : "Not enabled"));
 
             // 7. Starting view
-            var startView = doc.GetElement(doc.GetDefaultElementTypeId(ElementTypeGroup.Invalid));
             checks.Add(new SetupCheck("Starting View", doc.ActiveView != null, doc.ActiveView?.Name ?? "(none)"));
 
             // 8. Data files accessible
@@ -435,11 +435,11 @@ namespace StingTools.BIMManager
             int total = groups.Sum(g => g.Count);
 
             var picked = StingListPicker.Show($"Model Warnings — {total} Total",
-                "Select a warning type to highlight affected elements:", items, false);
+                "Select a warning type to highlight affected elements:", items);
 
-            if (picked != null && picked.Count > 0)
+            if (picked != null)
             {
-                int idx = items.IndexOf(picked[0]);
+                int idx = items.IndexOf(picked);
                 if (idx >= 0 && idx < groups.Count)
                 {
                     var uidoc = ctx.UIDoc;

@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.BIMManager
@@ -327,10 +328,10 @@ namespace StingTools.BIMManager
             }
 
             var items = snapshots.Select(s => $"{s.Timestamp:yyyy-MM-dd HH:mm} — {s.Label} ({s.ElementCount} elements)").ToList();
-            var picked = StingListPicker.Show("Compare With Snapshot", "Select a snapshot to compare against current model:", items, false);
-            if (picked == null || picked.Count == 0) return Result.Succeeded;
+            var picked = StingListPicker.Show("Compare With Snapshot", "Select a snapshot to compare against current model:", items);
+            if (picked == null) return Result.Succeeded;
 
-            int idx = items.IndexOf(picked[0]);
+            int idx = items.IndexOf(picked);
             if (idx < 0) return Result.Succeeded;
 
             var before = ParameterDiffEngine.LoadSnapshot(snapshots[idx].FilePath);
@@ -385,10 +386,10 @@ namespace StingTools.BIMManager
             if (snapshots.Count == 0) { TaskDialog.Show("STING", "No snapshots found."); return Result.Succeeded; }
 
             var items = snapshots.Select(s => $"{s.Timestamp:yyyy-MM-dd HH:mm} — {s.Label}").ToList();
-            var picked = StingListPicker.Show("Export Diff", "Select baseline snapshot:", items, false);
-            if (picked == null || picked.Count == 0) return Result.Succeeded;
+            var picked = StingListPicker.Show("Export Diff", "Select baseline snapshot:", items);
+            if (picked == null) return Result.Succeeded;
 
-            int idx = items.IndexOf(picked[0]);
+            int idx = items.IndexOf(picked);
             if (idx < 0) return Result.Succeeded;
 
             var before = ParameterDiffEngine.LoadSnapshot(snapshots[idx].FilePath);
