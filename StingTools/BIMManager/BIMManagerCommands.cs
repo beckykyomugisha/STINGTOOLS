@@ -1685,6 +1685,64 @@ namespace StingTools.BIMManager
         }
 
         // ═══════════════════════════════════════════════════════════
+        //  IG-03: Document Suitability History Tracking
+        // ═══════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// IG-03: Update a document's suitability code and append to its suitability history.
+        /// When the suitability code changes, the previous value is recorded in a
+        /// "suitability_history" array with timestamp and user for full audit trail.
+        /// </summary>
+        internal static void UpdateDocumentSuitability(Document doc, string docId, string newSuitability, string reason = "")
+        {
+            try
+            {
+                string regPath = GetBIMManagerFilePath(doc, "document_register.json");
+                var register = LoadJsonArray(regPath);
+
+                var docEntry = register.FirstOrDefault(d =>
+                    string.Equals(d["doc_id"]?.ToString(), docId, StringComparison.OrdinalIgnoreCase));
+                if (docEntry == null)
+                {
+                    StingLog.Warn($"IG-03: Document '{docId}' not found in register");
+                    return;
+                }
+
+                string oldSuitability = docEntry["suitability"]?.ToString() ?? "";
+                if (string.Equals(oldSuitability, newSuitability, StringComparison.OrdinalIgnoreCase))
+                    return; // No change
+
+                // Ensure suitability_history array exists
+                if (docEntry["suitability_history"] == null || docEntry["suitability_history"].Type != JTokenType.Array)
+                    docEntry["suitability_history"] = new JArray();
+
+                var history = (JArray)docEntry["suitability_history"];
+                history.Add(new JObject
+                {
+                    ["from"] = oldSuitability,
+                    ["from_desc"] = SuitabilityCodes.ContainsKey(oldSuitability) ? SuitabilityCodes[oldSuitability] : oldSuitability,
+                    ["to"] = newSuitability,
+                    ["to_desc"] = SuitabilityCodes.ContainsKey(newSuitability) ? SuitabilityCodes[newSuitability] : newSuitability,
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["reason"] = reason,
+                    ["user"] = Environment.UserName
+                });
+
+                // Update current suitability
+                docEntry["suitability"] = newSuitability;
+                docEntry["suitability_desc"] = SuitabilityCodes.ContainsKey(newSuitability)
+                    ? SuitabilityCodes[newSuitability] : newSuitability;
+
+                SaveJsonFile(regPath, register);
+                StingLog.Info($"IG-03: Document '{docId}' suitability changed {oldSuitability} → {newSuitability} ({reason})");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IG-03: Suitability history update failed: {ex.Message}");
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         //  Issue / RFI Engine
         // ═══════════════════════════════════════════════════════════
 
@@ -1916,6 +1974,30 @@ namespace StingTools.BIMManager
             data["Zone"] = zones;
 
             // ── Type (from FamilySymbol) ──
+            // IG-01: Load cost_rates_5d.csv for ReplacementCost fallback
+            var costRateByCategory = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string costPath = StingToolsApp.FindDataFile("cost_rates_5d.csv");
+                if (!string.IsNullOrEmpty(costPath))
+                {
+                    foreach (string line in File.ReadAllLines(costPath).Skip(1))
+                    {
+                        var cols = StingToolsApp.ParseCsvLine(line);
+                        if (cols.Length >= 5 && !string.IsNullOrWhiteSpace(cols[0]))
+                        {
+                            // cols[0]=Category, cols[3]=Unit_Rate_USD (or cols[1] for 3-col format)
+                            string cat = cols[0].Trim();
+                            string rate = cols.Length >= 5 ? cols[3].Trim() : cols[1].Trim();
+                            if (!string.IsNullOrEmpty(rate) && !costRateByCategory.ContainsKey(cat))
+                                costRateByCategory[cat] = rate;
+                        }
+                    }
+                    StingLog.Info($"IG-01: Loaded {costRateByCategory.Count} cost rates from cost_rates_5d.csv");
+                }
+            }
+            catch (Exception costEx) { StingLog.Warn($"IG-01: cost_rates_5d.csv load: {costEx.Message}"); }
+
             var types = new List<Dictionary<string, string>>();
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
@@ -1967,7 +2049,10 @@ namespace StingTools.BIMManager
                     ["WarrantyGuarantorLabor"] = warrantyLabor,
                     ["WarrantyDurationLabor"] = warrantyDurLabor,
                     ["WarrantyDurationUnit"] = (!string.IsNullOrEmpty(warrantyDurParts) || !string.IsNullOrEmpty(warrantyDurLabor)) ? "years" : "",
-                    ["ReplacementCost"] = ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"),
+                    // IG-01: Fallback to cost_rates_5d.csv when element has no cost
+                    ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
+                        ? ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
+                        : (costRateByCategory.TryGetValue(fs.Category?.Name ?? "", out string csvRate) ? csvRate : ""),
                     ["ExpectedLife"] = ParameterHelpers.GetString(fs, "ASS_EXPECTED_LIFE_YEARS_YRS"),
                     ["DurationUnit"] = "years",
                     ["NominalLength"] = nomLength, ["NominalWidth"] = nomWidth, ["NominalHeight"] = nomHeight,
@@ -3800,6 +3885,61 @@ namespace StingTools.BIMManager
         }
     }
 
+    /// <summary>AE-06: Bulk close multiple open issues at once.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BulkCloseIssuesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+            var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+            var openIssues = issues.Where(i => i["status"]?.ToString() == "OPEN").ToList();
+            if (!openIssues.Any())
+            {
+                TaskDialog.Show("Bulk Close", "No open issues to close.");
+                return Result.Succeeded;
+            }
+
+            var items = openIssues.Select((i, idx) => new UI.StingListPicker.ListItem
+            {
+                Label = $"[{i["issue_id"]}] {i["type"]} — {i["title"]}",
+                Detail = $"Priority: {i["priority"]} | Due: {i["date_due"]}",
+                Tag = idx
+            }).ToList();
+            var selected = UI.StingListPicker.Show("Bulk Close Issues",
+                "Select issues to close", items, allowMultiSelect: true);
+            if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+            int closed = 0;
+            foreach (var item in selected)
+            {
+                int idx = (int)item.Tag;
+                if (idx < 0 || idx >= openIssues.Count) continue;
+                var issue = openIssues[idx];
+                string issueId = issue["issue_id"]?.ToString();
+                var match = issues.FirstOrDefault(i => i["issue_id"]?.ToString() == issueId);
+                if (match == null) continue;
+                match["status"] = "CLOSED";
+                match["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                match["response"] = "Bulk closed";
+                closed++;
+            }
+
+            if (closed > 0)
+            {
+                BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                StingLog.Info($"BulkCloseIssues: {closed} issues closed");
+            }
+            TaskDialog.Show("Bulk Close", $"{closed} issue(s) closed successfully.");
+            return Result.Succeeded;
+        }
+    }
+
     #endregion
 
     #region ── Command 7: Update Issue ──
@@ -5538,10 +5678,14 @@ namespace StingTools.BIMManager
 
                 var report = ModelHealthEngine.RunHealthCheck(doc);
 
+                // LG-05: Log health check for trend tracking
+                ModelHealthEngine.AppendHealthLog(doc, report);
+                string trend = ModelHealthEngine.BuildTrendSummary(doc);
+
                 TaskDialog td = new TaskDialog("Model Health Dashboard");
                 td.MainInstruction = $"Model Health: {report.OverallScore}/100 ({report.Rating})";
                 td.MainContent = report.Summary;
-                td.ExpandedContent = report.Details;
+                td.ExpandedContent = report.Details + (string.IsNullOrEmpty(trend) ? "" : trend);
                 td.Show();
 
                 StingLog.Info($"ModelHealth: score={report.OverallScore}, rating={report.Rating}");
@@ -6766,6 +6910,49 @@ namespace StingTools.BIMManager
 
             File.WriteAllText(path, sb.ToString());
             return path;
+        }
+
+        /// <summary>LG-05: Append health check to trend log CSV for historical tracking.</summary>
+        internal static void AppendHealthLog(Document doc, HealthReport report)
+        {
+            try
+            {
+                string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                string path = Path.Combine(dir, "STING_HEALTH_LOG.csv");
+                bool exists = File.Exists(path);
+                using var sw = new StreamWriter(path, append: true, System.Text.Encoding.UTF8);
+                if (!exists)
+                    sw.WriteLine("Timestamp,Score,Rating,WarningCount,Elements,TagPct");
+                var compScan = ComplianceScan.GetCached();
+                sw.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm},{report.OverallScore},{report.Rating}," +
+                    $"{doc.GetWarnings()?.Count ?? 0}," +
+                    $"{new FilteredElementCollector(doc).WhereElementIsNotElementType().GetElementCount()}," +
+                    $"{compScan?.CompliancePercent ?? 0:F0}");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthLog append: {ex.Message}"); }
+        }
+
+        /// <summary>LG-05: Build trend summary from historical health log.</summary>
+        internal static string BuildTrendSummary(Document doc)
+        {
+            try
+            {
+                string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "STING_HEALTH_LOG.csv");
+                if (!File.Exists(path)) return "";
+                var lines = File.ReadAllLines(path).Skip(1).ToList();
+                if (lines.Count < 2) return "";
+                var recent = lines.TakeLast(10).ToList();
+                string[] oldest = recent[0].Split(',');
+                string[] newest = recent[recent.Count - 1].Split(',');
+                if (oldest.Length < 2 || newest.Length < 2) return "";
+                int.TryParse(oldest[1], out int oldScore);
+                int.TryParse(newest[1], out int newScore);
+                int delta = newScore - oldScore;
+                string arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+                return $"\nTrend ({recent.Count} checks): {arrow} {Math.Abs(delta)} points " +
+                    $"({oldScore} → {newScore}). Last check: {newest[0]}";
+            }
+            catch { return ""; }
         }
     }
 

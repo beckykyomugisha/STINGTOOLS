@@ -421,6 +421,8 @@ namespace StingTools.BIMManager
             metaWs.Cell(6, 2).Value = "STING ExcelLink v2.0";
             metaWs.Cell(7, 1).Value = "ReadOnlyColumns";
             metaWs.Cell(7, 2).Value = string.Join(", ", ReadOnlyColumns.OrderBy(c => Array.IndexOf(ColumnHeaders, c)));
+            metaWs.Cell(8, 1).Value = "ProjectGUID";
+            metaWs.Cell(8, 2).Value = doc.ProjectInformation?.UniqueId ?? "";
             metaWs.Columns().AdjustToContents();
             metaWs.Hide();
 
@@ -719,17 +721,58 @@ namespace StingTools.BIMManager
             return value;
         }
 
+        /// <summary>HR-01: Read project GUID from STING_META metadata in exported workbook.</summary>
+        internal static string ReadProjectGuid(string filePath)
+        {
+            try
+            {
+                using var wb = new XLWorkbook(filePath);
+                if (wb.TryGetWorksheet("_STING_Metadata", out var meta))
+                {
+                    // Scan rows for ProjectGUID key
+                    for (int r = 1; r <= 20; r++)
+                    {
+                        if (meta.Cell(r, 1).GetValue<string>() == "ProjectGUID")
+                            return meta.Cell(r, 2).GetValue<string>() ?? "";
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadProjectGuid: {ex.Message}"); }
+            return "";
+        }
+
         /// <summary>
         /// Find the latest STING Excel export file in the output directory.
+        /// HR-01: Prefers files matching current project GUID.
         /// </summary>
         internal static string FindLatestExport(Document doc)
         {
             string dir = OutputLocationHelper.GetOutputDirectory(doc);
             if (!Directory.Exists(dir)) return null;
 
-            return Directory.GetFiles(dir, "STING_Excel_Export_*.xlsx")
+            var allFiles = Directory.GetFiles(dir, "STING_Excel_Export_*.xlsx")
                 .OrderByDescending(f => File.GetLastWriteTime(f))
-                .FirstOrDefault();
+                .ToList();
+
+            if (allFiles.Count == 0) return null;
+
+            // HR-01: Prefer files matching current project GUID
+            string currentGuid = doc.ProjectInformation?.UniqueId ?? "";
+            if (!string.IsNullOrEmpty(currentGuid))
+            {
+                foreach (var file in allFiles)
+                {
+                    try
+                    {
+                        string fileGuid = ReadProjectGuid(file);
+                        if (fileGuid == currentGuid)
+                            return file;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"FindLatestExport GUID check: {ex.Message}"); }
+                }
+            }
+
+            return allFiles.FirstOrDefault();
         }
 
         /// <summary>Build a summary of changes for preview display, including validation warnings.</summary>
@@ -995,6 +1038,33 @@ namespace StingTools.BIMManager
 
                 StingLog.Info($"ExcelLink: Importing from {filePath}");
 
+                // HR-01: Cross-project import guard
+                try
+                {
+                    string exportedGuid = ExcelLinkEngine.ReadProjectGuid(filePath);
+                    string currentGuid = doc.ProjectInformation?.UniqueId ?? "";
+                    if (!string.IsNullOrEmpty(exportedGuid) && exportedGuid != currentGuid)
+                    {
+                        var mismatch = new TaskDialog("STING Excel Import — Project Mismatch")
+                        {
+                            MainInstruction = "WARNING: Project Mismatch Detected",
+                            MainContent = $"This Excel file was exported from a different project.\n\n" +
+                                $"Exported project GUID: {exportedGuid}\n" +
+                                $"Current project GUID:  {currentGuid}\n\n" +
+                                "Importing may overwrite elements in the wrong project.",
+                            CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                            DefaultButton = TaskDialogResult.No,
+                        };
+                        if (mismatch.Show() == TaskDialogResult.No)
+                        {
+                            StingLog.Info("ExcelLink Import cancelled: project GUID mismatch");
+                            return Result.Cancelled;
+                        }
+                        StingLog.Warn($"ExcelLink Import: user accepted project mismatch (exported={exportedGuid}, current={currentGuid})");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ExcelLink project GUID check: {ex.Message}"); }
+
                 // ── Read Excel data ──
                 Dictionary<long, Dictionary<string, string>> excelData;
                 try
@@ -1088,9 +1158,15 @@ namespace StingTools.BIMManager
 
                 bool forceInvalid = (confirmResult == TaskDialogResult.CommandLink2);
 
-                // ── Apply changes in a single transaction ──
+                // HR-06: Wrap parameter import + tag rebuild in TransactionGroup for atomic rollback
                 int applied = 0, skipped = 0, failed = 0;
-                using (var trans = new Transaction(doc, "STING Excel Import"))
+                int rebuilt = 0;
+                using (var tg = new TransactionGroup(doc, "STING Excel Import + Tag Rebuild"))
+                {
+                tg.Start();
+                try
+                {
+                using (var trans = new Transaction(doc, "STING Excel Import — Parameters"))
                 {
                     trans.Start();
                     try
@@ -1117,7 +1193,6 @@ namespace StingTools.BIMManager
                     .Select(c => new ElementId(c.ElementId))
                     .Distinct()
                     .ToList();
-                int rebuilt = 0;
                 if (affectedIds.Count > 0)
                 {
                     using (var rebuildTrans = new Transaction(doc, "STING Import Tag Rebuild"))
@@ -1206,6 +1281,16 @@ namespace StingTools.BIMManager
                         }
                     }
                 }
+
+                tg.Assimilate();
+                } // end try
+                catch (Exception tgEx)
+                {
+                    try { tg.RollBack(); } catch { }
+                    StingLog.Error("ExcelLink import TransactionGroup rolled back", tgEx);
+                    throw;
+                }
+                } // end using TransactionGroup
 
                 // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
                 // after import to prevent SEQ collisions on next auto-tag operation
@@ -1357,6 +1442,20 @@ namespace StingTools.BIMManager
                         $"Please close the file in Excel and use 'Import from Excel' to import manually.\n\n{ioEx.Message}");
                     return Result.Failed;
                 }
+
+                // HR-01: Cross-project guard (safety check for round-trip)
+                try
+                {
+                    string exportedGuid = ExcelLinkEngine.ReadProjectGuid(outputPath);
+                    string currentGuid = doc.ProjectInformation?.UniqueId ?? "";
+                    if (!string.IsNullOrEmpty(exportedGuid) && exportedGuid != currentGuid)
+                    {
+                        StingLog.Warn($"ExcelLink RoundTrip: project GUID mismatch detected (exported={exportedGuid}, current={currentGuid})");
+                        TaskDialog.Show("STING Excel Round-Trip",
+                            "Warning: The exported file's project GUID does not match the current project.\nThis may indicate the document was switched during editing.");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ExcelLink RoundTrip project GUID check: {ex.Message}"); }
 
                 if (excelData.Count == 0)
                 {

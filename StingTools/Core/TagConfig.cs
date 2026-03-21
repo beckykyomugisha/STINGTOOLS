@@ -1421,6 +1421,24 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>AE-02: Read a single config key from project_config.json. Returns null if not found.</summary>
+        public static string GetConfigValue(string key)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return null;
+                string json = File.ReadAllText(ConfigSource);
+                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                if (data != null && data.TryGetValue(key, out object val) && val != null)
+                    return val.ToString();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetConfigValue '{key}': {ex.Message}");
+            }
+            return null;
+        }
+
         /// <summary>AL-05: Check compliance gate after a batch tag operation. Shows warning dialog if below threshold.</summary>
         public static void CheckComplianceGate(Document doc, string commandName)
         {

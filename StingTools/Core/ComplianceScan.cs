@@ -18,6 +18,7 @@ namespace StingTools.Core
         private static ComplianceResult _cached;
         private static DateTime _cacheTime = DateTime.MinValue;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
+        private static volatile bool _scanning = false;
 
         /// <summary>
         /// Quick compliance scan results.
@@ -115,16 +116,26 @@ namespace StingTools.Core
         /// </summary>
         public static ComplianceResult Scan(Document doc, bool forceRefresh = false)
         {
-            // LOG-03: Entire scan runs inside lock to prevent torn-read race.
-            // Two threads calling Scan() when cache is stale would both scan
-            // simultaneously; the second overwrites the first's result mid-read.
-            // Since this is a lightweight scan, holding the lock is acceptable.
+            // HR-03: Non-blocking scan — don't hold lock during full element iteration
+            // to prevent UI freeze on large models (10k+ elements).
+
+            // Fast path: return cached if valid (brief lock)
             lock (_cacheLock)
             {
                 if (!forceRefresh && _cached != null &&
                     (DateTime.Now - _cacheTime) < CacheLifetime)
                     return _cached;
+            }
 
+            // Prevent concurrent scans (non-blocking check)
+            if (_scanning)
+            {
+                lock (_cacheLock) { return _cached; } // return stale rather than deadlock
+            }
+            _scanning = true;
+
+            try
+            {
                 var result = new ComplianceResult { ScanTime = DateTime.Now };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
@@ -190,7 +201,6 @@ namespace StingTools.Core
                                 if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
                                 if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
 
-                                // AE-05: Per-token empty/placeholder counting
                                 string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
                                 for (int ti = 0; ti < tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
@@ -257,7 +267,6 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
 
-                        // FIX-12: Count elements marked as stale (FIX-N01: moved inside foreach loop)
                         try
                         {
                             Parameter stalePar = elem.LookupParameter(ParamRegistry.STALE);
@@ -275,9 +284,17 @@ namespace StingTools.Core
                     StingLog.Warn($"Compliance scan failed: {ex.Message}");
                 }
 
-                _cached = result;
-                _cacheTime = DateTime.Now;
+                // Write result under brief lock
+                lock (_cacheLock)
+                {
+                    _cached = result;
+                    _cacheTime = DateTime.Now;
+                }
                 return result;
+            }
+            finally
+            {
+                _scanning = false;
             }
         }
 

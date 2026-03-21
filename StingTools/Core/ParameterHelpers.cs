@@ -427,6 +427,32 @@ namespace StingTools.Core
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
         }
 
+        /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
+        private static Phase GetElementPhase(Document doc, Element el)
+        {
+            try
+            {
+                var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (phaseParam != null)
+                {
+                    var phaseEl = doc.GetElement(phaseParam.AsElementId()) as Phase;
+                    if (phaseEl != null) return phaseEl;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el?.Id}: {ex.Message}"); }
+
+            // Fallback: last phase in the project
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Phase))
+                    .Cast<Phase>()
+                    .OrderBy(p => p.Id.Value)
+                    .LastOrDefault();
+            }
+            catch { return null; }
+        }
+
         /// <summary>
         /// Find the Room containing an element, using the element's location point.
         /// Returns null if the element has no location point or is not in a room.
@@ -442,11 +468,14 @@ namespace StingTools.Core
                     if (room != null) return room;
                 }
 
+                // LG-02: Phase-aware room lookup — use element's creation phase
+                Phase elPhase = GetElementPhase(doc, el);
+
                 // Fall back to location-based lookup
                 LocationPoint lp = el.Location as LocationPoint;
                 if (lp != null)
                 {
-                    return doc.GetRoomAtPoint(lp.Point);
+                    return elPhase != null ? doc.GetRoomAtPoint(lp.Point, elPhase) : doc.GetRoomAtPoint(lp.Point);
                 }
 
                 // For curve-based elements (pipes, ducts), use midpoint
@@ -454,7 +483,7 @@ namespace StingTools.Core
                 if (lc != null)
                 {
                     XYZ mid = lc.Curve.Evaluate(0.5, true);
-                    return doc.GetRoomAtPoint(mid);
+                    return elPhase != null ? doc.GetRoomAtPoint(mid, elPhase) : doc.GetRoomAtPoint(mid);
                 }
             }
             catch (Exception ex)
@@ -1285,11 +1314,23 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(connTag)) continue;
 
                         // Found a tagged connected element — copy empty tokens
+                        int copied = 0;
                         foreach (string param in tokensToCopy)
                         {
                             string val = ParameterHelpers.GetString(connected, param);
                             if (!string.IsNullOrEmpty(val))
-                                ParameterHelpers.SetIfEmpty(el, param, val);
+                            {
+                                if (ParameterHelpers.SetIfEmpty(el, param, val))
+                                    copied++;
+                            }
+                        }
+
+                        // AE-04: Write connector inherit status for diagnostics
+                        if (copied > 0)
+                        {
+                            string sourceTag = connTag.Length > 30 ? connTag.Substring(0, 30) : connTag;
+                            ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
+                                $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
                         }
                         return; // Use first tagged connected element
                     }

@@ -347,6 +347,23 @@ namespace StingTools.Core
                 StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
 
+            // IG-04: Verify pyRevit manifest
+            string manifestPath = FindDataFile("PYREVIT_SCRIPT_MANIFEST.csv");
+            if (manifestPath != null)
+            {
+                try
+                {
+                    var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
+                    int missing = mLines.Count(l => {
+                        var p = ParseCsvLine(l);
+                        return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());
+                    });
+                    if (missing > 0)
+                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missing} script path(s) not found on disk.");
+                }
+                catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
+            }
+
             // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
             string[] versionedCsvs = new[]
             {

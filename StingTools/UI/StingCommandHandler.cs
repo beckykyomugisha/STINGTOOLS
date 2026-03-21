@@ -928,6 +928,7 @@ namespace StingTools.UI
                     case "IssueDashboard": RunCommand<BIMManager.IssueDashboardCommand>(app); break;
                     case "UpdateIssue": RunCommand<BIMManager.UpdateIssueCommand>(app); break;
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
+                    case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
 
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;

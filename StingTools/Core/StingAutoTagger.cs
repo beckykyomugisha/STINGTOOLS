@@ -566,12 +566,37 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                // LOG-09: Store current version hash so we don't re-mark unchanged elements
+                                // LG-04: Record which tokens changed for targeted re-derivation
                                 string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                                 string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                                 string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                                 string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                _elementVersionHash[id.Value] = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
+                                string newHash = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
+
+                                // Determine which tokens changed
+                                if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash != newHash)
+                                {
+                                    var changedTokens = new List<string>();
+                                    string[] prevParts = prevHash.Split('|');
+                                    string[] curParts = newHash.Split('|');
+                                    string[] tokenNames = { "TAG1", "LOC", "ZONE", "LVL" };
+                                    for (int ti = 0; ti < tokenNames.Length && ti < prevParts.Length && ti < curParts.Length; ti++)
+                                    {
+                                        if (prevParts[ti] != curParts[ti])
+                                            changedTokens.Add(tokenNames[ti]);
+                                    }
+                                    if (changedTokens.Count > 0)
+                                    {
+                                        try
+                                        {
+                                            Parameter staleTokens = el.LookupParameter("ASS_STALE_TOKENS_TXT");
+                                            if (staleTokens != null && !staleTokens.IsReadOnly)
+                                                staleTokens.Set(string.Join(",", changedTokens));
+                                        }
+                                        catch (Exception stEx) { StingLog.Warn($"StaleTokens write for {id.Value}: {stEx.Message}"); }
+                                    }
+                                }
+                                _elementVersionHash[id.Value] = newHash;
                             }
                         }
                         catch (Exception ex)

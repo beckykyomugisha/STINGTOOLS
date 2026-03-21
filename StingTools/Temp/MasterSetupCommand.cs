@@ -83,6 +83,28 @@ namespace StingTools.Temp
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+
+            // AE-03: Idempotency check — warn if Master Setup was already run on this project
+            try
+            {
+                string prevTimestamp = ParameterHelpers.GetString(doc.ProjectInformation, "STING_MASTER_SETUP_TS");
+                if (!string.IsNullOrEmpty(prevTimestamp))
+                {
+                    TaskDialog idempotencyDlg = new TaskDialog("STING Master Setup");
+                    idempotencyDlg.MainInstruction = "Master Setup was previously run";
+                    idempotencyDlg.MainContent =
+                        $"Last run: {prevTimestamp}\n\n" +
+                        "Running again will re-apply all setup steps.\n" +
+                        "Already-existing items (parameters, materials, types) will be skipped,\n" +
+                        "but tags and schedules may be regenerated.\n\n" +
+                        "Continue anyway?";
+                    idempotencyDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (idempotencyDlg.Show() == TaskDialogResult.No)
+                        return Result.Cancelled;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AE-03: Idempotency check: {ex.Message}"); }
+
             StingLog.Info("Master Setup: starting full automation workflow");
             var report = new StringBuilder();
             report.AppendLine("STING Master Setup Results");
@@ -268,6 +290,19 @@ namespace StingTools.Temp
 
             StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed, " +
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
+
+            // AE-03: Write setup timestamp for idempotency detection
+            try
+            {
+                using (var tsTx = new Transaction(doc, "STING Master Setup Timestamp"))
+                {
+                    tsTx.Start();
+                    ParameterHelpers.SetString(doc.ProjectInformation, "STING_MASTER_SETUP_TS",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    tsTx.Commit();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AE-03: Timestamp write: {ex.Message}"); }
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
