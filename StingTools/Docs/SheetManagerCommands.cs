@@ -51,7 +51,7 @@ namespace StingTools.Docs
             if (!result.Confirmed || string.IsNullOrEmpty(result.Operation))
                 return Result.Cancelled;
 
-            // Dispatch operation
+            // Dispatch operation(s)
             return DispatchOperation(doc, ctx, result);
         }
 
@@ -64,8 +64,11 @@ namespace StingTools.Docs
                 case "ArrangeOnSheet":
                     return ArrangeActiveSheet(doc, ctx);
 
+                case "AutoLayoutMode":
+                    return ArrangeWithMode(doc, ctx, result);
+
                 case "CloneSheet":
-                    return CloneActiveSheet(doc, ctx);
+                    return CloneSelectedSheet(doc, result);
 
                 case "CreateSheet":
                     return CreateNewSheet(doc);
@@ -80,12 +83,11 @@ namespace StingTools.Docs
                 case "PlaceViewOnSheet":
                     return PlaceViewOnSheet(doc, result);
 
-                case "PlaceOnExisting":
                 case "PlaceOnNewSheet":
-                    return PlaceSelectedView(doc, result);
+                    return PlaceViewOnNewSheet(doc, result);
 
-                case "MoveViewport":
-                    return MoveSelectedViewport(doc, result);
+                case "MoveViewportToSheet":
+                    return MoveViewportToSheet(doc, result);
 
                 case "RemoveViewport":
                     return RemoveSelectedViewport(doc, result);
@@ -98,6 +100,9 @@ namespace StingTools.Docs
 
                 case "SheetAudit":
                     return RunSheetAudit(doc);
+
+                case "RenumberDisc":
+                    return RenumberSheets(doc);
 
                 default:
                     StingLog.Info($"Sheet Manager operation '{result.Operation}' — no handler.");
@@ -124,12 +129,15 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
-        private Result CloneActiveSheet(Document doc, StingCommandContext ctx)
+        private Result CloneSelectedSheet(Document doc, SheetManagerResult result)
         {
-            var sheet = ctx.ActiveView as ViewSheet;
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+
             if (sheet == null)
             {
-                TaskDialog.Show("STING", "Navigate to a sheet view first.");
+                TaskDialog.Show("STING", "No sheet selected to clone.");
                 return Result.Succeeded;
             }
 
@@ -155,9 +163,35 @@ namespace StingTools.Docs
 
                 if (cloned != null)
                     TaskDialog.Show("Sheet Manager",
-                        $"Cloned sheet '{sheet.SheetNumber}' → '{cloned.SheetNumber} - {cloned.Name}'");
+                        $"Cloned sheet '{sheet.SheetNumber}' \u2192 '{cloned.SheetNumber} - {cloned.Name}'");
                 else
                     TaskDialog.Show("Sheet Manager", "Failed to clone sheet.");
+            }
+            return Result.Succeeded;
+        }
+
+        private Result ArrangeWithMode(Document doc, StingCommandContext ctx, SheetManagerResult result)
+        {
+            string mode = result.Options.ContainsKey("LayoutMode") ? result.Options["LayoutMode"]?.ToString() : "Default";
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+            if (sheet == null) sheet = ctx.ActiveView as ViewSheet;
+
+            if (sheet == null)
+            {
+                TaskDialog.Show("Sheet Manager", "Select or navigate to a sheet first.");
+                return Result.Succeeded;
+            }
+
+            using (var tx = new Transaction(doc, $"STING Auto Layout ({mode})"))
+            {
+                tx.Start();
+                int moved = SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet);
+                tx.Commit();
+                TaskDialog.Show("Sheet Manager",
+                    $"Layout '{mode}': arranged {moved} viewports on '{sheet.SheetNumber}'.");
             }
             return Result.Succeeded;
         }
@@ -269,7 +303,7 @@ namespace StingTools.Docs
         }
 
 
-        // ── New operation handlers for dual-panel dialog ────────────────
+        // ── Operation handlers ────────────────────────────────────────────
 
         private Result PlaceViewOnSheet(Document doc, SheetManagerResult result)
         {
@@ -288,6 +322,17 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
+            // Check if view can be placed on sheet (already placed, template, etc.)
+            if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id))
+            {
+                TaskDialog.Show("Sheet Manager",
+                    $"Cannot place '{view.Name}' on '{sheet.SheetNumber}'.\n\n" +
+                    "The view may already be placed on another sheet, or it may be a " +
+                    "view type that cannot be placed (template, schedule, etc.).\n\n" +
+                    "Only legends can be placed on multiple sheets.");
+                return Result.Succeeded;
+            }
+
             using (var tx = new Transaction(doc, "STING Place View on Sheet"))
             {
                 tx.Start();
@@ -302,74 +347,84 @@ namespace StingTools.Docs
                 catch (Exception ex)
                 {
                     tx.RollBack();
+                    StingLog.Warn($"PlaceViewOnSheet failed: {ex.Message}");
                     TaskDialog.Show("Sheet Manager", $"Cannot place view: {ex.Message}");
                 }
             }
             return Result.Succeeded;
         }
 
-        private Result PlaceSelectedView(Document doc, SheetManagerResult result)
+        private Result PlaceViewOnNewSheet(Document doc, SheetManagerResult result)
         {
             var viewId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
             if (viewId == null) return Result.Succeeded;
             var view = doc.GetElement(viewId) as View;
             if (view == null) return Result.Succeeded;
 
-            if (result.Operation == "PlaceOnNewSheet")
-            {
-                var tbType = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
-                    .WhereElementIsElementType()
-                    .FirstOrDefault();
-                if (tbType == null) { TaskDialog.Show("Sheet Manager", "No title blocks loaded."); return Result.Succeeded; }
+            var tbType = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .FirstOrDefault();
+            if (tbType == null) { TaskDialog.Show("Sheet Manager", "No title blocks loaded."); return Result.Succeeded; }
 
-                using (var tx = new Transaction(doc, "STING Place on New Sheet"))
+            using (var tx = new Transaction(doc, "STING Place on New Sheet"))
+            {
+                tx.Start();
+                try
                 {
-                    tx.Start();
                     var sheet = ViewSheet.Create(doc, tbType.Id);
+
+                    if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id))
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("Sheet Manager",
+                            $"'{view.Name}' cannot be placed on a sheet (already placed or incompatible type).");
+                        return Result.Succeeded;
+                    }
+
                     var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
                     Viewport.Create(doc, sheet.Id, view.Id, zone.Center);
                     tx.Commit();
                     TaskDialog.Show("Sheet Manager", $"Created '{sheet.SheetNumber}' and placed '{view.Name}'.");
                 }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted()) tx.RollBack();
+                    TaskDialog.Show("Sheet Manager", $"Error: {ex.Message}");
+                }
             }
             return Result.Succeeded;
         }
 
-        private Result MoveSelectedViewport(Document doc, SheetManagerResult result)
+        private Result MoveViewportToSheet(Document doc, SheetManagerResult result)
         {
-            var vpId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
-            if (vpId == null) return Result.Succeeded;
+            var vpId = result.Options.ContainsKey("ViewportTag") ? result.Options["ViewportTag"] as ElementId : null;
+            var targetSheetId = result.Options.ContainsKey("TargetSheetTag") ? result.Options["TargetSheetTag"] as ElementId : null;
+            if (vpId == null || targetSheetId == null) return Result.Succeeded;
+
             var vp = doc.GetElement(vpId) as Viewport;
-            if (vp == null) return Result.Succeeded;
+            var targetSheet = doc.GetElement(targetSheetId) as ViewSheet;
+            if (vp == null || targetSheet == null) return Result.Succeeded;
 
-            // Delegate to MoveViewportCommand logic
             var viewName = (doc.GetElement(vp.ViewId) as View)?.Name ?? "(unknown)";
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .OrderBy(s => s.SheetNumber)
-                .Select(s => $"{s.SheetNumber} - {s.Name}")
-                .ToList();
-
-            string picked = StingListPicker.Show("Move Viewport", $"Move '{viewName}' to:", sheets);
-            if (picked == null) return Result.Cancelled;
-
-            // Find target sheet
-            string targetNum = picked.Split(new[] { " - " }, StringSplitOptions.None).FirstOrDefault();
-            var targetSheet = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
-                .FirstOrDefault(s => s.SheetNumber == targetNum);
-            if (targetSheet == null) return Result.Succeeded;
 
             using (var tx = new Transaction(doc, "STING Move Viewport"))
             {
                 tx.Start();
-                SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
-                tx.Commit();
+                try
+                {
+                    SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
+                    tx.Commit();
+                    string targetNum = result.Options.ContainsKey("TargetSheetNumber")
+                        ? result.Options["TargetSheetNumber"]?.ToString() : targetSheet.SheetNumber;
+                    TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Sheet Manager", $"Cannot move viewport: {ex.Message}");
+                }
             }
-            TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
             return Result.Succeeded;
         }
 
@@ -442,7 +497,22 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
-        // Context tag from dialog is stored in result.Options["SelectedTag"]
+        private Result RenumberSheets(Document doc)
+        {
+            // Delegate to BatchRenumberSheetsCommand
+            try
+            {
+                var cmd = new BatchRenumberSheetsCommand();
+                string msg = null;
+                return cmd.Execute(null, ref msg, null);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RenumberSheets failed: {ex.Message}");
+                TaskDialog.Show("Sheet Manager", "Renumber requires navigating to a sheet first.");
+                return Result.Succeeded;
+            }
+        }
 
         // ── Data builders for the dialog ─────────────────────────────────
 
