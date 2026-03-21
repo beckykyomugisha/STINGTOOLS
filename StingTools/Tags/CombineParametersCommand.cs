@@ -235,7 +235,8 @@ namespace StingTools.Tags
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            TagConfig.SaveSeqSidecar(doc); // TAG-06: Persist SEQ counters from BuildAndWriteTag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); } // TAG-06: Persist SEQ counters
+            catch (Exception ssEx) { StingLog.Warn($"CombineParams SaveSeqSidecar: {ssEx.Message}"); }
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

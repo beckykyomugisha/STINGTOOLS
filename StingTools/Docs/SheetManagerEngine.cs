@@ -328,6 +328,15 @@ namespace StingTools.Docs
             /// </summary>
             public XYZ TryPlace(double viewWidth, double viewHeight)
             {
+                // SHEET-01: Early exit for oversized viewports that can never fit
+                // regardless of packing. Prevents infinite overflow sheet creation.
+                if (viewWidth > _areaWidth + 0.001 || viewHeight > _areaHeight + 0.001)
+                {
+                    StingLog.Warn($"ShelfPacker: viewport ({viewWidth:F2} x {viewHeight:F2}) " +
+                        $"exceeds drawable zone ({_areaWidth:F2} x {_areaHeight:F2}) — cannot place");
+                    return null;
+                }
+
                 // Check if fits in current shelf horizontally
                 if (_cursorX + viewWidth > _areaWidth + 0.001)
                 {

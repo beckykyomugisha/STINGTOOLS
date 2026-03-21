@@ -111,7 +111,7 @@ namespace StingTools.Tags
                             if (tokens != null && tokens.Length >= 8)
                             {
                                 string catName = ParameterHelpers.GetCategoryName(elem);
-                                ParamRegistry.WriteContainers(doc, elem, tokens);
+                                ParamRegistry.WriteContainers(elem, tokens, catName);
                                 TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
                             }
                             tagsRebuilt++;
@@ -129,7 +129,12 @@ namespace StingTools.Tags
             // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            if (written > 0) TagConfig.SaveSeqSidecar(doc);
+            if (written > 0)
+            {
+                // seqCounters was built earlier (line 99) and passed to BuildAndWriteTag
+                try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+                catch (Exception ssEx) { StingLog.Warn($"TokenWriter SaveSeqSidecar: {ssEx.Message}"); }
+            }
 
             string resultMsg = $"Set '{value}' on {written} elements.";
             if (tagsRebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {tagsRebuilt} elements.";
@@ -280,7 +285,7 @@ namespace StingTools.Tags
                         if (tokens != null && tokens.Length >= 8)
                         {
                             string catName = ParameterHelpers.GetCategoryName(elem);
-                            ParamRegistry.WriteContainers(doc, elem, tokens);
+                            ParamRegistry.WriteContainers(elem, tokens, catName);
                             TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
                         }
                         rebuilt++;

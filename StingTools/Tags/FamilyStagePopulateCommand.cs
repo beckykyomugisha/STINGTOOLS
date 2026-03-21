@@ -227,7 +227,7 @@ namespace StingTools.Tags
                                 && !string.IsNullOrEmpty(tokens[0])) // at least DISC populated
                             {
                                 string catNameForContainers = ParameterHelpers.GetCategoryName(el);
-                                ParamRegistry.WriteContainers(doc, el, tokens);
+                                ParamRegistry.WriteContainers(el, tokens, catNameForContainers);
                                 TagConfig.WriteTag7All(doc, el, catNameForContainers, tokens, overwrite: false);
                             }
                         }
