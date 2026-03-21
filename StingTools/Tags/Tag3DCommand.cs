@@ -64,6 +64,15 @@ namespace StingTools.Tags
 
             int placed = 0;
             int errors = 0;
+            int enriched = 0;
+
+            // TAG-02: Build pipeline context once for enriching untagged elements
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            if (tagIndex == null) tagIndex = new HashSet<string>();
+            if (seqCounters == null) seqCounters = new Dictionary<string, int>();
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Tag 3D"))
             {
@@ -76,6 +85,26 @@ namespace StingTools.Tags
                     try
                     {
                         string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                        // TAG-02: If element is untagged, run full pipeline to enrich it first
+                        if (string.IsNullOrEmpty(tag1))
+                        {
+                            try
+                            {
+                                bool ok = TagPipelineHelper.RunFullPipeline(
+                                    doc, el, popCtx, seqCounters, tagIndex,
+                                    formulas, gridLines, overwrite: false);
+                                if (ok)
+                                {
+                                    tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                    enriched++;
+                                }
+                            }
+                            catch (Exception pipeEx)
+                            {
+                                StingLog.Warn($"Tag3D pipeline for {el.Id}: {pipeEx.Message}");
+                            }
+                        }
                         if (string.IsNullOrEmpty(tag1)) continue;
 
                         // Get element location for placement
@@ -112,9 +141,11 @@ namespace StingTools.Tags
             // FIX-B09: Invalidate caches and check compliance gate after 3D tagging
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.SaveSeqSidecar(doc);
             TagConfig.CheckComplianceGate(doc, "Tag3D");
 
             string report = $"3D tags placed: {placed}";
+            if (enriched > 0) report += $"\nElements enriched via pipeline: {enriched}";
             if (errors > 0) report += $"\nErrors: {errors}";
             TaskDialog.Show("Tag 3D", report);
             return Result.Succeeded;

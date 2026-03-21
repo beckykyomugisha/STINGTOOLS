@@ -1781,8 +1781,8 @@ namespace StingTools.Core
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.
         /// </summary>
-        /// <summary>LOG-07: Historical separators to handle tags written under previous config.</summary>
-        private static readonly char[] _separatorHistory = new[] { '-', '_', '.' };
+        // TAG-04: Removed dead _separatorHistory char[] array — SeparatorHistory list property
+        // (loaded from project_config.json) is the actual implementation used in TagIsComplete.
 
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {

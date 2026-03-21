@@ -555,10 +555,14 @@ namespace StingTools.Organise
                 if (elem == null) continue;
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
+                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                 if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
                 groups[key].Add(elem);
             }
