@@ -28,8 +28,10 @@ namespace StingTools.Docs
     // ── 1. Sheet Manager Dialog ──────────────────────────────────────────────
 
     /// <summary>
-    /// Opens the full STING Sheet Manager WPF dialog with dual-panel
-    /// sheet/viewport browser and context-sensitive actions.
+    /// Opens the full STING Sheet Manager as a modeless floating WPF dialog
+    /// with dual-panel sheet/viewport browser and context-sensitive actions.
+    /// Double-click opens views/sheets in Revit. Drag-drop places views on sheets.
+    /// All operations execute live via IExternalEventHandler.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -40,22 +42,94 @@ namespace StingTools.Docs
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // If already open, just bring to front
+            if (SheetManagerDialog.IsOpen)
+            {
+                SheetManagerDialog.RefreshData();
+                return Result.Succeeded;
+            }
 
             // Build data for dual-panel dialog
             var sheetNodes = BuildSheetNodes(doc);
             var unplacedViews = BuildUnplacedViewNodes(doc);
             var allViews = BuildAllViewNodes(doc);
 
-            // Show dialog (dual-panel: Views left, Sheets right)
-            var result = SheetManagerDialog.Show(sheetNodes, unplacedViews, allViews);
-            if (!result.Confirmed || string.IsNullOrEmpty(result.Operation))
-                return Result.Cancelled;
+            // Show modeless dialog with live execution callback
+            SheetManagerDialog.ShowModeless(
+                sheetNodes, unplacedViews, allViews,
+                executeCallback: (operation, options) =>
+                {
+                    // This callback runs on the WPF thread —
+                    // for Revit API calls, dispatch via StingDockPanel.DispatchCommand
+                    DispatchLiveOperation(doc, uidoc, operation, options);
+                },
+                refreshSheets: () => BuildSheetNodes(doc),
+                refreshUnplaced: () => BuildUnplacedViewNodes(doc),
+                refreshAllViews: () => BuildAllViewNodes(doc)
+            );
 
-            // Dispatch operation(s)
-            return DispatchOperation(doc, ctx, result);
+            return Result.Succeeded;
         }
 
-        private Result DispatchOperation(Document doc, StingCommandContext ctx,
+        /// <summary>
+        /// Dispatch a live operation from the modeless Sheet Manager.
+        /// Operations that need the Revit API thread go via StingDockPanel.DispatchCommand.
+        /// Simple operations that don't need Revit API (like ActivateView) run directly
+        /// since UIDocument.RequestViewChange is safe from any thread.
+        /// </summary>
+        private void DispatchLiveOperation(Document doc, UIDocument uidoc,
+            string operation, Dictionary<string, object> options)
+        {
+            // ── ActivateView — open the view/sheet in Revit ──────────
+            if (operation == "ActivateView")
+            {
+                var viewId = options.ContainsKey("ViewTag") ? options["ViewTag"] as ElementId : null;
+                if (viewId == null) return;
+                var view = doc.GetElement(viewId) as View;
+                if (view == null) return;
+
+                try
+                {
+                    uidoc.RequestViewChange(view);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ActivateView failed: {ex.Message}");
+                }
+                return;
+            }
+
+            // ── Operations that need Revit API thread ────────────────
+            // Pack options into ExtraParams for the command handler
+            foreach (var kv in options)
+                StingCommandHandler.SetExtraParam($"SM_{kv.Key}", kv.Value?.ToString() ?? "");
+
+            // Map operation names to dispatch tags
+            string dispatchTag = operation switch
+            {
+                "PlaceViewOnSheet" => "SM_PlaceViewOnSheet",
+                "PlaceOnNewSheet" => "SM_PlaceOnNewSheet",
+                "MoveViewportToSheet" => "SM_MoveViewportToSheet",
+                "RemoveViewport" => "SM_RemoveViewport",
+                "CreateSheet" => "SM_CreateSheet",
+                "CloneSheet" => "SM_CloneSheet",
+                "ArrangeOnSheet" => "SM_ArrangeOnSheet",
+                "AutoScaleSheet" => "SM_AutoScaleSheet",
+                "AutoLayoutMode" => "SM_AutoLayoutMode",
+                "AutoPlaceUnplaced" => "SM_AutoPlaceUnplaced",
+                "DuplicateView" => "SM_DuplicateView",
+                "DeleteView" => "SM_DeleteView",
+                "BatchArrange" => "SM_BatchArrange",
+                "RenumberDisc" => "SM_RenumberDisc",
+                _ => operation // Fall through to standard dispatch tags
+            };
+
+            StingDockPanel.DispatchCommand(dispatchTag);
+        }
+
+        internal Result DispatchOperation(Document doc, StingCommandContext ctx,
             SheetManagerResult result)
         {
             switch (result.Operation)
@@ -94,6 +168,9 @@ namespace StingTools.Docs
 
                 case "DuplicateView":
                     return DuplicateSelectedView(doc, result);
+
+                case "DeleteView":
+                    return DeleteSelectedView(doc, result);
 
                 case "BatchArrange":
                     return BatchArrangeAll(doc);
@@ -458,6 +535,24 @@ namespace StingTools.Docs
                 var newView = doc.GetElement(newId) as View;
                 TaskDialog.Show("Sheet Manager", $"Duplicated: '{newView?.Name ?? "view"}'");
             }
+            return Result.Succeeded;
+        }
+
+        private Result DeleteSelectedView(Document doc, SheetManagerResult result)
+        {
+            var viewId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            if (viewId == null) return Result.Succeeded;
+            var view = doc.GetElement(viewId) as View;
+            if (view == null) return Result.Succeeded;
+
+            string viewName = view.Name;
+            using (var tx = new Transaction(doc, "STING Delete View"))
+            {
+                tx.Start();
+                doc.Delete(viewId);
+                tx.Commit();
+            }
+            TaskDialog.Show("Sheet Manager", $"Deleted view: '{viewName}'");
             return Result.Succeeded;
         }
 

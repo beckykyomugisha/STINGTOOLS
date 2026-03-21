@@ -447,6 +447,24 @@ namespace StingTools.UI
                     case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
                     case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
 
+                    // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
+                    case "SM_PlaceViewOnSheet":
+                    case "SM_PlaceOnNewSheet":
+                    case "SM_MoveViewportToSheet":
+                    case "SM_RemoveViewport":
+                    case "SM_CreateSheet":
+                    case "SM_CloneSheet":
+                    case "SM_ArrangeOnSheet":
+                    case "SM_AutoScaleSheet":
+                    case "SM_AutoLayoutMode":
+                    case "SM_AutoPlaceUnplaced":
+                    case "SM_DuplicateView":
+                    case "SM_DeleteView":
+                    case "SM_BatchArrange":
+                    case "SM_RenumberDisc":
+                        RunSheetManagerOp(app, tag);
+                        break;
+
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;
@@ -1543,6 +1561,99 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
+
+        // ── Sheet Manager live operation runner ──────────────────────
+
+        /// <summary>
+        /// Handles SM_* dispatch tags from the modeless SheetManagerDialog.
+        /// Reconstructs SheetManagerResult from ExtraParams and calls DispatchOperation.
+        /// Refreshes the dialog tree after each operation completes.
+        /// </summary>
+        private static void RunSheetManagerOp(UIApplication app, string tag)
+        {
+            try
+            {
+                var uidoc = app.ActiveUIDocument;
+                if (uidoc == null) return;
+                var doc = uidoc.Document;
+
+                // Strip SM_ prefix to get the operation name
+                string operation = tag.StartsWith("SM_") ? tag.Substring(3) : tag;
+
+                // Reconstruct SheetManagerResult from ExtraParams
+                var result = new SheetManagerResult
+                {
+                    Confirmed = true,
+                    Operation = operation,
+                    Options = new Dictionary<string, object>()
+                };
+
+                // Map ExtraParams back to Options dictionary with proper types
+                // ViewTag, SheetTag, SelectedTag → ElementId
+                string viewTag = GetExtraParam("SM_ViewTag");
+                if (!string.IsNullOrEmpty(viewTag) && long.TryParse(viewTag, out long vid))
+                    result.Options["ViewTag"] = new ElementId(vid);
+
+                string sheetTag = GetExtraParam("SM_SheetTag");
+                if (!string.IsNullOrEmpty(sheetTag) && long.TryParse(sheetTag, out long sid))
+                    result.Options["SheetTag"] = new ElementId(sid);
+
+                string selectedTag = GetExtraParam("SM_SelectedTag");
+                if (!string.IsNullOrEmpty(selectedTag) && long.TryParse(selectedTag, out long selId))
+                    result.Options["SelectedTag"] = new ElementId(selId);
+
+                string viewportTag = GetExtraParam("SM_ViewportTag");
+                if (!string.IsNullOrEmpty(viewportTag) && long.TryParse(viewportTag, out long vpId))
+                    result.Options["ViewportTag"] = new ElementId(vpId);
+
+                string targetSheetTag = GetExtraParam("SM_TargetSheetTag");
+                if (!string.IsNullOrEmpty(targetSheetTag) && long.TryParse(targetSheetTag, out long tsId))
+                    result.Options["TargetSheetTag"] = new ElementId(tsId);
+
+                string targetSheetNum = GetExtraParam("SM_TargetSheetNumber");
+                if (!string.IsNullOrEmpty(targetSheetNum))
+                    result.Options["TargetSheetNumber"] = targetSheetNum;
+
+                string layoutMode = GetExtraParam("SM_LayoutMode");
+                if (!string.IsNullOrEmpty(layoutMode))
+                    result.Options["LayoutMode"] = layoutMode;
+
+                // Build context for operations that need it
+                var ctx = new StingCommandContext
+                {
+                    App = app,
+                    UIDoc = uidoc,
+                    Doc = doc,
+                    ActiveView = doc.ActiveView
+                };
+
+                // Execute the operation
+                var cmd = new Docs.SheetManagerCommand();
+                cmd.DispatchOperation(doc, ctx, result);
+
+                StingLog.Info($"Sheet Manager live op '{operation}' completed.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Sheet Manager live op '{tag}' failed: {ex.Message}");
+            }
+            finally
+            {
+                // Refresh the modeless dialog tree so it reflects the changes
+                try
+                {
+                    if (SheetManagerDialog.IsOpen)
+                    {
+                        System.Windows.Application.Current?.Dispatcher?.InvokeAsync(() =>
+                        {
+                            try { SheetManagerDialog.RefreshData(); }
+                            catch (Exception ex) { StingLog.Warn($"SM refresh failed: {ex.Message}"); }
+                        });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+            }
+        }
 
         // ── Generic command runner ────────────────────────────────────
 

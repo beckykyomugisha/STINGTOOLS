@@ -21,10 +21,14 @@ namespace StingTools.UI
     }
 
     /// <summary>
-    /// Naviate/Ideate-style dual-panel WPF Sheet Manager dialog.
+    /// Naviate/Ideate-style dual-panel modeless WPF Sheet Manager dialog.
     /// Left panel: Views browser (unplaced + all views, color-coded by type).
     /// Right panel: Sheets browser (sheets grouped by discipline, with viewport children).
-    /// Operations execute in-place without closing the dialog.
+    /// Operations execute LIVE via IExternalEventHandler — no queue-then-apply.
+    /// Double-click opens/activates a view or sheet in Revit.
+    /// Drag-drop places views on sheets with immediate visual feedback.
+    /// Viewports can be dragged between sheets.
+    /// All sheet and view tools are integrated into the toolbar.
     /// </summary>
     internal static class SheetManagerDialog
     {
@@ -41,6 +45,8 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrGreen = new(Color.FromRgb(0x4C, 0xAF, 0x50));
         private static readonly SolidColorBrush BrRed = new(Color.FromRgb(0xF4, 0x43, 0x36));
         private static readonly SolidColorBrush BrBlue = new(Color.FromRgb(0x21, 0x96, 0xF3));
+        private static readonly SolidColorBrush BrDropHighlight = new(Color.FromRgb(0xC8, 0xE6, 0xC9));
+        private static readonly SolidColorBrush BrDropBorder = new(Color.FromRgb(0x4C, 0xAF, 0x50));
         // View type colours
         private static readonly SolidColorBrush BrPlan = new(Color.FromRgb(0x42, 0xA5, 0xF5));
         private static readonly SolidColorBrush BrSection = new(Color.FromRgb(0xAB, 0x47, 0xBC));
@@ -53,6 +59,7 @@ namespace StingTools.UI
         // ── State ───────────────────────────────────────────────────────
         private static Window _window;
         private static TextBlock _statusText;
+        private static TextBlock _headerStats;
         private static TreeView _viewsTree;
         private static TreeView _sheetsTree;
         private static CheckBox _hidePlacedCheck;
@@ -64,12 +71,16 @@ namespace StingTools.UI
         private static List<UnplacedViewNode> _unplacedViews;
         private static List<AllViewNode> _allViews;
 
-        // ── Operation queue (for executing without closing dialog) ──────
-        private static readonly List<SheetManagerResult> _pendingOps = new();
+        // ── Callback for live execution via IExternalEventHandler ───────
+        private static Action<string, Dictionary<string, object>> _executeCallback;
+        private static Func<List<SheetNode>> _refreshSheetsFunc;
+        private static Func<List<UnplacedViewNode>> _refreshUnplacedFunc;
+        private static Func<List<AllViewNode>> _refreshAllViewsFunc;
 
         // ── Drag state ──────────────────────────────────────────────────
         private static TreeViewItem _dragSource;
         private static Point _dragStartPoint;
+        private static TreeViewItem _lastHighlighted;
 
         /// <summary>Data model for sheet tree nodes.</summary>
         internal class SheetNode
@@ -120,8 +131,9 @@ namespace StingTools.UI
         }
 
 
+
         // ═══════════════════════════════════════════════════════════════════
-        //  MAIN ENTRY POINT
+        //  MAIN ENTRY POINT — legacy modal (for backwards compat)
         // ═══════════════════════════════════════════════════════════════════
 
         public static SheetManagerResult Show(List<SheetNode> sheets, List<UnplacedViewNode> unplacedViews)
@@ -134,22 +146,128 @@ namespace StingTools.UI
             _sheetNodes = sheets ?? new List<SheetNode>();
             _unplacedViews = unplacedViews ?? new List<UnplacedViewNode>();
             _allViews = allViews ?? BuildAllViewsFromData();
-            _pendingOps.Clear();
+            _executeCallback = null;
+            _refreshSheetsFunc = null;
+            _refreshUnplacedFunc = null;
+            _refreshAllViewsFunc = null;
             _dragSource = null;
+            _lastHighlighted = null;
 
             var result = new SheetManagerResult();
+            BuildWindow(result, modal: true);
+            bool? dialogResult = _window.ShowDialog();
+            result.Confirmed = dialogResult == true;
+            return result;
+        }
 
+        // ═══════════════════════════════════════════════════════════════════
+        //  MODELESS ENTRY POINT — floating window with live execution
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Show the Sheet Manager as a modeless floating window.
+        /// Operations execute immediately via the callback.
+        /// </summary>
+        /// <param name="sheets">Initial sheet data.</param>
+        /// <param name="unplacedViews">Initial unplaced views.</param>
+        /// <param name="allViews">Initial all-views list.</param>
+        /// <param name="executeCallback">Called to execute an operation on the Revit API thread.
+        ///   Receives (operationName, options dictionary).</param>
+        /// <param name="refreshSheets">Called to rebuild sheet data after an operation.</param>
+        /// <param name="refreshUnplaced">Called to rebuild unplaced view data.</param>
+        /// <param name="refreshAllViews">Called to rebuild all-views data.</param>
+        public static void ShowModeless(
+            List<SheetNode> sheets,
+            List<UnplacedViewNode> unplacedViews,
+            List<AllViewNode> allViews,
+            Action<string, Dictionary<string, object>> executeCallback,
+            Func<List<SheetNode>> refreshSheets = null,
+            Func<List<UnplacedViewNode>> refreshUnplaced = null,
+            Func<List<AllViewNode>> refreshAllViews = null)
+        {
+            // If already open, bring to front
+            if (_window != null && _window.IsVisible)
+            {
+                _window.Activate();
+                return;
+            }
+
+            _sheetNodes = sheets ?? new List<SheetNode>();
+            _unplacedViews = unplacedViews ?? new List<UnplacedViewNode>();
+            _allViews = allViews ?? BuildAllViewsFromData();
+            _executeCallback = executeCallback;
+            _refreshSheetsFunc = refreshSheets;
+            _refreshUnplacedFunc = refreshUnplaced;
+            _refreshAllViewsFunc = refreshAllViews;
+            _dragSource = null;
+            _lastHighlighted = null;
+
+            BuildWindow(null, modal: false);
+            _window.Show();
+        }
+
+        /// <summary>Refresh all data and rebuild trees (called after operations).</summary>
+        public static void RefreshData()
+        {
+            if (_window == null || !_window.IsVisible) return;
+            try
+            {
+                if (_refreshSheetsFunc != null) _sheetNodes = _refreshSheetsFunc();
+                if (_refreshUnplacedFunc != null) _unplacedViews = _refreshUnplacedFunc();
+                if (_refreshAllViewsFunc != null) _allViews = _refreshAllViewsFunc();
+                else _allViews = BuildAllViewsFromData();
+
+                RebuildViewsTree();
+                RebuildSheetsTree();
+                UpdateHeaderStats();
+                UpdateStatus("Ready — data refreshed.");
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetManager RefreshData: {ex.Message}"); }
+        }
+
+        /// <summary>Close the sheet manager if open.</summary>
+        public static void CloseIfOpen()
+        {
+            if (_window != null && _window.IsVisible)
+            {
+                try { _window.Close(); } catch (Exception) { }
+            }
+            _window = null;
+        }
+
+        /// <summary>True if the modeless window is open.</summary>
+        public static bool IsOpen => _window != null && _window.IsVisible;
+
+        private static bool IsModeless => _executeCallback != null;
+
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  WINDOW BUILDER
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void BuildWindow(SheetManagerResult modalResult, bool modal)
+        {
             _window = new Window
             {
                 Title = "STING Sheet Manager",
-                Width = 1100,
-                Height = 700,
-                MinWidth = 800,
-                MinHeight = 520,
+                Width = 1200,
+                Height = 750,
+                MinWidth = 900,
+                MinHeight = 550,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = BrBgLight,
                 ResizeMode = ResizeMode.CanResizeWithGrip,
+                Topmost = !modal, // float above Revit when modeless
+                ShowInTaskbar = !modal,
             };
+
+            if (!modal)
+            {
+                // Allow user to toggle topmost
+                _window.Deactivated += (s, e) => { if (_window != null) _window.Topmost = false; };
+                _window.Activated += (s, e) => { /* user can re-pin via title bar */ };
+            }
 
             try
             {
@@ -165,16 +283,21 @@ namespace StingTools.UI
             DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
+            // ── Tools ribbon ────────────────────────────────────────────
+            var toolsBar = CreateToolsRibbon();
+            DockPanel.SetDock(toolsBar, Dock.Top);
+            root.Children.Add(toolsBar);
+
             // ── Bottom action bar ───────────────────────────────────────
-            var bottomBar = CreateBottomBar(result);
+            var bottomBar = CreateBottomBar(modalResult);
             DockPanel.SetDock(bottomBar, Dock.Bottom);
             root.Children.Add(bottomBar);
 
             // ── Main content: Views (left) | Splitter | Sheets (right) ─
             var mainGrid = new Grid();
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 300 });
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
-            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star), MinWidth = 350 });
 
             var leftPanel = CreateViewsPanel();
             Grid.SetColumn(leftPanel, 0);
@@ -194,21 +317,6 @@ namespace StingTools.UI
 
             root.Children.Add(mainGrid);
             _window.Content = root;
-
-            bool? dialogResult = _window.ShowDialog();
-            result.Confirmed = dialogResult == true;
-
-            // If there are pending operations queued, return the last one
-            if (_pendingOps.Count > 0)
-            {
-                var last = _pendingOps[_pendingOps.Count - 1];
-                result.Confirmed = true;
-                result.Operation = last.Operation;
-                foreach (var kv in last.Options)
-                    result.Options[kv.Key] = kv.Value;
-            }
-
-            return result;
         }
 
         /// <summary>Build AllViewNode list from unplaced + sheet viewport data when caller doesn't provide it.</summary>
@@ -239,6 +347,7 @@ namespace StingTools.UI
         }
 
 
+
         // ═══════════════════════════════════════════════════════════════════
         //  HEADER BAR
         // ═══════════════════════════════════════════════════════════════════
@@ -257,15 +366,132 @@ namespace StingTools.UI
                 FontSize = 16, FontWeight = FontWeights.Bold,
                 Foreground = BrAccent, VerticalAlignment = VerticalAlignment.Center
             });
-            stack.Children.Add(new TextBlock
+            _headerStats = new TextBlock
             {
-                Text = $"  |  {_sheetNodes.Count} sheets  •  {_unplacedViews.Count} unplaced  •  {_allViews.Count} total views",
+                Text = $"  |  {_sheetNodes.Count} sheets  \u2022  {_unplacedViews.Count} unplaced  \u2022  {_allViews.Count} total views",
                 FontSize = 12, Foreground = BrFgWhite,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0)
-            });
+            };
+            stack.Children.Add(_headerStats);
+
+            if (IsModeless)
+            {
+                var refreshBtn = CreateSmallButton("\u21BB Refresh", BrAccent);
+                refreshBtn.Margin = new Thickness(16, 0, 0, 0);
+                refreshBtn.Foreground = BrFgWhite;
+                refreshBtn.Click += (s, e) => RefreshData();
+                stack.Children.Add(refreshBtn);
+            }
+
             border.Child = stack;
             return border;
         }
+
+        private static void UpdateHeaderStats()
+        {
+            if (_headerStats != null)
+                _headerStats.Text = $"  |  {_sheetNodes.Count} sheets  \u2022  {_unplacedViews.Count} unplaced  \u2022  {_allViews.Count} total views";
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  TOOLS RIBBON — integrated sheet & view commands
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static Border CreateToolsRibbon()
+        {
+            var border = new Border
+            {
+                Background = BrBgWhite,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+
+            var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+
+            // ── Sheet Tools ──
+            wrap.Children.Add(MakeRibbonLabel("SHEETS:"));
+            wrap.Children.Add(MakeToolBtn("+ New Sheet", "CreateSheet", BrGreen));
+            wrap.Children.Add(MakeToolBtn("Clone", "CloneSheet", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Place Unplaced", "AutoPlaceUnplaced", BrGreen));
+            wrap.Children.Add(MakeToolBtn("Batch Clone", "BatchCloneSheets", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Renumber", "BatchRenumberSheets", BrAccent));
+            wrap.Children.Add(MakeToolBtn("From Template", "CreateFromTemplate", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Save Template", "SaveSheetTemplate", BrFgSubtle));
+
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── Layout Tools ──
+            wrap.Children.Add(MakeRibbonLabel("LAYOUT:"));
+            wrap.Children.Add(MakeToolBtn("Auto Layout", "AutoLayout", BrAccent));
+            wrap.Children.Add(MakeToolBtn("MaxRects", "MaxRectsLayout", BrAccent));
+            wrap.Children.Add(MakeToolBtn("Grid Align", "GridAlignViewports", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Align Edges", "AlignViewportEdges", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Distribute", "DistributeViewports", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Batch Arrange", "BatchArrange", BrAccent));
+            wrap.Children.Add(MakeToolBtn("Save Preset", "SaveLayoutPreset", BrFgSubtle));
+            wrap.Children.Add(MakeToolBtn("Apply Preset", "ApplyLayoutPreset", BrBlue));
+
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── View Tools ──
+            wrap.Children.Add(MakeRibbonLabel("VIEWS:"));
+            wrap.Children.Add(MakeToolBtn("Duplicate", "DuplicateView", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Batch Rename", "BatchRenameViews", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Copy Settings", "CopyViewSettings", BrBlue));
+            wrap.Children.Add(MakeToolBtn("Crop to Content", "CropToContent", BrAccent));
+            wrap.Children.Add(MakeToolBtn("Auto VP Types", "AutoAssignVPTypes", BrAccent));
+
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── QA/Export Tools ──
+            wrap.Children.Add(MakeRibbonLabel("QA:"));
+            wrap.Children.Add(MakeToolBtn("Audit", "SheetAudit", BrBlue));
+            wrap.Children.Add(MakeToolBtn("ISO Check", "SheetComplianceCheck", BrGreen));
+            wrap.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle));
+            wrap.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle));
+            wrap.Children.Add(MakeToolBtn("Batch PDF", "BatchPrintSheets", BrRed));
+
+            border.Child = wrap;
+            return border;
+        }
+
+        private static TextBlock MakeRibbonLabel(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = BrFgSubtle, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 4, 0)
+            };
+        }
+
+        private static Border MakeRibbonSep()
+        {
+            return new Border
+            {
+                Width = 1, Background = BrBorder, Margin = new Thickness(6, 2, 6, 2),
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+        }
+
+        private static Button MakeToolBtn(string label, string cmdTag, SolidColorBrush fg)
+        {
+            var btn = new Button
+            {
+                Content = label, FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(1), Background = BrBgLight,
+                Foreground = fg, BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand, ToolTip = cmdTag
+            };
+            btn.MouseEnter += (s, e) => btn.Background = BrHover;
+            btn.MouseLeave += (s, e) => btn.Background = BrBgLight;
+            string tag = cmdTag;
+            btn.Click += (s, e) => ExecuteOp(tag);
+            return btn;
+        }
+
 
 
         // ═══════════════════════════════════════════════════════════════════
@@ -341,12 +567,17 @@ namespace StingTools.UI
 
             // View action buttons
             var btnRow = new WrapPanel { Margin = new Thickness(8, 2, 8, 4) };
-            var btnPlace = CreateSmallButton("Place on Sheet ►", BrGreen);
+            var btnPlace = CreateSmallButton("Place on Sheet \u25B6", BrGreen);
             btnPlace.Click += (s, e) => PlaceSelectedViewOnSheet();
             btnRow.Children.Add(btnPlace);
 
             var btnPlaceNew = CreateSmallButton("+ Place on New Sheet", BrBlue);
-            btnPlaceNew.Click += (s, e) => QueueOp("PlaceOnNewSheet", "SelectedTag", GetSelectedViewTag());
+            btnPlaceNew.Click += (s, e) =>
+            {
+                var vt = GetSelectedViewTag();
+                if (vt == null) { UpdateStatus("Select a view first."); return; }
+                ExecuteOp("PlaceOnNewSheet", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
             btnRow.Children.Add(btnPlaceNew);
 
             DockPanel.SetDock(btnRow, Dock.Top);
@@ -360,6 +591,7 @@ namespace StingTools.UI
             };
             _viewsTree.PreviewMouseLeftButtonDown += ViewsTree_PreviewMouseLeftButtonDown;
             _viewsTree.MouseMove += ViewsTree_MouseMove;
+            _viewsTree.PreviewMouseDoubleClick += ViewsTree_DoubleClick;
             BuildViewsTreeContent();
 
             _viewsTree.ContextMenu = CreateViewsContextMenu();
@@ -404,6 +636,7 @@ namespace StingTools.UI
             if (_viewsTree == null) return;
             BuildViewsTreeContent();
         }
+
 
 
         // ═══════════════════════════════════════════════════════════════════
@@ -462,27 +695,33 @@ namespace StingTools.UI
             var btnRow = new WrapPanel { Margin = new Thickness(8, 2, 8, 4) };
 
             var btnNewSheet = CreateSmallButton("+ New Sheet", BrGreen);
-            btnNewSheet.Click += (s, e) => QueueOp("CreateSheet");
+            btnNewSheet.Click += (s, e) => ExecuteOp("CreateSheet");
             btnRow.Children.Add(btnNewSheet);
 
             var btnClone = CreateSmallButton("Clone Sheet", BrBlue);
             btnClone.Click += (s, e) =>
             {
                 var sel = GetSelectedSheetTag();
-                if (sel != null) QueueOp("CloneSheet", "SelectedTag", sel);
-                else UpdateStatus("Select a sheet to clone.");
+                if (sel != null)
+                    ExecuteOp("CloneSheet", new Dictionary<string, object> { { "SelectedTag", sel } });
+                else
+                    UpdateStatus("Select a sheet to clone.");
             };
             btnRow.Children.Add(btnClone);
 
             // Auto Layout dropdown
-            var btnLayout = CreateSmallButton("Auto Layout ▼", BrAccent);
+            var btnLayout = CreateSmallButton("Auto Layout \u25BC", BrAccent);
             btnLayout.Click += (s, e) => ShowAutoLayoutMenu(btnLayout);
             btnRow.Children.Add(btnLayout);
+
+            var btnPlaceUnplaced = CreateSmallButton("Place Unplaced", BrGreen);
+            btnPlaceUnplaced.Click += (s, e) => ExecuteOp("AutoPlaceUnplaced");
+            btnRow.Children.Add(btnPlaceUnplaced);
 
             DockPanel.SetDock(btnRow, Dock.Top);
             dock.Children.Add(btnRow);
 
-            // TreeView — drop target for views
+            // TreeView — drop target for views AND viewports
             _sheetsTree = new TreeView
             {
                 Margin = new Thickness(4), BorderThickness = new Thickness(0),
@@ -490,6 +729,10 @@ namespace StingTools.UI
             };
             _sheetsTree.Drop += SheetsTree_Drop;
             _sheetsTree.DragOver += SheetsTree_DragOver;
+            _sheetsTree.DragLeave += SheetsTree_DragLeave;
+            _sheetsTree.PreviewMouseLeftButtonDown += SheetsTree_PreviewMouseLeftButtonDown;
+            _sheetsTree.MouseMove += SheetsTree_MouseMove;
+            _sheetsTree.PreviewMouseDoubleClick += SheetsTree_DoubleClick;
             BuildSheetsTreeContent();
 
             _sheetsTree.ContextMenu = CreateSheetsContextMenu();
@@ -561,10 +804,9 @@ namespace StingTools.UI
                 mi.Click += (s, e) =>
                 {
                     var sel = GetSelectedSheetTag();
-                    var op = new SheetManagerResult { Operation = "AutoLayoutMode" };
-                    op.Options["LayoutMode"] = m;
-                    if (sel != null) op.Options["SelectedTag"] = sel;
-                    QueueOpResult(op);
+                    var opts = new Dictionary<string, object> { { "LayoutMode", m } };
+                    if (sel != null) opts["SelectedTag"] = sel;
+                    ExecuteOp("AutoLayoutMode", opts);
                 };
                 menu.Items.Add(mi);
             }
@@ -575,8 +817,67 @@ namespace StingTools.UI
         }
 
 
+
         // ═══════════════════════════════════════════════════════════════════
-        //  DRAG & DROP — Views → Sheets
+        //  DOUBLE-CLICK — Open/Activate view or sheet in Revit
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void ViewsTree_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var item = GetTreeViewItemUnderMouse(_viewsTree, e);
+            if (item == null) return;
+
+            object viewId = null;
+            string viewName = "";
+
+            if (item.Tag is AllViewNode av)
+            {
+                viewId = av.Tag;
+                viewName = av.ViewName;
+            }
+            else if (item.Tag is UnplacedViewNode uv)
+            {
+                viewId = uv.Tag;
+                viewName = uv.ViewName;
+            }
+
+            if (viewId == null) return;
+
+            e.Handled = true;
+            UpdateStatus($"Opening: {viewName}...");
+            ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", viewId } });
+        }
+
+        private static void SheetsTree_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var item = GetTreeViewItemUnderMouse(_sheetsTree, e);
+            if (item == null) return;
+
+            object viewId = null;
+            string name = "";
+
+            if (item.Tag is SheetNode sn)
+            {
+                viewId = sn.Tag;
+                name = $"{sn.SheetNumber} - {sn.SheetName}";
+            }
+            else if (item.Tag is ViewportNode vn)
+            {
+                // Double-click viewport → open the underlying view
+                viewId = vn.ViewTag ?? vn.Tag;
+                name = vn.ViewName;
+            }
+
+            if (viewId == null) return;
+
+            e.Handled = true;
+            UpdateStatus($"Opening: {name}...");
+            ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", viewId } });
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  DRAG & DROP — Views → Sheets (with visual feedback)
         // ═══════════════════════════════════════════════════════════════════
 
         private static void ViewsTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -589,7 +890,6 @@ namespace StingTools.UI
         {
             if (e.LeftButton != MouseButtonState.Pressed || _dragSource == null) return;
 
-            // Only start drag if mouse moved enough
             var pos = e.GetPosition(_viewsTree);
             if (Math.Abs(pos.X - _dragStartPoint.X) < 5 && Math.Abs(pos.Y - _dragStartPoint.Y) < 5)
                 return;
@@ -614,44 +914,100 @@ namespace StingTools.UI
                 return;
             }
 
-            UpdateStatus($"Dragging: {name} — drop on a sheet to place");
+            UpdateStatus($"\u2195 Dragging: {name} \u2014 drop on a sheet to place");
             DragDrop.DoDragDrop(_viewsTree, dragData, DragDropEffects.Copy);
+            ClearDropHighlight();
             _dragSource = null;
         }
+
+        // ── Drag from sheets tree (viewport cross-sheet move) ───────────
+
+        private static void SheetsTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var item = GetTreeViewItemUnderMouse(_sheetsTree, e);
+            if (item?.Tag is ViewportNode)
+            {
+                _dragSource = item;
+                _dragStartPoint = e.GetPosition(_sheetsTree);
+            }
+        }
+
+        private static void SheetsTree_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _dragSource == null) return;
+            if (!(_dragSource.Tag is ViewportNode vn)) return;
+
+            var pos = e.GetPosition(_sheetsTree);
+            if (Math.Abs(pos.X - _dragStartPoint.X) < 5 && Math.Abs(pos.Y - _dragStartPoint.Y) < 5)
+                return;
+
+            UpdateStatus($"\u2195 Moving: {vn.ViewName} \u2014 drop on another sheet");
+            DragDrop.DoDragDrop(_sheetsTree, vn, DragDropEffects.Move);
+            ClearDropHighlight();
+            _dragSource = null;
+        }
+
+        // ── Drop target handling ─────────────────────────────────────────
 
         private static void SheetsTree_DragOver(object sender, DragEventArgs e)
         {
             e.Effects = DragDropEffects.None;
+            ClearDropHighlight();
+
             var target = GetTreeViewItemUnderDragEvent(_sheetsTree, e);
-            // Allow drop on sheet nodes
-            if (target?.Tag is SheetNode)
-                e.Effects = DragDropEffects.Copy;
-            // Allow drop on viewport (means parent sheet)
-            else if (target?.Tag is ViewportNode)
-                e.Effects = DragDropEffects.Copy;
+            SheetNode targetSheet = ResolveSheetFromItem(target);
+
+            if (targetSheet != null)
+            {
+                // Highlight the target sheet node
+                if (target != null)
+                {
+                    var sheetItem = FindSheetItem(target);
+                    if (sheetItem != null)
+                    {
+                        sheetItem.Background = BrDropHighlight;
+                        sheetItem.BorderBrush = BrDropBorder;
+                        sheetItem.BorderThickness = new Thickness(2);
+                        _lastHighlighted = sheetItem;
+                    }
+                }
+
+                // Accept views or viewport moves
+                if (e.Data.GetDataPresent(typeof(AllViewNode))
+                    || e.Data.GetDataPresent(typeof(UnplacedViewNode)))
+                {
+                    e.Effects = DragDropEffects.Copy;
+                }
+                else if (e.Data.GetDataPresent(typeof(ViewportNode)))
+                {
+                    // Don't allow dropping on same sheet
+                    var vn = e.Data.GetData(typeof(ViewportNode)) as ViewportNode;
+                    if (vn != null && vn.HostSheetNumber != targetSheet.SheetNumber)
+                        e.Effects = DragDropEffects.Move;
+                }
+            }
             e.Handled = true;
+        }
+
+        private static void SheetsTree_DragLeave(object sender, DragEventArgs e)
+        {
+            ClearDropHighlight();
         }
 
         private static void SheetsTree_Drop(object sender, DragEventArgs e)
         {
-            var target = GetTreeViewItemUnderDragEvent(_sheetsTree, e);
-            SheetNode targetSheet = null;
+            ClearDropHighlight();
 
-            if (target?.Tag is SheetNode sn)
-                targetSheet = sn;
-            else if (target?.Tag is ViewportNode)
-            {
-                var parent = target.Parent as TreeViewItem;
-                targetSheet = parent?.Tag as SheetNode;
-            }
+            var target = GetTreeViewItemUnderDragEvent(_sheetsTree, e);
+            SheetNode targetSheet = ResolveSheetFromItem(target);
 
             if (targetSheet == null)
             {
-                UpdateStatus("Drop cancelled — target is not a sheet.");
+                UpdateStatus("Drop cancelled \u2014 target is not a sheet.");
                 return;
             }
 
-            // Get dragged view
+            // ── Drop: View → Sheet (place view) ─────────────────────────
             object viewTag = null;
             string viewName = "";
 
@@ -668,24 +1024,77 @@ namespace StingTools.UI
                 viewName = uv.ViewName;
             }
 
-            if (viewTag == null) return;
+            if (viewTag != null)
+            {
+                UpdateStatus($"\u2713 Placing '{viewName}' on sheet '{targetSheet.SheetNumber}'...");
+                ExecuteOp("PlaceViewOnSheet", new Dictionary<string, object>
+                {
+                    { "ViewTag", viewTag },
+                    { "SheetTag", targetSheet.Tag },
+                    { "ViewName", viewName },
+                    { "SheetNumber", targetSheet.SheetNumber }
+                });
+                return;
+            }
 
-            var op = new SheetManagerResult { Operation = "PlaceViewOnSheet" };
-            op.Options["ViewTag"] = viewTag;
-            op.Options["SheetTag"] = targetSheet.Tag;
-            op.Options["ViewName"] = viewName;
-            op.Options["SheetNumber"] = targetSheet.SheetNumber;
+            // ── Drop: Viewport → Sheet (move viewport between sheets) ───
+            if (e.Data.GetDataPresent(typeof(ViewportNode)))
+            {
+                var vn = (ViewportNode)e.Data.GetData(typeof(ViewportNode));
+                if (vn.HostSheetNumber == targetSheet.SheetNumber)
+                {
+                    UpdateStatus("Cannot move viewport to the same sheet.");
+                    return;
+                }
 
-            QueueOpResult(op);
-            UpdateStatus($"Queued: place '{viewName}' on '{targetSheet.SheetNumber}' — will execute on Close.");
+                UpdateStatus($"\u2713 Moving '{vn.ViewName}' to sheet '{targetSheet.SheetNumber}'...");
+                ExecuteOp("MoveViewportToSheet", new Dictionary<string, object>
+                {
+                    { "ViewportTag", vn.Tag },
+                    { "TargetSheetTag", targetSheet.Tag },
+                    { "ViewportName", vn.ViewName },
+                    { "TargetSheetNumber", targetSheet.SheetNumber }
+                });
+            }
         }
+
+        private static SheetNode ResolveSheetFromItem(TreeViewItem item)
+        {
+            if (item == null) return null;
+            if (item.Tag is SheetNode sn) return sn;
+            if (item.Tag is ViewportNode)
+            {
+                var parent = item.Parent as TreeViewItem;
+                return parent?.Tag as SheetNode;
+            }
+            return null;
+        }
+
+        private static TreeViewItem FindSheetItem(TreeViewItem item)
+        {
+            if (item?.Tag is SheetNode) return item;
+            if (item?.Tag is ViewportNode)
+                return item.Parent as TreeViewItem;
+            return null;
+        }
+
+        private static void ClearDropHighlight()
+        {
+            if (_lastHighlighted != null)
+            {
+                _lastHighlighted.Background = Brushes.Transparent;
+                _lastHighlighted.BorderBrush = Brushes.Transparent;
+                _lastHighlighted.BorderThickness = new Thickness(0);
+                _lastHighlighted = null;
+            }
+        }
+
 
 
         // ═══════════════════════════════════════════════════════════════════
         //  PLACE VIEW — sheet picker from views panel
         // ═══════════════════════════════════════════════════════════════════
 
-        /// <summary>Show sheet picker to place selected view on a sheet.</summary>
         private static void PlaceSelectedViewOnSheet()
         {
             var viewTag = GetSelectedViewTag();
@@ -695,13 +1104,11 @@ namespace StingTools.UI
                 return;
             }
 
-            // Get view name
             string viewName = "";
             var sel = _viewsTree?.SelectedItem as TreeViewItem;
             if (sel?.Tag is AllViewNode av) viewName = av.ViewName;
             else if (sel?.Tag is UnplacedViewNode uv) viewName = uv.ViewName;
 
-            // Build sheet list for picker
             var sheetItems = _sheetNodes
                 .OrderBy(s => s.SheetNumber)
                 .Select(s => $"{s.SheetNumber} - {s.SheetName}")
@@ -721,14 +1128,14 @@ namespace StingTools.UI
             var targetSheet = _sheetNodes.FirstOrDefault(s => s.SheetNumber == targetNum);
             if (targetSheet == null) return;
 
-            var op = new SheetManagerResult { Operation = "PlaceViewOnSheet" };
-            op.Options["ViewTag"] = viewTag;
-            op.Options["SheetTag"] = targetSheet.Tag;
-            op.Options["ViewName"] = viewName;
-            op.Options["SheetNumber"] = targetSheet.SheetNumber;
-
-            QueueOpResult(op);
-            UpdateStatus($"Queued: place '{viewName}' on '{targetSheet.SheetNumber}'.");
+            UpdateStatus($"\u2713 Placing '{viewName}' on '{targetSheet.SheetNumber}'...");
+            ExecuteOp("PlaceViewOnSheet", new Dictionary<string, object>
+            {
+                { "ViewTag", viewTag },
+                { "SheetTag", targetSheet.Tag },
+                { "ViewName", viewName },
+                { "SheetNumber", targetSheet.SheetNumber }
+            });
         }
 
 
@@ -740,27 +1147,54 @@ namespace StingTools.UI
         {
             var menu = new ContextMenu();
 
+            var miOpen = new MenuItem { Header = "Open View", FontWeight = FontWeights.Bold };
+            miOpen.Click += (s, e) =>
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", vt } });
+            };
+            menu.Items.Add(miOpen);
+
+            menu.Items.Add(new Separator());
+
             var miPlace = new MenuItem { Header = "Place on Sheet..." };
             miPlace.Click += (s, e) => PlaceSelectedViewOnSheet();
             menu.Items.Add(miPlace);
 
             var miPlaceNew = new MenuItem { Header = "Place on New Sheet" };
             miPlaceNew.Click += (s, e) =>
-                QueueOp("PlaceOnNewSheet", "SelectedTag", GetSelectedViewTag());
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("PlaceOnNewSheet", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
             menu.Items.Add(miPlaceNew);
 
             menu.Items.Add(new Separator());
 
             var miDup = new MenuItem { Header = "Duplicate View" };
             miDup.Click += (s, e) =>
-                QueueOp("DuplicateView", "SelectedTag", GetSelectedViewTag());
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("DuplicateView", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
             menu.Items.Add(miDup);
+
+            var miCrop = new MenuItem { Header = "Crop to Content" };
+            miCrop.Click += (s, e) => ExecuteOp("CropToContent");
+            menu.Items.Add(miCrop);
+
+            var miRename = new MenuItem { Header = "Batch Rename Views..." };
+            miRename.Click += (s, e) => ExecuteOp("BatchRenameViews");
+            menu.Items.Add(miRename);
 
             menu.Items.Add(new Separator());
 
             var miDelete = new MenuItem { Header = "Delete View", Foreground = BrRed };
             miDelete.Click += (s, e) =>
-                QueueOp("DeleteView", "SelectedTag", GetSelectedViewTag());
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("DeleteView", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
             menu.Items.Add(miDelete);
 
             return menu;
@@ -770,16 +1204,35 @@ namespace StingTools.UI
         {
             var menu = new ContextMenu();
 
+            var miOpen = new MenuItem { Header = "Open Sheet", FontWeight = FontWeights.Bold };
+            miOpen.Click += (s, e) =>
+            {
+                var st = GetSelectedSheetTag();
+                if (st != null) ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", st } });
+                else
+                {
+                    // If viewport selected, open its view
+                    var vp = GetSelectedViewportViewTag();
+                    if (vp != null) ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", vp } });
+                }
+            };
+            menu.Items.Add(miOpen);
+
+            menu.Items.Add(new Separator());
+
             var miClone = new MenuItem { Header = "Clone Sheet" };
             miClone.Click += (s, e) =>
-                QueueOp("CloneSheet", "SelectedTag", GetSelectedSheetTag());
+            {
+                var st = GetSelectedSheetTag();
+                if (st != null) ExecuteOp("CloneSheet", new Dictionary<string, object> { { "SelectedTag", st } });
+            };
             menu.Items.Add(miClone);
 
             var miArrange = new MenuItem { Header = "Arrange Viewports" };
             miArrange.Click += (s, e) =>
             {
                 var sel = GetSelectedSheetTag();
-                if (sel != null) { var op = new SheetManagerResult { Operation = "ArrangeOnSheet" }; op.Options["SelectedTag"] = sel; QueueOpResult(op); }
+                if (sel != null) ExecuteOp("ArrangeOnSheet", new Dictionary<string, object> { { "SelectedTag", sel } });
             };
             menu.Items.Add(miArrange);
 
@@ -787,26 +1240,45 @@ namespace StingTools.UI
             miScale.Click += (s, e) =>
             {
                 var sel = GetSelectedSheetTag();
-                if (sel != null) { var op = new SheetManagerResult { Operation = "AutoScaleSheet" }; op.Options["SelectedTag"] = sel; QueueOpResult(op); }
+                if (sel != null) ExecuteOp("AutoScaleSheet", new Dictionary<string, object> { { "SelectedTag", sel } });
             };
             menu.Items.Add(miScale);
+
+            var miGridAlign = new MenuItem { Header = "Grid Align Viewports" };
+            miGridAlign.Click += (s, e) => ExecuteOp("GridAlignViewports");
+            menu.Items.Add(miGridAlign);
+
+            var miAlignEdges = new MenuItem { Header = "Align Viewport Edges" };
+            miAlignEdges.Click += (s, e) => ExecuteOp("AlignViewportEdges");
+            menu.Items.Add(miAlignEdges);
+
+            var miDistribute = new MenuItem { Header = "Distribute Viewports" };
+            miDistribute.Click += (s, e) => ExecuteOp("DistributeViewports");
+            menu.Items.Add(miDistribute);
 
             menu.Items.Add(new Separator());
 
             var miRenumber = new MenuItem { Header = "Renumber Sheets..." };
-            miRenumber.Click += (s, e) => QueueOp("RenumberDisc");
+            miRenumber.Click += (s, e) => ExecuteOp("BatchRenumberSheets");
             menu.Items.Add(miRenumber);
+
+            var miISO = new MenuItem { Header = "ISO 19650 Compliance Check" };
+            miISO.Click += (s, e) => ExecuteOp("SheetComplianceCheck");
+            menu.Items.Add(miISO);
 
             menu.Items.Add(new Separator());
 
             // Viewport-level actions
-            var miMoveVp = new MenuItem { Header = "Move Viewport to Sheet ►" };
+            var miMoveVp = new MenuItem { Header = "Move Viewport to Sheet \u25B6" };
             miMoveVp.Click += (s, e) => ShowMoveViewportPicker();
             menu.Items.Add(miMoveVp);
 
             var miRemoveVp = new MenuItem { Header = "Remove Viewport from Sheet", Foreground = BrRed };
             miRemoveVp.Click += (s, e) =>
-                QueueOp("RemoveViewport", "SelectedTag", GetSelectedViewportTag());
+            {
+                var vpTag = GetSelectedViewportTag();
+                if (vpTag != null) ExecuteOp("RemoveViewport", new Dictionary<string, object> { { "SelectedTag", vpTag } });
+            };
             menu.Items.Add(miRemoveVp);
 
             return menu;
@@ -822,7 +1294,6 @@ namespace StingTools.UI
                 return;
             }
 
-            // Get viewport info
             string vpName = "";
             string currentSheet = "";
             var sel = _sheetsTree?.SelectedItem as TreeViewItem;
@@ -832,7 +1303,6 @@ namespace StingTools.UI
                 currentSheet = vn.HostSheetNumber;
             }
 
-            // Build destination sheet list (exclude current sheet)
             var sheetItems = _sheetNodes
                 .Where(s => s.SheetNumber != currentSheet)
                 .OrderBy(s => s.SheetNumber)
@@ -853,15 +1323,16 @@ namespace StingTools.UI
             var targetSheet = _sheetNodes.FirstOrDefault(s => s.SheetNumber == targetNum);
             if (targetSheet == null) return;
 
-            var op = new SheetManagerResult { Operation = "MoveViewportToSheet" };
-            op.Options["ViewportTag"] = vpTag;
-            op.Options["TargetSheetTag"] = targetSheet.Tag;
-            op.Options["ViewportName"] = vpName;
-            op.Options["TargetSheetNumber"] = targetSheet.SheetNumber;
-
-            QueueOpResult(op);
-            UpdateStatus($"Queued: move '{vpName}' to '{targetSheet.SheetNumber}'.");
+            UpdateStatus($"\u2713 Moving '{vpName}' to '{targetSheet.SheetNumber}'...");
+            ExecuteOp("MoveViewportToSheet", new Dictionary<string, object>
+            {
+                { "ViewportTag", vpTag },
+                { "TargetSheetTag", targetSheet.Tag },
+                { "ViewportName", vpName },
+                { "TargetSheetNumber", targetSheet.SheetNumber }
+            });
         }
+
 
 
         // ═══════════════════════════════════════════════════════════════════
@@ -884,41 +1355,53 @@ namespace StingTools.UI
 
             _statusText = new TextBlock
             {
-                Text = "Drag views to sheets. Right-click for actions. Operations queue until Apply.",
+                Text = IsModeless
+                    ? "Double-click to open. Drag views to sheets. Right-click for actions."
+                    : "Drag views to sheets. Right-click for actions. Operations queue until Apply.",
                 FontSize = 11, Foreground = BrFgSubtle,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap, MaxWidth = 450
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 550
             };
             Grid.SetColumn(_statusText, 0);
             grid.Children.Add(_statusText);
 
             var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
 
-            var btnBatchPlace = CreateButton("Place All Unplaced", BrGreen, BrFgWhite);
-            btnBatchPlace.Click += (s, e) => QueueOp("AutoPlaceUnplaced");
-            btnStack.Children.Add(btnBatchPlace);
-
-            var btnAudit = CreateButton("Audit", BrBlue, BrFgWhite);
-            btnAudit.Click += (s, e) => QueueOp("SheetAudit");
-            btnStack.Children.Add(btnAudit);
-
-            var btnApply = CreateButton("Apply && Close", BrAccent, BrFgWhite);
-            btnApply.Click += (s, e) =>
+            if (IsModeless)
             {
-                if (_pendingOps.Count == 0)
-                    UpdateStatus("No operations queued.");
-                else
-                    _window.DialogResult = true;
-            };
-            btnStack.Children.Add(btnApply);
+                var btnRefresh = CreateButton("\u21BB Refresh", BrBlue, BrFgWhite);
+                btnRefresh.Click += (s, e) => RefreshData();
+                btnStack.Children.Add(btnRefresh);
 
-            var btnClose = CreateButton("Close", BrBorder, BrFgDark);
-            btnClose.Click += (s, e) =>
+                var btnClose = CreateButton("Close", BrBorder, BrFgDark);
+                btnClose.Click += (s, e) => _window.Close();
+                btnStack.Children.Add(btnClose);
+            }
+            else
             {
-                _pendingOps.Clear();
-                _window.DialogResult = false;
-            };
-            btnStack.Children.Add(btnClose);
+                // Legacy modal mode — keep Apply & Close pattern
+                var btnBatchPlace = CreateButton("Place All Unplaced", BrGreen, BrFgWhite);
+                btnBatchPlace.Click += (s, e) => ExecuteOp("AutoPlaceUnplaced");
+                btnStack.Children.Add(btnBatchPlace);
+
+                var btnAudit = CreateButton("Audit", BrBlue, BrFgWhite);
+                btnAudit.Click += (s, e) => ExecuteOp("SheetAudit");
+                btnStack.Children.Add(btnAudit);
+
+                var btnApply = CreateButton("Apply && Close", BrAccent, BrFgWhite);
+                btnApply.Click += (s, e) =>
+                {
+                    if (finalResult != null) _window.DialogResult = true;
+                };
+                btnStack.Children.Add(btnApply);
+
+                var btnClose = CreateButton("Close", BrBorder, BrFgDark);
+                btnClose.Click += (s, e) =>
+                {
+                    if (finalResult != null) _window.DialogResult = false;
+                };
+                btnStack.Children.Add(btnClose);
+            }
 
             Grid.SetColumn(btnStack, 1);
             grid.Children.Add(btnStack);
@@ -926,6 +1409,42 @@ namespace StingTools.UI
             border.Child = grid;
             return border;
         }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  EXECUTE OPERATION — live or queued
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>Execute an operation immediately (modeless) or dispatch via dockable panel.</summary>
+        private static void ExecuteOp(string operation, Dictionary<string, object> options = null)
+        {
+            if (string.IsNullOrEmpty(operation)) return;
+            options ??= new Dictionary<string, object>();
+
+            if (IsModeless)
+            {
+                // Live execution via callback
+                try
+                {
+                    _executeCallback?.Invoke(operation, options);
+                    UpdateStatus($"\u2713 {operation} executed.");
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatus($"\u2717 {operation} failed: {ex.Message}");
+                    StingLog.Warn($"SheetManager ExecuteOp: {ex.Message}");
+                }
+            }
+            else
+            {
+                // Dispatch via StingDockPanel's external event
+                if (StingDockPanel.DispatchCommand(operation))
+                    UpdateStatus($"Running: {operation}...");
+                else
+                    UpdateStatus($"Cannot run {operation} \u2014 Revit may be busy.");
+            }
+        }
+
 
 
         // ═══════════════════════════════════════════════════════════════════
@@ -984,7 +1503,10 @@ namespace StingTools.UI
                 });
             }
 
-            return new TreeViewItem { Header = sp, Tag = v };
+            var item = new TreeViewItem { Header = sp, Tag = v };
+            item.ToolTip = $"{v.ViewType} | Scale 1:{v.Scale}" +
+                (v.IsPlaced ? $" | On sheet {v.PlacedOnSheet}" : " | Not placed");
+            return item;
         }
 
         private static TreeViewItem MakeSheetNode(SheetNode sheet)
@@ -1011,7 +1533,9 @@ namespace StingTools.UI
                 VerticalAlignment = VerticalAlignment.Center
             });
 
-            return new TreeViewItem { Header = sp, Tag = sheet, IsExpanded = false };
+            var item = new TreeViewItem { Header = sp, Tag = sheet, IsExpanded = false };
+            item.ToolTip = $"Title block: {sheet.TitleBlockName}\nDrawable: {sheet.DrawableArea}\n{sheet.ViewportCount} viewport(s)";
+            return item;
         }
 
         private static TreeViewItem MakeViewportNode(ViewportNode vp)
@@ -1032,7 +1556,9 @@ namespace StingTools.UI
                 VerticalAlignment = VerticalAlignment.Center
             });
 
-            return new TreeViewItem { Header = sp, Tag = vp };
+            var item = new TreeViewItem { Header = sp, Tag = vp };
+            item.ToolTip = $"View: {vp.ViewName}\nScale: 1:{vp.Scale}\nSize: {vp.PaperSize}\nSheet: {vp.HostSheetNumber}\n\nDouble-click to open view\nDrag to another sheet to move";
+            return item;
         }
 
         private static SolidColorBrush GetViewTypeColor(string viewType)
@@ -1076,7 +1602,6 @@ namespace StingTools.UI
                     child.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
                     if (match) anyChildVisible = true;
 
-                    // Also check grandchildren (viewports under sheets)
                     foreach (TreeViewItem gc in child.Items)
                     {
                         bool gcMatch = false;
@@ -1105,6 +1630,7 @@ namespace StingTools.UI
         }
 
 
+
         // ═══════════════════════════════════════════════════════════════════
         //  SELECTION HELPERS
         // ═══════════════════════════════════════════════════════════════════
@@ -1131,30 +1657,11 @@ namespace StingTools.UI
             return null;
         }
 
-
-        // ═══════════════════════════════════════════════════════════════════
-        //  OPERATION QUEUE — queue ops without closing dialog
-        // ═══════════════════════════════════════════════════════════════════
-
-        /// <summary>Queue a simple operation.</summary>
-        private static void QueueOp(string operation, string tagKey = null, object tagValue = null)
+        private static object GetSelectedViewportViewTag()
         {
-            if (tagKey != null && tagValue == null)
-            {
-                UpdateStatus("Nothing selected.");
-                return;
-            }
-            var op = new SheetManagerResult { Operation = operation };
-            if (tagKey != null) op.Options[tagKey] = tagValue;
-            QueueOpResult(op);
-        }
-
-        /// <summary>Queue a fully-built operation result.</summary>
-        private static void QueueOpResult(SheetManagerResult op)
-        {
-            _pendingOps.Add(op);
-            int count = _pendingOps.Count;
-            UpdateStatus($"{count} operation{(count > 1 ? "s" : "")} queued. Click 'Apply & Close' to execute.");
+            var sel = _sheetsTree?.SelectedItem as TreeViewItem;
+            if (sel?.Tag is ViewportNode vn) return vn.ViewTag ?? vn.Tag;
+            return null;
         }
 
         /// <summary>Update status bar text.</summary>

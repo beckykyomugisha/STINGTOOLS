@@ -105,6 +105,18 @@ namespace StingTools.UI
             _externalEvent = ExternalEvent.Create(_handler);
         }
 
+        /// <summary>
+        /// Public dispatch method for modeless dialogs (e.g. Sheet Manager).
+        /// Sets the command tag and raises the external event so the operation
+        /// executes on the Revit API thread.
+        /// </summary>
+        public static bool DispatchCommand(string tag, string param1 = "", string param2 = "")
+        {
+            if (_handler == null || _externalEvent == null) return false;
+            _handler.SetCommand(tag, param1, param2);
+            return _externalEvent.Raise() == ExternalEventRequest.Accepted;
+        }
+
         // ── Unified button click dispatcher ──────────────────────────────
 
         /// <summary>
