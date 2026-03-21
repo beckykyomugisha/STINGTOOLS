@@ -40,7 +40,7 @@ namespace StingTools.Docs
             {
                 tx.Start();
 
-                ElementId catId = new ElementId(BuiltInCategory.OST_Sheets);
+                ElementId catId = new ElementId((long)BuiltInCategory.OST_Sheets);
                 ViewSchedule schedule = ViewSchedule.CreateSchedule(doc, catId);
                 schedule.Name = "STING - Sheet Index";
 

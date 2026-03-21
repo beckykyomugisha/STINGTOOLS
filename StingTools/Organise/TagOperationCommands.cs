@@ -5636,7 +5636,7 @@ namespace StingTools.Organise
                 sourceValues[p] = ParameterHelpers.GetString(source, p);
 
             string sourceCat = ParameterHelpers.GetCategoryName(source);
-            BuiltInCategory bic = (BuiltInCategory)source.Category.Id.IntegerValue;
+            BuiltInCategory bic = (BuiltInCategory)source.Category.Id.Value;
 
             // Scope selection
             TaskDialog scopeDlg = new TaskDialog("Apply Cloned Tags — Scope");
@@ -5841,7 +5841,7 @@ namespace StingTools.Organise
                 bool resolved = TagConfig.TagIsFullyResolved(tag);
 
                 sb.AppendLine("    {");
-                sb.AppendLine($"      \"elementId\": {elem.Id.IntegerValue},");
+                sb.AppendLine($"      \"elementId\": {elem.Id.Value},");
                 sb.AppendLine($"      \"category\": \"{JsonEscape(cat)}\",");
                 sb.AppendLine($"      \"family\": \"{JsonEscape(ParameterHelpers.GetFamilyName(elem))}\",");
                 sb.AppendLine($"      \"type\": \"{JsonEscape(ParameterHelpers.GetFamilySymbolName(elem))}\",");

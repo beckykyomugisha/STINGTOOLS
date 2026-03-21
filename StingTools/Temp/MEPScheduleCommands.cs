@@ -185,7 +185,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_LightingFixtures));
+                    new ElementId((long)BuiltInCategory.OST_LightingFixtures));
                 schedule.Name = scheduleName;
 
                 // Add standard fields
@@ -266,7 +266,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_MechanicalEquipment));
+                    new ElementId((long)BuiltInCategory.OST_MechanicalEquipment));
                 schedule.Name = scheduleName;
 
                 MEPScheduleHelper.AddScheduleField(doc, schedule, "Family", BuiltInCategory.OST_MechanicalEquipment);
@@ -342,7 +342,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_PlumbingFixtures));
+                    new ElementId((long)BuiltInCategory.OST_PlumbingFixtures));
                 schedule.Name = scheduleName;
 
                 MEPScheduleHelper.AddScheduleField(doc, schedule, "Family", BuiltInCategory.OST_PlumbingFixtures);
@@ -417,7 +417,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_Sprinklers));
+                    new ElementId((long)BuiltInCategory.OST_Sprinklers));
                 schedule.Name = scheduleName;
 
                 MEPScheduleHelper.AddScheduleField(doc, schedule, "Family", BuiltInCategory.OST_Sprinklers);
@@ -491,7 +491,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_ElectricalFixtures));
+                    new ElementId((long)BuiltInCategory.OST_ElectricalFixtures));
                 schedule.Name = scheduleName;
 
                 MEPScheduleHelper.AddScheduleField(doc, schedule, "Family", BuiltInCategory.OST_ElectricalFixtures);

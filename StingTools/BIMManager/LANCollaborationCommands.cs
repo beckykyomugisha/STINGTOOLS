@@ -44,8 +44,10 @@ namespace StingTools.BIMManager
     {
         private static readonly object _syncLock = new object();
         private static Timer _autoSyncTimer;
+#pragma warning disable CS0169 // Fields reserved for future auto-backup feature
         private static Timer _autoBackupTimer;
         private static string _lastProjectPath;
+#pragma warning restore CS0169
 
         /// <summary>Standard worksets for a STING workshared project.</summary>
         internal static readonly string[] StandardWorksetNames = new[]

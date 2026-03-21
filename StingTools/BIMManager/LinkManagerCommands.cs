@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.BIMManager
@@ -256,10 +257,10 @@ namespace StingTools.BIMManager
             if (linkInstances.Count == 0) { TaskDialog.Show("STING", "No linked models found."); return Result.Succeeded; }
 
             var items = linkInstances.Select(l => l.Name).Distinct().ToList();
-            var picked = StingListPicker.Show("Link Statistics", "Select a linked model:", items, false);
-            if (picked == null || picked.Count == 0) return Result.Succeeded;
+            var picked = StingListPicker.Show("Link Statistics", "Select a linked model:", items);
+            if (picked == null) return Result.Succeeded;
 
-            var instance = linkInstances.FirstOrDefault(l => l.Name == picked[0]);
+            var instance = linkInstances.FirstOrDefault(l => l.Name == picked);
             if (instance == null) return Result.Succeeded;
 
             var stats = LinkManagerEngine.GetLinkedModelStats(instance);

@@ -2120,7 +2120,7 @@ namespace StingTools.BIMManager
                                     var paramId = field.ParameterId;
                                     if (paramId != null && paramId != ElementId.InvalidElementId)
                                     {
-                                        int bipInt = paramId.IntegerValue;
+                                        int bipInt = (int)paramId.Value;
                                         if (Enum.IsDefined(typeof(BuiltInParameter), bipInt))
                                             param = srcElement.get_Parameter((BuiltInParameter)bipInt);
                                     }

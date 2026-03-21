@@ -334,7 +334,7 @@ namespace StingTools.Temp
                 }
 
                 var schedule = ViewSchedule.CreateSchedule(doc,
-                    new ElementId(BuiltInCategory.OST_Rooms));
+                    new ElementId((long)BuiltInCategory.OST_Rooms));
                 schedule.Name = scheduleName;
 
                 // Add fields

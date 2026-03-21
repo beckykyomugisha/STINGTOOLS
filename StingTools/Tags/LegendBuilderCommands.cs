@@ -6653,7 +6653,7 @@ namespace StingTools.Tags
                     Category cat = doc.Settings.Categories.get_Item(bic);
                     if (cat == null) continue;
 
-                    OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId(bic));
+                    OverrideGraphicSettings ogs = view.GetCategoryOverrides(new ElementId((long)bic));
                     if (!HasMeaningfulOverride(ogs)) continue;
 
                     Color displayColor = GetDisplayColor(ogs);

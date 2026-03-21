@@ -3850,7 +3850,7 @@ namespace StingTools.BIMManager
                         var elIds = r.RawJson["element_ids"] as JArray;
                         if (elIds != null)
                             foreach (var eid in elIds)
-                                if (int.TryParse(eid.ToString(), out int id))
+                                if (long.TryParse(eid.ToString(), out long id))
                                     ids.Add(new ElementId(id));
                     }
                     if (ids.Count > 0)

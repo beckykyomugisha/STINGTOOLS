@@ -2419,7 +2419,7 @@ namespace StingTools.Temp
                                         if (revCat != null)
                                         {
                                             target.SetCategoryOverrides(
-                                                new ElementId(schemeBic), catOgs);
+                                                new ElementId((long)schemeBic), catOgs);
                                             schemesApplied++;
                                         }
                                     }
@@ -3327,7 +3327,7 @@ namespace StingTools.Temp
 
                     try
                     {
-                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
                         vs.Name = fullName;
 
                         string[] fieldNames = fields.Split(',')

@@ -18,7 +18,7 @@ namespace StingTools.Core
     ///   {
     ///       foreach (var el in elements)
     ///       {
-    ///           using (PerformanceTracker.TrackElement("BatchTag", el.Id.IntegerValue))
+    ///           using (PerformanceTracker.TrackElement("BatchTag", el.Id.Value))
     ///           {
     ///               // ... process element ...
     ///           }

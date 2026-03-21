@@ -197,7 +197,7 @@ namespace StingTools.Temp
                             try
                             {
                                 Category cat = doc.Settings.Categories.get_Item(bic);
-                                if (cat != null) catIds.Add(new ElementId(bic));
+                                if (cat != null) catIds.Add(new ElementId((long)bic));
                             }
                             catch { /* category not available in this Revit version */ }
                         }
@@ -235,7 +235,7 @@ namespace StingTools.Temp
                     try
                     {
                         Category cat = doc.Settings.Categories.get_Item(bic);
-                        if (cat != null) allCatIds.Add(new ElementId(bic));
+                        if (cat != null) allCatIds.Add(new ElementId((long)bic));
                     }
                     catch (Exception ex) { StingLog.Warn($"Get category '{bic}' for filter: {ex.Message}"); }
                 }
@@ -322,7 +322,7 @@ namespace StingTools.Temp
                                     try
                                     {
                                         Category cat = doc.Settings.Categories.get_Item(bic);
-                                        if (cat != null) csvCatIds.Add(new ElementId(bic));
+                                        if (cat != null) csvCatIds.Add(new ElementId((long)bic));
                                     }
                                     catch (Exception ex) { StingLog.Warn($"Get CSV filter category '{catName}': {ex.Message}"); }
                                 }

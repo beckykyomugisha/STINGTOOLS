@@ -867,7 +867,7 @@ namespace StingTools.Select
             var seenCats = new HashSet<int>();
             foreach (var elem in elems)
             {
-                if (elem.Category != null && seenCats.Add(elem.Category.Id.IntegerValue))
+                if (elem.Category != null && seenCats.Add((int)elem.Category.Id.Value))
                     categories.Add(elem.Category.Id);
             }
 

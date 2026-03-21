@@ -317,7 +317,7 @@ namespace StingTools.Docs
                         var wsList = new FilteredWorksetCollector(doc)
                             .OfKind(WorksetKind.UserWorkset).ToList();
                         foreach (var ws in wsList.OrderBy(w => w.Name))
-                            results.Add(new RenameTarget(ws.Name, "Workset", new ElementId(ws.Id.IntegerValue)));
+                            results.Add(new RenameTarget(ws.Name, "Workset", new ElementId((long)ws.Id.IntegerValue)));
                     }
                     break;
             }
