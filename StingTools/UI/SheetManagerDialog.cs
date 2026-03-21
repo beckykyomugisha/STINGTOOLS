@@ -858,7 +858,7 @@ namespace StingTools.UI
             qaRow.Children.Add(MakeRibbonLabel("QA"));
             qaRow.Children.Add(MakeToolBtn("Audit", "SheetAudit", BrBlue, "Sheet/viewport statistics audit"));
             qaRow.Children.Add(MakeToolBtn("ISO Check", "SheetComplianceCheck", BrGreen, "ISO 19650 sheet compliance (10 rules)"));
-            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrOrange, "Force ISO 19650 naming on sheets (audit/rename/overwrite)"));
+            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrAccent, "Force ISO 19650 naming on sheets (audit/rename/overwrite)"));
             qaRow.Children.Add(MakeToolBtn("Template Compliance", "TemplateComplianceScore", BrGreen, "View template compliance scoring"));
             qaRow.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle, "Export sheet inventory to CSV"));
             qaRow.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle, "Export comprehensive sheet register"));
