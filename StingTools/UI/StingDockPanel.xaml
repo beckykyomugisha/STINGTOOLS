@@ -952,6 +952,25 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- SHEET MANAGER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET MANAGER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Manager" Tag="SheetManager" Click="Cmd_Click" ToolTip="Open full Sheet Manager with dual-panel browser"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Layout" Tag="AutoLayout" Click="Cmd_Click" ToolTip="Auto-arrange viewports on active sheet using shelf packing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clone Sheet" Tag="CloneSheet" Click="Cmd_Click" ToolTip="Clone active sheet with title block and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place Unplaced" Tag="PlaceUnplacedViews" Click="Cmd_Click" ToolTip="Auto-place all unplaced views on new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Optimal Scale" Tag="OptimalScale" Click="Cmd_Click" ToolTip="Calculate optimal scale for active view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Audit" Tag="SheetAudit" Click="Cmd_Click" ToolTip="Audit all sheets and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Arrange" Tag="BatchArrange" Click="Cmd_Click" ToolTip="Arrange viewports on all sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Move VP" Tag="MoveViewport" Click="Cmd_Click" ToolTip="Move selected viewport to different sheet"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- FM / O&M HANDOVER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="🏗 FM / O&amp;M HANDOVER"/>
                         <Border Style="{StaticResource GroupBorder}">

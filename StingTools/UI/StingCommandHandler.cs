@@ -417,6 +417,16 @@ namespace StingTools.UI
                     case "ViewTabColour": RunCommand<Docs.ViewTabColourCommand>(app); break;
                     case "RibbonStyler": RunCommand<Docs.RibbonPanelStylerCommand>(app); break;
 
+                    // ── Sheet Manager ──
+                    case "SheetManager": RunCommand<Docs.SheetManagerCommand>(app); break;
+                    case "AutoLayout": RunCommand<Docs.AutoLayoutCommand>(app); break;
+                    case "CloneSheet": RunCommand<Docs.CloneSheetCommand>(app); break;
+                    case "PlaceUnplacedViews": RunCommand<Docs.PlaceUnplacedViewsCommand>(app); break;
+                    case "OptimalScale": RunCommand<Docs.OptimalScaleCommand>(app); break;
+                    case "SheetAudit": RunCommand<Docs.SheetAuditCommand>(app); break;
+                    case "BatchArrange": RunCommand<Docs.BatchArrangeCommand>(app); break;
+                    case "MoveViewport": RunCommand<Docs.MoveViewportCommand>(app); break;
+
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;
