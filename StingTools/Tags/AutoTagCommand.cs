@@ -151,79 +151,91 @@ namespace StingTools.Tags
             bool cancelled = false;
             var progress = StingProgressDialog.Show("Auto Tag", taggable);
 
-            using (Transaction tx = new Transaction(doc, "STING Auto Tag"))
+            // GAP-03: Chunked 200-element transactions for partial-commit on cancellation.
+            // Previously, cancel rolled back ALL work. Now committed batches are preserved.
+            const int ChunkSize = 200;
+
+            for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
             {
-                tx.Start();
+                if (cancelled) break;
 
-                int processed = 0;
-                foreach (Element el in sorted)
+                int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                int batchNum = (batchStart / ChunkSize) + 1;
+
+                using (Transaction tx = new Transaction(doc, $"STING Auto Tag #{batchNum}"))
                 {
-                    if (progress.IsCancelled)
-                    {
-                        StingLog.Info($"AutoTag: cancelled by user at {processed}/{taggable}");
-                        cancelled = true;
-                        break;
-                    }
-                    processed++;
+                    tx.Start();
 
-                    try
+                    for (int idx = batchStart; idx < batchEnd; idx++)
                     {
-                        bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                        bool ow = (collisionMode == TagCollisionMode.Overwrite);
-                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
-                            tagIndex, sequenceCounters, formulas, gridLines,
-                            overwrite: ow, skipComplete: skipComplete,
-                            collisionMode: collisionMode, stats: stats);
-                        if (!pipelineOk)
-                            StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
-                        stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                        Element el = sorted[idx];
+
+                        if (progress.IsCancelled)
+                        {
+                            StingLog.Info($"AutoTag: cancelled by user at {idx}/{taggable}");
+                            cancelled = true;
+                            break;
+                        }
+
+                        try
+                        {
+                            bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                            bool ow = (collisionMode == TagCollisionMode.Overwrite);
+                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                tagIndex, sequenceCounters, formulas, gridLines,
+                                overwrite: ow, skipComplete: skipComplete,
+                                collisionMode: collisionMode, stats: stats);
+                            if (!pipelineOk)
+                                StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
+                            stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                        }
+
+                        progress.Increment($"Tagging element {idx + 1}/{taggable}");
                     }
 
-                    progress.Increment($"Tagging element {processed}/{taggable}");
+                    if (cancelled)
+                        tx.RollBack();
+                    else
+                    {
+                        tx.Commit();
+                        TagConfig.SaveSeqSidecar(doc, sequenceCounters);
+                    }
                 }
-
-                progress.Close();
-
-                if (cancelled)
-                {
-                    tx.RollBack();
-                    TaskDialog.Show("Auto Tag", $"Cancelled by user at {processed}/{taggable}.\nAll changes rolled back.");
-                    return Result.Cancelled;
-                }
-
-                tx.Commit();
             }
+
+            progress.Close();
             TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
+            if (cancelled && stats.TotalTagged == 0)
+            {
+                TaskDialog.Show("Auto Tag", "Cancelled by user. No elements were tagged.");
+                return Result.Cancelled;
+            }
+
             var report = new StringBuilder();
             report.AppendLine($"Auto Tag — '{activeView.Name}'");
             report.AppendLine(new string('=', 50));
+            if (cancelled)
+                report.AppendLine("  *** Cancelled — committed batches preserved ***");
             report.AppendLine($"  Mode:       {collisionMode}");
             report.AppendLine($"  Disciplines: {discFilterLabel}");
             if (filteredOut > 0)
                 report.AppendLine($"  Filtered:   {filteredOut} (wrong discipline for view)");
             report.AppendLine();
 
-            // TAG-07: Warn when >10% of FUNC or PROD tokens are empty after tagging
-            if (stats.TotalTagged > 0)
+            // PERF-02: Inline FUNC/PROD gap counting — accumulated during the tagging loop
+            // instead of re-scanning all elements post-commit. Uses stats.EmptyFuncCount/EmptyProdCount.
+            if (stats.TotalTagged > 0 && taggable > 0)
             {
-                int emptyFunc = 0, emptyProd = 0;
-                foreach (Element el in viewElements)
-                {
-                    string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.FUNC))) emptyFunc++;
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.PROD))) emptyProd++;
-                }
-                int pctFunc = emptyFunc * 100 / taggable;
-                int pctProd = emptyProd * 100 / taggable;
+                int pctFunc = stats.EmptyFuncCount * 100 / taggable;
+                int pctProd = stats.EmptyProdCount * 100 / taggable;
                 if (pctFunc > 10)
-                    report.AppendLine($"  WARNING: {emptyFunc} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
+                    report.AppendLine($"  WARNING: {stats.EmptyFuncCount} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
                 if (pctProd > 10)
-                    report.AppendLine($"  WARNING: {emptyProd} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
+                    report.AppendLine($"  WARNING: {stats.EmptyProdCount} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
             }
 
             report.Append(stats.BuildReport());

@@ -153,6 +153,13 @@ namespace StingTools.Tags
             // Export
             (@"\b(export\s+csv|csv\s+export|export\s+data)\b", "ExportCSV", "ExportCSV", "Export to CSV"),
             (@"\b(tag\s+register|asset\s+register|register\s+export)\b", "TagRegisterExport", "TagRegister", "Export tag register"),
+
+            // Stale & Anomaly (Phase 26-28)
+            (@"\b(retag\s*stale|fix\s*stale|stale\s*elements|re-tag\s*stale)\b", "RetagStale", "RetagStale", "Retag stale elements"),
+            (@"\b(anomaly\s*fix|auto\s*fix\s*anomal|fix\s*anomal)\b", "AnomalyAutoFix", "AnomalyAutoFix", "Auto-fix tag anomalies"),
+            (@"\b(seq\s*scheme|sequence\s*scheme|set\s*seq)\b", "SetSeqScheme", "SetSeqScheme", "Set sequence numbering scheme"),
+            (@"\b(map\s*sheet|sheet\s*map|native\s*sheet)\b", "MapSheets", "MapSheets", "Map native sheet parameters"),
+            (@"\b(workflow\s*trend|trend\s*report|run\s*history)\b", "WorkflowTrend", "WorkflowTrend", "View workflow trend analysis"),
         };
 
         // BIM Knowledge Base entries

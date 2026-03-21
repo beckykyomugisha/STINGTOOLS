@@ -1981,6 +1981,28 @@ Critical review of the tagging workflow identified the following logic, automati
 370. **R-06: StingStaleMarker MEP system detection** — Extended `StingStaleMarker.Execute()` to detect MEP system reassignment by comparing stored SYS code against `GetMepSystemAwareSysCode()` for 14 MEP categories. Elements with changed SYS are marked stale (`STING_STALE_BOOL = 1`).
 371. **R-02: Workshared deferred element queue** — Replaced silent `continue` on workset ownership failure in `StingAutoTagger` with `ConcurrentQueue<ElementId>` enqueue. Added `OnDocumentSynchronizedWithCentral` handler in `StingToolsApp.cs` that drains deferred queue and runs `RunFullPipeline` on accessible elements after sync. Queue cleared on `DocumentClosing`.
 
+#### Completed (Phase 38 — Tagging Workflow Performance & Logic Gap Fixes)
+
+372. **PERF-01: AutoPopulateCommand chunked transactions** — Converted monolithic transaction to 200-element batches with StingProgressDialog, ElementMulticategoryFilter pre-filtering, and EscapeChecker cancellation support.
+373. **PERF-02: AutoTagCommand single-pass FUNC/PROD counting** — Replaced post-loop re-scan with inline `TaggingStats.EmptyFuncCount`/`EmptyProdCount` accumulated during RunFullPipeline via `RecordEmptyTokens()`.
+374. **PERF-03: WorkflowEngine cached stale-element check** — Added `cachedHasStale()` local function with `bool?` backing field to avoid repeated FilteredElementCollector scans per conditional step.
+375. **PERF-04: WorkflowEngine single post-run compliance scan** — Added `cachedCompliancePct()` with `double?` backing field; invalidated after each successful step to avoid redundant ComplianceScan calls.
+376. **PERF-05: ParameterHelpers stable cache key** — Changed `_paramCache` key from `doc.GetHashCode()` (unstable across sessions) to `doc.PathName ?? doc.Title ?? "Untitled"` via `GetStableDocKey()`.
+377. **PERF-06: PerformanceTracker opt-in** — Changed `Enabled` default from `true` to `false`; activated via `PERF_TRACKING_ENABLED` config flag.
+378. **PERF-07: StingStaleMarker partial LRU eviction** — Replaced `_elementVersionHash.Clear()` with 20% partial eviction loop to preserve recent entries and reduce re-computation.
+379. **PERF-08: WorkflowEngine retry spin-wait** — Replaced blocking `Thread.Sleep(retryDelayMs)` with 50ms-poll loop checking `EscapeChecker.IsEscapePressed()` for user-cancellable retries.
+380. **GAP-01: AutoPopulateCommand canonical pipeline** — Replaced inline SetIfEmpty calls with `TokenAutoPopulator.TypeTokenInherit` + `PopulateAll` using `PopulationContext.Build(doc)` for consistent token population.
+381. **GAP-02: WorkflowEngine extended condition engine** — Added `has_links`, `has_cad_imports`, `has_stale`, `has_untagged` condition checks for workflow step evaluation.
+382. **GAP-03: AutoTagCommand partial-commit on cancellation** — Converted from single transaction to 200-element chunked batches; on cancel, current batch rolls back but committed batches are preserved.
+383. **GAP-04: CombineParametersCommand DISC fallback chain** — Moved `TypeTokenInherit` call BEFORE DISC emptiness check so type-level DISC values are inherited before fallback logic.
+384. **GAP-05: DocumentActivated cache invalidation** — Added `ParameterHelpers.ClearParamCache()` to `OnViewActivated` document switch detection handler.
+385. **GAP-06: WorkflowPreset rollback_on_optional_failure** — Added `RollbackOnOptionalFailure` property to `WorkflowPreset`; wired into TransactionGroup creation and optional step failure handling.
+386. **GAP-07: DailyQA auto-RetagStale first** — Moved RetagStale step to first position in both built-in DailyQA preset and `WORKFLOW_DailyQA_Enhanced.json`.
+387. **GAP-08: WorkflowTrendCommand compliance trend** — Enhanced existing WorkflowTrendCommand with compliance trend analysis from JSONL run records.
+388. **GAP-09: SkipIfDataUnchanged sidecar hash** — Added `.sting_data_hash.json` sidecar file for workshared model compatibility; replaced project parameter storage with sidecar pattern.
+389. **GAP-10: NLPCommandProcessor Phase 26-28 patterns** — Added 5 NLP intent patterns for RetagStale, AnomalyAutoFix, SetSeqScheme, MapSheets, WorkflowTrend commands.
+390. **PostTagCleanup coverage audit** — Verified all tagging commands with SEQ counters have SaveSeqSidecar + InvalidateCache + InvalidateContext + CheckComplianceGate. Fixed PopulationResult bool comparison in AutoPopulateCommand.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

@@ -58,6 +58,18 @@ namespace StingTools.Core
         public readonly List<string> Warnings = new List<string>();
         public readonly List<(string tag, int depth)> CollisionDetails = new List<(string, int)>();
 
+        /// <summary>PERF-02: Inline count of elements with empty FUNC after pipeline.</summary>
+        public int EmptyFuncCount { get; private set; }
+        /// <summary>PERF-02: Inline count of elements with empty PROD after pipeline.</summary>
+        public int EmptyProdCount { get; private set; }
+
+        /// <summary>PERF-02: Track empty FUNC/PROD inline during tagging loop to avoid post-loop re-scan.</summary>
+        public void RecordEmptyTokens(string func, string prod)
+        {
+            if (string.IsNullOrEmpty(func)) EmptyFuncCount++;
+            if (string.IsNullOrEmpty(prod)) EmptyProdCount++;
+        }
+
         public void RecordTagged(string category, string disc, string sys, string lvl)
         {
             TotalTagged++;
@@ -899,7 +911,7 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
-                    "COBIE_STREAM_BATCH_SIZE"
+                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1079,6 +1091,10 @@ namespace StingTools.Core
                     if (gateObj is long gl) ComplianceGatePct = (int)gl;
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
+
+                // PERF-06: PerformanceTracker opt-in via config
+                if (data.TryGetValue("PERF_TRACKING_ENABLED", out object perfObj) && perfObj is bool perfEnabled)
+                    PerformanceTracker.Enabled = perfEnabled;
 
                 // FIX-10.2: Restore auto-tagger visual setting (use SetVisualTaggingQuiet to avoid re-save loop)
                 if (data.TryGetValue("AUTO_TAGGER_VISUAL", out object _avt) && _avt is bool _avtb)

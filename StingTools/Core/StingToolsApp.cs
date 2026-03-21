@@ -282,6 +282,9 @@ namespace StingTools.Core
                     _lastActiveDoc = currentDoc;
                     StingAutoTagger.InvalidateContext();
                     ComplianceScan.InvalidateCache();
+                    // GAP-05: Clear parameter lookup cache on document switch to prevent
+                    // stale Definition objects from a different document being reused
+                    ParameterHelpers.ClearParamCache();
                     StingLog.Info("ViewActivated: document switch detected — caches invalidated");
                 }
             }

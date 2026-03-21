@@ -1021,119 +1021,122 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // PERF-01: Pre-filter with ElementMulticategoryFilter instead of iterating all elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
-            // Build spatial index for LOC/ZONE auto-detection
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var taggableElements = new List<Element>();
+            foreach (Element el in collector)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (!string.IsNullOrEmpty(catName) && known.Contains(catName))
+                    taggableElements.Add(el);
+            }
+
+            if (taggableElements.Count == 0)
+            {
+                TaskDialog.Show("Auto-Populate", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            // GAP-01: Build canonical population context for TokenAutoPopulator
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Auto-Populate", "Failed to build population context.");
+                return Result.Failed;
+            }
 
             int updated = 0;
-            int total = 0;
+            int total = taggableElements.Count;
             int locDetected = 0;
             int zoneDetected = 0;
             int sysAware = 0;
             int nativeMapped = 0;
+            int apErrors = 0;
+            bool cancelled = false;
 
-            using (Transaction tx = new Transaction(doc, "STING Auto-Populate Fields"))
+            // PERF-01: Chunked 200-element batches with progress dialog and cancellation
+            const int ChunkSize = 200;
+            var progress = StingProgressDialog.Show("Auto-Populate", total);
+
+            for (int batchStart = 0; batchStart < total; batchStart += ChunkSize)
             {
-                tx.Start();
+                if (cancelled) break;
 
-                int apErrors = 0;
-                foreach (Element el in collector)
+                int batchEnd = Math.Min(batchStart + ChunkSize, total);
+                int batchNum = (batchStart / ChunkSize) + 1;
+
+                using (Transaction tx = new Transaction(doc, $"STING Auto-Populate #{batchNum}"))
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !TagConfig.DiscMap.ContainsKey(catName))
-                        continue;
+                    tx.Start();
 
-                    total++;
-
-                    try
+                    for (int idx = batchStart; idx < batchEnd; idx++)
                     {
-                    // ── Layer 1: Tag token population (DISC/PROD/SYS/FUNC/LVL/LOC/ZONE) ──
-
-                    // Auto-populate DISC code from category
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
-                        TagConfig.DiscMap[catName]))
-                        updated++;
-
-                    // Auto-populate PROD code (family-aware: FCU, VAV, AHU, etc.)
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
-                            updated++;
-                    }
-
-                    // Auto-populate SYS code — 6-layer detection
-                    // (connector → sys param → circuit → family → room → category)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                    {
-                        string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
+                        if (progress.IsCancelled)
                         {
-                            updated++;
-                            if (string.IsNullOrEmpty(prevSys)) sysAware++;
+                            StingLog.Info($"AutoPopulate: cancelled by user at {idx}/{total}");
+                            cancelled = true;
+                            break;
                         }
-                    }
 
-                    // Auto-populate FUNC code — smart detection (HVAC: SUP/RTN/EXH, HWS: HTG/DHW)
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (!string.IsNullOrEmpty(func))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
-                            updated++;
-                    }
+                        Element el = taggableElements[idx];
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName)) continue;
 
-                    // Auto-populate level code
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
-                            updated++;
-                    }
-
-                    // Auto-populate LOC from spatial data (room / project info)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
+                        try
                         {
-                            updated++;
-                            locDetected++;
-                        }
-                    }
+                            // GAP-01: Use canonical TokenAutoPopulator.PopulateAll instead of
+                            // inline SetIfEmpty calls. This ensures TypeTokenInherit, ConnectorInherit,
+                            // and CopyTokensFromNearest are all applied consistently.
+                            string prevLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                            string prevZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                            string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
 
-                    // Auto-populate ZONE from room data (department, name, number)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
+                            TokenAutoPopulator.TypeTokenInherit(doc, el);
+                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                            updated += popResult.TokensSet;
+                            if (popResult.LocDetected) locDetected++;
+                            if (popResult.ZoneDetected) zoneDetected++;
+
+                            // Check if SYS was newly detected
+                            string newSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (string.IsNullOrEmpty(prevSys) && !string.IsNullOrEmpty(newSys))
+                                sysAware++;
+
+                            // Layer 2: Native parameter mapping (Revit built-in → STING shared)
+                            int mapped = NativeParamMapper.MapAll(doc, el);
+                            nativeMapped += mapped;
+                            updated += mapped;
+                        }
+                        catch (Exception ex)
                         {
-                            updated++;
-                            zoneDetected++;
+                            StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                            apErrors++;
                         }
+
+                        progress.Increment($"Populating {idx + 1}/{total}");
                     }
 
-                    // ── Layer 2: Native parameter mapping (Revit built-in → STING shared) ──
-                    // Copies Mark, Comments, Description, Manufacturer, Model, Room data,
-                    // MEP parameters (flow, voltage, pressure), Type params as fallback
-                    int mapped = NativeParamMapper.MapAll(doc, el);
-                    nativeMapped += mapped;
-                    updated += mapped;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
-                        apErrors++;
-                    }
+                    if (cancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
                 }
-
-                tx.Commit();
             }
+
+            progress.Close();
+
             var report = new StringBuilder();
+            if (cancelled)
+                report.AppendLine($"Cancelled by user. Partial results committed.");
             report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
+            if (apErrors > 0)
+                report.AppendLine($"Errors: {apErrors}");
             report.AppendLine();
             report.AppendLine("Tag tokens:");
             if (sysAware > 0) report.AppendLine($"  SYS detected from MEP systems: {sysAware}");
@@ -1150,7 +1153,7 @@ namespace StingTools.Temp
 
             TaskDialog.Show("Auto-Populate", report.ToString());
 
-            return Result.Succeeded;
+            return cancelled ? Result.Cancelled : Result.Succeeded;
         }
     }
 

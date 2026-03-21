@@ -636,9 +636,19 @@ namespace StingTools.Core
                 // A2: Update last stale-mark timestamp for debounce
                 _lastStaleMarkTime = DateTime.UtcNow;
 
-                // LOG-09: Prune version hash cache when it grows too large
+                // PERF-07: Partial 20% LRU eviction instead of clearing entire cache
                 if (_elementVersionHash.Count > 10000)
-                    _elementVersionHash.Clear();
+                {
+                    int evictCount = _elementVersionHash.Count / 5; // 20%
+                    int evicted = 0;
+                    foreach (var key in _elementVersionHash.Keys)
+                    {
+                        if (evicted >= evictCount) break;
+                        _elementVersionHash.TryRemove(key, out _);
+                        evicted++;
+                    }
+                    StingLog.Info($"StingStaleMarker: evicted {evicted} of {evicted + _elementVersionHash.Count} cached hashes");
+                }
 
                 StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
             }
