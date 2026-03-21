@@ -246,6 +246,18 @@ namespace StingTools.Core
         /// <summary>F2: Skip step if no elements have the STALE flag set.</summary>
         [JsonProperty("requiresStaleElements")]
         public bool RequiresStaleElements { get; set; }
+
+        /// <summary>AE-01: Number of retry attempts for transient failures (max 3).</summary>
+        [JsonProperty("retryCount")]
+        public int RetryCount { get; set; } = 0;
+
+        /// <summary>AE-01: Delay in milliseconds between retries.</summary>
+        [JsonProperty("retryDelayMs")]
+        public int RetryDelayMs { get; set; } = 500;
+
+        /// <summary>AE-05: Skip step if data files haven't changed since last run.</summary>
+        [JsonProperty("skipIfDataUnchanged")]
+        public bool SkipIfDataUnchanged { get; set; }
     }
 
     internal static class WorkflowEngine
@@ -313,6 +325,24 @@ namespace StingTools.Core
                         }
                     }
 
+                    // AE-05: Skip if data files unchanged
+                    if (step.SkipIfDataUnchanged)
+                    {
+                        try
+                        {
+                            string currentHash = ComputeDataHash();
+                            string storedHash = ParameterHelpers.GetString(doc.ProjectInformation, "STING_DATA_HASH");
+                            if (!string.IsNullOrEmpty(storedHash) && currentHash == storedHash)
+                            {
+                                StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — data files unchanged");
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (data files unchanged)");
+                                skipped++;
+                                continue;
+                            }
+                        }
+                        catch (Exception dhEx) { StingLog.Warn($"Data hash check: {dhEx.Message}"); }
+                    }
+
                     // F2 / G5.2: Evaluate compliance threshold conditions
                     if (step.MaxCompliancePct.HasValue || step.MinCompliancePct.HasValue
                         || step.RequiresStaleElements)
@@ -365,7 +395,27 @@ namespace StingTools.Core
                     var sw = Stopwatch.StartNew();
                     try
                     {
-                        Result stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                        // AE-01: Retry logic for transient step failures
+                        int maxRetries = Math.Min(step.RetryCount, 3);
+                        Result stepResult = Result.Failed;
+                        for (int attempt = 0; attempt <= maxRetries; attempt++)
+                        {
+                            if (attempt > 0)
+                            {
+                                StingLog.Info($"Workflow step {stepNum} retry {attempt}/{maxRetries}: {step.Label}");
+                                System.Threading.Thread.Sleep(step.RetryDelayMs);
+                            }
+                            try
+                            {
+                                stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                                if (stepResult == Result.Succeeded || stepResult == Result.Cancelled) break;
+                            }
+                            catch (Exception retryEx)
+                            {
+                                StingLog.Warn($"Workflow step {stepNum} attempt {attempt}: {retryEx.Message}");
+                                if (attempt == maxRetries) throw;
+                            }
+                        }
                         sw.Stop();
                         string status = stepResult == Result.Succeeded ? "OK" :
                                          stepResult == Result.Cancelled ? "SKIP" : "WARN";
@@ -499,6 +549,28 @@ namespace StingTools.Core
         /// NG11/AL-07: Public accessor for ResolveCommand — used by auto-run workflow on open.
         /// </summary>
         public static IExternalCommand GetCommandInstance(string tag) => ResolveCommand(tag);
+
+        /// <summary>AE-05: Compute hash of data directory for change detection.</summary>
+        private static string ComputeDataHash()
+        {
+            string dataPath = StingToolsApp.DataPath;
+            if (!Directory.Exists(dataPath)) return "";
+            try
+            {
+                var files = Directory.GetFiles(dataPath, "*.*", SearchOption.TopDirectoryOnly)
+                    .OrderBy(f => f).ToArray();
+                long totalSize = 0;
+                DateTime maxWrite = DateTime.MinValue;
+                foreach (var f in files)
+                {
+                    var fi = new FileInfo(f);
+                    totalSize += fi.Length;
+                    if (fi.LastWriteTimeUtc > maxWrite) maxWrite = fi.LastWriteTimeUtc;
+                }
+                return $"{files.Length}_{totalSize}_{maxWrite:yyyyMMddHHmmss}";
+            }
+            catch (Exception ex) { StingLog.Warn($"ComputeDataHash: {ex.Message}"); return ""; }
+        }
 
         /// <summary>
         /// Run a command by its StingCommandHandler dispatch tag, mapped to IExternalCommand classes.
