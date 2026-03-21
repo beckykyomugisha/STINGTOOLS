@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.UI
 {
@@ -20,41 +21,93 @@ namespace StingTools.UI
     }
 
     /// <summary>
-    /// Dual-panel WPF Sheet Manager dialog.
-    /// Left panel: TreeView of sheets grouped by discipline with viewport children.
-    /// Right panel: context-sensitive property grid / action panel.
-    /// Bottom: action buttons for layout, clone, create, arrange operations.
+    /// ISO 19650 compliant dual-panel modeless WPF Sheet Manager.
+    /// Left: Views browser (by type/discipline/level/template/scope box).
+    /// Right: Sheets browser (by discipline, with viewport children).
+    /// Bottom: Layout tools + QA tools toolbar.
     ///
-    /// Inspired by Ideate SheetManager and Naviate Sheet Tools.
+    /// Key features:
+    ///   - Ceiling plans distinct color from floor plans + discipline colors
+    ///   - View template badges, assignment, and audit
+    ///   - Dependent view hierarchy with scope box linking
+    ///   - Scope box browser section
+    ///   - Title block management (browse, swap, audit)
+    ///   - Expand All / Collapse All tree buttons
+    ///   - Smart automation: one-click doc package, auto-place, intelligent layout
+    ///   - All operations execute live via IExternalEventHandler
     /// </summary>
     internal static class SheetManagerDialog
     {
-        // ── Theme colours (light theme with orange accents) ─────────────
+        // ── Theme colours ───────────────────────────────────────────────
         private static readonly SolidColorBrush BrBgLight = new(Color.FromRgb(0xF5, 0xF5, 0xF5));
         private static readonly SolidColorBrush BrBgWhite = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
         private static readonly SolidColorBrush BrBgHeader = new(Color.FromRgb(0x2D, 0x2D, 0x30));
         private static readonly SolidColorBrush BrAccent = new(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush BrAccentHover = new(Color.FromRgb(0xF0, 0xA0, 0x45));
         private static readonly SolidColorBrush BrFgDark = new(Color.FromRgb(0x22, 0x22, 0x22));
         private static readonly SolidColorBrush BrFgWhite = new(Color.FromRgb(0xFF, 0xFF, 0xFF));
         private static readonly SolidColorBrush BrFgSubtle = new(Color.FromRgb(0x77, 0x77, 0x77));
         private static readonly SolidColorBrush BrBorder = new(Color.FromRgb(0xD0, 0xD0, 0xD0));
-        private static readonly SolidColorBrush BrSelected = new(Color.FromRgb(0xFB, 0xE4, 0xC8));
         private static readonly SolidColorBrush BrHover = new(Color.FromRgb(0xFD, 0xF0, 0xE0));
         private static readonly SolidColorBrush BrGreen = new(Color.FromRgb(0x4C, 0xAF, 0x50));
         private static readonly SolidColorBrush BrRed = new(Color.FromRgb(0xF4, 0x43, 0x36));
         private static readonly SolidColorBrush BrBlue = new(Color.FromRgb(0x21, 0x96, 0xF3));
+        private static readonly SolidColorBrush BrDropHighlight = new(Color.FromRgb(0xC8, 0xE6, 0xC9));
+        private static readonly SolidColorBrush BrDropBorder = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+
+        // ── View type colours (Floor vs Ceiling DISTINCT) ──────────────
+        private static readonly SolidColorBrush BrFloorPlan = new(Color.FromRgb(0x42, 0xA5, 0xF5));   // Blue
+        private static readonly SolidColorBrush BrCeilingPlan = new(Color.FromRgb(0x7E, 0x57, 0xC2));  // Deep Purple
+        private static readonly SolidColorBrush BrSection = new(Color.FromRgb(0xAB, 0x47, 0xBC));      // Purple
+        private static readonly SolidColorBrush BrElevation = new(Color.FromRgb(0x26, 0xA6, 0x9A));    // Teal
+        private static readonly SolidColorBrush BrLegend = new(Color.FromRgb(0x66, 0xBB, 0x6A));       // Green
+        private static readonly SolidColorBrush BrDrafting = new(Color.FromRgb(0xFF, 0xA7, 0x26));      // Orange
+        private static readonly SolidColorBrush BrSchedule = new(Color.FromRgb(0x78, 0x90, 0x9C));     // Blue Grey
+        private static readonly SolidColorBrush BrThreeD = new(Color.FromRgb(0xEF, 0x53, 0x50));       // Red
+        private static readonly SolidColorBrush BrAreaPlan = new(Color.FromRgb(0x8D, 0x6E, 0x63));     // Brown
+        private static readonly SolidColorBrush BrTemplate = new(Color.FromRgb(0xFF, 0xB3, 0x00));     // Amber (template badge)
+        private static readonly SolidColorBrush BrDependent = new(Color.FromRgb(0x00, 0xAC, 0xC1));    // Cyan (dependent views)
+        private static readonly SolidColorBrush BrScopeBox = new(Color.FromRgb(0xFF, 0x70, 0x43));     // Deep Orange
+
+        // ── Discipline colours (ISO 19650) ─────────────────────────────
+        private static readonly Dictionary<string, SolidColorBrush> DiscColors = new()
+        {
+            ["A"]  = new SolidColorBrush(Color.FromRgb(0x78, 0x90, 0x9C)),  // Blue Grey — Architectural
+            ["S"]  = new SolidColorBrush(Color.FromRgb(0xEF, 0x53, 0x50)),  // Red — Structural
+            ["M"]  = new SolidColorBrush(Color.FromRgb(0x42, 0xA5, 0xF5)),  // Blue — Mechanical
+            ["E"]  = new SolidColorBrush(Color.FromRgb(0xFF, 0xCA, 0x28)),  // Amber — Electrical
+            ["P"]  = new SolidColorBrush(Color.FromRgb(0x66, 0xBB, 0x6A)),  // Green — Plumbing
+            ["FP"] = new SolidColorBrush(Color.FromRgb(0xFF, 0x70, 0x43)),  // Deep Orange — Fire
+            ["C"]  = new SolidColorBrush(Color.FromRgb(0xAB, 0x47, 0xBC)),  // Purple — Coordination
+            ["L"]  = new SolidColorBrush(Color.FromRgb(0x8D, 0x6E, 0x63)),  // Brown — Landscape
+            ["G"]  = new SolidColorBrush(Color.FromRgb(0xBD, 0xBD, 0xBD)),  // Grey — General
+            ["LV"] = new SolidColorBrush(Color.FromRgb(0x00, 0x97, 0xA7)),  // Cyan — Low Voltage
+        };
 
         // ── State ───────────────────────────────────────────────────────
-        private static string _selectedOperation;
-        private static TreeViewItem _selectedTreeItem;
-        private static TextBlock _statusText;
-        private static StackPanel _detailPanel;
         private static Window _window;
+        private static TextBlock _statusText;
+        private static TextBlock _headerStats;
+        private static TreeView _viewsTree;
+        private static TreeView _sheetsTree;
+        private static CheckBox _hidePlacedCheck;
+        private static ComboBox _viewBrowserMode;
+        private static ComboBox _sheetBrowserMode;
 
-        // ── Sheet/viewport data passed from caller ─────────────────────
+        // ── Data passed from caller ─────────────────────────────────────
         private static List<SheetNode> _sheetNodes;
         private static List<UnplacedViewNode> _unplacedViews;
+        private static List<AllViewNode> _allViews;
+
+        // ── Callback for live execution via IExternalEventHandler ───────
+        private static Action<string, Dictionary<string, object>> _executeCallback;
+        private static Func<List<SheetNode>> _refreshSheetsFunc;
+        private static Func<List<UnplacedViewNode>> _refreshUnplacedFunc;
+        private static Func<List<AllViewNode>> _refreshAllViewsFunc;
+
+        // ── Drag state ──────────────────────────────────────────────────
+        private static TreeViewItem _dragSource;
+        private static Point _dragStartPoint;
+        private static TreeViewItem _lastHighlighted;
 
         /// <summary>Data model for sheet tree nodes.</summary>
         internal class SheetNode
@@ -77,7 +130,9 @@ namespace StingTools.UI
             public string Scale { get; set; }
             public string PaperSize { get; set; }
             public string Position { get; set; }
-            public object Tag { get; set; } // ElementId
+            public object Tag { get; set; } // ElementId (viewport)
+            public object ViewTag { get; set; } // ElementId (view)
+            public string HostSheetNumber { get; set; }
         }
 
         /// <summary>Data model for unplaced views.</summary>
@@ -89,34 +144,135 @@ namespace StingTools.UI
             public object Tag { get; set; } // ElementId
         }
 
+        /// <summary>Data model for ALL views used in views browser.</summary>
+        internal class AllViewNode
+        {
+            public string ViewName { get; set; }
+            public string ViewType { get; set; }
+            public string Scale { get; set; }
+            public string PlacedOnSheet { get; set; }
+            public string Discipline { get; set; }
+            public string Level { get; set; }
+            public string TemplateName { get; set; }    // View template applied
+            public string ScopeBoxName { get; set; }    // Scope box applied
+            public bool IsDependent { get; set; }       // Dependent view flag
+            public string ParentViewName { get; set; }  // Parent view for dependents
+            public object Tag { get; set; } // ElementId
+            public bool IsPlaced { get; set; }
+        }
 
-        /// <summary>
-        /// Show the Sheet Manager dialog.
-        /// </summary>
-        /// <param name="sheets">Sheet data grouped by discipline.</param>
-        /// <param name="unplacedViews">Views not yet placed on any sheet.</param>
-        /// <returns>Result with selected operation and options.</returns>
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  MAIN ENTRY POINT — legacy modal (for backwards compat)
+        // ═══════════════════════════════════════════════════════════════════
+
         public static SheetManagerResult Show(List<SheetNode> sheets, List<UnplacedViewNode> unplacedViews)
+        {
+            return Show(sheets, unplacedViews, null);
+        }
+
+        public static SheetManagerResult Show(List<SheetNode> sheets, List<UnplacedViewNode> unplacedViews, List<AllViewNode> allViews)
         {
             _sheetNodes = sheets ?? new List<SheetNode>();
             _unplacedViews = unplacedViews ?? new List<UnplacedViewNode>();
-            _selectedOperation = null;
+            _allViews = allViews ?? BuildAllViewsFromData();
+            _executeCallback = null;
+            _refreshSheetsFunc = null;
+            _refreshUnplacedFunc = null;
+            _refreshAllViewsFunc = null;
+            _dragSource = null;
+            _lastHighlighted = null;
 
             var result = new SheetManagerResult();
+            BuildWindow(result, modal: true);
+            bool? dialogResult = _window.ShowDialog();
+            result.Confirmed = dialogResult == true;
+            return result;
+        }
 
+        // ═══════════════════════════════════════════════════════════════════
+        //  MODELESS ENTRY POINT — floating window with live execution
+        // ═══════════════════════════════════════════════════════════════════
+
+        public static void ShowModeless(
+            List<SheetNode> sheets,
+            List<UnplacedViewNode> unplacedViews,
+            List<AllViewNode> allViews,
+            Action<string, Dictionary<string, object>> executeCallback,
+            Func<List<SheetNode>> refreshSheets = null,
+            Func<List<UnplacedViewNode>> refreshUnplaced = null,
+            Func<List<AllViewNode>> refreshAllViews = null)
+        {
+            if (_window != null && _window.IsVisible) { _window.Activate(); return; }
+
+            _sheetNodes = sheets ?? new List<SheetNode>();
+            _unplacedViews = unplacedViews ?? new List<UnplacedViewNode>();
+            _allViews = allViews ?? BuildAllViewsFromData();
+            _executeCallback = executeCallback;
+            _refreshSheetsFunc = refreshSheets;
+            _refreshUnplacedFunc = refreshUnplaced;
+            _refreshAllViewsFunc = refreshAllViews;
+            _dragSource = null;
+            _lastHighlighted = null;
+
+            BuildWindow(null, modal: false);
+            _window.Show();
+        }
+
+        /// <summary>Refresh all data and rebuild trees (called after operations).</summary>
+        public static void RefreshData()
+        {
+            if (_window == null || !_window.IsVisible) return;
+            try
+            {
+                if (_refreshSheetsFunc != null) _sheetNodes = _refreshSheetsFunc();
+                if (_refreshUnplacedFunc != null) _unplacedViews = _refreshUnplacedFunc();
+                if (_refreshAllViewsFunc != null) _allViews = _refreshAllViewsFunc();
+                else _allViews = BuildAllViewsFromData();
+
+                RebuildViewsTree();
+                RebuildSheetsTree();
+                UpdateHeaderStats();
+                UpdateStatus("Ready \u2014 data refreshed.");
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetManager RefreshData: {ex.Message}"); }
+        }
+
+        public static void CloseIfOpen()
+        {
+            if (_window != null && _window.IsVisible)
+            {
+                try { _window.Close(); } catch (Exception) { }
+            }
+            _window = null;
+        }
+
+        public static bool IsOpen => _window != null && _window.IsVisible;
+        private static bool IsModeless => _executeCallback != null;
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  WINDOW BUILDER
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void BuildWindow(SheetManagerResult modalResult, bool modal)
+        {
             _window = new Window
             {
-                Title = "STING Sheet Manager",
-                Width = 960,
-                Height = 640,
-                MinWidth = 700,
-                MinHeight = 480,
+                Title = "STING Sheet Manager  \u2014  ISO 19650",
+                Width = 1280, Height = 800,
+                MinWidth = 960, MinHeight = 600,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = BrBgLight,
                 ResizeMode = ResizeMode.CanResizeWithGrip,
+                Topmost = !modal, ShowInTaskbar = !modal,
             };
 
-            // Set owner to Revit main window
+            if (!modal)
+            {
+                _window.Deactivated += (s, e) => { if (_window != null) _window.Topmost = false; };
+                _window.Activated += (s, e) => { /* user can re-pin */ };
+            }
+
             try
             {
                 var helper = new System.Windows.Interop.WindowInteropHelper(_window);
@@ -127,703 +283,1609 @@ namespace StingTools.UI
             var root = new DockPanel { LastChildFill = true };
 
             // ── Header bar ──────────────────────────────────────────────
-            var header = new Border
-            {
-                Background = BrBgHeader,
-                Padding = new Thickness(16, 10, 16, 10),
-            };
-            var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
-            headerStack.Children.Add(new TextBlock
-            {
-                Text = "STING Sheet Manager",
-                FontSize = 16, FontWeight = FontWeights.Bold,
-                Foreground = BrAccent, VerticalAlignment = VerticalAlignment.Center
-            });
-            headerStack.Children.Add(new TextBlock
-            {
-                Text = $"  |  {_sheetNodes.Count} sheets  |  {_unplacedViews.Count} unplaced views",
-                FontSize = 12, Foreground = BrFgWhite,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0)
-            });
-            header.Child = headerStack;
+            var header = CreateHeader();
             DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
-            // ── Bottom action bar ───────────────────────────────────────
-            var bottomBar = CreateBottomBar(result);
+            // ── Top tools ribbon (Sheets + Views + Automation) ──────────
+            var toolsBar = CreateTopToolsRibbon();
+            DockPanel.SetDock(toolsBar, Dock.Top);
+            root.Children.Add(toolsBar);
+
+            // ── Bottom bar: Layout + QA + status ────────────────────────
+            var bottomBar = CreateBottomBar(modalResult);
             DockPanel.SetDock(bottomBar, Dock.Bottom);
             root.Children.Add(bottomBar);
 
-            // ── Main content: left tree + right detail ──────────────────
-            var splitter = new Grid();
-            splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360), MinWidth = 250 });
-            splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) }); // splitter
-            splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 250 });
+            // ── Main content: Views (left) | Splitter | Sheets (right) ─
+            var mainGrid = new Grid();
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 320 });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star), MinWidth = 380 });
 
-            // Left panel: TreeView
-            var leftPanel = CreateLeftPanel();
+            var leftPanel = CreateViewsPanel();
             Grid.SetColumn(leftPanel, 0);
-            splitter.Children.Add(leftPanel);
+            mainGrid.Children.Add(leftPanel);
 
-            // GridSplitter
-            var gridSplitter = new GridSplitter
+            var splitter = new GridSplitter
             {
                 Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch,
                 Background = BrBorder, Cursor = Cursors.SizeWE
             };
-            Grid.SetColumn(gridSplitter, 1);
-            splitter.Children.Add(gridSplitter);
+            Grid.SetColumn(splitter, 1);
+            mainGrid.Children.Add(splitter);
 
-            // Right panel: Detail/properties
-            var rightPanel = CreateRightPanel();
+            var rightPanel = CreateSheetsPanel();
             Grid.SetColumn(rightPanel, 2);
-            splitter.Children.Add(rightPanel);
+            mainGrid.Children.Add(rightPanel);
 
-            root.Children.Add(splitter);
+            root.Children.Add(mainGrid);
             _window.Content = root;
-
-            // Show modal
-            bool? dialogResult = _window.ShowDialog();
-            result.Confirmed = dialogResult == true;
-            result.Operation = _selectedOperation;
-
-            return result;
         }
 
+        private static List<AllViewNode> BuildAllViewsFromData()
+        {
+            var list = new List<AllViewNode>();
+            foreach (var uv in _unplacedViews)
+            {
+                list.Add(new AllViewNode
+                {
+                    ViewName = uv.ViewName, ViewType = uv.ViewType,
+                    Scale = uv.Scale, Tag = uv.Tag, IsPlaced = false
+                });
+            }
+            foreach (var sn in _sheetNodes)
+            {
+                foreach (var vp in sn.Viewports)
+                {
+                    list.Add(new AllViewNode
+                    {
+                        ViewName = vp.ViewName, ViewType = "Placed",
+                        Scale = vp.Scale, Tag = vp.ViewTag ?? vp.Tag,
+                        IsPlaced = true, PlacedOnSheet = sn.SheetNumber
+                    });
+                }
+            }
+            return list;
+        }
 
         // ═══════════════════════════════════════════════════════════════════
-        //  LEFT PANEL — Sheet TreeView
+        //  HEADER BAR
         // ═══════════════════════════════════════════════════════════════════
 
-        private static Border CreateLeftPanel()
+        private static Border CreateHeader()
         {
             var border = new Border
             {
-                Background = BrBgWhite,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 0, 1, 0),
-                Padding = new Thickness(0)
+                Background = BrBgHeader,
+                Padding = new Thickness(16, 8, 16, 8),
             };
-
-            var stack = new DockPanel { LastChildFill = true };
-
-            // Search box
-            var searchBox = new TextBox
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+            stack.Children.Add(new TextBlock
             {
-                Margin = new Thickness(8, 8, 8, 4),
-                Padding = new Thickness(6, 4, 6, 4),
-                FontSize = 12,
-                Background = BrBgLight,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(1),
-                Tag = "Search sheets..."
+                Text = "\u25A0 STING Sheet Manager",
+                FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = BrAccent, VerticalAlignment = VerticalAlignment.Center
+            });
+            _headerStats = new TextBlock
+            {
+                FontSize = 12, Foreground = BrFgWhite,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)
             };
-            // Placeholder text
-            searchBox.GotFocus += (s, e) =>
+            UpdateHeaderStats();
+            stack.Children.Add(_headerStats);
+
+            if (IsModeless)
             {
-                if (searchBox.Foreground == BrFgSubtle)
-                {
-                    searchBox.Text = "";
-                    searchBox.Foreground = BrFgDark;
-                }
-            };
-            searchBox.LostFocus += (s, e) =>
-            {
-                if (string.IsNullOrEmpty(searchBox.Text))
-                {
-                    searchBox.Text = "Search sheets...";
-                    searchBox.Foreground = BrFgSubtle;
-                }
-            };
-            searchBox.Text = "Search sheets...";
-            searchBox.Foreground = BrFgSubtle;
-            DockPanel.SetDock(searchBox, Dock.Top);
-            stack.Children.Add(searchBox);
-
-            // TreeView
-            var tree = new TreeView
-            {
-                Margin = new Thickness(4, 4, 4, 4),
-                BorderThickness = new Thickness(0),
-                Background = BrBgWhite
-            };
-
-            // Group sheets by discipline
-            var grouped = _sheetNodes
-                .GroupBy(s => s.Discipline)
-                .OrderBy(g => g.Key);
-
-            foreach (var group in grouped)
-            {
-                var discItem = new TreeViewItem
-                {
-                    IsExpanded = true,
-                    Header = CreateDiscHeader(group.Key, group.Count()),
-                    Tag = $"DISC:{group.Key}"
-                };
-
-                foreach (var sheet in group)
-                {
-                    var sheetItem = new TreeViewItem
-                    {
-                        Header = CreateSheetHeader(sheet),
-                        Tag = sheet
-                    };
-
-                    // Viewport children
-                    foreach (var vp in sheet.Viewports)
-                    {
-                        var vpItem = new TreeViewItem
-                        {
-                            Header = CreateViewportHeader(vp),
-                            Tag = vp
-                        };
-                        sheetItem.Items.Add(vpItem);
-                    }
-
-                    discItem.Items.Add(sheetItem);
-                }
-
-                tree.Items.Add(discItem);
+                var refreshBtn = CreateSmallButton("\u21BB Refresh", BrAccent);
+                refreshBtn.Margin = new Thickness(16, 0, 0, 0);
+                refreshBtn.Foreground = BrFgWhite;
+                refreshBtn.Click += (s, e) => RefreshData();
+                stack.Children.Add(refreshBtn);
             }
 
-            // Unplaced views group
-            if (_unplacedViews.Count > 0)
-            {
-                var unplacedItem = new TreeViewItem
-                {
-                    IsExpanded = false,
-                    Header = CreateDiscHeader($"UNPLACED ({_unplacedViews.Count})", _unplacedViews.Count),
-                    Tag = "UNPLACED"
-                };
-
-                foreach (var uv in _unplacedViews)
-                {
-                    var uvItem = new TreeViewItem
-                    {
-                        Header = CreateUnplacedHeader(uv),
-                        Tag = uv
-                    };
-                    unplacedItem.Items.Add(uvItem);
-                }
-
-                tree.Items.Add(unplacedItem);
-            }
-
-            // Selection changed → update right panel
-            tree.SelectedItemChanged += (s, e) =>
-            {
-                _selectedTreeItem = tree.SelectedItem as TreeViewItem;
-                UpdateDetailPanel();
-            };
-
-            // Search filter
-            searchBox.TextChanged += (s, e) =>
-            {
-                string filter = searchBox.Foreground == BrFgSubtle ? "" : searchBox.Text;
-                FilterTree(tree, filter);
-            };
-
-            stack.Children.Add(tree);
             border.Child = stack;
             return border;
         }
 
-        private static StackPanel CreateDiscHeader(string disc, int count)
+        private static void UpdateHeaderStats()
         {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            sp.Children.Add(new TextBlock
-            {
-                Text = disc,
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                Foreground = BrFgDark
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = $"  ({count})",
-                FontSize = 11,
-                Foreground = BrFgSubtle,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            return sp;
+            if (_headerStats == null) return;
+            int depCount = _allViews?.Count(v => v.IsDependent) ?? 0;
+            int withTemplate = _allViews?.Count(v => !string.IsNullOrEmpty(v.TemplateName)) ?? 0;
+            int scopeBoxed = _allViews?.Count(v => !string.IsNullOrEmpty(v.ScopeBoxName)) ?? 0;
+            _headerStats.Text = $"  |  {_sheetNodes?.Count ?? 0} sheets  \u2022  " +
+                $"{_unplacedViews?.Count ?? 0} unplaced  \u2022  " +
+                $"{_allViews?.Count ?? 0} views  \u2022  " +
+                $"{withTemplate} templated  \u2022  {depCount} dependent  \u2022  {scopeBoxed} scoped";
         }
 
-        private static StackPanel CreateSheetHeader(SheetNode sheet)
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  TOP TOOLS RIBBON — Sheets + Views + Automation (compact)
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static Border CreateTopToolsRibbon()
         {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            sp.Children.Add(new TextBlock
+            var border = new Border
             {
-                Text = sheet.SheetNumber,
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 12,
-                Foreground = BrAccent,
-                MinWidth = 60
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = $" - {sheet.SheetName}",
-                FontSize = 12,
-                Foreground = BrFgDark
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = $"  [{sheet.ViewportCount}vp]",
-                FontSize = 10,
-                Foreground = BrFgSubtle,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            return sp;
+                Background = BrBgWhite, BorderBrush = BrBorder, BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+            var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+
+            // ── SHEETS section ──
+            wrap.Children.Add(MakeRibbonLabel("SHEETS"));
+            wrap.Children.Add(MakeToolBtn("+ New Sheet", "CreateSheet", BrGreen, "\u2795 Create new sheet with title block selection"));
+            wrap.Children.Add(MakeToolBtn("Clone", "CloneSheet", BrBlue, "Clone selected sheet with viewports"));
+            wrap.Children.Add(MakeToolBtn("Place Unplaced", "AutoPlaceUnplaced", BrGreen, "Auto-place all unplaced views on sheets"));
+            wrap.Children.Add(MakeToolBtn("Batch Clone", "BatchCloneSheets", BrBlue, "Clone multiple sheets"));
+            wrap.Children.Add(MakeToolBtn("Renumber", "SM_RenumberDisc", BrAccent, "ISO 19650 two-pass sheet renumbering"));
+            wrap.Children.Add(MakeToolBtn("From Template", "CreateFromTemplate", BrBlue, "Create sheet from template"));
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── VIEWS section ──
+            wrap.Children.Add(MakeRibbonLabel("VIEWS"));
+            wrap.Children.Add(MakeToolBtn("Duplicate", "SM_DuplicateView", BrBlue, "Duplicate selected view (with detailing)"));
+            wrap.Children.Add(MakeToolBtn("Dependent", "CreateDependentViews", BrDependent, "Create scope-box-scoped dependent views"));
+            wrap.Children.Add(MakeToolBtn("Batch Rename", "BatchRenameViews", BrBlue, "Batch rename views with 7 operations"));
+            wrap.Children.Add(MakeToolBtn("Copy Settings", "CopyViewSettings", BrBlue, "Copy VG/filters from source view"));
+            wrap.Children.Add(MakeToolBtn("Auto VP Types", "AutoAssignVPTypes", BrAccent, "Rule-based viewport type assignment"));
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── TEMPLATES section ──
+            wrap.Children.Add(MakeRibbonLabel("TEMPLATES"));
+            wrap.Children.Add(MakeToolBtn("Assign", "AutoAssignTemplates", BrTemplate, "5-layer intelligent template assignment"));
+            wrap.Children.Add(MakeToolBtn("Audit", "TemplateAudit", BrFgSubtle, "View template coverage report"));
+            wrap.Children.Add(MakeToolBtn("Clone VT", "CloneTemplate", BrBlue, "Deep clone view template"));
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── TITLE BLOCKS section ──
+            wrap.Children.Add(MakeRibbonLabel("TITLE BLOCKS"));
+            wrap.Children.Add(MakeToolBtn("Swap", "SM_SwapTitleBlock", BrAccent, "Swap title block on sheet(s)"));
+            wrap.Children.Add(MakeToolBtn("Reset", "TitleBlockReset", BrFgSubtle, "Reset title block to origin"));
+            wrap.Children.Add(MakeToolBtn("Rescue", "TitleBlockRescue", BrRed, "Find sheets missing title blocks"));
+            wrap.Children.Add(MakeRibbonSep());
+
+            // ── AUTOMATION section ──
+            wrap.Children.Add(MakeRibbonLabel("\u26A1 AUTOMATION"));
+            wrap.Children.Add(MakeToolBtn("Doc Package", "DocumentationPackage", BrAccent, "One-click: create full documentation set (views + sheets + templates)"));
+            wrap.Children.Add(MakeToolBtn("Batch Views", "BatchCreateViews", BrAccent, "Batch create views from levels \u00D7 disciplines \u00D7 scope boxes"));
+            wrap.Children.Add(MakeToolBtn("Batch Sheets", "BatchCreateSheets", BrAccent, "Batch create sheets with views placed from template"));
+            wrap.Children.Add(MakeToolBtn("Scope Boxes", "ScopeBoxManager", BrScopeBox, "Audit and assign scope boxes"));
+
+            border.Child = wrap;
+            return border;
         }
 
-        private static TextBlock CreateViewportHeader(ViewportNode vp)
+        // ═══════════════════════════════════════════════════════════════════
+        //  LEFT PANEL — VIEWS BROWSER
+        //  Groups by: Type | Discipline | Level | Template | Scope Box
+        //  Shows: ceiling vs floor plan colors, template badges, dependent hierarchy
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static Border CreateViewsPanel()
         {
-            return new TextBlock
+            var border = new Border
             {
-                Text = $"    {vp.ViewName}  (1:{vp.Scale}, {vp.PaperSize})",
+                Background = BrBgWhite, Margin = new Thickness(4),
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4)
+            };
+            var panel = new DockPanel { LastChildFill = true };
+
+            // ── Panel header with controls ───────────────────────────────
+            var headerGrid = new Grid { Margin = new Thickness(8, 6, 8, 4) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var titleBlock = new StackPanel { Orientation = Orientation.Horizontal };
+            titleBlock.Children.Add(new TextBlock
+            {
+                Text = "VIEWS", FontWeight = FontWeights.Bold, FontSize = 13,
+                Foreground = BrFgDark, VerticalAlignment = VerticalAlignment.Center
+            });
+            // Expand/Collapse All buttons
+            var expandBtn = CreateSmallButton("\u25BC", BrFgSubtle);
+            expandBtn.ToolTip = "Expand All"; expandBtn.Margin = new Thickness(8, 0, 0, 0);
+            expandBtn.Click += (s, e) => ExpandCollapseAll(_viewsTree, true);
+            titleBlock.Children.Add(expandBtn);
+            var collapseBtn = CreateSmallButton("\u25B6", BrFgSubtle);
+            collapseBtn.ToolTip = "Collapse All"; collapseBtn.Margin = new Thickness(2, 0, 0, 0);
+            collapseBtn.Click += (s, e) => ExpandCollapseAll(_viewsTree, false);
+            titleBlock.Children.Add(collapseBtn);
+
+            Grid.SetColumn(titleBlock, 0);
+            headerGrid.Children.Add(titleBlock);
+
+            // ── Search box ──
+            var searchBox = CreateSearchBox("Search views...");
+            searchBox.TextChanged += (s, e) => FilterTree(_viewsTree, searchBox.Text);
+            Grid.SetColumn(searchBox, 1);
+            searchBox.Margin = new Thickness(8, 0, 8, 0);
+            headerGrid.Children.Add(searchBox);
+
+            // ── Group-by mode ──
+            _viewBrowserMode = new ComboBox
+            {
+                FontSize = 11, MinWidth = 110, VerticalAlignment = VerticalAlignment.Center
+            };
+            _viewBrowserMode.Items.Add("By Type");
+            _viewBrowserMode.Items.Add("By Discipline");
+            _viewBrowserMode.Items.Add("By Level");
+            _viewBrowserMode.Items.Add("By Template");
+            _viewBrowserMode.Items.Add("By Scope Box");
+            _viewBrowserMode.Items.Add("Not on Sheets");
+            _viewBrowserMode.Items.Add("All Views");
+            _viewBrowserMode.SelectedIndex = 0;
+            _viewBrowserMode.SelectionChanged += (s, e) => RebuildViewsTree();
+            Grid.SetColumn(_viewBrowserMode, 2);
+            headerGrid.Children.Add(_viewBrowserMode);
+
+            DockPanel.SetDock(headerGrid, Dock.Top);
+            panel.Children.Add(headerGrid);
+
+            // ── Filters row ──────────────────────────────────────────────
+            var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 8, 4) };
+            _hidePlacedCheck = new CheckBox
+            {
+                Content = "Hide placed views", FontSize = 11, IsChecked = false,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _hidePlacedCheck.Checked += (s, e) => RebuildViewsTree();
+            _hidePlacedCheck.Unchecked += (s, e) => RebuildViewsTree();
+            filterRow.Children.Add(_hidePlacedCheck);
+            DockPanel.SetDock(filterRow, Dock.Top);
+            panel.Children.Add(filterRow);
+
+            // ── Tree view ────────────────────────────────────────────────
+            _viewsTree = new TreeView
+            {
+                Background = BrBgWhite, BorderThickness = new Thickness(0),
+                Margin = new Thickness(4), Padding = new Thickness(0, 0, 0, 8)
+            };
+            _viewsTree.MouseDoubleClick += ViewsTree_DoubleClick;
+            _viewsTree.PreviewMouseLeftButtonDown += ViewsTree_PreviewMouseLeftButtonDown;
+            _viewsTree.MouseMove += ViewsTree_MouseMove;
+            _viewsTree.ContextMenu = CreateViewsContextMenu();
+            panel.Children.Add(_viewsTree);
+            RebuildViewsTree();
+
+            border.Child = panel;
+            return border;
+        }
+
+        private static void RebuildViewsTree()
+        {
+            if (_viewsTree == null) return;
+            _viewsTree.Items.Clear();
+
+            string mode = _viewBrowserMode?.SelectedItem?.ToString() ?? "By Type";
+            bool hidePlaced = _hidePlacedCheck?.IsChecked == true;
+            var views = _allViews ?? new List<AllViewNode>();
+
+            if (mode == "Not on Sheets")
+            {
+                views = views.Where(v => !v.IsPlaced).ToList();
+            }
+            else if (hidePlaced)
+            {
+                views = views.Where(v => !v.IsPlaced).ToList();
+            }
+
+            // Sort alphabetically
+            views = views.OrderBy(v => v.ViewName ?? "").ToList();
+
+            // Choose grouping function
+            Func<AllViewNode, string> grouper = mode switch
+            {
+                "By Discipline" => v => v.Discipline ?? "General",
+                "By Level" => v => v.Level ?? "No Level",
+                "By Template" => v => string.IsNullOrEmpty(v.TemplateName) ? "\u26A0 No Template" : v.TemplateName,
+                "By Scope Box" => v => string.IsNullOrEmpty(v.ScopeBoxName) ? "\u2014 No Scope Box" : v.ScopeBoxName,
+                _ => v => ClassifyViewType(v.ViewType) // "By Type" default
+            };
+
+            var groups = views.GroupBy(grouper).OrderBy(g => g.Key);
+
+            foreach (var group in groups)
+            {
+                var groupItem = MakeGroupNode($"{group.Key} ({group.Count()})", GetGroupColor(mode, group.Key));
+                groupItem.IsExpanded = mode != "All Views"; // collapse "All Views" by default
+
+                // For "By Type" mode with dependent views, show hierarchy
+                var independents = group.Where(v => !v.IsDependent).ToList();
+                var dependents = group.Where(v => v.IsDependent).ToList();
+
+                foreach (var view in independents)
+                {
+                    var viewItem = MakeViewNode(view);
+
+                    // Nest dependent views under their parent
+                    var children = dependents.Where(d =>
+                        !string.IsNullOrEmpty(d.ParentViewName) &&
+                        d.ParentViewName == view.ViewName).ToList();
+                    foreach (var dep in children)
+                    {
+                        viewItem.Items.Add(MakeViewNode(dep));
+                        dependents.Remove(dep); // avoid duplicates
+                    }
+
+                    groupItem.Items.Add(viewItem);
+                }
+
+                // Orphaned dependents (parent not in this group)
+                foreach (var dep in dependents)
+                    groupItem.Items.Add(MakeViewNode(dep));
+
+                _viewsTree.Items.Add(groupItem);
+            }
+        }
+
+        /// <summary>Classify view type string into display group names.</summary>
+        private static string ClassifyViewType(string viewType)
+        {
+            if (string.IsNullOrEmpty(viewType)) return "Other";
+            var vt = viewType.ToLowerInvariant();
+            if (vt.Contains("ceiling") || vt.Contains("rcp")) return "Ceiling Plans";
+            if (vt.Contains("floor") || vt.Contains("plan")) return "Floor Plans";
+            if (vt.Contains("section")) return "Sections";
+            if (vt.Contains("elevation")) return "Elevations";
+            if (vt.Contains("legend")) return "Legends";
+            if (vt.Contains("drafting") || vt.Contains("detail")) return "Drafting Views";
+            if (vt.Contains("schedule") || vt.Contains("report")) return "Schedules";
+            if (vt.Contains("3d") || vt.Contains("three")) return "3D Views";
+            if (vt.Contains("area")) return "Area Plans";
+            return "Other";
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  RIGHT PANEL — SHEETS BROWSER
+        //  Groups by: Discipline | Paper Size | Title Block | All Sheets
+        //  Shows: discipline colours, title block info, viewport children
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static Border CreateSheetsPanel()
+        {
+            var border = new Border
+            {
+                Background = BrBgWhite, Margin = new Thickness(4),
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4)
+            };
+            var panel = new DockPanel { LastChildFill = true };
+
+            // ── Panel header ─────────────────────────────────────────────
+            var headerGrid = new Grid { Margin = new Thickness(8, 6, 8, 4) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var titleBlock = new StackPanel { Orientation = Orientation.Horizontal };
+            titleBlock.Children.Add(new TextBlock
+            {
+                Text = "SHEETS", FontWeight = FontWeights.Bold, FontSize = 13,
+                Foreground = BrFgDark, VerticalAlignment = VerticalAlignment.Center
+            });
+            var expandBtn = CreateSmallButton("\u25BC", BrFgSubtle);
+            expandBtn.ToolTip = "Expand All"; expandBtn.Margin = new Thickness(8, 0, 0, 0);
+            expandBtn.Click += (s, e) => ExpandCollapseAll(_sheetsTree, true);
+            titleBlock.Children.Add(expandBtn);
+            var collapseBtn = CreateSmallButton("\u25B6", BrFgSubtle);
+            collapseBtn.ToolTip = "Collapse All"; collapseBtn.Margin = new Thickness(2, 0, 0, 0);
+            collapseBtn.Click += (s, e) => ExpandCollapseAll(_sheetsTree, false);
+            titleBlock.Children.Add(collapseBtn);
+
+            Grid.SetColumn(titleBlock, 0);
+            headerGrid.Children.Add(titleBlock);
+
+            var searchBox = CreateSearchBox("Search sheets...");
+            searchBox.TextChanged += (s, e) => FilterTree(_sheetsTree, searchBox.Text);
+            Grid.SetColumn(searchBox, 1);
+            searchBox.Margin = new Thickness(8, 0, 8, 0);
+            headerGrid.Children.Add(searchBox);
+
+            _sheetBrowserMode = new ComboBox
+            {
+                FontSize = 11, MinWidth = 110, VerticalAlignment = VerticalAlignment.Center
+            };
+            _sheetBrowserMode.Items.Add("By Discipline");
+            _sheetBrowserMode.Items.Add("By Title Block");
+            _sheetBrowserMode.Items.Add("By Paper Size");
+            _sheetBrowserMode.Items.Add("All Sheets");
+            _sheetBrowserMode.SelectedIndex = 0;
+            _sheetBrowserMode.SelectionChanged += (s, e) => RebuildSheetsTree();
+            Grid.SetColumn(_sheetBrowserMode, 2);
+            headerGrid.Children.Add(_sheetBrowserMode);
+
+            DockPanel.SetDock(headerGrid, Dock.Top);
+            panel.Children.Add(headerGrid);
+
+            // ── Tree view ────────────────────────────────────────────────
+            _sheetsTree = new TreeView
+            {
+                Background = BrBgWhite, BorderThickness = new Thickness(0),
+                Margin = new Thickness(4), Padding = new Thickness(0, 0, 0, 8),
+                AllowDrop = true
+            };
+            _sheetsTree.MouseDoubleClick += SheetsTree_DoubleClick;
+            _sheetsTree.PreviewMouseLeftButtonDown += SheetsTree_PreviewMouseLeftButtonDown;
+            _sheetsTree.MouseMove += SheetsTree_MouseMove;
+            _sheetsTree.DragOver += SheetsTree_DragOver;
+            _sheetsTree.DragLeave += SheetsTree_DragLeave;
+            _sheetsTree.Drop += SheetsTree_Drop;
+            _sheetsTree.ContextMenu = CreateSheetsContextMenu();
+            panel.Children.Add(_sheetsTree);
+            RebuildSheetsTree();
+
+            border.Child = panel;
+            return border;
+        }
+
+        private static void RebuildSheetsTree()
+        {
+            if (_sheetsTree == null) return;
+            _sheetsTree.Items.Clear();
+
+            string mode = _sheetBrowserMode?.SelectedItem?.ToString() ?? "By Discipline";
+            var sheets = (_sheetNodes ?? new List<SheetNode>()).OrderBy(s => s.SheetNumber).ToList();
+
+            Func<SheetNode, string> grouper = mode switch
+            {
+                "By Title Block" => s => s.TitleBlockName ?? "Unknown Title Block",
+                "By Paper Size" => s => s.PaperSize ?? "Unknown Size",
+                "All Sheets" => s => "All Sheets",
+                _ => s => s.Discipline ?? "General"
+            };
+
+            var groups = sheets.GroupBy(grouper).OrderBy(g => g.Key);
+
+            foreach (var group in groups)
+            {
+                // Use discipline colour for discipline grouping
+                SolidColorBrush groupColor = BrFgDark;
+                if (mode == "By Discipline")
+                {
+                    string discCode = group.Key.Split(' ').FirstOrDefault()?.Trim() ?? "";
+                    if (DiscColors.TryGetValue(discCode, out var dc)) groupColor = dc;
+                }
+
+                var groupItem = MakeGroupNode($"{group.Key} ({group.Count()})", groupColor);
+                groupItem.IsExpanded = true;
+
+                foreach (var sheet in group)
+                {
+                    var sheetItem = MakeSheetNode(sheet);
+                    foreach (var vp in sheet.Viewports)
+                        sheetItem.Items.Add(MakeViewportNode(vp));
+                    groupItem.Items.Add(sheetItem);
+                }
+
+                _sheetsTree.Items.Add(groupItem);
+            }
+
+            // ── Unplaced views section ───────────────────────────────────
+            if (_unplacedViews != null && _unplacedViews.Count > 0)
+            {
+                var unplacedGroup = MakeGroupNode($"\u26A0 Unplaced Views ({_unplacedViews.Count})", BrRed);
+                unplacedGroup.IsExpanded = false;
+                foreach (var uv in _unplacedViews.OrderBy(v => v.ViewName))
+                {
+                    var item = new TreeViewItem
+                    {
+                        Tag = uv.Tag,
+                        Padding = new Thickness(2),
+                        Header = new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Children =
+                            {
+                                MakeColorDot(GetViewTypeColor(uv.ViewType)),
+                                new TextBlock { Text = uv.ViewName, FontSize = 11, Foreground = BrFgDark },
+                                new TextBlock { Text = $"  1:{uv.Scale}", FontSize = 10, Foreground = BrFgSubtle }
+                            }
+                        },
+                        ToolTip = $"Unplaced: {uv.ViewType}\nDrag to a sheet to place."
+                    };
+                    unplacedGroup.Items.Add(item);
+                }
+                _sheetsTree.Items.Add(unplacedGroup);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  BOTTOM BAR — Layout tools + QA tools + Status
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static Border CreateBottomBar(SheetManagerResult modalResult)
+        {
+            var border = new Border
+            {
+                Background = BrBgLight, BorderBrush = BrBorder,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(8, 4, 8, 4)
+            };
+
+            var outerStack = new DockPanel { LastChildFill = true };
+
+            // ── Right side: modal buttons OR status ──────────────────────
+            if (modalResult != null)
+            {
+                // Modal: OK / Cancel buttons
+                var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                var okBtn = CreateButton("Apply", BrGreen);
+                okBtn.Width = 90;
+                okBtn.Click += (s, e) => { modalResult.Confirmed = true; _window.DialogResult = true; };
+                var cancelBtn = CreateButton("Close", BrFgSubtle);
+                cancelBtn.Width = 90; cancelBtn.Margin = new Thickness(8, 0, 0, 0);
+                cancelBtn.Click += (s, e) => { _window.DialogResult = false; };
+                btnPanel.Children.Add(okBtn);
+                btnPanel.Children.Add(cancelBtn);
+                DockPanel.SetDock(btnPanel, Dock.Right);
+                outerStack.Children.Add(btnPanel);
+            }
+            else
+            {
+                // Modeless: close button on right
+                var closeBtn = CreateSmallButton("\u2715 Close", BrFgSubtle);
+                closeBtn.Click += (s, e) => { try { _window.Close(); } catch { } };
+                DockPanel.SetDock(closeBtn, Dock.Right);
+                outerStack.Children.Add(closeBtn);
+            }
+
+            // ── Bottom tools area: Layout + QA ───────────────────────────
+            var toolsPanel = new StackPanel();
+
+            // Layout tools row
+            var layoutRow = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
+            layoutRow.Children.Add(MakeRibbonLabel("LAYOUT"));
+            layoutRow.Children.Add(MakeToolBtn("Auto Layout", "SM_ArrangeOnSheet", BrAccent, "Shelf-packing auto-arrange viewports on active sheet"));
+            layoutRow.Children.Add(MakeToolBtn("MaxRects", "MaxRectsLayout", BrAccent, "MaxRects bin packing (BSSF) for optimal space usage"));
+            layoutRow.Children.Add(MakeToolBtn("Grid Align", "GridAlignViewports", BrBlue, "Snap viewport centres to alignment grid"));
+            layoutRow.Children.Add(MakeToolBtn("Align Edges", "AlignViewportEdges", BrBlue, "Align viewport edges (L/R/T/B/Centre)"));
+            layoutRow.Children.Add(MakeToolBtn("Distribute", "DistributeViewports", BrBlue, "Distribute viewports evenly"));
+            layoutRow.Children.Add(MakeToolBtn("Batch Arrange", "SM_BatchArrange", BrAccent, "Auto-arrange across ALL sheets"));
+            layoutRow.Children.Add(MakeToolBtn("Auto Scale", "SM_AutoScaleSheet", BrAccent, "Calculate and apply optimal viewport scales"));
+            layoutRow.Children.Add(MakeToolBtn("Save Preset", "SaveLayoutPreset", BrFgSubtle, "Save current layout as named preset"));
+            layoutRow.Children.Add(MakeToolBtn("Apply Preset", "ApplyLayoutPreset", BrBlue, "Apply saved layout preset"));
+            layoutRow.Children.Add(MakeToolBtn("Crop to Content", "CropToContent", BrAccent, "Smart crop views to element extents"));
+            toolsPanel.Children.Add(layoutRow);
+
+            // QA tools row
+            var qaRow = new WrapPanel { Orientation = Orientation.Horizontal };
+            qaRow.Children.Add(MakeRibbonLabel("QA"));
+            qaRow.Children.Add(MakeToolBtn("Audit", "SheetAudit", BrBlue, "Sheet/viewport statistics audit"));
+            qaRow.Children.Add(MakeToolBtn("ISO Check", "SheetComplianceCheck", BrGreen, "ISO 19650 sheet compliance (10 rules)"));
+            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrAccent, "Force ISO 19650 naming on sheets (audit/rename/overwrite)"));
+            qaRow.Children.Add(MakeToolBtn("Template Compliance", "TemplateComplianceScore", BrGreen, "View template compliance scoring"));
+            qaRow.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle, "Export sheet inventory to CSV"));
+            qaRow.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle, "Export comprehensive sheet register"));
+            qaRow.Children.Add(MakeToolBtn("Batch PDF", "BatchPrintSheets", BrRed, "Export sheets to PDF (all/discipline/selected)"));
+            qaRow.Children.Add(MakeToolBtn("Save Template", "SaveSheetTemplate", BrFgSubtle, "Save current sheet as reusable template"));
+            qaRow.Children.Add(MakeToolBtn("Drawing Register", "DocsDrawingRegister", BrBlue, "ISO 19650 drawing register with CDE tracking"));
+            toolsPanel.Children.Add(qaRow);
+
+            outerStack.Children.Add(toolsPanel);
+
+            // ── Status text ──────────────────────────────────────────────
+            _statusText = new TextBlock
+            {
+                Text = "Ready", FontSize = 10, Foreground = BrFgSubtle,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            var statusRow = new DockPanel();
+            statusRow.Children.Add(_statusText);
+            toolsPanel.Children.Add(statusRow);
+
+            border.Child = outerStack;
+            return border;
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  DOUBLE-CLICK HANDLERS — open/activate views/sheets in Revit
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void ViewsTree_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var item = GetTreeViewItemUnderMouse(_viewsTree, e);
+            if (item == null) return;
+            object viewId = null;
+            if (item.Tag is AllViewNode avn) viewId = avn.Tag;
+            else viewId = item.Tag;
+            if (viewId == null) return;
+            ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", viewId } });
+        }
+
+        private static void SheetsTree_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var item = GetTreeViewItemUnderMouse(_sheetsTree, e);
+            if (item == null) return;
+            object viewId = null;
+            if (item.Tag is SheetNode sn) viewId = sn.Tag;
+            else if (item.Tag is ViewportNode vn) viewId = vn.ViewTag ?? vn.Tag;
+            else viewId = item.Tag;
+            if (viewId == null) return;
+            ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", viewId } });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  DRAG-DROP — Views → Sheets (place) and Viewports → Sheets (move)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Views tree: drag source ──────────────────────────────────────
+        private static void ViewsTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(_viewsTree);
+            _dragSource = GetTreeViewItemUnderMouse(_viewsTree, e);
+        }
+
+        private static void ViewsTree_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _dragSource == null) return;
+            var pos = e.GetPosition(_viewsTree);
+            if (Math.Abs(pos.X - _dragStartPoint.X) < 6 && Math.Abs(pos.Y - _dragStartPoint.Y) < 6) return;
+
+            object tag = _dragSource.Tag;
+            string name = "";
+            if (tag is AllViewNode avn) { name = avn.ViewName; tag = avn.Tag; }
+            else if (tag is UnplacedViewNode uvn) { name = uvn.ViewName; }
+
+            if (tag == null) return;
+            UpdateStatus($"\u2195 Dragging: {name}");
+            var data = new DataObject("ViewDrag", tag);
+            DragDrop.DoDragDrop(_viewsTree, data, DragDropEffects.Copy);
+            _dragSource = null;
+        }
+
+        // ── Sheets tree: drag source (viewport move) ─────────────────────
+        private static void SheetsTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _dragStartPoint = e.GetPosition(_sheetsTree);
+            _dragSource = GetTreeViewItemUnderMouse(_sheetsTree, e);
+        }
+
+        private static void SheetsTree_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _dragSource == null) return;
+            var pos = e.GetPosition(_sheetsTree);
+            if (Math.Abs(pos.X - _dragStartPoint.X) < 6 && Math.Abs(pos.Y - _dragStartPoint.Y) < 6) return;
+
+            // Only drag ViewportNode items
+            if (!(_dragSource.Tag is ViewportNode vpn)) return;
+            UpdateStatus($"\u2195 Moving: {vpn.ViewName}");
+            var data = new DataObject("ViewportMove", _dragSource.Tag);
+            DragDrop.DoDragDrop(_sheetsTree, data, DragDropEffects.Move);
+            _dragSource = null;
+        }
+
+        // ── Sheets tree: drop target ─────────────────────────────────────
+        private static void SheetsTree_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = DragDropEffects.None;
+            ClearDropHighlight();
+
+            var targetItem = GetTreeViewItemUnderDragEvent(_sheetsTree, e);
+            if (targetItem == null) return;
+
+            // Resolve to sheet node
+            SheetNode targetSheet = ResolveSheetFromItem(targetItem);
+            if (targetSheet == null) return;
+
+            // Highlight target
+            targetItem.Background = BrDropHighlight;
+            targetItem.BorderBrush = BrDropBorder;
+            targetItem.BorderThickness = new Thickness(2);
+            _lastHighlighted = targetItem;
+
+            if (e.Data.GetDataPresent("ViewDrag")) e.Effects = DragDropEffects.Copy;
+            else if (e.Data.GetDataPresent("ViewportMove")) e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+
+        private static void SheetsTree_DragLeave(object sender, DragEventArgs e)
+        {
+            ClearDropHighlight();
+        }
+
+        private static void SheetsTree_Drop(object sender, DragEventArgs e)
+        {
+            ClearDropHighlight();
+            var targetItem = GetTreeViewItemUnderDragEvent(_sheetsTree, e);
+            if (targetItem == null) return;
+
+            SheetNode targetSheet = ResolveSheetFromItem(targetItem);
+            if (targetSheet == null) return;
+
+            if (e.Data.GetDataPresent("ViewDrag"))
+            {
+                var viewTag = e.Data.GetData("ViewDrag");
+                if (viewTag == null) return;
+                UpdateStatus($"\u2713 Placing view on {targetSheet.SheetNumber}...");
+                ExecuteOp("PlaceViewOnSheet", new Dictionary<string, object>
+                {
+                    { "ViewTag", viewTag },
+                    { "SheetTag", targetSheet.Tag },
+                });
+            }
+            else if (e.Data.GetDataPresent("ViewportMove"))
+            {
+                var vpNode = e.Data.GetData("ViewportMove") as ViewportNode;
+                if (vpNode == null) return;
+                if (vpNode.HostSheetNumber == targetSheet.SheetNumber) return; // same sheet
+                UpdateStatus($"\u2713 Moving viewport to {targetSheet.SheetNumber}...");
+                ExecuteOp("MoveViewportToSheet", new Dictionary<string, object>
+                {
+                    { "ViewportTag", vpNode.Tag },
+                    { "TargetSheetTag", targetSheet.Tag },
+                    { "TargetSheetNumber", targetSheet.SheetNumber },
+                });
+            }
+        }
+
+        private static SheetNode ResolveSheetFromItem(TreeViewItem item)
+        {
+            if (item?.Tag is SheetNode sn) return sn;
+            // Viewport child — resolve parent sheet
+            if (item?.Tag is ViewportNode)
+            {
+                var parent = FindParent<TreeViewItem>(item);
+                if (parent?.Tag is SheetNode psn) return psn;
+            }
+            return null;
+        }
+
+        private static TreeViewItem FindSheetItem(SheetNode target)
+        {
+            foreach (TreeViewItem group in _sheetsTree.Items)
+            {
+                foreach (TreeViewItem sheetItem in group.Items)
+                {
+                    if (sheetItem.Tag is SheetNode sn && sn.SheetNumber == target.SheetNumber)
+                        return sheetItem;
+                }
+            }
+            return null;
+        }
+
+        private static void ClearDropHighlight()
+        {
+            if (_lastHighlighted != null)
+            {
+                _lastHighlighted.Background = Brushes.Transparent;
+                _lastHighlighted.BorderBrush = Brushes.Transparent;
+                _lastHighlighted.BorderThickness = new Thickness(0);
+                _lastHighlighted = null;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  PLACE VIEW ON SHEET (right-click action)
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void PlaceSelectedViewOnSheet()
+        {
+            var viewTag = GetSelectedViewTag();
+            if (viewTag == null) { UpdateStatus("Select a view first."); return; }
+
+            // Build list of available sheets
+            var sheetNames = _sheetNodes?.Select(s => $"{s.SheetNumber} - {s.SheetName}").ToList();
+            if (sheetNames == null || sheetNames.Count == 0) { UpdateStatus("No sheets available."); return; }
+
+            var pickedSheet = StingListPicker.Show("Place View on Sheet",
+                "Select target sheet:", sheetNames);
+            if (string.IsNullOrEmpty(pickedSheet)) return;
+            var picker = new List<string> { pickedSheet };
+
+            int idx = sheetNames.IndexOf(picker[0]);
+            if (idx < 0 || idx >= _sheetNodes.Count) return;
+            var targetSheet = _sheetNodes[idx];
+
+            ExecuteOp("PlaceViewOnSheet", new Dictionary<string, object>
+            {
+                { "ViewTag", viewTag },
+                { "SheetTag", targetSheet.Tag },
+            });
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  CONTEXT MENUS
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static ContextMenu CreateViewsContextMenu()
+        {
+            var menu = new ContextMenu();
+
+            var openItem = new MenuItem { Header = "Open View", FontWeight = FontWeights.Bold };
+            openItem.Click += (s, e) =>
+            {
+                var tag = GetSelectedViewTag();
+                if (tag != null) ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", tag } });
+            };
+            menu.Items.Add(openItem);
+            menu.Items.Add(new Separator());
+
+            var placeItem = new MenuItem { Header = "Place on Sheet..." };
+            placeItem.Click += (s, e) => PlaceSelectedViewOnSheet();
+            menu.Items.Add(placeItem);
+
+            var placeNewItem = new MenuItem { Header = "Place on New Sheet" };
+            placeNewItem.Click += (s, e) =>
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("PlaceOnNewSheet", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
+            menu.Items.Add(placeNewItem);
+            menu.Items.Add(new Separator());
+
+            var dupItem = new MenuItem { Header = "Duplicate View" };
+            dupItem.Click += (s, e) =>
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("DuplicateView", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
+            menu.Items.Add(dupItem);
+
+            var depItem = new MenuItem { Header = "Create Dependent View" };
+            depItem.Click += (s, e) => ExecuteOp("CreateDependentViews");
+            depItem.Foreground = BrDependent;
+            menu.Items.Add(depItem);
+
+            var assignTpl = new MenuItem { Header = "Assign View Template" };
+            assignTpl.Click += (s, e) => ExecuteOp("AutoAssignTemplates");
+            assignTpl.Foreground = BrTemplate;
+            menu.Items.Add(assignTpl);
+
+            var scopeItem = new MenuItem { Header = "Assign Scope Box" };
+            scopeItem.Click += (s, e) => ExecuteOp("ScopeBoxManager");
+            scopeItem.Foreground = BrScopeBox;
+            menu.Items.Add(scopeItem);
+
+            var cropItem = new MenuItem { Header = "Crop to Content" };
+            cropItem.Click += (s, e) => ExecuteOp("CropToContent");
+            menu.Items.Add(cropItem);
+
+            var renameItem = new MenuItem { Header = "Batch Rename Views..." };
+            renameItem.Click += (s, e) => ExecuteOp("BatchRenameViews");
+            menu.Items.Add(renameItem);
+
+            menu.Items.Add(new Separator());
+
+            var deleteItem = new MenuItem { Header = "Delete View", Foreground = BrRed };
+            deleteItem.Click += (s, e) =>
+            {
+                var vt = GetSelectedViewTag();
+                if (vt != null) ExecuteOp("DeleteView", new Dictionary<string, object> { { "SelectedTag", vt } });
+            };
+            menu.Items.Add(deleteItem);
+
+            return menu;
+        }
+
+        private static ContextMenu CreateSheetsContextMenu()
+        {
+            var menu = new ContextMenu();
+
+            var openItem = new MenuItem { Header = "Open Sheet", FontWeight = FontWeights.Bold };
+            openItem.Click += (s, e) =>
+            {
+                var tag = GetSelectedSheetTag();
+                if (tag != null) ExecuteOp("ActivateView", new Dictionary<string, object> { { "ViewTag", tag } });
+            };
+            menu.Items.Add(openItem);
+            menu.Items.Add(new Separator());
+
+            var cloneItem = new MenuItem { Header = "Clone Sheet" };
+            cloneItem.Click += (s, e) =>
+            {
+                var sel = GetSelectedSheetTag();
+                if (sel != null)
+                    ExecuteOp("CloneSheet", new Dictionary<string, object> { { "SelectedTag", sel } });
+            };
+            menu.Items.Add(cloneItem);
+
+            var arrangeItem = new MenuItem { Header = "Arrange Viewports" };
+            arrangeItem.Click += (s, e) =>
+            {
+                var sel = GetSelectedSheetTag();
+                var opts = new Dictionary<string, object>();
+                if (sel != null) opts["SelectedTag"] = sel;
+                ExecuteOp("ArrangeOnSheet", opts);
+            };
+            menu.Items.Add(arrangeItem);
+
+            var autoScaleItem = new MenuItem { Header = "Auto-Scale Viewports" };
+            autoScaleItem.Click += (s, e) => ExecuteOp("AutoScaleSheet");
+            menu.Items.Add(autoScaleItem);
+
+            var gridItem = new MenuItem { Header = "Grid Align Viewports" };
+            gridItem.Click += (s, e) => ExecuteOp("GridAlignViewports");
+            menu.Items.Add(gridItem);
+
+            var alignItem = new MenuItem { Header = "Align Viewport Edges" };
+            alignItem.Click += (s, e) => ExecuteOp("AlignViewportEdges");
+            menu.Items.Add(alignItem);
+
+            var distItem = new MenuItem { Header = "Distribute Viewports" };
+            distItem.Click += (s, e) => ExecuteOp("DistributeViewports");
+            menu.Items.Add(distItem);
+            menu.Items.Add(new Separator());
+
+            // ── Title block submenu ──
+            var tbMenu = new MenuItem { Header = "Title Block \u25B6" };
+            var tbSwap = new MenuItem { Header = "Swap Title Block" };
+            tbSwap.Click += (s, e) => ExecuteOp("SM_SwapTitleBlock");
+            tbMenu.Items.Add(tbSwap);
+            var tbReset = new MenuItem { Header = "Reset to Origin" };
+            tbReset.Click += (s, e) => ExecuteOp("TitleBlockReset");
+            tbMenu.Items.Add(tbReset);
+            menu.Items.Add(tbMenu);
+
+            var isoItem = new MenuItem { Header = "ISO 19650 Compliance Check" };
+            isoItem.Click += (s, e) => ExecuteOp("SheetComplianceCheck");
+            isoItem.Foreground = BrGreen;
+            menu.Items.Add(isoItem);
+
+            var renumItem = new MenuItem { Header = "Renumber Sheets..." };
+            renumItem.Click += (s, e) => ExecuteOp("RenumberDisc");
+            menu.Items.Add(renumItem);
+            menu.Items.Add(new Separator());
+
+            // ── Viewport operations (when viewport selected) ──
+            var moveVpItem = new MenuItem { Header = "Move Viewport to Sheet \u25B6" };
+            moveVpItem.Click += (s, e) => ShowMoveViewportPicker();
+            menu.Items.Add(moveVpItem);
+
+            var removeVpItem = new MenuItem { Header = "Remove Viewport from Sheet", Foreground = BrRed };
+            removeVpItem.Click += (s, e) =>
+            {
+                var vpTag = GetSelectedViewportTag();
+                if (vpTag != null)
+                    ExecuteOp("RemoveViewport", new Dictionary<string, object> { { "SelectedTag", vpTag } });
+            };
+            menu.Items.Add(removeVpItem);
+
+            return menu;
+        }
+
+        private static void ShowMoveViewportPicker()
+        {
+            var vpTag = GetSelectedViewportTag();
+            if (vpTag == null) { UpdateStatus("Select a viewport first."); return; }
+
+            var sheetNames = _sheetNodes?.Select(s => $"{s.SheetNumber} - {s.SheetName}").ToList();
+            if (sheetNames == null || sheetNames.Count == 0) return;
+
+            var pickedSheet = StingListPicker.Show("Move Viewport",
+                "Select target sheet:", sheetNames);
+            if (string.IsNullOrEmpty(pickedSheet)) return;
+            var picker = new List<string> { pickedSheet };
+
+            int idx = sheetNames.IndexOf(picker[0]);
+            if (idx < 0 || idx >= _sheetNodes.Count) return;
+
+            ExecuteOp("MoveViewportToSheet", new Dictionary<string, object>
+            {
+                { "ViewportTag", vpTag },
+                { "TargetSheetTag", _sheetNodes[idx].Tag },
+                { "TargetSheetNumber", _sheetNodes[idx].SheetNumber }
+            });
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  OPERATION EXECUTION — route to callback or dispatch
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void ExecuteOp(string operation, Dictionary<string, object> options = null)
+        {
+            if (string.IsNullOrEmpty(operation)) return;
+            options ??= new Dictionary<string, object>();
+
+            if (IsModeless)
+            {
+                try
+                {
+                    _executeCallback?.Invoke(operation, options);
+                    UpdateStatus($"\u2713 {operation} executed.");
+                }
+                catch (Exception ex)
+                {
+                    UpdateStatus($"\u2717 {operation} failed: {ex.Message}");
+                    StingLog.Warn($"SheetManager ExecuteOp: {ex.Message}");
+                }
+            }
+            else
+            {
+                if (StingDockPanel.DispatchCommand(operation))
+                    UpdateStatus($"Running: {operation}...");
+                else
+                    UpdateStatus($"Cannot run {operation} \u2014 Revit may be busy.");
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  NODE BUILDERS — TreeViewItem factories with colour coding
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static TreeViewItem MakeGroupNode(string text, SolidColorBrush color)
+        {
+            return new TreeViewItem
+            {
+                IsExpanded = true,
+                FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = color ?? BrFgDark,
+                Header = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                    {
+                        MakeColorDot(color ?? BrFgDark, 10),
+                        new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) }
+                    }
+                },
+                Padding = new Thickness(2, 3, 2, 3)
+            };
+        }
+
+        private static TreeViewItem MakeViewNode(AllViewNode view)
+        {
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // Colour dot — ceiling vs floor vs other (DISTINCT)
+            var typeColor = GetViewTypeColor(view.ViewType);
+            stack.Children.Add(MakeColorDot(typeColor));
+
+            // Dependent view indicator
+            if (view.IsDependent)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = "\u2514\u2500 ", FontSize = 10, Foreground = BrDependent,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            // View name
+            var nameBlock = new TextBlock
+            {
+                Text = view.ViewName ?? "(unnamed)",
                 FontSize = 11,
                 Foreground = BrFgDark,
-                Padding = new Thickness(0, 1, 0, 1)
+                FontStyle = view.IsPlaced ? FontStyles.Italic : FontStyles.Normal,
+                VerticalAlignment = VerticalAlignment.Center
             };
-        }
+            stack.Children.Add(nameBlock);
 
-        private static TextBlock CreateUnplacedHeader(UnplacedViewNode uv)
-        {
-            return new TextBlock
+            // Scale
+            if (!string.IsNullOrEmpty(view.Scale))
             {
-                Text = $"    {uv.ViewName}  ({uv.ViewType}, 1:{uv.Scale})",
-                FontSize = 11,
-                Foreground = BrFgSubtle,
-                Padding = new Thickness(0, 1, 0, 1)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"  1:{view.Scale}", FontSize = 10,
+                    Foreground = BrFgSubtle, VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            // Template badge [T]
+            if (!string.IsNullOrEmpty(view.TemplateName))
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = BrTemplate, CornerRadius = new CornerRadius(3),
+                    Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(3, 0, 3, 0),
+                    Child = new TextBlock
+                    {
+                        Text = "T", FontSize = 8, FontWeight = FontWeights.Bold,
+                        Foreground = BrFgWhite, VerticalAlignment = VerticalAlignment.Center
+                    },
+                    ToolTip = $"Template: {view.TemplateName}"
+                });
+            }
+
+            // Scope box badge [SB]
+            if (!string.IsNullOrEmpty(view.ScopeBoxName))
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = BrScopeBox, CornerRadius = new CornerRadius(3),
+                    Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(3, 0, 3, 0),
+                    Child = new TextBlock
+                    {
+                        Text = "SB", FontSize = 8, FontWeight = FontWeights.Bold,
+                        Foreground = BrFgWhite, VerticalAlignment = VerticalAlignment.Center
+                    },
+                    ToolTip = $"Scope Box: {view.ScopeBoxName}"
+                });
+            }
+
+            // Discipline badge
+            if (!string.IsNullOrEmpty(view.Discipline) && DiscColors.TryGetValue(view.Discipline, out var discBrush))
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = discBrush, CornerRadius = new CornerRadius(3),
+                    Margin = new Thickness(3, 0, 0, 0), Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = view.Discipline, FontSize = 8, FontWeight = FontWeights.Bold,
+                        Foreground = BrFgWhite, VerticalAlignment = VerticalAlignment.Center
+                    }
+                });
+            }
+
+            // Placed-on-sheet badge
+            if (view.IsPlaced && !string.IsNullOrEmpty(view.PlacedOnSheet))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $" [{view.PlacedOnSheet}]", FontSize = 10,
+                    Foreground = BrAccent, VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            // Build tooltip
+            var tooltipParts = new List<string>();
+            tooltipParts.Add($"Type: {view.ViewType ?? "Unknown"}");
+            if (!string.IsNullOrEmpty(view.Scale)) tooltipParts.Add($"Scale: 1:{view.Scale}");
+            if (!string.IsNullOrEmpty(view.Level)) tooltipParts.Add($"Level: {view.Level}");
+            if (!string.IsNullOrEmpty(view.TemplateName)) tooltipParts.Add($"Template: {view.TemplateName}");
+            if (!string.IsNullOrEmpty(view.ScopeBoxName)) tooltipParts.Add($"Scope Box: {view.ScopeBoxName}");
+            if (!string.IsNullOrEmpty(view.Discipline)) tooltipParts.Add($"Discipline: {view.Discipline}");
+            if (view.IsDependent) tooltipParts.Add($"Dependent of: {view.ParentViewName}");
+            if (view.IsPlaced) tooltipParts.Add($"On sheet: {view.PlacedOnSheet}");
+            else tooltipParts.Add("Not placed \u2014 drag to a sheet");
+            tooltipParts.Add("Double-click to open");
+
+            return new TreeViewItem
+            {
+                Tag = view,
+                Header = stack,
+                ToolTip = string.Join("\n", tooltipParts),
+                Padding = new Thickness(2, 1, 2, 1)
             };
         }
 
-        private static void FilterTree(TreeView tree, string filter)
+        private static TreeViewItem MakeSheetNode(SheetNode sheet)
         {
-            if (string.IsNullOrWhiteSpace(filter))
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // Discipline colour dot
+            string disc = sheet.Discipline?.Split(' ').FirstOrDefault() ?? "";
+            SolidColorBrush discColor = DiscColors.TryGetValue(disc, out var dc) ? dc : BrFgSubtle;
+            stack.Children.Add(MakeColorDot(discColor));
+
+            // Sheet number (accent)
+            stack.Children.Add(new TextBlock
+            {
+                Text = sheet.SheetNumber, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = BrAccent, MinWidth = 65, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Sheet name
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"\u2014 {sheet.SheetName}", FontSize = 11,
+                Foreground = BrFgDark, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Metadata badge
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"  [{sheet.ViewportCount}vp, {sheet.PaperSize ?? "?"}]",
+                FontSize = 10, Foreground = BrFgSubtle,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Title block badge
+            if (!string.IsNullOrEmpty(sheet.TitleBlockName))
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)),
+                    CornerRadius = new CornerRadius(3),
+                    Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = "TB", FontSize = 8, FontWeight = FontWeights.Bold,
+                        Foreground = BrFgDark, VerticalAlignment = VerticalAlignment.Center
+                    },
+                    ToolTip = $"Title Block: {sheet.TitleBlockName}"
+                });
+            }
+
+            return new TreeViewItem
+            {
+                Tag = sheet,
+                Header = stack,
+                IsExpanded = true,
+                ToolTip = $"Title block: {sheet.TitleBlockName ?? "None"}\n" +
+                    $"Drawable: {sheet.DrawableArea ?? "?"}\n" +
+                    $"Viewports: {sheet.ViewportCount}\n" +
+                    "Double-click to open  |  Drop views here to place",
+                Padding = new Thickness(2, 2, 2, 2)
+            };
+        }
+
+        private static TreeViewItem MakeViewportNode(ViewportNode vp)
+        {
+            var stack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // Indent arrow
+            stack.Children.Add(new TextBlock
+            {
+                Text = "\u21B3 ", FontSize = 10, Foreground = BrFgSubtle,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Colour dot for view type
+            var typeColor = GetViewTypeColor(vp.ViewName);
+            stack.Children.Add(MakeColorDot(typeColor, 6));
+
+            // View name
+            stack.Children.Add(new TextBlock
+            {
+                Text = vp.ViewName, FontSize = 11,
+                Foreground = BrFgDark, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Scale
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"  1:{vp.Scale}", FontSize = 10,
+                Foreground = BrFgSubtle, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            return new TreeViewItem
+            {
+                Tag = vp,
+                Header = stack,
+                ToolTip = $"View: {vp.ViewName}\nScale: 1:{vp.Scale}\n" +
+                    $"Position: {vp.Position ?? "?"}\nSize: {vp.PaperSize ?? "?"}\n" +
+                    $"Sheet: {vp.HostSheetNumber}\n" +
+                    "Double-click to open  |  Drag to move to another sheet",
+                Padding = new Thickness(2, 1, 2, 1)
+            };
+        }
+
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  COLOUR LOGIC — view type + discipline + ceiling distinction
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Get colour for a view type string. Ceiling plans get DISTINCT purple
+        /// (not same blue as floor plans). ISO 19650 discipline colors available.
+        /// </summary>
+        private static SolidColorBrush GetViewTypeColor(string viewType)
+        {
+            if (string.IsNullOrEmpty(viewType)) return BrFgSubtle;
+            var vt = viewType.ToLowerInvariant();
+            if (vt.Contains("ceiling") || vt.Contains("rcp")) return BrCeilingPlan;  // Deep Purple — DISTINCT
+            if (vt.Contains("floor") || vt.Contains("plan")) return BrFloorPlan;      // Blue
+            if (vt.Contains("section")) return BrSection;                              // Purple
+            if (vt.Contains("elevation")) return BrElevation;                          // Teal
+            if (vt.Contains("legend")) return BrLegend;                                // Green
+            if (vt.Contains("drafting") || vt.Contains("detail")) return BrDrafting;   // Orange
+            if (vt.Contains("schedule") || vt.Contains("report")) return BrSchedule;   // Blue Grey
+            if (vt.Contains("3d") || vt.Contains("three")) return BrThreeD;            // Red
+            if (vt.Contains("area")) return BrAreaPlan;                                // Brown
+            return BrFgSubtle;
+        }
+
+        /// <summary>Get colour for group headers based on grouping mode.</summary>
+        private static SolidColorBrush GetGroupColor(string mode, string groupKey)
+        {
+            if (mode == "By Discipline")
+            {
+                string code = groupKey.Split(' ').FirstOrDefault()?.Trim() ?? "";
+                if (DiscColors.TryGetValue(code, out var dc)) return dc;
+            }
+            if (mode == "By Type")
+            {
+                var key = groupKey.ToLowerInvariant();
+                if (key.Contains("ceiling")) return BrCeilingPlan;
+                if (key.Contains("floor") || key.Contains("plan")) return BrFloorPlan;
+                if (key.Contains("section")) return BrSection;
+                if (key.Contains("elevation")) return BrElevation;
+                if (key.Contains("legend")) return BrLegend;
+                if (key.Contains("drafting")) return BrDrafting;
+                if (key.Contains("schedule")) return BrSchedule;
+                if (key.Contains("3d")) return BrThreeD;
+                if (key.Contains("area")) return BrAreaPlan;
+            }
+            if (mode == "By Template")
+            {
+                if (groupKey.StartsWith("\u26A0")) return BrRed; // warning = no template
+                return BrTemplate;
+            }
+            if (mode == "By Scope Box")
+            {
+                if (groupKey.StartsWith("\u2014")) return BrFgSubtle; // no scope box
+                return BrScopeBox;
+            }
+            return BrFgDark;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  EXPAND / COLLAPSE ALL
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void ExpandCollapseAll(TreeView tree, bool expand)
+        {
+            if (tree == null) return;
+            foreach (var item in tree.Items)
+            {
+                if (item is TreeViewItem tvi)
+                    SetExpanded(tvi, expand);
+            }
+        }
+
+        private static void SetExpanded(TreeViewItem item, bool expand)
+        {
+            item.IsExpanded = expand;
+            foreach (var child in item.Items)
+            {
+                if (child is TreeViewItem childItem)
+                    SetExpanded(childItem, expand);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  SEARCH / FILTER
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static void FilterTree(TreeView tree, string query)
+        {
+            if (tree == null) return;
+            if (string.IsNullOrWhiteSpace(query))
             {
                 SetAllVisible(tree);
                 return;
             }
 
-            string lower = filter.ToLowerInvariant();
-            foreach (TreeViewItem discItem in tree.Items)
+            string lower = query.ToLowerInvariant();
+            foreach (TreeViewItem group in tree.Items)
             {
                 bool anyChildVisible = false;
-                foreach (TreeViewItem child in discItem.Items)
+                foreach (TreeViewItem child in group.Items)
                 {
-                    bool match = false;
-                    if (child.Tag is SheetNode sn)
+                    bool childMatch = false;
+                    // Check child header text
+                    string childText = GetHeaderText(child);
+                    if (childText.ToLowerInvariant().Contains(lower))
+                        childMatch = true;
+
+                    // Check grandchildren
+                    bool anyGrandchildVisible = false;
+                    foreach (var gc in child.Items)
                     {
-                        match = sn.SheetNumber.ToLowerInvariant().Contains(lower)
-                            || sn.SheetName.ToLowerInvariant().Contains(lower);
-                    }
-                    else if (child.Tag is UnplacedViewNode uv)
-                    {
-                        match = uv.ViewName.ToLowerInvariant().Contains(lower);
+                        if (gc is TreeViewItem gcItem)
+                        {
+                            string gcText = GetHeaderText(gcItem);
+                            bool gcMatch = gcText.ToLowerInvariant().Contains(lower);
+                            gcItem.Visibility = gcMatch ? Visibility.Visible : Visibility.Collapsed;
+                            if (gcMatch) anyGrandchildVisible = true;
+                        }
                     }
 
-                    child.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
-                    if (match) anyChildVisible = true;
+                    child.Visibility = (childMatch || anyGrandchildVisible) ? Visibility.Visible : Visibility.Collapsed;
+                    if (child.Visibility == Visibility.Visible)
+                    {
+                        anyChildVisible = true;
+                        if (anyGrandchildVisible) child.IsExpanded = true;
+                    }
                 }
-                discItem.Visibility = anyChildVisible ? Visibility.Visible : Visibility.Collapsed;
+                group.Visibility = anyChildVisible ? Visibility.Visible : Visibility.Collapsed;
+                if (anyChildVisible) group.IsExpanded = true;
             }
         }
 
         private static void SetAllVisible(TreeView tree)
         {
-            foreach (TreeViewItem item in tree.Items)
+            foreach (TreeViewItem group in tree.Items)
             {
-                item.Visibility = Visibility.Visible;
-                foreach (TreeViewItem child in item.Items)
-                    child.Visibility = Visibility.Visible;
-            }
-        }
-
-
-        // ═══════════════════════════════════════════════════════════════════
-        //  RIGHT PANEL — Context-Sensitive Detail
-        // ═══════════════════════════════════════════════════════════════════
-
-        private static Border CreateRightPanel()
-        {
-            var border = new Border
-            {
-                Background = BrBgWhite,
-                Padding = new Thickness(12)
-            };
-
-            _detailPanel = new StackPanel();
-
-            // Default content — overview
-            ShowOverviewDetail();
-
-            var scroll = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = _detailPanel
-            };
-
-            border.Child = scroll;
-            return border;
-        }
-
-        private static void UpdateDetailPanel()
-        {
-            if (_selectedTreeItem == null) { ShowOverviewDetail(); return; }
-
-            var tag = _selectedTreeItem.Tag;
-
-            if (tag is SheetNode sn)
-                ShowSheetDetail(sn);
-            else if (tag is ViewportNode vn)
-                ShowViewportDetail(vn);
-            else if (tag is UnplacedViewNode uv)
-                ShowUnplacedDetail(uv);
-            else if (tag is string s && s.StartsWith("DISC:"))
-                ShowDisciplineDetail(s.Substring(5));
-            else if (tag is string s2 && s2 == "UNPLACED")
-                ShowUnplacedGroupDetail();
-            else
-                ShowOverviewDetail();
-        }
-
-        private static void ShowOverviewDetail()
-        {
-            _detailPanel.Children.Clear();
-
-            AddDetailHeader("Sheet Manager Overview");
-
-            int totalVp = _sheetNodes.Sum(s => s.ViewportCount);
-            AddDetailRow("Total Sheets", _sheetNodes.Count.ToString());
-            AddDetailRow("Total Viewports", totalVp.ToString());
-            AddDetailRow("Unplaced Views", _unplacedViews.Count.ToString());
-
-            var disciplines = _sheetNodes.GroupBy(s => s.Discipline).OrderBy(g => g.Key);
-            AddDetailSection("By Discipline");
-            foreach (var g in disciplines)
-            {
-                AddDetailRow($"  {g.Key}", $"{g.Count()} sheets, {g.Sum(s => s.ViewportCount)} viewports");
-            }
-
-            if (_unplacedViews.Count > 0)
-            {
-                AddDetailSection("Quick Actions");
-                AddActionButton("Auto-Place All Unplaced Views", "AutoPlaceUnplaced",
-                    $"Place {_unplacedViews.Count} unplaced views on new sheets using shelf packing");
-            }
-        }
-
-        private static void ShowSheetDetail(SheetNode sn)
-        {
-            _detailPanel.Children.Clear();
-
-            AddDetailHeader($"Sheet: {sn.SheetNumber}");
-            AddDetailRow("Name", sn.SheetName);
-            AddDetailRow("Discipline", sn.Discipline);
-            AddDetailRow("Title Block", sn.TitleBlockName ?? "(none)");
-            AddDetailRow("Paper Size", sn.PaperSize ?? "Unknown");
-            AddDetailRow("Drawable Area", sn.DrawableArea ?? "N/A");
-            AddDetailRow("Viewports", sn.ViewportCount.ToString());
-
-            if (sn.Viewports.Count > 0)
-            {
-                AddDetailSection("Viewports on Sheet");
-                foreach (var vp in sn.Viewports)
+                group.Visibility = Visibility.Visible;
+                foreach (var child in group.Items)
                 {
-                    AddDetailRow($"  {vp.ViewName}", $"1:{vp.Scale}, {vp.PaperSize}");
+                    if (child is TreeViewItem ci)
+                    {
+                        ci.Visibility = Visibility.Visible;
+                        foreach (var gc in ci.Items)
+                            if (gc is TreeViewItem gci) gci.Visibility = Visibility.Visible;
+                    }
                 }
             }
-
-            AddDetailSection("Sheet Actions");
-            AddActionButton("Arrange Viewports", "ArrangeOnSheet",
-                "Re-layout all viewports using shelf packing algorithm");
-            AddActionButton("Clone Sheet", "CloneSheet",
-                "Create a copy of this sheet with its title block and viewports");
-            AddActionButton("Set Viewport Type", "SetViewportType",
-                "Change viewport type for all viewports on this sheet");
-            AddActionButton("Auto-Scale Viewports", "AutoScaleSheet",
-                "Calculate and apply optimal scale for each viewport");
         }
 
-        private static void ShowViewportDetail(ViewportNode vn)
+        private static string GetHeaderText(TreeViewItem item)
         {
-            _detailPanel.Children.Clear();
-
-            AddDetailHeader($"Viewport: {vn.ViewName}");
-            AddDetailRow("Scale", $"1:{vn.Scale}");
-            AddDetailRow("Paper Size", vn.PaperSize);
-            AddDetailRow("Position", vn.Position);
-
-            AddDetailSection("Viewport Actions");
-            AddActionButton("Optimal Scale", "OptimalScale",
-                "Calculate the best standard scale to fit this view");
-            AddActionButton("Move to Sheet", "MoveViewport",
-                "Move this viewport to a different sheet");
-        }
-
-        private static void ShowUnplacedDetail(UnplacedViewNode uv)
-        {
-            _detailPanel.Children.Clear();
-
-            AddDetailHeader($"Unplaced: {uv.ViewName}");
-            AddDetailRow("Type", uv.ViewType);
-            AddDetailRow("Scale", $"1:{uv.Scale}");
-
-            AddDetailSection("Placement Actions");
-            AddActionButton("Place on New Sheet", "PlaceOnNewSheet",
-                "Create a new sheet and place this view on it");
-            AddActionButton("Place on Existing Sheet", "PlaceOnExisting",
-                "Place this view on an existing sheet with auto-layout");
-        }
-
-        private static void ShowDisciplineDetail(string disc)
-        {
-            _detailPanel.Children.Clear();
-
-            var sheets = _sheetNodes.Where(s => s.Discipline == disc).ToList();
-            AddDetailHeader($"Discipline: {disc}");
-            AddDetailRow("Sheets", sheets.Count.ToString());
-            AddDetailRow("Total Viewports", sheets.Sum(s => s.ViewportCount).ToString());
-
-            var paperSizes = sheets.GroupBy(s => s.PaperSize).OrderByDescending(g => g.Count());
-            AddDetailSection("Paper Sizes");
-            foreach (var g in paperSizes)
+            if (item.Header is StackPanel sp)
             {
-                AddDetailRow($"  {g.Key ?? "Unknown"}", $"{g.Count()} sheets");
+                foreach (var child in sp.Children)
+                {
+                    if (child is TextBlock tb && !string.IsNullOrEmpty(tb.Text) && tb.Text.Length > 2)
+                        return tb.Text;
+                }
             }
-
-            AddDetailSection("Discipline Actions");
-            AddActionButton("Arrange All Sheets", "ArrangeDisc",
-                $"Re-layout viewports on all {sheets.Count} {disc} sheets");
-            AddActionButton("Renumber Sheets", "RenumberDisc",
-                $"Sequentially renumber all {disc} sheets");
+            return item.Header?.ToString() ?? "";
         }
-
-        private static void ShowUnplacedGroupDetail()
-        {
-            _detailPanel.Children.Clear();
-
-            AddDetailHeader($"Unplaced Views ({_unplacedViews.Count})");
-
-            var byType = _unplacedViews.GroupBy(v => v.ViewType).OrderBy(g => g.Key);
-            AddDetailSection("By Type");
-            foreach (var g in byType)
-            {
-                AddDetailRow($"  {g.Key}", g.Count().ToString());
-            }
-
-            AddDetailSection("Batch Actions");
-            AddActionButton("Auto-Place All", "AutoPlaceUnplaced",
-                $"Create sheets and place all {_unplacedViews.Count} views using shelf packing");
-            AddActionButton("Place by Discipline", "PlaceByDiscipline",
-                "Group views by discipline and create sheets per group");
-        }
-
 
         // ═══════════════════════════════════════════════════════════════════
-        //  BOTTOM ACTION BAR
+        //  SELECTION HELPERS
         // ═══════════════════════════════════════════════════════════════════
 
-        private static Border CreateBottomBar(SheetManagerResult result)
+        private static object GetSelectedViewTag()
         {
-            var border = new Border
-            {
-                Background = BrBgLight,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Padding = new Thickness(12, 8, 12, 8)
-            };
+            var sel = _viewsTree?.SelectedItem as TreeViewItem;
+            if (sel?.Tag is AllViewNode avn) return avn.Tag;
+            return sel?.Tag;
+        }
 
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        private static object GetSelectedSheetTag()
+        {
+            var sel = _sheetsTree?.SelectedItem as TreeViewItem;
+            if (sel?.Tag is SheetNode sn) return sn.Tag;
+            return null;
+        }
 
-            // Left: status text
-            _statusText = new TextBlock
+        private static object GetSelectedViewportTag()
+        {
+            var sel = _sheetsTree?.SelectedItem as TreeViewItem;
+            if (sel?.Tag is ViewportNode vn) return vn.Tag;
+            return null;
+        }
+
+        private static object GetSelectedViewportViewTag()
+        {
+            var sel = _sheetsTree?.SelectedItem as TreeViewItem;
+            if (sel?.Tag is ViewportNode vn) return vn.ViewTag ?? vn.Tag;
+            return null;
+        }
+
+        private static void UpdateStatus(string text)
+        {
+            if (_statusText != null)
+                _statusText.Text = text;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  UI HELPERS
+        // ═══════════════════════════════════════════════════════════════════
+
+        private static TreeViewItem GetTreeViewItemUnderMouse(TreeView tree, MouseEventArgs e)
+        {
+            var hit = tree.InputHitTest(e.GetPosition(tree)) as DependencyObject;
+            while (hit != null && !(hit is TreeViewItem))
+                hit = VisualTreeHelper.GetParent(hit);
+            return hit as TreeViewItem;
+        }
+
+        private static TreeViewItem GetTreeViewItemUnderDragEvent(TreeView tree, DragEventArgs e)
+        {
+            var hit = tree.InputHitTest(e.GetPosition(tree)) as DependencyObject;
+            while (hit != null && !(hit is TreeViewItem))
+                hit = VisualTreeHelper.GetParent(hit);
+            return hit as TreeViewItem;
+        }
+
+        private static T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null && !(parent is T))
+                parent = VisualTreeHelper.GetParent(parent);
+            return parent as T;
+        }
+
+        private static Border MakeColorDot(SolidColorBrush color, int size = 8)
+        {
+            return new Border
             {
-                Text = "Select a sheet or viewport, or use an action button.",
-                FontSize = 11,
-                Foreground = BrFgSubtle,
+                Width = size, Height = size,
+                CornerRadius = new CornerRadius(size / 2.0),
+                Background = color,
+                Margin = new Thickness(0, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(_statusText, 0);
-            grid.Children.Add(_statusText);
-
-            // Right: main action buttons
-            var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
-
-            var btnAutoLayout = CreateButton("Auto-Layout", BrAccent, BrFgWhite);
-            btnAutoLayout.Click += (s, e) =>
-            {
-                _selectedOperation = "AutoLayout";
-                result.Operation = "AutoLayout";
-                _window.DialogResult = true;
-            };
-            btnStack.Children.Add(btnAutoLayout);
-
-            var btnClone = CreateButton("Clone Sheet", BrBlue, BrFgWhite);
-            btnClone.Click += (s, e) =>
-            {
-                _selectedOperation = "CloneSheet";
-                result.Operation = "CloneSheet";
-                _window.DialogResult = true;
-            };
-            btnStack.Children.Add(btnClone);
-
-            var btnCreate = CreateButton("New Sheet", BrGreen, BrFgWhite);
-            btnCreate.Click += (s, e) =>
-            {
-                _selectedOperation = "CreateSheet";
-                result.Operation = "CreateSheet";
-                _window.DialogResult = true;
-            };
-            btnStack.Children.Add(btnCreate);
-
-            var btnCancel = CreateButton("Close", BrBorder, BrFgDark);
-            btnCancel.Click += (s, e) =>
-            {
-                _window.DialogResult = false;
-            };
-            btnStack.Children.Add(btnCancel);
-
-            Grid.SetColumn(btnStack, 1);
-            grid.Children.Add(btnStack);
-
-            border.Child = grid;
-            return border;
         }
 
-        // ═══════════════════════════════════════════════════════════════════
-        //  UI HELPER METHODS
-        // ═══════════════════════════════════════════════════════════════════
-
-        private static void AddDetailHeader(string text)
+        private static TextBox CreateSearchBox(string placeholder)
         {
-            _detailPanel.Children.Add(new TextBlock
+            var box = new TextBox
             {
-                Text = text,
-                FontSize = 15,
-                FontWeight = FontWeights.Bold,
-                Foreground = BrFgDark,
-                Margin = new Thickness(0, 0, 0, 12)
-            });
-        }
-
-        private static void AddDetailSection(string text)
-        {
-            _detailPanel.Children.Add(new TextBlock
-            {
-                Text = text,
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = BrAccent,
-                Margin = new Thickness(0, 16, 0, 6)
-            });
-            _detailPanel.Children.Add(new Border
-            {
-                Height = 1,
-                Background = BrBorder,
-                Margin = new Thickness(0, 0, 0, 6)
-            });
-        }
-
-        private static void AddDetailRow(string label, string value)
-        {
-            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var lblBlock = new TextBlock
-            {
-                Text = label,
-                FontSize = 12,
-                Foreground = BrFgSubtle,
-                VerticalAlignment = VerticalAlignment.Center
+                FontSize = 11, MinWidth = 120, Height = 24,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                Foreground = BrFgDark, Background = BrBgWhite,
+                Text = placeholder, FontStyle = FontStyles.Italic,
+                Tag = placeholder // store placeholder
             };
-            Grid.SetColumn(lblBlock, 0);
-            row.Children.Add(lblBlock);
-
-            var valBlock = new TextBlock
+            box.GotFocus += (s, e) =>
             {
-                Text = value ?? "",
-                FontSize = 12,
-                Foreground = BrFgDark,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap
+                if (box.Text == (string)box.Tag)
+                {
+                    box.Text = "";
+                    box.FontStyle = FontStyles.Normal;
+                    box.Foreground = BrFgDark;
+                }
             };
-            Grid.SetColumn(valBlock, 1);
-            row.Children.Add(valBlock);
-
-            _detailPanel.Children.Add(row);
+            box.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(box.Text))
+                {
+                    box.Text = (string)box.Tag;
+                    box.FontStyle = FontStyles.Italic;
+                    box.Foreground = BrFgSubtle;
+                }
+            };
+            return box;
         }
 
-        private static void AddActionButton(string text, string operation, string tooltip)
+        private static Button CreateSmallButton(string text, SolidColorBrush color)
         {
-            var btn = new Button
+            return new Button
             {
-                Content = text,
-                FontSize = 12,
-                Padding = new Thickness(12, 6, 12, 6),
-                Margin = new Thickness(0, 4, 0, 4),
-                Background = BrBgLight,
-                Foreground = BrFgDark,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(1),
+                Content = text, FontSize = 10,
+                Padding = new Thickness(6, 2, 6, 2),
+                Background = Brushes.Transparent, Foreground = color,
+                BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                ToolTip = tooltip
+                VerticalAlignment = VerticalAlignment.Center
             };
-
-            btn.MouseEnter += (s, e) => btn.Background = BrHover;
-            btn.MouseLeave += (s, e) => btn.Background = BrBgLight;
-
-            btn.Click += (s, e) =>
-            {
-                _selectedOperation = operation;
-
-                // Pass context from selected tree node
-                if (_selectedTreeItem?.Tag is SheetNode sn)
-                {
-                    _window.Tag = sn.Tag; // ElementId of selected sheet
-                }
-                else if (_selectedTreeItem?.Tag is ViewportNode vn)
-                {
-                    _window.Tag = vn.Tag;
-                }
-
-                _statusText.Text = $"Operation: {operation}";
-                _window.DialogResult = true;
-            };
-
-            _detailPanel.Children.Add(btn);
         }
 
-        private static Button CreateButton(string text, SolidColorBrush bg, SolidColorBrush fg)
+        private static Button CreateButton(string text, SolidColorBrush color)
         {
-            var btn = new Button
+            return new Button
             {
-                Content = text,
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Padding = new Thickness(16, 6, 16, 6),
-                Margin = new Thickness(4, 0, 0, 0),
-                Background = bg,
-                Foreground = fg,
+                Content = text, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Padding = new Thickness(12, 6, 12, 6),
+                Background = color, Foreground = BrFgWhite,
                 BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand
             };
+        }
 
-            var origBg = bg.Color;
-            btn.MouseEnter += (s, e) =>
+        // ── Ribbon helpers ───────────────────────────────────────────────
+
+        private static TextBlock MakeRibbonLabel(string text)
+        {
+            return new TextBlock
             {
-                byte r = (byte)Math.Min(255, origBg.R + 20);
-                byte g = (byte)Math.Min(255, origBg.G + 20);
-                byte b = (byte)Math.Min(255, origBg.B + 20);
-                btn.Background = new SolidColorBrush(Color.FromRgb(r, g, b));
+                Text = text, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = BrFgSubtle, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 4, 0)
             };
-            btn.MouseLeave += (s, e) => btn.Background = bg;
+        }
 
+        private static Border MakeRibbonSep()
+        {
+            return new Border
+            {
+                Width = 1, Height = 18, Background = BrBorder,
+                Margin = new Thickness(6, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
+        private static Button MakeToolBtn(string label, string tag, SolidColorBrush color, string tooltip = null)
+        {
+            var btn = new Button
+            {
+                Content = label, Tag = tag,
+                FontSize = 10, Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(1), Cursor = Cursors.Hand,
+                Background = BrBgLight, Foreground = color,
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                ToolTip = tooltip ?? tag
+            };
+            btn.MouseEnter += (s, e) => btn.Background = BrHover;
+            btn.MouseLeave += (s, e) => btn.Background = BrBgLight;
+            btn.Click += (s, e) => ExecuteOp(tag);
             return btn;
         }
     }

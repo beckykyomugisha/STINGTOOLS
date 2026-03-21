@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -28,8 +29,10 @@ namespace StingTools.Docs
     // ── 1. Sheet Manager Dialog ──────────────────────────────────────────────
 
     /// <summary>
-    /// Opens the full STING Sheet Manager WPF dialog with dual-panel
-    /// sheet/viewport browser and context-sensitive actions.
+    /// Opens the full STING Sheet Manager as a modeless floating WPF dialog
+    /// with dual-panel sheet/viewport browser and context-sensitive actions.
+    /// Double-click opens views/sheets in Revit. Drag-drop places views on sheets.
+    /// All operations execute live via IExternalEventHandler.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -40,21 +43,96 @@ namespace StingTools.Docs
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
 
-            // Build sheet data for the dialog
+            // If already open, just bring to front
+            if (SheetManagerDialog.IsOpen)
+            {
+                SheetManagerDialog.RefreshData();
+                return Result.Succeeded;
+            }
+
+            // Build data for dual-panel dialog
             var sheetNodes = BuildSheetNodes(doc);
             var unplacedViews = BuildUnplacedViewNodes(doc);
+            var allViews = BuildAllViewNodes(doc);
 
-            // Show dialog
-            var result = SheetManagerDialog.Show(sheetNodes, unplacedViews);
-            if (!result.Confirmed || string.IsNullOrEmpty(result.Operation))
-                return Result.Cancelled;
+            // Show modeless dialog with live execution callback
+            SheetManagerDialog.ShowModeless(
+                sheetNodes, unplacedViews, allViews,
+                executeCallback: (operation, options) =>
+                {
+                    // This callback runs on the WPF thread —
+                    // for Revit API calls, dispatch via StingDockPanel.DispatchCommand
+                    DispatchLiveOperation(doc, uidoc, operation, options);
+                },
+                refreshSheets: () => BuildSheetNodes(doc),
+                refreshUnplaced: () => BuildUnplacedViewNodes(doc),
+                refreshAllViews: () => BuildAllViewNodes(doc)
+            );
 
-            // Dispatch operation
-            return DispatchOperation(doc, ctx, result);
+            return Result.Succeeded;
         }
 
-        private Result DispatchOperation(Document doc, StingCommandContext ctx,
+        /// <summary>
+        /// Dispatch a live operation from the modeless Sheet Manager.
+        /// Operations that need the Revit API thread go via StingDockPanel.DispatchCommand.
+        /// Simple operations that don't need Revit API (like ActivateView) run directly
+        /// since UIDocument.RequestViewChange is safe from any thread.
+        /// </summary>
+        private void DispatchLiveOperation(Document doc, UIDocument uidoc,
+            string operation, Dictionary<string, object> options)
+        {
+            // ── ActivateView — open the view/sheet in Revit ──────────
+            if (operation == "ActivateView")
+            {
+                var viewId = options.ContainsKey("ViewTag") ? options["ViewTag"] as ElementId : null;
+                if (viewId == null) return;
+                var view = doc.GetElement(viewId) as View;
+                if (view == null) return;
+
+                try
+                {
+                    uidoc.RequestViewChange(view);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ActivateView failed: {ex.Message}");
+                }
+                return;
+            }
+
+            // ── Operations that need Revit API thread ────────────────
+            // Pack options into ExtraParams for the command handler
+            foreach (var kv in options)
+                StingCommandHandler.SetExtraParam($"SM_{kv.Key}", kv.Value?.ToString() ?? "");
+
+            // Map operation names to dispatch tags
+            string dispatchTag = operation switch
+            {
+                "PlaceViewOnSheet" => "SM_PlaceViewOnSheet",
+                "PlaceOnNewSheet" => "SM_PlaceOnNewSheet",
+                "MoveViewportToSheet" => "SM_MoveViewportToSheet",
+                "RemoveViewport" => "SM_RemoveViewport",
+                "CreateSheet" => "SM_CreateSheet",
+                "CloneSheet" => "SM_CloneSheet",
+                "ArrangeOnSheet" => "SM_ArrangeOnSheet",
+                "AutoScaleSheet" => "SM_AutoScaleSheet",
+                "AutoLayoutMode" => "SM_AutoLayoutMode",
+                "AutoPlaceUnplaced" => "SM_AutoPlaceUnplaced",
+                "DuplicateView" => "SM_DuplicateView",
+                "DeleteView" => "SM_DeleteView",
+                "BatchArrange" => "SM_BatchArrange",
+                "RenumberDisc" => "SM_RenumberDisc",
+                "SwapTitleBlock" => "SM_SwapTitleBlock",
+                "EnforceISONaming" => "SM_EnforceISONaming",
+                _ => operation // Fall through to standard dispatch tags
+            };
+
+            StingDockPanel.DispatchCommand(dispatchTag);
+        }
+
+        internal Result DispatchOperation(Document doc, StingCommandContext ctx,
             SheetManagerResult result)
         {
             switch (result.Operation)
@@ -63,8 +141,11 @@ namespace StingTools.Docs
                 case "ArrangeOnSheet":
                     return ArrangeActiveSheet(doc, ctx);
 
+                case "AutoLayoutMode":
+                    return ArrangeWithMode(doc, ctx, result);
+
                 case "CloneSheet":
-                    return CloneActiveSheet(doc, ctx);
+                    return CloneSelectedSheet(doc, result);
 
                 case "CreateSheet":
                     return CreateNewSheet(doc);
@@ -75,6 +156,39 @@ namespace StingTools.Docs
 
                 case "AutoScaleSheet":
                     return AutoScaleViewports(doc, ctx);
+
+                case "PlaceViewOnSheet":
+                    return PlaceViewOnSheet(doc, result);
+
+                case "PlaceOnNewSheet":
+                    return PlaceViewOnNewSheet(doc, result);
+
+                case "MoveViewportToSheet":
+                    return MoveViewportToSheet(doc, result);
+
+                case "RemoveViewport":
+                    return RemoveSelectedViewport(doc, result);
+
+                case "DuplicateView":
+                    return DuplicateSelectedView(doc, result);
+
+                case "DeleteView":
+                    return DeleteSelectedView(doc, result);
+
+                case "BatchArrange":
+                    return BatchArrangeAll(doc);
+
+                case "SheetAudit":
+                    return RunSheetAudit(doc);
+
+                case "RenumberDisc":
+                    return RenumberSheets(doc);
+
+                case "SwapTitleBlock":
+                    return SwapTitleBlockOnSheet(doc, result);
+
+                case "EnforceISONaming":
+                    return EnforceISONaming(doc, result);
 
                 default:
                     StingLog.Info($"Sheet Manager operation '{result.Operation}' — no handler.");
@@ -101,12 +215,15 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
-        private Result CloneActiveSheet(Document doc, StingCommandContext ctx)
+        private Result CloneSelectedSheet(Document doc, SheetManagerResult result)
         {
-            var sheet = ctx.ActiveView as ViewSheet;
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+
             if (sheet == null)
             {
-                TaskDialog.Show("STING", "Navigate to a sheet view first.");
+                TaskDialog.Show("STING", "No sheet selected to clone.");
                 return Result.Succeeded;
             }
 
@@ -132,9 +249,35 @@ namespace StingTools.Docs
 
                 if (cloned != null)
                     TaskDialog.Show("Sheet Manager",
-                        $"Cloned sheet '{sheet.SheetNumber}' → '{cloned.SheetNumber} - {cloned.Name}'");
+                        $"Cloned sheet '{sheet.SheetNumber}' \u2192 '{cloned.SheetNumber} - {cloned.Name}'");
                 else
                     TaskDialog.Show("Sheet Manager", "Failed to clone sheet.");
+            }
+            return Result.Succeeded;
+        }
+
+        private Result ArrangeWithMode(Document doc, StingCommandContext ctx, SheetManagerResult result)
+        {
+            string mode = result.Options.ContainsKey("LayoutMode") ? result.Options["LayoutMode"]?.ToString() : "Default";
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+            if (sheet == null) sheet = ctx.ActiveView as ViewSheet;
+
+            if (sheet == null)
+            {
+                TaskDialog.Show("Sheet Manager", "Select or navigate to a sheet first.");
+                return Result.Succeeded;
+            }
+
+            using (var tx = new Transaction(doc, $"STING Auto Layout ({mode})"))
+            {
+                tx.Start();
+                int moved = SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet);
+                tx.Commit();
+                TaskDialog.Show("Sheet Manager",
+                    $"Layout '{mode}': arranged {moved} viewports on '{sheet.SheetNumber}'.");
             }
             return Result.Succeeded;
         }
@@ -246,6 +389,620 @@ namespace StingTools.Docs
         }
 
 
+        // ── Operation handlers ────────────────────────────────────────────
+
+        private Result PlaceViewOnSheet(Document doc, SheetManagerResult result)
+        {
+            if (!result.Options.ContainsKey("ViewTag") || !result.Options.ContainsKey("SheetTag"))
+                return Result.Succeeded;
+
+            var viewId = result.Options["ViewTag"] as ElementId;
+            var sheetId = result.Options["SheetTag"] as ElementId;
+            if (viewId == null || sheetId == null) return Result.Succeeded;
+
+            var sheet = doc.GetElement(sheetId) as ViewSheet;
+            var view = doc.GetElement(viewId) as View;
+            if (sheet == null || view == null)
+            {
+                TaskDialog.Show("Sheet Manager", "Could not resolve view or sheet.");
+                return Result.Succeeded;
+            }
+
+            // Check if view can be placed on sheet (already placed, template, etc.)
+            if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id))
+            {
+                TaskDialog.Show("Sheet Manager",
+                    $"Cannot place '{view.Name}' on '{sheet.SheetNumber}'.\n\n" +
+                    "The view may already be placed on another sheet, or it may be a " +
+                    "view type that cannot be placed (template, schedule, etc.).\n\n" +
+                    "Only legends can be placed on multiple sheets.");
+                return Result.Succeeded;
+            }
+
+            using (var tx = new Transaction(doc, "STING Place View on Sheet"))
+            {
+                tx.Start();
+                try
+                {
+                    var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
+                    Viewport.Create(doc, sheet.Id, view.Id, zone.Center);
+                    tx.Commit();
+                    TaskDialog.Show("Sheet Manager",
+                        $"Placed '{view.Name}' on sheet '{sheet.SheetNumber}'.");
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    StingLog.Warn($"PlaceViewOnSheet failed: {ex.Message}");
+                    TaskDialog.Show("Sheet Manager", $"Cannot place view: {ex.Message}");
+                }
+            }
+            return Result.Succeeded;
+        }
+
+        private Result PlaceViewOnNewSheet(Document doc, SheetManagerResult result)
+        {
+            var viewId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            if (viewId == null) return Result.Succeeded;
+            var view = doc.GetElement(viewId) as View;
+            if (view == null) return Result.Succeeded;
+
+            var tbType = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .FirstOrDefault();
+            if (tbType == null) { TaskDialog.Show("Sheet Manager", "No title blocks loaded."); return Result.Succeeded; }
+
+            using (var tx = new Transaction(doc, "STING Place on New Sheet"))
+            {
+                tx.Start();
+                try
+                {
+                    var sheet = ViewSheet.Create(doc, tbType.Id);
+
+                    if (!Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id))
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("Sheet Manager",
+                            $"'{view.Name}' cannot be placed on a sheet (already placed or incompatible type).");
+                        return Result.Succeeded;
+                    }
+
+                    var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
+                    Viewport.Create(doc, sheet.Id, view.Id, zone.Center);
+                    tx.Commit();
+                    TaskDialog.Show("Sheet Manager", $"Created '{sheet.SheetNumber}' and placed '{view.Name}'.");
+                }
+                catch (Exception ex)
+                {
+                    if (tx.HasStarted()) tx.RollBack();
+                    TaskDialog.Show("Sheet Manager", $"Error: {ex.Message}");
+                }
+            }
+            return Result.Succeeded;
+        }
+
+        private Result MoveViewportToSheet(Document doc, SheetManagerResult result)
+        {
+            var vpId = result.Options.ContainsKey("ViewportTag") ? result.Options["ViewportTag"] as ElementId : null;
+            var targetSheetId = result.Options.ContainsKey("TargetSheetTag") ? result.Options["TargetSheetTag"] as ElementId : null;
+            if (vpId == null || targetSheetId == null) return Result.Succeeded;
+
+            var vp = doc.GetElement(vpId) as Viewport;
+            var targetSheet = doc.GetElement(targetSheetId) as ViewSheet;
+            if (vp == null || targetSheet == null) return Result.Succeeded;
+
+            var viewName = (doc.GetElement(vp.ViewId) as View)?.Name ?? "(unknown)";
+
+            using (var tx = new Transaction(doc, "STING Move Viewport"))
+            {
+                tx.Start();
+                try
+                {
+                    SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
+                    tx.Commit();
+                    string targetNum = result.Options.ContainsKey("TargetSheetNumber")
+                        ? result.Options["TargetSheetNumber"]?.ToString() : targetSheet.SheetNumber;
+                    TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Sheet Manager", $"Cannot move viewport: {ex.Message}");
+                }
+            }
+            return Result.Succeeded;
+        }
+
+        private Result RemoveSelectedViewport(Document doc, SheetManagerResult result)
+        {
+            var vpId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            if (vpId == null) return Result.Succeeded;
+
+            using (var tx = new Transaction(doc, "STING Remove Viewport"))
+            {
+                tx.Start();
+                doc.Delete(vpId);
+                tx.Commit();
+            }
+            TaskDialog.Show("Sheet Manager", "Viewport removed from sheet.");
+            return Result.Succeeded;
+        }
+
+        private Result DuplicateSelectedView(Document doc, SheetManagerResult result)
+        {
+            var viewId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            if (viewId == null) return Result.Succeeded;
+            var view = doc.GetElement(viewId) as View;
+            if (view == null) return Result.Succeeded;
+
+            using (var tx = new Transaction(doc, "STING Duplicate View"))
+            {
+                tx.Start();
+                var newId = view.Duplicate(ViewDuplicateOption.WithDetailing);
+                tx.Commit();
+                var newView = doc.GetElement(newId) as View;
+                TaskDialog.Show("Sheet Manager", $"Duplicated: '{newView?.Name ?? "view"}'");
+            }
+            return Result.Succeeded;
+        }
+
+        private Result DeleteSelectedView(Document doc, SheetManagerResult result)
+        {
+            var viewId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            if (viewId == null) return Result.Succeeded;
+            var view = doc.GetElement(viewId) as View;
+            if (view == null) return Result.Succeeded;
+
+            string viewName = view.Name;
+            using (var tx = new Transaction(doc, "STING Delete View"))
+            {
+                tx.Start();
+                doc.Delete(viewId);
+                tx.Commit();
+            }
+            TaskDialog.Show("Sheet Manager", $"Deleted view: '{viewName}'");
+            return Result.Succeeded;
+        }
+
+        private Result BatchArrangeAll(Document doc)
+        {
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder && s.GetAllViewports().Count > 0).ToList();
+
+            int total = 0;
+            using (var tx = new Transaction(doc, "STING Batch Arrange"))
+            {
+                tx.Start();
+                foreach (var sheet in sheets)
+                {
+                    try { total += SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet); }
+                    catch (Exception ex) { StingLog.Warn($"Arrange error on {sheet.SheetNumber}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+            TaskDialog.Show("Sheet Manager", $"Arranged {total} viewports across {sheets.Count} sheets.");
+            return Result.Succeeded;
+        }
+
+        private Result RunSheetAudit(Document doc)
+        {
+            var auditSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder).ToList();
+            var unplaced = SheetManagerEngine.GetUnplacedViews(doc);
+            int totalVps = auditSheets.Sum(s => s.GetAllViewports().Count);
+            int empty = auditSheets.Count(s => s.GetAllViewports().Count == 0);
+
+            TaskDialog.Show("Sheet Audit",
+                $"Sheets: {auditSheets.Count}\nViewports: {totalVps}\n" +
+                $"Empty sheets: {empty}\nUnplaced views: {unplaced.Count}");
+            return Result.Succeeded;
+        }
+
+        private Result RenumberSheets(Document doc)
+        {
+            // Delegate to BatchRenumberSheetsCommand
+            try
+            {
+                var cmd = new BatchRenumberSheetsCommand();
+                string msg = null;
+                return cmd.Execute(null, ref msg, null);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RenumberSheets failed: {ex.Message}");
+                TaskDialog.Show("Sheet Manager", "Renumber requires navigating to a sheet first.");
+                return Result.Succeeded;
+            }
+        }
+
+        private Result SwapTitleBlockOnSheet(Document doc, SheetManagerResult result)
+        {
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+
+            if (sheet == null)
+            {
+                TaskDialog.Show("STING", "No sheet selected for title block swap.");
+                return Result.Succeeded;
+            }
+
+            // Collect all title block types in the project
+            var tbTypes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .Cast<FamilySymbol>()
+                .OrderBy(fs => $"{fs.FamilyName}: {fs.Name}")
+                .ToList();
+
+            if (tbTypes.Count == 0)
+            {
+                TaskDialog.Show("STING", "No title block families loaded in project.");
+                return Result.Succeeded;
+            }
+
+            // Get current title block on the sheet
+            var currentTb = new FilteredElementCollector(doc, sheet.Id)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType()
+                .FirstOrDefault() as FamilyInstance;
+
+            string currentTypeName = currentTb?.Symbol != null
+                ? $"{currentTb.Symbol.FamilyName}: {currentTb.Symbol.Name}" : "(none)";
+
+            // Build picker list
+            var items = tbTypes.Select(t => $"{t.FamilyName}: {t.Name}").ToList();
+            var pickedItem = StingListPicker.Show(
+                "Swap Title Block",
+                $"Current: {currentTypeName}\nSelect new title block type:",
+                items);
+            var picked = string.IsNullOrEmpty(pickedItem) ? null : new List<string> { pickedItem };
+
+            if (picked == null || picked.Count == 0)
+                return Result.Succeeded;
+
+            int idx = items.IndexOf(picked[0]);
+            if (idx < 0 || idx >= tbTypes.Count) return Result.Succeeded;
+
+            var newType = tbTypes[idx];
+
+            if (currentTb != null)
+            {
+                using (var tx = new Transaction(doc, "STING Swap Title Block"))
+                {
+                    tx.Start();
+                    currentTb.Symbol = newType;
+                    tx.Commit();
+                }
+                TaskDialog.Show("Sheet Manager",
+                    $"Swapped title block on '{sheet.SheetNumber}'\n" +
+                    $"{currentTypeName} \u2192 {newType.FamilyName}: {newType.Name}");
+            }
+            else
+            {
+                // No title block instance — place one
+                using (var tx = new Transaction(doc, "STING Place Title Block"))
+                {
+                    tx.Start();
+                    if (!newType.IsActive) newType.Activate();
+                    doc.Create.NewFamilyInstance(XYZ.Zero, newType, sheet as Element,
+                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    tx.Commit();
+                }
+                TaskDialog.Show("Sheet Manager",
+                    $"Placed title block '{newType.FamilyName}: {newType.Name}' on '{sheet.SheetNumber}'");
+            }
+
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Enforce ISO 19650 naming convention on sheets.
+        /// Format: PROJECT-ORIGINATOR-VOLUME-LEVEL-TYPE-ROLE-NUMBER
+        /// Options: All sheets, selected sheet, non-compliant only.
+        /// </summary>
+        private Result EnforceISONaming(Document doc, SheetManagerResult result)
+        {
+            var allSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (allSheets.Count == 0)
+            {
+                TaskDialog.Show("STING", "No sheets found.");
+                return Result.Succeeded;
+            }
+
+            // Get project info for ISO naming fields
+            var projInfo = doc.ProjectInformation;
+            string projectCode = projInfo?.Number ?? "PRJ";
+            if (string.IsNullOrWhiteSpace(projectCode)) projectCode = "PRJ";
+            if (projectCode.Length > 6) projectCode = projectCode.Substring(0, 6);
+
+            string originator = projInfo?.OrganizationName ?? "STG";
+            if (string.IsNullOrWhiteSpace(originator)) originator = "STG";
+            if (originator.Length > 3) originator = originator.Substring(0, 3);
+            originator = originator.ToUpperInvariant();
+
+            // Mode selection
+            var td = new TaskDialog("Enforce ISO 19650 Sheet Naming");
+            td.MainInstruction = "ISO 19650 Sheet Naming Convention";
+            td.MainContent =
+                "Format: PROJECT-ORIGINATOR-VOLUME-LEVEL-TYPE-ROLE-NUMBER\n" +
+                $"Example: {projectCode}-{originator}-ZZ-L01-DR-A-0001\n\n" +
+                $"Project: {projectCode} | Originator: {originator}\n\n" +
+                "Select enforcement scope:";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Audit Only — show non-compliant sheets",
+                "Preview changes without modifying anything");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Enforce on Non-Compliant Only",
+                "Rename only sheets that don't follow ISO format");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "Enforce on ALL Sheets — overwrite existing",
+                "Force ISO naming on every sheet (destructive)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Enforce on Selected Sheet Only",
+                "Rename only the currently selected sheet");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var choice = td.Show();
+            if (choice == TaskDialogResult.Cancel) return Result.Succeeded;
+
+            bool auditOnly = choice == TaskDialogResult.CommandLink1;
+            bool allScope = choice == TaskDialogResult.CommandLink3;
+            bool selectedOnly = choice == TaskDialogResult.CommandLink4;
+
+            // Determine scope
+            List<ViewSheet> targetSheets;
+            if (selectedOnly)
+            {
+                var selId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+                var selSheet = selId != null ? doc.GetElement(selId) as ViewSheet : null;
+                if (selSheet == null)
+                {
+                    TaskDialog.Show("STING", "No sheet selected.");
+                    return Result.Succeeded;
+                }
+                targetSheets = new List<ViewSheet> { selSheet };
+            }
+            else
+            {
+                targetSheets = allSheets;
+            }
+
+            // Classify each sheet and build rename plan
+            var renamePlan = new List<(ViewSheet sheet, string oldNum, string newNum, string reason)>();
+            var disciplineCounters = new Dictionary<string, int>();
+
+            // Pre-scan to find highest existing sequence per discipline
+            foreach (var s in allSheets)
+            {
+                string role = DetectDisciplineRole(s.Name, s.SheetNumber);
+                string digits = new string(s.SheetNumber.Where(char.IsDigit).ToArray());
+                if (!string.IsNullOrEmpty(digits))
+                {
+                    int seq = 0;
+                    int.TryParse(digits.Length > 4 ? digits.Substring(digits.Length - 4) : digits, out seq);
+                    if (!disciplineCounters.ContainsKey(role) || seq > disciplineCounters[role])
+                        disciplineCounters[role] = seq;
+                }
+                if (!disciplineCounters.ContainsKey(role))
+                    disciplineCounters[role] = 0;
+            }
+
+            foreach (var sheet in targetSheets)
+            {
+                string oldNum = sheet.SheetNumber;
+                bool isCompliant = IsISOCompliant(oldNum, projectCode, originator);
+
+                if (isCompliant && !allScope) continue;
+
+                string role = DetectDisciplineRole(sheet.Name, oldNum);
+                string level = DetectLevelCode(sheet.Name, doc, sheet);
+                string volume = "ZZ"; // Default volume/zone
+                string docType = "DR"; // Drawing
+
+                // Detect doc type from sheet name
+                string nameUpper = (sheet.Name ?? "").ToUpperInvariant();
+                if (nameUpper.Contains("SCHEDULE")) docType = "SH";
+                else if (nameUpper.Contains("DETAIL")) docType = "DR";
+                else if (nameUpper.Contains("SECTION")) docType = "DR";
+                else if (nameUpper.Contains("SPEC")) docType = "SP";
+                else if (nameUpper.Contains("REPORT")) docType = "RP";
+
+                // Increment counter for this discipline
+                if (!disciplineCounters.ContainsKey(role)) disciplineCounters[role] = 0;
+                disciplineCounters[role]++;
+                int seqNum = disciplineCounters[role];
+
+                string newNum = $"{projectCode}-{originator}-{volume}-{level}-{docType}-{role}-{seqNum:D4}";
+                string reason = isCompliant ? "Forced overwrite" : "Non-compliant";
+
+                renamePlan.Add((sheet, oldNum, newNum, reason));
+            }
+
+            if (renamePlan.Count == 0)
+            {
+                TaskDialog.Show("ISO Naming", "All sheets already comply with ISO 19650 naming.");
+                return Result.Succeeded;
+            }
+
+            // Build report
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"ISO 19650 Naming Enforcement — {renamePlan.Count} sheet(s)\n");
+            report.AppendLine($"Format: {projectCode}-{originator}-VOLUME-LEVEL-TYPE-ROLE-SEQ\n");
+            foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
+            {
+                report.AppendLine($"  {oldNum,-20} \u2192 {newNum,-30} [{reason}]");
+                if (report.Length > 2500) { report.AppendLine("  ... (truncated)"); break; }
+            }
+
+            if (auditOnly)
+            {
+                TaskDialog.Show("ISO Naming Audit", report.ToString());
+                return Result.Succeeded;
+            }
+
+            // Confirm before applying
+            var confirm = new TaskDialog("Confirm ISO Rename");
+            confirm.MainInstruction = $"Rename {renamePlan.Count} sheet(s)?";
+            confirm.MainContent = report.ToString();
+            confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Succeeded;
+
+            // Apply renames in two-pass to avoid Revit duplicate number conflicts
+            int renamed = 0;
+            using (var tx = new Transaction(doc, "STING Enforce ISO Naming"))
+            {
+                tx.Start();
+
+                // Pass 1: set temporary unique numbers to avoid conflicts
+                for (int i = 0; i < renamePlan.Count; i++)
+                {
+                    try
+                    {
+                        renamePlan[i].sheet.SheetNumber = $"_STING_TEMP_{i:D5}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ISO rename temp pass failed for '{renamePlan[i].oldNum}': {ex.Message}");
+                    }
+                }
+
+                // Pass 2: set final ISO-compliant numbers
+                foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
+                {
+                    try
+                    {
+                        sheet.SheetNumber = newNum;
+                        renamed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ISO rename failed for '{oldNum}' \u2192 '{newNum}': {ex.Message}");
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            TaskDialog.Show("ISO Naming",
+                $"Renamed {renamed}/{renamePlan.Count} sheets to ISO 19650 format.\n\n" +
+                $"Format: {projectCode}-{originator}-VOL-LVL-TYPE-ROLE-SEQ");
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Check if a sheet number already follows ISO 19650 format.
+        /// Minimum: 5+ segments separated by hyphens, starts with project/originator codes.
+        /// </summary>
+        private static bool IsISOCompliant(string sheetNumber, string projectCode, string originator)
+        {
+            if (string.IsNullOrEmpty(sheetNumber)) return false;
+            var parts = sheetNumber.Split('-');
+            if (parts.Length < 5) return false;
+
+            // Check project code and originator match
+            if (!parts[0].Equals(projectCode, StringComparison.OrdinalIgnoreCase)) return false;
+            if (!parts[1].Equals(originator, StringComparison.OrdinalIgnoreCase)) return false;
+
+            // Last segment should be numeric (sequence number)
+            string lastPart = parts[parts.Length - 1];
+            if (!lastPart.All(char.IsDigit)) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Detect discipline/role code from sheet name or number.
+        /// Returns ISO 19650 role codes: A, S, M, E, P, C, F, L, G, etc.
+        /// </summary>
+        private static string DetectDisciplineRole(string sheetName, string sheetNumber)
+        {
+            string name = (sheetName ?? "").ToUpperInvariant();
+            string num = (sheetNumber ?? "").ToUpperInvariant();
+
+            if (name.Contains("MECHANICAL") || name.Contains("HVAC") || name.Contains("HEATING")
+                || name.Contains("VENTILAT")) return "M";
+            if (name.Contains("ELECTRICAL") || name.Contains("LIGHTING") || name.Contains("POWER")) return "E";
+            if (name.Contains("PLUMB") || name.Contains("SANIT") || name.Contains("DRAINAGE")
+                || name.Contains("WATER")) return "P";
+            if (name.Contains("STRUCT")) return "S";
+            if (name.Contains("ARCH") || name.Contains("PLAN") || name.Contains("INTERIOR")
+                || name.Contains("FINISH")) return "A";
+            if (name.Contains("FIRE") || name.Contains("SPRINKLER")) return "F";
+            if (name.Contains("CIVIL") || name.Contains("SITE")) return "C";
+            if (name.Contains("LANDSCAPE")) return "L";
+            if (name.Contains("COORDINATION") || name.Contains("COMBINED")) return "Z";
+
+            // Fall back to first char of sheet number if it's a known role
+            if (num.Length > 0)
+            {
+                char first = num[0];
+                if ("ASMEPCFLGZ".Contains(first)) return first.ToString();
+            }
+
+            return "Z"; // General/unclassified
+        }
+
+        /// <summary>
+        /// Detect level code from sheet name or associated views.
+        /// Returns ISO level codes: L00, L01, B01, RF, XX, etc.
+        /// </summary>
+        private static string DetectLevelCode(string sheetName, Document doc, ViewSheet sheet)
+        {
+            string name = (sheetName ?? "").ToUpperInvariant();
+
+            // Check for common level patterns in sheet name
+            if (name.Contains("GROUND") || name.Contains("GF") || name.Contains("LEVEL 0")
+                || name.Contains("L00")) return "L00";
+            if (name.Contains("ROOF") || name.Contains("RF")) return "RF";
+            if (name.Contains("BASEMENT") || name.Contains("B1") || name.Contains("LOWER")) return "B01";
+
+            // Check for "LEVEL XX" or "LXX" pattern
+            var levelMatch = System.Text.RegularExpressions.Regex.Match(name, @"(?:LEVEL\s*|L)(\d{1,2})");
+            if (levelMatch.Success)
+            {
+                int lvl;
+                if (int.TryParse(levelMatch.Groups[1].Value, out lvl))
+                    return $"L{lvl:D2}";
+            }
+
+            // Try to detect from viewports on the sheet
+            try
+            {
+                foreach (var vpId in sheet.GetAllViewports())
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    var view = doc.GetElement(vp.ViewId) as View;
+                    if (view?.GenLevel != null)
+                    {
+                        string lvlName = view.GenLevel.Name.ToUpperInvariant();
+                        if (lvlName.Contains("GROUND") || lvlName.Contains("GF")) return "L00";
+                        if (lvlName.Contains("ROOF")) return "RF";
+                        var m = System.Text.RegularExpressions.Regex.Match(lvlName, @"(\d{1,2})");
+                        if (m.Success)
+                        {
+                            int n;
+                            if (int.TryParse(m.Groups[1].Value, out n))
+                                return $"L{n:D2}";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Level detect from viewports: {ex.Message}"); }
+
+            return "XX"; // Unknown level
+        }
+
         // ── Data builders for the dialog ─────────────────────────────────
 
         internal static List<SheetManagerDialog.SheetNode> BuildSheetNodes(Document doc)
@@ -291,7 +1048,6 @@ namespace StingTools.Docs
                 };
 
                 // Build viewport children
-                doc.Regenerate();
                 foreach (var vpId in sheet.GetAllViewports())
                 {
                     var vp = doc.GetElement(vpId) as Viewport;
@@ -312,7 +1068,9 @@ namespace StingTools.Docs
                             Scale = view.Scale.ToString(),
                             PaperSize = $"{wMm:F0} x {hMm:F0} mm",
                             Position = $"({center.X * 304.8:F1}, {center.Y * 304.8:F1})",
-                            Tag = vp.Id
+                            Tag = vp.Id,
+                            ViewTag = view.Id,
+                            HostSheetNumber = sheet.SheetNumber
                         });
                     }
                     catch (Exception ex)
@@ -337,6 +1095,127 @@ namespace StingTools.Docs
                 Scale = v.Scale.ToString(),
                 Tag = v.Id
             }).ToList();
+        }
+
+        /// <summary>
+        /// Build AllViewNode list for the Views browser (left panel).
+        /// Includes all views in the project with placed/unplaced status.
+        /// </summary>
+        internal static List<SheetManagerDialog.AllViewNode> BuildAllViewNodes(Document doc)
+        {
+            var nodes = new List<SheetManagerDialog.AllViewNode>();
+
+            // Build placed view lookup: ViewId → SheetNumber
+            var placedLookup = new Dictionary<long, string>();
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder)
+                .ToList();
+
+            foreach (var sheet in sheets)
+            {
+                foreach (var vpId in sheet.GetAllViewports())
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp != null && !placedLookup.ContainsKey(vp.ViewId.Value))
+                        placedLookup[vp.ViewId.Value] = sheet.SheetNumber;
+                }
+            }
+
+            // Collect all views (excluding sheets, schedule templates, etc.)
+            var allViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType != ViewType.DrawingSheet
+                    && v.ViewType != ViewType.Internal && v.ViewType != ViewType.Undefined
+                    && v.ViewType != ViewType.ProjectBrowser && v.ViewType != ViewType.SystemBrowser)
+                .OrderBy(v => v.Name)
+                .ToList();
+
+            foreach (var view in allViews)
+            {
+                bool isPlaced = placedLookup.ContainsKey(view.Id.Value);
+                string placedSheet = isPlaced ? placedLookup[view.Id.Value] : null;
+
+                // Detect discipline from view name or template
+                string disc = "General";
+                string name = view.Name.ToLowerInvariant();
+                if (name.Contains("mechanical") || name.Contains("hvac")) disc = "Mechanical";
+                else if (name.Contains("electrical") || name.Contains("lighting")) disc = "Electrical";
+                else if (name.Contains("plumbing") || name.Contains("hydraulic")) disc = "Plumbing";
+                else if (name.Contains("structural")) disc = "Structural";
+                else if (name.Contains("architectural") || name.Contains("arch")) disc = "Architectural";
+                else if (name.Contains("fire")) disc = "Fire Protection";
+                else if (name.Contains("coordination")) disc = "Coordination";
+
+                // Get level name
+                string level = null;
+                if (view.GenLevel != null)
+                    level = view.GenLevel.Name;
+
+                // ── View Template detection ──
+                string templateName = null;
+                try
+                {
+                    if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
+                    {
+                        var templateView = doc.GetElement(view.ViewTemplateId) as View;
+                        if (templateView != null)
+                            templateName = templateView.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"Template detect: {ex.Message}"); }
+
+                // ── Scope Box detection ──
+                string scopeBoxName = null;
+                try
+                {
+                    var sbParam = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (sbParam != null && sbParam.AsElementId() != null
+                        && sbParam.AsElementId() != ElementId.InvalidElementId)
+                    {
+                        var sbElem = doc.GetElement(sbParam.AsElementId());
+                        if (sbElem != null)
+                            scopeBoxName = sbElem.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"ScopeBox detect: {ex.Message}"); }
+
+                // ── Dependent View detection ──
+                bool isDependent = false;
+                string parentViewName = null;
+                try
+                {
+                    var primaryId = view.GetPrimaryViewId();
+                    if (primaryId != null && primaryId != ElementId.InvalidElementId)
+                    {
+                        isDependent = true;
+                        var parentView = doc.GetElement(primaryId) as View;
+                        if (parentView != null)
+                            parentViewName = parentView.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"Dependent detect: {ex.Message}"); }
+
+                nodes.Add(new SheetManagerDialog.AllViewNode
+                {
+                    ViewName = view.Name,
+                    ViewType = view.ViewType.ToString(),
+                    Scale = view.Scale.ToString(),
+                    Tag = view.Id,
+                    IsPlaced = isPlaced,
+                    PlacedOnSheet = placedSheet,
+                    Discipline = disc,
+                    Level = level,
+                    TemplateName = templateName,
+                    ScopeBoxName = scopeBoxName,
+                    IsDependent = isDependent,
+                    ParentViewName = parentViewName
+                });
+            }
+
+            return nodes;
         }
     }
 

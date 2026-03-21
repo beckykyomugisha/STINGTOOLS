@@ -138,10 +138,15 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                         continue;
 
+                    // GAP-04: Run TypeTokenInherit BEFORE DISC check so type-level
+                    // DISC values are inherited to empty instances before fallback
+                    try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                    catch (Exception tiEx) { StingLog.Warn($"CombineParams TypeTokenInherit {el.Id}: {tiEx.Message}"); }
+
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (string.IsNullOrEmpty(disc))
                     {
-                        // Auto-detect DISC from category before skipping
+                        // Fallback chain: 1) category map, 2) skip
                         disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
                         if (!string.IsNullOrEmpty(disc))
                         {
@@ -156,18 +161,9 @@ namespace StingTools.Tags
 
                     totalElements++;
 
-                    // Gap fix: Inherit type tokens and bridge native params before
-                    // reading tokens, so containers reflect current element context
-                    // (not stale values from initial tagging)
-                    try
-                    {
-                        TokenAutoPopulator.TypeTokenInherit(doc, el);
-                        NativeParamMapper.MapAll(doc, el);
-                    }
-                    catch (Exception enrichEx)
-                    {
-                        StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}");
-                    }
+                    // Bridge native params before reading tokens
+                    try { NativeParamMapper.MapAll(doc, el); }
+                    catch (Exception enrichEx) { StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}"); }
 
                     // Read all source tokens once (after enrichment)
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);

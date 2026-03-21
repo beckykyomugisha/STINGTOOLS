@@ -36,8 +36,9 @@ namespace StingTools.Core
 
         private static DateTime _sessionStart = DateTime.Now;
 
-        /// <summary>Whether profiling is enabled. Disable in production for zero overhead.</summary>
-        public static bool Enabled { get; set; } = true;
+        /// <summary>PERF-06: Disabled by default for zero overhead in production.
+        /// Opt in via PERF_TRACKING_ENABLED=true in project_config.json.</summary>
+        public static bool Enabled { get; set; } = false;
 
         /// <summary>
         /// Start tracking a named operation. Dispose the returned handle when done.

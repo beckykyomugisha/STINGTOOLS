@@ -217,6 +217,11 @@ namespace StingTools.Core
         [JsonProperty("rollback_on_failure")]
         public bool RollbackOnFailure { get; set; }
 
+        /// <summary>GAP-06: When true, rolls back ALL changes if ANY step fails (including optional steps).
+        /// Use for strict quality gates where partial results are unacceptable.</summary>
+        [JsonProperty("rollback_on_optional_failure")]
+        public bool RollbackOnOptionalFailure { get; set; }
+
         [JsonIgnore]
         public bool IsBuiltIn { get; set; }
     }
@@ -275,8 +280,9 @@ namespace StingTools.Core
                 return Result.Failed;
             }
             Document doc = ctx.Doc;
+            bool useTransactionGroup = preset.RollbackOnFailure || preset.RollbackOnOptionalFailure;
             StingLog.Info($"Workflow '{preset.Name}': starting {preset.Steps.Count} steps" +
-                (preset.RollbackOnFailure ? " (rollback on failure)" : ""));
+                (useTransactionGroup ? " (rollback on failure)" : ""));
 
             var report = new StringBuilder();
             report.AppendLine($"Workflow: {preset.Name}");
@@ -292,9 +298,38 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Pre-workflow compliance scan failed: {ex.Message}"); }
             var totalSw = Stopwatch.StartNew();
 
+            // PERF-03: Cache stale-element check — avoid full scan per step
+            bool? _cachedHasStale = null;
+            bool cachedHasStale()
+            {
+                if (_cachedHasStale.HasValue) return _cachedHasStale.Value;
+                try
+                {
+                    _cachedHasStale = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Any(e =>
+                        {
+                            try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
+                            catch (Exception ex) { StingLog.Warn($"Stale check element {e?.Id}: {ex.Message}"); return false; }
+                        });
+                }
+                catch (Exception ex) { StingLog.Warn($"Stale element check failed: {ex.Message}"); _cachedHasStale = false; }
+                return _cachedHasStale.Value;
+            }
+
+            // PERF-04: Cache compliance percentage — scan once, reuse across steps
+            double? _cachedCompliancePct = complianceBefore;
+            double cachedCompliancePct()
+            {
+                if (_cachedCompliancePct.HasValue) return _cachedCompliancePct.Value;
+                try { var cs = ComplianceScan.Scan(doc); _cachedCompliancePct = cs?.CompliancePercent ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"Compliance scan failed: {ex.Message}"); _cachedCompliancePct = 0; }
+                return _cachedCompliancePct.Value;
+            }
+
             // LOG-06: Wrap in TransactionGroup when rollback_on_failure is enabled
             TransactionGroup tg = null;
-            if (preset.RollbackOnFailure)
+            if (useTransactionGroup)
             {
                 tg = new TransactionGroup(doc, $"STING Workflow: {preset.Name}");
                 tg.Start();
@@ -323,15 +358,46 @@ namespace StingTools.Core
                             report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
                             continue;
                         }
+                        // GAP-02: Extended condition engine for workflow steps
+                        if (step.Condition == "has_links")
+                        {
+                            bool hasLinks = new FilteredElementCollector(doc)
+                                .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                        }
+                        if (step.Condition == "has_cad_imports")
+                        {
+                            bool hasCad = new FilteredElementCollector(doc)
+                                .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                        }
+                        if (step.Condition == "has_stale")
+                        {
+                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                        }
+                        if (step.Condition == "has_untagged")
+                        {
+                            bool hasUntagged = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
+                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                        }
                     }
 
-                    // AE-05: Skip if data files unchanged
+                    // AE-05 / GAP-09: Skip if data files unchanged (sidecar file for workshared compatibility)
                     if (step.SkipIfDataUnchanged)
                     {
                         try
                         {
                             string currentHash = ComputeDataHash();
-                            string storedHash = ParameterHelpers.GetString(doc.ProjectInformation, "STING_DATA_HASH");
+                            string storedHash = LoadDataHashSidecar(doc);
                             if (!string.IsNullOrEmpty(storedHash) && currentHash == storedHash)
                             {
                                 StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — data files unchanged");
@@ -344,40 +410,30 @@ namespace StingTools.Core
                     }
 
                     // F2 / G5.2: Evaluate compliance threshold conditions
+                    // PERF-04: Use cached compliance percentage instead of re-scanning each step
                     if (step.MaxCompliancePct.HasValue || step.MinCompliancePct.HasValue
                         || step.RequiresStaleElements)
                     {
                         try
                         {
-                            var scan = ComplianceScan.Scan(doc);
-                            if (scan != null)
+                            double pct = cachedCompliancePct();
+                            if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
                             {
-                                double pct = scan.CompliancePercent;
-                                if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
-                                {
-                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% > max {step.MaxCompliancePct.Value}%");
-                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% above {step.MaxCompliancePct.Value}%)");
-                                    skipped++;
-                                    continue;
-                                }
-                                if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
-                                {
-                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% < min {step.MinCompliancePct.Value}%");
-                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% below {step.MinCompliancePct.Value}%)");
-                                    skipped++;
-                                    continue;
-                                }
+                                StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% > max {step.MaxCompliancePct.Value}%");
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% above {step.MaxCompliancePct.Value}%)");
+                                skipped++;
+                                continue;
+                            }
+                            if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
+                            {
+                                StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% < min {step.MinCompliancePct.Value}%");
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% below {step.MinCompliancePct.Value}%)");
+                                skipped++;
+                                continue;
                             }
                             if (step.RequiresStaleElements)
                             {
-                                bool hasStale = new FilteredElementCollector(doc)
-                                    .WhereElementIsNotElementType()
-                                    .Any(e =>
-                                    {
-                                        try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
-                                        catch { return false; }
-                                    });
-                                if (!hasStale)
+                                if (!cachedHasStale())
                                 {
                                     StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — no stale elements found");
                                     report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)");
@@ -403,7 +459,19 @@ namespace StingTools.Core
                             if (attempt > 0)
                             {
                                 StingLog.Info($"Workflow step {stepNum} retry {attempt}/{maxRetries}: {step.Label}");
-                                System.Threading.Thread.Sleep(step.RetryDelayMs);
+                                // PERF-08: Spin-wait with Escape detection instead of Thread.Sleep
+                                var retrySw = Stopwatch.StartNew();
+                                while (retrySw.ElapsedMilliseconds < step.RetryDelayMs)
+                                {
+                                    if (EscapeChecker.IsEscapePressed())
+                                    {
+                                        StingLog.Info($"Workflow step {stepNum} retry cancelled by Escape");
+                                        cancelled = true;
+                                        break;
+                                    }
+                                    System.Threading.Thread.Sleep(50); // 50ms poll interval
+                                }
+                                if (cancelled) break;
                             }
                             try
                             {
@@ -430,10 +498,22 @@ namespace StingTools.Core
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
+                        // After each step that modifies data, invalidate cached compliance so next
+                        // step's threshold check reflects current state
+                        if (stepResult == Result.Succeeded)
+                            _cachedCompliancePct = null;
+
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
                         if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.Optional)
                         {
                             report.AppendLine($"\n  *** Non-optional step failed — rolling back all changes ***");
+                            break;
+                        }
+                        // GAP-06: If rollback_on_optional_failure, stop on ANY failure including optional
+                        if (preset.RollbackOnOptionalFailure && stepResult == Result.Failed)
+                        {
+                            failed++; // count optional failures too
+                            report.AppendLine($"\n  *** Step failed (rollback_on_optional_failure) — rolling back all changes ***");
                             break;
                         }
                     }
@@ -536,6 +616,8 @@ namespace StingTools.Core
                     ComplianceAfter = Math.Round(complianceAfter, 1)
                 };
                 SaveRunRecord(record, doc);
+                // GAP-09: Save data hash sidecar after workflow to mark data as processed
+                SaveDataHashSidecar(doc);
             }
             catch (Exception logEx)
             {
@@ -549,6 +631,35 @@ namespace StingTools.Core
         /// NG11/AL-07: Public accessor for ResolveCommand — used by auto-run workflow on open.
         /// </summary>
         public static IExternalCommand GetCommandInstance(string tag) => ResolveCommand(tag);
+
+        /// <summary>GAP-09: Load data hash from sidecar file (.sting_data_hash.json) alongside .rvt.</summary>
+        private static string LoadDataHashSidecar(Document doc)
+        {
+            try
+            {
+                string rvtPath = doc?.PathName;
+                if (string.IsNullOrEmpty(rvtPath)) return "";
+                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_data_hash.json");
+                if (!File.Exists(sidecarPath)) return "";
+                return File.ReadAllText(sidecarPath).Trim();
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadDataHashSidecar: {ex.Message}"); return ""; }
+        }
+
+        /// <summary>GAP-09: Save data hash to sidecar file for workshared model compatibility.</summary>
+        internal static void SaveDataHashSidecar(Document doc)
+        {
+            try
+            {
+                string rvtPath = doc?.PathName;
+                if (string.IsNullOrEmpty(rvtPath)) return;
+                string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_data_hash.json");
+                string hash = ComputeDataHash();
+                if (!string.IsNullOrEmpty(hash))
+                    File.WriteAllText(sidecarPath, hash);
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveDataHashSidecar: {ex.Message}"); }
+        }
 
         /// <summary>AE-05: Compute hash of data directory for change detection.</summary>
         private static string ComputeDataHash()
@@ -808,9 +919,11 @@ namespace StingTools.Core
                         IsBuiltIn = true,
                         Steps = new List<WorkflowStep>
                         {
+                            // GAP-07: RetagStale as first step to fix stale elements before any other tagging
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "Retag stale elements first", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "PreTagAudit", Label = "Pre-tag dry-run audit (skip if already compliant)", Optional = true, MaxCompliancePct = 95 },
                             new WorkflowStep { CommandTag = "TagNewOnly", Label = "Tag new elements only" },
                             new WorkflowStep { CommandTag = "TagChanged", Label = "Update changed element tokens (delta sync)" },
-                            new WorkflowStep { CommandTag = "RetagStale", Label = "Retag stale elements", Optional = true, RequiresStaleElements = true },
                             new WorkflowStep { CommandTag = "AutoPopulate", Label = "Sync Revit native params → STING shared" },
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate 199 dependency formulas" },
                             new WorkflowStep { CommandTag = "CombineParameters", Label = "Update all tag containers" },
@@ -1044,6 +1157,24 @@ namespace StingTools.Core
                 double passRate = ts > 0 ? (double)tp / ts * 100.0 : 0;
                 report.AppendLine($"    {kvp.Key}: {runs} runs, " +
                     $"{passRate:F0}% pass rate, avg {td / runs:F1}s");
+            }
+
+            // GAP-08: Compliance trend analysis
+            var withCompliance = records.Where(r => r.ComplianceBefore > 0 || r.ComplianceAfter > 0).ToList();
+            if (withCompliance.Count >= 2)
+            {
+                report.AppendLine();
+                report.AppendLine("  Compliance Trend:");
+                double firstAfter = withCompliance.First().ComplianceAfter;
+                double lastAfter = withCompliance.Last().ComplianceAfter;
+                double delta = lastAfter - firstAfter;
+                string direction = delta > 0 ? "improving" : delta < 0 ? "declining" : "stable";
+                report.AppendLine($"    First run: {firstAfter:F1}%  →  Last run: {lastAfter:F1}%  ({direction}, {delta:+0.0;-0.0}%)");
+
+                // Average compliance improvement per run
+                double totalImprovement = withCompliance.Sum(r => r.ComplianceAfter - r.ComplianceBefore);
+                double avgImprovement = totalImprovement / withCompliance.Count;
+                report.AppendLine($"    Avg improvement per run: {avgImprovement:+0.1;-0.1}%");
             }
 
             // Last 10 runs detail

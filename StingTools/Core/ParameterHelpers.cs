@@ -95,8 +95,10 @@ namespace StingTools.Core
         // BUG-05: Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
         // docHash prevents cross-document cache collisions since ElementIds are document-relative.
         // Null values are cached to avoid repeated miss lookups.
-        private static readonly ConcurrentDictionary<(int, ElementId, string), Definition> _paramCache
-            = new ConcurrentDictionary<(int, ElementId, string), Definition>();
+        // PERF-05: Use stable document key (PathName/Title) instead of GetHashCode() which
+        // can change across Revit sessions for the same document.
+        private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
+            = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
         /// <summary>Clear the parameter lookup cache. Call on document close or when
         /// shared parameters change (e.g., after LoadSharedParams).</summary>
@@ -105,13 +107,19 @@ namespace StingTools.Core
             _paramCache.Clear();
         }
 
-        /// <summary>Cached parameter lookup. Uses document hash + element's TypeId + paramName as cache key.
+        /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
+        private static string GetStableDocKey(Document doc)
+        {
+            return doc.PathName ?? doc.Title ?? "Untitled";
+        }
+
+        /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
-            int docHash = el.Document.GetHashCode();
+            string docKey = GetStableDocKey(el.Document);
             ElementId typeId = el.GetTypeId();
-            var key = (docHash, typeId, paramName);
+            var key = (docKey, typeId, paramName);
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
@@ -2861,6 +2869,11 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(gridRef))
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
                 }
+
+                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
+                stats?.RecordEmptyTokens(
+                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
+                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
                 return true;
             }

@@ -75,6 +75,9 @@ namespace StingTools.Core
                 // FIX-06: Invalidate auto-tagger cache when switching between open documents
                 application.ViewActivated += OnViewActivated;
 
+                // R-02: Retry deferred auto-tag elements after sync-to-central
+                application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
+
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
             }
@@ -101,11 +104,75 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, and selection caches");
+                // R-02: Clear deferred elements on document close
+                StingAutoTagger.ClearDeferredQueue();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>R-02: Retry deferred auto-tag elements after sync-to-central completes.
+        /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
+        private static void OnDocumentSynchronizedWithCentral(object sender,
+            Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+        {
+            try
+            {
+                var deferredIds = StingAutoTagger.DrainDeferredQueue();
+                if (deferredIds.Count == 0) return;
+
+                Document doc = e.Document;
+                if (doc == null || !doc.IsValidObject) return;
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
+                var stats = new TaggingStats();
+                int processed = 0;
+
+                using (var tx = new Transaction(doc, "STING AutoTag deferred retry"))
+                {
+                    tx.Start();
+                    foreach (var id in deferredIds)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el == null || !el.IsValidObject) continue;
+                            string cat = ParameterHelpers.GetCategoryName(el);
+                            if (!known.Contains(cat)) continue;
+
+                            bool ok = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false,
+                                skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement,
+                                stats: stats);
+                            if (ok) processed++;
+                        }
+                        catch (Exception elEx) { StingLog.Warn($"AutoTagger deferred retry element {id.Value}: {elEx.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                if (processed > 0)
+                {
+                    try { TagConfig.SaveSeqSidecar(doc, seqCounters); } catch (Exception ex) { StingLog.Warn($"Deferred retry SEQ sidecar: {ex.Message}"); }
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
+
+                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after sync-to-central");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnDocumentSynchronizedWithCentral deferred retry: {ex.Message}");
             }
         }
 
@@ -215,6 +282,9 @@ namespace StingTools.Core
                     _lastActiveDoc = currentDoc;
                     StingAutoTagger.InvalidateContext();
                     ComplianceScan.InvalidateCache();
+                    // GAP-05: Clear parameter lookup cache on document switch to prevent
+                    // stale Definition objects from a different document being reused
+                    ParameterHelpers.ClearParamCache();
                     StingLog.Info("ViewActivated: document switch detected — caches invalidated");
                 }
             }
