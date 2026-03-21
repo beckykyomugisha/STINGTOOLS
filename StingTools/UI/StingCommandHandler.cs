@@ -437,6 +437,16 @@ namespace StingTools.UI
                     case "ExportSheetSet": RunCommand<Docs.ExportSheetSetCommand>(app); break;
                     case "PlaceWithOverflow": RunCommand<Docs.PlaceWithOverflowCommand>(app); break;
 
+                    // ── Sheet Templates & Compliance (Phase 3) ──
+                    case "CreateFromTemplate": RunCommand<Docs.CreateFromTemplateCommand>(app); break;
+                    case "SaveSheetTemplate": RunCommand<Docs.SaveSheetTemplateCommand>(app); break;
+                    case "SheetComplianceCheck": RunCommand<Docs.SheetComplianceCheckCommand>(app); break;
+                    case "GridAlignViewports": RunCommand<Docs.GridAlignViewportsCommand>(app); break;
+                    case "AlignViewportEdges": RunCommand<Docs.AlignViewportEdgesCommand>(app); break;
+                    case "DistributeViewports": RunCommand<Docs.DistributeViewportsCommand>(app); break;
+                    case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
+                    case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
+
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;

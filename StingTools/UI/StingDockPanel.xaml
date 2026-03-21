@@ -981,6 +981,19 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
                                 </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMPLATES &amp; COMPLIANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="From Template" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Template" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Align" Tag="GridAlignViewports" Click="Cmd_Click" ToolTip="Snap viewport centres to alignment grid"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Align Edges" Tag="AlignViewportEdges" Click="Cmd_Click" ToolTip="Align viewport edges (left/right/top/bottom)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribute" Tag="DistributeViewports" Click="Cmd_Click" ToolTip="Distribute viewports evenly across sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Print" Tag="BatchPrintSheets" Click="Cmd_Click" ToolTip="Export sheets to PDF by discipline or selection"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
