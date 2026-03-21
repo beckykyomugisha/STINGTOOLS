@@ -100,11 +100,14 @@ namespace StingTools.Core
         private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
             = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
-        /// <summary>Clear the parameter lookup cache. Call on document close or when
-        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// <summary>Clear the parameter lookup cache and solid fill cache. Call on document
+        /// close or when shared parameters change (e.g., after LoadSharedParams).</summary>
         public static void ClearParamCache()
         {
             _paramCache.Clear();
+            // CACHE-01: Also clear solid fill pattern cache to prevent stale entries
+            // when switching between documents with different fill patterns.
+            lock (_solidFillCache) { _solidFillCache.Clear(); }
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -2688,6 +2691,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // DIAG-01: Reset read-only skip counter at batch boundary so each operation
+            // gets fresh diagnostic logging (first 5 warnings + every 100th).
+            ParameterHelpers.ResetReadOnlySkipCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 

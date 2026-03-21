@@ -63,8 +63,19 @@ namespace StingTools.Core
         // Drained on DocumentSynchronizedWithCentral to retry after sync
         private static readonly ConcurrentQueue<ElementId> _deferredElements = new ConcurrentQueue<ElementId>();
 
+        // AT-01: Cap deferred queue to prevent unbounded memory growth if sync never happens
+        private const int MaxDeferredQueueSize = 5000;
+
         /// <summary>R-02: Enqueue an element ID for retry after sync-to-central.</summary>
-        public static void EnqueueDeferred(ElementId id) => _deferredElements.Enqueue(id);
+        public static void EnqueueDeferred(ElementId id)
+        {
+            if (_deferredElements.Count >= MaxDeferredQueueSize)
+            {
+                StingLog.Warn($"AutoTagger: deferred queue at capacity ({MaxDeferredQueueSize}), dropping element {id.Value}. Sync to central to drain queue.");
+                return;
+            }
+            _deferredElements.Enqueue(id);
+        }
 
         /// <summary>R-02: Drain and discard the deferred queue (call on DocumentClosed).</summary>
         public static void ClearDeferredQueue()
@@ -912,7 +923,15 @@ namespace StingTools.Core
 
                 var modifiedIds = data.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
-                if (modifiedIds.Count > MaxElementsPerTrigger) return;
+                if (modifiedIds.Count > MaxElementsPerTrigger)
+                {
+                    // STALE-01: Log when dropping elements due to batch limit so users
+                    // know stale detection was skipped (previously silently returned)
+                    StingLog.Info($"StingStaleMarker: skipping batch of {modifiedIds.Count} " +
+                        $"elements (exceeds limit of {MaxElementsPerTrigger}). " +
+                        "Run 'Retag Stale' manually after bulk operations.");
+                    return;
+                }
 
                 // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
                 // and prevent per-element room collector rebuilds inside an IUpdater
