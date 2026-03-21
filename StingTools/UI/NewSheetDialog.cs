@@ -48,7 +48,6 @@ namespace StingTools.UI
         private List<string> _sheetParamNames = new();
 
         // ── Drag-fill state ──
-        private DataGridCellInfo? _dragFillAnchor;
         private bool _isDragFilling;
 
         /// <summary>Result: list of sheet rows to create (null if cancelled).</summary>

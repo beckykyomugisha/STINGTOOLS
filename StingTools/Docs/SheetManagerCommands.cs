@@ -816,7 +816,7 @@ namespace StingTools.Docs
             if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
 
             // Fallback to active view if no sheet selected
-            if (sheet == null && ctx.ActiveView is ViewSheet activeSheet)
+            if (sheet == null && doc.ActiveView is ViewSheet activeSheet)
                 sheet = activeSheet;
 
             if (sheet == null)
