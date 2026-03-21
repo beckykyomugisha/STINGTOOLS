@@ -305,9 +305,15 @@ namespace StingTools.Core
                 if (_cachedHasStale.HasValue) return _cachedHasStale.Value;
                 try
                 {
-                    _cachedHasStale = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .Any(e =>
+                    // WF-01: Pre-filter to taggable categories to avoid scanning
+                    // all non-type elements (views, sheets, annotations, etc.)
+                    var wfCats = SharedParamGuids.AllCategoryEnums;
+                    FilteredElementCollector staleCollector = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType();
+                    if (wfCats != null && wfCats.Length > 0)
+                        staleCollector.WherePasses(new ElementMulticategoryFilter(
+                            new List<BuiltInCategory>(wfCats)));
+                    _cachedHasStale = staleCollector.Any(e =>
                         {
                             try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; }
                             catch (Exception ex) { StingLog.Warn($"Stale check element {e?.Id}: {ex.Message}"); return false; }

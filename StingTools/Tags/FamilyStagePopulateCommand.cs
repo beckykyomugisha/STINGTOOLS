@@ -217,6 +217,25 @@ namespace StingTools.Tags
                             }
                             catch (Exception fEx) { StingLog.Warn($"FamilyStagePopulate formula eval for {el?.Id}: {fEx.Message}"); }
                         }
+                        // TAG-05: Write containers + TAG7 so elements have populated containers
+                        // immediately after pre-population, not just after a separate Combine run.
+                        // This makes FamilyStagePopulate a more complete standalone operation.
+                        try
+                        {
+                            string[] tokens = ParamRegistry.ReadTokenValues(el);
+                            if (tokens != null && tokens.Length >= 8
+                                && !string.IsNullOrEmpty(tokens[0])) // at least DISC populated
+                            {
+                                string catNameForContainers = ParameterHelpers.GetCategoryName(el);
+                                ParamRegistry.WriteContainers(doc, el, tokens);
+                                TagConfig.WriteTag7All(doc, el, catNameForContainers, tokens, overwrite: false);
+                            }
+                        }
+                        catch (Exception cwEx)
+                        {
+                            StingLog.Warn($"FamilyStagePopulate containers for {el?.Id}: {cwEx.Message}");
+                        }
+
                         if (result.LocDetected) locDetected++;
                         if (result.ZoneDetected) zoneDetected++;
                         if (result.StatusDetected) statusDetected++;

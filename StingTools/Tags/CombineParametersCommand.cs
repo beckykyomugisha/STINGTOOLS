@@ -125,6 +125,10 @@ namespace StingTools.Tags
             int skippedNoDisc = 0;
             var writesPerGroup = new Dictionary<string, int>();
 
+            // TAG-06: Build tag index + SEQ counters for collision detection in TAG1 rebuild
+            var existingTags = TagConfig.BuildExistingTagIndex(doc);
+            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+
             foreach (var g in activeGroups)
                 writesPerGroup[g.GroupCode] = 0;
 
@@ -168,15 +172,20 @@ namespace StingTools.Tags
                     // Read all source tokens once (after enrichment)
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
 
-                    // Ensure TAG1 is current: rebuild from tokens if empty or stale
-                    string currentTag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    string rebuiltTag1 = string.Join(ParamRegistry.Separator, tokenValues);
-                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                        rebuiltTag1 = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag1;
-                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                        rebuiltTag1 = rebuiltTag1 + ParamRegistry.Separator + TagConfig.TagSuffix;
-                    if (string.IsNullOrEmpty(currentTag1) || currentTag1 != rebuiltTag1)
-                        ParameterHelpers.SetString(el, ParamRegistry.TAG1, rebuiltTag1, overwrite: true);
+                    // TAG-06: Use BuildAndWriteTag for TAG1 assembly instead of manual string.Join.
+                    // This provides collision detection (auto-increment SEQ on duplicate tags),
+                    // proper PREFIX/SUFFIX application, and SEQ counter tracking.
+                    try
+                    {
+                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                            skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                        // Re-read tokens in case BuildAndWriteTag updated SEQ
+                        tokenValues = ParamRegistry.ReadTokenValues(el);
+                    }
+                    catch (Exception bwtEx)
+                    {
+                        StingLog.Warn($"CombineParams BuildAndWriteTag for {el.Id}: {bwtEx.Message}");
+                    }
 
                     foreach (var group in activeGroups)
                     {
@@ -226,6 +235,7 @@ namespace StingTools.Tags
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.SaveSeqSidecar(doc); // TAG-06: Persist SEQ counters from BuildAndWriteTag
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

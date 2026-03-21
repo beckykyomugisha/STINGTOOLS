@@ -100,11 +100,14 @@ namespace StingTools.Core
         private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
             = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
-        /// <summary>Clear the parameter lookup cache. Call on document close or when
-        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// <summary>Clear the parameter lookup cache and solid fill cache. Call on document
+        /// close or when shared parameters change (e.g., after LoadSharedParams).</summary>
         public static void ClearParamCache()
         {
             _paramCache.Clear();
+            // CACHE-01: Also clear solid fill pattern cache to prevent stale entries
+            // when switching between documents with different fill patterns.
+            lock (_solidFillCache) { _solidFillCache.Clear(); }
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -427,12 +430,26 @@ namespace StingTools.Core
         /// Find the solid fill pattern element in the document.
         /// Used by color override commands and template configuration.
         /// </summary>
+        /// <summary>PERF-04: Cached solid fill pattern lookup to avoid per-call FilteredElementCollector.</summary>
+        private static readonly Dictionary<string, FillPatternElement> _solidFillCache = new Dictionary<string, FillPatternElement>();
         public static FillPatternElement GetSolidFillPattern(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            string key = doc.PathName ?? doc.Title ?? "Untitled";
+            lock (_solidFillCache)
+            {
+                if (_solidFillCache.TryGetValue(key, out var cached))
+                {
+                    // Validate the cached element is still valid
+                    if (cached != null && cached.IsValidObject) return cached;
+                    _solidFillCache.Remove(key);
+                }
+            }
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            lock (_solidFillCache) { _solidFillCache[key] = result; }
+            return result;
         }
 
         /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
@@ -1888,7 +1905,18 @@ namespace StingTools.Core
                         Phase phase = doc.GetElement(phaseId) as Phase;
                         if (phase != null && !string.IsNullOrEmpty(phase.Name))
                         {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
+                            // LOGIC-04: Use phase name as installation context instead of DateTime.Now.
+                            // DateTime.Now is incorrect for existing/demolished elements — they weren't
+                            // installed today. Write phase name as a meaningful lifecycle marker instead.
+                            string installContext = phase.Name;
+                            // If phase looks like "New Construction" or "Existing", record it;
+                            // only write today's date for elements in a construction phase
+                            if (phase.Name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                phase.Name.IndexOf("Construction", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                installContext = DateTime.Now.ToString("yyyy-MM-dd");
+                            }
+                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", installContext);
                             written++;
                         }
                     }
@@ -2341,15 +2369,19 @@ namespace StingTools.Core
         {
             int written = 0;
 
-            // STATUS: auto-detect from Revit phase/workset, fallback to "NEW"
-            string status = PhaseAutoDetect.DetectStatus(doc, el);
-            if (string.IsNullOrEmpty(status)) status = "NEW";
-            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
-
-            // REV: auto-detect from project revision sequence
-            string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-            if (!string.IsNullOrEmpty(rev))
-                written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            // PERF-02: STATUS and REV are already populated by PopulateAll (which uses
+            // cached context). Only set here as a safety net using SetIfEmpty — skip
+            // the expensive uncached DetectStatus/DetectProjectRevision calls.
+            // PopulateAll runs before NativeParamMapper in RunFullPipeline, so these
+            // will almost always be non-empty already.
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
+            string existingRev = GetString(el, ParamRegistry.REV);
+            if (string.IsNullOrEmpty(existingRev))
+            {
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                if (!string.IsNullOrEmpty(rev))
+                    written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            }
 
             // ORIGIN: set from project originator field if available
             try
@@ -2636,14 +2668,9 @@ namespace StingTools.Core
             return true;
         }
 
-        /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
-        public static FillPatternElement GetSolidFillPattern(Document doc)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-        }
+        /// <summary>PERF-04: Delegate to cached ParameterHelpers.GetSolidFillPattern instead of creating a new collector.</summary>
+        public static FillPatternElement GetSolidFillPatternCached(Document doc)
+            => ParameterHelpers.GetSolidFillPattern(doc);
     }
 
     /// <summary>
@@ -2664,6 +2691,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // DIAG-01: Reset read-only skip counter at batch boundary so each operation
+            // gets fresh diagnostic logging (first 5 warnings + every 100th).
+            ParameterHelpers.ResetReadOnlySkipCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 

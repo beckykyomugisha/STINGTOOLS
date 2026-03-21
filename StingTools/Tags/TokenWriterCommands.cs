@@ -78,6 +78,7 @@ namespace StingTools.Tags
             }
 
             int written = 0;
+            int tagsRebuilt = 0;
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {
                 tx.Start();
@@ -88,14 +89,51 @@ namespace StingTools.Tags
                     if (ParameterHelpers.SetString(elem, paramName, value, overwrite: true))
                         written++;
                 }
+
+                // TAG-01: After setting the token, rebuild TAG1 + containers so they
+                // reflect the change immediately. Previously TAG1/containers remained
+                // stale until user ran a separate BuildTags or Combine command.
+                if (written > 0)
+                {
+                    var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                    var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                    foreach (ElementId id in targetIds)
+                    {
+                        Element elem = doc.GetElement(id);
+                        if (elem == null) continue;
+                        string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue; // Only rebuild already-tagged elements
+                        try
+                        {
+                            TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                                skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                            string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                            if (tokens != null && tokens.Length >= 8)
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(elem);
+                                ParamRegistry.WriteContainers(doc, elem, tokens);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
+                            }
+                            tagsRebuilt++;
+                        }
+                        catch (Exception rebuildEx)
+                        {
+                            StingLog.Warn($"TokenWriter TAG1 rebuild for {elem.Id}: {rebuildEx.Message}");
+                        }
+                    }
+                }
+
                 tx.Commit();
             }
 
             // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            if (written > 0) TagConfig.SaveSeqSidecar(doc);
 
-            TaskDialog.Show(label, $"Set '{value}' on {written} elements.");
+            string resultMsg = $"Set '{value}' on {written} elements.";
+            if (tagsRebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {tagsRebuilt} elements.";
+            TaskDialog.Show(label, resultMsg);
             return Result.Succeeded;
         }
     }
@@ -220,6 +258,39 @@ namespace StingTools.Tags
                     ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                     assigned++;
                 }
+
+                // SEQ-01: After assigning SEQ numbers, rebuild TAG1 + containers so they
+                // reflect the new sequence. Previously TAG1 remained stale until a separate
+                // BuildTags command was run.
+                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                int rebuilt = 0;
+                foreach (ElementId id in targetIds)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1) &&
+                        string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.DISC)))
+                        continue; // Skip untagged elements with no DISC
+                    try
+                    {
+                        TagConfig.BuildAndWriteTag(doc, elem, maxSeq,
+                            skipComplete: false, existingTags, TagCollisionMode.Skip);
+                        string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                        if (tokens != null && tokens.Length >= 8)
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            ParamRegistry.WriteContainers(doc, elem, tokens);
+                            TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
+                        }
+                        rebuilt++;
+                    }
+                    catch (Exception rebuildEx)
+                    {
+                        StingLog.Warn($"AssignNumbers TAG1 rebuild for {elem.Id}: {rebuildEx.Message}");
+                    }
+                }
+
                 tx.Commit();
             }
 
@@ -228,7 +299,9 @@ namespace StingTools.Tags
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
-            TaskDialog.Show("Assign Numbers", $"Assigned sequence numbers to {assigned} elements.");
+            string resultMsg = $"Assigned sequence numbers to {assigned} elements.";
+            if (rebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {rebuilt} elements.";
+            TaskDialog.Show("Assign Numbers", resultMsg);
             return Result.Succeeded;
         }
     }

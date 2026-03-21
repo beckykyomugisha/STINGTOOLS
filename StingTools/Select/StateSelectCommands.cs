@@ -542,11 +542,17 @@ namespace StingTools.Select
         private static Result BulkClearTags(Document doc, ICollection<ElementId> selected)
         {
             // Confirmation already handled by BulkOperationDialog warning panel
+            // LOGIC-02: Include TAG7 sub-sections, STALE flag, display text, and audit trail
+            // so cleared elements don't retain stale narrative or stale markers
             string[] clearParams = ParamRegistry.AllTokenParams
                 .Concat(new[] {
                     ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
                     ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
                     ParamRegistry.STATUS,
+                    "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+                    "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT",
+                    "ASS_TAG_7F_TXT", "ASS_DISPLAY_TXT",
+                    "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT",
                 }).Distinct().ToArray();
 
             int cleared = 0;
@@ -560,10 +566,18 @@ namespace StingTools.Select
                     bool any = false;
                     foreach (string p in clearParams)
                         if (ParameterHelpers.SetString(elem, p, "", overwrite: true)) any = true;
+                    // LOGIC-02: Clear STALE flag (integer parameter)
+                    try
+                    {
+                        ParameterHelpers.SetInt(elem, ParamRegistry.STALE, 0);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BulkClear STALE flag: {ex.Message}"); }
                     if (any) cleared++;
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Clear Tags", $"Cleared tags from {cleared} elements.");
             return Result.Succeeded;
         }

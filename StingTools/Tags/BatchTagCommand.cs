@@ -77,6 +77,15 @@ namespace StingTools.Tags
                     untagged++;
             }
 
+            // BATCH-01: Early exit if no taggable elements in project
+            if (totalTaggable == 0)
+            {
+                TaskDialog.Show("Batch Tag", "No taggable elements found in this project.\n\n" +
+                    "Ensure the model contains elements in categories defined in the tag configuration " +
+                    "(Mechanical Equipment, Electrical Equipment, Lighting Fixtures, etc.).");
+                return Result.Succeeded;
+            }
+
             // Step 2: Choose collision handling mode (with pre-flight counts)
             var modeOptions = new List<UI.StingModePicker.ModeOption>
             {

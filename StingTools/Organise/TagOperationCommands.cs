@@ -457,6 +457,8 @@ namespace StingTools.Organise
     [Regeneration(RegenerationOption.Manual)]
     public class DeleteTagsCommand : IExternalCommand
     {
+        // DEL-01: Include TAG7 sub-sections, display text, and audit trail
+        // to match BulkClearTags completeness (LOGIC-02 fix)
         private static readonly string[] TagParams = new[]
         {
             ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
@@ -464,6 +466,10 @@ namespace StingTools.Organise
             ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
             ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
             ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.STATUS,
+            "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+            "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT",
+            "ASS_TAG_7F_TXT", "ASS_DISPLAY_TXT",
+            "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT",
         };
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
@@ -501,7 +507,7 @@ namespace StingTools.Organise
                             any = true;
                     }
 
-                    // Also clear all discipline-specific containers
+                    // Also clear all discipline-specific containers and STALE flag
                     if (any)
                     {
                         try
@@ -515,6 +521,9 @@ namespace StingTools.Organise
                         {
                             StingLog.Warn($"DeleteTags: container clear failed for {elem.Id}: {ex.Message}");
                         }
+                        // DEL-01: Clear STALE flag so deleted-tag elements aren't flagged for retag
+                        try { ParameterHelpers.SetInt(elem, ParamRegistry.STALE, 0); }
+                        catch (Exception stEx) { StingLog.Warn($"DeleteTags: STALE clear for {elem.Id}: {stEx.Message}"); }
                         cleared++;
                     }
                 }
@@ -555,10 +564,14 @@ namespace StingTools.Organise
                 if (elem == null) continue;
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                 string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
+                string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                string key = $"{disc}_{sys}_{lvl}";
+                // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
+                string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                 if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
                 groups[key].Add(elem);
             }
