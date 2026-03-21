@@ -188,27 +188,29 @@ namespace StingTools.BIMManager
         // ── BEP Section Definitions (ISO 19650-2 §5.3 / UK BIM Framework / PAS 1192-2) ──
         internal static readonly string[] BEPSections = new[]
         {
-            "1. Introduction and Document Control",
-            "2. Project Information",
-            "3. BIM Goals and Uses",
-            "4. Information Requirements (OIR/PIR/AIR/EIR Response)",
-            "5. Roles, Responsibilities and Authorities (RACI)",
-            "6. Project Implementation Plan (PIP)",
-            "7. Information Delivery Strategy (Federation/Volumes)",
-            "8. TIDP and MIDP (Delivery Plans and Schedule)",
-            "9. Standards, Methods and Procedures (SMP)",
-            "10. Level of Information Need (LOD/LOI/LOA)",
-            "11. Common Data Environment (CDE) Configuration",
-            "12. Collaboration Procedures (Clash/RFI/Change)",
-            "13. Quality Assurance and Quality Control",
-            "14. Technology and Software Schedule",
-            "15. Health and Safety / CDM 2015 Compliance",
-            "16. Security (ISO 19650-5)",
-            "17. Deliverables Matrix (by Stage)",
-            "18. Asset Management and COBie Data Drops",
+            "1. Document Control and Revision History",
+            "2. Project Information and Description",
+            "3. BIM Goals, Objectives and Uses",
+            "4. Information Requirements Response (OIR/PIR/AIR/EIR)",
+            "5. Roles, Responsibilities and Authorities (RACI Matrix)",
+            "6. Project Implementation Plan and BIM Process Design",
+            "7. Information Delivery Strategy (Federation/Volumes/Worksets)",
+            "8. TIDP and MIDP (Task and Master Information Delivery Plans)",
+            "9. Standards, Methods and Procedures (Information Standard)",
+            "10. Level of Information Need (LOD/LOI/LOA by Stage)",
+            "11. Common Data Environment (CDE) Configuration and Workflow",
+            "12. Collaboration Procedures (Clash Detection/RFI/Change Mgmt)",
+            "13. Quality Assurance and Quality Control Procedures",
+            "14. Technology and Software Schedule (Platforms and Versions)",
+            "15. Model Structure and Federation Strategy",
+            "16. Security Requirements (ISO 19650-5 Compliance)",
+            "17. Deliverables Matrix (by RIBA Stage)",
+            "18. Asset Management, COBie Data Drops and Handover Strategy",
             "19. Training and Competency Plan",
-            "20. Risk Register (BIM-Specific Risks)",
-            "21. Appendices (EIR Matrix, Model Element Table, Templates)"
+            "20. Risk Register (BIM-Specific Risks and Mitigations)",
+            "21. Health and Safety / CDM 2015 / Building Safety Act 2022",
+            "22. Document Control, Approvals and Distribution",
+            "23. Appendices (EIR Matrix, Model Element Table, Tag Reference)"
         };
 
         // ── BEP Template Presets ──
@@ -1136,9 +1138,16 @@ namespace StingTools.BIMManager
             };
             bep["training_plan"] = training;
 
+            // ── Section 18: Health & Safety / CDM 2015 ──
+            bep["health_and_safety"] = BuildHealthSafetySection(presetKey);
+
+            // ── Section 19: Document Control ──
+            bep["document_control"] = BuildDocumentControlSection();
+
+            // ── Section 20: Appendices ──
+            bep["appendices"] = BuildAppendicesSection(disciplines);
+
             // ── Allowed Codes (from TagConfig CONFIGURATION, not live model data) ──
-            // These define which codes are PERMITTED in the project. The model must comply.
-            // TagConfig loads from project_config.json (or built-in defaults if no config file).
             var allowedCodes = new JObject
             {
                 ["allowed_disc"] = new JArray(TagConfig.DiscMap.Values.Distinct().OrderBy(v => v)),
@@ -1162,6 +1171,103 @@ namespace StingTools.BIMManager
             };
 
             return bep;
+        }
+
+        // ── BEP Section Builders (H&S, Document Control, Appendices) ─────
+
+        private static JObject BuildHealthSafetySection(string presetKey)
+        {
+            return new JObject
+            {
+                ["cdm_2015_compliance"] = new JObject
+                {
+                    ["principal_designer"] = "To be confirmed — responsible for pre-construction health and safety coordination",
+                    ["principal_contractor"] = "To be confirmed — responsible for construction phase plan",
+                    ["designer_duties"] = new JArray(
+                        "Eliminate hazards through design where reasonably practicable (CDM Reg. 9)",
+                        "Reduce risks that cannot be eliminated",
+                        "Provide information about residual risks in the design",
+                        "Include safety information in BIM model via STING Health and Safety parameters"
+                    ),
+                    ["bim_h_and_s_integration"] = new JArray(
+                        "STING tags identify high-risk elements (fire barriers, structural steelwork, working at height zones)",
+                        "3D model used for temporary works planning and access route visualisation",
+                        "Hazard zones colour-coded using STING Color By Parameter (risk rating)",
+                        "Safety data linked to elements via STING shared parameters"
+                    )
+                },
+                ["fire_safety"] = new JObject
+                {
+                    ["building_safety_act_2022"] = "Golden Thread of building information maintained via STING tags",
+                    ["fire_rating_data"] = "BLE_FIRE_RATING_TXT parameter on all fire-rated elements",
+                    ["fire_compartmentation"] = "Fire zones tracked via STING ZONE parameter",
+                    ["evacuation_modelling"] = "Room and corridor data exported via STING COBie Space worksheet"
+                },
+                ["asbestos_management"] = presetKey == "HERITAGE" || presetKey == "FIT_OUT"
+                    ? "Asbestos survey data linked to model elements via STING parameters"
+                    : "Not applicable for new build projects"
+            };
+        }
+
+        private static JObject BuildDocumentControlSection()
+        {
+            return new JObject
+            {
+                ["bep_revision_history"] = new JArray(
+                    new JObject { ["revision"] = "P01", ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                        ["status"] = "S3 — For Coordination", ["author"] = "",
+                        ["description"] = "First issue — pre-contract BEP" }
+                ),
+                ["approval_signatures"] = new JArray(
+                    new JObject { ["role"] = "Information Manager", ["name"] = "", ["signature"] = "", ["date"] = "" },
+                    new JObject { ["role"] = "Lead Appointed Party", ["name"] = "", ["signature"] = "", ["date"] = "" },
+                    new JObject { ["role"] = "Client / Appointing Party", ["name"] = "", ["signature"] = "", ["date"] = "" }
+                ),
+                ["distribution_list"] = new JArray(
+                    new JObject { ["recipient"] = "Client / Employer", ["format"] = "PDF + XLSX", ["method"] = "CDE PUBLISHED container" },
+                    new JObject { ["recipient"] = "Lead Appointed Party", ["format"] = "PDF + XLSX", ["method"] = "CDE SHARED container" },
+                    new JObject { ["recipient"] = "All Task Teams", ["format"] = "PDF", ["method"] = "CDE notification" },
+                    new JObject { ["recipient"] = "Principal Designer", ["format"] = "PDF", ["method"] = "Email + CDE" }
+                ),
+                ["review_schedule"] = "BEP reviewed at each RIBA stage gate. Updates issued with incremented revision."
+            };
+        }
+
+        private static JObject BuildAppendicesSection(string[] disciplines)
+        {
+            return new JObject
+            {
+                ["appendix_a_eir_response_matrix"] = new JObject
+                {
+                    ["description"] = "Employer Information Requirements cross-referenced to BEP sections",
+                    ["note"] = "Populate during pre-qualification — map each EIR requirement to BEP section and responsible party"
+                },
+                ["appendix_b_model_element_table"] = new JObject
+                {
+                    ["description"] = "Level of Information Need by element type and stage (LOD + LOI matrix)",
+                    ["element_categories"] = new JArray(
+                        "Walls", "Floors", "Roofs", "Ceilings", "Doors", "Windows",
+                        "Columns", "Beams", "Foundations", "Stairs",
+                        "Mechanical Equipment", "Ductwork", "Pipework",
+                        "Electrical Equipment", "Lighting Fixtures", "Cable Trays",
+                        "Fire Protection", "Plumbing Fixtures", "Furniture"
+                    ),
+                    ["note"] = "Refer to Section 11 for stage-specific requirements"
+                },
+                ["appendix_c_sting_tag_reference"] = new JObject
+                {
+                    ["tag_format"] = $"{string.Join(ParamRegistry.Separator, ParamRegistry.SegmentOrder)}",
+                    ["disc_codes"] = string.Join(", ", disciplines ?? Array.Empty<string>()),
+                    ["reference"] = "See STING TAGGING_GUIDE.md for complete tag reference"
+                },
+                ["appendix_d_naming_convention_examples"] = new JObject
+                {
+                    ["file_naming"] = "PRJ-ORG-VOL-LVL-TYP-ROL-CLS-NUM.rvt",
+                    ["sheet_naming"] = "DISC-NNNN (e.g., M-0101, E-0201, A-0301)",
+                    ["view_naming"] = "Level Name - Discipline - View Type",
+                    ["parameter_naming"] = "ASS_TAG_1 (STING prefix for shared parameters)"
+                }
+            };
         }
 
         /// <summary>
@@ -1265,22 +1371,39 @@ namespace StingTools.BIMManager
 
             using var wb = new XLWorkbook();
 
-            // ── Cover Page ──
+            string projName = bep["project_information"]?["project_name"]?.ToString() ?? "Project";
+
+            // ── Cover Page (corporate styled) ──
             var cover = wb.AddWorksheet("Cover Page");
-            cover.Column(1).Width = 5;
-            cover.Column(2).Width = 30;
-            cover.Column(3).Width = 40;
-            int r = 2;
+            cover.Column(1).Width = 3;
+            cover.Column(2).Width = 28;
+            cover.Column(3).Width = 45;
+            cover.Column(4).Width = 3;
+
+            // Header band
+            int r = 1;
+            cover.Range(r, 1, r, 4).Style.Fill.BackgroundColor = BrandPrimary;
+            cover.Row(r).Height = 50;
             cover.Cell(r, 2).Value = "BIM EXECUTION PLAN (BEP)";
             cover.Cell(r, 2).Style.Font.Bold = true;
-            cover.Cell(r, 2).Style.Font.FontSize = 18;
+            cover.Cell(r, 2).Style.Font.FontSize = 22;
+            cover.Cell(r, 2).Style.Font.FontColor = BrandHeaderFg;
+            cover.Cell(r, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             cover.Range(r, 2, r, 3).Merge();
             r++;
-            cover.Cell(r, 2).Value = "ISO 19650-2 Pre-Contract BEP";
-            cover.Cell(r, 2).Style.Font.FontSize = 12;
-            cover.Cell(r, 2).Style.Font.FontColor = XLColor.Gray;
+
+            // Sub-header
+            cover.Range(r, 1, r, 4).Style.Fill.BackgroundColor = BrandAccent;
+            cover.Row(r).Height = 30;
+            cover.Cell(r, 2).Value = "ISO 19650-2:2018 Pre-Contract BEP";
+            cover.Cell(r, 2).Style.Font.FontSize = 13;
+            cover.Cell(r, 2).Style.Font.FontColor = BrandHeaderFg;
+            cover.Cell(r, 2).Style.Font.Bold = true;
+            cover.Cell(r, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            cover.Range(r, 2, r, 3).Merge();
             r += 2;
 
+            // Project information fields
             var pi = bep["project_information"] as JObject;
             if (pi != null)
             {
@@ -1288,14 +1411,32 @@ namespace StingTools.BIMManager
                 {
                     cover.Cell(r, 2).Value = FormatKey(kv.Key);
                     cover.Cell(r, 2).Style.Font.Bold = true;
+                    cover.Cell(r, 2).Style.Font.FontColor = BrandPrimary;
                     cover.Cell(r, 3).Value = kv.Value?.ToString() ?? "";
+                    cover.Cell(r, 3).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                    cover.Cell(r, 3).Style.Border.BottomBorderColor = BrandBorder;
+                    cover.Row(r).Height = 22;
                     r++;
                 }
             }
             r += 2;
-            cover.Cell(r, 2).Value = $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}";
+
+            // Confidentiality notice
+            cover.Cell(r, 2).Value = "CONFIDENTIALITY NOTICE";
+            cover.Cell(r, 2).Style.Font.Bold = true;
+            cover.Cell(r, 2).Style.Font.FontColor = BrandPrimary;
+            r++;
+            cover.Cell(r, 2).Value = "This document is issued for the party which commissioned it and for specific purposes connected with the project only.";
+            cover.Range(r, 2, r, 3).Merge();
+            cover.Cell(r, 2).Style.Font.FontSize = 9;
+            cover.Cell(r, 2).Style.Font.Italic = true;
+            cover.Cell(r, 2).Style.Alignment.WrapText = true;
+            r += 2;
+
+            cover.Cell(r, 2).Value = $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm} by STING BIM Manager";
             cover.Cell(r, 2).Style.Font.FontColor = XLColor.Gray;
-            cover.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            cover.Cell(r, 2).Style.Font.FontSize = 9;
+            ApplyCorporateFooter(cover, projName);
 
             // ── Section 2: Project Team ──
             var teamWs = wb.AddWorksheet("Project Team");
@@ -1363,15 +1504,18 @@ namespace StingTools.BIMManager
                 }
             }
 
-            // ── Remaining key sections ──
-            WriteSectionSheet(wb, "Model Structure", bep["model_structure"]);
-            WriteSectionSheet(wb, "CDE Workflow", bep["cde_workflow"]);
-            WriteSectionSheet(wb, "Level of Info Need", bep["level_of_information_need"]);
-            WriteSectionSheet(wb, "Clash Detection", bep["clash_detection"]);
-            WriteSectionSheet(wb, "Quality Assurance", bep["quality_assurance"]);
-            WriteSectionSheet(wb, "Security", bep["security"]);
-            WriteSectionSheet(wb, "Handover & Asset Mgmt", bep["handover_requirements"]);
-            WriteSectionSheet(wb, "Training Plan", bep["training_plan"]);
+            // ── Remaining key sections (numbered for corporate clarity) ──
+            WriteSectionSheet(wb, "S7 Model Structure", bep["model_structure"]);
+            WriteSectionSheet(wb, "S8 CDE Workflow", bep["cde_workflow"]);
+            WriteSectionSheet(wb, "S9 Level of Info Need", bep["level_of_information_need"]);
+            WriteSectionSheet(wb, "S10 Clash Detection", bep["clash_detection"]);
+            WriteSectionSheet(wb, "S11 Quality Assurance", bep["quality_assurance"]);
+            WriteSectionSheet(wb, "S12 Security", bep["security"]);
+            WriteSectionSheet(wb, "S13 Handover & Assets", bep["handover_requirements"]);
+            WriteSectionSheet(wb, "S14 Training Plan", bep["training_plan"]);
+            WriteSectionSheet(wb, "S15 Health & Safety", bep["health_and_safety"]);
+            WriteSectionSheet(wb, "S16 Document Control", bep["document_control"]);
+            WriteSectionSheet(wb, "S17 Appendices", bep["appendices"]);
 
             // ── Risk Register ──
             var riskWs = wb.AddWorksheet("Risk Register");
@@ -1412,16 +1556,23 @@ namespace StingTools.BIMManager
                 }
             }
 
-            // Auto-fit all worksheets
+            // Auto-fit all worksheets + apply corporate styling
             foreach (var ws in wb.Worksheets)
             {
                 ws.Columns().AdjustToContents(1, 80);
-                ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                ApplyCorporateFooter(ws, projName);
             }
 
             wb.SaveAs(xlsxPath);
             return xlsxPath;
         }
+
+        // ── Corporate XLSX Styling Constants ──
+        private static readonly XLColor BrandPrimary = XLColor.FromHtml("#1B3A5C");      // Navy
+        private static readonly XLColor BrandAccent = XLColor.FromHtml("#E8912D");       // Orange
+        private static readonly XLColor BrandLight = XLColor.FromHtml("#F5F5F5");        // Light grey bg
+        private static readonly XLColor BrandBorder = XLColor.FromHtml("#D0D0D0");       // Border
+        private static readonly XLColor BrandHeaderFg = XLColor.White;
 
         private static void SetStandardHeaders(IXLWorksheet ws, string[] headers)
         {
@@ -1429,25 +1580,56 @@ namespace StingTools.BIMManager
             {
                 ws.Cell(1, i + 1).Value = headers[i];
                 ws.Cell(1, i + 1).Style.Font.Bold = true;
-                ws.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#6A1B9A");
-                ws.Cell(1, i + 1).Style.Font.FontColor = XLColor.White;
+                ws.Cell(1, i + 1).Style.Fill.BackgroundColor = BrandPrimary;
+                ws.Cell(1, i + 1).Style.Font.FontColor = BrandHeaderFg;
+                ws.Cell(1, i + 1).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                ws.Cell(1, i + 1).Style.Border.BottomBorderColor = BrandAccent;
+                ws.Cell(1, i + 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
+            ws.Row(1).Height = 28;
+        }
+
+        /// <summary>Apply corporate footer to a worksheet.</summary>
+        private static void ApplyCorporateFooter(IXLWorksheet ws, string projectName)
+        {
+            ws.PageSetup.Footer.Left.AddText($"BIM Execution Plan — {projectName}");
+            ws.PageSetup.Footer.Right.AddText("Page &P of &N");
+            ws.PageSetup.Header.Right.AddText($"Generated: {DateTime.Now:yyyy-MM-dd}");
+            ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+            ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+            ws.PageSetup.FitToPages(1, 0);
         }
 
         private static void WriteSectionSheet(XLWorkbook wb, string sheetName, JToken section)
         {
             if (section == null) return;
-            // Sanitize sheet name (max 31 chars, no invalid chars)
             string safeName = sheetName.Length > 31 ? sheetName.Substring(0, 31) : sheetName;
             var ws = wb.AddWorksheet(safeName);
-            int row = 1;
+
+            // Section title header row
+            ws.Column(1).Width = 35;
+            ws.Column(2).Width = 50;
+            ws.Column(3).Width = 40;
+            ws.Cell(1, 1).Value = safeName;
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 14;
+            ws.Cell(1, 1).Style.Font.FontColor = BrandPrimary;
+            ws.Range(1, 1, 1, 3).Merge();
+            ws.Range(1, 1, 1, 3).Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+            ws.Range(1, 1, 1, 3).Style.Border.BottomBorderColor = BrandAccent;
+            ws.Row(1).Height = 30;
+
+            int row = 3;
 
             if (section is JObject obj)
             {
                 foreach (var kv in obj)
                 {
+                    // Key as styled label
                     ws.Cell(row, 1).Value = FormatKey(kv.Key);
                     ws.Cell(row, 1).Style.Font.Bold = true;
+                    ws.Cell(row, 1).Style.Font.FontColor = BrandPrimary;
+                    ws.Cell(row, 1).Style.Fill.BackgroundColor = BrandLight;
 
                     if (kv.Value is JArray arr)
                     {
@@ -1455,10 +1637,17 @@ namespace StingTools.BIMManager
                         {
                             row++;
                             if (item is JObject itemObj)
-                                ws.Cell(row, 2).Value = string.Join(" | ",
-                                    itemObj.Properties().Select(p => $"{p.Name}: {p.Value}"));
+                            {
+                                // Write each property on its own line for readability
+                                var parts = itemObj.Properties()
+                                    .Select(p => $"{FormatKey(p.Name)}: {p.Value}");
+                                ws.Cell(row, 2).Value = string.Join("\n", parts);
+                                ws.Cell(row, 2).Style.Alignment.WrapText = true;
+                            }
                             else
+                            {
                                 ws.Cell(row, 2).Value = item.ToString();
+                            }
                         }
                     }
                     else if (kv.Value is JObject nested)
@@ -1467,14 +1656,39 @@ namespace StingTools.BIMManager
                         {
                             row++;
                             ws.Cell(row, 2).Value = FormatKey(nkv.Key);
-                            ws.Cell(row, 3).Value = nkv.Value?.ToString() ?? "";
+                            ws.Cell(row, 2).Style.Font.Bold = true;
+
+                            if (nkv.Value is JArray nestedArr)
+                            {
+                                foreach (var item in nestedArr)
+                                {
+                                    row++;
+                                    if (item is JObject nObj)
+                                        ws.Cell(row, 3).Value = string.Join(" | ",
+                                            nObj.Properties().Select(p => $"{FormatKey(p.Name)}: {p.Value}"));
+                                    else
+                                        ws.Cell(row, 3).Value = item.ToString();
+                                }
+                            }
+                            else if (nkv.Value is JObject deepNested)
+                            {
+                                foreach (var dk in deepNested)
+                                {
+                                    row++;
+                                    ws.Cell(row, 3).Value = $"{FormatKey(dk.Key)}: {dk.Value}";
+                                }
+                            }
+                            else
+                            {
+                                ws.Cell(row, 3).Value = nkv.Value?.ToString() ?? "";
+                            }
                         }
                     }
                     else
                     {
                         ws.Cell(row, 2).Value = kv.Value?.ToString() ?? "";
                     }
-                    row++;
+                    row += 2; // Extra spacing between sections
                 }
             }
             else if (section is JArray arr)
@@ -1484,7 +1698,8 @@ namespace StingTools.BIMManager
                     if (item is JObject itemObj)
                     {
                         ws.Cell(row, 1).Value = string.Join(" | ",
-                            itemObj.Properties().Select(p => $"{p.Name}: {p.Value}"));
+                            itemObj.Properties().Select(p => $"{FormatKey(p.Name)}: {p.Value}"));
+                        ws.Cell(row, 1).Style.Alignment.WrapText = true;
                     }
                     else
                         ws.Cell(row, 1).Value = item.ToString();
@@ -3226,9 +3441,18 @@ namespace StingTools.BIMManager
             string bepPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
             BIMManagerEngine.SaveJsonFile(bepPath, bep);
 
-            // Export XLSX (standard format document)
+            // Export XLSX — offer custom folder or default BIM manager dir
             string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
             string xlsxPath = "";
+
+            // Offer custom save location
+            try
+            {
+                string exportDir = OutputLocationHelper.PromptForExportPath("BEP", bimDir);
+                if (!string.IsNullOrEmpty(exportDir)) bimDir = exportDir;
+            }
+            catch (Exception) { /* use default dir */ }
+
             try
             {
                 xlsxPath = BIMManagerEngine.ExportBEPToXlsx(bep, bimDir,
