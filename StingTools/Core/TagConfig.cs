@@ -2964,7 +2964,14 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            // PERF-06: Use ElementMulticategoryFilter to skip non-taggable elements
+            var seqCats = SharedParamGuids.AllCategoryEnums;
+            FilteredElementCollector seqCollector = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            if (seqCats != null && seqCats.Length > 0)
+                seqCollector.WherePasses(new ElementMulticategoryFilter(
+                    new List<BuiltInCategory>(seqCats)));
+            foreach (Element elem in seqCollector)
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
