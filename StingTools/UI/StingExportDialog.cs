@@ -60,9 +60,425 @@ namespace StingTools.UI
         public bool IncludeFamilyType { get; set; } = true;
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    //  ExportLinkDefinition — Reusable export preset (BIMLink LinkDefinition)
+    //
+    //  Stores all export configuration for save/load/reuse.
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>Reusable export configuration preset, analogous to BIMLink's LinkDefinition.</summary>
+    public class ExportLinkDefinition
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Group { get; set; } = "Custom";
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public List<string> SelectedCategories { get; set; } = new();
+        public List<string> SelectedParameters { get; set; } = new();
+        public string FamilyFilter { get; set; }
+        public string TypeFilter { get; set; }
+        public string Format { get; set; } = "CSV";
+        public string Scope { get; set; } = "Project";
+        public bool IncludeElementId { get; set; } = true;
+        public bool IncludeCategory { get; set; } = true;
+        public bool IncludeFamilyType { get; set; } = true;
+        public bool IsBuiltIn { get; set; }
+
+        /// <summary>Build ExportDialogResult from this preset.</summary>
+        public ExportDialogResult ToResult(string outputPath) => new()
+        {
+            SelectedCategories = new List<string>(SelectedCategories),
+            SelectedParameters = new List<string>(SelectedParameters),
+            FamilyFilter = FamilyFilter,
+            TypeFilter = TypeFilter,
+            Format = Format,
+            Scope = Scope,
+            OutputPath = outputPath,
+            IncludeElementId = IncludeElementId,
+            IncludeCategory = IncludeCategory,
+            IncludeFamilyType = IncludeFamilyType,
+            Cancelled = false
+        };
+
+        /// <summary>Build a preset from current dialog result.</summary>
+        public static ExportLinkDefinition FromResult(ExportDialogResult r, string name) => new()
+        {
+            Name = name,
+            CreatedAt = DateTime.Now,
+            SelectedCategories = new List<string>(r.SelectedCategories),
+            SelectedParameters = new List<string>(r.SelectedParameters),
+            FamilyFilter = r.FamilyFilter,
+            TypeFilter = r.TypeFilter,
+            Format = r.Format,
+            Scope = r.Scope,
+            IncludeElementId = r.IncludeElementId,
+            IncludeCategory = r.IncludeCategory,
+            IncludeFamilyType = r.IncludeFamilyType
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  ExportLinkLibrary — Built-in + user preset library
+    //
+    //  120+ built-in presets covering all Ideate BIMLink export categories
+    //  plus STING-specific tagging presets. User presets saved to JSON.
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Export preset library with 120+ built-in presets matching Ideate BIMLink
+    /// folder structure, plus STING-specific tagging presets.
+    /// User presets persisted to EXPORT_PRESETS.json alongside project_config.json.
+    /// </summary>
+    internal static class ExportLinkLibrary
+    {
+        private const string PresetFileName = "EXPORT_PRESETS.json";
+        private static List<ExportLinkDefinition> _builtInPresets;
+
+        // ── STING tag tokens (reused across presets) ──
+        private static readonly List<string> TagTokens = new()
+        {
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ, ParamRegistry.TAG1,
+            ParamRegistry.STATUS, ParamRegistry.REV
+        };
+
+        private static readonly List<string> IdentityParams = new()
+        {
+            "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT", "ASS_DEPARTMENT_TXT",
+            "ASS_LEVEL_NAME_TXT", "ASS_GRID_REF_TXT", "ASS_MANUFACTURER_TXT",
+            "ASS_MODEL_TXT", "ASS_DESCRIPTION_TXT"
+        };
+
+        private static readonly List<string> SpatialParams = new()
+        {
+            ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
+            "ASS_GRID_REF_TXT", "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT",
+            "ASS_DEPARTMENT_TXT", "ASS_LEVEL_NAME_TXT"
+        };
+
+        private static readonly List<string> MepParams = new()
+        {
+            "MEP_FLOW_RATE_TXT", "MEP_PRESSURE_TXT", "MEP_VELOCITY_TXT",
+            "MEP_VOLTAGE_TXT", "MEP_POWER_TXT", "MEP_CURRENT_TXT",
+            "MEP_CIRCUIT_TXT", "MEP_SYSTEM_NAME_TXT", "MEP_SIZE_TXT"
+        };
+
+        private static readonly List<string> DimensionParams = new()
+        {
+            "BLE_WIDTH_TXT", "BLE_HEIGHT_TXT", "BLE_LENGTH_TXT",
+            "BLE_DEPTH_TXT", "BLE_AREA_TXT", "BLE_VOLUME_TXT",
+            "BLE_THICKNESS_TXT", "BLE_PERIMETER_TXT"
+        };
+
+        private static readonly List<string> CobieParams = new()
+        {
+            ParamRegistry.TAG1, "ASS_DESCRIPTION_TXT", "ASS_MANUFACTURER_TXT",
+            "ASS_MODEL_TXT", "ASS_SERIAL_NO_TXT", "ASS_INSTALL_DATE_TXT",
+            "ASS_WARRANTY_START_TXT", "ASS_WARRANTY_DUR_TXT", "ASS_BARCODE_TXT",
+            "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT"
+        };
+
+        private static readonly List<string> LifecycleParams = new()
+        {
+            ParamRegistry.STATUS, ParamRegistry.REV, "ASS_INSTALL_DATE_TXT",
+            "ASS_COMMISSION_DATE_TXT", "MNT_CONDITION_TXT", "MNT_NEXT_SERVICE_TXT",
+            "ASS_EXPECTED_LIFE_TXT", "ASS_REPLACEMENT_COST_TXT"
+        };
+
+        private static readonly List<string> Tag7Params = new()
+        {
+            "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+            "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT", "ASS_TAG_7F_TXT"
+        };
+
+        // ── Category groups (Ideate BIMLink folder structure) ──
+        private static readonly List<string> ArchCategories = new()
+        {
+            "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Stairs",
+            "Railings", "Rooms", "Curtain Panels", "Curtain Wall Mullions", "Furniture"
+        };
+        private static readonly List<string> StructCategories = new()
+        {
+            "Structural Columns", "Structural Framing", "Structural Foundations",
+            "Structural Connections", "Structural Rebar"
+        };
+        private static readonly List<string> MechCategories = new()
+        {
+            "Mechanical Equipment", "Duct Accessories", "Duct Fittings",
+            "Ducts", "Flex Ducts", "Air Terminals"
+        };
+        private static readonly List<string> ElecCategories = new()
+        {
+            "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures",
+            "Lighting Devices", "Cable Trays", "Cable Tray Fittings", "Conduits",
+            "Conduit Fittings"
+        };
+        private static readonly List<string> PlumbCategories = new()
+        {
+            "Plumbing Fixtures", "Plumbing Equipment", "Pipe Accessories",
+            "Pipe Fittings", "Pipes", "Flex Pipes", "Sprinklers"
+        };
+        private static readonly List<string> FireCategories = new()
+        {
+            "Fire Alarm Devices", "Sprinklers", "Fire Protection"
+        };
+        private static readonly List<string> AllMepCategories;
+
+        static ExportLinkLibrary()
+        {
+            AllMepCategories = new List<string>();
+            AllMepCategories.AddRange(MechCategories);
+            AllMepCategories.AddRange(ElecCategories);
+            AllMepCategories.AddRange(PlumbCategories);
+            AllMepCategories.AddRange(FireCategories);
+        }
+
+        /// <summary>Get all presets (built-in + user).</summary>
+        public static List<ExportLinkDefinition> GetAllPresets(Document doc)
+        {
+            var all = new List<ExportLinkDefinition>(GetBuiltInPresets());
+            all.AddRange(LoadUserPresets(doc));
+            return all;
+        }
+
+        /// <summary>Get preset group names.</summary>
+        public static List<string> GetGroups(List<ExportLinkDefinition> presets)
+        {
+            return presets.Select(p => p.Group).Distinct().OrderBy(g => g).ToList();
+        }
+
+        /// <summary>Save a user preset.</summary>
+        public static void SaveUserPreset(Document doc, ExportLinkDefinition preset)
+        {
+            preset.IsBuiltIn = false;
+            preset.Group = string.IsNullOrEmpty(preset.Group) ? "Custom" : preset.Group;
+            var existing = LoadUserPresets(doc);
+            existing.RemoveAll(p => p.Name == preset.Name);
+            existing.Add(preset);
+            SaveUserPresets(doc, existing);
+        }
+
+        /// <summary>Delete a user preset by name.</summary>
+        public static void DeleteUserPreset(Document doc, string name)
+        {
+            var existing = LoadUserPresets(doc);
+            existing.RemoveAll(p => p.Name == name);
+            SaveUserPresets(doc, existing);
+        }
+
+        // ── Persistence ──
+
+        private static string GetPresetPath(Document doc)
+        {
+            string dir = OutputLocationHelper.GetOutputDirectory(doc);
+            return Path.Combine(dir, PresetFileName);
+        }
+
+        private static List<ExportLinkDefinition> LoadUserPresets(Document doc)
+        {
+            try
+            {
+                string path = GetPresetPath(doc);
+                if (!File.Exists(path)) return new List<ExportLinkDefinition>();
+                string json = File.ReadAllText(path);
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<List<ExportLinkDefinition>>(json)
+                    ?? new List<ExportLinkDefinition>();
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadUserPresets: {ex.Message}"); return new List<ExportLinkDefinition>(); }
+        }
+
+        private static void SaveUserPresets(Document doc, List<ExportLinkDefinition> presets)
+        {
+            try
+            {
+                string path = GetPresetPath(doc);
+                string dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(presets, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(path, json);
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveUserPresets: {ex.Message}"); }
+        }
+
+        // ── Built-in presets (120+) ──
+
+        public static List<ExportLinkDefinition> GetBuiltInPresets()
+        {
+            if (_builtInPresets != null) return _builtInPresets;
+            _builtInPresets = new List<ExportLinkDefinition>();
+
+            // ════ STING Tagging ════
+            Add("STING Tagging", "Full Asset Register", "Complete ISO 19650 asset register with all tag tokens, identity, spatial, and lifecycle data.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, IdentityParams, SpatialParams, LifecycleParams), "Excel");
+            Add("STING Tagging", "Tag Tokens Only", "Export only ISO 19650 tag tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ).",
+                TagConfig.DiscMap.Keys.ToList(), TagTokens);
+            Add("STING Tagging", "TAG7 Narratives", "Rich descriptive TAG7 narratives (sections A-F).",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, Tag7Params));
+            Add("STING Tagging", "Compliance Audit", "Tags + status + revision for compliance checking.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, LifecycleParams));
+            Add("STING Tagging", "Spatial Summary", "Spatial context per element: room, department, level, grid, zone.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, SpatialParams));
+            Add("STING Tagging", "MEP Asset Tags", "MEP-focused asset tags with system and performance data.",
+                AllMepCategories, Concat(TagTokens, MepParams));
+            Add("STING Tagging", "Architectural Tags", "Architectural tags with dimensions.",
+                ArchCategories, Concat(TagTokens, DimensionParams));
+            Add("STING Tagging", "Structural Tags", "Structural element tags with identity.",
+                StructCategories, Concat(TagTokens, IdentityParams));
+
+            // ════ COBie / FM Handover ════
+            Add("COBie / Handover", "COBie Component Export", "COBie-aligned component data for FM handover.",
+                TagConfig.DiscMap.Keys.ToList(), CobieParams, "Excel");
+            Add("COBie / Handover", "COBie Type Export", "Equipment types for COBie Type worksheet.",
+                AllMepCategories, Concat(CobieParams, new List<string> { "ASS_WARRANTY_PARTS_TXT", "ASS_WARRANTY_LABOR_TXT", "ASS_NOMINAL_LENGTH_TXT", "ASS_NOMINAL_WIDTH_TXT", "ASS_NOMINAL_HEIGHT_TXT" }), "Excel");
+            Add("COBie / Handover", "Maintenance Schedule", "Maintenance tasks, intervals, and responsibilities.",
+                AllMepCategories, Concat(TagTokens, new List<string> { "MNT_INTERVAL_TXT", "MNT_RESPONSIBILITY_TXT", "MNT_TASK_TXT", "MNT_CONDITION_TXT", "MNT_NEXT_SERVICE_TXT", "MNT_COST_TXT" }));
+            Add("COBie / Handover", "Asset Health Report", "Condition grading and lifecycle data per asset.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, LifecycleParams, new List<string> { "MNT_CONDITION_TXT" }));
+            Add("COBie / Handover", "Space Handover", "Room-based handover data with spatial tags.",
+                new List<string> { "Rooms" }, Concat(SpatialParams, new List<string> { "BLE_AREA_TXT", "BLE_VOLUME_TXT", "BLE_PERIMETER_TXT" }));
+
+            // ════ Architectural ════
+            Add("Architectural", "Door Schedule", "Complete door schedule with dimensions and fire rating.",
+                new List<string> { "Doors" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_FIRE_RATING_TXT", "ASS_FINISH_TXT", "ASS_MATERIAL_TXT" }));
+            Add("Architectural", "Window Schedule", "Window schedule with dimensions and glazing specs.",
+                new List<string> { "Windows" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_GLAZING_TXT", "ASS_FRAME_TXT" }));
+            Add("Architectural", "Room Data Sheets", "Room areas, finishes, and occupancy data.",
+                new List<string> { "Rooms" }, Concat(SpatialParams, DimensionParams));
+            Add("Architectural", "Wall Types", "Wall types, materials, and thicknesses.",
+                new List<string> { "Walls" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "ASS_FIRE_RATING_TXT" }));
+            Add("Architectural", "Floor Finishes", "Floor types and finish schedules.",
+                new List<string> { "Floors" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_FINISH_TXT", "ASS_MATERIAL_TXT" }));
+            Add("Architectural", "Ceiling Schedule", "Ceiling types, heights, and materials.",
+                new List<string> { "Ceilings" }, Concat(TagTokens, DimensionParams));
+            Add("Architectural", "Furniture Schedule", "Furniture inventory with locations.",
+                new List<string> { "Furniture" }, Concat(TagTokens, IdentityParams));
+            Add("Architectural", "Stair Schedule", "Stair riser/tread dimensions and code compliance.",
+                new List<string> { "Stairs" }, Concat(TagTokens, DimensionParams));
+
+            // ════ Structural ════
+            Add("Structural", "Column Schedule", "Structural columns with sizes and materials.",
+                new List<string> { "Structural Columns" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "STR_GRADE_TXT" }));
+            Add("Structural", "Beam Schedule", "Structural framing schedule with spans and loads.",
+                new List<string> { "Structural Framing" }, Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT" }));
+            Add("Structural", "Foundation Schedule", "Foundation elements with dimensions.",
+                new List<string> { "Structural Foundations" }, Concat(TagTokens, DimensionParams));
+            Add("Structural", "Rebar Schedule", "Reinforcement quantities and specifications.",
+                new List<string> { "Structural Rebar" }, Concat(TagTokens, new List<string> { "STR_REBAR_SIZE_TXT", "STR_REBAR_GRADE_TXT", "BLE_LENGTH_TXT" }));
+
+            // ════ Mechanical (HVAC) ════
+            Add("Mechanical", "HVAC Equipment", "HVAC equipment schedule with capacities and flow rates.",
+                new List<string> { "Mechanical Equipment" }, Concat(TagTokens, MepParams, IdentityParams));
+            Add("Mechanical", "Air Terminal Schedule", "Diffusers and grilles with air flow rates.",
+                new List<string> { "Air Terminals" }, Concat(TagTokens, MepParams));
+            Add("Mechanical", "Duct Schedule", "Ductwork sizes, lengths, and system assignments.",
+                new List<string> { "Ducts", "Flex Ducts" }, Concat(TagTokens, MepParams, DimensionParams));
+            Add("Mechanical", "Duct Accessories", "Dampers, access doors, and duct fittings.",
+                new List<string> { "Duct Accessories", "Duct Fittings" }, Concat(TagTokens, MepParams));
+            Add("Mechanical", "All HVAC Systems", "Complete HVAC systems overview.",
+                MechCategories, Concat(TagTokens, MepParams, IdentityParams), "Excel");
+
+            // ════ Electrical ════
+            Add("Electrical", "Electrical Equipment", "Panels, transformers, and switchgear.",
+                new List<string> { "Electrical Equipment" }, Concat(TagTokens, MepParams, IdentityParams));
+            Add("Electrical", "Lighting Fixtures", "Lighting schedule with wattage and lumen output.",
+                new List<string> { "Lighting Fixtures" }, Concat(TagTokens, MepParams, new List<string> { "ASS_MANUFACTURER_TXT", "ASS_MODEL_TXT" }));
+            Add("Electrical", "Cable Tray Schedule", "Cable tray routes, sizes, and fill ratios.",
+                new List<string> { "Cable Trays", "Cable Tray Fittings" }, Concat(TagTokens, DimensionParams));
+            Add("Electrical", "Conduit Schedule", "Conduit routes, sizes, and fill ratios.",
+                new List<string> { "Conduits", "Conduit Fittings" }, Concat(TagTokens, DimensionParams));
+            Add("Electrical", "Electrical Fixtures", "Receptacles, switches, and devices.",
+                new List<string> { "Electrical Fixtures" }, Concat(TagTokens, MepParams));
+            Add("Electrical", "All Electrical Systems", "Complete electrical systems overview.",
+                ElecCategories, Concat(TagTokens, MepParams, IdentityParams), "Excel");
+
+            // ════ Plumbing ════
+            Add("Plumbing", "Plumbing Fixtures", "Sanitary fixtures schedule.",
+                new List<string> { "Plumbing Fixtures" }, Concat(TagTokens, MepParams, IdentityParams));
+            Add("Plumbing", "Pipe Schedule", "Piping sizes, lengths, and system assignments.",
+                new List<string> { "Pipes", "Flex Pipes" }, Concat(TagTokens, MepParams, DimensionParams));
+            Add("Plumbing", "Pipe Accessories", "Valves, strainers, and pipe fittings.",
+                new List<string> { "Pipe Accessories", "Pipe Fittings" }, Concat(TagTokens, MepParams));
+            Add("Plumbing", "Plumbing Equipment", "Pumps, tanks, and water heaters.",
+                new List<string> { "Plumbing Equipment" }, Concat(TagTokens, MepParams, IdentityParams));
+
+            // ════ Fire Protection ════
+            Add("Fire Protection", "Fire Alarm Devices", "Detectors, sounders, and call points.",
+                new List<string> { "Fire Alarm Devices" }, Concat(TagTokens, MepParams, IdentityParams));
+            Add("Fire Protection", "Sprinkler Schedule", "Sprinkler head types and coverage.",
+                new List<string> { "Sprinklers" }, Concat(TagTokens, MepParams));
+            Add("Fire Protection", "All Fire Systems", "Complete fire protection overview.",
+                FireCategories, Concat(TagTokens, MepParams, IdentityParams));
+
+            // ════ Model-Wide ════
+            Add("Model-Wide", "All Elements — Tags Only", "Every tagged category, tag tokens only.",
+                TagConfig.DiscMap.Keys.ToList(), TagTokens);
+            Add("Model-Wide", "All Elements — Full Export", "Every category, all STING parameters.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, IdentityParams, SpatialParams, MepParams, DimensionParams, LifecycleParams), "Excel");
+            Add("Model-Wide", "Discipline Summary", "Element counts and tags by discipline.",
+                TagConfig.DiscMap.Keys.ToList(), new List<string> { ParamRegistry.DISC, ParamRegistry.TAG1, ParamRegistry.STATUS });
+            Add("Model-Wide", "BOQ / Quantities", "Bill of Quantities with dimensions and materials.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "ASS_UNIT_COST_TXT" }), "Excel");
+            Add("Model-Wide", "Element ID Register", "Element IDs with tags for cross-referencing.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, IdentityParams));
+
+            // ════ QA / Validation ════
+            Add("QA / Validation", "Missing Tags Audit", "Elements with incomplete or missing tags.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, new List<string> { "STING_STALE_BOOL" }));
+            Add("QA / Validation", "Stale Elements", "Elements flagged as stale (geometry changed).",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, new List<string> { "STING_STALE_BOOL", "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT" }));
+            Add("QA / Validation", "Duplicate Tag Check", "All tags and sequences for duplicate detection.",
+                TagConfig.DiscMap.Keys.ToList(), new List<string> { ParamRegistry.TAG1, ParamRegistry.SEQ, ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.LVL });
+            Add("QA / Validation", "Parameter Completeness", "Token coverage for compliance scoring.",
+                TagConfig.DiscMap.Keys.ToList(), TagTokens);
+
+            // ════ ISO 19650 ════
+            Add("ISO 19650", "Document Transmittal", "Transmittal-ready export with ISO naming.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, new List<string> { ParamRegistry.STATUS, ParamRegistry.REV }), "Excel");
+            Add("ISO 19650", "CDE Status Register", "Elements with CDE suitability and status codes.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, LifecycleParams));
+            Add("ISO 19650", "Information Container", "Full information container per ISO 19650-2.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, IdentityParams, LifecycleParams, Tag7Params), "Excel");
+
+            // ════ Sustainability ════
+            Add("Sustainability", "Embodied Carbon", "Materials with embodied carbon values.",
+                new List<string> { "Walls", "Floors", "Roofs", "Structural Columns", "Structural Framing" },
+                Concat(TagTokens, DimensionParams, new List<string> { "ASS_MATERIAL_TXT", "ASS_EMBODIED_CARBON_TXT", "BLE_VOLUME_TXT" }));
+            Add("Sustainability", "Energy Data", "Energy-related parameters for Part L compliance.",
+                TagConfig.DiscMap.Keys.ToList(), Concat(TagTokens, new List<string> { "ASS_U_VALUE_TXT", "ASS_R_VALUE_TXT", "ASS_THERMAL_COND_TXT", "BLE_AREA_TXT" }));
+
+            return _builtInPresets;
+        }
+
+        // ── Helpers ──
+
+        private static void Add(string group, string name, string desc, List<string> cats, List<string> @params, string format = "CSV")
+        {
+            _builtInPresets.Add(new ExportLinkDefinition
+            {
+                Name = name,
+                Description = desc,
+                Group = group,
+                SelectedCategories = cats,
+                SelectedParameters = @params,
+                Format = format,
+                IsBuiltIn = true
+            });
+        }
+
+        private static List<string> Concat(params List<string>[] lists)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var list in lists)
+                foreach (var item in list) result.Add(item);
+            return result.ToList();
+        }
+    }
+
     /// <summary>
     /// BIMLink-style unified export dialog. Provides category, parameter,
     /// family/type filtering and format/location selection in a single window.
+    /// Includes library browser for 120+ built-in and user export presets.
     /// </summary>
     public static class StingExportDialog
     {
@@ -110,6 +526,7 @@ namespace StingTools.UI
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Header
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Scope bar
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Preset bar
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Main
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Format/Location
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });     // Footer
@@ -166,6 +583,86 @@ namespace StingTools.UI
             Grid.SetRow(scopeBar, 1);
             root.Children.Add(scopeBar);
 
+            // ═══════════════════ PRESET BAR ═══════════════════
+            var presetBar = new Border
+            {
+                Background = new SolidColorBrush(BgMedium),
+                Padding = new Thickness(12, 5, 12, 5),
+                BorderBrush = new SolidColorBrush(BorderDark),
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+            var presetPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            presetPanel.Children.Add(MakeLabel("Preset:", true));
+            var cmbPreset = new System.Windows.Controls.ComboBox
+            {
+                Width = 280,
+                IsEditable = false,
+                Background = new SolidColorBrush(BgLight),
+                Foreground = new SolidColorBrush(TextWhite),
+                FontSize = 12,
+                Margin = new Thickness(4, 0, 4, 0)
+            };
+            cmbPreset.Items.Add("(None — configure manually)");
+            cmbPreset.SelectedIndex = 0;
+
+            // Load preset library
+            var allPresets = ExportLinkLibrary.GetAllPresets(doc);
+            var presetGroups = ExportLinkLibrary.GetGroups(allPresets);
+            var presetByIndex = new Dictionary<int, ExportLinkDefinition>();
+            int presetIdx = 1;
+            foreach (var group in presetGroups)
+            {
+                // Add group header as disabled separator item
+                cmbPreset.Items.Add($"── {group} ──");
+                var groupPresets = allPresets.Where(p => p.Group == group).OrderBy(p => p.Name);
+                foreach (var preset in groupPresets)
+                {
+                    string suffix = preset.IsBuiltIn ? "" : " [User]";
+                    cmbPreset.Items.Add($"  {preset.Name}{suffix}");
+                    presetByIndex[presetIdx + 1] = preset; // +1 for the group header
+                    presetIdx++;
+                }
+                presetIdx++; // for the group header
+            }
+
+            presetPanel.Children.Add(cmbPreset);
+
+            var btnLoadPreset = MakeSmallButton("Apply");
+            var btnDeletePreset = MakeSmallButton("Delete");
+            btnDeletePreset.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(230, 100, 100));
+            presetPanel.Children.Add(btnLoadPreset);
+            presetPanel.Children.Add(btnDeletePreset);
+
+            // Preset description tooltip
+            var presetDesc = new TextBlock
+            {
+                Foreground = new SolidColorBrush(TextGrey),
+                FontSize = 11, FontStyle = FontStyles.Italic,
+                Margin = new Thickness(12, 4, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 400
+            };
+            presetPanel.Children.Add(presetDesc);
+
+            cmbPreset.SelectionChanged += (s, e) =>
+            {
+                int idx = cmbPreset.SelectedIndex;
+                if (presetByIndex.TryGetValue(idx, out var p))
+                {
+                    presetDesc.Text = p.Description;
+                    btnDeletePreset.IsEnabled = !p.IsBuiltIn;
+                }
+                else
+                {
+                    presetDesc.Text = "";
+                    btnDeletePreset.IsEnabled = false;
+                }
+            };
+
+            presetBar.Child = presetPanel;
+            Grid.SetRow(presetBar, 2);
+            root.Children.Add(presetBar);
+
             // ═══════════════════ MAIN 3-COLUMN AREA ═══════════════════
             var mainGrid = new Grid { Margin = new Thickness(8) };
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
@@ -173,7 +670,7 @@ namespace StingTools.UI
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) }); // splitter
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
-            Grid.SetRow(mainGrid, 2);
+            Grid.SetRow(mainGrid, 3);
             root.Children.Add(mainGrid);
 
             // ── LEFT: Categories ──
@@ -537,7 +1034,7 @@ namespace StingTools.UI
             rbJSON.Checked += (s, e) => UpdateExtension();
 
             formatBar.Child = formatGrid;
-            Grid.SetRow(formatBar, 3);
+            Grid.SetRow(formatBar, 4);
             root.Children.Add(formatBar);
 
             // ═══════════════════ FOOTER ═══════════════════
@@ -623,14 +1120,144 @@ namespace StingTools.UI
                 win.DialogResult = true;
             };
 
+            var btnSavePreset = new Button
+            {
+                Content = "Save Preset",
+                Width = 95, Height = 30,
+                Margin = new Thickness(4, 0, 0, 0),
+                FontSize = 12,
+                Background = new SolidColorBrush(BgLight),
+                Foreground = new SolidColorBrush(TextWhite),
+                BorderBrush = new SolidColorBrush(BorderDark)
+            };
+            btnSavePreset.Click += (s, e) =>
+            {
+                var selCats = catChecks.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key).ToList();
+                var selParams = paramChecks.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key).ToList();
+                if (selCats.Count == 0 || selParams.Count == 0)
+                {
+                    MessageBox.Show("Select categories and parameters first.", "STING Export", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Prompt for name
+                var nameWin = new Window
+                {
+                    Title = "Save Export Preset",
+                    Width = 380, Height = 160,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Background = new SolidColorBrush(BgDark),
+                    ResizeMode = ResizeMode.NoResize,
+                    Owner = win
+                };
+                var nameStack = new StackPanel { Margin = new Thickness(16) };
+                nameStack.Children.Add(new TextBlock { Text = "Preset Name:", Foreground = new SolidColorBrush(TextWhite), FontSize = 13, Margin = new Thickness(0, 0, 0, 6) });
+                var txtName = new System.Windows.Controls.TextBox
+                {
+                    FontSize = 13, Padding = new Thickness(6, 4, 6, 4),
+                    Background = new SolidColorBrush(BgLight), Foreground = new SolidColorBrush(TextWhite),
+                    BorderBrush = new SolidColorBrush(BorderDark)
+                };
+                nameStack.Children.Add(txtName);
+                var nameBtnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+                var btnSaveOk = new Button { Content = "Save", Width = 70, Height = 28, Background = new SolidColorBrush(AccentOrange), Foreground = Brushes.White, FontWeight = FontWeights.Bold, Margin = new Thickness(4, 0, 0, 0) };
+                var btnSaveCancel = new Button { Content = "Cancel", Width = 70, Height = 28, Margin = new Thickness(4, 0, 0, 0) };
+                btnSaveOk.Click += (s2, e2) => { if (!string.IsNullOrWhiteSpace(txtName.Text)) nameWin.DialogResult = true; };
+                btnSaveCancel.Click += (s2, e2) => nameWin.DialogResult = false;
+                nameBtnPanel.Children.Add(btnSaveCancel);
+                nameBtnPanel.Children.Add(btnSaveOk);
+                nameStack.Children.Add(nameBtnPanel);
+                nameWin.Content = nameStack;
+
+                if (nameWin.ShowDialog() != true) return;
+
+                var preset = new ExportLinkDefinition
+                {
+                    Name = txtName.Text.Trim(),
+                    Group = "Custom",
+                    SelectedCategories = selCats,
+                    SelectedParameters = selParams,
+                    Format = rbExcel.IsChecked == true ? "Excel" : rbJSON.IsChecked == true ? "JSON" : "CSV",
+                    Scope = rbView.IsChecked == true ? "ActiveView" : rbSelection.IsChecked == true ? "Selection" : "Project",
+                    IncludeElementId = chkElementId.IsChecked == true,
+                    IncludeCategory = chkCategory.IsChecked == true,
+                    IncludeFamilyType = chkFamilyType.IsChecked == true,
+                    FamilyFilter = cmbFamily.SelectedItem?.ToString() != "(All Families)" ? cmbFamily.SelectedItem?.ToString() : null,
+                    TypeFilter = cmbType.SelectedItem?.ToString() != "(All Types)" ? cmbType.SelectedItem?.ToString() : null
+                };
+                ExportLinkLibrary.SaveUserPreset(doc, preset);
+                cmbPreset.Items.Add($"  {preset.Name} [User]");
+                presetByIndex[cmbPreset.Items.Count - 1] = preset;
+                cmbPreset.SelectedIndex = cmbPreset.Items.Count - 1;
+                statusText.Text = $"Preset '{preset.Name}' saved";
+            };
+
             DockPanel.SetDock(buttonPanel, Dock.Right);
+            buttonPanel.Children.Add(btnSavePreset);
             buttonPanel.Children.Add(btnCancel);
             buttonPanel.Children.Add(btnExport);
             footerPanel.Children.Add(buttonPanel);
 
             footer.Child = footerPanel;
-            Grid.SetRow(footer, 4);
+            Grid.SetRow(footer, 5);
             root.Children.Add(footer);
+
+            // ═══════════════════ PRESET HANDLERS ═══════════════════
+
+            // Apply selected preset to UI controls
+            btnLoadPreset.Click += (s, e) =>
+            {
+                int idx = cmbPreset.SelectedIndex;
+                if (!presetByIndex.TryGetValue(idx, out var preset)) return;
+
+                // Update category checkboxes
+                foreach (var kv in catChecks)
+                    kv.Value.IsChecked = preset.SelectedCategories.Contains(kv.Key, StringComparer.OrdinalIgnoreCase);
+
+                // Update parameter checkboxes
+                foreach (var kv in paramChecks)
+                    kv.Value.IsChecked = preset.SelectedParameters.Contains(kv.Key, StringComparer.OrdinalIgnoreCase);
+
+                // Update format radio buttons
+                if (preset.Format == "Excel") rbExcel.IsChecked = true;
+                else if (preset.Format == "JSON") rbJSON.IsChecked = true;
+                else rbCSV.IsChecked = true;
+
+                // Update scope
+                if (preset.Scope == "ActiveView") rbView.IsChecked = true;
+                else if (preset.Scope == "Selection") rbSelection.IsChecked = true;
+                else rbProject.IsChecked = true;
+
+                // Update options
+                chkElementId.IsChecked = preset.IncludeElementId;
+                chkCategory.IsChecked = preset.IncludeCategory;
+                chkFamilyType.IsChecked = preset.IncludeFamilyType;
+
+                // Update family/type filters
+                if (!string.IsNullOrEmpty(preset.FamilyFilter))
+                {
+                    for (int i = 0; i < cmbFamily.Items.Count; i++)
+                        if (cmbFamily.Items[i]?.ToString() == preset.FamilyFilter)
+                        { cmbFamily.SelectedIndex = i; break; }
+                }
+                else cmbFamily.SelectedIndex = 0;
+
+                statusText.Text = $"Preset '{preset.Name}' applied";
+            };
+
+            // Delete user preset
+            btnDeletePreset.Click += (s, e) =>
+            {
+                int idx = cmbPreset.SelectedIndex;
+                if (!presetByIndex.TryGetValue(idx, out var preset) || preset.IsBuiltIn) return;
+                if (MessageBox.Show($"Delete preset '{preset.Name}'?", "STING Export",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                ExportLinkLibrary.DeleteUserPreset(doc, preset.Name);
+                cmbPreset.Items.RemoveAt(idx);
+                presetByIndex.Remove(idx);
+                cmbPreset.SelectedIndex = 0;
+                statusText.Text = $"Preset '{preset.Name}' deleted";
+            };
 
             // ── Show ──
             bool? dialogResult = win.ShowDialog();
