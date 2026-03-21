@@ -494,8 +494,9 @@ namespace StingTools.UI
                 else
                     return name.Replace(find, replace, StringComparison.OrdinalIgnoreCase);
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"BatchRename regex error: {ex.Message}");
                 return name; // Invalid regex — no change
             }
         }
