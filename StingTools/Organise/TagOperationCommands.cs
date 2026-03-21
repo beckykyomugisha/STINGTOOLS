@@ -1233,35 +1233,27 @@ namespace StingTools.Organise
                     ParameterHelpers.SetString(b, param, valA, overwrite: true);
                 }
 
-                // Rebuild TAG1 and update containers for both elements
+                // SWAP-01: Use BuildAndWriteTag for TAG1 rebuild (provides collision
+                // detection and proper SEQ counter tracking). Previously manual string.Join
+                // could produce duplicate tags when swapping.
+                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
                 try
                 {
+                    // Rebuild element A
+                    TagConfig.BuildAndWriteTag(doc, a, seqCounters,
+                        skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
                     string catA = ParameterHelpers.GetCategoryName(a);
                     string[] tokensA = ParamRegistry.ReadTokenValues(a);
-                    if (tokensA.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        string rebuiltTagA = string.Join(ParamRegistry.Separator, tokensA);
-                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                            rebuiltTagA = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTagA;
-                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                            rebuiltTagA = rebuiltTagA + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        ParameterHelpers.SetString(a, ParamRegistry.TAG1, rebuiltTagA, overwrite: true);
-                        ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
-                    }
+                    ParamRegistry.WriteContainers(a, tokensA, catA, overwrite: true);
                     TagConfig.WriteTag7All(doc, a, catA, tokensA, overwrite: true);
 
+                    // Rebuild element B
+                    TagConfig.BuildAndWriteTag(doc, b, seqCounters,
+                        skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
                     string catB = ParameterHelpers.GetCategoryName(b);
                     string[] tokensB = ParamRegistry.ReadTokenValues(b);
-                    if (tokensB.Any(v => !string.IsNullOrEmpty(v)))
-                    {
-                        string rebuiltTagB = string.Join(ParamRegistry.Separator, tokensB);
-                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                            rebuiltTagB = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTagB;
-                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                            rebuiltTagB = rebuiltTagB + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        ParameterHelpers.SetString(b, ParamRegistry.TAG1, rebuiltTagB, overwrite: true);
-                        ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
-                    }
+                    ParamRegistry.WriteContainers(b, tokensB, catB, overwrite: true);
                     TagConfig.WriteTag7All(doc, b, catB, tokensB, overwrite: true);
                 }
                 catch (Exception ex)
@@ -1274,6 +1266,8 @@ namespace StingTools.Organise
 
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            catch (Exception ssEx) { StingLog.Warn($"SwapTags SaveSeqSidecar: {ssEx.Message}"); }
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }

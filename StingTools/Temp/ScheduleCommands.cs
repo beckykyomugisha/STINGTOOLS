@@ -1132,6 +1132,11 @@ namespace StingTools.Temp
 
             progress.Close();
 
+            // CACHE-02: Invalidate caches after population so compliance dashboard
+            // and auto-tagger reflect the updated token values immediately.
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             var report = new StringBuilder();
             if (cancelled)
                 report.AppendLine($"Cancelled by user. Partial results committed.");
