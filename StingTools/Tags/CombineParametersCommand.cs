@@ -138,6 +138,9 @@ namespace StingTools.Tags
 
                 foreach (Element el in collector)
                 {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                         continue;
@@ -235,7 +238,8 @@ namespace StingTools.Tags
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            TagConfig.SaveSeqSidecar(doc); // TAG-06: Persist SEQ counters from BuildAndWriteTag
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); } // TAG-06: Persist SEQ counters
+            catch (Exception ssEx) { StingLog.Warn($"CombineParams SaveSeqSidecar: {ssEx.Message}"); }
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

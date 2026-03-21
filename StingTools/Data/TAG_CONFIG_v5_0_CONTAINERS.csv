@@ -154,3 +154,9 @@ TIEIN_FAMILY,STING - Tie-In Point Tag (Conduit),Conduits,ELC_TAG_7_PARA_TIEIN_TX
 TIEIN_FAMILY,STING - Tie-In Point Tag (Cable Tray),Cable Trays,ELC_TAG_7_PARA_TIEIN_TXT
 TIEIN_FAMILY,STING - Tie-In Point Tag (Fire Protection),Pipes (FP),FLS_TAG_7_PARA_TIEIN_TXT
 TIEIN_FAMILY,STING - Tie-In Point Tag (Gas),Pipes (Gas),PLM_TAG_7_PARA_TIEIN_TXT
+
+# ─── Section 14: Sheet-Level Containers ──────────────────────────────────────
+# v5.1 | Phase 39: ISO 19650 document code containers for ViewSheet elements
+# These are sheet-level containers, not element-level — bound to ViewSheet category
+SHEETS,SHT_TAG_1_TXT,"SHT_DISC_TXT,SHT_ORIGINATOR_TXT,SHT_LEVEL_TXT,SHT_FORM_TXT,SHT_NUMBER_TXT,SHT_REV_TXT",-,Sheet ISO 19650 document code,Sheets
+SHEETS,SHT_TAG_7_TXT,"SHT_DISC_TXT,SHT_NAME_TXT,SHT_LEVEL_TXT,SHT_FORM_TXT,SHT_REV_TXT",-,Sheet rich narrative description,Sheets

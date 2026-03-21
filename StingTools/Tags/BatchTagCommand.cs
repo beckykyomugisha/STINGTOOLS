@@ -63,12 +63,23 @@ namespace StingTools.Tags
             var allElements = collector.ToList();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
+            int skippedWorkset = 0, skippedDemolished = 0;
             var taggableElements = new List<Element>();
 
             foreach (Element e in allElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
                 if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
+
+                // GAP-WS-01: Skip elements on worksets owned by other users in workshared models
+                if (!TagPipelineHelper.IsEditableInWorksharing(doc, e))
+                { skippedWorkset++; continue; }
+
+                // GAP-PH-01: Skip demolished elements (tagged with STATUS=DEMOLISHED but don't
+                // waste SEQ numbers; they remain tagged from their creation phase)
+                if (TagPipelineHelper.IsDemolished(e))
+                { skippedDemolished++; continue; }
+
                 totalTaggable++;
                 taggableElements.Add(e);
                 if (TagConfig.TagIsComplete(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
@@ -96,11 +107,14 @@ namespace StingTools.Tags
                 new("Auto-increment on collision",
                     "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.", "increment"),
             };
+            string statusLine = $"Taggable: {totalTaggable:N0}  |  Already tagged: {alreadyTagged:N0}  |  Untagged: {untagged:N0}";
+            if (skippedWorkset > 0) statusLine += $"  |  Skipped (workset): {skippedWorkset:N0}";
+            if (skippedDemolished > 0) statusLine += $"  |  Skipped (demolished): {skippedDemolished:N0}";
             string modeResult = UI.StingModePicker.Show(
                 "Batch Tag — Collision Mode",
                 $"Batch tag {totalTaggable:N0} elements",
                 modeOptions,
-                $"Taggable: {totalTaggable:N0}  |  Already tagged: {alreadyTagged:N0}  |  Untagged: {untagged:N0}");
+                statusLine);
 
             TagCollisionMode collisionMode;
             switch (modeResult)

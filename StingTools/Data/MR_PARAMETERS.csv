@@ -2311,3 +2311,12 @@ Generic Models,ASS_STALE_TOKENS_TXT,a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05,TEXT,WA
 Generic Models,ASS_INHERIT_STATUS_TXT,b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16,TEXT,ASS_MNG,Instance,"AE-04: Token inheritance status — PROXIMITY_OK / PROXIMITY_FAIL / TYPE_INHERIT / MANUAL",False,,,MULTI,1,0
 Generic Models,STING_DATA_HASH,c9e60453-1ba4-5f3c-d6c2-508a3af4be27,TEXT,ASS_MNG,Type,"AE-05: Hash of data directory for workflow skip-if-unchanged detection",False,,,MULTI,1,0
 Generic Models,STING_SETUP_COMPLETE,daf71564-2cb5-504d-e7d3-619b4b05cf38,TEXT,ASS_MNG,Type,"AE-03: Timestamp of last MasterSetup completion for idempotency check",False,,,MULTI,1,0
+Sheets,SHT_NUMBER_TXT,f213496b-4218-514b-82cd-ce421248d032,TEXT,SHT,Instance,"Sheet Number mapped from Revit native [ISO 19650-1:2018]",False,,,MULTI,0,0
+Sheets,SHT_NAME_TXT,7e579423-afd3-520b-b8d9-fcd250d18d6a,TEXT,SHT,Instance,"Sheet Name mapped from Revit native [ISO 19650-1:2018]",False,,,MULTI,0,0
+Sheets,SHT_DISC_TXT,7f3fbb8d-36ca-530d-814d-e9b243c2a4dc,TEXT,SHT,Instance,"Sheet discipline derived from viewport element majority [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_ORIGINATOR_TXT,5b5715dc-8579-5556-b527-77e3be6aea5c,TEXT,SHT,Instance,"Sheet originator code from Project Info [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_FORM_TXT,54c318b7-811d-50cc-9ca0-72a18b7ff853,TEXT,SHT,Instance,"Sheet document form code DR SP SH M3 [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_LEVEL_TXT,db60894e-8e07-5aff-bcdb-bdaebaceac89,TEXT,SHT,Instance,"Sheet level derived from viewport views [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_REV_TXT,7542b276-3ab7-5b55-8154-830bd6f20b76,TEXT,SHT,Instance,"Sheet revision code from project revision [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_TAG_1_TXT,73019587-020b-5860-bcb1-3dcadeb6f3ac,TEXT,SHT,Instance,"Sheet ISO 19650 document code assembled from tokens [ISO 19650-2:2018]",False,,,MULTI,0,0
+Sheets,SHT_TAG_7_TXT,a06370b5-d989-533c-b7af-09ba545790fb,TEXT,SHT,Instance,"Sheet rich narrative description [ISO 19650-2:2018]",False,,,MULTI,0,0

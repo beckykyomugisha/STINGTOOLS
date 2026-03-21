@@ -259,7 +259,11 @@ namespace StingTools.Temp
             passed += DoStep("Auto-Create Legends (discipline + system)",
                 () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
 
-            // Step 18: Generate BEP (ISO 19650 BIM Execution Plan)
+            // Step 18: Tag sheets with ISO 19650 document codes
+            passed += DoStep("Tag Sheets (ISO 19650 doc codes)",
+                () => RunCommand(new Tags.TagSheetsCommand(), commandData, elements));
+
+            // Step 19: Generate BEP (ISO 19650 BIM Execution Plan)
             passed += DoStep("Generate BEP + Export XLSX",
                 () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 

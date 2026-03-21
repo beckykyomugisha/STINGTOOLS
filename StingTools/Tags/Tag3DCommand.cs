@@ -141,7 +141,8 @@ namespace StingTools.Tags
             // FIX-B09: Invalidate caches and check compliance gate after 3D tagging
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            TagConfig.SaveSeqSidecar(doc);
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"Tag3D SaveSeqSidecar: {ssEx.Message}"); }
             TagConfig.CheckComplianceGate(doc, "Tag3D");
 
             string report = $"3D tags placed: {placed}";

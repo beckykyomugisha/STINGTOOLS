@@ -170,6 +170,9 @@ namespace StingTools.Tags
                     Element el = doc.GetElement(id);
                     if (el == null) continue;
 
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
@@ -227,7 +230,7 @@ namespace StingTools.Tags
                                 && !string.IsNullOrEmpty(tokens[0])) // at least DISC populated
                             {
                                 string catNameForContainers = ParameterHelpers.GetCategoryName(el);
-                                ParamRegistry.WriteContainers(doc, el, tokens);
+                                ParamRegistry.WriteContainers(el, tokens, catNameForContainers);
                                 TagConfig.WriteTag7All(doc, el, catNameForContainers, tokens, overwrite: false);
                             }
                         }

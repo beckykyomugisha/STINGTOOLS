@@ -15,6 +15,7 @@
     { "commandTag": "ValidateTags", "label": "Validate ISO 19650 compliance" },
     { "commandTag": "SmartPlaceTags", "label": "Smart place tags (active view)", "optional": true },
     { "commandTag": "ArrangeTags", "label": "Arrange tags", "optional": true },
+    { "commandTag": "TagSheets", "label": "Tag sheets with ISO 19650 document codes", "optional": true },
     { "commandTag": "DiscComplianceReport", "label": "Per-discipline compliance report" }
   ]
 }

@@ -818,6 +818,7 @@ namespace StingTools.UI
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
                     case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
                     case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
+                    case "TagSheets": RunCommand<Tags.TagSheetsCommand>(app); break;
 
                     // ── Scope / toggles (inline) ──
                     case "ScopeView": ToggleScopeMode(app); break;

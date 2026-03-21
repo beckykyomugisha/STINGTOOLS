@@ -129,6 +129,7 @@ namespace StingTools.Tags
 
             int totalProcessed = 0;
             int errors = 0;
+            int skippedWorkset = 0, skippedDemolished = 0;
             var stats = new TaggingStats();
 
             bool cancelled = false;
@@ -154,6 +155,14 @@ namespace StingTools.Tags
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
+
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el))
+                    { skippedWorkset++; continue; }
+
+                    // GAP-PH-01: Skip demolished elements
+                    if (TagPipelineHelper.IsDemolished(el))
+                    { skippedDemolished++; continue; }
 
                     try
                     {
@@ -195,6 +204,10 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Scope:            {scopeLabel}");
             report.AppendLine($"  Processed:        {totalProcessed} elements");
+            if (skippedWorkset > 0)
+                report.AppendLine($"  Skipped (workset):{skippedWorkset:N0} (owned by other users)");
+            if (skippedDemolished > 0)
+                report.AppendLine($"  Skipped (demol.): {skippedDemolished:N0} (demolished elements)");
             report.AppendLine($"  Tagged:           {stats.TotalTagged:N0} new tags");
             if (stats.TotalSkipped > 0)
                 report.AppendLine($"  Skipped:          {stats.TotalSkipped:N0} (already complete)");
