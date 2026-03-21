@@ -475,6 +475,19 @@ namespace StingTools.Tags
                 File.WriteAllText(csvPath, string.Join("\n", csvRows));
                 report2.AppendLine();
                 report2.AppendLine($"  CSV exported: {csvPath}");
+
+                // AE-02: Auto-open CSV export unless suppressed
+                try
+                {
+                    bool autoOpen = !string.Equals(TagConfig.GetConfigValue("OPEN_EXPORTS_AUTOMATICALLY"), "false",
+                        StringComparison.OrdinalIgnoreCase);
+                    if (autoOpen)
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
+                        { UseShellExecute = true });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"PreTagAudit: auto-open failed: {ex.Message}"); }
             }
             catch (Exception ex)
             {

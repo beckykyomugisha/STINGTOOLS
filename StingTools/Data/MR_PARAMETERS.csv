@@ -1,4 +1,4 @@
-# v5.1 | 20260319 | BIM Template mr_parameters — 2307 params
+# v5.2 | 20260321 | BIM Template mr_parameters — 2311 params (Phase 37: +4 params)
 Revit_Category,Parameter_Name,Parameter_GUID,Data_Type,Group_Name,Binding_Type,Description,Has_Formula,Formula,Input_Parameters,Discipline,User_Modifiable,Hide_When_No_Value
 Generic Models,ASS_CAT_TXT,f8fe813a-44e9-5e47-9109-921171dc53b6,TEXT,ASS_MNG,Type,Ass Cat Txt [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CST_QUANTITY_NR,3c189e63-383c-5011-b7d9-873faed4e6c6,TEXT,ASS_MNG,Type,Ass Cst Quantity Nr [ISO 19650-3:2020],False,,,MULTI,1,0
@@ -2307,3 +2307,7 @@ Generic Models,SUST_TAG_1_TXT,0dda60a9-c4b0-54dd-bca0-9f5a6076d49c,TEXT,PER_SUST
 Generic Models,STR_TAG_1_TXT,e51303da-3780-5409-9c41-2b3287b3042f,TEXT,BLE_STRUCTURE,Type,Structural tag container,False,,,MULTI,1,0
 Generic Models,MEP_TIE_POINT_ID_TXT,30ba8ffb-0e94-5bad-bc92-d1d25c7e69be,TEXT,PER_SUST,Type,MEP tie-in point identifier,False,,,MULTI,1,0
 Generic Models,WARN_STR_WIR_TENSILE_MPA,f5569d94-c172-5cde-92d3-5b6e5bfa30bb,TEXT,WARN_THRESHOLDS,Type,Warning: wire tensile strength MPa,False,,,MULTI,1,0
+Generic Models,ASS_STALE_TOKENS_TXT,a7c4e231-9f82-5d1a-b4a0-3e6f18d29c05,TEXT,WARN_THRESHOLDS,Instance,"LG-04: Comma-separated list of stale token names for targeted re-derivation",False,,,MULTI,1,0
+Generic Models,ASS_INHERIT_STATUS_TXT,b8d5f342-0a93-5e2b-c5b1-4f7029e3ad16,TEXT,ASS_MNG,Instance,"AE-04: Token inheritance status — PROXIMITY_OK / PROXIMITY_FAIL / TYPE_INHERIT / MANUAL",False,,,MULTI,1,0
+Generic Models,STING_DATA_HASH,c9e60453-1ba4-5f3c-d6c2-508a3af4be27,TEXT,ASS_MNG,Type,"AE-05: Hash of data directory for workflow skip-if-unchanged detection",False,,,MULTI,1,0
+Generic Models,STING_SETUP_COMPLETE,daf71564-2cb5-504d-e7d3-619b4b05cf38,TEXT,ASS_MNG,Type,"AE-03: Timestamp of last MasterSetup completion for idempotency check",False,,,MULTI,1,0

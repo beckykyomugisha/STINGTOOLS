@@ -358,10 +358,22 @@ namespace StingTools.BIMManager
             return stamped;
         }
 
-        /// <summary>
-        /// Prune old snapshots keeping only the most recent N files.
-        /// Prevents disk bloat from frequent auto-revision runs.
-        /// </summary>
+        /// <summary>HR-04: Size-based + count-based snapshot pruning to prevent disk bloat.</summary>
+        private static long MaxSnapshotBytes
+        {
+            get
+            {
+                try
+                {
+                    string envMb = Environment.GetEnvironmentVariable("STING_MAX_SNAPSHOT_MB");
+                    if (!string.IsNullOrEmpty(envMb) && long.TryParse(envMb, out long val) && val > 0)
+                        return val * 1024 * 1024;
+                }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots config: {ex.Message}"); }
+                return 100L * 1024 * 1024; // default 100 MB
+            }
+        }
+
         internal static int PruneSnapshots(Document doc, int keepCount = 20)
         {
             string dir = GetRevisionDir(doc);
@@ -369,13 +381,34 @@ namespace StingTools.BIMManager
                 .OrderByDescending(f => File.GetLastWriteTime(f))
                 .ToList();
             int deleted = 0;
-            for (int i = keepCount; i < files.Count; i++)
+
+            // Count-based pruning
+            while (files.Count > keepCount)
             {
-                try { File.Delete(files[i]); deleted++; }
-                catch (Exception ex) { StingLog.Warn($"RevisionEngine: Failed to prune snapshot: {ex.Message}"); }
+                try { File.Delete(files[files.Count - 1]); deleted++; }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots count: {ex.Message}"); }
+                files.RemoveAt(files.Count - 1);
             }
+
+            // HR-04: Size-based pruning
+            long totalBytes = files.Sum(f => { try { return new FileInfo(f).Length; } catch { return 0L; } });
+            long maxBytes = MaxSnapshotBytes;
+            while (totalBytes > maxBytes && files.Count > 1)
+            {
+                string oldest = files[files.Count - 1];
+                try
+                {
+                    long sz = new FileInfo(oldest).Length;
+                    File.Delete(oldest);
+                    totalBytes -= sz;
+                    deleted++;
+                }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots size: {ex.Message}"); }
+                files.RemoveAt(files.Count - 1);
+            }
+
             if (deleted > 0)
-                StingLog.Info($"RevisionEngine: Pruned {deleted} old snapshot(s), kept {keepCount}");
+                StingLog.Info($"RevisionEngine: Pruned {deleted} snapshot(s). Folder: {totalBytes / 1024 / 1024:F1} MB");
             return deleted;
         }
 
@@ -1035,6 +1068,45 @@ namespace StingTools.BIMManager
                     $"Revision marked as Issued: Yes");
 
                 StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
+
+                // IG-02: Auto-resolve matching issues when revision is issued
+                int issuesResolved = 0;
+                try
+                {
+                    string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                    var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                    if (issues.Count > 0)
+                    {
+                        foreach (var issue in issues)
+                        {
+                            string status = issue["status"]?.ToString() ?? "";
+                            if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
+
+                            // Match issues whose target_revision or revision matches the issued revision
+                            string issueRev = issue["target_revision"]?.ToString()
+                                ?? issue["revision"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(issueRev) &&
+                                string.Equals(issueRev, revNum, StringComparison.OrdinalIgnoreCase))
+                            {
+                                issue["status"] = "CLOSED";
+                                issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                                issue["response"] = $"Auto-resolved: revision {revNum} issued to {sheetsIssued} sheets";
+                                issue["resolved_in_revision"] = revNum;
+                                issuesResolved++;
+                            }
+                        }
+                        if (issuesResolved > 0)
+                        {
+                            BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                            StingLog.Info($"IG-02: Auto-resolved {issuesResolved} issues for revision {revNum}");
+                        }
+                    }
+                }
+                catch (Exception issueEx)
+                {
+                    StingLog.Warn($"IG-02: Issue auto-resolve failed: {issueEx.Message}");
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1528,14 +1600,42 @@ namespace StingTools.BIMManager
                 string significance = RevisionEngine.ClassifyRevisionSignificance(changes);
                 string narrative = RevisionEngine.BuildChangeNarrative(changes);
 
-                // Thresholds: Minor <10, Standard 10-50, Major >50
-                bool autoCreate = score >= 10;
+                // LG-03: Per-discipline thresholds — safety-critical disciplines have lower
+                // thresholds to trigger revisions more readily
+                var discThresholds = new Dictionary<string, double>
+                {
+                    { "FP", 5 },   // Fire Protection — lowest threshold (safety-critical)
+                    { "E", 7 },    // Electrical — lower threshold
+                    { "M", 8 },    // Mechanical — lower threshold
+                    { "P", 8 },    // Plumbing — lower threshold
+                    { "S", 8 },    // Structural — lower threshold
+                    { "A", 10 },   // Architectural — standard
+                    { "G", 12 },   // General — higher threshold
+                    { "LV", 7 },   // Low Voltage — lower threshold
+                };
+                double defaultThreshold = 10;
+
+                // Use the lowest applicable threshold from disciplines present in the changes
+                var discBreakdownForThreshold = RevisionEngine.GetChangeSummaryByDiscipline(doc, changes);
+                double effectiveThreshold = defaultThreshold;
+                string triggerDisc = "";
+                foreach (var kvp in discBreakdownForThreshold)
+                {
+                    if (discThresholds.TryGetValue(kvp.Key, out double discThresh) && discThresh < effectiveThreshold)
+                    {
+                        effectiveThreshold = discThresh;
+                        triggerDisc = kvp.Key;
+                    }
+                }
+
+                bool autoCreate = score >= effectiveThreshold;
 
                 if (!autoCreate)
                 {
                     TaskDialog.Show("StingTools Auto Revision",
                         $"Changes detected but below auto-revision threshold.\n\n" +
-                        $"Score: {score:F0} (threshold: 10)\n" +
+                        $"Score: {score:F0} (threshold: {effectiveThreshold:F0}" +
+                        (string.IsNullOrEmpty(triggerDisc) ? "" : $", driven by {triggerDisc}") + ")\n" +
                         $"Significance: {significance}\n\n" +
                         narrative +
                         "\nUse 'Create Revision' to manually create one.");
