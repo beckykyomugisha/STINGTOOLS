@@ -2668,9 +2668,6 @@ namespace StingTools.Core
             return true;
         }
 
-        /// <summary>PERF-04: Delegate to cached ParameterHelpers.GetSolidFillPattern instead of creating a new collector.</summary>
-        public static FillPatternElement GetSolidFillPatternCached(Document doc)
-            => ParameterHelpers.GetSolidFillPattern(doc);
     }
 
     /// <summary>
