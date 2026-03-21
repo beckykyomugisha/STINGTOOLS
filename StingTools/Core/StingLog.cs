@@ -131,7 +131,12 @@ namespace StingTools.Core
 
         private static void DisposeWriter()
         {
-            try { _writer?.Dispose(); } catch (Exception) { } // Cannot log from logger itself
+            try
+            {
+                _writer?.Flush(); // LG-07: Ensure buffered entries are flushed before dispose
+                _writer?.Dispose();
+            }
+            catch (Exception) { } // Cannot log from logger itself
             _writer = null;
         }
 
@@ -142,6 +147,7 @@ namespace StingTools.Core
         {
             lock (Lock)
             {
+                try { _writer?.Flush(); } catch { } // LG-07: Final flush before shutdown
                 DisposeWriter();
             }
         }
