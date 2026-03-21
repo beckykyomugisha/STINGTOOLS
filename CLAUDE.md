@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **112 source files** (109 C# + 3 XAML, ~129,900 lines of code) across 10 directories
-- **515 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **119 source files** (116 C# + 3 XAML, ~134,400 lines of code) across 10 directories
+- **539 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -100,7 +100,14 @@ STINGTOOLS/
     │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, handover manual
     │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign, MagicRename, ViewTabColour
     │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (11 sheets), maintenance schedule, O&M manual, asset health report, space handover report
-    │   └── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
+    │   ├── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
+    │   ├── SheetManagerEngine.cs       # Core sheet manager: drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange
+    │   ├── SheetManagerEngineExt.cs    # Extended: MaxRects bin packing, layout presets (JSON), viewport type rules, batch clone/renumber, overflow handling
+    │   ├── SheetManagerCommands.cs     # 8 commands: SheetManager, AutoLayout, CloneSheet, PlaceUnplaced, OptimalScale, SheetAudit, BatchArrange, MoveViewport
+    │   ├── SheetManagerDialog.cs       # WPF dual-panel sheet manager dialog with TreeView navigation and context-sensitive detail views
+    │   ├── SheetSetCommands.cs         # 8 commands: MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchClone, BatchRenumber, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow
+    │   ├── SheetTemplateEngine.cs      # Sheet templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export
+    │   └── SheetTemplateCommands.cs    # 8 commands: CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister
     │
     ├── Tags/                           # Tagging commands (28 files, ~140+ commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view + TagNewOnly
@@ -275,6 +282,34 @@ STINGTOOLS/
 | Crop to Content | `Docs.CropToContentCommand` | Manual | Smart crop region generation based on element extents |
 | Batch Align Viewports | `Docs.BatchAlignViewportsCommand` | Manual | Multi-view alignment on sheets |
 
+**Sheet Manager pulldown (24 commands):**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Sheet Manager | `Docs.SheetManagerCommand` | Manual | Open dual-panel WPF sheet manager dialog |
+| Auto Layout | `Docs.AutoLayoutCommand` | Manual | Auto-arrange viewports using shelf-packing |
+| Clone Sheet | `Docs.CloneSheetCommand` | Manual | Clone sheet with viewports |
+| Place Unplaced | `Docs.PlaceUnplacedViewsCommand` | Manual | Place unplaced views on sheets |
+| Optimal Scale | `Docs.OptimalScaleCommand` | Manual | Calculate optimal viewport scale |
+| Sheet Audit | `Docs.SheetAuditCommand` | ReadOnly | Audit sheets for issues |
+| Batch Arrange | `Docs.BatchArrangeCommand` | Manual | Auto-arrange across multiple sheets |
+| Move Viewport | `Docs.MoveViewportCommand` | Manual | Move viewport between sheets |
+| MaxRects Layout | `Docs.MaxRectsLayoutCommand` | Manual | Layout using MaxRects bin packing |
+| Save Layout Preset | `Docs.SaveLayoutPresetCommand` | ReadOnly | Save layout as named preset |
+| Apply Layout Preset | `Docs.ApplyLayoutPresetCommand` | Manual | Apply saved layout preset |
+| Batch Clone | `Docs.BatchCloneSheetsCommand` | Manual | Clone multiple sheets |
+| Batch Renumber | `Docs.BatchRenumberSheetsCommand` | Manual | Two-pass renumber within discipline |
+| Auto VP Types | `Docs.AutoAssignVPTypesCommand` | Manual | Auto-assign viewport types |
+| Export Sheet Set | `Docs.ExportSheetSetCommand` | ReadOnly | Export sheet set to CSV |
+| Place With Overflow | `Docs.PlaceWithOverflowCommand` | Manual | Place views with overflow sheets |
+| Create From Template | `Docs.CreateFromTemplateCommand` | Manual | Create sheet from template |
+| Save Template | `Docs.SaveSheetTemplateCommand` | ReadOnly | Save sheet as template |
+| ISO Compliance | `Docs.SheetComplianceCheckCommand` | ReadOnly | ISO 19650 compliance audit |
+| Grid Align | `Docs.GridAlignViewportsCommand` | Manual | Snap viewports to grid |
+| Align Edges | `Docs.AlignViewportEdgesCommand` | Manual | Align viewport edges |
+| Distribute | `Docs.DistributeViewportsCommand` | Manual | Distribute viewports evenly |
+| Batch Print | `Docs.BatchPrintSheetsCommand` | ReadOnly | Export sheets to PDF |
+| Sheet Register | `Docs.ExportSheetRegisterCommand` | ReadOnly | Export sheet register CSV |
+
 ### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
 |--------|--------------|-------------|-------------|
@@ -443,6 +478,13 @@ STINGTOOLS/
 | `Docs/ViewAutomationCommands.cs` | 8 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign, MagicRename, ViewTabColour) | 1,200 |
 | `Docs/HandoverExportCommands.cs` | 5+ (COBie 2.4 export, maintenance schedule, O&M manual, asset health report, space handover) | 1,316 |
 | `Docs/JournalParserCommand.cs` | 1 (Revit journal diagnostics: error/crash/command/memory analysis) | 494 |
+| `Docs/SheetManagerEngine.cs` | 0 (core engine: drawable zone, scale calc, shelf packing, collision, viewport placement, sheet cloning, auto-arrange) | 1,041 |
+| `Docs/SheetManagerEngineExt.cs` | 0 (MaxRects packer, layout presets, viewport type rules, batch clone/renumber, overflow) | 943 |
+| `Docs/SheetManagerCommands.cs` | 8 (SheetManager, AutoLayout, CloneSheet, PlaceUnplaced, OptimalScale, SheetAudit, BatchArrange, MoveViewport) | 849 |
+| `Docs/SheetManagerDialog.cs` | 0 (WPF dual-panel sheet manager dialog with TreeView and detail views) | 830 |
+| `Docs/SheetSetCommands.cs` | 8 (MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchClone, BatchRenumber, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow) | 548 |
+| `Docs/SheetTemplateEngine.cs` | 0 (sheet templates, ISO 19650 compliance, grid alignment, distribution, PDF export) | 858 |
+| `Docs/SheetTemplateCommands.cs` | 8 (CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister) | 419 |
 | `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 355 |
 | `Tags/BatchTagCommand.cs` | 3 (BatchTag, TagFormatMigration, TagChanged) | 621 |
 | `Tags/TagAndCombineCommand.cs` | 1 | 235 |
@@ -529,7 +571,7 @@ STINGTOOLS/
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
 | `UI/BEPWizard.xaml` | — (WPF markup, BEP wizard dialog) | 400 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **~515 commands** | **~129,900** |
+| **Total** | **~539 commands** | **~134,400** |
 
 ## Core Classes
 
@@ -716,6 +758,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | Helper Class | Location | Purpose |
 |--------------|----------|---------|
 | `DocAutomationHelper` | `Docs/DocAutomationExtCommands.cs` | Shared documentation automation engine: discipline defs, sheet numbering, 7-layer template matching, view creation by family, scope box utilities, name caching |
+| `SheetManagerEngine` | `Docs/SheetManagerEngine.cs` | Core sheet manager: drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| `SheetManagerEngineExt` | `Docs/SheetManagerEngineExt.cs` | MaxRects bin packing (BSSF), layout presets (JSON), viewport type rules, batch clone/renumber, overflow handling |
+| `SheetTemplateEngine` | `Docs/SheetTemplateEngine.cs` | Sheet templates (6 built-in), ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| `SheetManagerDialog` | `Docs/SheetManagerDialog.cs` | Dual-panel WPF sheet manager dialog: TreeView navigation (sheets by discipline), context-sensitive detail panel, search/filter |
 | `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
 | `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum; applies material properties |
@@ -887,7 +933,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 |-----|---------|---------------------|
 | SELECT | Category selectors, state selectors, spatial selectors, bulk parameter write | Select |
 | ORGANISE | Tag operations, leader management, analysis/QA, annotation colors, tag appearance | Organise + Tags QA |
-| DOCS | Sheet/view organization, viewports, document automation | Docs |
+| DOCS | Sheet/view organization, viewports, document automation, sheet manager (24 commands), templates, ISO compliance | Docs |
 | TEMP | Materials, families, schedules, template setup, data pipeline | Temp |
 | CREATE | Tagging commands, token writers, combine, setup, legends | Tags |
 | VIEW | View templates, template manager, styles, presentation modes | Temp Templates |
@@ -942,6 +988,65 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 | Clone Template | `CloneTemplateCommand` | Manual | Deep clone template with VG, filters, and overrides |
 | Batch VG Reset | `BatchVGResetCommand` | Manual | Reset VG settings across multiple views |
 | Family Parameter Processor | `FamilyParameterProcessorCommand` | Manual | Batch process .rfa family files to add/update shared parameters |
+
+## Sheet Manager System
+
+`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` (7 files, ~4,488 lines) provides comprehensive automated sheet and viewport management with 24 commands across 3 phases.
+
+### Architecture
+
+| Component | File | Lines | Description |
+|-----------|------|-------|-------------|
+| Core Engine | `SheetManagerEngine.cs` | 1,041 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| Extended Engine | `SheetManagerEngineExt.cs` | 943 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
+| Template Engine | `SheetTemplateEngine.cs` | 858 | 6 built-in sheet templates, create/save templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| WPF Dialog | `SheetManagerDialog.cs` | 830 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
+| Phase 1 Commands | `SheetManagerCommands.cs` | 849 | 8 commands for core sheet management operations |
+| Phase 2 Commands | `SheetSetCommands.cs` | 548 | 8 commands for advanced layout, presets, and batch operations |
+| Phase 3 Commands | `SheetTemplateCommands.cs` | 419 | 8 commands for templates, compliance, alignment, and export |
+
+### Sheet Manager Commands (24)
+
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Sheet Manager | `SheetManagerCommand` | Manual | Open dual-panel WPF sheet manager dialog |
+| Auto Layout | `AutoLayoutCommand` | Manual | Auto-arrange viewports using shelf-packing algorithm |
+| Clone Sheet | `CloneSheetCommand` | Manual | Clone sheet with viewports (delete+recreate pattern) |
+| Place Unplaced | `PlaceUnplacedViewsCommand` | Manual | Place unplaced views on new or existing sheets |
+| Optimal Scale | `OptimalScaleCommand` | Manual | Calculate optimal viewport scale for drawable zone |
+| Sheet Audit | `SheetAuditCommand` | ReadOnly | Audit sheets for empty/missing viewports |
+| Batch Arrange | `BatchArrangeCommand` | Manual | Auto-arrange viewports across multiple sheets |
+| Move Viewport | `MoveViewportCommand` | Manual | Move viewport between sheets (delete+recreate) |
+| MaxRects Layout | `MaxRectsLayoutCommand` | Manual | Layout viewports using MaxRects bin packing (BSSF) |
+| Save Layout Preset | `SaveLayoutPresetCommand` | ReadOnly | Save current sheet layout as named JSON preset |
+| Apply Layout Preset | `ApplyLayoutPresetCommand` | Manual | Apply saved layout preset to active sheet |
+| Batch Clone | `BatchCloneSheetsCommand` | Manual | Clone multiple sheets at once |
+| Batch Renumber | `BatchRenumberSheetsCommand` | Manual | Two-pass renumber sheets within discipline groups |
+| Auto VP Types | `AutoAssignVPTypesCommand` | Manual | Auto-assign viewport types by 7 built-in rules |
+| Export Sheet Set | `ExportSheetSetCommand` | ReadOnly | Export sheet set to CSV |
+| Place With Overflow | `PlaceWithOverflowCommand` | Manual | Place views with auto-overflow to continuation sheets |
+| Create From Template | `CreateFromTemplateCommand` | Manual | Create sheet from built-in or saved template |
+| Save Sheet Template | `SaveSheetTemplateCommand` | ReadOnly | Save current sheet as reusable template |
+| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | ISO 19650 sheet compliance audit (10 rules) |
+| Grid Align | `GridAlignViewportsCommand` | Manual | Snap viewport centres to alignment grid |
+| Align Edges | `AlignViewportEdgesCommand` | Manual | Align viewport edges (left/right/top/bottom/center) |
+| Distribute | `DistributeViewportsCommand` | Manual | Distribute viewports evenly across sheet |
+| Batch Print | `BatchPrintSheetsCommand` | ReadOnly | Export sheets to PDF (all/discipline/selection) |
+| Sheet Register | `ExportSheetRegisterCommand` | ReadOnly | Export comprehensive sheet register CSV with compliance |
+
+### Key Engine Capabilities
+
+- **Drawable zone detection**: Finds usable area within title block (excluding revision schedule, title strip)
+- **Shelf packing**: Row-based bin packing for auto-layout with configurable margins
+- **MaxRects packing**: Best Short Side Fit heuristic for optimal space utilisation
+- **Collision detection**: 2D AABB overlap checking between viewports
+- **Layout presets**: 6 built-in presets (Single View, Side by Side, Stacked, Plan+2 Sections, 4-Up Grid, Plan+Legend+Detail) + user-saved JSON presets
+- **Sheet templates**: 6 built-in templates (Single Plan, Plan+Sections, Elevations 4-Up, MEP Plan, Detail Sheet, Coordination Sheet) with normalised slot positions
+- **ISO 19650 compliance**: 10 rules (empty number/name, duplicates, format, title block, viewport count, case, special chars)
+- **Grid alignment**: Configurable grid with snap-to-nearest for consistent viewport positioning
+- **Edge alignment**: 6 modes (left, right, top, bottom, center horizontal, center vertical)
+- **Batch PDF export**: By scope (all/discipline/selection) with sanitised filenames
+- **Two-pass rename**: Avoids Revit sheet number conflicts during batch renumbering
 
 ## Model Auto-Modeling Engine
 
@@ -1848,6 +1953,23 @@ Critical review of the tagging workflow identified the following logic, automati
 351. **ColorByVariableCommand unified** — Replaced 3 sequential TaskDialogs (variable picker + spatial sub-picker + apply mode) with single WPF dialog. Left column: 6 variable radio buttons with descriptions. Right column: apply mode checkboxes (Elements/Styles/Boxes) with quick presets.
 352. **SetParagraphDepthExtCommand unified** — Replaced 2-3 step TaskDialog chain (preset group + custom tier) with single WPF slider dialog. Continuous 1-10 slider with tier labels, preset buttons (Compact/Extended/Full), warnings toggle.
 353. **SetBoxColorCommand unified** — Replaced 2-step TaskDialog (mode + color pick) with single WPF dialog. Mode radio buttons (Auto/Pick/Clear) with 8-color swatch grid that appears on "Pick" selection. Visual swatch selection with orange highlight border.
+
+#### Completed (Phase 37 — Sheet Manager System)
+
+354. **Sheet Manager core engine** — `Docs/SheetManagerEngine.cs` (1,041 lines): Drawable zone detection (title block margin exclusion), optimal scale calculation, shelf-packing algorithm for auto-layout, 2D AABB collision detection, viewport placement with collision avoidance, sheet cloning (delete+recreate pattern since Revit API cannot move viewports), naming/numbering with discipline prefix extraction, auto-arrange, batch operations.
+355. **Sheet Manager WPF dialog** — `Docs/SheetManagerDialog.cs` (830 lines): Dual-panel WPF dialog built in C# (no XAML). Left panel: TreeView with sheets grouped by discipline, viewport children, unplaced views section, search/filter. Right panel: context-sensitive detail views (overview, sheet detail, viewport detail, discipline summary, unplaced group). Orange accent theme.
+356. **Sheet Manager commands** — `Docs/SheetManagerCommands.cs` (849 lines, 8 commands): SheetManager (dialog launcher), AutoLayout (shelf packing), CloneSheet, PlaceUnplacedViews, OptimalScale, SheetAudit, BatchArrange, MoveViewport.
+357. **MaxRects bin packing** — `Docs/SheetManagerEngineExt.cs` (943 lines): Best Short Side Fit (BSSF) heuristic with free rectangle splitting and pruning. Layout preset system with JSON persistence (`.sting_layout_presets.json`). 6 built-in presets (Single View, Side by Side, Stacked, Plan+2 Sections, 4-Up Grid, Plan+Legend+Detail). Viewport type auto-assignment with 7 rules. Batch clone, two-pass renumber, CSV export, overflow handling with continuation sheets.
+358. **Sheet set commands** — `Docs/SheetSetCommands.cs` (548 lines, 8 commands): MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchCloneSheets, BatchRenumberSheets, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow.
+359. **Sheet template engine** — `Docs/SheetTemplateEngine.cs` (858 lines): 6 built-in sheet templates (Single Plan, Plan+Sections, Elevations 4-Up, MEP Plan, Detail Sheet, Coordination Sheet). Template create/save with normalised viewport positions (0.0-1.0). ISO 19650 compliance checking (10 rules). Viewport grid alignment with configurable cell size. Edge alignment (6 modes). Viewport distribution (horizontal/vertical). Batch PDF export. Sheet register CSV export with compliance status.
+360. **Sheet template commands** — `Docs/SheetTemplateCommands.cs` (419 lines, 8 commands): CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister.
+361. **Dispatch and UI wiring** — 24 dispatch entries added to StingCommandHandler.cs. 24 XAML buttons added to DOCS tab in StingDockPanel.xaml (Sheet Manager, Advanced, Templates & Compliance sections).
+
+#### Completed (Phase 37E — Gap Fixes from stingtools-gap-fixes branch)
+
+362. **Phase 37A: HR-01, HR-03, HR-06, LG-07** — Cross-project import guard, ComplianceScan lock fix, ExcelLink atomicity, log rotation flush.
+363. **Phase 37D: IG-01 through IG-04** — COBie cost join, issue auto-resolve, suitability history, pyRevit manifest.
+364. **Phase 37E: AE-01 through AE-05** — Workflow retry, CSV auto-open, MasterSetup idempotency, connector inherit status, data hash skip.
 
 ### External Tool References
 
