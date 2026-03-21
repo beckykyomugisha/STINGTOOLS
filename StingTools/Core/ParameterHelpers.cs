@@ -3365,17 +3365,9 @@ namespace StingTools.Core
                 // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // Verify container write succeeded inside BuildAndWriteTag.
-                // If it failed silently (exception caught at TagConfig line 2068-2072),
-                // retry here so TAG1 and containers are never out of sync (Gap G001 fix).
-                try
-                {
-                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwrite);
-                }
-                catch (Exception containerEx)
-                {
-                    StingLog.Warn($"TagPipeline: container retry failed for {el.Id}: {containerEx.Message}");
-                }
+                // GAP-A3 fix: Removed redundant WriteContainers retry call.
+                // BuildAndWriteTag (above) already writes all 53 containers.
+                // The duplicate write caused ~20% overhead on batch operations.
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 

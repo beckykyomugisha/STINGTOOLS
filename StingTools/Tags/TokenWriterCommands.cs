@@ -7,6 +7,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -48,18 +49,27 @@ namespace StingTools.Tags
             }
 
             // Interactive dialog with search, select, cancel, OK
+            // Build valid code set for real-time validation highlighting
+            HashSet<string> validCodes = GetValidCodesForToken(paramName);
+
             var optionItems = options.Select(o => new StingListPicker.ListItem
             {
                 Label = o,
-                Detail = "",
-                Tag = o
+                Detail = validCodes != null && !validCodes.Contains(o) ? "non-compliant" : "",
+                Tag = o,
+                IsInvalid = validCodes != null && !validCodes.Contains(o)
             }).ToList();
 
             string scopeLabel = usingSelection ? "Selected elements" : "All taggable in view";
-            var picked = StingListPicker.Show(
-                $"Set {label}",
-                $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
-                optionItems, allowMultiSelect: false);
+            var picked = validCodes != null
+                ? StingListPicker.Show(
+                    $"Set {label}",
+                    $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
+                    optionItems, allowMultiSelect: false, validCodes)
+                : StingListPicker.Show(
+                    $"Set {label}",
+                    $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
+                    optionItems, allowMultiSelect: false);
 
             if (picked == null || picked.Count == 0) return Result.Cancelled;
             string value = picked[0].Tag as string;
@@ -140,6 +150,23 @@ namespace StingTools.Tags
             if (tagsRebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {tagsRebuilt} elements.";
             TaskDialog.Show(label, resultMsg);
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Returns the valid ISO 19650 code set for a token parameter name,
+        /// used to drive red-field validation in StingListPicker.
+        /// Returns null if no validation set applies to this parameter.
+        /// </summary>
+        private static HashSet<string> GetValidCodesForToken(string paramName)
+        {
+            if (paramName == ParamRegistry.DISC) return ISO19650Validator.ValidDiscCodes;
+            if (paramName == ParamRegistry.SYS) return ISO19650Validator.ValidSysCodes;
+            if (paramName == ParamRegistry.FUNC) return ISO19650Validator.ValidFuncCodes;
+            if (paramName == ParamRegistry.LOC)
+                return new HashSet<string>(TagConfig.LocCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            if (paramName == ParamRegistry.ZONE)
+                return new HashSet<string>(TagConfig.ZoneCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            return null; // STATUS, SEQ, PROD, REV etc. — no strict code list
         }
     }
 
@@ -616,6 +643,11 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // GAP-A1 fix: Invalidate caches so compliance dashboard and auto-tagger
+            // reflect the newly-mapped sheet parameter values
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             int sheetCount = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet)).GetElementCount();
 
@@ -682,11 +714,36 @@ namespace StingTools.Tags
                 // Map native sheet params first
                 NativeParamMapper.MapSheets(doc);
 
-                // Run full sheet tagging pipeline
-                var (sheets, tokens) = NativeParamMapper.TagSheets(doc);
-                sheetsProcessed = sheets;
-                tokensWritten = tokens;
+                // Run full sheet tagging pipeline with progress dialog
+                var allSheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .ToList();
 
+                string originator = SheetTagger.DetectOriginator(doc);
+                string projectCode = SheetTagger.DetectProjectCode(doc);
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+
+                var pDlg = StingProgressDialog.Show("Tag Sheets", allSheets.Count);
+
+                foreach (var sheet in allSheets)
+                {
+                    if (EscapeChecker.IsEscapePressed())
+                    {
+                        tx.RollBack();
+                        pDlg.Close();
+                        TaskDialog.Show("STING", $"Sheet tagging cancelled.\n{sheetsProcessed} sheets tagged before cancel.");
+                        return Result.Cancelled;
+                    }
+
+                    pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
+
+                    int written = SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                    tokensWritten += written;
+                    sheetsProcessed++;
+                }
+
+                pDlg.Close();
                 tx.Commit();
             }
 

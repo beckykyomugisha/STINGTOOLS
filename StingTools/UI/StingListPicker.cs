@@ -21,6 +21,8 @@ namespace StingTools.Select
             public string Detail { get; set; }
             public object Tag { get; set; }
             public bool IsSelected { get; set; }
+            /// <summary>If true, item is flagged as non-compliant (red highlight).</summary>
+            public bool IsInvalid { get; set; }
         }
 
         private readonly List<ListItem> _allItems;
@@ -28,7 +30,10 @@ namespace StingTools.Select
         private readonly ListBox _listBox;
         private readonly TextBox _searchBox;
         private readonly TextBlock _countText;
+        private readonly Border _searchBorder;
+        private readonly TextBlock _validationHint;
         private List<ListItem> _result;
+        private HashSet<string> _validCodes;
 
         private StingListPicker(string title, string subtitle, List<ListItem> items, bool allowMultiSelect)
         {
@@ -80,7 +85,7 @@ namespace StingTools.Select
             root.Children.Add(header);
 
             // Search box
-            var searchBorder = new Border
+            _searchBorder = new Border
             {
                 Margin = new Thickness(12, 8, 12, 4),
                 Background = Brushes.White,
@@ -89,6 +94,7 @@ namespace StingTools.Select
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 6, 8, 6)
             };
+            var searchBorder = _searchBorder;
             var searchGrid = new Grid();
             searchGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             searchGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -130,6 +136,23 @@ namespace StingTools.Select
             Grid.SetRow(searchBorder, 1);
             root.Children.Add(searchBorder);
 
+            // Validation hint (hidden by default, shown when search text is non-compliant)
+            _validationHint = new TextBlock
+            {
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                Margin = new Thickness(16, 0, 12, 4),
+                Visibility = Visibility.Collapsed,
+                TextWrapping = TextWrapping.Wrap
+            };
+            // Insert as a new auto row after search
+            root.RowDefinitions.Insert(2, new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(_validationHint, 2);
+            root.Children.Add(_validationHint);
+
+            // Shift list and buttons down by one row
+            // List box row becomes 3, buttons row becomes 4
+
             // List box
             _listBox = new ListBox
             {
@@ -145,7 +168,7 @@ namespace StingTools.Select
                 if (!allowMultiSelect && _listBox.SelectedItem != null)
                     AcceptSelection();
             };
-            Grid.SetRow(_listBox, 2);
+            Grid.SetRow(_listBox, 3);
             root.Children.Add(_listBox);
 
             // Button bar
@@ -185,7 +208,7 @@ namespace StingTools.Select
             buttonStack.Children.Add(okBtn);
 
             buttonBar.Child = buttonStack;
-            Grid.SetRow(buttonBar, 3);
+            Grid.SetRow(buttonBar, 4);
             root.Children.Add(buttonBar);
 
             Content = root;
@@ -207,6 +230,7 @@ namespace StingTools.Select
             if (string.IsNullOrEmpty(filter))
             {
                 PopulateList(_allItems);
+                UpdateSearchValidation("");
                 return;
             }
 
@@ -216,6 +240,56 @@ namespace StingTools.Select
             ).ToList();
 
             PopulateList(filtered);
+            UpdateSearchValidation(filter);
+        }
+
+        /// <summary>
+        /// Turns the search box border red if the typed text doesn't match any
+        /// valid code in the validation set. Provides immediate visual feedback.
+        /// </summary>
+        private void UpdateSearchValidation(string text)
+        {
+            if (_validCodes == null || string.IsNullOrEmpty(text))
+            {
+                // No validation set or empty text — neutral border
+                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                _searchBorder.BorderThickness = new Thickness(1);
+                if (_validationHint != null)
+                    _validationHint.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            bool exactMatch = _validCodes.Contains(text);
+            bool partialMatch = _validCodes.Any(c =>
+                c.StartsWith(text, StringComparison.OrdinalIgnoreCase));
+
+            if (exactMatch)
+            {
+                // Valid code — green border
+                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                _searchBorder.BorderThickness = new Thickness(2);
+                if (_validationHint != null)
+                    _validationHint.Visibility = Visibility.Collapsed;
+            }
+            else if (partialMatch)
+            {
+                // Partial match — neutral (still typing)
+                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                _searchBorder.BorderThickness = new Thickness(1);
+                if (_validationHint != null)
+                    _validationHint.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                // No match — red border (non-compliant)
+                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47));
+                _searchBorder.BorderThickness = new Thickness(2);
+                if (_validationHint != null)
+                {
+                    _validationHint.Text = $"\u26A0 \"{text}\" is not an ISO 19650 compliant code";
+                    _validationHint.Visibility = Visibility.Visible;
+                }
+            }
         }
 
         private void PopulateList(List<ListItem> items)
@@ -223,6 +297,9 @@ namespace StingTools.Select
             _listBox.Items.Clear();
             foreach (var item in items)
             {
+                bool invalid = item.IsInvalid ||
+                    (_validCodes != null && !_validCodes.Contains(item.Label));
+
                 var panel = new DockPanel { Margin = new Thickness(4, 4, 4, 4) };
 
                 var label = new TextBlock
@@ -230,7 +307,9 @@ namespace StingTools.Select
                     Text = item.Label,
                     FontSize = 12,
                     FontWeight = FontWeights.Medium,
-                    Foreground = new SolidColorBrush(Color.FromRgb(40, 40, 50))
+                    Foreground = invalid
+                        ? new SolidColorBrush(Color.FromRgb(211, 47, 47))   // Red text for invalid
+                        : new SolidColorBrush(Color.FromRgb(40, 40, 50))
                 };
                 DockPanel.SetDock(label, Dock.Left);
                 panel.Children.Add(label);
@@ -241,7 +320,9 @@ namespace StingTools.Select
                     {
                         Text = item.Detail,
                         FontSize = 11,
-                        Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 140)),
+                        Foreground = invalid
+                            ? new SolidColorBrush(Color.FromRgb(211, 47, 47))
+                            : new SolidColorBrush(Color.FromRgb(120, 120, 140)),
                         HorizontalAlignment = HorizontalAlignment.Right,
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(8, 0, 0, 0)
@@ -250,11 +331,29 @@ namespace StingTools.Select
                     panel.Children.Add(detail);
                 }
 
+                // Non-compliant warning badge
+                if (invalid)
+                {
+                    var badge = new TextBlock
+                    {
+                        Text = " \u26A0",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = "Non-compliant: value not in ISO 19650 valid code list"
+                    };
+                    DockPanel.SetDock(badge, Dock.Left);
+                    panel.Children.Add(badge);
+                }
+
                 var lbi = new ListBoxItem
                 {
                     Content = panel,
                     Tag = item,
-                    Padding = new Thickness(8, 6, 8, 6)
+                    Padding = new Thickness(8, 6, 8, 6),
+                    Background = invalid
+                        ? new SolidColorBrush(Color.FromRgb(255, 235, 238))  // Light red bg
+                        : Brushes.Transparent
                 };
                 _listBox.Items.Add(lbi);
             }
@@ -322,6 +421,30 @@ namespace StingTools.Select
             var listItems = items.Select(s => new ListItem { Label = s }).ToList();
             var result = Show(title, subtitle, listItems, false);
             return result?.FirstOrDefault()?.Label;
+        }
+
+        /// <summary>
+        /// Show the list picker with ISO 19650 validation. Items not in validCodes
+        /// are highlighted with red text and a warning badge. The search box border
+        /// turns red when typed text doesn't match any valid code.
+        /// </summary>
+        public static List<ListItem> Show(string title, string subtitle,
+            List<ListItem> items, bool allowMultiSelect, HashSet<string> validCodes)
+        {
+            var picker = new StingListPicker(title, subtitle, items, allowMultiSelect);
+            picker._validCodes = validCodes;
+            // Re-populate to apply validation coloring
+            picker.PopulateList(items);
+
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(picker);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"StingListPicker owner: {ex.Message}"); }
+
+            picker.ShowDialog();
+            return picker._result;
         }
 
         public static List<ListItem> Show(string title, string subtitle,

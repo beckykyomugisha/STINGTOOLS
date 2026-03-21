@@ -127,9 +127,10 @@ namespace StingTools.Tags
             // that may be excluded from this run (e.g., unfamiliar categories).
             // BuildTagIndexAndCounters merges sidecar data for session continuity.
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-            // Clear tag index since we're overwriting all elements — the index will
-            // be rebuilt as we process. Keep counters to preserve high-water marks.
-            tagIndex.Clear();
+            // GAP-A7 fix: Do NOT clear the tag index. Preserve existing tags for
+            // O(1) collision detection. BuildAndWriteTag adds newly generated tags
+            // to the index, preventing duplicates both within this batch and against
+            // pre-existing project tags. Clearing caused duplicate tag generation.
             var stats = new TaggingStats();
             // GAP-03: Load pipeline context once (formulas + grid lines) for RunFullPipeline
             var formulas = TagPipelineHelper.LoadFormulas();
