@@ -43,7 +43,19 @@ namespace StingTools.Core
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
-        public static string[] SegmentOrder => (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+        /// <summary>PERF-05: Cached read-only segment order — avoids Clone() on every access.</summary>
+        private static string[] _cachedSegmentOrder;
+        public static string[] SegmentOrder
+        {
+            get
+            {
+                var cached = _cachedSegmentOrder;
+                if (cached != null) return cached;
+                cached = (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+                _cachedSegmentOrder = cached;
+                return cached;
+            }
+        }
 
         private static readonly HashSet<string> ValidSegmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
@@ -77,6 +89,7 @@ namespace StingTools.Core
                 }
                 _overrideSegmentOrder = (string[])segmentOrder.Clone();
             }
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -88,6 +101,7 @@ namespace StingTools.Core
             _overrideSeparator = null;
             _overrideNumPad = null;
             _overrideSegmentOrder = null;
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
         }
 
         // ── Source token definitions ────────────────────────────────────

@@ -208,18 +208,18 @@ namespace StingTools.Tags
             report.AppendLine();
             report.Append(stats.BuildReport());
 
-            TaskDialog td = new TaskDialog("Tag & Combine All");
-            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
-            td.MainContent = report.ToString();
-            td.Show();
-
-            // GAP-017: Post-batch compliance summary for workflow chain visibility
+            // LOGIC-03: Run compliance scan BEFORE TaskDialog so results are visible to user
             var postScan = ComplianceScan.Scan(doc);
             if (postScan != null)
             {
                 report.AppendLine();
                 report.AppendLine($"Compliance: {postScan.StatusBarText}");
             }
+
+            TaskDialog td = new TaskDialog("Tag & Combine All");
+            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
+            td.MainContent = report.ToString();
+            td.Show();
 
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +

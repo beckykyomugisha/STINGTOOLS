@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core
@@ -18,7 +19,8 @@ namespace StingTools.Core
         private static ComplianceResult _cached;
         private static DateTime _cacheTime = DateTime.MinValue;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
-        private static volatile bool _scanning = false;
+        /// <summary>LOGIC-01: Use int + Interlocked for atomic scanning guard instead of volatile bool race.</summary>
+        private static int _scanning = 0; // 0 = not scanning, 1 = scanning
 
         /// <summary>
         /// Quick compliance scan results.
@@ -127,12 +129,11 @@ namespace StingTools.Core
                     return _cached;
             }
 
-            // Prevent concurrent scans (non-blocking check)
-            if (_scanning)
+            // LOGIC-01: Atomic compare-exchange prevents concurrent scan race condition
+            if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
                 lock (_cacheLock) { return _cached; } // return stale rather than deadlock
             }
-            _scanning = true;
 
             try
             {
@@ -294,7 +295,7 @@ namespace StingTools.Core
             }
             finally
             {
-                _scanning = false;
+                Interlocked.Exchange(ref _scanning, 0);
             }
         }
 
