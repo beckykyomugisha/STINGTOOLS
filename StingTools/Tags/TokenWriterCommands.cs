@@ -258,6 +258,39 @@ namespace StingTools.Tags
                     ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                     assigned++;
                 }
+
+                // SEQ-01: After assigning SEQ numbers, rebuild TAG1 + containers so they
+                // reflect the new sequence. Previously TAG1 remained stale until a separate
+                // BuildTags command was run.
+                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                int rebuilt = 0;
+                foreach (ElementId id in targetIds)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1) &&
+                        string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.DISC)))
+                        continue; // Skip untagged elements with no DISC
+                    try
+                    {
+                        TagConfig.BuildAndWriteTag(doc, elem, maxSeq,
+                            skipComplete: false, existingTags, TagCollisionMode.Skip);
+                        string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                        if (tokens != null && tokens.Length >= 8)
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            ParamRegistry.WriteContainers(doc, elem, tokens);
+                            TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
+                        }
+                        rebuilt++;
+                    }
+                    catch (Exception rebuildEx)
+                    {
+                        StingLog.Warn($"AssignNumbers TAG1 rebuild for {elem.Id}: {rebuildEx.Message}");
+                    }
+                }
+
                 tx.Commit();
             }
 
@@ -266,7 +299,9 @@ namespace StingTools.Tags
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
-            TaskDialog.Show("Assign Numbers", $"Assigned sequence numbers to {assigned} elements.");
+            string resultMsg = $"Assigned sequence numbers to {assigned} elements.";
+            if (rebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {rebuilt} elements.";
+            TaskDialog.Show("Assign Numbers", resultMsg);
             return Result.Succeeded;
         }
     }
