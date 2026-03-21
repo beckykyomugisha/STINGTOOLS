@@ -182,6 +182,8 @@ namespace StingTools.Tags
                             if (pipelineOk)
                             {
                                 tagsRebuilt++;
+                                populated++;          // R-01: Track tokens populated by RunFullPipeline
+                                containersWritten++;  // R-01: Track containers written by RunFullPipeline
 
                                 // Post-pipeline: ISO cross-validation fix for invalid codes
                                 string catName = ParameterHelpers.GetCategoryName(el);

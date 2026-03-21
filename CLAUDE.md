@@ -1971,6 +1971,16 @@ Critical review of the tagging workflow identified the following logic, automati
 363. **Phase 37D: IG-01 through IG-04** — COBie cost join, issue auto-resolve, suitability history, pyRevit manifest.
 364. **Phase 37E: AE-01 through AE-05** — Workflow retry, CSV auto-open, MasterSetup idempotency, connector inherit status, data hash skip.
 
+#### Completed (Phase 37F — BIM & Tagging Workflow Gap Fixes)
+
+365. **R-07: BEP compliance cache freshness** — Added `ComplianceScan.InvalidateCache()` before `ComplianceScan.Scan(doc)` in BEP enrichment block (`BIMManagerCommands.cs`) to prevent stale compliance percentages in generated BEPs.
+366. **R-01: ResolveAllIssues counter tracking** — Fixed `populated` and `containersWritten` counters in `ResolveAllIssuesCommand.cs` that were always reporting 0 in the summary report. WriteContainers is already called within `RunFullPipeline` (confirmed at `ParameterHelpers.cs:2847`).
+367. **R-05: PreTagAudit step in DailyQA** — Added `PreTagAudit` as first step in both built-in `DailyQA` preset (`WorkflowEngine.cs`) and `WORKFLOW_DailyQA_Enhanced.json` with `maxCompliancePct: 95` gate to skip when model is already compliant.
+368. **R-03: WorkflowEngine retry loop** — Already implemented (confirmed at `WorkflowEngine.cs:398-418`). `RetryCount` and `RetryDelayMs` fields are functional with cap at 3 retries.
+369. **R-04: COBie pre-export container staleness check** — Added container staleness sampling in `COBieExportCommand.Execute()` that detects elements with TAG1 but empty discipline containers. Offers to run `WriteContainers` inline before export or proceed with warning. Stale count noted in export summary.
+370. **R-06: StingStaleMarker MEP system detection** — Extended `StingStaleMarker.Execute()` to detect MEP system reassignment by comparing stored SYS code against `GetMepSystemAwareSysCode()` for 14 MEP categories. Elements with changed SYS are marked stale (`STING_STALE_BOOL = 1`).
+371. **R-02: Workshared deferred element queue** — Replaced silent `continue` on workset ownership failure in `StingAutoTagger` with `ConcurrentQueue<ElementId>` enqueue. Added `OnDocumentSynchronizedWithCentral` handler in `StingToolsApp.cs` that drains deferred queue and runs `RunFullPipeline` on accessible elements after sync. Queue cleared on `DocumentClosing`.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

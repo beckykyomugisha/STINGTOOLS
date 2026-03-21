@@ -59,6 +59,28 @@ namespace StingTools.Core
         private static ExternalEvent _autoTagEvent;
         private static AutoTagQueueHandler _autoTagHandler;
 
+        // R-02: Deferred queue for elements skipped due to workset ownership
+        // Drained on DocumentSynchronizedWithCentral to retry after sync
+        private static readonly ConcurrentQueue<ElementId> _deferredElements = new ConcurrentQueue<ElementId>();
+
+        /// <summary>R-02: Enqueue an element ID for retry after sync-to-central.</summary>
+        public static void EnqueueDeferred(ElementId id) => _deferredElements.Enqueue(id);
+
+        /// <summary>R-02: Drain and discard the deferred queue (call on DocumentClosed).</summary>
+        public static void ClearDeferredQueue()
+        {
+            while (_deferredElements.TryDequeue(out _)) { }
+        }
+
+        /// <summary>R-02: Get deferred elements for retry processing.</summary>
+        public static List<ElementId> DrainDeferredQueue()
+        {
+            var result = new List<ElementId>();
+            while (_deferredElements.TryDequeue(out ElementId id))
+                result.Add(id);
+            return result;
+        }
+
         /// <summary>Invalidate cached context (call after external tagging operations).</summary>
         public static void InvalidateContext()
         {
@@ -286,7 +308,7 @@ namespace StingTools.Core
                         if (!_allowedDiscs.Contains(elemDisc)) continue;
                     }
 
-                    // Workset filter
+                    // Workset filter — R-02: defer elements on unowned worksets instead of dropping
                     if (doc.IsWorkshared)
                     {
                         try
@@ -298,7 +320,11 @@ namespace StingTools.Core
                                 if (!string.IsNullOrEmpty(wsInfo.Owner)
                                     && wsInfo.Owner != doc.Application.Username
                                     && wsInfo.Owner != "")
+                                {
+                                    _deferredElements.Enqueue(id);
+                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
                                     continue;
+                                }
                             }
                         }
                         catch (Exception wsEx) { StingLog.Warn($"AutoTagger workset check: {wsEx.Message}"); }
@@ -939,6 +965,29 @@ namespace StingTools.Core
                             catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
+                        // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
+                        if (!isStale)
+                        {
+                            try
+                            {
+                                string categoryName = ParameterHelpers.GetCategoryName(el);
+                                if (IsMepCategory(categoryName))
+                                {
+                                    string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                    if (!string.IsNullOrEmpty(storedSys) && storedSys != "GEN" && storedSys != "XX")
+                                    {
+                                        string currentSys = TagConfig.GetMepSystemAwareSysCode(el, categoryName);
+                                        if (!string.IsNullOrEmpty(currentSys) && currentSys != storedSys)
+                                        {
+                                            isStale = true;
+                                            StingLog.Info($"StaleMarker: MEP system change on {id.Value} — stored SYS={storedSys}, current={currentSys}");
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
+                        }
+
                         if (isStale)
                         {
                             Parameter p = el.LookupParameter(ParamRegistry.STALE);
@@ -956,6 +1005,19 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"StingStaleMarker.Execute: {ex.Message}");
             }
+        }
+
+        /// <summary>R-06: Check if category is MEP-related for system change detection.</summary>
+        private static bool IsMepCategory(string categoryName)
+        {
+            return categoryName == "Ducts" || categoryName == "Duct Fittings" ||
+                   categoryName == "Duct Accessories" || categoryName == "Air Terminals" ||
+                   categoryName == "Mechanical Equipment" ||
+                   categoryName == "Pipes" || categoryName == "Pipe Fittings" ||
+                   categoryName == "Pipe Accessories" || categoryName == "Plumbing Fixtures" ||
+                   categoryName == "Cable Trays" || categoryName == "Conduits" ||
+                   categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures" ||
+                   categoryName == "Fire Protection";
         }
     }
 }

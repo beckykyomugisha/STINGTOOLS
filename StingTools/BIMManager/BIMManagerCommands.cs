@@ -3339,6 +3339,8 @@ namespace StingTools.BIMManager
                 enrichment["parameter_binding_count"] = ParamRegistry.AllParamGuids.Count;
 
                 // Tag completeness from ComplianceScan
+                // GAP-NEW-07: Force fresh scan for BEP accuracy — cache may be hours old
+                ComplianceScan.InvalidateCache();
                 var compliance = ComplianceScan.Scan(doc);
                 enrichment["tag_completeness_pct"] = Math.Round(compliance.CompliancePercent, 1);
                 enrichment["tag_rag_status"] = compliance.RAGStatus;
@@ -4384,6 +4386,81 @@ namespace StingTools.BIMManager
             var settings = COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
 
+            // R-04: Pre-export container staleness check — discipline containers
+            // drive Classification/ProductCode columns in COBie output
+            int staleContainerCount = 0;
+            try
+            {
+                var checkColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums != null && catEnums.Length > 0)
+                    checkColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                foreach (var el in checkColl)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+                    // Check first discipline container as proxy for all containers
+                    string[] containerNames = { "HVC_EQP_TAG", "ELC_EQP_TAG", "PLM_EQP_TAG", "ASS_TAG_2" };
+                    bool allEmpty = true;
+                    foreach (string cn in containerNames)
+                    {
+                        if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, cn))) { allEmpty = false; break; }
+                    }
+                    if (allEmpty) staleContainerCount++;
+                    if (staleContainerCount >= 5) break; // sample check
+                }
+            }
+            catch (Exception scEx) { StingLog.Warn($"COBie stale container check: {scEx.Message}"); }
+
+            if (staleContainerCount > 0)
+            {
+                var staleDlg = new TaskDialog("COBie Export — Stale Containers Detected");
+                staleDlg.MainInstruction = $"Discipline containers appear out of date ({staleContainerCount}+ elements affected)";
+                staleDlg.MainContent = "The COBie Classification and ProductCode columns derive from discipline-specific tag containers.\n\n" +
+                    "Running 'Combine Parameters' first will ensure complete COBie data.\n\n" +
+                    "Proceed anyway, or run Combine Parameters first?";
+                staleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Run Combine Parameters then export", "Recommended — ensures complete COBie data");
+                staleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Export anyway", "Some Classification/ProductCode fields may be empty");
+                staleDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var staleResult = staleDlg.Show();
+                if (staleResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                if (staleResult == TaskDialogResult.CommandLink1)
+                {
+                    try
+                    {
+                        var allTaggable = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(
+                                new List<BuiltInCategory>(SharedParamGuids.AllCategoryEnums)))
+                            .ToList();
+                        using (var combTx = new Transaction(doc, "STING WriteContainers pre-COBie"))
+                        {
+                            combTx.Start();
+                            foreach (var el in allTaggable)
+                            {
+                                try
+                                {
+                                    string[] toks = ParamRegistry.ReadTokenValues(el);
+                                    if (toks != null && toks.Length >= 8)
+                                    {
+                                        string catName = ParameterHelpers.GetCategoryName(el);
+                                        ParamRegistry.WriteContainers(el, toks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                    }
+                                }
+                                catch (Exception elEx) { StingLog.Warn($"COBie pre-export container write: {elEx.Message}"); }
+                            }
+                            combTx.Commit();
+                        }
+                        StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements");
+                    }
+                    catch (Exception combEx)
+                    {
+                        StingLog.Warn($"COBie pre-export WriteContainers failed: {combEx.Message}");
+                    }
+                }
+            }
+
             StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={settings.PresetKey ?? "full"}, worksheets={settings.SelectedWorksheets?.Count ?? 0})...");
             var cobieData = BIMManagerEngine.BuildCOBieData(doc, settings.PresetKey);
 
@@ -4501,6 +4578,9 @@ namespace StingTools.BIMManager
             report.Append(summary);
             report.AppendLine();
             report.AppendLine($"  Output: {cobieDir}");
+            // R-04: Note stale containers in export summary
+            if (staleContainerCount > 0)
+                report.AppendLine($"\n  Note: {staleContainerCount}+ elements had stale containers — recommend running Combine Parameters.");
 
             TaskDialog.Show("STING BIM Manager — COBie", report.ToString());
             StingLog.Info($"COBie: {cobieData.Count} worksheets, {totalRows} rows");

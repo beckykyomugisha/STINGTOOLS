@@ -808,6 +808,7 @@ namespace StingTools.Core
                         IsBuiltIn = true,
                         Steps = new List<WorkflowStep>
                         {
+                            new WorkflowStep { CommandTag = "PreTagAudit", Label = "Pre-tag dry-run audit (skip if already compliant)", Optional = true, MaxCompliancePct = 95 },
                             new WorkflowStep { CommandTag = "TagNewOnly", Label = "Tag new elements only" },
                             new WorkflowStep { CommandTag = "TagChanged", Label = "Update changed element tokens (delta sync)" },
                             new WorkflowStep { CommandTag = "RetagStale", Label = "Retag stale elements", Optional = true, RequiresStaleElements = true },
