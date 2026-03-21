@@ -69,11 +69,20 @@ namespace StingTools.Tags
 
             // Pre-flight: count taggable, already-tagged, untagged
             int taggable = 0, alreadyTagged = 0, filteredOut = 0;
+            int skippedWorkset = 0, skippedDemolished = 0;
             var taggableElements = new List<Element>();
             foreach (Element e in viewElements)
             {
                 string cat = ParameterHelpers.GetCategoryName(e);
                 if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
+
+                // GAP-WS-01: Skip elements on worksets owned by other users
+                if (!TagPipelineHelper.IsEditableInWorksharing(doc, e))
+                { skippedWorkset++; continue; }
+
+                // GAP-PH-01: Skip demolished elements
+                if (TagPipelineHelper.IsDemolished(e))
+                { skippedDemolished++; continue; }
 
                 // Discipline-aware filtering: skip categories not relevant to this view
                 if (relevantDiscs != null)
@@ -94,8 +103,12 @@ namespace StingTools.Tags
 
             if (taggable == 0)
             {
-                string filterMsg = filteredOut > 0
-                    ? $"\n({filteredOut} elements skipped — disciplines [{discFilterLabel}] active for this view)"
+                var skipParts = new List<string>();
+                if (filteredOut > 0) skipParts.Add($"{filteredOut} by discipline filter [{discFilterLabel}]");
+                if (skippedWorkset > 0) skipParts.Add($"{skippedWorkset} on other users' worksets");
+                if (skippedDemolished > 0) skipParts.Add($"{skippedDemolished} demolished");
+                string filterMsg = skipParts.Count > 0
+                    ? $"\n(Skipped: {string.Join(", ", skipParts)})"
                     : "";
                 TaskDialog.Show("Auto Tag", "No taggable elements in this view." + filterMsg);
                 return Result.Succeeded;
@@ -300,6 +313,7 @@ namespace StingTools.Tags
                 tagNewCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 tagNewCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            int skippedWorkset = 0, skippedDemolished = 0;
             var untagged = new List<Element>();
             foreach (Element el in tagNewCollector)
             {
@@ -310,6 +324,14 @@ namespace StingTools.Tags
                     continue;
                 }
                 if (!known.Contains(cat)) continue;
+
+                // GAP-WS-01: Skip elements on worksets owned by other users
+                if (!TagPipelineHelper.IsEditableInWorksharing(doc, el))
+                { skippedWorkset++; continue; }
+
+                // GAP-PH-01: Skip demolished elements
+                if (TagPipelineHelper.IsDemolished(el))
+                { skippedDemolished++; continue; }
 
                 string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(existingTag))
