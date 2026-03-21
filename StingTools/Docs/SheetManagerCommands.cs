@@ -337,8 +337,8 @@ namespace StingTools.Docs
             // ── Show Naviate-style New Sheet dialog ──
             var rows = NewSheetDialog.Show(
                 tbNames, scopeBoxes, unplacedViews, viewTemplates,
-                defaultTb, "A", suggestedNum,
-                out bool autoPlaceDependentViews);
+                out bool autoPlaceDependentViews,
+                defaultTb, "A", suggestedNum);
 
             if (rows == null || rows.Count == 0)
                 return Result.Succeeded; // Cancelled

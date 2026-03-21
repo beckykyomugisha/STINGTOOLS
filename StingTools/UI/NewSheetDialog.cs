@@ -120,10 +120,10 @@ namespace StingTools.UI
             List<string> scopeBoxNames,
             List<string> dependentViewNames,
             List<string> viewTemplateNames,
+            out bool autoPlaceDependentViews,
             string defaultTitleBlock = null,
             string defaultDiscipline = "A",
-            string suggestedNextNumber = null,
-            out bool autoPlaceDependentViews)
+            string suggestedNextNumber = null)
         {
             var dlg = new NewSheetDialog();
             dlg.Configure(titleBlockNames, scopeBoxNames, dependentViewNames,
