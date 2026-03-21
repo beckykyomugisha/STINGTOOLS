@@ -209,6 +209,16 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- SELECTION SETS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SETS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Save Set" Tag="SaveSelectionSet" Click="Cmd_Click" ToolTip="Save current selection as named set"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Recall Set" Tag="RecallSelectionSet" Click="Cmd_Click" ToolTip="Recall a saved selection set"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Manage" Tag="ManageSelectionSets" Click="Cmd_Click" ToolTip="List, delete, export selection sets"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- STATE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STATE"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -2417,6 +2427,108 @@
                                             ToolTip="Generate keynote table from STING tag codes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="ValidateTemplate" Click="Cmd_Click"
                                             ToolTip="45-check BIM template validation"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- QUALITY ASSURANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUALITY ASSURANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Model health, warnings, rules, QA reports" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="QA Report" Tag="QAReport" Click="Cmd_Click"
+                                            ToolTip="Unified QA report: health + warnings + setup + rules"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Health Scan" Tag="ModelHealthScan" Click="Cmd_Click"
+                                            ToolTip="12-metric weighted model health score"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Warnings" Tag="WarningReview" Click="Cmd_Click"
+                                            ToolTip="Review and categorise Revit warnings by severity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Custom Rules" Tag="RunCustomRules" Click="Cmd_Click"
+                                            ToolTip="Run custom validation rules from QA_RULES.json"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Setup Check" Tag="SetupValidation" Click="Cmd_Click"
+                                            ToolTip="Validate project setup against BEP requirements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WORKSET and LINK AUDIT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKSET and LINK AUDIT"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Workset compliance and linked model management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workset Audit" Tag="WorksetAudit" Click="Cmd_Click"
+                                            ToolTip="Audit workset organisation and element assignment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Worksets" Tag="CreateStandardWorksets" Click="Cmd_Click"
+                                            ToolTip="Create standard STING discipline worksets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Audit" Tag="LinkAudit" Click="Cmd_Click"
+                                            ToolTip="Audit linked models: status, naming, paths"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Stats" Tag="LinkStats" Click="Cmd_Click"
+                                            ToolTip="Element statistics from linked models"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SPATIAL VALIDATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPATIAL VALIDATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Room, grid, and level integrity checks" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="SpatialValidation" Click="Cmd_Click"
+                                            ToolTip="Validate rooms: enclosure, naming, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Audit" Tag="GridAudit" Click="Cmd_Click"
+                                            ToolTip="Grid naming consistency and organisation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Level Audit" Tag="LevelAudit" Click="Cmd_Click"
+                                            ToolTip="Level naming, spacing, and consistency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Audit" Tag="FamilyAudit" Click="Cmd_Click"
+                                            ToolTip="Loaded families: unused, in-place, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="View/Sheet" Tag="ViewSheetCompleteness" Click="Cmd_Click"
+                                            ToolTip="View and sheet completeness audit"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CARBON and CHANGE TRACKING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Embodied carbon, snapshots, print management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Carbon Calc" Tag="CarbonCalculator" Click="Cmd_Click"
+                                            ToolTip="Whole-life embodied carbon calculator"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CSV" Tag="CarbonExport" Click="Cmd_Click"
+                                            ToolTip="Export carbon breakdown to CSV"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Take Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
+                                            ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="CompareSnapshot" Click="Cmd_Click"
+                                            ToolTip="Compare current model against a snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch PDF" Tag="BatchPDFExport" Click="Cmd_Click"
+                                            ToolTip="Batch PDF export with ISO naming"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Sets" Tag="SheetSetSummary" Click="Cmd_Click"
+                                            ToolTip="Sheet set summary by discipline"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LAN COLLABORATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LAN COLLABORATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Worksharing, sync, backup, team coordination" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Enable WS" Tag="LANEnableWorksharing" Click="Cmd_Click"
+                                            ToolTip="Enable worksharing and create standard worksets"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Sync" Tag="LANSyncToCentral" Click="Cmd_Click"
+                                            ToolTip="Sync to central with conflict detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Backup" Tag="LANBackup" Click="Cmd_Click"
+                                            ToolTip="Create model backup"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Team" Tag="LANTeamDashboard" Click="Cmd_Click"
+                                            ToolTip="View team roster and activity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Change Log" Tag="LANChangeLog" Click="Cmd_Click"
+                                            ToolTip="View change log history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Sync" Tag="LANAutoSyncToggle" Click="Cmd_Click"
+                                            ToolTip="Toggle auto-sync timer"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

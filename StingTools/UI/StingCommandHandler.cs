@@ -1397,6 +1397,62 @@ namespace StingTools.UI
                         break;
                     }
 
+                    // ── Phase 37: Quality Assurance Commands ──
+                    case "WarningReview": RunCommand<BIMManager.WarningReviewCommand>(app); break;
+                    case "WarningExport": RunCommand<BIMManager.WarningExportCommand>(app); break;
+                    case "RunCustomRules": RunCommand<BIMManager.RunCustomRulesCommand>(app); break;
+                    case "ModelHealthScan": RunCommand<BIMManager.ModelHealthScanCommand>(app); break;
+                    case "ModelHealthExportJson": RunCommand<BIMManager.ModelHealthExportJsonCommand>(app); break;
+                    case "QAReport": RunCommand<BIMManager.QAReportCommand>(app); break;
+                    case "SetupValidation": RunCommand<BIMManager.SetupValidationCommand>(app); break;
+
+                    // ── Phase 37: Workset Audit Commands ──
+                    case "WorksetAudit": RunCommand<BIMManager.WorksetAuditCommand>(app); break;
+                    case "WorksetAuditExport": RunCommand<BIMManager.WorksetAuditExportCommand>(app); break;
+                    case "CreateStandardWorksets": RunCommand<BIMManager.CreateStandardWorksetsCommand>(app); break;
+
+                    // ── Phase 37: Link Manager Commands ──
+                    case "LinkAudit": RunCommand<BIMManager.LinkAuditCommand>(app); break;
+                    case "LinkAuditExport": RunCommand<BIMManager.LinkAuditExportCommand>(app); break;
+                    case "LinkStats": RunCommand<BIMManager.LinkStatsCommand>(app); break;
+
+                    // ── Phase 37: Spatial Validation Commands ──
+                    case "SpatialValidation": RunCommand<Docs.SpatialValidationCommand>(app); break;
+                    case "SpatialValidationExport": RunCommand<Docs.SpatialValidationExportCommand>(app); break;
+                    case "GridAudit": RunCommand<Docs.GridAuditCommand>(app); break;
+                    case "LevelAudit": RunCommand<Docs.LevelAuditCommand>(app); break;
+
+                    // ── Phase 37: Family Audit Commands ──
+                    case "FamilyAudit": RunCommand<Docs.FamilyAuditCommand>(app); break;
+                    case "FamilyAuditExport": RunCommand<Docs.FamilyAuditExportCommand>(app); break;
+                    case "ViewSheetCompleteness": RunCommand<Docs.ViewSheetCompletenessCommand>(app); break;
+
+                    // ── Phase 37: Carbon Tracking Commands ──
+                    case "CarbonCalculator": RunCommand<BIMManager.CarbonCalculatorCommand>(app); break;
+                    case "CarbonExport": RunCommand<BIMManager.CarbonExportCommand>(app); break;
+
+                    // ── Phase 37: Parameter Diff Commands ──
+                    case "TakeSnapshot": RunCommand<BIMManager.TakeSnapshotCommand>(app); break;
+                    case "CompareSnapshot": RunCommand<BIMManager.CompareSnapshotCommand>(app); break;
+                    case "SnapshotDiffExport": RunCommand<BIMManager.SnapshotDiffExportCommand>(app); break;
+
+                    // ── Phase 37: Print Manager Commands ──
+                    case "BatchPDFExport": RunCommand<Docs.BatchPDFExportCommand>(app); break;
+                    case "SheetSetSummary": RunCommand<Docs.SheetSetSummaryCommand>(app); break;
+
+                    // ── Phase 37: Selection Set Commands ──
+                    case "SaveSelectionSet": RunCommand<Select.SaveSelectionSetCommand>(app); break;
+                    case "RecallSelectionSet": RunCommand<Select.RecallSelectionSetCommand>(app); break;
+                    case "ManageSelectionSets": RunCommand<Select.ManageSelectionSetsCommand>(app); break;
+
+                    // ── Phase 37: LAN Collaboration Commands ──
+                    case "LANEnableWorksharing": RunCommand<BIMManager.LANEnableWorksharingCommand>(app); break;
+                    case "LANSyncToCentral": RunCommand<BIMManager.LANSyncToCentralCommand>(app); break;
+                    case "LANBackup": RunCommand<BIMManager.LANBackupCommand>(app); break;
+                    case "LANTeamDashboard": RunCommand<BIMManager.LANTeamDashboardCommand>(app); break;
+                    case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
+                    case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
