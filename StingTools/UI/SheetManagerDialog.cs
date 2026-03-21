@@ -1439,7 +1439,13 @@ namespace StingTools.UI
             // ── Title block submenu ──
             var tbMenu = new MenuItem { Header = "Title Block \u25B6" };
             var tbSwap = new MenuItem { Header = "Swap Title Block" };
-            tbSwap.Click += (s, e) => ExecuteOp("SM_SwapTitleBlock");
+            tbSwap.Click += (s, e) =>
+            {
+                var sel = GetSelectedSheetTag();
+                var opts = new Dictionary<string, object>();
+                if (sel != null) opts["SelectedTag"] = sel;
+                ExecuteOp("SM_SwapTitleBlock", opts);
+            };
             tbMenu.Items.Add(tbSwap);
             var tbReset = new MenuItem { Header = "Reset to Origin" };
             tbReset.Click += (s, e) => ExecuteOp("TitleBlockReset");

@@ -45,6 +45,11 @@ namespace StingTools.UI
         private List<string> _dependentViewNames = new();
         private List<string> _viewTemplateNames = new();
         private List<string> _disciplineCodes = new() { "A", "S", "M", "E", "P", "FP", "C", "G" };
+        private List<string> _sheetParamNames = new();
+
+        // ── Drag-fill state ──
+        private DataGridCellInfo? _dragFillAnchor;
+        private bool _isDragFilling;
 
         /// <summary>Result: list of sheet rows to create (null if cancelled).</summary>
         public List<SheetRowData> ResultRows { get; private set; }
@@ -81,12 +86,14 @@ namespace StingTools.UI
             List<string> viewTemplateNames,
             string defaultTitleBlock = null,
             string defaultDiscipline = "A",
-            string suggestedNextNumber = null)
+            string suggestedNextNumber = null,
+            List<string> sheetParamNames = null)
         {
             _titleBlockNames = titleBlockNames ?? new();
             _scopeBoxNames = scopeBoxNames ?? new();
             _dependentViewNames = dependentViewNames ?? new();
             _viewTemplateNames = viewTemplateNames ?? new();
+            _sheetParamNames = sheetParamNames ?? new();
 
             // Add one default row
             _rows.Add(new SheetRowData
@@ -123,11 +130,12 @@ namespace StingTools.UI
             out bool autoPlaceDependentViews,
             string defaultTitleBlock = null,
             string defaultDiscipline = "A",
-            string suggestedNextNumber = null)
+            string suggestedNextNumber = null,
+            List<string> sheetParamNames = null)
         {
             var dlg = new NewSheetDialog();
             dlg.Configure(titleBlockNames, scopeBoxNames, dependentViewNames,
-                viewTemplateNames, defaultTitleBlock, defaultDiscipline, suggestedNextNumber);
+                viewTemplateNames, defaultTitleBlock, defaultDiscipline, suggestedNextNumber, sheetParamNames);
             bool? ok = dlg.ShowDialog();
             autoPlaceDependentViews = dlg.AutoPlaceDependentViews;
             return ok == true ? dlg.ResultRows : null;
@@ -228,6 +236,29 @@ namespace StingTools.UI
             // Alternating row colours
             _grid.AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xFC));
             _grid.RowBackground = BrBgWhite;
+
+            // ── Wire up Excel-like editing event handlers ──
+            _grid.CellEditEnding += OnCellEditEnding;
+            _grid.PreviewKeyDown += OnGridKeyDown;
+            _grid.PreviewMouseLeftButtonDown += OnGridPreviewMouseLeftButtonDown;
+            _grid.PreviewMouseMove += OnGridPreviewMouseMove;
+            _grid.PreviewMouseLeftButtonUp += OnGridPreviewMouseLeftButtonUp;
+
+            // ── Drag-fill cursor: show crosshair near cell bottom-right ──
+            _grid.MouseMove += (s, ev) =>
+            {
+                var hit = VisualTreeHelper.HitTest(_grid, ev.GetPosition(_grid));
+                if (hit?.VisualHit == null) return;
+                var cell = FindParent<DataGridCell>(hit.VisualHit as DependencyObject);
+                if (cell != null && !cell.Column.IsReadOnly)
+                {
+                    var pos = ev.GetPosition(cell);
+                    if (pos.X >= cell.ActualWidth - 8 && pos.Y >= cell.ActualHeight - 8)
+                        _grid.Cursor = Cursors.Cross;
+                    else
+                        _grid.Cursor = Cursors.Arrow;
+                }
+            };
 
             Grid.SetRow(_grid, 2);
             root.Children.Add(_grid);
@@ -373,6 +404,24 @@ namespace StingTools.UI
                 Binding = new Binding("Revision") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
                 Width = new DataGridLength(70)
             });
+
+            // 11+. Custom shared parameters bound to sheets
+            foreach (string paramName in _sheetParamNames)
+            {
+                // Use a converter to read/write from the CustomParams dictionary
+                _grid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = paramName,
+                    Binding = new Binding
+                    {
+                        Path = new PropertyPath("."),
+                        Mode = BindingMode.TwoWay,
+                        UpdateSourceTrigger = UpdateSourceTrigger.LostFocus,
+                        Converter = new CustomParamConverter(paramName)
+                    },
+                    Width = new DataGridLength(120)
+                });
+            }
         }
 
         private DataGridComboBoxColumn MakeComboColumn(string header, string binding, List<string> items, int width)
@@ -480,7 +529,7 @@ namespace StingTools.UI
         {
             if (_grid.SelectedItem is not SheetRowData selected) return;
             string nextNum = IncrementSheetNumber(selected.SheetNumber);
-            _rows.Add(new SheetRowData
+            var dupRow = new SheetRowData
             {
                 SheetNumber = nextNum,
                 SheetName = selected.SheetName,
@@ -491,7 +540,11 @@ namespace StingTools.UI
                 ViewTemplate = selected.ViewTemplate,
                 Scale = selected.Scale,
                 Revision = selected.Revision
-            });
+            };
+            // Copy custom parameter values
+            foreach (var kvp in selected.CustomParams)
+                dupRow.CustomParams[kvp.Key] = kvp.Value;
+            _rows.Add(dupRow);
             UpdateStatus();
         }
 
@@ -588,6 +641,373 @@ namespace StingTools.UI
         }
 
         // ────────────────────────────────────────────────────────────
+        //  CELL EDIT ENDING — write custom param values back
+        // ────────────────────────────────────────────────────────────
+
+        private void OnCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Cancel) return;
+
+            // Check if this is a custom parameter column
+            string header = e.Column.Header?.ToString() ?? "";
+            if (_sheetParamNames.Contains(header) && e.Row.Item is SheetRowData row)
+            {
+                if (e.EditingElement is TextBox tb)
+                {
+                    row.SetCustomParam(header, tb.Text);
+                }
+            }
+            UpdateStatus();
+        }
+
+        // ────────────────────────────────────────────────────────────
+        //  KEYBOARD SHORTCUTS (Ctrl+C/V/X, Delete)
+        // ────────────────────────────────────────────────────────────
+
+        private void OnGridKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete)
+            {
+                // Clear selected cells
+                ClearSelectedCells();
+                e.Handled = true;
+            }
+            else if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                switch (e.Key)
+                {
+                    case Key.C:
+                        CopySelectedCells();
+                        e.Handled = true;
+                        break;
+                    case Key.V:
+                        PasteFromClipboard();
+                        e.Handled = true;
+                        break;
+                    case Key.X:
+                        CopySelectedCells();
+                        ClearSelectedCells();
+                        e.Handled = true;
+                        break;
+                    case Key.D:
+                        // Ctrl+D: fill down from first selected row
+                        FillDown();
+                        e.Handled = true;
+                        break;
+                }
+            }
+        }
+
+        private void CopySelectedCells()
+        {
+            try
+            {
+                var cells = _grid.SelectedCells;
+                if (cells == null || cells.Count == 0) return;
+
+                // Group cells by row for proper multi-row copy
+                var rowGroups = new SortedDictionary<int, SortedDictionary<int, string>>();
+                foreach (var cell in cells)
+                {
+                    if (cell.Item is not SheetRowData row) continue;
+                    int rowIdx = _rows.IndexOf(row);
+                    int colIdx = cell.Column.DisplayIndex;
+                    string val = GetCellValue(row, cell.Column);
+
+                    if (!rowGroups.ContainsKey(rowIdx))
+                        rowGroups[rowIdx] = new SortedDictionary<int, string>();
+                    rowGroups[rowIdx][colIdx] = val;
+                }
+
+                // Build tab-separated text (Excel compatible)
+                var lines = new List<string>();
+                foreach (var rg in rowGroups.Values)
+                    lines.Add(string.Join("\t", rg.Values));
+
+                if (lines.Count > 0)
+                    Clipboard.SetText(string.Join("\r\n", lines));
+            }
+            catch (Exception ex) { StingLog.Warn($"Copy failed: {ex.Message}"); }
+        }
+
+        private void PasteFromClipboard()
+        {
+            try
+            {
+                if (!Clipboard.ContainsText()) return;
+                string clipText = Clipboard.GetText();
+                if (string.IsNullOrEmpty(clipText)) return;
+
+                // Parse tab-separated rows
+                var lines = clipText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length == 0) return;
+
+                // Find starting cell
+                var currentCell = _grid.CurrentCell;
+                if (currentCell.Item is not SheetRowData startRow) return;
+                int startRowIdx = _rows.IndexOf(startRow);
+                int startColIdx = currentCell.Column?.DisplayIndex ?? 1;
+
+                // Get editable columns (skip # column at index 0)
+                var editableCols = _grid.Columns.OrderBy(c => c.DisplayIndex).Where(c => !c.IsReadOnly).ToList();
+
+                for (int lineIdx = 0; lineIdx < lines.Length; lineIdx++)
+                {
+                    int targetRowIdx = startRowIdx + lineIdx;
+                    // Auto-add rows if pasting beyond current row count
+                    while (targetRowIdx >= _rows.Count)
+                        AddNewRow();
+
+                    var targetRow = _rows[targetRowIdx];
+                    var values = lines[lineIdx].Split('\t');
+
+                    int colOffset = 0;
+                    foreach (string val in values)
+                    {
+                        // Find the column at the target display index
+                        int targetColDisplayIdx = startColIdx + colOffset;
+                        var targetCol = _grid.Columns.FirstOrDefault(c => c.DisplayIndex == targetColDisplayIdx);
+                        if (targetCol != null && !targetCol.IsReadOnly)
+                        {
+                            SetCellValue(targetRow, targetCol, val.Trim());
+                        }
+                        colOffset++;
+                    }
+                }
+
+                _grid.Items.Refresh();
+                UpdateStatus();
+            }
+            catch (Exception ex) { StingLog.Warn($"Paste failed: {ex.Message}"); }
+        }
+
+        private void ClearSelectedCells()
+        {
+            try
+            {
+                var cells = _grid.SelectedCells;
+                if (cells == null || cells.Count == 0) return;
+
+                foreach (var cell in cells)
+                {
+                    if (cell.Item is SheetRowData row && !cell.Column.IsReadOnly)
+                        SetCellValue(row, cell.Column, "");
+                }
+                _grid.Items.Refresh();
+                UpdateStatus();
+            }
+            catch (Exception ex) { StingLog.Warn($"Clear failed: {ex.Message}"); }
+        }
+
+        private void FillDown()
+        {
+            try
+            {
+                var cells = _grid.SelectedCells;
+                if (cells == null || cells.Count < 2) return;
+
+                // Group by column, fill from first row value
+                var colGroups = new Dictionary<int, List<(SheetRowData row, DataGridColumn col)>>();
+                foreach (var cell in cells)
+                {
+                    if (cell.Item is not SheetRowData row || cell.Column.IsReadOnly) continue;
+                    int colIdx = cell.Column.DisplayIndex;
+                    if (!colGroups.ContainsKey(colIdx))
+                        colGroups[colIdx] = new List<(SheetRowData, DataGridColumn)>();
+                    colGroups[colIdx].Add((row, cell.Column));
+                }
+
+                foreach (var kvp in colGroups)
+                {
+                    var items = kvp.Value.OrderBy(x => _rows.IndexOf(x.row)).ToList();
+                    if (items.Count < 2) continue;
+                    string sourceVal = GetCellValue(items[0].row, items[0].col);
+                    for (int i = 1; i < items.Count; i++)
+                        SetCellValue(items[i].row, items[i].col, sourceVal);
+                }
+
+                _grid.Items.Refresh();
+            }
+            catch (Exception ex) { StingLog.Warn($"Fill down failed: {ex.Message}"); }
+        }
+
+        // ────────────────────────────────────────────────────────────
+        //  DRAG-FILL (Excel-like cell corner drag to increment)
+        // ────────────────────────────────────────────────────────────
+
+        private int _dragFillStartRowIdx = -1;
+        private int _dragFillColIdx = -1;
+        private string _dragFillSourceValue = "";
+
+        private void OnGridPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Detect if click is near the bottom-right corner of the current cell
+            // (the drag-fill handle area)
+            var hitResult = VisualTreeHelper.HitTest(_grid, e.GetPosition(_grid));
+            if (hitResult?.VisualHit == null) return;
+
+            var cell = FindParent<DataGridCell>(hitResult.VisualHit as DependencyObject);
+            if (cell == null || cell.Column == null || cell.Column.IsReadOnly) return;
+
+            // Check if mouse is in the bottom-right 8x8 corner of the cell
+            var cellPos = e.GetPosition(cell);
+            if (cellPos.X >= cell.ActualWidth - 8 && cellPos.Y >= cell.ActualHeight - 8)
+            {
+                // Start drag-fill
+                var row = cell.DataContext as SheetRowData;
+                if (row == null) return;
+
+                _isDragFilling = true;
+                _dragFillStartRowIdx = _rows.IndexOf(row);
+                _dragFillColIdx = cell.Column.DisplayIndex;
+                _dragFillSourceValue = GetCellValue(row, cell.Column);
+                cell.CaptureMouse();
+                e.Handled = true;
+            }
+        }
+
+        private void OnGridPreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_isDragFilling || e.LeftButton != MouseButtonState.Pressed) return;
+
+            // Visual feedback: highlight rows as mouse moves
+            // (In a full implementation, you'd add selection highlighting)
+        }
+
+        private void OnGridPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isDragFilling) return;
+            _isDragFilling = false;
+
+            try
+            {
+                // Find the row under the mouse
+                var hitResult = VisualTreeHelper.HitTest(_grid, e.GetPosition(_grid));
+                if (hitResult?.VisualHit == null) return;
+
+                var cell = FindParent<DataGridCell>(hitResult.VisualHit as DependencyObject);
+                if (cell == null) return;
+
+                var endRow = cell.DataContext as SheetRowData;
+                if (endRow == null) return;
+
+                int endRowIdx = _rows.IndexOf(endRow);
+                if (endRowIdx == _dragFillStartRowIdx) return; // No drag movement
+
+                // Determine fill direction and range
+                int minRow = Math.Min(_dragFillStartRowIdx, endRowIdx);
+                int maxRow = Math.Max(_dragFillStartRowIdx, endRowIdx);
+
+                var col = _grid.Columns.FirstOrDefault(c => c.DisplayIndex == _dragFillColIdx);
+                if (col == null || col.IsReadOnly) return;
+
+                // Fill with incremented values
+                for (int i = minRow; i <= maxRow; i++)
+                {
+                    if (i == _dragFillStartRowIdx) continue;
+                    int offset = i - _dragFillStartRowIdx;
+                    string fillValue = IncrementValue(_dragFillSourceValue, offset);
+                    SetCellValue(_rows[i], col, fillValue);
+                }
+
+                _grid.Items.Refresh();
+                UpdateStatus();
+            }
+            catch (Exception ex) { StingLog.Warn($"Drag-fill failed: {ex.Message}"); }
+            finally
+            {
+                Mouse.Capture(null);
+                _dragFillStartRowIdx = -1;
+            }
+        }
+
+        /// <summary>
+        /// Increments a value for drag-fill. Handles numeric suffixes, pure numbers,
+        /// and falls back to copying the value unchanged.
+        /// </summary>
+        private static string IncrementValue(string source, int offset)
+        {
+            if (string.IsNullOrEmpty(source)) return source;
+
+            // Pure integer
+            if (int.TryParse(source, out int intVal))
+                return (intVal + offset).ToString();
+
+            // Pure decimal
+            if (double.TryParse(source, out double dblVal))
+                return (dblVal + offset).ToString();
+
+            // String with trailing number (e.g., "A-001" → "A-002", "Sheet 1" → "Sheet 2")
+            int trailingStart = source.Length;
+            while (trailingStart > 0 && char.IsDigit(source[trailingStart - 1]))
+                trailingStart--;
+
+            if (trailingStart < source.Length)
+            {
+                string prefix = source.Substring(0, trailingStart);
+                string numStr = source.Substring(trailingStart);
+                if (int.TryParse(numStr, out int numVal))
+                    return prefix + (numVal + offset).ToString("D" + numStr.Length);
+            }
+
+            // No numeric part — just copy the value
+            return source;
+        }
+
+        private static T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            while (child != null)
+            {
+                if (child is T target) return target;
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return null;
+        }
+
+        // ────────────────────────────────────────────────────────────
+        //  CELL VALUE GET/SET HELPERS
+        // ────────────────────────────────────────────────────────────
+
+        private string GetCellValue(SheetRowData row, DataGridColumn col)
+        {
+            string header = col.Header?.ToString() ?? "";
+            return header switch
+            {
+                "Sheet Number" => row.SheetNumber,
+                "Sheet Name" => row.SheetName,
+                "Discipline" => row.Discipline,
+                "Title Block" => row.TitleBlock,
+                "Scope Box" => row.ScopeBox,
+                "Dependent Views" => row.DependentViews,
+                "View Template" => row.ViewTemplate,
+                "Scale" => row.Scale,
+                "Revision" => row.Revision,
+                _ => _sheetParamNames.Contains(header) ? row.GetCustomParam(header) : ""
+            };
+        }
+
+        private void SetCellValue(SheetRowData row, DataGridColumn col, string value)
+        {
+            string header = col.Header?.ToString() ?? "";
+            switch (header)
+            {
+                case "Sheet Number": row.SheetNumber = value; break;
+                case "Sheet Name": row.SheetName = value; break;
+                case "Discipline": row.Discipline = value; break;
+                case "Title Block": row.TitleBlock = value; break;
+                case "Scope Box": row.ScopeBox = value; break;
+                case "Dependent Views": row.DependentViews = value; break;
+                case "View Template": row.ViewTemplate = value; break;
+                case "Scale": row.Scale = value; break;
+                case "Revision": row.Revision = value; break;
+                default:
+                    if (_sheetParamNames.Contains(header))
+                        row.SetCustomParam(header, value);
+                    break;
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────
         //  ROW INDEX CONVERTER (for # column)
         // ────────────────────────────────────────────────────────────
 
@@ -605,6 +1025,39 @@ namespace StingTools.UI
 
             public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
                 => throw new NotImplementedException();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  CUSTOM PARAMETER VALUE CONVERTER
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// IValueConverter that reads/writes custom shared parameter values
+    /// from the SheetRowData.CustomParams dictionary.
+    /// Bound with Path="." (the whole SheetRowData object) so it can
+    /// call GetCustomParam/SetCustomParam by the paramName captured at construction.
+    /// </summary>
+    internal class CustomParamConverter : IValueConverter
+    {
+        private readonly string _paramName;
+        public CustomParamConverter(string paramName) => _paramName = paramName;
+
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is SheetRowData row)
+                return row.GetCustomParam(_paramName);
+            return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            // ConvertBack is called when the user edits the cell.
+            // We need to write the value back to the dictionary.
+            // However, with Path="." the binding target is the whole row object,
+            // so ConvertBack cannot directly set — we handle this via CellEditEnding instead.
+            // Return the string value so the binding doesn't throw.
+            return value;
         }
     }
 
@@ -627,6 +1080,9 @@ namespace StingTools.UI
         private string _viewTemplate = "";
         private string _scale = "1:100";
         private string _revision = "P01";
+
+        /// <summary>Custom shared parameter values keyed by parameter name.</summary>
+        public Dictionary<string, string> CustomParams { get; set; } = new();
 
         public string SheetNumber
         {
@@ -681,6 +1137,16 @@ namespace StingTools.UI
         {
             get => _revision;
             set { _revision = value; OnPropertyChanged(nameof(Revision)); }
+        }
+
+        /// <summary>Get/set a custom parameter value by name.</summary>
+        public string GetCustomParam(string name) =>
+            CustomParams.TryGetValue(name, out string v) ? v : "";
+
+        public void SetCustomParam(string name, string value)
+        {
+            CustomParams[name] = value;
+            OnPropertyChanged("CP_" + name);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

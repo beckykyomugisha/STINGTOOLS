@@ -340,6 +340,39 @@ namespace StingTools.Docs
                 .OrderBy(n => n)
                 .ToList();
 
+            // ── Collect custom shared parameters bound to ViewSheet category ──
+            var sheetParamNames = new List<string>();
+            try
+            {
+                // Get shared params from an existing sheet, or from binding map
+                var sampleSheet = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .FirstOrDefault() as ViewSheet;
+
+                if (sampleSheet != null)
+                {
+                    // Iterate all parameters and find shared/project params (non built-in, writable text)
+                    foreach (Parameter p in sampleSheet.Parameters)
+                    {
+                        if (p.IsShared && !p.IsReadOnly
+                            && p.StorageType == StorageType.String
+                            && p.Definition != null
+                            && !string.IsNullOrEmpty(p.Definition.Name))
+                        {
+                            string pName = p.Definition.Name;
+                            // Skip STING internal params and standard Revit params
+                            if (!pName.StartsWith("STING_") && !pName.StartsWith("ASS_TAG_")
+                                && pName != "Sheet Number" && pName != "Sheet Name")
+                            {
+                                sheetParamNames.Add(pName);
+                            }
+                        }
+                    }
+                }
+                sheetParamNames.Sort();
+            }
+            catch (Exception ex) { StingLog.Warn($"Failed to collect sheet parameters: {ex.Message}"); }
+
             // Suggest next sheet number
             string suggestedNum = SheetManagerEngine.GetNextSheetNumber(doc, "A");
 
@@ -347,7 +380,7 @@ namespace StingTools.Docs
             var rows = NewSheetDialog.Show(
                 tbNames, scopeBoxes, unplacedViews, viewTemplates,
                 out bool autoPlaceDependentViews,
-                defaultTb, "A", suggestedNum);
+                defaultTb, "A", suggestedNum, sheetParamNames);
 
             if (rows == null || rows.Count == 0)
                 return Result.Succeeded; // Cancelled
@@ -402,6 +435,22 @@ namespace StingTools.Docs
 
                         try { sheet.Name = row.SheetName; }
                         catch (Exception ex) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {ex.Message}"); }
+
+                        // Write custom shared parameter values
+                        if (row.CustomParams != null && row.CustomParams.Count > 0)
+                        {
+                            foreach (var kvp in row.CustomParams)
+                            {
+                                if (string.IsNullOrEmpty(kvp.Value)) continue;
+                                try
+                                {
+                                    var p = sheet.LookupParameter(kvp.Key);
+                                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                                        p.Set(kvp.Value);
+                                }
+                                catch (Exception ex) { StingLog.Warn($"Failed to set param '{kvp.Key}': {ex.Message}"); }
+                            }
+                        }
 
                         // Assign scope box if specified
                         if (!string.IsNullOrEmpty(row.ScopeBox) && row.ScopeBox != "(None)"
@@ -766,9 +815,13 @@ namespace StingTools.Docs
             ViewSheet sheet = null;
             if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
 
+            // Fallback to active view if no sheet selected
+            if (sheet == null && ctx.ActiveView is ViewSheet activeSheet)
+                sheet = activeSheet;
+
             if (sheet == null)
             {
-                TaskDialog.Show("STING", "No sheet selected for title block swap.");
+                TaskDialog.Show("STING", "Navigate to a sheet view or select a sheet in the Sheet Manager.");
                 return Result.Succeeded;
             }
 
