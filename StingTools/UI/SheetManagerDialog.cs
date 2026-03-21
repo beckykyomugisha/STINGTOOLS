@@ -858,6 +858,7 @@ namespace StingTools.UI
             qaRow.Children.Add(MakeRibbonLabel("QA"));
             qaRow.Children.Add(MakeToolBtn("Audit", "SheetAudit", BrBlue, "Sheet/viewport statistics audit"));
             qaRow.Children.Add(MakeToolBtn("ISO Check", "SheetComplianceCheck", BrGreen, "ISO 19650 sheet compliance (10 rules)"));
+            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrOrange, "Force ISO 19650 naming on sheets (audit/rename/overwrite)"));
             qaRow.Children.Add(MakeToolBtn("Template Compliance", "TemplateComplianceScore", BrGreen, "View template compliance scoring"));
             qaRow.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle, "Export sheet inventory to CSV"));
             qaRow.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle, "Export comprehensive sheet register"));
@@ -1074,9 +1075,10 @@ namespace StingTools.UI
             var sheetNames = _sheetNodes?.Select(s => $"{s.SheetNumber} - {s.SheetName}").ToList();
             if (sheetNames == null || sheetNames.Count == 0) { UpdateStatus("No sheets available."); return; }
 
-            var picker = StingListPicker.Show("Place View on Sheet",
-                "Select target sheet:", sheetNames, singleSelect: true);
-            if (picker == null || picker.Count == 0) return;
+            var pickedSheet = StingListPicker.Show("Place View on Sheet",
+                "Select target sheet:", sheetNames);
+            if (string.IsNullOrEmpty(pickedSheet)) return;
+            var picker = new List<string> { pickedSheet };
 
             int idx = sheetNames.IndexOf(picker[0]);
             if (idx < 0 || idx >= _sheetNodes.Count) return;
@@ -1258,9 +1260,10 @@ namespace StingTools.UI
             var sheetNames = _sheetNodes?.Select(s => $"{s.SheetNumber} - {s.SheetName}").ToList();
             if (sheetNames == null || sheetNames.Count == 0) return;
 
-            var picker = StingListPicker.Show("Move Viewport",
-                "Select target sheet:", sheetNames, singleSelect: true);
-            if (picker == null || picker.Count == 0) return;
+            var pickedSheet = StingListPicker.Show("Move Viewport",
+                "Select target sheet:", sheetNames);
+            if (string.IsNullOrEmpty(pickedSheet)) return;
+            var picker = new List<string> { pickedSheet };
 
             int idx = sheetNames.IndexOf(picker[0]);
             if (idx < 0 || idx >= _sheetNodes.Count) return;

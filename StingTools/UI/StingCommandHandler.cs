@@ -463,6 +463,7 @@ namespace StingTools.UI
                     case "SM_BatchArrange":
                     case "SM_RenumberDisc":
                     case "SM_SwapTitleBlock":
+                    case "SM_EnforceISONaming":
                         RunSheetManagerOp(app, tag);
                         break;
 
