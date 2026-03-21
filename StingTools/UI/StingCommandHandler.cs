@@ -427,6 +427,16 @@ namespace StingTools.UI
                     case "BatchArrange": RunCommand<Docs.BatchArrangeCommand>(app); break;
                     case "MoveViewport": RunCommand<Docs.MoveViewportCommand>(app); break;
 
+                    // ── Sheet Manager Phase 2 ──
+                    case "MaxRectsLayout": RunCommand<Docs.MaxRectsLayoutCommand>(app); break;
+                    case "SaveLayoutPreset": RunCommand<Docs.SaveLayoutPresetCommand>(app); break;
+                    case "ApplyLayoutPreset": RunCommand<Docs.ApplyLayoutPresetCommand>(app); break;
+                    case "BatchCloneSheets": RunCommand<Docs.BatchCloneSheetsCommand>(app); break;
+                    case "BatchRenumberSheets": RunCommand<Docs.BatchRenumberSheetsCommand>(app); break;
+                    case "AutoAssignVPTypes": RunCommand<Docs.AutoAssignVPTypesCommand>(app); break;
+                    case "ExportSheetSet": RunCommand<Docs.ExportSheetSetCommand>(app); break;
+                    case "PlaceWithOverflow": RunCommand<Docs.PlaceWithOverflowCommand>(app); break;
+
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;

@@ -968,6 +968,19 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Batch Arrange" Tag="BatchArrange" Click="Cmd_Click" ToolTip="Arrange viewports on all sheets"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Move VP" Tag="MoveViewport" Click="Cmd_Click" ToolTip="Move selected viewport to different sheet"/>
                                 </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="MaxRects" Tag="MaxRectsLayout" Click="Cmd_Click" ToolTip="MaxRects packing algorithm for optimal viewport density"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Layout" Tag="SaveLayoutPreset" Click="Cmd_Click" ToolTip="Save current viewport layout as reusable preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Layout" Tag="ApplyLayoutPreset" Click="Cmd_Click" ToolTip="Apply saved layout preset to active sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Overflow" Tag="PlaceWithOverflow" Click="Cmd_Click" ToolTip="Place views with auto-overflow to new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Clone" Tag="BatchCloneSheets" Click="Cmd_Click" ToolTip="Clone multiple sheets at once"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="BatchRenumberSheets" Click="Cmd_Click" ToolTip="Renumber sheets within a discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
