@@ -123,6 +123,7 @@ namespace StingTools.Docs
                 "DeleteView" => "SM_DeleteView",
                 "BatchArrange" => "SM_BatchArrange",
                 "RenumberDisc" => "SM_RenumberDisc",
+                "SwapTitleBlock" => "SM_SwapTitleBlock",
                 _ => operation // Fall through to standard dispatch tags
             };
 
@@ -180,6 +181,9 @@ namespace StingTools.Docs
 
                 case "RenumberDisc":
                     return RenumberSheets(doc);
+
+                case "SwapTitleBlock":
+                    return SwapTitleBlockOnSheet(doc, result);
 
                 default:
                     StingLog.Info($"Sheet Manager operation '{result.Operation}' — no handler.");
@@ -609,6 +613,86 @@ namespace StingTools.Docs
             }
         }
 
+        private Result SwapTitleBlockOnSheet(Document doc, SheetManagerResult result)
+        {
+            var sheetId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
+            ViewSheet sheet = null;
+            if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
+
+            if (sheet == null)
+            {
+                TaskDialog.Show("STING", "No sheet selected for title block swap.");
+                return Result.Succeeded;
+            }
+
+            // Collect all title block types in the project
+            var tbTypes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsElementType()
+                .Cast<FamilySymbol>()
+                .OrderBy(fs => $"{fs.FamilyName}: {fs.Name}")
+                .ToList();
+
+            if (tbTypes.Count == 0)
+            {
+                TaskDialog.Show("STING", "No title block families loaded in project.");
+                return Result.Succeeded;
+            }
+
+            // Get current title block on the sheet
+            var currentTb = new FilteredElementCollector(doc, sheet.Id)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType()
+                .FirstOrDefault() as FamilyInstance;
+
+            string currentTypeName = currentTb?.Symbol != null
+                ? $"{currentTb.Symbol.FamilyName}: {currentTb.Symbol.Name}" : "(none)";
+
+            // Build picker list
+            var items = tbTypes.Select(t => $"{t.FamilyName}: {t.Name}").ToList();
+            var picked = UI.StingListPicker.Show(
+                "Swap Title Block",
+                $"Current: {currentTypeName}\nSelect new title block type:",
+                items, false);
+
+            if (picked == null || picked.Count == 0)
+                return Result.Succeeded;
+
+            int idx = items.IndexOf(picked[0]);
+            if (idx < 0 || idx >= tbTypes.Count) return Result.Succeeded;
+
+            var newType = tbTypes[idx];
+
+            if (currentTb != null)
+            {
+                using (var tx = new Transaction(doc, "STING Swap Title Block"))
+                {
+                    tx.Start();
+                    currentTb.Symbol = newType;
+                    tx.Commit();
+                }
+                TaskDialog.Show("Sheet Manager",
+                    $"Swapped title block on '{sheet.SheetNumber}'\n" +
+                    $"{currentTypeName} \u2192 {newType.FamilyName}: {newType.Name}");
+            }
+            else
+            {
+                // No title block instance — place one
+                using (var tx = new Transaction(doc, "STING Place Title Block"))
+                {
+                    tx.Start();
+                    if (!newType.IsActive) newType.Activate();
+                    doc.Create.NewFamilyInstance(XYZ.Zero, newType, sheet as Element,
+                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                    tx.Commit();
+                }
+                TaskDialog.Show("Sheet Manager",
+                    $"Placed title block '{newType.FamilyName}: {newType.Name}' on '{sheet.SheetNumber}'");
+            }
+
+            return Result.Succeeded;
+        }
+
         // ── Data builders for the dialog ─────────────────────────────────
 
         internal static List<SheetManagerDialog.SheetNode> BuildSheetNodes(Document doc)
@@ -760,6 +844,50 @@ namespace StingTools.Docs
                 if (view.GenLevel != null)
                     level = view.GenLevel.Name;
 
+                // ── View Template detection ──
+                string templateName = null;
+                try
+                {
+                    if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
+                    {
+                        var templateView = doc.GetElement(view.ViewTemplateId) as View;
+                        if (templateView != null)
+                            templateName = templateView.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"Template detect: {ex.Message}"); }
+
+                // ── Scope Box detection ──
+                string scopeBoxName = null;
+                try
+                {
+                    var sbParam = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                    if (sbParam != null && sbParam.AsElementId() != null
+                        && sbParam.AsElementId() != ElementId.InvalidElementId)
+                    {
+                        var sbElem = doc.GetElement(sbParam.AsElementId());
+                        if (sbElem != null)
+                            scopeBoxName = sbElem.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"ScopeBox detect: {ex.Message}"); }
+
+                // ── Dependent View detection ──
+                bool isDependent = false;
+                string parentViewName = null;
+                try
+                {
+                    var primaryId = view.GetPrimaryViewId();
+                    if (primaryId != null && primaryId != ElementId.InvalidElementId)
+                    {
+                        isDependent = true;
+                        var parentView = doc.GetElement(primaryId) as View;
+                        if (parentView != null)
+                            parentViewName = parentView.Name;
+                    }
+                }
+                catch (Exception ex) { Core.StingLog.Warn($"Dependent detect: {ex.Message}"); }
+
                 nodes.Add(new SheetManagerDialog.AllViewNode
                 {
                     ViewName = view.Name,
@@ -769,7 +897,11 @@ namespace StingTools.Docs
                     IsPlaced = isPlaced,
                     PlacedOnSheet = placedSheet,
                     Discipline = disc,
-                    Level = level
+                    Level = level,
+                    TemplateName = templateName,
+                    ScopeBoxName = scopeBoxName,
+                    IsDependent = isDependent,
+                    ParentViewName = parentViewName
                 });
             }
 

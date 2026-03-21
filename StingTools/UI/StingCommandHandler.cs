@@ -462,6 +462,7 @@ namespace StingTools.UI
                     case "SM_DeleteView":
                     case "SM_BatchArrange":
                     case "SM_RenumberDisc":
+                    case "SM_SwapTitleBlock":
                         RunSheetManagerOp(app, tag);
                         break;
 
