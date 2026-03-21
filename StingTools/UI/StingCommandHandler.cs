@@ -470,7 +470,6 @@ namespace StingTools.UI
                     case "PlaceOnNewSheet":
                     case "MoveViewportToSheet":
                     case "RemoveViewport":
-                    case "CloneSheet":
                     case "ArrangeOnSheet":
                     case "AutoScaleSheet":
                     case "AutoLayoutMode":
@@ -479,7 +478,6 @@ namespace StingTools.UI
                     case "SwapTitleBlock":
                     case "EnforceISONaming":
                     case "RevertISONaming":
-                    case "TitleBlockReset":
                         RunSheetManagerOp(app, tag);
                         break;
 

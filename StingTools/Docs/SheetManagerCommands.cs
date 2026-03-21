@@ -1052,22 +1052,7 @@ namespace StingTools.Docs
             bool allScope = choice == TaskDialogResult.CommandLink3;
 
             // Determine scope
-            List<ViewSheet> targetSheets;
-            if (false) // selectedOnly removed — CommandLink4 is now Revert
-            {
-                var selId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
-                var selSheet = selId != null ? doc.GetElement(selId) as ViewSheet : null;
-                if (selSheet == null)
-                {
-                    TaskDialog.Show("STING", "No sheet selected.");
-                    return Result.Succeeded;
-                }
-                targetSheets = new List<ViewSheet> { selSheet };
-            }
-            else
-            {
-                targetSheets = allSheets;
-            }
+            List<ViewSheet> targetSheets = allSheets;
 
             // Classify each sheet and build rename plan
             var renamePlan = new List<(ViewSheet sheet, string oldNum, string newNum, string reason)>();
