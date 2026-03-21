@@ -1564,6 +1564,7 @@ namespace StingTools.BIMManager
             }
 
             wb.SaveAs(xlsxPath);
+            StingLog.Info($"BEP XLSX exported: {xlsxPath}");
             return xlsxPath;
         }
 
@@ -3483,9 +3484,14 @@ namespace StingTools.BIMManager
                 catch (Exception ex) { StingLog.Warn($"BEP validation file: {ex.Message}"); }
             }
 
+            // Auto-register exports in CDE document register
+            if (!string.IsNullOrEmpty(xlsxPath))
+                DocAutoRegister.RegisterExport(doc, xlsxPath, "BEP", $"BIM Execution Plan - {wd.ProjectName}", "S3");
+            DocAutoRegister.RegisterExport(doc, bepPath, "BEP-JSON", $"BEP JSON - {wd.ProjectName}", "S0");
+
             var report = new StringBuilder();
             report.AppendLine("BIM Execution Plan Created");
-            report.AppendLine(new string('═', 50));
+            report.AppendLine(new string('\u2550', 50));
             report.AppendLine($"  Template:   {wd.PresetKey} — {BIMManagerEngine.BEPPresets.GetValueOrDefault(wd.PresetKey, "")}");
             report.AppendLine($"  Stage:      {wd.RIBAStage} — {BIMManagerEngine.RIBAStages.GetValueOrDefault(wd.RIBAStage, "")}");
             report.AppendLine($"  Project:    {wd.ProjectName}");
@@ -4392,8 +4398,6 @@ namespace StingTools.BIMManager
 
     #region ── Command 8: Document Register ──
 
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
     internal class DocRegisterRow
     {
         public string DocId { get; set; }
@@ -4405,7 +4409,85 @@ namespace StingTools.BIMManager
         public string CDEStatus { get; set; }
         public string Revision { get; set; }
         public string Date { get; set; }
+        public string StatusCode { get; set; }  // AFD, IFR, IFC, AB, etc.
+        public string StatusDesc { get; set; }
+        public string FilePath { get; set; }
+        public string FileFormat { get; set; }   // PDF, DWG, RVT, IFC, XLSX, CSV
     }
+
+    /// <summary>
+    /// ISO 19650 document status codes used in CDE workflows.
+    /// </summary>
+    internal static class DocStatusCodes
+    {
+        public static readonly Dictionary<string, string> All = new()
+        {
+            ["S0"] = "Work In Progress (WIP)",
+            ["S1"] = "Suitable for Coordination",
+            ["S2"] = "Suitable for Information",
+            ["S3"] = "Suitable for Review and Comment",
+            ["S4"] = "Suitable for Stage Approval",
+            ["S5"] = "Suitable for Manufacture",
+            ["S6"] = "Suitable for PIM Authorization",
+            ["S7"] = "Suitable for AIM Authorization",
+            ["CR"] = "As-Built (Client Review)",
+            ["AB"] = "As-Built (Approved)",
+            ["AFD"] = "Approved for Design",
+            ["IFR"] = "Issued for Review",
+            ["IFC"] = "Issued for Construction",
+            ["IFI"] = "Issued for Information",
+            ["IFT"] = "Issued for Tender",
+            ["IFM"] = "Issued for Manufacture",
+            ["IFA"] = "Issued for Approval",
+        };
+    }
+
+    /// <summary>
+    /// Auto-register exports as documents in the CDE register.
+    /// Call this after any export operation (PDF, IFC, COBie, BOQ, etc.).
+    /// </summary>
+    internal static class DocAutoRegister
+    {
+        internal static void RegisterExport(Document doc, string filePath, string docType,
+            string title, string suitability = "S3")
+        {
+            try
+            {
+                string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
+                var docs = BIMManagerEngine.LoadJsonArray(docsPath);
+
+                string ext = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
+                string docId = $"STING-{docType}-{DateTime.Now:yyyyMMdd-HHmmss}";
+
+                var entry = new JObject
+                {
+                    ["doc_id"] = docId,
+                    ["title"] = title,
+                    ["doc_type"] = docType,
+                    ["direction"] = "OUT",
+                    ["suitability"] = suitability,
+                    ["cde_status"] = "WIP",
+                    ["revision"] = "P01",
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                    ["status_code"] = "IFI",
+                    ["file_path"] = filePath,
+                    ["file_format"] = ext,
+                    ["auto_registered"] = true
+                };
+
+                docs.Add(entry);
+                BIMManagerEngine.SaveJsonFile(docsPath, docs);
+                StingLog.Info($"DocAutoRegister: {docId} ({ext}) -> {filePath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocAutoRegister failed: {ex.Message}");
+            }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
 
     public class DocumentRegisterCommand : IExternalCommand
     {
@@ -4429,6 +4511,8 @@ namespace StingTools.BIMManager
             {
                 string suit = d["suitability"]?.ToString() ?? "N/A";
                 string suitDesc = BIMManagerEngine.SuitabilityCodes.ContainsKey(suit) ? BIMManagerEngine.SuitabilityCodes[suit] : suit;
+                string statusCode = d["status_code"]?.ToString() ?? "";
+                string statusDesc = DocStatusCodes.All.ContainsKey(statusCode) ? DocStatusCodes.All[statusCode] : statusCode;
                 return new DocRegisterRow
                 {
                     DocId = d["doc_id"]?.ToString() ?? "",
@@ -4439,24 +4523,36 @@ namespace StingTools.BIMManager
                     SuitDesc = suitDesc,
                     CDEStatus = d["cde_status"]?.ToString() ?? "",
                     Revision = d["revision"]?.ToString() ?? "",
-                    Date = d["date"]?.ToString() ?? ""
+                    Date = d["date"]?.ToString() ?? "",
+                    StatusCode = statusCode,
+                    StatusDesc = statusDesc,
+                    FilePath = d["file_path"]?.ToString() ?? "",
+                    FileFormat = d["file_format"]?.ToString() ?? ""
                 };
             }).ToList();
 
             int inCount = rows.Count(r => r.Direction == "IN");
             int outCount = rows.Count(r => r.Direction == "OUT");
-            var dlg = new StingDataGridDialog("STING Document Register",
-                $"{docs.Count} documents | {inCount} incoming | {outCount} outgoing", 1100, 640);
+            int pdfCount = rows.Count(r => r.FileFormat == "PDF");
+            int dwgCount = rows.Count(r => r.FileFormat == "DWG" || r.FileFormat == "DXF");
+            int ifcCount = rows.Count(r => r.FileFormat == "IFC");
+            int xlsxCount = rows.Count(r => r.FileFormat == "XLSX" || r.FileFormat == "CSV");
 
-            dlg.AddTextColumn("Document ID", "DocId", 200);
-            dlg.AddTextColumn("Title", "Title");
+            var dlg = new StingDataGridDialog("STING CDE Document Centre",
+                $"{docs.Count} documents | IN:{inCount} OUT:{outCount} | PDF:{pdfCount} DWG:{dwgCount} IFC:{ifcCount} XLS:{xlsxCount}",
+                1200, 700);
+
+            dlg.AddTextColumn("Document ID", "DocId", 180);
+            dlg.AddTextColumn("Title", "Title", 200);
             dlg.AddTextColumn("Type", "Type", 50);
+            dlg.AddTextColumn("Format", "FileFormat", 50);
             dlg.AddTextColumn("Dir", "Direction", 40);
-            dlg.AddTextColumn("Suit.", "Suitability", 45);
-            dlg.AddTextColumn("Suitability", "SuitDesc", 140);
-            dlg.AddTextColumn("CDE Status", "CDEStatus", 80);
-            dlg.AddTextColumn("Rev", "Revision", 45);
-            dlg.AddTextColumn("Date", "Date", 90);
+            dlg.AddTextColumn("Status", "StatusCode", 45);
+            dlg.AddTextColumn("Status Description", "StatusDesc", 130);
+            dlg.AddTextColumn("Suit.", "Suitability", 40);
+            dlg.AddTextColumn("CDE", "CDEStatus", 70);
+            dlg.AddTextColumn("Rev", "Revision", 40);
+            dlg.AddTextColumn("Date", "Date", 85);
 
             // Filters
             var allDirs = new[] { "All", "IN", "OUT" };
@@ -4477,12 +4573,40 @@ namespace StingTools.BIMManager
                 dlg.SetStatus($"{list.Count} of {rows.Count} documents");
             }
 
-            dlg.AddFilter("Direction", allDirs, s => { filterDir = s; ApplyFilters(); });
-            dlg.AddFilter("CDE Status", allCDE, s => { filterCDE = s; ApplyFilters(); });
-            dlg.SearchChanged += _ => ApplyFilters();
+            // Format filter
+            var allFormats = new[] { "All" }.Concat(rows.Select(r => r.FileFormat).Where(f => !string.IsNullOrEmpty(f)).Distinct().OrderBy(s => s)).ToList();
+            string filterFormat = "All";
+
+            // Status code filter
+            var allStatus = new[] { "All" }.Concat(rows.Select(r => r.StatusCode).Where(s => !string.IsNullOrEmpty(s)).Distinct().OrderBy(s => s)).ToList();
+            string filterStatus = "All";
+
+            void ApplyAllFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterDir != "All") filtered = filtered.Where(r => r.Direction == filterDir);
+                if (filterCDE != "All") filtered = filtered.Where(r => r.CDEStatus == filterCDE);
+                if (filterFormat != "All") filtered = filtered.Where(r => r.FileFormat == filterFormat);
+                if (filterStatus != "All") filtered = filtered.Where(r => r.StatusCode == filterStatus);
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.DocId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.StatusDesc.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} documents");
+            }
+
+            dlg.AddFilter("Direction", allDirs, s => { filterDir = s; ApplyAllFilters(); });
+            dlg.AddFilter("CDE Status", allCDE, s => { filterCDE = s; ApplyAllFilters(); });
+            dlg.AddFilter("Format", allFormats, s => { filterFormat = s; ApplyAllFilters(); });
+            dlg.AddFilter("Doc Status", allStatus, s => { filterStatus = s; ApplyAllFilters(); });
+            dlg.SearchChanged += _ => ApplyAllFilters();
 
             dlg.AddActionButton("Export CSV", "ExportCSV");
             dlg.AddActionButton("Open Folder", "OpenFolder");
+            dlg.AddActionButton("Open File", "OpenFile");
             dlg.AddActionButton("Close", "Cancel");
 
             dlg.ActionClicked += tag =>
@@ -4505,6 +4629,19 @@ namespace StingTools.BIMManager
                 {
                     try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true }); }
                     catch (Exception ex) { StingLog.Warn($"OpenFolder: {ex.Message}"); }
+                }
+                else if (tag == "OpenFile")
+                {
+                    var selected = dlg.GetSelectedItem<DocRegisterRow>();
+                    if (selected != null && !string.IsNullOrEmpty(selected.FilePath) && File.Exists(selected.FilePath))
+                    {
+                        try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true }); }
+                        catch (Exception ex) { dlg.SetStatus($"Cannot open: {ex.Message}"); }
+                    }
+                    else
+                    {
+                        dlg.SetStatus("Select a document with a valid file path.");
+                    }
                 }
             };
 
