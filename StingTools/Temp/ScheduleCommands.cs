@@ -985,11 +985,29 @@ namespace StingTools.Temp
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
+            // Phase 39: Tag sheets with ISO 19650 document codes after element pipeline
+            int sheetsTagged = 0, sheetTokens = 0;
+            try
+            {
+                using (Transaction stx = new Transaction(doc, "STING Tag Sheets (FullAutoPopulate)"))
+                {
+                    stx.Start();
+                    NativeParamMapper.MapSheets(doc);
+                    var (s, t) = NativeParamMapper.TagSheets(doc);
+                    sheetsTagged = s;
+                    sheetTokens = t;
+                    stx.Commit();
+                }
+            }
+            catch (Exception shEx) { StingLog.Warn($"FullAutoPopulate TagSheets: {shEx.Message}"); }
+
             var report = new StringBuilder();
             report.AppendLine("Full Schedule Auto-Populate Complete");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Elements processed:    {totalElements}");
             report.AppendLine($"  Successfully pipelined: {tagged} (tag built + containers written + TAG7 updated)");
+            if (sheetsTagged > 0)
+                report.AppendLine($"  Sheets tagged:         {sheetsTagged} ({sheetTokens} tokens)");
             if (errors > 0)
                 report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");

@@ -679,9 +679,10 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
-                // Also run native sheet mapping first
+                // Map native sheet params first
                 NativeParamMapper.MapSheets(doc);
 
+                // Run full sheet tagging pipeline
                 var (sheets, tokens) = NativeParamMapper.TagSheets(doc);
                 sheetsProcessed = sheets;
                 tokensWritten = tokens;
@@ -691,17 +692,21 @@ namespace StingTools.Tags
 
             sw.Stop();
 
+            // Cache invalidation — ensure compliance dashboard reflects sheet changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             var report = new System.Text.StringBuilder();
             report.AppendLine("Sheet Tagging Complete");
-            report.AppendLine();
-            report.AppendLine($"Sheets processed: {sheetsProcessed}");
-            report.AppendLine($"Tokens written: {tokensWritten}");
-            report.AppendLine($"Duration: {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine(new string('═', 40));
+            report.AppendLine($"  Sheets processed:  {sheetsProcessed}");
+            report.AppendLine($"  Tokens written:    {tokensWritten}");
+            report.AppendLine($"  Duration:          {sw.Elapsed.TotalSeconds:F1}s");
             report.AppendLine();
             report.AppendLine("Parameters written per sheet:");
-            report.AppendLine("  SHT_DISC_TXT, SHT_FORM_TXT, SHT_LEVEL_TXT,");
-            report.AppendLine("  SHT_ORIGINATOR_TXT, SHT_REV_TXT,");
-            report.AppendLine("  SHT_TAG_1_TXT, SHT_TAG_7_TXT");
+            report.AppendLine("  SHT_DISC, SHT_FORM, SHT_LEVEL,");
+            report.AppendLine("  SHT_ORIGINATOR, SHT_REV,");
+            report.AppendLine("  SHT_TAG_1 (document code), SHT_TAG_7 (narrative)");
 
             TaskDialog.Show("STING Tag Sheets", report.ToString());
             StingLog.Info($"TagSheetsCommand: {sheetsProcessed} sheets, {tokensWritten} tokens, {sw.Elapsed.TotalSeconds:F1}s");

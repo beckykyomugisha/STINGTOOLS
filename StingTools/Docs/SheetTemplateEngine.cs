@@ -951,7 +951,7 @@ namespace StingTools.Docs
         internal static string ExportSheetRegister(Document doc, string outputPath)
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Sheet Number,Sheet Name,Discipline,Title Block,Paper Size,Viewport Count,Scales,Compliance");
+            sb.AppendLine("Sheet Number,Sheet Name,Discipline,Title Block,Paper Size,Viewport Count,Scales,Compliance,SHT_TAG_1,SHT_DISC,SHT_FORM,SHT_LEVEL,SHT_REV");
 
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
@@ -988,7 +988,14 @@ namespace StingTools.Docs
 
                 string compliance = complianceMap.TryGetValue(sheet.SheetNumber, out var cr) ? cr.Status : "N/A";
 
-                sb.AppendLine($"\"{sheet.SheetNumber}\",\"{sheet.Name}\",\"{disc}\",\"{tbName}\",\"{paperSize}\",{vpIds.Count},\"{scaleStr}\",\"{compliance}\"");
+                // Phase 39: Include SHT_ tag data in register export
+                string shtTag1 = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
+                string shtDisc = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
+                string shtForm = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_FORM);
+                string shtLevel = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_LEVEL);
+                string shtRev = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_REV);
+
+                sb.AppendLine($"\"{sheet.SheetNumber}\",\"{sheet.Name}\",\"{disc}\",\"{tbName}\",\"{paperSize}\",{vpIds.Count},\"{scaleStr}\",\"{compliance}\",\"{shtTag1}\",\"{shtDisc}\",\"{shtForm}\",\"{shtLevel}\",\"{shtRev}\"");
             }
 
             try

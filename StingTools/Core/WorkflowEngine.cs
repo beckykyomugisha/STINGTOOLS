@@ -827,6 +827,8 @@ namespace StingTools.Core
                 case "HandoverPackage":      return new Temp.HandoverPackageCommand();
                 case "DataIntegrityCheck":   return new Temp.DataIntegrityCheckCommand();
                 case "StandardsDashboard":   return new Temp.StandardsDashboardCommand();
+                case "TagSheets":            return new Tags.TagSheetsCommand();
+                case "MapSheets":            return new Tags.MapSheetsCommand();
 
                 default: return null;
             }
@@ -913,6 +915,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
+                            new WorkflowStep { CommandTag = "TagSheets", Label = "Tag Sheets (ISO 19650 doc codes)" },
                             new WorkflowStep { CommandTag = "CreateRevision", Label = "Create Baseline Revision (P01)" },
                         }
                     };
@@ -938,6 +941,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Re-assign templates to new views" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-fix template issues" },
                             new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "Auto-revision check (score-based)" },
+                            new WorkflowStep { CommandTag = "TagSheets", Label = "Tag sheets with ISO 19650 document codes", Optional = true },
                         }
                     };
 
@@ -953,6 +957,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "BatchCreateSheets", Label = "Batch Create Sheets" },
                             new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "Auto-Number Sheets" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Assign View Templates" },
+                            new WorkflowStep { CommandTag = "TagSheets", Label = "Tag sheets with ISO 19650 document codes" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
                             new WorkflowStep { CommandTag = "BOQExport", Label = "Export Bill of Quantities" },
                         }
