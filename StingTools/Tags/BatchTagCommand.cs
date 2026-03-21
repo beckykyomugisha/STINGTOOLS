@@ -386,6 +386,11 @@ namespace StingTools.Tags
                 var (el, currentTag) = tagged[i];
                 string[] tokens = ParamRegistry.ReadTokenValues(el);
                 string rebuilt = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX to match actual tag format for accurate comparison
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    rebuilt = TagConfig.TagPrefix + ParamRegistry.Separator + rebuilt;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    rebuilt = rebuilt + ParamRegistry.Separator + TagConfig.TagSuffix;
                 bool changed = !string.Equals(currentTag, rebuilt, StringComparison.Ordinal);
                 if (changed) wouldChange++;
 
@@ -746,7 +751,7 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        // Update the stale token
+                        // Update the stale token (skip if locked)
                         string paramName = token switch
                         {
                             "LVL" => ParamRegistry.LVL,
@@ -758,20 +763,30 @@ namespace StingTools.Tags
                             _ => null
                         };
                         if (paramName != null)
-                            ParameterHelpers.SetString(el, paramName, current, overwrite: true);
+                        {
+                            // Respect token lock: skip overwrite if this token is locked
+                            string lockStr = ParameterHelpers.GetString(el, ParamRegistry.Ext("TOKEN_LOCK"));
+                            bool isLocked = !string.IsNullOrEmpty(lockStr) &&
+                                lockStr.Split(',').Any(lk => lk.Trim().Equals(token, StringComparison.OrdinalIgnoreCase));
+                            if (!isLocked)
+                                ParameterHelpers.SetString(el, paramName, current, overwrite: true);
+                        }
 
-                        // Rebuild tag only once per element
+                        // Rebuild tag only once per element (first stale token triggers full rebuild)
                         if (processedElements.Add(el.Id))
                         {
+                            // Inherit type-level tokens before tag rebuild
+                            try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                            catch (Exception tiEx) { StingLog.Warn($"TagChanged TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+                            // Bridge native params BEFORE tag assembly so dependent values are current
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: false,
                                 existingTags: tagIndex,
                                 collisionMode: TagCollisionMode.Overwrite,
                                 stats: null);
-
-                            // FIX-04: Bridge native params after delta token update
-                            try { NativeParamMapper.MapAll(doc, el); }
-                            catch (Exception nmEx) { StingLog.Warn($"TagChanged NativeMapper for {el.Id}: {nmEx.Message}"); }
 
                             // FIX-R03: Evaluate formulas after native mapper
                             if (tcFormulas != null && tcFormulas.Count > 0)

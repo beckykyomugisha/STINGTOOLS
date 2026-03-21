@@ -402,8 +402,8 @@ namespace StingTools.Model
                 var p = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
                 {
-                    try { p.Set(ws.Id.IntegerValue); }
-                    catch { try { p.Set((int)(object)ws.Id); } catch { /* API compat */ } }
+                    try { p.Set((int)ws.Id.IntegerValue); }
+                    catch (Exception ex) { StingLog.Warn($"WorksetAssign: {ex.Message}"); }
                 }
             }
             catch { /* Non-critical */ }

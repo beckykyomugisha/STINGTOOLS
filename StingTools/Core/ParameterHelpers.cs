@@ -9,9 +9,6 @@ using Autodesk.Revit.UI;
 namespace StingTools.Core
 {
     /// <summary>
-    /// Ported from tag_logic.py — parameter read/write helpers for Revit elements.
-    /// </summary>
-    /// <summary>
     /// Safe command execution context — null-checked UIApplication, UIDocument,
     /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
     /// </summary>
@@ -180,13 +177,29 @@ namespace StingTools.Core
             return false;
         }
 
+        /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
+        [ThreadStatic] private static int _readOnlySkipCount;
+        /// <summary>Reset read-only skip counter at start of batch operation.</summary>
+        public static void ResetReadOnlySkipCount() => _readOnlySkipCount = 0;
+        /// <summary>Get cumulative read-only skip count since last reset.</summary>
+        public static int ReadOnlySkipCount => _readOnlySkipCount;
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
-            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+            if (p == null) return false;
+            if (p.IsReadOnly)
+            {
+                // ERR-002: Diagnostic logging for read-only parameter skips
+                _readOnlySkipCount++;
+                if (_readOnlySkipCount <= 5 || _readOnlySkipCount % 100 == 0)
+                    StingLog.Warn($"SetString '{paramName}' on {el.Id}: parameter is read-only (skip #{_readOnlySkipCount})");
+                return false;
+            }
+            if (p.StorageType != StorageType.String)
                 return false;
 
             string existing = p.AsString() ?? string.Empty;
@@ -247,9 +260,10 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Set an integer parameter. Returns true if set successfully.
+        /// Set an integer parameter unconditionally (ignores existing value).
+        /// Prefer <see cref="SetInt(Element,string,int,bool)"/> when overwrite control is needed.
         /// </summary>
-        public static bool SetInt(Element el, string paramName, int value)
+        public static bool SetIntForce(Element el, string paramName, int value)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
@@ -1052,6 +1066,7 @@ namespace StingTools.Core
         /// </summary>
         public static string DetectProjectRevision(Document doc)
         {
+            if (doc == null) return null;
             try
             {
                 var revisions = new FilteredElementCollector(doc)
@@ -1531,6 +1546,24 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
             }
 
+            // HC-001: Proximity-based token copy for SYS/FUNC when detection yielded generic defaults
+            // Uses configurable ProximityRadiusFt from project_config.json (default 10 ft)
+            if (!overwrite)
+            {
+                string curSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string curFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                bool sysGeneric = string.IsNullOrEmpty(curSys) || curSys == "GEN" || curSys == "ARC" || curSys == "STR";
+                bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
+                if (sysGeneric || funcGeneric)
+                {
+                    var tokensToInherit = new List<string>();
+                    if (sysGeneric) tokensToInherit.Add(ParamRegistry.SYS);
+                    if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
+                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
+                    result.TokensSet += proxCopied;
+                }
+            }
+
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             if (string.IsNullOrEmpty(existingStatus) || overwrite)
@@ -1651,6 +1684,107 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"WriteGridReference: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Copies specified token values from the nearest already-tagged element of the same
+        /// category within a configurable radius (TagConfig.ProximityRadiusFt, default 10 ft).
+        /// Useful for inheriting SYS/FUNC from adjacent elements when MEP detection yields
+        /// empty or generic defaults.
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="el">Target element to copy tokens TO</param>
+        /// <param name="tokensToCopy">Parameter names to copy (e.g., ParamRegistry.SYS, ParamRegistry.FUNC)</param>
+        /// <param name="candidatePool">Pre-collected candidate elements (null = collect from doc)</param>
+        /// <returns>Number of tokens successfully copied</returns>
+        public static int CopyTokensFromNearest(Document doc, Element el,
+            string[] tokensToCopy, IList<Element> candidatePool = null)
+        {
+            if (el == null || tokensToCopy == null || tokensToCopy.Length == 0) return 0;
+
+            try
+            {
+                // Get element location
+                XYZ point = null;
+                var loc = el.Location;
+                if (loc is LocationPoint lp) point = lp.Point;
+                else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
+                if (point == null) return 0;
+
+                string elCat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(elCat)) return 0;
+
+                double radiusFt = TagConfig.ProximityRadiusFt;
+
+                // Collect candidates: same category, already tagged, within radius
+                IEnumerable<Element> candidates;
+                if (candidatePool != null)
+                {
+                    candidates = candidatePool;
+                }
+                else
+                {
+                    var catId = el.Category?.Id;
+                    if (catId == null) return 0;
+                    candidates = new FilteredElementCollector(doc)
+                        .OfCategoryId(catId)
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.Id != el.Id);
+                }
+
+                Element nearest = null;
+                double minDist = double.MaxValue;
+
+                foreach (var candidate in candidates)
+                {
+                    if (candidate.Id == el.Id) continue;
+                    string candidateCat = ParameterHelpers.GetCategoryName(candidate);
+                    if (candidateCat != elCat) continue;
+
+                    // Must have a non-empty TAG1
+                    string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+
+                    // Get candidate location
+                    XYZ cPoint = null;
+                    var cLoc = candidate.Location;
+                    if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                    else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                    if (cPoint == null) continue;
+
+                    double dist = point.DistanceTo(cPoint);
+                    if (dist < minDist && dist <= radiusFt)
+                    {
+                        minDist = dist;
+                        nearest = candidate;
+                    }
+                }
+
+                if (nearest == null) return 0;
+
+                int copied = 0;
+                foreach (string tokenName in tokensToCopy)
+                {
+                    string existingVal = ParameterHelpers.GetString(el, tokenName);
+                    if (!string.IsNullOrEmpty(existingVal)) continue; // don't overwrite
+
+                    string sourceVal = ParameterHelpers.GetString(nearest, tokenName);
+                    if (string.IsNullOrEmpty(sourceVal)) continue;
+
+                    if (ParameterHelpers.SetIfEmpty(el, tokenName, sourceVal))
+                        copied++;
+                }
+
+                if (copied > 0)
+                    StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+
+                return copied;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CopyTokensFromNearest: {ex.Message}");
+                return 0;
             }
         }
 
@@ -2601,21 +2735,6 @@ namespace StingTools.Core
                 // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                 TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                // FE-01: Read token lock list — skip auto-derivation for locked tokens
-                HashSet<string> lockedTokens = null;
-                try
-                {
-                    string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
-                    if (!string.IsNullOrWhiteSpace(lockStr))
-                    {
-                        lockedTokens = new HashSet<string>(
-                            lockStr.Split(',').Select(s => s.Trim().ToUpperInvariant()),
-                            StringComparer.OrdinalIgnoreCase);
-                        StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
-                    }
-                }
-                catch (Exception lockReadEx) { StingLog.Warn($"Token lock read for locked set: {lockReadEx.Message}"); }
-
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                     && !string.IsNullOrEmpty(forcedSys))
@@ -2624,6 +2743,11 @@ namespace StingTools.Core
                 // FE-06: Apply full per-category token overrides
                 if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
                 {
+                    // Check SKIP flag FIRST — avoid writing tokens to skipped categories
+                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                        return false;
+
                     foreach (var kv in tokenOverrides)
                     {
                         if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
@@ -2638,10 +2762,6 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(paramName))
                             ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
                     }
-                    // Handle SKIP flag
-                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
-                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return false;
                 }
 
                 // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
@@ -2689,7 +2809,7 @@ namespace StingTools.Core
                             {
                                 string result = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
                                 if (result != null && targetParam.StorageType == StorageType.String
-                                    && string.IsNullOrEmpty(targetParam.AsString()))
+                                    && (overwrite || string.IsNullOrEmpty(targetParam.AsString())))
                                     targetParam.Set(result);
                             }
                             else
@@ -2715,9 +2835,22 @@ namespace StingTools.Core
                     cachedRev: ctx?.ProjectRev);
 
                 // P1: Write TAG7 rich narrative (A-F sub-sections)
-                // NOTE: Container write is already handled inside BuildAndWriteTag above.
-                // Only TAG7 needs separate handling here since it uses the narrative builder.
+                // Re-read token values AFTER BuildAndWriteTag + formulas so containers
+                // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+
+                // Verify container write succeeded inside BuildAndWriteTag.
+                // If it failed silently (exception caught at TagConfig line 2068-2072),
+                // retry here so TAG1 and containers are never out of sync (Gap G001 fix).
+                try
+                {
+                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwrite);
+                }
+                catch (Exception containerEx)
+                {
+                    StingLog.Warn($"TagPipeline: container retry failed for {el.Id}: {containerEx.Message}");
+                }
+
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available

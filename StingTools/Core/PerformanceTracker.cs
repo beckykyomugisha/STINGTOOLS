@@ -18,7 +18,7 @@ namespace StingTools.Core
     ///   {
     ///       foreach (var el in elements)
     ///       {
-    ///           using (PerformanceTracker.TrackElement("BatchTag", el.Id.IntegerValue))
+    ///           using (PerformanceTracker.TrackElement("BatchTag", el.Id.Value))
     ///           {
     ///               // ... process element ...
     ///           }
@@ -110,9 +110,7 @@ namespace StingTools.Core
         /// <summary>Export performance data to CSV on the desktop.</summary>
         public static string ExportCsv()
         {
-            string path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                $"STING_Performance_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+            string path = OutputLocationHelper.GetTimestampedPath(null, "STING_Performance", ".csv");
             try
             {
                 using (var sw = new StreamWriter(path))

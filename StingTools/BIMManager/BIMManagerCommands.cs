@@ -13,6 +13,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.UI;
+using StingTools.Select;
 
 namespace StingTools.BIMManager
 {
@@ -3114,7 +3115,8 @@ namespace StingTools.BIMManager
         private static readonly Dictionary<string, int> _seqCounters = new Dictionary<string, int>();
         internal static string GetNextSequentialId(string context, string prefix)
         {
-            string key = $"{prefix}_{context}";
+            // Use prefix-only key to match SyncSequentialCounter
+            string key = $"{prefix}_";
             if (!_seqCounters.ContainsKey(key)) _seqCounters[key] = 0;
             _seqCounters[key]++;
             return $"{prefix}-{_seqCounters[key]:D4}";
@@ -3671,117 +3673,37 @@ namespace StingTools.BIMManager
 
             var selectedIds = uidoc.Selection.GetElementIds();
 
-            // Step 1: Issue type
-            var typeDlg = new TaskDialog("STING Issue — Type");
-            typeDlg.MainInstruction = "Select issue type:";
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RFI — Request for Information");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CLASH — Coordination Clash");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DESIGN — Design Issue/Query");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types... (NCR, SNAGGING, CHANGE, RISK, SITE, ACTION)");
-            var typeResult = typeDlg.Show();
-            string issueType;
-            switch (typeResult)
-            {
-                case TaskDialogResult.CommandLink1: issueType = "RFI"; break;
-                case TaskDialogResult.CommandLink2: issueType = "CLASH"; break;
-                case TaskDialogResult.CommandLink3: issueType = "DESIGN"; break;
-                case TaskDialogResult.CommandLink4:
-                    var moreDlg = new TaskDialog("STING Issue — More Types");
-                    moreDlg.MainInstruction = "Select issue type:";
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NCR — Non-Conformance Report");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SNAGGING — Snagging/Defect");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CHANGE — Change Request");
-                    moreDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "SITE — Site Observation");
-                    var moreResult = moreDlg.Show();
-                    issueType = moreResult switch
-                    {
-                        TaskDialogResult.CommandLink1 => "NCR",
-                        TaskDialogResult.CommandLink2 => "SNAGGING",
-                        TaskDialogResult.CommandLink3 => "CHANGE",
-                        TaskDialogResult.CommandLink4 => "SITE",
-                        _ => null
-                    };
-                    break;
-                default: issueType = null; break;
-            }
-            if (issueType == null) return Result.Cancelled;
+            // Launch the Issue Wizard for interactive configuration
+            var wizResult = IssueWizard.Show(doc, uidoc);
+            if (wizResult == null) return Result.Cancelled;
 
-            // Step 2: Priority
-            var priDlg = new TaskDialog("STING Issue — Priority");
-            priDlg.MainInstruction = "Select priority:";
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "CRITICAL — Blocks progress, immediate action");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "HIGH — Action within 24 hours");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MEDIUM — Action within 1 week");
-            priDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "LOW — Action at convenience");
-            var priResult = priDlg.Show();
-            string priority = priResult switch
-            {
-                TaskDialogResult.CommandLink1 => "CRITICAL",
-                TaskDialogResult.CommandLink2 => "HIGH",
-                TaskDialogResult.CommandLink3 => "MEDIUM",
-                TaskDialogResult.CommandLink4 => "LOW",
-                _ => "MEDIUM"
-            };
-
-            // Auto-detect discipline and build title from context
-            string discipline = "";
-            string autoTitle = "";
-            if (selectedIds.Count > 0)
-            {
-                var firstEl = doc.GetElement(selectedIds.First());
-                discipline = ParameterHelpers.GetString(firstEl, ParamRegistry.DISC);
-                string cat = ParameterHelpers.GetCategoryName(firstEl);
-                string tag = ParameterHelpers.GetString(firstEl, ParamRegistry.TAG1);
-                autoTitle = $"{issueType}: {cat}";
-                if (!string.IsNullOrEmpty(tag)) autoTitle += $" [{tag}]";
-                if (selectedIds.Count > 1) autoTitle += $" (+{selectedIds.Count - 1} more)";
-            }
-            else
-            {
-                autoTitle = $"{issueType}: {uidoc.ActiveView?.Name ?? "General"}";
-            }
+            string issueType = wizResult.IssueType;
+            string priority = wizResult.Priority;
+            string assignee = wizResult.AssignedTo;
+            string discipline = wizResult.Discipline;
+            string autoTitle = wizResult.Title;
+            string description = wizResult.Description;
             if (string.IsNullOrEmpty(discipline)) discipline = "Z";
 
-            // Step 3: Assignee
-            var assignDlg = new TaskDialog("STING Issue — Assign To");
-            assignDlg.MainInstruction = "Assign issue to:";
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, Environment.UserName, "Assign to yourself");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BIM Coordinator", "Assign to BIM Coordinator");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Design Lead", "Assign to discipline design lead");
-            assignDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Unassigned", "Leave unassigned for now");
-            var assignResult = assignDlg.Show();
-            string assignee = assignResult switch
-            {
-                TaskDialogResult.CommandLink1 => Environment.UserName,
-                TaskDialogResult.CommandLink2 => "BIM Coordinator",
-                TaskDialogResult.CommandLink3 => "Design Lead",
-                TaskDialogResult.CommandLink4 => "",
-                _ => ""
-            };
+            // Add priority to description if not already there
+            if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
+                description += $" Priority: {priority}.";
 
-            // Auto-generate description from context
-            string description = $"{issueType} raised against ";
-            if (selectedIds.Count > 0)
-            {
-                var firstEl = doc.GetElement(selectedIds.First());
-                string cat = ParameterHelpers.GetCategoryName(firstEl);
-                string lvl = ParameterHelpers.GetString(firstEl, ParamRegistry.LVL);
-                description += $"{cat} on {(string.IsNullOrEmpty(lvl) ? "unknown level" : lvl)}";
-                if (selectedIds.Count > 1) description += $" and {selectedIds.Count - 1} other element(s)";
-            }
-            else
-            {
-                description += $"view '{uidoc.ActiveView?.Name ?? "unknown"}'";
-            }
-            description += $". Priority: {priority}.";
-
-            // Create issue with auto-generated title, description, and assignee
+            // Create issue with wizard-collected data
             string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
             var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
             string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
                 autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
+
+            // Set due date from wizard if provided
+            if (!string.IsNullOrEmpty(wizResult.DueDate))
+                issue["date_due"] = wizResult.DueDate;
+
+            // Set location from wizard if provided
+            if (!string.IsNullOrEmpty(wizResult.Location))
+                issue["location"] = wizResult.Location;
 
             // GAP-007 fix: Link issue to current project revision
             try { issue["revision"] = RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Issue revision lookup failed: {ex.Message}"); }
@@ -3812,6 +3734,20 @@ namespace StingTools.BIMManager
 
     #region ── Command 6: Issue Dashboard ──
 
+    internal class IssueRow
+    {
+        public string IssueId { get; set; }
+        public string Title { get; set; }
+        public string Status { get; set; }
+        public string Priority { get; set; }
+        public string Type { get; set; }
+        public string DateRaised { get; set; }
+        public string DateDue { get; set; }
+        public string Overdue { get; set; }
+        public int ElementCount { get; set; }
+        public JObject RawJson { get; set; }
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class IssueDashboardCommand : IExternalCommand
@@ -3832,71 +3768,119 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            var report = new StringBuilder();
-            report.AppendLine("STING Issue Tracker — Dashboard");
-            report.AppendLine(new string('═', 55));
-            report.AppendLine($"  Total Issues: {issues.Count}");
-            report.AppendLine();
-
-            var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY STATUS:");
-            foreach (var g in byStatus) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY TYPE:");
-            foreach (var g in byType) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?").OrderBy(g => g.Key);
-            report.AppendLine("  BY PRIORITY:");
-            foreach (var g in byPriority) report.AppendLine($"    {g.Key,-14} {g.Count(),4}");
-            report.AppendLine();
-
-            // Overdue issues
+            // Build row data for DataGrid
             var now = DateTime.Now;
-            var overdue = issues.Where(i =>
+            var rows = issues.Select(i =>
             {
-                string s = i["status"]?.ToString() ?? "";
-                if (s == "CLOSED" || s == "VOID" || s == "ACCEPTED") return false;
-                string due = i["date_due"]?.ToString() ?? "";
-                return DateTime.TryParse(due, out DateTime d) && d < now;
+                string status = i["status"]?.ToString() ?? "?";
+                string dueDateStr = i["date_due"]?.ToString() ?? "";
+                bool isOverdue = false;
+                if (status != "CLOSED" && status != "VOID" && status != "ACCEPTED"
+                    && DateTime.TryParse(dueDateStr, out DateTime dueDate) && dueDate < now)
+                    isOverdue = true;
+
+                return new IssueRow
+                {
+                    IssueId = i["issue_id"]?.ToString() ?? "",
+                    Title = i["title"]?.ToString() ?? "(untitled)",
+                    Status = status,
+                    Priority = i["priority"]?.ToString() ?? "?",
+                    Type = i["type"]?.ToString() ?? "?",
+                    DateRaised = i["date_raised"]?.ToString() ?? "",
+                    DateDue = dueDateStr,
+                    Overdue = isOverdue ? "OVERDUE" : "",
+                    ElementCount = (i["element_ids"] as JArray)?.Count ?? 0,
+                    RawJson = (JObject)i
+                };
             }).ToList();
-            if (overdue.Count > 0)
-            {
-                report.AppendLine($"  OVERDUE: {overdue.Count} issue(s)");
-                foreach (var o in overdue.Take(5))
-                    report.AppendLine($"    {o["issue_id"],-16} {o["priority"],-10} due {o["date_due"]}  {o["title"]}");
-                report.AppendLine();
-            }
 
-            // Recent
-            report.AppendLine("  RECENT (last 10):");
-            foreach (var issue in issues.Reverse().Take(10))
-            {
-                string title = issue["title"]?.ToString() ?? "(untitled)";
-                if (title.Length > 35) title = title.Substring(0, 32) + "...";
-                report.AppendLine($"    {issue["issue_id"],-16} {issue["status"],-12} {issue["priority"],-10} {title}");
-            }
-            report.AppendLine();
-            // GAP-021: Add element count context and compliance tie-in
-            int issuesWithElements = issues.Count(i =>
-            {
-                var elIds = i["element_ids"];
-                return elIds != null && elIds.HasValues;
-            });
-            if (issuesWithElements > 0)
-                report.AppendLine($"  Issues with element links: {issuesWithElements}");
-
-            // Show compliance context if available
+            int overdueCount = rows.Count(r => r.Overdue == "OVERDUE");
             var compScan = ComplianceScan.Scan(doc);
-            if (compScan != null)
-                report.AppendLine($"  Model compliance: {compScan.StatusBarText}");
+            string subtitle = $"{issues.Count} issues | {overdueCount} overdue"
+                + (compScan != null ? $" | Model: {compScan.StatusBarText}" : "");
 
-            report.AppendLine();
-            report.AppendLine($"  File: {issuesPath}");
+            var dlg = new StingDataGridDialog("STING Issue Tracker", subtitle, 1100, 680);
+            dlg.AddTextColumn("Issue ID", "IssueId", 130);
+            dlg.AddTextColumn("Title", "Title");
+            dlg.AddTextColumn("Status", "Status", 90);
+            dlg.AddTextColumn("Priority", "Priority", 80);
+            dlg.AddTextColumn("Type", "Type", 80);
+            dlg.AddTextColumn("Raised", "DateRaised", 90);
+            dlg.AddTextColumn("Due", "DateDue", 90);
+            dlg.AddTextColumn("Overdue", "Overdue", 70, foreground: System.Windows.Media.Color.FromRgb(200, 30, 30));
+            dlg.AddTextColumn("Elements", "ElementCount", 60);
 
-            TaskDialog.Show("STING Issue Tracker", report.ToString());
+            // Filters
+            var allStatuses = new[] { "All" }.Concat(rows.Select(r => r.Status).Distinct().OrderBy(s => s)).ToList();
+            var allPriorities = new[] { "All" }.Concat(rows.Select(r => r.Priority).Distinct().OrderBy(s => s)).ToList();
+            string filterStatus = "All", filterPriority = "All";
+
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterStatus != "All") filtered = filtered.Where(r => r.Status == filterStatus);
+                if (filterPriority != "All") filtered = filtered.Where(r => r.Priority == filterPriority);
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.IssueId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} issues");
+            }
+
+            dlg.AddFilter("Status", allStatuses, s => { filterStatus = s; ApplyFilters(); });
+            dlg.AddFilter("Priority", allPriorities, s => { filterPriority = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            // Action buttons
+            dlg.AddActionButton("Select Elements", "SelectElements");
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "SelectElements")
+                {
+                    var sel = dlg.SelectedItems.OfType<IssueRow>().ToList();
+                    if (sel.Count == 0) return;
+                    var ids = new List<ElementId>();
+                    foreach (var r in sel)
+                    {
+                        var elIds = r.RawJson["element_ids"] as JArray;
+                        if (elIds != null)
+                            foreach (var eid in elIds)
+                                if (long.TryParse(eid.ToString(), out long id))
+                                    ids.Add(new ElementId(id));
+                    }
+                    if (ids.Count > 0)
+                    {
+                        try
+                        {
+                            var uidoc = new UIDocument(doc);
+                            uidoc.Selection.SetElementIds(ids);
+                        }
+                        catch (Exception ex) { StingLog.Warn($"SelectIssueElements: {ex.Message}"); }
+                    }
+                }
+                else if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "IssueTracker", ".csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
+                        foreach (var r in rows)
+                            sb.AppendLine($"\"{r.IssueId}\",\"{r.Title}\",\"{r.Status}\",\"{r.Priority}\",\"{r.Type}\",\"{r.DateRaised}\",\"{r.DateDue}\",\"{r.Overdue}\",{r.ElementCount}");
+                        File.WriteAllText(csvPath, sb.ToString());
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"IssueExportCSV: {ex.Message}"); }
+                }
+            };
+
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
             return Result.Succeeded;
         }
     }
@@ -3921,13 +3905,13 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            var items = openIssues.Select((i, idx) => new UI.StingListPicker.ListItem
+            var items = openIssues.Select((i, idx) => new StingListPicker.ListItem
             {
                 Label = $"[{i["issue_id"]}] {i["type"]} — {i["title"]}",
                 Detail = $"Priority: {i["priority"]} | Due: {i["date_due"]}",
                 Tag = idx
             }).ToList();
-            var selected = UI.StingListPicker.Show("Bulk Close Issues",
+            var selected = StingListPicker.Show("Bulk Close Issues",
                 "Select issues to close", items, allowMultiSelect: true);
             if (selected == null || selected.Count == 0) return Result.Cancelled;
 
@@ -4184,6 +4168,19 @@ namespace StingTools.BIMManager
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
+    internal class DocRegisterRow
+    {
+        public string DocId { get; set; }
+        public string Title { get; set; }
+        public string Type { get; set; }
+        public string Direction { get; set; }
+        public string Suitability { get; set; }
+        public string SuitDesc { get; set; }
+        public string CDEStatus { get; set; }
+        public string Revision { get; set; }
+        public string Date { get; set; }
+    }
+
     public class DocumentRegisterCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData,
@@ -4196,37 +4193,97 @@ namespace StingTools.BIMManager
             string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
             var docs = BIMManagerEngine.LoadJsonArray(docsPath);
 
-            var report = new StringBuilder();
-            report.AppendLine("STING Document Register");
-            report.AppendLine(new string('═', 55));
-            report.AppendLine($"  Total: {docs.Count}  |  In: {docs.Count(d => d["direction"]?.ToString() == "IN")}  |  Out: {docs.Count(d => d["direction"]?.ToString() == "OUT")}");
-            report.AppendLine();
-
-            var bySuit = docs.GroupBy(d => d["suitability"]?.ToString() ?? "N/A").OrderBy(g => g.Key);
-            report.AppendLine("  BY SUITABILITY:");
-            foreach (var g in bySuit)
+            if (docs.Count == 0)
             {
-                string desc = BIMManagerEngine.SuitabilityCodes.ContainsKey(g.Key) ? BIMManagerEngine.SuitabilityCodes[g.Key] : g.Key;
-                report.AppendLine($"    {g.Key,-4} {desc,-30} {g.Count(),4}");
+                TaskDialog.Show("STING Document Register", "No documents registered.\nUse 'Add Document' to register one.");
+                return Result.Succeeded;
             }
-            report.AppendLine();
 
-            var byCDE = docs.GroupBy(d => d["cde_status"]?.ToString() ?? "N/A").OrderBy(g => g.Key);
-            report.AppendLine("  BY CDE STATUS:");
-            foreach (var g in byCDE) report.AppendLine($"    {g.Key,-12} {g.Count(),4}");
-            report.AppendLine();
-
-            report.AppendLine("  RECENT (last 10):");
-            foreach (var d in docs.Reverse().Take(10))
+            var rows = docs.Select(d =>
             {
-                string title = d["title"]?.ToString() ?? "";
-                if (title.Length > 30) title = title.Substring(0, 27) + "...";
-                report.AppendLine($"    {d["doc_id"],-24} {d["direction"],-4} {d["suitability"],-4} {title}");
-            }
-            report.AppendLine();
-            report.AppendLine($"  File: {docsPath}");
+                string suit = d["suitability"]?.ToString() ?? "N/A";
+                string suitDesc = BIMManagerEngine.SuitabilityCodes.ContainsKey(suit) ? BIMManagerEngine.SuitabilityCodes[suit] : suit;
+                return new DocRegisterRow
+                {
+                    DocId = d["doc_id"]?.ToString() ?? "",
+                    Title = d["title"]?.ToString() ?? "",
+                    Type = d["doc_type"]?.ToString() ?? "",
+                    Direction = d["direction"]?.ToString() ?? "",
+                    Suitability = suit,
+                    SuitDesc = suitDesc,
+                    CDEStatus = d["cde_status"]?.ToString() ?? "",
+                    Revision = d["revision"]?.ToString() ?? "",
+                    Date = d["date"]?.ToString() ?? ""
+                };
+            }).ToList();
 
-            TaskDialog.Show("STING BIM Manager", report.ToString());
+            int inCount = rows.Count(r => r.Direction == "IN");
+            int outCount = rows.Count(r => r.Direction == "OUT");
+            var dlg = new StingDataGridDialog("STING Document Register",
+                $"{docs.Count} documents | {inCount} incoming | {outCount} outgoing", 1100, 640);
+
+            dlg.AddTextColumn("Document ID", "DocId", 200);
+            dlg.AddTextColumn("Title", "Title");
+            dlg.AddTextColumn("Type", "Type", 50);
+            dlg.AddTextColumn("Dir", "Direction", 40);
+            dlg.AddTextColumn("Suit.", "Suitability", 45);
+            dlg.AddTextColumn("Suitability", "SuitDesc", 140);
+            dlg.AddTextColumn("CDE Status", "CDEStatus", 80);
+            dlg.AddTextColumn("Rev", "Revision", 45);
+            dlg.AddTextColumn("Date", "Date", 90);
+
+            // Filters
+            var allDirs = new[] { "All", "IN", "OUT" };
+            var allCDE = new[] { "All" }.Concat(rows.Select(r => r.CDEStatus).Distinct().OrderBy(s => s)).ToList();
+            string filterDir = "All", filterCDE = "All";
+
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterDir != "All") filtered = filtered.Where(r => r.Direction == filterDir);
+                if (filterCDE != "All") filtered = filtered.Where(r => r.CDEStatus == filterCDE);
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.DocId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} documents");
+            }
+
+            dlg.AddFilter("Direction", allDirs, s => { filterDir = s; ApplyFilters(); });
+            dlg.AddFilter("CDE Status", allCDE, s => { filterCDE = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Open Folder", "OpenFolder");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "DocumentRegister", ".csv");
+                        var sb = new StringBuilder();
+                        sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
+                        foreach (var r in rows)
+                            sb.AppendLine($"\"{r.DocId}\",\"{r.Title}\",\"{r.Type}\",\"{r.Direction}\",\"{r.Suitability}\",\"{r.CDEStatus}\",\"{r.Revision}\",\"{r.Date}\"");
+                        File.WriteAllText(csvPath, sb.ToString());
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DocRegisterExportCSV: {ex.Message}"); }
+                }
+                else if (tag == "OpenFolder")
+                {
+                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true }); }
+                    catch (Exception ex) { StingLog.Warn($"OpenFolder: {ex.Message}"); }
+                }
+            };
+
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
             return Result.Succeeded;
         }
     }
@@ -4246,98 +4303,29 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Direction
-            var dirDlg = new TaskDialog("STING Doc Register — Direction");
-            dirDlg.MainInstruction = "Document direction:";
-            dirDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "INCOMING — Received from external party");
-            dirDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "OUTGOING — Issued to external party");
-            var dirResult = dirDlg.Show();
-            string direction = dirResult == TaskDialogResult.CommandLink1 ? "IN" :
-                               dirResult == TaskDialogResult.CommandLink2 ? "OUT" : null;
-            if (direction == null) return Result.Cancelled;
+            // Direction — simple 2-option picker
+            var dirItems = new List<string> { "IN — Incoming (received from external party)", "OUT — Outgoing (issued to external party)" };
+            string dirPick = StingListPicker.Show("Document Direction", "Select document direction:", dirItems);
+            if (dirPick == null) return Result.Cancelled;
+            string direction = dirPick.StartsWith("IN") ? "IN" : "OUT";
 
-            // Document type — paginated to cover all 30+ types
-            var typeDlg = new TaskDialog("STING Doc Register — Type (Page 1/4)");
-            typeDlg.MainInstruction = "Select document type:";
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "M3 — 3D Model");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DR — Drawing (2D)");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SP — Specification");
-            typeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-            var typeResult = typeDlg.Show();
-            string docType;
-            switch (typeResult)
-            {
-                case TaskDialogResult.CommandLink1: docType = "M3"; break;
-                case TaskDialogResult.CommandLink2: docType = "DR"; break;
-                case TaskDialogResult.CommandLink3: docType = "SP"; break;
-                case TaskDialogResult.CommandLink4:
-                    var pg2 = new TaskDialog("STING Doc Register — Type (Page 2/4)");
-                    pg2.MainInstruction = "Select document type:";
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "RP — Report");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RI — Request for Information");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "SH — Schedule");
-                    pg2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-                    var pg2Result = pg2.Show();
-                    switch (pg2Result)
-                    {
-                        case TaskDialogResult.CommandLink1: docType = "RP"; break;
-                        case TaskDialogResult.CommandLink2: docType = "RI"; break;
-                        case TaskDialogResult.CommandLink3: docType = "SH"; break;
-                        case TaskDialogResult.CommandLink4:
-                            var pg3 = new TaskDialog("STING Doc Register — Type (Page 3/4)");
-                            pg3.MainInstruction = "Select document type:";
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BQ — Bill of Quantities");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CA — Calculations");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CP — Cost Plan");
-                            pg3.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "More types →");
-                            var pg3Result = pg3.Show();
-                            switch (pg3Result)
-                            {
-                                case TaskDialogResult.CommandLink1: docType = "BQ"; break;
-                                case TaskDialogResult.CommandLink2: docType = "CA"; break;
-                                case TaskDialogResult.CommandLink3: docType = "CP"; break;
-                                case TaskDialogResult.CommandLink4:
-                                    var pg4 = new TaskDialog("STING Doc Register — Type (Page 4/4)");
-                                    pg4.MainInstruction = "Select document type:";
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "IE — COBie Data Exchange");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "HS — Health and Safety");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MS — Method Statement");
-                                    pg4.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "PP/MI/SN/TN/VS/AF/CR/SU...");
-                                    var pg4Result = pg4.Show();
-                                    docType = pg4Result switch
-                                    {
-                                        TaskDialogResult.CommandLink1 => "IE",
-                                        TaskDialogResult.CommandLink2 => "HS",
-                                        TaskDialogResult.CommandLink3 => "MS",
-                                        TaskDialogResult.CommandLink4 => "MR",
-                                        _ => "RP"
-                                    };
-                                    break;
-                                default: docType = "RP"; break;
-                            }
-                            break;
-                        default: docType = "RP"; break;
-                    }
-                    break;
-                default: return Result.Cancelled;
-            }
+            // Document type — all types in searchable list (replaces 4-page paginated TaskDialog)
+            var typeItems = BIMManagerEngine.DocumentTypes
+                .Select(kvp => $"{kvp.Key} — {kvp.Value}")
+                .OrderBy(s => s)
+                .ToList();
+            string typePick = StingListPicker.Show("Document Type", "Select ISO 19650 document type:", typeItems);
+            if (typePick == null) return Result.Cancelled;
+            string docType = typePick.Split(new[] { ' ' }, 2)[0].Trim();
 
-            // Suitability
-            var suitDlg = new TaskDialog("STING Doc Register — Suitability");
-            suitDlg.MainInstruction = "ISO 19650 suitability code:";
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S0 — Work In Progress");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
-            var suitResult = suitDlg.Show();
-            string suitability = suitResult switch
-            {
-                TaskDialogResult.CommandLink1 => "S0",
-                TaskDialogResult.CommandLink2 => "S2",
-                TaskDialogResult.CommandLink3 => "S3",
-                TaskDialogResult.CommandLink4 => "S4",
-                _ => "S0"
-            };
+            // Suitability — all codes in searchable list
+            var suitItems = BIMManagerEngine.SuitabilityCodes
+                .Select(kvp => $"{kvp.Key} — {kvp.Value}")
+                .OrderBy(s => s)
+                .ToList();
+            string suitPick = StingListPicker.Show("Suitability Code", "Select ISO 19650 suitability code:", suitItems);
+            if (suitPick == null) return Result.Cancelled;
+            string suitability = suitPick.Split(new[] { ' ' }, 2)[0].Trim();
 
             // Generate ISO 19650 document ID
             var pi = doc.ProjectInformation;
@@ -4392,97 +4380,114 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Select COBie preset for project type
-            string selectedPreset = null;
-            var presetDlg = new TaskDialog("STING COBie — Project Type");
-            presetDlg.MainInstruction = "Select COBie project type preset:";
-            presetDlg.MainContent = "Choose a project type to tailor the COBie export, or use the default full export.";
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Full Export (all worksheets, no preset filter)");
-            presetDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Select from 22 project type presets...");
-            var presetResult = presetDlg.Show();
-            if (presetResult == TaskDialogResult.CommandLink2)
-            {
-                // Build preset selection list
-                var presetNames = BIMManagerEngine.COBiePresets.Keys.ToList();
-                var sb2 = new StringBuilder();
-                for (int i = 0; i < presetNames.Count; i++)
-                    sb2.AppendLine($"  {i + 1}. {BIMManagerEngine.COBiePresets[presetNames[i]].Name}");
+            // Launch the COBie Export Wizard for interactive configuration
+            var settings = COBieExportWizard.Show(doc);
+            if (settings == null) return Result.Cancelled;
 
-                var pickDlg = new TaskDialog("STING COBie — Select Preset");
-                pickDlg.MainInstruction = "Available COBie presets:";
-                pickDlg.MainContent = sb2.ToString() + "\nEnter preset number in the supplemental text below, or click Default.";
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Use default (Commercial Office)");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Use Healthcare (NHS)");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Use Data Centre");
-                pickDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Use Residential (High-Rise)");
-                var pickResult = pickDlg.Show();
-                selectedPreset = pickResult switch
-                {
-                    TaskDialogResult.CommandLink1 => "COMMERCIAL_OFFICE",
-                    TaskDialogResult.CommandLink2 => "HEALTHCARE_NHS",
-                    TaskDialogResult.CommandLink3 => "DATA_CENTRE",
-                    TaskDialogResult.CommandLink4 => "RESIDENTIAL_HIGH_RISE",
-                    _ => null
-                };
+            StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={settings.PresetKey ?? "full"}, worksheets={settings.SelectedWorksheets?.Count ?? 0})...");
+            var cobieData = BIMManagerEngine.BuildCOBieData(doc, settings.PresetKey);
+
+            // Enhance Resource worksheet if requested
+            if (settings.IncludeResourceEnhanced && cobieData.ContainsKey("Resource"))
+                EnhanceResourceWorksheet(cobieData["Resource"]);
+
+            // Enhance Impact worksheet if requested
+            if (settings.IncludeImpactEnhanced && cobieData.ContainsKey("Impact"))
+                EnhanceImpactWorksheet(doc, cobieData["Impact"]);
+
+            // Filter worksheets based on wizard selection
+            if (settings.SelectedWorksheets != null && settings.SelectedWorksheets.Count > 0)
+            {
+                var toRemove = cobieData.Keys.Where(k => !settings.SelectedWorksheets.Contains(k)).ToList();
+                foreach (var key in toRemove) cobieData.Remove(key);
             }
 
-            StingLog.Info($"BIMManager: Generating COBie V2.4 export (preset={selectedPreset ?? "full"})...");
-            var cobieData = BIMManagerEngine.BuildCOBieData(doc, selectedPreset);
-
-            string cobieDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
-                $"COBie_V24_{DateTime.Now:yyyyMMdd}");
+            string cobieDir = settings.OutputDir;
+            if (string.IsNullOrEmpty(cobieDir))
+                cobieDir = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), $"COBie_V24_{DateTime.Now:yyyyMMdd}");
             if (!Directory.Exists(cobieDir)) Directory.CreateDirectory(cobieDir);
 
             int totalRows = 0;
             var summary = new StringBuilder();
 
+            // Use streaming export with progress dialog when enabled
+            StingProgressDialog progress = null;
+            int wsCount = cobieData.Count;
+            if (settings.StreamingExport && wsCount > 3)
+                progress = StingProgressDialog.Show("COBie Export", wsCount);
+
+            int wsIdx = 0;
             foreach (var ws in cobieData)
             {
                 totalRows += ws.Value.Count;
                 string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
                     ? BIMManagerEngine.COBieWorksheets[ws.Key]
                     : (ws.Value.Count > 0 ? ws.Value[0].Keys.ToArray() : Array.Empty<string>());
-                if (headers.Length == 0) continue;
+                if (headers.Length == 0) { wsIdx++; continue; }
 
-                var csv = new StringBuilder();
-                csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
-                foreach (var row in ws.Value)
-                    csv.AppendLine(string.Join(",", headers.Select(h =>
-                        $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+                // Apply column exclusions from wizard
+                if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                {
+                    var excluded = settings.ExcludedColumns[ws.Key];
+                    headers = headers.Where(h => !excluded.Contains(h)).ToArray();
+                }
 
-                try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
-                catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
+                if (settings.ExportCSV)
+                {
+                    var csv = new StringBuilder();
+                    csv.AppendLine(string.Join(",", headers.Select(h => $"\"{h}\"")));
+                    foreach (var row in ws.Value)
+                        csv.AppendLine(string.Join(",", headers.Select(h =>
+                            $"\"{(row.ContainsKey(h) ? row[h]?.Replace("\"", "\"\"") : "")}\"")));
+
+                    try { File.WriteAllText(Path.Combine(cobieDir, $"COBie_{ws.Key}.csv"), csv.ToString()); }
+                    catch (Exception ex) { StingLog.Warn($"COBie {ws.Key}: {ex.Message}"); }
+                }
+
                 summary.AppendLine($"    {ws.Key,-16} {ws.Value.Count,6} rows");
+                wsIdx++;
+                progress?.Increment($"Writing {ws.Key}...");
             }
 
             // XLSX export
-            try
+            if (settings.ExportXLSX)
             {
-                string xlsxPath = Path.Combine(cobieDir, "COBie_V24_Complete.xlsx");
-                using (var wb = new ClosedXML.Excel.XLWorkbook())
+                try
                 {
-                    foreach (var ws in cobieData)
+                    string xlsxPath = Path.Combine(cobieDir, "COBie_V24_Complete.xlsx");
+                    progress?.Increment("Generating XLSX workbook...");
+                    using (var wb = new ClosedXML.Excel.XLWorkbook())
                     {
-                        string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
-                        var sheet = wb.Worksheets.Add(name);
-                        if (ws.Value.Count == 0) continue;
-                        string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                            ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
-                        for (int c = 0; c < headers.Length; c++)
+                        foreach (var ws in cobieData)
                         {
-                            sheet.Cell(1, c + 1).Value = headers[c];
-                            sheet.Cell(1, c + 1).Style.Font.Bold = true;
-                            sheet.Cell(1, c + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
-                        }
-                        for (int r = 0; r < ws.Value.Count; r++)
+                            string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
+                            var sheet = wb.Worksheets.Add(name);
+                            if (ws.Value.Count == 0) continue;
+                            string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
+                                ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
+
+                            // Apply column exclusions
+                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                                headers = headers.Where(h => !settings.ExcludedColumns[ws.Key].Contains(h)).ToArray();
+
                             for (int c = 0; c < headers.Length; c++)
-                                sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
-                        sheet.Columns().AdjustToContents(1, 100);
+                            {
+                                sheet.Cell(1, c + 1).Value = headers[c];
+                                sheet.Cell(1, c + 1).Style.Font.Bold = true;
+                                sheet.Cell(1, c + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+                            }
+                            for (int r = 0; r < ws.Value.Count; r++)
+                                for (int c = 0; c < headers.Length; c++)
+                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
+                            sheet.Columns().AdjustToContents(1, 100);
+                        }
+                        wb.SaveAs(xlsxPath);
                     }
-                    wb.SaveAs(xlsxPath);
                 }
+                catch (Exception ex) { StingLog.Warn($"COBie XLSX: {ex.Message}"); }
             }
-            catch (Exception ex) { StingLog.Warn($"COBie XLSX: {ex.Message}"); }
+
+            progress?.Close();
 
             var report = new StringBuilder();
             report.AppendLine("COBie V2.4 Export Complete");
@@ -4490,6 +4495,8 @@ namespace StingTools.BIMManager
             report.AppendLine($"  Standard:   COBie V2.4 (BS 1192-4:2014)");
             report.AppendLine($"  Worksheets: {cobieData.Count}");
             report.AppendLine($"  Total rows: {totalRows}");
+            if (settings.IncludeResourceEnhanced) report.AppendLine($"  Resources:  Enhanced (skills, rates, certifications)");
+            if (settings.IncludeImpactEnhanced) report.AppendLine($"  Impact:     Enhanced (lifecycle cost, carbon/m², benchmarks)");
             report.AppendLine();
             report.Append(summary);
             report.AppendLine();
@@ -4498,6 +4505,116 @@ namespace StingTools.BIMManager
             TaskDialog.Show("STING BIM Manager — COBie", report.ToString());
             StingLog.Info($"COBie: {cobieData.Count} worksheets, {totalRows} rows");
             return Result.Succeeded;
+        }
+
+        /// <summary>Enhance Resource worksheet with skill requirements, hourly rates, and certifications.</summary>
+        private static void EnhanceResourceWorksheet(List<Dictionary<string, string>> resources)
+        {
+            var enhancements = new Dictionary<string, (string skills, string rate, string cert)>
+            {
+                ["FM Technician"] = ("General maintenance, HVAC basic, plumbing basic, electrical basic", "£35/hr", "City & Guilds, CSCS"),
+                ["Electrical Engineer"] = ("HV/LV systems, emergency lighting, fire alarm, data cabling", "£55/hr", "BS 7671 18th Edition, JIB Gold Card"),
+                ["Mechanical Engineer"] = ("HVAC design, BMS, commissioning, energy management", "£55/hr", "CIBSE Chartered, F-Gas"),
+                ["Plumber"] = ("Hot/cold water, drainage, sanitary ware, water treatment", "£40/hr", "City & Guilds 6035, WRAS"),
+                ["Fire Safety Officer"] = ("Fire risk assessment, suppression systems, fire door inspection", "£50/hr", "IFE Member, NEBOSH Fire"),
+                ["HVAC Specialist"] = ("AHU maintenance, chiller plant, heat pumps, controls", "£48/hr", "F-Gas Category I, BSRIA"),
+                ["BMS Engineer"] = ("Building management systems, controls, sensors, integration", "£52/hr", "Trend/Honeywell certified"),
+                ["Lift Engineer"] = ("Passenger/goods lifts, escalators, stairlifts, access platforms", "£55/hr", "SAFed, LEIA registered"),
+                ["Security Specialist"] = ("Access control, CCTV, intruder alarm, key management", "£45/hr", "SIA Licensed, NSI Gold"),
+                ["Cleaning Supervisor"] = ("Contract management, deep clean, specialist surfaces, waste", "£28/hr", "BICSc certified"),
+                ["Energy Manager"] = ("Energy auditing, carbon reporting, utility management, BREEAM", "£60/hr", "CIBSE LCEA, ISO 50001 Lead Auditor"),
+                ["Health & Safety Officer"] = ("Risk assessments, COSHH, CDM, permit to work, incident investigation", "£50/hr", "NEBOSH NGC, IOSH Managing Safely")
+            };
+
+            // Enhance existing resources
+            foreach (var res in resources)
+            {
+                string name = res.ContainsKey("Name") ? res["Name"] : "";
+                if (enhancements.TryGetValue(name, out var enh))
+                {
+                    res["Description"] = $"Skills: {enh.skills}. Rate: {enh.rate}. Certifications: {enh.cert}";
+                }
+            }
+
+            // Add missing resource types
+            string createdBy = resources.Count > 0 && resources[0].ContainsKey("CreatedBy") ? resources[0]["CreatedBy"] : Environment.UserName;
+            string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
+            var existing = new HashSet<string>(resources.Select(r => r.ContainsKey("Name") ? r["Name"] : ""));
+
+            foreach (var kvp in enhancements)
+            {
+                if (existing.Contains(kvp.Key)) continue;
+                resources.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["Category"] = "Labour",
+                    ["ExternalSystem"] = "STING", ["ExternalObject"] = "Resource",
+                    ["ExternalIdentifier"] = kvp.Key.Replace(" ", "_"),
+                    ["Description"] = $"Skills: {kvp.Value.skills}. Rate: {kvp.Value.rate}. Certifications: {kvp.Value.cert}"
+                });
+            }
+        }
+
+        /// <summary>Enhance Impact worksheet with lifecycle cost analysis, carbon per m², and energy benchmarks.</summary>
+        private static void EnhanceImpactWorksheet(Document doc, List<Dictionary<string, string>> impacts)
+        {
+            string createdBy = impacts.Count > 0 && impacts[0].ContainsKey("CreatedBy") ? impacts[0]["CreatedBy"] : Environment.UserName;
+            string createdOn = DateTime.Now.ToString("yyyy-MM-dd");
+            var seen = new HashSet<string>(impacts.Select(i => i.ContainsKey("Name") ? i["Name"] : ""));
+
+            // Add building-level energy benchmarks
+            var benchmarks = new[]
+            {
+                ("Energy-Benchmark-Heating", "Heating Energy", "120", "kWh/m²/yr", "Operation", "TM46 benchmark for heating energy consumption"),
+                ("Energy-Benchmark-Cooling", "Cooling Energy", "30", "kWh/m²/yr", "Operation", "TM46 benchmark for cooling energy consumption"),
+                ("Energy-Benchmark-Lighting", "Lighting Energy", "40", "kWh/m²/yr", "Operation", "TM46 benchmark for lighting energy consumption"),
+                ("Energy-Benchmark-DHW", "DHW Energy", "25", "kWh/m²/yr", "Operation", "TM46 benchmark for domestic hot water energy"),
+                ("Carbon-Benchmark-Operational", "Operational Carbon", "50", "kgCO2e/m²/yr", "Operation", "Operational carbon benchmark per CIBSE TM54"),
+                ("Carbon-Benchmark-Embodied", "Embodied Carbon", "500", "kgCO2e/m²", "Construction", "LETI 2030 embodied carbon target for new buildings"),
+                ("Water-Benchmark", "Water Consumption", "6", "m³/person/yr", "Operation", "BREEAM Wat 01 benchmark for water consumption"),
+                ("Waste-Benchmark", "Construction Waste", "3.2", "tonnes/100m²", "Construction", "BREEAM Wst 01 benchmark for construction waste")
+            };
+
+            foreach (var (name, impactType, value, unit, stage, desc) in benchmarks)
+            {
+                if (seen.Contains(name)) continue;
+                seen.Add(name);
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = name, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Environment", ["ImpactStage"] = stage,
+                    ["SheetName"] = "Facility", ["RowName"] = doc.ProjectInformation?.Name ?? "Project",
+                    ["Value"] = value, ["Unit"] = unit,
+                    ["LeadInTime"] = "", ["Duration"] = "60", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = unit, ["Description"] = desc
+                });
+            }
+
+            // Add lifecycle cost projections
+            var lifecycleCosts = new[]
+            {
+                ("Lifecycle-Maintenance", "Maintenance Cost", "25", "£/m²/yr", "Operation", "Annual planned maintenance cost benchmark"),
+                ("Lifecycle-Replacement", "Replacement Reserve", "15", "£/m²/yr", "Operation", "Annual lifecycle replacement reserve fund"),
+                ("Lifecycle-Energy", "Energy Cost", "18", "£/m²/yr", "Operation", "Annual energy cost benchmark (electricity + gas)"),
+                ("Lifecycle-Water", "Water Cost", "3", "£/m²/yr", "Operation", "Annual water and sewerage cost benchmark"),
+                ("Lifecycle-Insurance", "Insurance Cost", "5", "£/m²/yr", "Operation", "Building insurance cost benchmark"),
+                ("Lifecycle-TotalOpex", "Total Operational Cost", "66", "£/m²/yr", "Operation", "Total annual operational expenditure benchmark")
+            };
+
+            foreach (var (name, impactType, value, unit, stage, desc) in lifecycleCosts)
+            {
+                if (seen.Contains(name)) continue;
+                seen.Add(name);
+                impacts.Add(new Dictionary<string, string>
+                {
+                    ["Name"] = name, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
+                    ["ImpactType"] = "Economic", ["ImpactStage"] = stage,
+                    ["SheetName"] = "Facility", ["RowName"] = doc.ProjectInformation?.Name ?? "Project",
+                    ["Value"] = value, ["Unit"] = unit,
+                    ["LeadInTime"] = "", ["Duration"] = "60", ["LeadOutTime"] = "",
+                    ["ImpactUnit"] = unit, ["Description"] = desc
+                });
+            }
         }
     }
 
@@ -5342,7 +5459,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     outputDir = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                        OutputLocationHelper.GetOutputDirectory(doc),
                         $"STING_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
 
@@ -7406,6 +7523,641 @@ namespace StingTools.BIMManager
             if (phases.Any(p => p.Name.Contains("Technical") || p.Name.Contains("Stage 4"))) return 4;
             if (phases.Any(p => p.Name.Contains("Coordination") || p.Name.Contains("Stage 3"))) return 3;
             return 2; // Default to concept design
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  STICKY NOTES — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteCategoriesCommand : IExternalCommand
+    {
+        private static readonly string[] DefaultCategories = new[]
+        {
+            "Design Query", "Coordination", "QA", "Safety", "Cost",
+            "Snagging", "RFI", "Change Order", "General"
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load custom categories from config or use defaults
+                string catFile = BIMManagerEngine.GetBIMManagerFilePath(doc, "sticky_categories.json");
+                List<string> cats;
+                if (File.Exists(catFile))
+                {
+                    try { cats = JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(catFile)); }
+                    catch (Exception ex) { StingLog.Warn($"StickyCategories load failed: {ex.Message}"); cats = DefaultCategories.ToList(); }
+                }
+                else
+                    cats = DefaultCategories.ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Sticky Note Categories");
+                sb.AppendLine(new string('═', 40));
+                for (int i = 0; i < cats.Count; i++)
+                    sb.AppendLine($"  {i + 1}. {cats[i]}");
+
+                // Count notes per category
+                sb.AppendLine();
+                sb.AppendLine("Notes by Category:");
+                var allNotes = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                foreach (string cat in cats)
+                {
+                    int count = allNotes.Count(e =>
+                    {
+                        string note = ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT");
+                        return note.Contains($"[{cat}]");
+                    });
+                    if (count > 0)
+                        sb.AppendLine($"  {cat}: {count}");
+                }
+                sb.AppendLine($"\n  Total elements with notes: {allNotes.Count}");
+
+                TaskDialog.Show("STING Sticky Notes — Categories", sb.ToString());
+                StingLog.Info($"StickyCategories: {cats.Count} categories, {allNotes.Count} notes");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteCategoriesCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Summary dashboard: notes by category, author, status, linked elements.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteDashboardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                var allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                if (allElements.Count == 0)
+                {
+                    TaskDialog.Show("Sticky Notes Dashboard", "No sticky notes found in this project.");
+                    return Result.Succeeded;
+                }
+
+                var byCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var byDisc = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var el in allElements)
+                {
+                    string note = ParameterHelpers.GetString(el, "STING_STICKY_NOTE_TXT");
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (string.IsNullOrEmpty(disc)) disc = "Unassigned";
+
+                    // Extract category from note format: [Category] text
+                    string cat = "Uncategorised";
+                    int bracketStart = note.IndexOf('[');
+                    int bracketEnd = note.IndexOf(']');
+                    if (bracketStart >= 0 && bracketEnd > bracketStart)
+                        cat = note.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
+
+                    if (!byCategory.ContainsKey(cat)) byCategory[cat] = 0;
+                    byCategory[cat]++;
+                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
+                    byDisc[disc]++;
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Sticky Notes Dashboard — {allElements.Count} notes total");
+                sb.AppendLine(new string('═', 50));
+
+                sb.AppendLine("\nBy Category:");
+                foreach (var kv in byCategory.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Discipline:");
+                foreach (var kv in byDisc.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                TaskDialog.Show("STING Sticky Notes — Dashboard", sb.ToString());
+                StingLog.Info($"StickyDashboard: {allElements.Count} notes");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteDashboardCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Search/filter sticky notes by text, category, author, date range.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StickyNoteSearchCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                UIDocument uidoc = ctx.UIDoc;
+                Document doc = ctx.Doc;
+
+                var allNoted = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT")))
+                    .ToList();
+
+                if (allNoted.Count == 0)
+                {
+                    TaskDialog.Show("Sticky Note Search", "No sticky notes found.");
+                    return Result.Succeeded;
+                }
+
+                // Build searchable list
+                var items = allNoted.Select(e =>
+                {
+                    string note = ParameterHelpers.GetString(e, "STING_STICKY_NOTE_TXT");
+                    string tag = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                    string cat = e.Category?.Name ?? "Unknown";
+                    return $"[{e.Id}] {cat} — {tag} — {note}";
+                }).ToList();
+
+                var listItems = items.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Search Sticky Notes", "Type to search notes...",
+                    listItems, allowMultiSelect: true);
+
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                // Extract element IDs from selection
+                var selIds = new List<ElementId>();
+                foreach (var item in selected)
+                {
+                    string label = item.Label;
+                    int start = label.IndexOf('[') + 1;
+                    int end = label.IndexOf(']');
+                    if (start > 0 && end > start)
+                    {
+                        string idStr = label.Substring(start, end - start);
+                        if (long.TryParse(idStr, out long eid))
+                            selIds.Add(new ElementId(eid));
+                    }
+                }
+
+                if (selIds.Count > 0)
+                {
+                    uidoc.Selection.SetElementIds(selIds);
+                    TaskDialog.Show("Sticky Note Search",
+                        $"Selected {selIds.Count} elements matching search.");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StickyNoteSearchCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ISSUE TRACKER — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Filter issues by type, priority, status, assignee, discipline, date range.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueFilterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Filter", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Build filter options
+                var statuses = issues.Select(i => i["status"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+                var types = issues.Select(i => i["type"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+                var priorities = issues.Select(i => i["priority"]?.ToString() ?? "?").Distinct().OrderBy(s => s).ToList();
+
+                var filterItems = new List<string>();
+                filterItems.Add("── Filter by Status ──");
+                filterItems.AddRange(statuses.Select(s => $"Status: {s}"));
+                filterItems.Add("── Filter by Type ──");
+                filterItems.AddRange(types.Select(t => $"Type: {t}"));
+                filterItems.Add("── Filter by Priority ──");
+                filterItems.AddRange(priorities.Select(p => $"Priority: {p}"));
+
+                var filterListItems = filterItems.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Filter Issues", "Select filter criteria...",
+                    filterListItems, allowMultiSelect: true);
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                // Apply filters
+                var filtered = issues.AsEnumerable();
+                var selectedLabels = selected.Select(li => li.Label).ToList();
+                var selStatuses = selectedLabels.Where(s => s.StartsWith("Status: ")).Select(s => s.Substring(8)).ToHashSet();
+                var selTypes = selectedLabels.Where(s => s.StartsWith("Type: ")).Select(s => s.Substring(6)).ToHashSet();
+                var selPriorities = selectedLabels.Where(s => s.StartsWith("Priority: ")).Select(s => s.Substring(10)).ToHashSet();
+
+                if (selStatuses.Count > 0)
+                    filtered = filtered.Where(i => selStatuses.Contains(i["status"]?.ToString() ?? ""));
+                if (selTypes.Count > 0)
+                    filtered = filtered.Where(i => selTypes.Contains(i["type"]?.ToString() ?? ""));
+                if (selPriorities.Count > 0)
+                    filtered = filtered.Where(i => selPriorities.Contains(i["priority"]?.ToString() ?? ""));
+
+                var results = filtered.ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Filtered Issues: {results.Count} of {issues.Count}");
+                sb.AppendLine(new string('═', 50));
+                foreach (var issue in results)
+                {
+                    sb.AppendLine($"  {issue["id"]} [{issue["status"]}] {issue["priority"]} — {issue["title"]}");
+                }
+
+                TaskDialog.Show("STING Issue Filter", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueFilterCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Show issue timeline with status changes, comments and history.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueTimelineCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Timeline", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Build timeline sorted by date raised
+                var timeline = issues
+                    .OrderBy(i => i["date_raised"]?.ToString() ?? "")
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Issue Timeline");
+                sb.AppendLine(new string('═', 60));
+
+                foreach (var issue in timeline)
+                {
+                    string date = issue["date_raised"]?.ToString() ?? "Unknown";
+                    string id = issue["id"]?.ToString() ?? "?";
+                    string status = issue["status"]?.ToString() ?? "?";
+                    string title = issue["title"]?.ToString() ?? "";
+                    string due = issue["date_due"]?.ToString() ?? "";
+                    string closedDate = issue["date_closed"]?.ToString() ?? "";
+
+                    sb.AppendLine($"\n  {date} — {id} [{status}]");
+                    sb.AppendLine($"    {title}");
+                    if (!string.IsNullOrEmpty(due)) sb.AppendLine($"    Due: {due}");
+                    if (!string.IsNullOrEmpty(closedDate)) sb.AppendLine($"    Closed: {closedDate}");
+                }
+
+                TaskDialog td = new TaskDialog("STING Issue Timeline");
+                td.MainInstruction = $"Issue Timeline — {timeline.Count} issues";
+                td.MainContent = sb.ToString();
+                td.Show();
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueTimelineCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Issue analytics: by type, priority, status, discipline, overdue count.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueStatisticsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Statistics", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                var now = DateTime.Now;
+                int total = issues.Count;
+                int open = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "VOID");
+                int closed = issues.Count(i => i["status"]?.ToString() == "CLOSED");
+                int overdue = issues.Count(i =>
+                {
+                    string status = i["status"]?.ToString() ?? "";
+                    if (status == "CLOSED" || status == "VOID") return false;
+                    return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
+                });
+
+                var byType = issues.GroupBy(i => i["type"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byPriority = issues.GroupBy(i => i["priority"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var byStatus = issues.GroupBy(i => i["status"]?.ToString() ?? "?")
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Issue Statistics — {total} total");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"  Open: {open}  |  Closed: {closed}  |  Overdue: {overdue}");
+
+                sb.AppendLine("\nBy Type:");
+                foreach (var kv in byType.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Priority:");
+                foreach (var kv in byPriority.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                sb.AppendLine("\nBy Status:");
+                foreach (var kv in byStatus.OrderByDescending(x => x.Value))
+                    sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+                if (overdue > 0)
+                {
+                    sb.AppendLine($"\nOverdue Issues ({overdue}):");
+                    foreach (var issue in issues.Where(i =>
+                    {
+                        string status = i["status"]?.ToString() ?? "";
+                        if (status == "CLOSED" || status == "VOID") return false;
+                        return DateTime.TryParse(i["date_due"]?.ToString(), out DateTime due) && due < now;
+                    }))
+                    {
+                        sb.AppendLine($"  {issue["id"]} — {issue["title"]} (due: {issue["date_due"]})");
+                    }
+                }
+
+                TaskDialog.Show("STING Issue Statistics", sb.ToString());
+                StingLog.Info($"IssueStatistics: {total} total, {open} open, {overdue} overdue");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueStatisticsCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Bulk update status/priority/assignee on multiple issues.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueBatchUpdateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Batch Update", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                // Select issues to update
+                var issueItems = issues.Select(i =>
+                    $"{i["id"]} [{i["status"]}] {i["priority"]} — {i["title"]}").ToList();
+
+                var issueListItems = issueItems.Select(s => new StingListPicker.ListItem { Label = s }).ToList();
+                var selected = StingListPicker.Show("Select Issues to Update", "Select issues...",
+                    issueListItems, allowMultiSelect: true);
+                if (selected == null || selected.Count == 0) return Result.Cancelled;
+
+                var selectedIds = selected.Select(li => li.Label.Split(' ')[0]).ToHashSet();
+
+                // Choose update action
+                var actionDlg = new TaskDialog("Batch Update Action");
+                actionDlg.MainInstruction = $"Update {selected.Count} issues";
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Close Issues", "Set status to CLOSED");
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Set In Progress", "Set status to IN_PROGRESS");
+                actionDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Escalate Priority", "Set priority to HIGH");
+                actionDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var action = actionDlg.Show();
+                int updated = 0;
+
+                foreach (var issue in issues)
+                {
+                    string id = issue["id"]?.ToString() ?? "";
+                    if (!selectedIds.Contains(id)) continue;
+
+                    switch (action)
+                    {
+                        case TaskDialogResult.CommandLink1:
+                            issue["status"] = "CLOSED";
+                            issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd");
+                            updated++;
+                            break;
+                        case TaskDialogResult.CommandLink2:
+                            issue["status"] = "IN_PROGRESS";
+                            updated++;
+                            break;
+                        case TaskDialogResult.CommandLink3:
+                            issue["priority"] = "HIGH";
+                            updated++;
+                            break;
+                        default:
+                            return Result.Cancelled;
+                    }
+                }
+
+                if (updated > 0)
+                {
+                    BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                    TaskDialog.Show("Issue Batch Update", $"Updated {updated} issues.");
+                    StingLog.Info($"IssueBatchUpdate: {updated} issues updated");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueBatchUpdateCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Export all issues to CSV with full field detail.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IssueExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+
+                if (issues.Count == 0)
+                {
+                    TaskDialog.Show("Issue Export", "No issues found.");
+                    return Result.Succeeded;
+                }
+
+                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Issues", ".csv");
+
+                var lines = new List<string>();
+                lines.Add("IssueId,Type,Priority,Status,Title,Description,AssignedTo,Discipline,DateRaised,DateDue,DateClosed,View,ElementCount");
+
+                foreach (var issue in issues)
+                {
+                    var row = new List<string>
+                    {
+                        QuoteCsv(issue["id"]?.ToString() ?? ""),
+                        QuoteCsv(issue["type"]?.ToString() ?? ""),
+                        QuoteCsv(issue["priority"]?.ToString() ?? ""),
+                        QuoteCsv(issue["status"]?.ToString() ?? ""),
+                        QuoteCsv(issue["title"]?.ToString() ?? ""),
+                        QuoteCsv(issue["description"]?.ToString() ?? ""),
+                        QuoteCsv(issue["assigned_to"]?.ToString() ?? ""),
+                        QuoteCsv(issue["discipline"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_raised"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_due"]?.ToString() ?? ""),
+                        QuoteCsv(issue["date_closed"]?.ToString() ?? ""),
+                        QuoteCsv(issue["view_name"]?.ToString() ?? ""),
+                        (issue["element_ids"] as Newtonsoft.Json.Linq.JArray)?.Count.ToString() ?? "0"
+                    };
+                    lines.Add(string.Join(",", row));
+                }
+
+                string dir = Path.GetDirectoryName(outputPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                File.WriteAllLines(outputPath, lines);
+
+                TaskDialog td = new TaskDialog("STING Issue Export");
+                td.MainInstruction = "Issue Export Complete";
+                td.MainContent = $"Exported {issues.Count} issues to:\n{outputPath}";
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open file location");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Close");
+                var tdResult = td.Show();
+                if (tdResult == TaskDialogResult.CommandLink1)
+                {
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
+                    catch (Exception ex) { StingLog.Warn($"Failed to open explorer: {ex.Message}"); }
+                }
+
+                StingLog.Info($"IssueExport: {issues.Count} issues → {outputPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("IssueExportCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+
+        private static string QuoteCsv(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "\"\"";
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
         }
     }
 

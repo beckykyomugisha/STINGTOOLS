@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.Tags
 {
@@ -47,7 +48,7 @@ namespace StingTools.Tags
             }
 
             // Interactive dialog with search, select, cancel, OK
-            var optionItems = options.Select(o => new Select.StingListPicker.ListItem
+            var optionItems = options.Select(o => new StingListPicker.ListItem
             {
                 Label = o,
                 Detail = "",
@@ -55,7 +56,7 @@ namespace StingTools.Tags
             }).ToList();
 
             string scopeLabel = usingSelection ? "Selected elements" : "All taggable in view";
-            var picked = Select.StingListPicker.Show(
+            var picked = StingListPicker.Show(
                 $"Set {label}",
                 $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
                 optionItems, allowMultiSelect: false);
@@ -163,8 +164,8 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
-            // Use shared sequence counter scan (continues from highest existing SEQ per group)
-            var maxSeq = TagConfig.GetExistingSequenceCounters(doc);
+            // Use canonical BuildTagIndexAndCounters (merges sidecar data for session continuity)
+            var (_, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int assigned = 0;
             using (Transaction tx = new Transaction(doc, "STING Assign Numbers"))
@@ -287,10 +288,12 @@ namespace StingTools.Tags
                     if (elem == null) continue;
 
                     // FIX-B01: Delegate to unified pipeline (handles all 11 canonical steps)
+                    // overwrite: false — preserves manually-set token values;
+                    // PopulateAll only fills empty tokens, respecting user edits
                     bool ok = TagPipelineHelper.RunFullPipeline(
                         doc, elem, popCtx, existingTags, seqCounters,
                         formulas, gridLines,
-                        overwrite: true, skipComplete: false,
+                        overwrite: false, skipComplete: false,
                         collisionMode: TagCollisionMode.AutoIncrement);
 
                     if (ok) built++;

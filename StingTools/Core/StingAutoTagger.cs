@@ -301,7 +301,7 @@ namespace StingTools.Core
                                     continue;
                             }
                         }
-                        catch { /* advisory */ }
+                        catch (Exception wsEx) { StingLog.Warn($"AutoTagger workset check: {wsEx.Message}"); }
                     }
 
                     _pendingQueue.Enqueue(id);
@@ -478,7 +478,7 @@ namespace StingTools.Core
                         StingLog.Error($"StingAutoTagger: auto-disabling after {_consecutiveFailures} " +
                             "consecutive failures");
                         WasAutoDisabled = true;
-                        try { Toggle(); } catch { _enabled = false; }
+                        try { Toggle(); } catch (Exception tEx) { _enabled = false; StingLog.Warn($"AutoTagger toggle on restore: {tEx.Message}"); }
 
                         try
                         {
@@ -936,7 +936,7 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                            catch { /* spatial detection is best-effort */ }
+                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
                         }
 
                         if (isStale)

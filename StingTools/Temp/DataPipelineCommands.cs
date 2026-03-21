@@ -3955,9 +3955,7 @@ namespace StingTools.Temp
             ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
 
             // ── Save ──
-            string defaultDir = Path.GetDirectoryName(doc.PathName);
-            if (string.IsNullOrEmpty(defaultDir))
-                defaultDir = StingToolsApp.DataPath ?? Path.GetTempPath();
+            string defaultDir = OutputLocationHelper.GetOutputDirectory(doc);
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
             string fileName = $"STING_LINK_{safeTitle}_{timestamp}.xlsx";

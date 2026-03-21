@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **99 source files** (96 C# + 3 XAML, ~120,900 lines of code) across 10 directories
-- **515 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **119 source files** (116 C# + 3 XAML, ~134,400 lines of code) across 10 directories
+- **539 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -61,14 +61,32 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + project wizard + theme engine (7 C# files + 3 XAML, ~12,770 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (24 C# files + 3 XAML, ~20,700 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 590+ button tags to 376 command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
-    │   ├── ThemeManager.cs             # WPF theme engine — Dark/Light/Grey/Corporate themes with 13 color resource keys
+    │   ├── StingModePicker.cs          # Reusable WPF mode picker dialog for command mode selection
+    │   ├── StingWizardDialog.cs        # Base multi-page WPF wizard framework (448 lines) — reusable page navigation, validation, summary
+    │   ├── StingDataGridDialog.cs      # Reusable WPF data grid dialog for tabular data display with search/filter
+    │   ├── StingExportDialog.cs        # BIMLink-style export dialog with column mapping, preview, and format selection
+    │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, 7 operations
+    │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with 11-operator condition builder
+    │   ├── BulkOperationDialog.cs      # Unified WPF dialog for bulk parameter operations (replaces 5-step TaskDialog)
+    │   ├── CombineConfigDialog.cs      # Unified WPF dialog for Combine Parameters configuration
+    │   ├── HeadingStyleDialog.cs       # Unified WPF dialog for TAG7 heading style
+    │   ├── COBieExportWizard.cs        # Multi-page COBie V2.4 export wizard with preset selection and sheet configuration
+    │   ├── ExcelExchangeWizard.cs      # Excel import/export wizard with column mapping and validation
+    │   ├── IssueWizard.cs              # BIM issue creation wizard with BCF integration
+    │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
+    │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
+    │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
+    │   ├── DocAutomationDialog.cs      # 4-tab unified doc automation dialog (Sheets/Views/Viewports/Export)
+    │   ├── ModelCreationDialog.cs      # Unified model creation dialog with element type selector + dynamic options
+    │   ├── ScheduleWizardDialog.cs     # Unified schedule wizard dialog (create/populate/audit/export/manage)
+    │   ├── ThemeManager.cs             # WPF theme engine — Light/Warm/Cool/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
@@ -82,7 +100,14 @@ STINGTOOLS/
     │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, handover manual
     │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign, MagicRename, ViewTabColour
     │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (11 sheets), maintenance schedule, O&M manual, asset health report, space handover report
-    │   └── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
+    │   ├── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
+    │   ├── SheetManagerEngine.cs       # Core sheet manager: drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange
+    │   ├── SheetManagerEngineExt.cs    # Extended: MaxRects bin packing, layout presets (JSON), viewport type rules, batch clone/renumber, overflow handling
+    │   ├── SheetManagerCommands.cs     # 8 commands: SheetManager, AutoLayout, CloneSheet, PlaceUnplaced, OptimalScale, SheetAudit, BatchArrange, MoveViewport
+    │   ├── SheetManagerDialog.cs       # WPF dual-panel sheet manager dialog with TreeView navigation and context-sensitive detail views
+    │   ├── SheetSetCommands.cs         # 8 commands: MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchClone, BatchRenumber, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow
+    │   ├── SheetTemplateEngine.cs      # Sheet templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export
+    │   └── SheetTemplateCommands.cs    # 8 commands: CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister
     │
     ├── Tags/                           # Tagging commands (28 files, ~140+ commands)
     │   ├── AutoTagCommand.cs           # Tag elements in active view + TagNewOnly
@@ -251,11 +276,39 @@ STINGTOOLS/
 | Command | Class | Transaction | Description |
 |---------|-------|-------------|-------------|
 | Duplicate View | `Docs.DuplicateViewCommand` | Manual | Duplicate view with Detailing, View-only, or Dependent mode |
-| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Bulk rename views with pattern templates |
+| Batch Rename Views | `Docs.BatchRenameViewsCommand` | Manual | Single-step dialog with category/family filters, 7 operations, live preview |
 | Copy View Settings | `Docs.CopyViewSettingsCommand` | Manual | Copy filters, graphic overrides, and template from source view |
 | Auto-Place Viewports | `Docs.AutoPlaceViewportsCommand` | Manual | Auto-place and scale viewports on sheets |
 | Crop to Content | `Docs.CropToContentCommand` | Manual | Smart crop region generation based on element extents |
 | Batch Align Viewports | `Docs.BatchAlignViewportsCommand` | Manual | Multi-view alignment on sheets |
+
+**Sheet Manager pulldown (24 commands):**
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Sheet Manager | `Docs.SheetManagerCommand` | Manual | Open dual-panel WPF sheet manager dialog |
+| Auto Layout | `Docs.AutoLayoutCommand` | Manual | Auto-arrange viewports using shelf-packing |
+| Clone Sheet | `Docs.CloneSheetCommand` | Manual | Clone sheet with viewports |
+| Place Unplaced | `Docs.PlaceUnplacedViewsCommand` | Manual | Place unplaced views on sheets |
+| Optimal Scale | `Docs.OptimalScaleCommand` | Manual | Calculate optimal viewport scale |
+| Sheet Audit | `Docs.SheetAuditCommand` | ReadOnly | Audit sheets for issues |
+| Batch Arrange | `Docs.BatchArrangeCommand` | Manual | Auto-arrange across multiple sheets |
+| Move Viewport | `Docs.MoveViewportCommand` | Manual | Move viewport between sheets |
+| MaxRects Layout | `Docs.MaxRectsLayoutCommand` | Manual | Layout using MaxRects bin packing |
+| Save Layout Preset | `Docs.SaveLayoutPresetCommand` | ReadOnly | Save layout as named preset |
+| Apply Layout Preset | `Docs.ApplyLayoutPresetCommand` | Manual | Apply saved layout preset |
+| Batch Clone | `Docs.BatchCloneSheetsCommand` | Manual | Clone multiple sheets |
+| Batch Renumber | `Docs.BatchRenumberSheetsCommand` | Manual | Two-pass renumber within discipline |
+| Auto VP Types | `Docs.AutoAssignVPTypesCommand` | Manual | Auto-assign viewport types |
+| Export Sheet Set | `Docs.ExportSheetSetCommand` | ReadOnly | Export sheet set to CSV |
+| Place With Overflow | `Docs.PlaceWithOverflowCommand` | Manual | Place views with overflow sheets |
+| Create From Template | `Docs.CreateFromTemplateCommand` | Manual | Create sheet from template |
+| Save Template | `Docs.SaveSheetTemplateCommand` | ReadOnly | Save sheet as template |
+| ISO Compliance | `Docs.SheetComplianceCheckCommand` | ReadOnly | ISO 19650 compliance audit |
+| Grid Align | `Docs.GridAlignViewportsCommand` | Manual | Snap viewports to grid |
+| Align Edges | `Docs.AlignViewportEdgesCommand` | Manual | Align viewport edges |
+| Distribute | `Docs.DistributeViewportsCommand` | Manual | Distribute viewports evenly |
+| Batch Print | `Docs.BatchPrintSheetsCommand` | ReadOnly | Export sheets to PDF |
+| Sheet Register | `Docs.ExportSheetRegisterCommand` | ReadOnly | Export sheet register CSV |
 
 ### Tags Panel (3 buttons + More/Setup/Tokens/QA pulldowns)
 | Button | Command Class | Transaction | Description |
@@ -425,6 +478,13 @@ STINGTOOLS/
 | `Docs/ViewAutomationCommands.cs` | 8 (DuplicateView, BatchRename, CopySettings, AutoPlace, CropToContent, BatchAlign, MagicRename, ViewTabColour) | 1,200 |
 | `Docs/HandoverExportCommands.cs` | 5+ (COBie 2.4 export, maintenance schedule, O&M manual, asset health report, space handover) | 1,316 |
 | `Docs/JournalParserCommand.cs` | 1 (Revit journal diagnostics: error/crash/command/memory analysis) | 494 |
+| `Docs/SheetManagerEngine.cs` | 0 (core engine: drawable zone, scale calc, shelf packing, collision, viewport placement, sheet cloning, auto-arrange) | 1,041 |
+| `Docs/SheetManagerEngineExt.cs` | 0 (MaxRects packer, layout presets, viewport type rules, batch clone/renumber, overflow) | 943 |
+| `Docs/SheetManagerCommands.cs` | 8 (SheetManager, AutoLayout, CloneSheet, PlaceUnplaced, OptimalScale, SheetAudit, BatchArrange, MoveViewport) | 849 |
+| `Docs/SheetManagerDialog.cs` | 0 (WPF dual-panel sheet manager dialog with TreeView and detail views) | 830 |
+| `Docs/SheetSetCommands.cs` | 8 (MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchClone, BatchRenumber, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow) | 548 |
+| `Docs/SheetTemplateEngine.cs` | 0 (sheet templates, ISO 19650 compliance, grid alignment, distribution, PDF export) | 858 |
+| `Docs/SheetTemplateCommands.cs` | 8 (CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister) | 419 |
 | `Tags/AutoTagCommand.cs` | 2 (AutoTag, TagNewOnly) | 355 |
 | `Tags/BatchTagCommand.cs` | 3 (BatchTag, TagFormatMigration, TagChanged) | 621 |
 | `Tags/TagAndCombineCommand.cs` | 1 | 235 |
@@ -491,12 +551,27 @@ STINGTOOLS/
 | `UI/StingDockPanelProvider.cs` | 0 (IDockablePaneProvider) | 37 |
 | `UI/StingProgressDialog.cs` | 0 (reusable modeless WPF progress window) | 238 |
 | `UI/StingListPicker.cs` | 0 (reusable WPF list picker dialog with search/filter) | 323 |
-| `UI/ThemeManager.cs` | 0 (WPF theme engine — Dark/Light/Grey/Corporate themes) | 149 |
+| `UI/StingModePicker.cs` | 0 (reusable WPF mode picker dialog) | 200 |
+| `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
+| `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
+| `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
+| `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
+| `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
+| `UI/BulkOperationDialog.cs` | 0 (unified bulk parameter operations dialog) | 891 |
+| `UI/CombineConfigDialog.cs` | 0 (combine parameters configuration dialog) | 551 |
+| `UI/HeadingStyleDialog.cs` | 0 (TAG7 heading style dialog) | 391 |
+| `UI/COBieExportWizard.cs` | 0 (multi-page COBie V2.4 export wizard) | 521 |
+| `UI/ExcelExchangeWizard.cs` | 0 (Excel import/export wizard) | 336 |
+| `UI/IssueWizard.cs` | 0 (BIM issue creation wizard with BCF) | 544 |
+| `UI/SmartPlacementWizard.cs` | 0 (smart tag placement configuration wizard) | 267 |
+| `UI/ThemeManager.cs` | 0 (WPF theme engine — Light/Warm/Cool/Corporate themes) | 149 |
 | `UI/ProjectSetupWizard.xaml.cs` | 0 (WPF wizard code-behind: 7 pages, presets, discipline config) | 1,124 |
+| `UI/BEPWizard.xaml.cs` | 0 (BEP generation wizard code-behind) | 300 |
 | `UI/StingDockPanel.xaml` | — (WPF markup, 9-tab panel with ~610 buttons) | 2,949 |
 | `UI/ProjectSetupWizard.xaml` | — (WPF markup, 7-page wizard dialog) | 793 |
+| `UI/BEPWizard.xaml` | — (WPF markup, BEP wizard dialog) | 400 |
 | `UI/StingDockPanel_TagStudio.xaml` | — (WPF markup, Tag Studio compass/controls) | 1,376 |
-| **Total** | **~515 commands** | **~120,900** |
+| **Total** | **~539 commands** | **~134,400** |
 
 ## Core Classes
 
@@ -683,6 +758,10 @@ These `internal static` classes provide shared logic used by multiple commands w
 | Helper Class | Location | Purpose |
 |--------------|----------|---------|
 | `DocAutomationHelper` | `Docs/DocAutomationExtCommands.cs` | Shared documentation automation engine: discipline defs, sheet numbering, 7-layer template matching, view creation by family, scope box utilities, name caching |
+| `SheetManagerEngine` | `Docs/SheetManagerEngine.cs` | Core sheet manager: drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| `SheetManagerEngineExt` | `Docs/SheetManagerEngineExt.cs` | MaxRects bin packing (BSSF), layout presets (JSON), viewport type rules, batch clone/renumber, overflow handling |
+| `SheetTemplateEngine` | `Docs/SheetTemplateEngine.cs` | Sheet templates (6 built-in), ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| `SheetManagerDialog` | `Docs/SheetManagerDialog.cs` | Dual-panel WPF sheet manager dialog: TreeView navigation (sheets by discipline), context-sensitive detail panel, search/filter |
 | `CategorySelector` | `Select/CategorySelectCommands.cs` | `SelectByCategory()` — shared logic for all 15 category selection commands |
 | `TokenWriter` | `Tags/TokenWriterCommands.cs` | Encapsulates LOC/ZONE/STATUS token writing and number assignment logic |
 | `CompoundTypeCreator` | `Temp/FamilyCommands.cs` | Creates compound wall/floor/ceiling/roof/duct/pipe types from CSV data; `ElementKind` enum; applies material properties |
@@ -714,6 +793,18 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `RevisionEngine` | `BIMManager/RevisionManagementCommands.cs` | Revision management: tag snapshot/compare, revision sequence tracking, change delta computation, element tracking across revisions |
 | `OutputLocationHelper` | `Core/OutputLocationHelper.cs` | Centralized export path management: 4-level fallback chain (preferred → project → documents → temp), timestamped paths, config persistence |
 | `StingListPicker` | `UI/StingListPicker.cs` | Reusable WPF list picker dialog: search/filter, single/multi-select, corporate styling, replaces paginated TaskDialog workflows |
+| `BatchRenameDialog` | `UI/BatchRenameDialog.cs` | Single-step WPF batch rename dialog: category/family/type filters, 7 rename operations (find/replace with regex, prefix/suffix, case, sequential, level standardisation), live before/after preview with green highlight, Select All/None |
+| `ParameterLookupDialog` | `UI/ParameterLookupDialog.cs` | Enhanced WPF parameter lookup: category picker, searchable parameter list with priority sorting, value display with element counts, 11-operator condition builder, Select Matching/Color By Value/Apply Filter actions |
+| `BulkOperationDialog` | `UI/BulkOperationDialog.cs` | Unified WPF dialog for bulk parameter operations: operation selector, dynamic token/value tile picker, element preview |
+| `CombineConfigDialog` | `UI/CombineConfigDialog.cs` | Unified WPF dialog for Combine Parameters: mode selector, searchable container group tree with checkbox multi-select |
+| `HeadingStyleDialog` | `UI/HeadingStyleDialog.cs` | Unified WPF dialog for TAG7 heading style: 4 visual style cards with live text preview |
+| `COBieExportWizard` | `UI/COBieExportWizard.cs` | Multi-page COBie V2.4 export wizard with preset selection and sheet configuration |
+| `ExcelExchangeWizard` | `UI/ExcelExchangeWizard.cs` | Excel import/export wizard with column mapping and validation |
+| `IssueWizard` | `UI/IssueWizard.cs` | BIM issue creation wizard with BCF integration |
+| `SmartPlacementWizard` | `UI/SmartPlacementWizard.cs` | Smart tag placement configuration wizard |
+| `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
+| `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
+| `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
@@ -842,7 +933,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 |-----|---------|---------------------|
 | SELECT | Category selectors, state selectors, spatial selectors, bulk parameter write | Select |
 | ORGANISE | Tag operations, leader management, analysis/QA, annotation colors, tag appearance | Organise + Tags QA |
-| DOCS | Sheet/view organization, viewports, document automation | Docs |
+| DOCS | Sheet/view organization, viewports, document automation, sheet manager (24 commands), templates, ISO compliance | Docs |
 | TEMP | Materials, families, schedules, template setup, data pipeline | Temp |
 | CREATE | Tagging commands, token writers, combine, setup, legends | Tags |
 | VIEW | View templates, template manager, styles, presentation modes | Temp Templates |
@@ -897,6 +988,65 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 | Clone Template | `CloneTemplateCommand` | Manual | Deep clone template with VG, filters, and overrides |
 | Batch VG Reset | `BatchVGResetCommand` | Manual | Reset VG settings across multiple views |
 | Family Parameter Processor | `FamilyParameterProcessorCommand` | Manual | Batch process .rfa family files to add/update shared parameters |
+
+## Sheet Manager System
+
+`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` (7 files, ~4,488 lines) provides comprehensive automated sheet and viewport management with 24 commands across 3 phases.
+
+### Architecture
+
+| Component | File | Lines | Description |
+|-----------|------|-------|-------------|
+| Core Engine | `SheetManagerEngine.cs` | 1,041 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| Extended Engine | `SheetManagerEngineExt.cs` | 943 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
+| Template Engine | `SheetTemplateEngine.cs` | 858 | 6 built-in sheet templates, create/save templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| WPF Dialog | `SheetManagerDialog.cs` | 830 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
+| Phase 1 Commands | `SheetManagerCommands.cs` | 849 | 8 commands for core sheet management operations |
+| Phase 2 Commands | `SheetSetCommands.cs` | 548 | 8 commands for advanced layout, presets, and batch operations |
+| Phase 3 Commands | `SheetTemplateCommands.cs` | 419 | 8 commands for templates, compliance, alignment, and export |
+
+### Sheet Manager Commands (24)
+
+| Command | Class | Transaction | Description |
+|---------|-------|-------------|-------------|
+| Sheet Manager | `SheetManagerCommand` | Manual | Open dual-panel WPF sheet manager dialog |
+| Auto Layout | `AutoLayoutCommand` | Manual | Auto-arrange viewports using shelf-packing algorithm |
+| Clone Sheet | `CloneSheetCommand` | Manual | Clone sheet with viewports (delete+recreate pattern) |
+| Place Unplaced | `PlaceUnplacedViewsCommand` | Manual | Place unplaced views on new or existing sheets |
+| Optimal Scale | `OptimalScaleCommand` | Manual | Calculate optimal viewport scale for drawable zone |
+| Sheet Audit | `SheetAuditCommand` | ReadOnly | Audit sheets for empty/missing viewports |
+| Batch Arrange | `BatchArrangeCommand` | Manual | Auto-arrange viewports across multiple sheets |
+| Move Viewport | `MoveViewportCommand` | Manual | Move viewport between sheets (delete+recreate) |
+| MaxRects Layout | `MaxRectsLayoutCommand` | Manual | Layout viewports using MaxRects bin packing (BSSF) |
+| Save Layout Preset | `SaveLayoutPresetCommand` | ReadOnly | Save current sheet layout as named JSON preset |
+| Apply Layout Preset | `ApplyLayoutPresetCommand` | Manual | Apply saved layout preset to active sheet |
+| Batch Clone | `BatchCloneSheetsCommand` | Manual | Clone multiple sheets at once |
+| Batch Renumber | `BatchRenumberSheetsCommand` | Manual | Two-pass renumber sheets within discipline groups |
+| Auto VP Types | `AutoAssignVPTypesCommand` | Manual | Auto-assign viewport types by 7 built-in rules |
+| Export Sheet Set | `ExportSheetSetCommand` | ReadOnly | Export sheet set to CSV |
+| Place With Overflow | `PlaceWithOverflowCommand` | Manual | Place views with auto-overflow to continuation sheets |
+| Create From Template | `CreateFromTemplateCommand` | Manual | Create sheet from built-in or saved template |
+| Save Sheet Template | `SaveSheetTemplateCommand` | ReadOnly | Save current sheet as reusable template |
+| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | ISO 19650 sheet compliance audit (10 rules) |
+| Grid Align | `GridAlignViewportsCommand` | Manual | Snap viewport centres to alignment grid |
+| Align Edges | `AlignViewportEdgesCommand` | Manual | Align viewport edges (left/right/top/bottom/center) |
+| Distribute | `DistributeViewportsCommand` | Manual | Distribute viewports evenly across sheet |
+| Batch Print | `BatchPrintSheetsCommand` | ReadOnly | Export sheets to PDF (all/discipline/selection) |
+| Sheet Register | `ExportSheetRegisterCommand` | ReadOnly | Export comprehensive sheet register CSV with compliance |
+
+### Key Engine Capabilities
+
+- **Drawable zone detection**: Finds usable area within title block (excluding revision schedule, title strip)
+- **Shelf packing**: Row-based bin packing for auto-layout with configurable margins
+- **MaxRects packing**: Best Short Side Fit heuristic for optimal space utilisation
+- **Collision detection**: 2D AABB overlap checking between viewports
+- **Layout presets**: 6 built-in presets (Single View, Side by Side, Stacked, Plan+2 Sections, 4-Up Grid, Plan+Legend+Detail) + user-saved JSON presets
+- **Sheet templates**: 6 built-in templates (Single Plan, Plan+Sections, Elevations 4-Up, MEP Plan, Detail Sheet, Coordination Sheet) with normalised slot positions
+- **ISO 19650 compliance**: 10 rules (empty number/name, duplicates, format, title block, viewport count, case, special chars)
+- **Grid alignment**: Configurable grid with snap-to-nearest for consistent viewport positioning
+- **Edge alignment**: 6 modes (left, right, top, bottom, center horizontal, center vertical)
+- **Batch PDF export**: By scope (all/discipline/selection) with sanitised filenames
+- **Two-pass rename**: Avoids Revit sheet number conflicts during batch renumbering
 
 ## Model Auto-Modeling Engine
 
@@ -1733,6 +1883,93 @@ view.DisableTemporaryViewMode(TemporaryViewMode.TemporaryViewProperties);
 320. **Selection scope consistency** — `SelectEmptyMarkCommand`, `SelectPinnedCommand`, and `SelectUnpinnedCommand` now use `SelectionScopeHelper.GetCollector()` to honour project/view scope toggle, matching `SelectUntaggedCommand`/`SelectTaggedCommand` behaviour.
 321. **SmartOrganise dispatch differentiation** — OrgQuick/OrgDeep/OrgAnneal buttons now set `ExtraParam("ArrangeMode")` before dispatching to `ArrangeTagsCommand`. LeaderLength025/05/1 buttons set `ExtraParam("LeaderLength")` before `SnapLeaderElbowCommand`.
 322. **Redundant double operations removed** — Eliminated duplicate `SaveSeqSidecar` + `InvalidateCache` + `InvalidateContext` calls in: ReTagCommand, BulkRetag (StateSelectCommands), BatchSystemPushCommand, FullAutoPopulateCommand. Each had 2 consecutive identical cleanup blocks from overlapping fix phases.
+
+#### Completed (Phase 33 — Enhanced Batch Rename & Parameter Lookup Dialogs)
+
+323. **BatchRenameDialog** — `UI/BatchRenameDialog.cs` (690 lines): New single-step WPF batch rename dialog replacing the 4-step `StingListPicker` flow. Features: category/family/type filter dropdowns, 7 rename operations (Find & Replace with regex, Add Prefix/Suffix, Change Case, Sequential Number, Standardise Levels, Remove Copy suffix, Remove prefix up to dash), live before/after preview with green highlight for changes and strikethrough on originals, Select All/None buttons, Ctrl+Enter shortcut.
+324. **ParameterLookupDialog** — `UI/ParameterLookupDialog.cs` (590 lines): New enhanced WPF parameter lookup dialog replacing the broken inline condition system. Features: category picker dropdown, searchable parameter list with priority sorting (STING params highlighted), value display showing distinct values with element counts sorted by frequency, 11-operator condition builder (contains, equals, not equals, starts with, ends with, >, <, >=, <=, is empty, is not empty), live match count, double-click condition removal. Action buttons: Select Matching (sets Revit selection), Color By Value (delegates to ColorByParameter), Apply Filter.
+325. **BatchRenameViewsCommand unified** — Replaced 4-step `StingListPicker` flow (category → items → operation → input) with single `BatchRenameDialog.Show()` call. Now loads ALL 12 category types (views, sheets, schedules, families, types, line styles, fill patterns, materials, levels, grids, templates, worksets) simultaneously with category/family filtering in the dialog.
+326. **MagicRenameCommand unified** — Replaced 3-step TaskDialog flow (element type → rename mode → parameters) with single `BatchRenameDialog.Show()` call. Now loads Views, Sheets, Rooms, and Family Types simultaneously with live preview.
+327. **Parameter lookup dispatch unified** — All 7 dispatch entries (ParamLookupRefresh, RefreshParamList, CondAdd, CondRemove, CondClear, CondPreview, CondApply) now route to `OpenParameterLookupDialog()` which uses `ParameterLookupDialog.Show()` with Revit API callbacks via `ColorHelper.GetParameterValue()` for accurate instance+type parameter reading. Legacy inline condition system (`_conditions` list, `GetConditionMatches`) removed.
+
+#### Known Gaps — Tagging Pipeline Deep Review (Phase 34)
+
+Critical review of the tagging workflow identified the following logic, automation, and flexibility gaps across tagging, BIM/BEP/COBie systems:
+
+**Critical Priority:**
+
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| GAP-001 | WriteContainers in RunFullPipeline | `ParameterHelpers.cs` | **DONE** — `WriteContainers` retry call added at lines 2804-2811 after `BuildAndWriteTag`, ensuring all 53 containers are written even if `BuildAndWriteTag` only writes TAG1. |
+| GAP-008 | PreTagAudit token validation | `PreTagAuditCommand.cs` | **DONE** — Phase 36: Predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) now validated against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes reported as `ISO_PREDICTED_TOKEN` audit issues with grouped counts in report. |
+| ERR-002 | Read-only parameter binding | `ParameterHelpers.cs` | **DONE** — Phase 35: `SetString` logs first 5 + every 100th read-only skip with `_readOnlySkipCount` throttle. `ResetReadOnlySkipCount()` for batch operation boundaries. |
+
+**High Priority:**
+
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| GAP-002 | TOKEN_LOCK_TXT timing | `ParameterHelpers.cs` | **DONE** — Lock snapshot taken after `TypeTokenInherit` (line 2665), restore runs AFTER both `CategoryForceSys` and `CategoryTokenOverrides` (line 2727-2748). Locked tokens are correctly restored after all overrides. |
+| GAP-006 | Formula context timing | `FormulaEvaluatorCommand.cs` | **By design** — Formulas intentionally evaluate post-population state so they can reference derived token values (DISC, SYS, etc.). NativeParamMapper runs before formulas, providing Revit native values. This is the correct order: raw data → token population → native mapping → formula evaluation. |
+| ERR-003 | Collision detection atomicity | `TagConfig.cs` | **Accepted risk** — In worksharing environments, tag index is built at batch start. Collision detection is best-effort; Revit's own worksharing conflict resolution handles multi-user scenarios. Adding distributed locking would require a central server, which is outside the plugin's scope. |
+
+**Medium Priority:**
+
+| ID | Gap | Location | Status |
+|----|-----|----------|--------|
+| FLEX-001 | No custom token validators | `TagConfig.cs` | **DONE** — Phase 35: `CUSTOM_VALID_DISC/SYS/FUNC/LOC/ZONE` arrays in `project_config.json` merged with built-in ISO 19650 code lists. |
+| FLEX-003 | No post-population hooks | `ParameterHelpers.cs` | **Mitigated** — `CATEGORY_TOKEN_OVERRIDES` in `project_config.json` provides per-category token overrides without source code changes. `CATEGORY_FORCE_SYS` provides SYS overrides. For PROD rules, `GetFamilyAwareProdCode()` handles 35+ family-name patterns. |
+| FLEX-005 | SEQ counter isolation | `TagConfig.cs` | **DONE** — Phase 35: `BuildAndWriteTag` tracks `preIncrementValue` and rolls back on TAG1 write failure. Sidecar persistence only saves after successful commit. |
+| HC-001 | Hardcoded 10 ft proximity | `ParameterHelpers.cs` | **DONE** — Phase 35: `TagConfig.ProximityRadiusFt` configurable via `PROXIMITY_RADIUS_FT` config key. |
+| HC-003 | Hardcoded 500-element batch | `ResolveAllIssuesCommand.cs` | **DONE** — Phase 35: `TagConfig.ResolveBatchSize` configurable via `RESOLVE_BATCH_SIZE` config key. |
+
+#### Completed (Phase 35 — Unified WPF Dialogs, Streaming Export, Custom Validators & Automation)
+
+328. **CS0104 ambiguous reference fix** — Fully qualified `System.Windows.Controls.ComboBox`/`TextBox` in `IssueWizard.cs` to resolve 7 build errors from `System.Windows.Controls` vs `Autodesk.Revit.UI` namespace collision.
+329. **CopyTokensFromNearest implemented** — `TokenAutoPopulator.CopyTokensFromNearest()` (100+ lines) copies SYS/FUNC tokens from nearest already-tagged element of same category within configurable `TagConfig.ProximityRadiusFt` radius (default 10 ft, HC-001). Wired into `PopulateAll` when SYS/FUNC yield generic defaults (GEN/ARC/STR).
+330. **BulkOperationDialog** — `UI/BulkOperationDialog.cs` (891 lines): Unified WPF dialog replacing 5-step TaskDialog chain in `BulkParamWriteCommand`. Features: operation selector (Set Token / Auto-populate / Clear / Re-tag), dynamic token type + value tile picker, element preview panel, corporate dark theme (#2D2D30 background, #E8912D accents).
+331. **HeadingStyleDialog** — `UI/HeadingStyleDialog.cs` (391 lines): Unified WPF dialog replacing 3-step TaskDialog chain in `SetTag7HeadingStyleCommand`. Features: 4 visual style cards with live text preview, tier application checkboxes, current settings display.
+332. **CombineConfigDialog** — `UI/CombineConfigDialog.cs` (552 lines): Unified WPF dialog replacing 2-step StingModePicker + StingListPicker chain in `CombineParametersCommand`. Features: mode selector, searchable container group tree with checkbox multi-select, per-group element counts, Select All/Clear All.
+333. **Streaming COBie export dispatch** — `StreamingCOBieExportCommand` wired to dispatch ("StreamingCOBieExport") and XAML button added to BIM tab.
+334. **Navisworks TimeLiner dispatch** — `NavisworksTimeLinerExportCommand` wired to dispatch ("NavisworksTimeLiner") and XAML button added to BIM tab 4D/5D section.
+335. **Element cost trace dispatch** — `ElementCostTraceCommand` wired to dispatch ("ElementCostTrace") and XAML button added to BIM tab 4D/5D section.
+336. **Custom token validators (FLEX-001)** — `CUSTOM_VALID_DISC/SYS/FUNC/LOC/ZONE` arrays in `project_config.json` merged with built-in ISO 19650 code lists. `ISO19650Validator` properties compute union of hardcoded + custom codes.
+337. **Configurable proximity radius (HC-001)** — `TagConfig.ProximityRadiusFt` loaded from `PROXIMITY_RADIUS_FT` config key (1.0-200.0 ft range, default 10.0).
+338. **Configurable batch size (HC-003)** — `TagConfig.ResolveBatchSize` loaded from `RESOLVE_BATCH_SIZE` config key (default 500). Used by `ResolveAllIssuesCommand`.
+339. **COBie stream batch size** — `TagConfig.CobieStreamBatchSize` loaded from `COBIE_STREAM_BATCH_SIZE` config key (default 5000). Used by `StreamingCOBieExportCommand`.
+340. **SEQ counter rollback** — `BuildAndWriteTag` tracks `preIncrementValue` before incrementing. Rolls back to pre-increment on TAG1 write failure or overflow.
+341. **Read-only parameter diagnostics (ERR-002)** — `SetString` logs first 5 + every 100th read-only skip with `_readOnlySkipCount` throttle. `ResetReadOnlySkipCount()` for batch operation boundaries.
+342. **ComplianceScan enhanced** — Added `StatusDistribution` (value→count), `EmptyContainerCounts` (container→count), `TotalContainerChecks` for granular compliance reporting.
+343. **SmartTagPlacement data prerequisite** — `PlaceTagsInView` auto-runs `RunFullPipeline` on untagged elements before visual placement, ensuring data tags exist.
+344. **TagStyle visual grid dialog** — `TagStyleGridDialog` WPF dialog with 96 clickable cells (4 sizes × 3 styles × 8 colors) replacing 3-step TaskDialog in `ApplyTagStyleCommand`.
+
+#### Completed (Phase 36 — Build Fix, PreTagAudit Token Validation & Gap Closure)
+
+345. **DisplayModeDefault duplicate removed** — Removed duplicate `public const int DisplayModeDefault = 2` from `TagConfig.cs` (was also defined in `ParamRegistry.cs`). `BuildDisplayTag(Element)` already references `ParamRegistry.DisplayModeDefault`. Also fixed malformed double `<summary>` XML documentation tags.
+346. **GAP-008: PreTagAudit ISO token validation** — `PreTagAuditCommand` now validates all predicted token values (DISC/SYS/FUNC/PROD/LOC/ZONE) against `ISO19650Validator.ValidateToken()` code lists before tag simulation. Invalid codes are recorded as `ISO_PREDICTED_TOKEN` audit issues. Report shows grouped violation counts with top-5 invalid codes.
+347. **Known gaps resolved** — All 10 Phase 34 gaps reclassified as DONE/by-design/mitigated.
+348. **DocAutomationDialog** — `UI/DocAutomationDialog.cs` (692 lines): 4-tab unified WPF dialog (SHEETS/VIEWS/VIEWPORTS/EXPORT) replacing multi-step TaskDialog chains for documentation automation. Operation cards with scope selectors, alignment options, output path/format config. Dispatch wired via "DocWizard" tag.
+349. **ModelCreationDialog** — `UI/ModelCreationDialog.cs` (711 lines): 2-column unified WPF dialog with element type selector (18 types: Arch/Struct/MEP/Composite) and dynamic options panel showing type-specific dimension fields and options. Dispatch wired via "ModelWizard" tag.
+350. **ScheduleWizardDialog** — `UI/ScheduleWizardDialog.cs` (799 lines): 3-section unified WPF dialog for schedule management (Create/Populate/FullAuto/Audit/Export/Manage). Searchable schedule list with multi-select, dynamic options per operation, discipline filters. Dispatch wired via "ScheduleWizard" tag.
+351. **ColorByVariableCommand unified** — Replaced 3 sequential TaskDialogs (variable picker + spatial sub-picker + apply mode) with single WPF dialog. Left column: 6 variable radio buttons with descriptions. Right column: apply mode checkboxes (Elements/Styles/Boxes) with quick presets.
+352. **SetParagraphDepthExtCommand unified** — Replaced 2-3 step TaskDialog chain (preset group + custom tier) with single WPF slider dialog. Continuous 1-10 slider with tier labels, preset buttons (Compact/Extended/Full), warnings toggle.
+353. **SetBoxColorCommand unified** — Replaced 2-step TaskDialog (mode + color pick) with single WPF dialog. Mode radio buttons (Auto/Pick/Clear) with 8-color swatch grid that appears on "Pick" selection. Visual swatch selection with orange highlight border.
+
+#### Completed (Phase 37 — Sheet Manager System)
+
+354. **Sheet Manager core engine** — `Docs/SheetManagerEngine.cs` (1,041 lines): Drawable zone detection (title block margin exclusion), optimal scale calculation, shelf-packing algorithm for auto-layout, 2D AABB collision detection, viewport placement with collision avoidance, sheet cloning (delete+recreate pattern since Revit API cannot move viewports), naming/numbering with discipline prefix extraction, auto-arrange, batch operations.
+355. **Sheet Manager WPF dialog** — `Docs/SheetManagerDialog.cs` (830 lines): Dual-panel WPF dialog built in C# (no XAML). Left panel: TreeView with sheets grouped by discipline, viewport children, unplaced views section, search/filter. Right panel: context-sensitive detail views (overview, sheet detail, viewport detail, discipline summary, unplaced group). Orange accent theme.
+356. **Sheet Manager commands** — `Docs/SheetManagerCommands.cs` (849 lines, 8 commands): SheetManager (dialog launcher), AutoLayout (shelf packing), CloneSheet, PlaceUnplacedViews, OptimalScale, SheetAudit, BatchArrange, MoveViewport.
+357. **MaxRects bin packing** — `Docs/SheetManagerEngineExt.cs` (943 lines): Best Short Side Fit (BSSF) heuristic with free rectangle splitting and pruning. Layout preset system with JSON persistence (`.sting_layout_presets.json`). 6 built-in presets (Single View, Side by Side, Stacked, Plan+2 Sections, 4-Up Grid, Plan+Legend+Detail). Viewport type auto-assignment with 7 rules. Batch clone, two-pass renumber, CSV export, overflow handling with continuation sheets.
+358. **Sheet set commands** — `Docs/SheetSetCommands.cs` (548 lines, 8 commands): MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchCloneSheets, BatchRenumberSheets, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow.
+359. **Sheet template engine** — `Docs/SheetTemplateEngine.cs` (858 lines): 6 built-in sheet templates (Single Plan, Plan+Sections, Elevations 4-Up, MEP Plan, Detail Sheet, Coordination Sheet). Template create/save with normalised viewport positions (0.0-1.0). ISO 19650 compliance checking (10 rules). Viewport grid alignment with configurable cell size. Edge alignment (6 modes). Viewport distribution (horizontal/vertical). Batch PDF export. Sheet register CSV export with compliance status.
+360. **Sheet template commands** — `Docs/SheetTemplateCommands.cs` (419 lines, 8 commands): CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister.
+361. **Dispatch and UI wiring** — 24 dispatch entries added to StingCommandHandler.cs. 24 XAML buttons added to DOCS tab in StingDockPanel.xaml (Sheet Manager, Advanced, Templates & Compliance sections).
+
+#### Completed (Phase 37E — Gap Fixes from stingtools-gap-fixes branch)
+
+362. **Phase 37A: HR-01, HR-03, HR-06, LG-07** — Cross-project import guard, ComplianceScan lock fix, ExcelLink atomicity, log rotation flush.
+363. **Phase 37D: IG-01 through IG-04** — COBie cost join, issue auto-resolve, suitability history, pyRevit manifest.
+364. **Phase 37E: AE-01 through AE-05** — Workflow retry, CSV auto-open, MasterSetup idempotency, connector inherit status, data hash skip.
 
 ### External Tool References
 

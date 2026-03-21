@@ -112,7 +112,8 @@ namespace StingTools.Tags
             // SmartSortElements calls GetMepSystemAwareSysCode() per element (MEP
             // connector traversal) which can take several seconds on large models.
             bool cancelled = false;
-            const int BatchSize = 500;
+            // HC-003: Configurable batch size from project_config.json (default 500)
+            int BatchSize = TagConfig.ResolveBatchSize;
             int processed = 0;
             var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
             progress.SetStatus($"Sorting {totalTaggable} elements by level/discipline...");
@@ -226,6 +227,9 @@ namespace StingTools.Tags
                                         ParameterHelpers.SetString(el, ParamRegistry.TAG1, fixedTag, overwrite: true);
                                         tagIndex.Add(fixedTag);
                                         ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                        // Rebuild TAG7 narrative with corrected tokens
+                                        try { TagConfig.WriteTag7All(doc, el, catName, fixedToks, overwrite: true); }
+                                        catch (Exception t7Ex) { StingLog.Warn($"ResolveAllIssues TAG7 rebuild: {t7Ex.Message}"); }
                                     }
                                 }
                             }

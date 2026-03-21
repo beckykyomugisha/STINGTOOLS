@@ -37,11 +37,11 @@ namespace StingTools.Tags
                 "Controls how much detail is shown in Tag 7 paragraph containers.\n" +
                 "This sets Type parameters — all instances of the same type will be affected.";
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Compact (State 1)", "Tier 1 only — basic identity and dimensions");
+                "Compact (.01)", "Tier .01 only — basic identity and dimensions");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Standard (State 2)", "Tiers 1+2 — adds materials, thermal, acoustic data");
+                "Standard (.01–.02)", "Tiers .01+.02 — adds materials, thermal, acoustic data");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Comprehensive (State 3)", "Tiers 1+2+3 — full specification with regulatory, sustainability, QA");
+                "Comprehensive (.01–.03)", "Tiers .01+.02+.03 — full specification with regulatory, sustainability, QA");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             TaskDialogResult result = td.Show();
@@ -51,11 +51,11 @@ namespace StingTools.Tags
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
-                    s1 = true; depthName = "Compact (State 1)"; break;
+                    s1 = true; depthName = "Compact (.01)"; break;
                 case TaskDialogResult.CommandLink2:
-                    s1 = true; s2 = true; depthName = "Standard (State 2)"; break;
+                    s1 = true; s2 = true; depthName = "Standard (.01–.02)"; break;
                 case TaskDialogResult.CommandLink3:
-                    s1 = true; s2 = true; s3 = true; depthName = "Comprehensive (State 3)"; break;
+                    s1 = true; s2 = true; s3 = true; depthName = "Comprehensive (.01–.03)"; break;
                 default:
                     return Result.Cancelled;
             }

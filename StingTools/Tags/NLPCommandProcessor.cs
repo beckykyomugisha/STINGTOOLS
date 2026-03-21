@@ -275,9 +275,9 @@ namespace StingTools.Tags
                     // Knowledge base via StingListPicker
                     var kbItems = NLPEngine.BimKnowledge
                         .OrderBy(k => k.Key)
-                        .Select(k => new Select.StingListPicker.ListItem { Label = k.Key, Detail = k.Value })
+                        .Select(k => new StingListPicker.ListItem { Label = k.Key, Detail = k.Value })
                         .ToList();
-                    var selected = Select.StingListPicker.Show("BIM Knowledge Base",
+                    var selected = StingListPicker.Show("BIM Knowledge Base",
                         "Search BIM terminology and standards:", kbItems);
                     if (selected != null && selected.Count > 0)
                     {
@@ -291,20 +291,20 @@ namespace StingTools.Tags
                 if (choice == TaskDialogResult.CommandLink2)
                 {
                     // Quick commands — curated subset
-                    var quickItems = new List<Select.StingListPicker.ListItem>
+                    var quickItems = new List<StingListPicker.ListItem>
                     {
-                        new Select.StingListPicker.ListItem { Label = "TagAndCombine", Detail = "One-click tag and combine pipeline" },
-                        new Select.StingListPicker.ListItem { Label = "BatchTag", Detail = "Tag all elements in project" },
-                        new Select.StingListPicker.ListItem { Label = "Validate", Detail = "Validate tag completeness" },
-                        new Select.StingListPicker.ListItem { Label = "FullAutoPopulate", Detail = "Full auto-populate pipeline" },
-                        new Select.StingListPicker.ListItem { Label = "MasterSetup", Detail = "One-click full project setup" },
-                        new Select.StingListPicker.ListItem { Label = "CompletenessDash", Detail = "Tag completeness dashboard" },
-                        new Select.StingListPicker.ListItem { Label = "PreTagAudit", Detail = "Dry-run tag prediction audit" },
-                        new Select.StingListPicker.ListItem { Label = "FixDuplicates", Detail = "Find and fix duplicate tags" },
-                        new Select.StingListPicker.ListItem { Label = "CobieExport", Detail = "Export COBie data" },
-                        new Select.StingListPicker.ListItem { Label = "StandardsDashboard", Detail = "Standards compliance dashboard" },
+                        new StingListPicker.ListItem { Label = "TagAndCombine", Detail = "One-click tag and combine pipeline" },
+                        new StingListPicker.ListItem { Label = "BatchTag", Detail = "Tag all elements in project" },
+                        new StingListPicker.ListItem { Label = "Validate", Detail = "Validate tag completeness" },
+                        new StingListPicker.ListItem { Label = "FullAutoPopulate", Detail = "Full auto-populate pipeline" },
+                        new StingListPicker.ListItem { Label = "MasterSetup", Detail = "One-click full project setup" },
+                        new StingListPicker.ListItem { Label = "CompletenessDash", Detail = "Tag completeness dashboard" },
+                        new StingListPicker.ListItem { Label = "PreTagAudit", Detail = "Dry-run tag prediction audit" },
+                        new StingListPicker.ListItem { Label = "FixDuplicates", Detail = "Find and fix duplicate tags" },
+                        new StingListPicker.ListItem { Label = "CobieExport", Detail = "Export COBie data" },
+                        new StingListPicker.ListItem { Label = "StandardsDashboard", Detail = "Standards compliance dashboard" },
                     };
-                    var quickSel = Select.StingListPicker.Show("Quick Commands",
+                    var quickSel = StingListPicker.Show("Quick Commands",
                         "Select a command to execute:", quickItems);
                     if (quickSel != null && quickSel.Count > 0)
                     {
@@ -329,9 +329,9 @@ namespace StingTools.Tags
                         .Select(p => (p.CommandTag, p.Description))
                         .Distinct()
                         .OrderBy(c => c.Description)
-                        .Select(c => new Select.StingListPicker.ListItem { Label = c.CommandTag, Detail = c.Description })
+                        .Select(c => new StingListPicker.ListItem { Label = c.CommandTag, Detail = c.Description })
                         .ToList();
-                    var browseSel = Select.StingListPicker.Show("All STING Commands",
+                    var browseSel = StingListPicker.Show("All STING Commands",
                         "Select a command to execute:", allItems);
                     if (browseSel != null && browseSel.Count > 0)
                     {

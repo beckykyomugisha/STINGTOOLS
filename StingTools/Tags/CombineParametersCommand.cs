@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
 using StingTools.UI;
 
 namespace StingTools.Tags
@@ -32,54 +33,44 @@ namespace StingTools.Tags
 
             var allGroups = ParamRegistry.ContainerGroups;
 
-            // Step 1: Mode selection using StingModePicker
-            int totalContainers = allGroups.Sum(g => g.Params.Length);
-            var modeOptions = new List<UI.StingModePicker.ModeOption>
-            {
-                new("All Containers",
-                    $"Populate all {allGroups.Length} groups ({totalContainers} parameters)", "all", true),
-                new("Universal Only (ASS_TAG_1-6)",
-                    "6 universal containers applied to all tagged elements", "universal"),
-                new("Discipline Only",
-                    "MEP + Comms discipline-specific containers (excludes Universal and Material)", "discipline"),
-                new("Pick Container Groups...",
-                    "Interactively choose which groups to populate", "pick"),
-            };
-            string modeResult = UI.StingModePicker.Show(
-                "Combine Parameters",
-                "Assemble token parameters into tag containers",
-                modeOptions,
-                $"Available: {allGroups.Length} groups, {totalContainers} total containers");
+            // Build element counts per category for the dialog
+            var catCounts = BuildCategoryCounts(doc);
 
-            HashSet<string> selectedGroupCodes;
-            switch (modeResult)
-            {
-                case "all":
-                    selectedGroupCodes = new HashSet<string>(allGroups.Select(g => g.GroupCode));
-                    break;
-                case "universal":
-                    selectedGroupCodes = new HashSet<string> { "UNIVERSAL" };
-                    break;
-                case "discipline":
-                    selectedGroupCodes = new HashSet<string>(
-                        allGroups.Where(g => g.GroupCode != "UNIVERSAL" && g.GroupCode != "MAT_TAG")
-                                 .Select(g => g.GroupCode));
-                    break;
-                case "pick":
-                    selectedGroupCodes = ShowGroupPicker(doc, allGroups);
-                    if (selectedGroupCodes == null || selectedGroupCodes.Count == 0)
-                        return Result.Cancelled;
-                    break;
-                default:
-                    return Result.Cancelled;
-            }
+            // Unified single-dialog configuration
+            var configResult = UI.CombineConfigDialog.Show(allGroups, catCounts);
+            if (configResult.Cancelled)
+                return Result.Cancelled;
+
+            HashSet<string> selectedGroupCodes = configResult.SelectedGroupCodes;
 
             var activeGroups = allGroups.Where(g => selectedGroupCodes.Contains(g.GroupCode)).ToArray();
             return ExecuteCombine(doc, activeGroups);
         }
 
-        // ── Group picker: StingListPicker selection ─────────────────
+        // ── Category count builder for dialog ────────────────────────
 
+        private static Dictionary<string, int> BuildCategoryCounts(Document doc)
+        {
+            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var catCounts = new Dictionary<string, int>();
+            var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            if (catEnums != null && catEnums.Length > 0)
+                coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            foreach (Element el in coll)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (!knownCategories.Contains(cat)) continue;
+                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
+                else catCounts[cat] = 1;
+            }
+            return catCounts;
+        }
+
+        // ── Group picker (backup): StingListPicker selection ─────────
+        // Retained as fallback; primary UI is CombineConfigDialog.
+
+        [Obsolete("Replaced by CombineConfigDialog. Retained as backup.")]
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
@@ -101,7 +92,7 @@ namespace StingTools.Tags
                 int elemCount = g.Categories != null
                     ? g.Categories.Sum(c => catCounts.TryGetValue(c, out int n) ? n : 0)
                     : catCounts.Values.Sum();
-                return new Select.StingListPicker.ListItem
+                return new StingListPicker.ListItem
                 {
                     Label = g.Group,
                     Detail = $"{g.Params.Length} containers | {elemCount} elements",
@@ -109,7 +100,7 @@ namespace StingTools.Tags
                 };
             }).ToList();
 
-            var picked = Select.StingListPicker.Show(
+            var picked = StingListPicker.Show(
                 "Combine Parameters — Select Groups",
                 $"{allGroups.Length} container groups available. Select groups to populate.",
                 groupItems, allowMultiSelect: true);
@@ -150,14 +141,46 @@ namespace StingTools.Tags
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (string.IsNullOrEmpty(disc))
                     {
-                        skippedNoDisc++;
-                        continue;
+                        // Auto-detect DISC from category before skipping
+                        disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
+                        if (!string.IsNullOrEmpty(disc))
+                        {
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                        }
+                        else
+                        {
+                            skippedNoDisc++;
+                            continue;
+                        }
                     }
 
                     totalElements++;
 
-                    // Read all source tokens once
+                    // Gap fix: Inherit type tokens and bridge native params before
+                    // reading tokens, so containers reflect current element context
+                    // (not stale values from initial tagging)
+                    try
+                    {
+                        TokenAutoPopulator.TypeTokenInherit(doc, el);
+                        NativeParamMapper.MapAll(doc, el);
+                    }
+                    catch (Exception enrichEx)
+                    {
+                        StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}");
+                    }
+
+                    // Read all source tokens once (after enrichment)
                     string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+
+                    // Ensure TAG1 is current: rebuild from tokens if empty or stale
+                    string currentTag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string rebuiltTag1 = string.Join(ParamRegistry.Separator, tokenValues);
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        rebuiltTag1 = TagConfig.TagPrefix + ParamRegistry.Separator + rebuiltTag1;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        rebuiltTag1 = rebuiltTag1 + ParamRegistry.Separator + TagConfig.TagSuffix;
+                    if (string.IsNullOrEmpty(currentTag1) || currentTag1 != rebuiltTag1)
+                        ParameterHelpers.SetString(el, ParamRegistry.TAG1, rebuiltTag1, overwrite: true);
 
                     foreach (var group in activeGroups)
                     {
@@ -185,7 +208,18 @@ namespace StingTools.Tags
                     }
 
                     // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    int tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                    // Only write TAG7 if core + spatial tokens are populated to avoid
+                    // generating incomplete narratives from partially-tagged elements
+                    bool hasCoreTags = tokenValues.Length >= 8
+                        && !string.IsNullOrEmpty(tokenValues[0])   // DISC
+                        && !string.IsNullOrEmpty(tokenValues[1])   // LOC
+                        && !string.IsNullOrEmpty(tokenValues[2])   // ZONE
+                        && !string.IsNullOrEmpty(tokenValues[3])   // LVL
+                        && !string.IsNullOrEmpty(tokenValues[4])   // SYS
+                        && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
+                    int tag7Writes = 0;
+                    if (hasCoreTags)
+                        tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
                     totalWrites += tag7Writes;
                     if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
                         writesPerGroup["UNIVERSAL"] += tag7Writes;

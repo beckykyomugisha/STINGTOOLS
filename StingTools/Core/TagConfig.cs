@@ -208,11 +208,35 @@ namespace StingTools.Core
     /// </summary>
     public static class ISO19650Validator
     {
-        /// <summary>Valid discipline codes per ISO 19650.</summary>
-        public static readonly HashSet<string> ValidDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>FLEX-001: Custom DISC codes from project_config.json CUSTOM_VALID_DISC.
+        /// When non-empty, these are ADDED to the built-in codes for validation.</summary>
+        public static HashSet<string> CustomDiscCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom SYS codes from project_config.json CUSTOM_VALID_SYS.</summary>
+        public static HashSet<string> CustomSysCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom FUNC codes from project_config.json CUSTOM_VALID_FUNC.</summary>
+        public static HashSet<string> CustomFuncCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom LOC codes from project_config.json CUSTOM_VALID_LOC.</summary>
+        public static HashSet<string> CustomLocCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>FLEX-001: Custom ZONE codes from project_config.json CUSTOM_VALID_ZONE.</summary>
+        public static HashSet<string> CustomZoneCodes { get; internal set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Built-in valid discipline codes per ISO 19650.</summary>
+        private static readonly HashSet<string> _builtInDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "M", "E", "P", "A", "S", "FP", "LV", "G"
         };
+
+        /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001).</summary>
+        public static HashSet<string> ValidDiscCodes
+        {
+            get
+            {
+                if (CustomDiscCodes.Count == 0) return _builtInDiscCodes;
+                var combined = new HashSet<string>(_builtInDiscCodes, StringComparer.OrdinalIgnoreCase);
+                foreach (string c in CustomDiscCodes) combined.Add(c);
+                return combined;
+            }
+        }
 
         /// <summary>
         /// Valid system codes per CIBSE / Uniclass 2015 / ISO 19650.
@@ -279,6 +303,9 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
+                // FLEX-001: Accept custom LOC codes from config before strict/lenient check
+                if (CustomLocCodes.Count > 0 && CustomLocCodes.Contains(value))
+                    return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
                     if (!TagConfig.LocCodes.Contains(value))
@@ -293,6 +320,9 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.ZONE)
             {
+                // FLEX-001: Accept custom ZONE codes from config before strict/lenient check
+                if (CustomZoneCodes.Count > 0 && CustomZoneCodes.Contains(value))
+                    return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
                     if (!TagConfig.ZoneCodes.Contains(value))
@@ -606,6 +636,15 @@ namespace StingTools.Core
         /// <summary>AL-05: Minimum compliance % gate after batch tag operations. 0 = disabled. Loaded from project_config.json COMPLIANCE_GATE_PCT.</summary>
         public static int ComplianceGatePct { get; internal set; } = 0;
 
+        /// <summary>HC-001: Configurable proximity radius in feet for CopyTokensFromNearest. Default 10 ft.</summary>
+        public static double ProximityRadiusFt { get; internal set; } = 10.0;
+
+        /// <summary>HC-003: Configurable batch size for ResolveAllIssues. Default 500.</summary>
+        public static int ResolveBatchSize { get; internal set; } = 500;
+
+        /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
+        public static int CobieStreamBatchSize { get; internal set; } = 5000;
+
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
@@ -856,7 +895,11 @@ namespace StingTools.Core
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
-                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER"
+                    "AUTO_TAGGER_ENABLED","AUTO_TAGGER_VISUAL","AUTO_TAGGER_STALE_MARKER",
+                    "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
+                    "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
+                    "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
+                    "COBIE_STREAM_BATCH_SIZE"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -985,6 +1028,49 @@ namespace StingTools.Core
                 var forceSys = TryDeserialize<Dictionary<string, string>>(data, "CATEGORY_FORCE_SYS");
                 if (forceSys != null)
                     foreach (var kvp in forceSys) CategoryForceSys[kvp.Key] = kvp.Value;
+
+                // FLEX-001: Load custom token validators from config
+                ISO19650Validator.CustomDiscCodes = LoadCustomCodes(data, "CUSTOM_VALID_DISC");
+                ISO19650Validator.CustomSysCodes = LoadCustomCodes(data, "CUSTOM_VALID_SYS");
+                ISO19650Validator.CustomFuncCodes = LoadCustomCodes(data, "CUSTOM_VALID_FUNC");
+                ISO19650Validator.CustomLocCodes = LoadCustomCodes(data, "CUSTOM_VALID_LOC");
+                ISO19650Validator.CustomZoneCodes = LoadCustomCodes(data, "CUSTOM_VALID_ZONE");
+                int customCount = ISO19650Validator.CustomDiscCodes.Count + ISO19650Validator.CustomSysCodes.Count
+                    + ISO19650Validator.CustomFuncCodes.Count + ISO19650Validator.CustomLocCodes.Count
+                    + ISO19650Validator.CustomZoneCodes.Count;
+                if (customCount > 0)
+                    StingLog.Info($"TagConfig: loaded {customCount} custom validator codes from project_config.json");
+
+                // HC-001: Configurable proximity radius for CopyTokensFromNearest
+                ProximityRadiusFt = 10.0; // default 10 ft
+                if (data.TryGetValue("PROXIMITY_RADIUS_FT", out object proxObj))
+                {
+                    if (proxObj is double pd) ProximityRadiusFt = pd;
+                    else if (proxObj is long pl) ProximityRadiusFt = pl;
+                    else if (double.TryParse(proxObj?.ToString(), out double pv)) ProximityRadiusFt = pv;
+                    if (ProximityRadiusFt < 1.0) ProximityRadiusFt = 1.0;
+                    if (ProximityRadiusFt > 200.0) ProximityRadiusFt = 200.0;
+                }
+
+                // HC-003: Configurable batch size for ResolveAllIssues
+                ResolveBatchSize = 500; // default
+                if (data.TryGetValue("RESOLVE_BATCH_SIZE", out object bsObj))
+                {
+                    if (bsObj is long bl) ResolveBatchSize = (int)bl;
+                    else if (int.TryParse(bsObj?.ToString(), out int bi)) ResolveBatchSize = bi;
+                    if (ResolveBatchSize < 50) ResolveBatchSize = 50;
+                    if (ResolveBatchSize > 5000) ResolveBatchSize = 5000;
+                }
+
+                // Streaming COBie batch size
+                CobieStreamBatchSize = 5000; // default
+                if (data.TryGetValue("COBIE_STREAM_BATCH_SIZE", out object csObj))
+                {
+                    if (csObj is long cl) CobieStreamBatchSize = (int)cl;
+                    else if (int.TryParse(csObj?.ToString(), out int ci)) CobieStreamBatchSize = ci;
+                    if (CobieStreamBatchSize < 500) CobieStreamBatchSize = 500;
+                    if (CobieStreamBatchSize > 50000) CobieStreamBatchSize = 50000;
+                }
 
                 // AL-05: Compliance gate threshold
                 ComplianceGatePct = 0;
@@ -1691,7 +1777,7 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-0000")
+        /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-GEN-", "-0000")
         /// that indicate incomplete or unresolved segments.
         /// </summary>
         public static bool TagHasPlaceholders(string tag)
@@ -1711,7 +1797,7 @@ namespace StingTools.Core
             return false;
         }
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "0000" };
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -1902,6 +1988,10 @@ namespace StingTools.Core
 
             if (!sequenceCounters.ContainsKey(seqKey))
                 sequenceCounters[seqKey] = 0;
+
+            // SEQ counter fix: tentatively increment, but track pre-increment value
+            // so we can rollback if TAG1 write fails (FLEX-005 partial cancellation safety)
+            int preIncrementValue = sequenceCounters[seqKey];
             sequenceCounters[seqKey]++;
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
@@ -1909,10 +1999,11 @@ namespace StingTools.Core
             int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
             if (sequenceCounters[seqKey] > maxSeq)
             {
-                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — capping at {maxSeq}";
+                string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                 StingLog.Warn(overflowMsg);
                 stats?.RecordWarning(overflowMsg);
-                sequenceCounters[seqKey] = maxSeq; // Cap to prevent invalid digit-width tags
+                sequenceCounters[seqKey] = preIncrementValue; // Rollback on overflow
+                return false; // Skip element to prevent duplicate tags
             }
 
             // Build SEQ string using the configured numbering scheme
@@ -1939,10 +2030,11 @@ namespace StingTools.Core
                     // Overflow guard: cap SEQ at format capacity (9999 for NumPad=4)
                     if (sequenceCounters[seqKey] > maxSeq)
                     {
-                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq})";
+                        string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                         StingLog.Warn(overflowMsg);
                         stats?.RecordWarning(overflowMsg);
-                        break;
+                        sequenceCounters[seqKey] = maxSeq;
+                        return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
                     tag = string.Join(Separator, disc, loc, zone, lvl, sys, func, prod, seq);
@@ -1993,7 +2085,16 @@ namespace StingTools.Core
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                // Remove the derived-value tag from collision index (it may differ from actual)
+                if (existingTags != null && !string.IsNullOrEmpty(tag))
+                    existingTags.Remove(tag);
                 tag = string.Join(Separator, actualTokens);
+                // TW-03: Re-apply prefix/suffix to re-read tag
+                if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                // Update collision index with actual tag
+                if (existingTags != null)
+                    existingTags.Add(tag);
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];
@@ -2014,7 +2115,16 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
                 return false;
             }
-            ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+            bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
+
+            // SEQ counter fix: rollback increment if TAG1 write failed
+            if (!tagWriteSucceeded)
+            {
+                sequenceCounters[seqKey] = preIncrementValue;
+                StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
+                stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
+                return false;
+            }
 
             // 5.3: Re-read TAG1 to catch write failures and add to existingTags
             // to prevent same-batch duplicates even when existingTags was null at entry
@@ -2087,7 +2197,7 @@ namespace StingTools.Core
             {
                 // LOG-08 FIX: Initialize DISPLAY_MODE so tag families show the correct
                 // display variant immediately (default = PROD-SEQ mode 2)
-                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", DisplayModeDefault.ToString());
+                ParameterHelpers.SetIfEmpty(el, "STING_DISPLAY_MODE", ParamRegistry.DisplayModeDefault.ToString());
 
                 // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
                 // Tier 1 content is visible in tag families after tagging)
@@ -2108,7 +2218,7 @@ namespace StingTools.Core
                 // Default tag style: 2.5mm Normal Black (most common AEC standard)
                 ParameterHelpers.SetYesNo(el, "TAG_2.5NOM_BLACK_BOOL", true);
             }
-            catch { /* Display BOOLs are optional — don't block tagging if params not bound */ }
+            catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
             return true;
@@ -2136,8 +2246,20 @@ namespace StingTools.Core
                 case 2: return $"{tokens[6]}{sep}{tokens[7]}"; // PROD-SEQ
                 case 3: return $"{tokens[0]}{sep}{tokens[4]}{sep}{tokens[7]}"; // DISC-SYS-SEQ
                 case 4: return $"{tokens[0]}{sep}{tokens[6]}{sep}{tokens[7]}"; // DISC-PROD-SEQ
-                case 5: return string.Join(sep, tokens); // Full 8-segment
-                default: return string.Join(sep, tokens);
+                case 5:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
+                default:
+                {
+                    string full = string.Join(sep, tokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) full = TagPrefix + sep + full;
+                    if (!string.IsNullOrEmpty(TagSuffix)) full = full + sep + TagSuffix;
+                    return full;
+                }
             }
         }
 
@@ -2146,15 +2268,8 @@ namespace StingTools.Core
         /// appropriate display tag variant. Writes the result to ASS_DISPLAY_TXT.
         /// Modes: 0/5=full 8-segment, 1=SEQ only, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ.
         /// Returns the display string (empty if element is null or has no tokens).
+        /// Uses ParamRegistry.DisplayModeDefault for unset parameters.
         /// </summary>
-        /// <summary>
-        /// Default display mode for unset STING_DISPLAY_MODE parameter.
-        /// Mode 2 = PROD-SEQ (e.g. "AHU-0042") — matches tag family default visibility BOOLs.
-        /// LOG-08 FIX: Previously mode=0 mapped to mode=5 (full 8-segment) but tag families
-        /// default to mode=2, causing blank tags when the param was unset.
-        /// </summary>
-        public const int DisplayModeDefault = 2;
-
         public static string BuildDisplayTag(Element el)
         {
             if (el == null) return "";
@@ -2974,8 +3089,39 @@ namespace StingTools.Core
             if (sidecar == null) return;
             foreach (var kvp in sidecar)
             {
-                if (!target.ContainsKey(kvp.Key) || kvp.Value > target[kvp.Key])
-                    target[kvp.Key] = kvp.Value;
+                string key = kvp.Key;
+
+                // Key format migration: if SeqIncludeZone changed between sessions,
+                // translate old-format keys to new-format keys using max-value strategy
+                if (!target.ContainsKey(key))
+                {
+                    // Try stripping zone segment: "M_Z01_HVAC_L01" → "M_HVAC_L01"
+                    // Old format (no zone): DISC_SYS_LVL (3 parts)
+                    // New format (with zone): DISC_ZONE_SYS_LVL (4 parts)
+                    string[] parts = key.Split('_');
+                    string altKey = null;
+                    if (SeqIncludeZone && parts.Length == 3)
+                    {
+                        // Sidecar has old format (no zone), current format includes zone
+                        // Can't determine zone, so merge into all matching zone keys
+                        altKey = null; // No single translation; just add as-is
+                    }
+                    else if (!SeqIncludeZone && parts.Length == 4)
+                    {
+                        // Sidecar has zone format, current format excludes zone — strip zone
+                        altKey = $"{parts[0]}_{parts[2]}_{parts[3]}";
+                    }
+
+                    if (altKey != null && target.ContainsKey(altKey))
+                    {
+                        if (kvp.Value > target[altKey])
+                            target[altKey] = kvp.Value;
+                        continue;
+                    }
+                }
+
+                if (!target.ContainsKey(key) || kvp.Value > target[key])
+                    target[key] = kvp.Value;
             }
         }
 
@@ -3000,6 +3146,17 @@ namespace StingTools.Core
                 return JsonConvert.DeserializeObject<T>(json);
             }
             catch (Exception ex) { StingLog.Warn($"TagConfig deserialize '{key}': {ex.Message}"); return null; }
+        }
+
+        /// <summary>FLEX-001: Load custom validation codes from config as a HashSet.</summary>
+        private static HashSet<string> LoadCustomCodes(Dictionary<string, object> data, string key)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var codes = TryDeserialize<List<string>>(data, key);
+            if (codes != null)
+                foreach (var code in codes)
+                    if (!string.IsNullOrWhiteSpace(code)) result.Add(code.Trim());
+            return result;
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -4460,6 +4617,8 @@ namespace StingTools.Core
 
             // ISO reference always added with connecting language
             string fullTag = string.Join(Separator, tokenValues);
+            if (!string.IsNullOrEmpty(TagPrefix)) fullTag = TagPrefix + Separator + fullTag;
+            if (!string.IsNullOrEmpty(TagSuffix)) fullTag = fullTag + Separator + TagSuffix;
             if (classPlain.Length > 0) { classPlain.Append(". Assigned "); classMarked.Append(". Assigned "); }
             classPlain.Append($"ISO 19650 tag {fullTag}");
             classMarked.Append($"\u00ABL\u00BBISO 19650 tag\u00AB/L\u00BB \u00ABH\u00BB{fullTag}\u00AB/H\u00BB");

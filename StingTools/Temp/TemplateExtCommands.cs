@@ -296,7 +296,7 @@ namespace StingTools.Temp
                     try
                     {
                         ViewSchedule vs = ViewSchedule.CreateMaterialTakeoff(
-                            doc, new ElementId(bic));
+                            doc, new ElementId((long)bic));
                         vs.Name = name;
                         created++;
                     }

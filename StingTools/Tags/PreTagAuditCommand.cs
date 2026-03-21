@@ -331,13 +331,21 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(func))
                         func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
 
-                    string seqKey = $"{disc}_{sys}_{lvl}";
+                    string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
                     if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
                     simCounters[seqKey]++;
-                    string seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
+                                        : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                        : "";
+                    string seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
 
                     predictedTag = string.Join(ParamRegistry.Separator,
                         disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                    // Apply TAG_PREFIX/TAG_SUFFIX for accurate collision simulation
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                        predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                        predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                     // Check collision
                     int collisionCount = 0;
@@ -345,9 +353,13 @@ namespace StingTools.Tags
                     {
                         collisionCount++;
                         simCounters[seqKey]++;
-                        seq = simCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                        seq = TagConfig.BuildSeqString(simCounters[seqKey], TagConfig.CurrentSeqScheme, seqSchemeCtx);
                         predictedTag = string.Join(ParamRegistry.Separator,
                             disc, currentLoc, currentZone, lvl, sys, func, prod, seq);
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                            predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
                     }
                     if (collisionCount > 0) predictedCollisions++;
                     simTags.Add(predictedTag);
@@ -355,19 +367,36 @@ namespace StingTools.Tags
                     willBeTagged++;
                     action = collisionCount > 0 ? $"TAG(collision+{collisionCount})" : "TAG";
 
+                    // GAP-008 FIX: Validate predicted token values against ISO 19650 code lists
+                    // Run BEFORE discStats assignment so violation counts are accurate
+                    var tokenChecks = new (string tokenName, string paramName, string value)[]
+                    {
+                        ("DISC", ParamRegistry.DISC, disc),
+                        ("SYS",  ParamRegistry.SYS,  sys),
+                        ("FUNC", ParamRegistry.FUNC, func),
+                        ("PROD", ParamRegistry.PROD, prod),
+                        ("LOC",  ParamRegistry.LOC,  currentLoc),
+                        ("ZONE", ParamRegistry.ZONE, currentZone),
+                    };
+                    foreach (var (tokenName, paramName, value) in tokenChecks)
+                    {
+                        if (string.IsNullOrEmpty(value)) continue;
+                        var tokenErr = ISO19650Validator.ValidateToken(paramName, value);
+                        if (tokenErr != null)
+                        {
+                            elementIsoErrors++;
+                            isoViolations++;
+                            auditIssues.Add(new AuditIssue
+                            {
+                                ElementId = el.Id,
+                                IssueType = "ISO_PREDICTED_TOKEN",
+                                Description = $"Predicted {tokenName}='{value}' is not a valid ISO 19650 code"
+                            });
+                        }
+                    }
+
                     var s = discStats[disc];
                     discStats[disc] = (s.total + 1, s.tagged, s.untagged + 1, s.violations + (elementIsoErrors > 0 ? 1 : 0));
-                }
-
-                // Cross-validation: check predicted PROD against DISC
-                if (!hasTag && !string.IsNullOrEmpty(prod) && !string.IsNullOrEmpty(disc))
-                {
-                    var prodErr = ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod);
-                    if (prodErr == null)
-                    {
-                        // Check PROD↔DISC consistency using the validator's static helper
-                        // (This validates the prediction, not the existing tag)
-                    }
                 }
 
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\"," +
@@ -452,10 +481,26 @@ namespace StingTools.Tags
             report2.AppendLine();
 
             // ISO 19650 compliance
+            int predictedTokenIssueCount = auditIssues.Count(a => a.IssueType == "ISO_PREDICTED_TOKEN");
+            int existingTagIssueCount = auditIssues.Count(a => a.IssueType == "ISO_FORMAT" || a.IssueType == "ISO_TOKEN");
             report2.AppendLine("── ISO 19650 COMPLIANCE ──");
             report2.AppendLine($"  Elements with ISO violations: {isoViolations}");
+            if (existingTagIssueCount > 0)
+                report2.AppendLine($"    Existing tag issues:        {existingTagIssueCount}");
+            if (predictedTokenIssueCount > 0)
+            {
+                report2.AppendLine($"    Predicted token violations: {predictedTokenIssueCount}");
+                // Show top invalid codes
+                var topInvalid = auditIssues
+                    .Where(a => a.IssueType == "ISO_PREDICTED_TOKEN")
+                    .GroupBy(a => a.Description)
+                    .OrderByDescending(g => g.Count())
+                    .Take(5);
+                foreach (var g in topInvalid)
+                    report2.AppendLine($"      {g.Count()}× {g.Key}");
+            }
             if (isoViolations == 0)
-                report2.AppendLine("    All existing tags conform to ISO 19650");
+                report2.AppendLine("    All tokens conform to ISO 19650");
             report2.AppendLine();
 
             // Per-discipline breakdown

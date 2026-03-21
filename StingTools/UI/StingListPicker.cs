@@ -313,6 +313,17 @@ namespace StingTools.Select
         /// Show the list picker dialog and return selected items.
         /// Returns null if cancelled, empty list if nothing selected.
         /// </summary>
+        /// <summary>
+        /// Convenience overload that accepts a list of strings and returns the selected string label.
+        /// Returns null if cancelled.
+        /// </summary>
+        public static string Show(string title, string subtitle, List<string> items)
+        {
+            var listItems = items.Select(s => new ListItem { Label = s }).ToList();
+            var result = Show(title, subtitle, listItems, false);
+            return result?.FirstOrDefault()?.Label;
+        }
+
         public static List<ListItem> Show(string title, string subtitle,
             List<ListItem> items, bool allowMultiSelect = false)
         {

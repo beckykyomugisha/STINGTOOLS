@@ -81,14 +81,14 @@ namespace StingTools.Temp
                 .OrderBy(g => g.Key)
                 .ToList();
 
-            var discItems = discGroups.Select(g => new Select.StingListPicker.ListItem
+            var discItems = discGroups.Select(g => new StingListPicker.ListItem
             {
                 Label = g.Key,
                 Detail = $"{g.Count()} schedules",
                 Tag = g.Key
             }).ToList();
 
-            var discPick = Select.StingListPicker.Show(
+            var discPick = StingListPicker.Show(
                 "Batch Create Schedules — Select Disciplines",
                 $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
                 discItems, allowMultiSelect: true);
@@ -371,12 +371,12 @@ namespace StingTools.Temp
                     // Use first category from semicolon-separated multi-cat list
                     string firstCat = multiCats.Split(';')[0].Trim();
                     if (ScheduleHelper.TryGetCategory(firstCat, out BuiltInCategory bic))
-                        catId = new ElementId(bic);
+                        catId = new ElementId((long)bic);
                 }
                 else if (!string.IsNullOrEmpty(category) &&
                     ScheduleHelper.TryGetCategory(category, out BuiltInCategory singleBic))
                 {
-                    catId = new ElementId(singleBic);
+                    catId = new ElementId((long)singleBic);
                 }
 
                 return ViewSchedule.CreateMaterialTakeoff(doc, catId);
@@ -387,7 +387,7 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(category)) return null;
                 if (!ScheduleHelper.TryGetCategory(category, out BuiltInCategory bic))
                     return null;
-                return ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+                return ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
             }
         }
     }

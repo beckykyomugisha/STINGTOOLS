@@ -7,6 +7,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Select
 {
@@ -378,130 +379,49 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Page 1: Operation category
-            TaskDialog td = new TaskDialog("Bulk Param Write");
-            td.MainInstruction = $"Bulk operation on {selected.Count} selected elements";
-            td.MainContent = "Choose an operation category:";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Location / Zone / Status",
-                "Set LOC, ZONE, or STATUS tokens");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Auto-populate all tokens",
-                "Auto-derive DISC, PROD, SYS, FUNC, LVL, LOC, ZONE from category and spatial data");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Clear tags",
-                "Clear ASS_TAG_1 and all token values (with confirmation)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Re-tag with overwrite",
-                "Force re-derive all tokens and regenerate tags for selected elements");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var page1 = td.Show();
-
-            switch (page1)
+            // Build preview data for the first few elements
+            var previewData = new List<BulkOperationDialog.PreviewEntry>();
+            int previewMax = Math.Min(selected.Count, 10);
+            int previewIdx = 0;
+            foreach (ElementId id in selected)
             {
-                case TaskDialogResult.CommandLink1:
-                    return BulkSetToken(doc, selected);
-                case TaskDialogResult.CommandLink2:
+                if (previewIdx >= previewMax) break;
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+                previewData.Add(new BulkOperationDialog.PreviewEntry
+                {
+                    CategoryName = ParameterHelpers.GetCategoryName(elem),
+                    CurrentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1),
+                    CurrentLoc = ParameterHelpers.GetString(elem, ParamRegistry.LOC),
+                    CurrentZone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE),
+                    CurrentStatus = ParameterHelpers.GetString(elem, ParamRegistry.STATUS)
+                });
+                previewIdx++;
+            }
+
+            // Show unified WPF dialog
+            var result = BulkOperationDialog.Show(selected.Count, previewData);
+            if (result.Cancelled)
+                return Result.Cancelled;
+
+            switch (result.Operation)
+            {
+                case BulkOperation.SetToken:
+                    return BulkSetToken(doc, selected, result.TokenName, result.TokenValue, result.AutoDetectStatus);
+                case BulkOperation.AutoPopulate:
                     return BulkAutoPopulate(doc, selected);
-                case TaskDialogResult.CommandLink3:
+                case BulkOperation.ClearTags:
                     return BulkClearTags(doc, selected);
-                case TaskDialogResult.CommandLink4:
+                case BulkOperation.Retag:
                     return BulkRetag(doc, selected);
                 default:
                     return Result.Cancelled;
             }
         }
 
-        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
+        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected,
+            string paramName, string paramValue, bool autoDetectStatus)
         {
-            // Page 1: Choose token category
-            TaskDialog catDlg = new TaskDialog("Set Token");
-            catDlg.MainInstruction = $"Set token on {selected.Count} elements";
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC (Location)");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Auto-detect STATUS from phases");
-            catDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var catResult = catDlg.Show();
-
-            string paramName = null;
-            string paramValue = null;
-            bool autoDetectStatus = false;
-
-            switch (catResult)
-            {
-                case TaskDialogResult.CommandLink1:
-                {
-                    // LOC picker with all location codes
-                    TaskDialog locDlg = new TaskDialog("Set LOC");
-                    locDlg.MainInstruction = "Choose location code";
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BLD1", "Building 1 (primary)");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BLD2", "Building 2");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BLD3", "Building 3");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "EXT", "External / Site");
-                    locDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.LOC;
-                    switch (locDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "BLD1"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "BLD2"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "BLD3"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "EXT"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink2:
-                {
-                    // ZONE picker
-                    TaskDialog zoneDlg = new TaskDialog("Set ZONE");
-                    zoneDlg.MainInstruction = "Choose zone code";
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Z01", "Zone 01");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Z02", "Zone 02");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Z03", "Zone 03");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Z04", "Zone 04");
-                    zoneDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.ZONE;
-                    switch (zoneDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "Z01"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "Z02"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "Z03"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "Z04"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink3:
-                {
-                    // All 4 valid ISO 19650 construction statuses
-                    TaskDialog stsDlg = new TaskDialog("Set STATUS");
-                    stsDlg.MainInstruction = "Choose construction status (ISO 19650)";
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NEW", "New construction — element to be built");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "EXISTING", "Existing — element already in place");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DEMOLISHED", "Demolished — element to be removed");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "TEMPORARY", "Temporary — temporary element (hoarding, propping)");
-                    stsDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.STATUS;
-                    switch (stsDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "NEW"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "EXISTING"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "DEMOLISHED"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "TEMPORARY"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink4:
-                    autoDetectStatus = true;
-                    break;
-                default:
-                    return Result.Cancelled;
-            }
-
             int written = 0;
             int skipped = 0;
             using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
@@ -621,12 +541,7 @@ namespace StingTools.Select
 
         private static Result BulkClearTags(Document doc, ICollection<ElementId> selected)
         {
-            TaskDialog confirm = new TaskDialog("Clear Tags");
-            confirm.MainInstruction = $"Clear all tags from {selected.Count} elements?";
-            confirm.MainContent = "This will clear ASS_TAG_1_TXT and all 8 token parameters.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
-
+            // Confirmation already handled by BulkOperationDialog warning panel
             string[] clearParams = ParamRegistry.AllTokenParams
                 .Concat(new[] {
                     ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
@@ -875,6 +790,11 @@ namespace StingTools.Select
                 string[] tokens = ParamRegistry.ReadTokenValues(elem);
                 string currentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 string predictedTag = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX for accurate display
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                 // Check for empty tokens
                 int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");

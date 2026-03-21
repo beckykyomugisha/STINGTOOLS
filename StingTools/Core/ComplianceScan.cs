@@ -38,8 +38,14 @@ namespace StingTools.Core
             public Dictionary<string, int> RevisionDistribution { get; set; } = new Dictionary<string, int>();
             /// <summary>A5: Elements with empty STATUS parameter.</summary>
             public int StatusMissing { get; set; }
+            /// <summary>STATUS value distribution for dashboard display.</summary>
+            public Dictionary<string, int> StatusDistribution { get; set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             /// <summary>A5: Elements with at least one empty discipline container.</summary>
             public int ContainersMissing { get; set; }
+            /// <summary>Per-container empty counts for granular compliance drill-down.</summary>
+            public Dictionary<string, int> EmptyContainerCounts { get; set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>Total container parameter checks performed.</summary>
+            public int TotalContainerChecks { get; set; }
             /// <summary>FIX-12: Elements marked as stale (spatial context may have changed).</summary>
             public int StaleCount { get; set; }
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
@@ -164,32 +170,41 @@ namespace StingTools.Core
                             dd.Untagged++;
                             AddIssue(result, "Untagged");
                         }
-                        else if (TagConfig.TagIsFullyResolved(tag))
+                        else
                         {
-                            result.TaggedComplete++;
-                            result.FullyResolved++;
-                            dd.Tagged++;
-                        }
-                        else if (TagConfig.TagIsComplete(tag))
-                        {
-                            result.TaggedComplete++;
-                            dd.Tagged++;
+                            // Parse tag segments to determine completeness
                             string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
-                            if (parts.Length >= 8)
+                            int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
+                            int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
+                            bool hasCorrectSegments = parts.Length >= 8 + po + so
+                                && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+
+                            if (!hasCorrectSegments)
                             {
-                                if (parts[1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
-                                if (parts[2] == "XX" || parts[2] == "ZZ") AddIssue(result, "Missing ZONE");
-                                if (parts[3] == "XX") AddIssue(result, "Missing LVL");
-                                if (parts[4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
-                                if (parts[5] == "GEN") AddIssue(result, "Generic FUNC");
-                                if (parts[6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
-                                if (parts[7] == "0000") AddIssue(result, "SEQ=0000");
+                                result.TaggedIncomplete++;
+                                AddIssue(result, "Incomplete tag");
+                            }
+                            else
+                            {
+                                bool hasPlaceholders = TagConfig.TagHasPlaceholders(tag);
+                                result.TaggedComplete++;
+                                dd.Tagged++;
+                                if (!hasPlaceholders)
+                                    result.FullyResolved++;
+
+                                // Drill into specific token issues regardless of placeholder status
+                                if (parts[po + 1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
+                                if (parts[po + 2] == "XX" || parts[po + 2] == "ZZ") AddIssue(result, "Missing ZONE");
+                                if (parts[po + 3] == "XX") AddIssue(result, "Missing LVL");
+                                if (parts[po + 4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
+                                if (parts[po + 5] == "GEN") AddIssue(result, "Generic FUNC");
+                                if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
+                                if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
 
                                 string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
-                                int prefixOffset = (!string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0);
-                                for (int ti = 0; ti < tokenKeys.Length && (ti + prefixOffset) < parts.Length; ti++)
+                                for (int ti = 0; ti < tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
-                                    string part = parts[ti + prefixOffset];
+                                    string part = parts[ti + po];
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
                                         || part == "GEN" || part == "0000")
                                     {
@@ -198,11 +213,6 @@ namespace StingTools.Core
                                     }
                                 }
                             }
-                        }
-                        else
-                        {
-                            result.TaggedIncomplete++;
-                            AddIssue(result, "Incomplete tag");
                         }
 
                         string rev = ParameterHelpers.GetString(elem, ParamRegistry.REV);
@@ -219,13 +229,21 @@ namespace StingTools.Core
                             AddIssue(result, "Missing REV");
                         }
 
+                        // A5: STATUS completeness with value distribution tracking
                         string status = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
                         if (string.IsNullOrEmpty(status))
                         {
                             result.StatusMissing++;
                             AddIssue(result, "Missing STATUS");
                         }
+                        else
+                        {
+                            if (!result.StatusDistribution.ContainsKey(status))
+                                result.StatusDistribution[status] = 0;
+                            result.StatusDistribution[status]++;
+                        }
 
+                        // A5: Container check with per-container tracking
                         try
                         {
                             var containers = ParamRegistry.ContainersForCategory(cat);
@@ -234,8 +252,15 @@ namespace StingTools.Core
                                 int emptyCount = 0;
                                 for (int ci = 0; ci < containers.Length; ci++)
                                 {
+                                    result.TotalContainerChecks++;
                                     if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                    {
                                         emptyCount++;
+                                        string cName = containers[ci].ParamName;
+                                        if (!result.EmptyContainerCounts.ContainsKey(cName))
+                                            result.EmptyContainerCounts[cName] = 0;
+                                        result.EmptyContainerCounts[cName]++;
+                                    }
                                 }
                                 if (emptyCount > 0) result.ContainersMissing++;
                             }

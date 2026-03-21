@@ -209,6 +209,16 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- SELECTION SETS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SETS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Save Set" Tag="SaveSelectionSet" Click="Cmd_Click" ToolTip="Save current selection as named set"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Recall Set" Tag="RecallSelectionSet" Click="Cmd_Click" ToolTip="Recall a saved selection set"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Manage" Tag="ManageSelectionSets" Click="Cmd_Click" ToolTip="List, delete, export selection sets"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- STATE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STATE"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -942,6 +952,51 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- SHEET MANAGER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET MANAGER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Manager" Tag="SheetManager" Click="Cmd_Click" ToolTip="Open full Sheet Manager with dual-panel browser"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Layout" Tag="AutoLayout" Click="Cmd_Click" ToolTip="Auto-arrange viewports on active sheet using shelf packing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clone Sheet" Tag="CloneSheet" Click="Cmd_Click" ToolTip="Clone active sheet with title block and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place Unplaced" Tag="PlaceUnplacedViews" Click="Cmd_Click" ToolTip="Auto-place all unplaced views on new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Optimal Scale" Tag="OptimalScale" Click="Cmd_Click" ToolTip="Calculate optimal scale for active view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Audit" Tag="SheetAudit" Click="Cmd_Click" ToolTip="Audit all sheets and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Arrange" Tag="BatchArrange" Click="Cmd_Click" ToolTip="Arrange viewports on all sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Move VP" Tag="MoveViewport" Click="Cmd_Click" ToolTip="Move selected viewport to different sheet"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="MaxRects" Tag="MaxRectsLayout" Click="Cmd_Click" ToolTip="MaxRects packing algorithm for optimal viewport density"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Layout" Tag="SaveLayoutPreset" Click="Cmd_Click" ToolTip="Save current viewport layout as reusable preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Layout" Tag="ApplyLayoutPreset" Click="Cmd_Click" ToolTip="Apply saved layout preset to active sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Overflow" Tag="PlaceWithOverflow" Click="Cmd_Click" ToolTip="Place views with auto-overflow to new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Clone" Tag="BatchCloneSheets" Click="Cmd_Click" ToolTip="Clone multiple sheets at once"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="BatchRenumberSheets" Click="Cmd_Click" ToolTip="Renumber sheets within a discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMPLATES &amp; COMPLIANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="From Template" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Template" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Align" Tag="GridAlignViewports" Click="Cmd_Click" ToolTip="Snap viewport centres to alignment grid"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Align Edges" Tag="AlignViewportEdges" Click="Cmd_Click" ToolTip="Align viewport edges (left/right/top/bottom)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribute" Tag="DistributeViewports" Click="Cmd_Click" ToolTip="Distribute viewports evenly across sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Print" Tag="BatchPrintSheets" Click="Cmd_Click" ToolTip="Export sheets to PDF by discipline or selection"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- FM / O&M HANDOVER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="🏗 FM / O&amp;M HANDOVER"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1078,6 +1133,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ONE-CLICK"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Doc Wizard" Tag="DocWizard" Click="Cmd_Click" ToolTip="Unified documentation wizard: sheets, views, viewports, export in one dialog"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
@@ -1194,6 +1250,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Schedule Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Unified schedule wizard: create, populate, audit, export in one dialog"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
@@ -1511,6 +1568,8 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                        ToolTip="BIMLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
@@ -1867,6 +1926,13 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- MODEL WIZARD -->
+                        <Border Style="{StaticResource GroupBorder}" Margin="0,0,0,4">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Model Wizard" Tag="ModelWizard" Click="Cmd_Click" ToolTip="Unified model creation dialog: select element type + dimensions in one step"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- ARCHITECTURAL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ARCHITECTURAL"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -2104,11 +2170,26 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- DOCUMENT MANAGEMENT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 compliant document control, CDE workflow, transmittals &amp; handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
+                                            ToolTip="Open ISO 19650 Document Management Center — 6-tab comprehensive document control" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
+                                            ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ISSUE / RFI TRACKER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ISSUE / RFI TRACKER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGE"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
                                             ToolTip="Raise RFI/Clash/Design/NCR/Snagging/Change — auto-titles, due dates, element links" FontWeight="Bold"/>
@@ -2118,6 +2199,19 @@
                                             ToolTip="Close responded, mark in-progress, export CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Elements" Tag="SelectIssueElements" Click="Cmd_Click"
                                             ToolTip="Select all elements linked to open issues"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ANALYTICS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Filter Issues" Tag="IssueFilter" Click="Cmd_Click"
+                                            ToolTip="Filter issues by type, priority, status, assignee, discipline, date range"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Timeline" Tag="IssueTimeline" Click="Cmd_Click"
+                                            ToolTip="Show issue timeline with status changes, comments and history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Statistics" Tag="IssueStatistics" Click="Cmd_Click"
+                                            ToolTip="Issue analytics: by type, priority, status, discipline, overdue count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Update" Tag="IssueBatchUpdate" Click="Cmd_Click"
+                                            ToolTip="Bulk update status/priority/assignee on multiple issues"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Issues" Tag="IssueExport" Click="Cmd_Click"
+                                            ToolTip="Export all issues to CSV with full field detail"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2129,6 +2223,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource PurpleBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
                                             ToolTip="Export full COBie V2.4: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Stream" Tag="StreamingCOBieExport" Click="Cmd_Click"
+                                            ToolTip="Streaming COBie export for 100K+ element models — low memory batched processing"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click"
                                             ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
@@ -2159,15 +2255,22 @@
 
                         <!-- STICKY NOTES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STICKY NOTES"/>
-                        <Border Style="{StaticResource GroupBorder}">
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F9A825">
                             <StackPanel>
+                                <TextBlock Text="Per-element annotations with categories, priorities and search" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
-                                            ToolTip="Create element-linked QA/snagging note"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
+                                            ToolTip="Create element-linked note with category, priority and colour" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Notes" Tag="ExportStickyNotes" Click="Cmd_Click"
                                             ToolTip="Export all sticky notes to CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Noted" Tag="SelectStickyElements" Click="Cmd_Click"
                                             ToolTip="Select all elements with sticky notes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Categories" Tag="StickyCategories" Click="Cmd_Click"
+                                            ToolTip="Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard" Tag="StickyDashboard" Click="Cmd_Click"
+                                            ToolTip="Summary dashboard: notes by category, author, status, linked elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Search" Tag="StickySearch" Click="Cmd_Click"
+                                            ToolTip="Search/filter sticky notes by text, category, author, date range"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2196,8 +2299,12 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 4D" Tag="Export4DTimeline" Click="Cmd_Click"
                                             ToolTip="Export 4D timeline data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Navisworks 4D" Tag="NavisworksTimeLiner" Click="Cmd_Click"
+                                            ToolTip="Export Navisworks TimeLiner CSV/XML with trade sequence ordering"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 5D" Tag="Export5DCostData" Click="Cmd_Click"
                                             ToolTip="Export 5D cost data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost Trace" Tag="ElementCostTrace" Click="Cmd_Click"
+                                            ToolTip="Per-element 5D cost traceability with geometry-derived quantities"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Link Predecessors" Tag="LinkPredecessors" Click="Cmd_Click"
                                             ToolTip="Auto-link task predecessors in 4D schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Phase Dates" Tag="AssignPhaseDates" Click="Cmd_Click"
@@ -2221,6 +2328,17 @@
                         </Border>
 
                         <!-- EXCEL LINK — BIDIRECTIONAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA EXPORT — BIMLINK STYLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E8912D">
+                            <StackPanel>
+                                <TextBlock Text="Unified export with category, parameter, family/type filtering and format choice" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                            ToolTip="BIMLink-style unified export: choose categories, parameters, family/type filters, format (CSV/Excel/JSON), and location" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL LINK — BIDIRECTIONAL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
                             <StackPanel>
@@ -2234,6 +2352,8 @@
                                             ToolTip="One-click: export → edit in Excel → import on return" FontWeight="Bold"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Excel Wizard" Tag="ExcelExchangeWizard" Click="Cmd_Click"
+                                            ToolTip="Interactive wizard for Export/Import/RoundTrip with column selection and validation options" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Export Schedules" Tag="ExportSchedulesToExcel" Click="Cmd_Click"
                                             ToolTip="Export all Revit schedules to Excel (one worksheet per schedule)"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Import Schedules" Tag="ImportSchedulesFromExcel" Click="Cmd_Click"
@@ -2317,6 +2437,15 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
                                             ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
                                 </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Approval Workflow" Tag="RevisionApprovalWorkflow" Click="Cmd_Click"
+                                            ToolTip="Multi-stage approval: Draft → Review → Approved → Issued with tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribution" Tag="RevisionDistribution" Click="Cmd_Click"
+                                            ToolTip="Track revision distribution: who received, when, acknowledgement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Comparison" Tag="RevisionComparisonReport" Click="Cmd_Click"
+                                            ToolTip="Side-by-side parameter changes between revisions with diff highlighting"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -2343,6 +2472,108 @@
                                             ToolTip="Generate keynote table from STING tag codes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="ValidateTemplate" Click="Cmd_Click"
                                             ToolTip="45-check BIM template validation"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- QUALITY ASSURANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUALITY ASSURANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Model health, warnings, rules, QA reports" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="QA Report" Tag="QAReport" Click="Cmd_Click"
+                                            ToolTip="Unified QA report: health + warnings + setup + rules"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Health Scan" Tag="ModelHealthScan" Click="Cmd_Click"
+                                            ToolTip="12-metric weighted model health score"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Warnings" Tag="WarningReview" Click="Cmd_Click"
+                                            ToolTip="Review and categorise Revit warnings by severity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Custom Rules" Tag="RunCustomRules" Click="Cmd_Click"
+                                            ToolTip="Run custom validation rules from QA_RULES.json"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Setup Check" Tag="SetupValidation" Click="Cmd_Click"
+                                            ToolTip="Validate project setup against BEP requirements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WORKSET and LINK AUDIT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKSET and LINK AUDIT"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Workset compliance and linked model management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workset Audit" Tag="WorksetAudit" Click="Cmd_Click"
+                                            ToolTip="Audit workset organisation and element assignment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Worksets" Tag="CreateStandardWorksets" Click="Cmd_Click"
+                                            ToolTip="Create standard STING discipline worksets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Audit" Tag="LinkAudit" Click="Cmd_Click"
+                                            ToolTip="Audit linked models: status, naming, paths"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Stats" Tag="LinkStats" Click="Cmd_Click"
+                                            ToolTip="Element statistics from linked models"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SPATIAL VALIDATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPATIAL VALIDATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Room, grid, and level integrity checks" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="SpatialValidation" Click="Cmd_Click"
+                                            ToolTip="Validate rooms: enclosure, naming, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Audit" Tag="GridAudit" Click="Cmd_Click"
+                                            ToolTip="Grid naming consistency and organisation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Level Audit" Tag="LevelAudit" Click="Cmd_Click"
+                                            ToolTip="Level naming, spacing, and consistency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Audit" Tag="FamilyAudit" Click="Cmd_Click"
+                                            ToolTip="Loaded families: unused, in-place, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="View/Sheet" Tag="ViewSheetCompleteness" Click="Cmd_Click"
+                                            ToolTip="View and sheet completeness audit"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CARBON and CHANGE TRACKING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Embodied carbon, snapshots, print management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Carbon Calc" Tag="CarbonCalculator" Click="Cmd_Click"
+                                            ToolTip="Whole-life embodied carbon calculator"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CSV" Tag="CarbonExport" Click="Cmd_Click"
+                                            ToolTip="Export carbon breakdown to CSV"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Take Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
+                                            ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="CompareSnapshot" Click="Cmd_Click"
+                                            ToolTip="Compare current model against a snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch PDF" Tag="BatchPDFExport" Click="Cmd_Click"
+                                            ToolTip="Batch PDF export with ISO naming"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Sets" Tag="SheetSetSummary" Click="Cmd_Click"
+                                            ToolTip="Sheet set summary by discipline"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LAN COLLABORATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LAN COLLABORATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Worksharing, sync, backup, team coordination" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Enable WS" Tag="LANEnableWorksharing" Click="Cmd_Click"
+                                            ToolTip="Enable worksharing and create standard worksets"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Sync" Tag="LANSyncToCentral" Click="Cmd_Click"
+                                            ToolTip="Sync to central with conflict detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Backup" Tag="LANBackup" Click="Cmd_Click"
+                                            ToolTip="Create model backup"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Team" Tag="LANTeamDashboard" Click="Cmd_Click"
+                                            ToolTip="View team roster and activity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Change Log" Tag="LANChangeLog" Click="Cmd_Click"
+                                            ToolTip="View change log history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Sync" Tag="LANAutoSyncToggle" Click="Cmd_Click"
+                                            ToolTip="Toggle auto-sync timer"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
