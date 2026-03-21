@@ -464,8 +464,90 @@ namespace StingTools.UI
                     case "SM_RenumberDisc":
                     case "SM_SwapTitleBlock":
                     case "SM_EnforceISONaming":
+                    case "SM_RevertISONaming":
                         RunSheetManagerOp(app, tag);
                         break;
+
+                    // ── Sheet Manager template & selection operations ──
+                    case "SM_GetViewTemplates":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                            SheetManagerDialog._cachedTemplateNames = templates.Keys.OrderBy(k => k).ToList();
+                        }
+                        break;
+                    }
+                    case "SM_AssignSpecificTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string tplName = GetExtraParam("SM_TemplateName");
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(tplName) && !string.IsNullOrEmpty(viewIdStr))
+                            {
+                                var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                                if (templates.TryGetValue(tplName, out View tpl) && long.TryParse(viewIdStr, out long vid))
+                                {
+                                    var view = doc.GetElement(new ElementId(vid)) as View;
+                                    if (view != null)
+                                    {
+                                        using (var tx = new Transaction(doc, "STING Assign View Template"))
+                                        {
+                                            tx.Start();
+                                            view.ViewTemplateId = tpl.Id;
+                                            tx.Commit();
+                                        }
+                                        TaskDialog.Show("STING", $"Assigned template '{tplName}' to '{view.Name}'.");
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_RemoveViewTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Remove View Template"))
+                                    {
+                                        tx.Start();
+                                        view.ViewTemplateId = ElementId.InvalidElementId;
+                                        tx.Commit();
+                                    }
+                                    TaskDialog.Show("STING", $"Removed template from '{view.Name}'.");
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_SelectElementIds":
+                    {
+                        var uidoc = app.ActiveUIDocument;
+                        if (uidoc != null)
+                        {
+                            string idsStr = GetExtraParam("SM_ElementIds");
+                            if (!string.IsNullOrEmpty(idsStr))
+                            {
+                                var ids = idsStr.Split(',')
+                                    .Where(s => long.TryParse(s.Trim(), out _))
+                                    .Select(s => new ElementId(long.Parse(s.Trim())))
+                                    .ToList();
+                                if (ids.Count > 0)
+                                    uidoc.Selection.SetElementIds(ids);
+                            }
+                        }
+                        break;
+                    }
 
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
