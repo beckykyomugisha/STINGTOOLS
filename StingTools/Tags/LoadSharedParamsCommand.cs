@@ -187,6 +187,15 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { StingLog.Warn($"Add Materials category to core set: {ex.Message}"); }
 
+            // Phase 39: Add Sheets category (needed for SHT_* params)
+            try
+            {
+                Category shtCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Sheets);
+                if (shtCat != null && shtCat.AllowsBoundParameters && !coreCats.Contains(shtCat))
+                    coreCats.Insert(shtCat);
+            }
+            catch (Exception ex) { StingLog.Warn($"Add Sheets category to core set: {ex.Message}"); }
+
             StingLog.Info($"Core CategorySet: {coreCats.Size} categories");
 
             if (coreCats.Size == 0)

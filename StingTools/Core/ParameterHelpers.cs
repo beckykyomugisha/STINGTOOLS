@@ -2262,6 +2262,7 @@ namespace StingTools.Core
         public static int TagSheet(Document doc, ViewSheet sheet,
             string originator, string projectCode, string rev)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             int written = 0;
 
             // 1. Map native sheet number/name
@@ -2293,6 +2294,11 @@ namespace StingTools.Core
             // 7. Build SHT_TAG_7 narrative
             string tag7 = BuildSheetNarrative(doc, sheet, disc, form, level, rev);
             written += SetStr(sheet, ParamRegistry.SHT_TAG_7, tag7);
+
+            // INT-12: Performance warning for slow sheets
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 2000)
+                StingLog.Warn($"TagSheet: {sheet.SheetNumber} took {sw.ElapsedMilliseconds}ms (slow — large viewport element count)");
 
             return written;
         }
@@ -2418,7 +2424,11 @@ namespace StingTools.Core
                     }
                 }
 
-                if (discCounts.Count == 0) return "GEN";
+                if (discCounts.Count == 0)
+                {
+                    // INT-15: Fallback to sheet name/number pattern matching
+                    return DeriveDiscFromSheetName(sheet);
+                }
 
                 // If multiple disciplines with significant presence → COORD
                 var sorted = discCounts.OrderByDescending(kv => kv.Value).ToList();
@@ -2588,6 +2598,24 @@ namespace StingTools.Core
             catch { /* skip */ }
 
             return string.Join(" | ", parts);
+        }
+
+        /// <summary>
+        /// INT-15: Fallback discipline detection from sheet name/number patterns
+        /// when no viewport elements provide DISC data.
+        /// </summary>
+        private static string DeriveDiscFromSheetName(ViewSheet sheet)
+        {
+            string combined = $"{sheet.SheetNumber} {sheet.Name}".ToUpperInvariant();
+            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") || combined.StartsWith("M-") || combined.StartsWith("M ")) return "M";
+            if (combined.Contains("ELECTRICAL") || combined.Contains("LIGHTING") || combined.StartsWith("E-") || combined.StartsWith("E ")) return "E";
+            if (combined.Contains("PLUMBING") || combined.Contains("SANITARY") || combined.StartsWith("P-") || combined.StartsWith("P ")) return "P";
+            if (combined.Contains("ARCHITECTURAL") || combined.Contains("ARCH") || combined.StartsWith("A-") || combined.StartsWith("A ")) return "A";
+            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCT") || combined.StartsWith("S-") || combined.StartsWith("S ")) return "S";
+            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER") || combined.StartsWith("FP")) return "FP";
+            if (combined.Contains("LOW VOLTAGE") || combined.Contains("DATA") || combined.Contains("SECURITY")) return "LV";
+            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") || combined.Contains("MULTI")) return "COORD";
+            return "GEN";
         }
 
         /// <summary>Derive level code from level name string (same logic as GetLevelCode but from name).</summary>

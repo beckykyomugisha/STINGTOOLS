@@ -1,6 +1,6 @@
 {
   "version": "5.6",
-  "description": "STING Tools master parameter registry v5.6 — single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds",
+  "description": "STING Tools master parameter registry v5.6 \u2014 single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -1289,7 +1289,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "d5a1b2c3-5001-4e05-a1c1-500000000001",
-      "description": "Tag bounding box fill color — Red channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1297,7 +1297,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "d5a1b2c3-5002-4e05-a1c1-500000000002",
-      "description": "Tag bounding box fill color — Green channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1305,7 +1305,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "d5a1b2c3-5003-4e05-a1c1-500000000003",
-      "description": "Tag bounding box fill color — Blue channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1328,7 +1328,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "d5a1b2c3-5006-4e05-a1c1-500000000006",
-      "description": "Tag leader line color — Red channel (0-255)",
+      "description": "Tag leader line color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1336,7 +1336,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "d5a1b2c3-5007-4e05-a1c1-500000000007",
-      "description": "Tag leader line color — Green channel (0-255)",
+      "description": "Tag leader line color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1344,7 +1344,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "d5a1b2c3-5008-4e05-a1c1-500000000008",
-      "description": "Tag leader line color — Blue channel (0-255)",
+      "description": "Tag leader line color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1912,7 +1912,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -1921,7 +1921,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -1930,7 +1930,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -1939,7 +1939,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -1948,7 +1948,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -1957,7 +1957,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -1966,7 +1966,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
         }
       ]
     },
@@ -2717,12 +2717,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m²)"
+        "description": "Room area (m\u00b2)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m³)"
+        "description": "Room volume (m\u00b3)"
       },
       {
         "key": "DEPT",
@@ -2848,7 +2848,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m²)"
+        "description": "Element area (m\u00b2)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -5908,7 +5908,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5998,7 +5998,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6188,7 +6188,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m²",
+      "unit": "kN/m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6218,7 +6218,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6358,7 +6358,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6368,7 +6368,7 @@
       "guid": "f8855ea2-6eee-5cd7-a0c7-fdcd787ced84",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6498,7 +6498,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m²",
+      "unit": "W/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6558,7 +6558,7 @@
       "guid": "88990dc2-2aca-5179-8407-6511d3e36248",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO₂e/m²",
+      "unit": "kgCO\u2082e/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6568,7 +6568,7 @@
       "guid": "5de3531a-bb17-52f6-a946-97320b6fdc89",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6578,7 +6578,7 @@
       "guid": "04fbb073-cde7-55dd-b056-f67d22e26437",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6588,7 +6588,7 @@
       "guid": "f6b023a0-c2eb-59f8-8fd7-d05f64aa6f7b",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6598,7 +6598,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "µg/m³",
+      "unit": "\u00b5g/m\u00b3",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6892,6 +6892,71 @@
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
+    }
+  ],
+  "sheet_tokens": [
+    {
+      "key": "SHT_NUMBER",
+      "param_name": "SHT_NUMBER_TXT",
+      "guid": "f213496b-4218-514b-82cd-ce421248d032",
+      "description": "Sheet number from Revit native",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_NAME",
+      "param_name": "SHT_NAME_TXT",
+      "guid": "7e579423-afd3-520b-b8d9-fcd250d18d6a",
+      "description": "Sheet name from Revit native",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_DISC",
+      "param_name": "SHT_DISC_TXT",
+      "guid": "7f3fbb8d-36ca-530d-814d-e9b243c2a4dc",
+      "description": "Sheet discipline from viewport element majority",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_ORIGINATOR",
+      "param_name": "SHT_ORIGINATOR_TXT",
+      "guid": "5b5715dc-8579-5556-b527-77e3be6aea5c",
+      "description": "Originator code from Project Information",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_FORM",
+      "param_name": "SHT_FORM_TXT",
+      "guid": "54c318b7-811d-50cc-9ca0-72a18b7ff853",
+      "description": "Document form code (DR/SH/M3/LG)",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_LEVEL",
+      "param_name": "SHT_LEVEL_TXT",
+      "guid": "db60894e-8e07-5aff-bcdb-bdaebaceac89",
+      "description": "Level code from viewport views",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_REV",
+      "param_name": "SHT_REV_TXT",
+      "guid": "7542b276-3ab7-5b55-8154-830bd6f20b76",
+      "description": "Revision code from project revision",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_TAG_1",
+      "param_name": "SHT_TAG_1_TXT",
+      "guid": "73019587-020b-5860-bcb1-3dcadeb6f3ac",
+      "description": "Assembled ISO 19650 document code",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_TAG_7",
+      "param_name": "SHT_TAG_7_TXT",
+      "guid": "a06370b5-d989-533c-b7af-09ba545790fb",
+      "description": "Rich narrative description",
+      "binding": "sheets"
     }
   ]
 }
