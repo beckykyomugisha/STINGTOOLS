@@ -3449,7 +3449,7 @@ namespace StingTools.BIMManager
             // Offer custom save location
             try
             {
-                string exportDir = OutputLocationHelper.PromptForExportPath("BEP", bimDir);
+                string exportDir = OutputLocationHelper.PromptForExportPath(doc, "BEP.xlsx", "Excel Files|*.xlsx", "BEP");
                 if (!string.IsNullOrEmpty(exportDir)) bimDir = exportDir;
             }
             catch (Exception) { /* use default dir */ }
@@ -4559,20 +4559,6 @@ namespace StingTools.BIMManager
             var allCDE = new[] { "All" }.Concat(rows.Select(r => r.CDEStatus).Distinct().OrderBy(s => s)).ToList();
             string filterDir = "All", filterCDE = "All";
 
-            void ApplyFilters()
-            {
-                var filtered = rows.AsEnumerable();
-                if (filterDir != "All") filtered = filtered.Where(r => r.Direction == filterDir);
-                if (filterCDE != "All") filtered = filtered.Where(r => r.CDEStatus == filterCDE);
-                string search = dlg.SearchText;
-                if (!string.IsNullOrEmpty(search))
-                    filtered = filtered.Where(r => r.DocId.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                        || r.Title.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
-                var list = filtered.ToList();
-                dlg.RefreshItems(list);
-                dlg.SetStatus($"{list.Count} of {rows.Count} documents");
-            }
-
             // Format filter
             var allFormats = new[] { "All" }.Concat(rows.Select(r => r.FileFormat).Where(f => !string.IsNullOrEmpty(f)).Distinct().OrderBy(s => s)).ToList();
             string filterFormat = "All";
@@ -4632,7 +4618,7 @@ namespace StingTools.BIMManager
                 }
                 else if (tag == "OpenFile")
                 {
-                    var selected = dlg.GetSelectedItem<DocRegisterRow>();
+                    var selected = dlg.SelectedItems.FirstOrDefault() as DocRegisterRow;
                     if (selected != null && !string.IsNullOrEmpty(selected.FilePath) && File.Exists(selected.FilePath))
                     {
                         try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true }); }

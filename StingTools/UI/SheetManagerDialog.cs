@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using StingTools.Core;
+using StingTools.Select;
 
 namespace StingTools.UI
 {
