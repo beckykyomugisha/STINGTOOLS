@@ -53,7 +53,7 @@ namespace StingTools.Docs
             return DispatchOperation(doc, ctx, result);
         }
 
-        private Result DispatchOperation(Document doc, ParameterHelpers.CommandExecutionContext ctx,
+        private Result DispatchOperation(Document doc, StingCommandContext ctx,
             SheetManagerResult result)
         {
             switch (result.Operation)
@@ -81,7 +81,7 @@ namespace StingTools.Docs
             }
         }
 
-        private Result ArrangeActiveSheet(Document doc, ParameterHelpers.CommandExecutionContext ctx)
+        private Result ArrangeActiveSheet(Document doc, StingCommandContext ctx)
         {
             var sheet = ctx.ActiveView as ViewSheet;
             if (sheet == null)
@@ -100,7 +100,7 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
-        private Result CloneActiveSheet(Document doc, ParameterHelpers.CommandExecutionContext ctx)
+        private Result CloneActiveSheet(Document doc, StingCommandContext ctx)
         {
             var sheet = ctx.ActiveView as ViewSheet;
             if (sheet == null)
@@ -205,7 +205,7 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
-        private Result AutoScaleViewports(Document doc, ParameterHelpers.CommandExecutionContext ctx)
+        private Result AutoScaleViewports(Document doc, StingCommandContext ctx)
         {
             var sheet = ctx.ActiveView as ViewSheet;
             if (sheet == null)
