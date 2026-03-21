@@ -116,8 +116,9 @@ namespace StingTools.UI
         private static TreeViewItem _lastClickedSheetItem;
         private static readonly SolidColorBrush BrSelected = new(Color.FromRgb(0xE3, 0xF2, 0xFD)); // Light blue selection
 
-        // ── Template names cache for context menu ─────────────────────
+        // ── Template / scope box names cache for context menu ─────────
         internal static List<string> _cachedTemplateNames;
+        internal static List<KeyValuePair<long, string>> _cachedScopeBoxes;
 
         /// <summary>Data model for sheet tree nodes.</summary>
         internal class SheetNode
@@ -1313,9 +1314,56 @@ namespace StingTools.UI
             assignTpl.Items.Add(new MenuItem { Header = "(loading...)", IsEnabled = false });
             menu.Items.Add(assignTpl);
 
-            var scopeItem = new MenuItem { Header = "Assign Scope Box" };
-            scopeItem.Click += (s, e) => ExecuteOp("ScopeBoxManager");
+            var scopeItem = new MenuItem { Header = "Assign Scope Box \u25B6" };
             scopeItem.Foreground = BrScopeBox;
+            scopeItem.SubmenuOpened += (s, e) =>
+            {
+                scopeItem.Items.Clear();
+                // Remove scope box option
+                var removeItem = new MenuItem { Header = "\u2715 Remove Scope Box", Foreground = BrRed };
+                removeItem.Click += (s2, e2) =>
+                {
+                    var vt = GetSelectedViewTag();
+                    if (vt != null)
+                        ExecuteOp("SM_RemoveScopeBox", new Dictionary<string, object> { { "SelectedTag", vt } });
+                };
+                scopeItem.Items.Add(removeItem);
+                scopeItem.Items.Add(new Separator());
+                // Manage scope boxes option
+                var manageItem = new MenuItem { Header = "\u2699 Manage Scope Boxes..." };
+                manageItem.Click += (s2, e2) => ExecuteOp("ScopeBoxManager");
+                scopeItem.Items.Add(manageItem);
+                scopeItem.Items.Add(new Separator());
+                // Populate with all project scope boxes
+                ExecuteOp("SM_GetScopeBoxes", new Dictionary<string, object>());
+                if (_cachedScopeBoxes != null && _cachedScopeBoxes.Count > 0)
+                {
+                    foreach (var sb in _cachedScopeBoxes)
+                    {
+                        var sbItem = new MenuItem { Header = sb.Value };
+                        long capturedId = sb.Key;
+                        string capturedName = sb.Value;
+                        sbItem.Click += (s2, e2) =>
+                        {
+                            var vt = GetSelectedViewTag();
+                            if (vt != null)
+                                ExecuteOp("SM_AssignScopeBox", new Dictionary<string, object>
+                                {
+                                    { "SelectedTag", vt },
+                                    { "ScopeBoxId", capturedId.ToString() },
+                                    { "ScopeBoxName", capturedName }
+                                });
+                        };
+                        scopeItem.Items.Add(sbItem);
+                    }
+                }
+                else
+                {
+                    scopeItem.Items.Add(new MenuItem { Header = "(no scope boxes in project)", IsEnabled = false });
+                }
+            };
+            // Seed with placeholder so the arrow shows
+            scopeItem.Items.Add(new MenuItem { Header = "(loading...)", IsEnabled = false });
             menu.Items.Add(scopeItem);
 
             var cropItem = new MenuItem { Header = "Crop to Content" };
@@ -1498,6 +1546,10 @@ namespace StingTools.UI
             }
             else
             {
+                // Pass options as ExtraParams so StingCommandHandler can read them
+                foreach (var kv in options)
+                    StingCommandHandler.SetExtraParam("SM_" + kv.Key, kv.Value?.ToString() ?? "");
+
                 if (StingDockPanel.DispatchCommand(operation))
                     UpdateStatus($"Running: {operation}...");
                 else

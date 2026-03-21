@@ -291,12 +291,18 @@ namespace StingTools.UI
                 BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
                 BorderThickness = new Thickness(1),
                 Background = Brushes.White,
-                FontSize = 11
+                FontSize = 11,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
             };
+            // Ensure ListViewItems stretch to full width so inner Grid star columns work
+            var itemContainerStyle = new Style(typeof(ListViewItem));
+            itemContainerStyle.Setters.Add(new Setter(ListViewItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+            itemContainerStyle.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
+            _listView.ItemContainerStyle = itemContainerStyle;
 
             // Column header row (manual, since GridView.DisplayMemberBinding
             // doesn't work well with our custom Grid content)
-            var headerRow = new Grid { Background = new SolidColorBrush(Color.FromRgb(240, 240, 245)), Height = 28 };
+            var headerRow = new Grid { Background = new SolidColorBrush(Color.FromRgb(240, 240, 245)), Height = 28, Margin = new Thickness(0, 0, SystemParameters.VerticalScrollBarWidth, 0) };
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // checkbox
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // orig
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // new
@@ -308,10 +314,12 @@ namespace StingTools.UI
             Grid.SetColumn(hdrOrig, 1); headerRow.Children.Add(hdrOrig);
             var hdrNew = new TextBlock { Text = "New Name", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0), Foreground = AccentBrush };
             Grid.SetColumn(hdrNew, 2); headerRow.Children.Add(hdrNew);
-            var hdrCat = new TextBlock { Text = "Category", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
-            Grid.SetColumn(hdrCat, 3); headerRow.Children.Add(hdrCat);
-            var hdrFam = new TextBlock { Text = "Family", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
-            Grid.SetColumn(hdrFam, 4); headerRow.Children.Add(hdrFam);
+            var hdrCatBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            hdrCatBorder.Child = new TextBlock { Text = "Category", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(hdrCatBorder, 3); headerRow.Children.Add(hdrCatBorder);
+            var hdrFamBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            hdrFamBorder.Child = new TextBlock { Text = "Family", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(hdrFamBorder, 4); headerRow.Children.Add(hdrFamBorder);
 
             var listContainer = new DockPanel();
             DockPanel.SetDock(headerRow, Dock.Top);
@@ -626,29 +634,39 @@ namespace StingTools.UI
                 Grid.SetColumn(newText, 2);
                 row.Children.Add(newText);
 
-                var catText = new TextBlock
+                var catBorder = new Border
                 {
-                    Text = item.Category ?? "",
-                    FontSize = 10,
-                    Foreground = Brushes.Gray,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    Margin = new Thickness(4, 0, 4, 0),
-                    VerticalAlignment = VerticalAlignment.Center
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderThickness = new Thickness(1, 0, 0, 0),
+                    Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = item.Category ?? "",
+                        FontSize = 10,
+                        Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
                 };
-                Grid.SetColumn(catText, 3);
-                row.Children.Add(catText);
+                Grid.SetColumn(catBorder, 3);
+                row.Children.Add(catBorder);
 
-                var famText = new TextBlock
+                var famBorder = new Border
                 {
-                    Text = item.Family ?? "",
-                    FontSize = 10,
-                    Foreground = Brushes.Gray,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    Margin = new Thickness(4, 0, 4, 0),
-                    VerticalAlignment = VerticalAlignment.Center
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderThickness = new Thickness(1, 0, 0, 0),
+                    Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = item.Family ?? "",
+                        FontSize = 10,
+                        Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
                 };
-                Grid.SetColumn(famText, 4);
-                row.Children.Add(famText);
+                Grid.SetColumn(famBorder, 4);
+                row.Children.Add(famBorder);
 
                 var lvi = new ListViewItem
                 {

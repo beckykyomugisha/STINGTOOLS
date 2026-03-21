@@ -198,6 +198,15 @@ namespace StingTools.Docs
                 case "RevertISONaming":
                     return RevertISONaming(doc, result);
 
+                case "ActivateView":
+                    if (result.Options.TryGetValue("ViewTag", out object avTag) && avTag is ElementId avId)
+                    {
+                        var view = doc.GetElement(avId) as View;
+                        if (view != null && ctx.UIDoc != null)
+                            ctx.UIDoc.ActiveView = view;
+                    }
+                    return Result.Succeeded;
+
                 default:
                     StingLog.Info($"Sheet Manager operation '{result.Operation}' — no handler.");
                     return Result.Succeeded;
