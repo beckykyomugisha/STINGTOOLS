@@ -165,6 +165,11 @@ namespace StingTools.Tags
                             break;
                         }
 
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                        // GAP-PH-01: Skip demolished elements
+                        if (TagPipelineHelper.IsDemolished(el)) continue;
+
                         try
                         {
                             // GAP-03: Use unified RunFullPipeline for all 11 canonical steps

@@ -933,6 +933,11 @@ namespace StingTools.Temp
                 tx.Start();
                 foreach (Element el in allElements)
                 {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    // GAP-PH-01: Skip demolished elements
+                    if (TagPipelineHelper.IsDemolished(el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;

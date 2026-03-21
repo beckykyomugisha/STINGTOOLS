@@ -138,6 +138,9 @@ namespace StingTools.Tags
 
                 foreach (Element el in collector)
                 {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                         continue;

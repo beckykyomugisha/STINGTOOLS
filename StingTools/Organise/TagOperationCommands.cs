@@ -106,6 +106,9 @@ namespace StingTools.Organise
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, elem)) continue;
+
                     // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
                     // → Formulas → BuildTag → Containers → TAG7 → GridRef
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
@@ -239,6 +242,9 @@ namespace StingTools.Organise
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
+
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, elem)) continue;
 
                     // NG4: Full pipeline for ReTag — ensures TypeTokenInherit + PopulateAll run
                     bool pipelineOk = TagPipelineHelper.RunFullPipeline(
@@ -5536,6 +5542,9 @@ namespace StingTools.Organise
 
                 foreach (Element el in scope)
                 {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
                     try
                     {
                         if (retagged % 100 == 0 && EscapeChecker.IsEscapePressed())
