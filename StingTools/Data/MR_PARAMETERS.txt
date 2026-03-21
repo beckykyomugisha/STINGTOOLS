@@ -904,6 +904,13 @@ PARAM	139c03e1-802a-51ad-b5e5-2d7052c860ae	BLE_FACADE_INS_BOOL	YESNO		2	1	Ble Fa
 PARAM	a9b007e1-971a-520f-86b0-6fc3d9b483cc	PRJ_TB_SHEET_NR_TXT	TEXT		13	1	Prj Tb Sheet Nr Txt [ISO 19650-1:2018]	1
 PARAM	f213496b-4218-514b-82cd-ce421248d032	SHT_NUMBER_TXT	TEXT		13	1	Sheet Number mapped from Revit native [ISO 19650-1:2018]	1
 PARAM	7e579423-afd3-520b-b8d9-fcd250d18d6a	SHT_NAME_TXT	TEXT		13	1	Sheet Name mapped from Revit native [ISO 19650-1:2018]	1
+PARAM	7f3fbb8d-36ca-530d-814d-e9b243c2a4dc	SHT_DISC_TXT	TEXT		13	1	Sheet discipline derived from viewport element majority [ISO 19650-2:2018]	1
+PARAM	5b5715dc-8579-5556-b527-77e3be6aea5c	SHT_ORIGINATOR_TXT	TEXT		13	1	Sheet originator code from Project Info [ISO 19650-2:2018]	1
+PARAM	54c318b7-811d-50cc-9ca0-72a18b7ff853	SHT_FORM_TXT	TEXT		13	1	Sheet document form code DR SP SH M3 [ISO 19650-2:2018]	1
+PARAM	db60894e-8e07-5aff-bcdb-bdaebaceac89	SHT_LEVEL_TXT	TEXT		13	1	Sheet level derived from viewport views [ISO 19650-2:2018]	1
+PARAM	7542b276-3ab7-5b55-8154-830bd6f20b76	SHT_REV_TXT	TEXT		13	1	Sheet revision code from project revision [ISO 19650-2:2018]	1
+PARAM	73019587-020b-5860-bcb1-3dcadeb6f3ac	SHT_TAG_1_TXT	TEXT		13	1	Sheet ISO 19650 document code assembled from tokens [ISO 19650-2:2018]	1
+PARAM	a06370b5-d989-533c-b7af-09ba545790fb	SHT_TAG_7_TXT	TEXT		13	1	Sheet rich narrative description [ISO 19650-2:2018]	1
 PARAM	b8c9d0e1-f2a3-4567-bcde-8901234567b8	CST_S_EAR_CST_TOTAL_UGX_NR	TEXT		2	1	Earthworks total cost in UGX [ISO 19650-2:2018]	0
 PARAM	627607e2-7ea4-4410-9cc7-6d6d37a332ed	FLT_STATUS_TXT	TEXT		11	1	Filter status [ISO 19650-2:2018]	1
 PARAM	d0a046e2-2605-5eb0-b5c8-458526640cb2	PLM_EXP_JOINT_END_CONNECTION_TXT	TEXT		6	1	Plm Exp Joint End Connection Txt [ISO 19650-1:2018]	1

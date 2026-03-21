@@ -630,4 +630,82 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
     }
+
+    /// <summary>
+    /// Tag all sheets with ISO 19650 document codes by scanning viewport contents
+    /// to derive discipline, form, level, originator, and revision tokens.
+    /// Assembles SHT_TAG_1 (full document code) and SHT_TAG_7 (rich narrative).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            int sheetCount = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).GetElementCount();
+
+            if (sheetCount == 0)
+            {
+                TaskDialog.Show("STING", "No sheets found in the project.");
+                return Result.Succeeded;
+            }
+
+            var confirm = new TaskDialog("STING — Tag Sheets");
+            confirm.MainInstruction = $"Tag {sheetCount} sheets with ISO 19650 document codes?";
+            confirm.MainContent =
+                "This will scan viewport contents on each sheet to derive:\n\n" +
+                "• SHT_DISC — Discipline (majority vote from elements)\n" +
+                "• SHT_FORM — Document form (DR/SH/M3/LG)\n" +
+                "• SHT_LEVEL — Level code (from viewport views)\n" +
+                "• SHT_ORIGINATOR — From Project Information\n" +
+                "• SHT_REV — Current project revision\n" +
+                "• SHT_TAG_1 — Assembled ISO 19650 document code\n" +
+                "• SHT_TAG_7 — Rich narrative description\n\n" +
+                "Existing sheet token values will be overwritten.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            int sheetsProcessed = 0, tokensWritten = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Sheets"))
+            {
+                tx.Start();
+
+                // Also run native sheet mapping first
+                NativeParamMapper.MapSheets(doc);
+
+                var (sheets, tokens) = NativeParamMapper.TagSheets(doc);
+                sheetsProcessed = sheets;
+                tokensWritten = tokens;
+
+                tx.Commit();
+            }
+
+            sw.Stop();
+
+            var report = new System.Text.StringBuilder();
+            report.AppendLine("Sheet Tagging Complete");
+            report.AppendLine();
+            report.AppendLine($"Sheets processed: {sheetsProcessed}");
+            report.AppendLine($"Tokens written: {tokensWritten}");
+            report.AppendLine($"Duration: {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            report.AppendLine("Parameters written per sheet:");
+            report.AppendLine("  SHT_DISC_TXT, SHT_FORM_TXT, SHT_LEVEL_TXT,");
+            report.AppendLine("  SHT_ORIGINATOR_TXT, SHT_REV_TXT,");
+            report.AppendLine("  SHT_TAG_1_TXT, SHT_TAG_7_TXT");
+
+            TaskDialog.Show("STING Tag Sheets", report.ToString());
+            StingLog.Info($"TagSheetsCommand: {sheetsProcessed} sheets, {tokensWritten} tokens, {sw.Elapsed.TotalSeconds:F1}s");
+            return Result.Succeeded;
+        }
+    }
 }

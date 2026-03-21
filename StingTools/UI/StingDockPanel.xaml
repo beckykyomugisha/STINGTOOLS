@@ -937,6 +937,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Journal" Tag="JournalParser" Click="Cmd_Click" ToolTip="Parse Revit journal files for addin errors, crash diagnostics, and command timeline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes (DISC, FORM, LEVEL, REV, TAG1, TAG7)"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SHEET NUMBER"/>
                                 <WrapPanel>

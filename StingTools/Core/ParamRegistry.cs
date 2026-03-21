@@ -235,6 +235,17 @@ namespace StingTools.Core
         public const string HOST_TYPE = "ASS_HOST_TYPE_TXT";
         public const string HOST_TYPE_GUID = "CADBECFD-AECF-4D0B-7E8F-9AABBBCCDDEE";
 
+        // Phase 39: Sheet-Level Tagging Containers
+        public const string SHT_NUMBER = "SHT_NUMBER_TXT";
+        public const string SHT_NAME = "SHT_NAME_TXT";
+        public const string SHT_DISC = "SHT_DISC_TXT";
+        public const string SHT_ORIGINATOR = "SHT_ORIGINATOR_TXT";
+        public const string SHT_FORM = "SHT_FORM_TXT";
+        public const string SHT_LEVEL = "SHT_LEVEL_TXT";
+        public const string SHT_REV = "SHT_REV_TXT";
+        public const string SHT_TAG_1 = "SHT_TAG_1_TXT";
+        public const string SHT_TAG_7 = "SHT_TAG_7_TXT";
+
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
         private static Dictionary<string, string> _extendedParams = new Dictionary<string, string>(StringComparer.Ordinal);
