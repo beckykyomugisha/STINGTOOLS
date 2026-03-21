@@ -489,7 +489,6 @@ namespace StingTools.Docs
                 };
 
                 // Build viewport children
-                doc.Regenerate();
                 foreach (var vpId in sheet.GetAllViewports())
                 {
                     var vp = doc.GetElement(vpId) as Viewport;
