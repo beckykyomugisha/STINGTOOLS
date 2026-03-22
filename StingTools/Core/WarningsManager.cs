@@ -1325,61 +1325,130 @@ namespace StingTools.Core
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
+                int healthScore = WarningsEngine.CalculateWarningHealthScore(report);
 
-                var sb = new StringBuilder();
-                sb.AppendLine($"STING Warnings Dashboard — {report.Total} total {report.TrendSymbol}");
-                sb.AppendLine(new string('═', 50));
+                // Build rich WPF result panel
+                var builder = UI.StingResultPanel.Create("STING Warnings Dashboard")
+                    .SetSubtitle($"{report.Total} warnings {report.TrendSymbol}  |  Health: {healthScore}/100");
 
-                // Severity breakdown
-                sb.AppendLine("\n■ BY SEVERITY:");
-                foreach (WarningSeverity sev in Enum.GetValues(typeof(WarningSeverity)))
-                {
-                    if (report.BySeverity.TryGetValue(sev, out int cnt) && cnt > 0)
-                        sb.AppendLine($"  {sev,-12} {cnt,5}");
-                }
+                // ── Summary section ──
+                int critical = report.BySeverity.TryGetValue(WarningSeverity.Critical, out int c) ? c : 0;
+                int high = report.BySeverity.TryGetValue(WarningSeverity.High, out int h) ? h : 0;
+                int medium = report.BySeverity.TryGetValue(WarningSeverity.Medium, out int m) ? m : 0;
+                int low = report.BySeverity.TryGetValue(WarningSeverity.Low, out int l) ? l : 0;
+                int info = report.BySeverity.TryGetValue(WarningSeverity.Info, out int inf) ? inf : 0;
 
-                // Category breakdown
-                sb.AppendLine("\n■ BY CATEGORY:");
-                foreach (var kv in report.ByCategory.OrderByDescending(x => x.Value))
-                    sb.AppendLine($"  {kv.Key,-14} {kv.Value,5}");
+                builder.AddSection("Summary")
+                    .Metric("Total Warnings", report.Total.ToString())
+                    .Metric("Health Score", $"{healthScore} / 100",
+                        healthScore >= 80 ? "GOOD" : healthScore >= 50 ? "NEEDS ATTENTION" : "POOR")
+                    .RAGBar(healthScore);
 
-                // Fix summary
-                sb.AppendLine($"\n■ FIX STATUS:");
-                sb.AppendLine($"  Auto-fixable: {report.AutoFixable}");
-                sb.AppendLine($"  Manual review: {report.ManualReview}");
+                if (critical > 0)
+                    builder.MetricError("Critical", critical.ToString(), "Requires immediate attention");
+                else
+                    builder.MetricHighlight("Critical", "0", "No critical warnings");
+                if (high > 0) builder.MetricWarn("High", high.ToString());
+                if (medium > 0) builder.Metric("Medium", medium.ToString());
+                if (low > 0) builder.Metric("Low", low.ToString());
+                if (info > 0) builder.Metric("Info", info.ToString());
 
-                // Discipline breakdown
-                if (report.ByDiscipline.Count > 0)
-                {
-                    sb.AppendLine("\n■ BY DISCIPLINE:");
-                    foreach (var kv in report.ByDiscipline.OrderByDescending(x => x.Value))
-                        sb.AppendLine($"  {kv.Key,-4} {kv.Value,5}");
-                }
+                builder.Separator()
+                    .MetricHighlight("Auto-fixable", report.AutoFixable.ToString(), "Can be fixed automatically")
+                    .Metric("Manual review", report.ManualReview.ToString());
 
-                // Level breakdown (top 10)
-                if (report.ByLevel.Count > 0)
-                {
-                    sb.AppendLine("\n■ BY LEVEL (top 10):");
-                    foreach (var kv in report.ByLevel.OrderByDescending(x => x.Value).Take(10))
-                        sb.AppendLine($"  {kv.Key,-20} {kv.Value,5}");
-                }
-
-                // Hotspot elements (top 10)
-                if (report.Hotspots.Count > 0)
-                {
-                    sb.AppendLine("\n■ HOTSPOT ELEMENTS (most warnings):");
-                    foreach (var (id, name, count) in report.Hotspots.Take(10))
-                        sb.AppendLine($"  {name,-35} {count,3} warnings");
-                }
-
-                // Baseline trend
+                // ── Baseline trend ──
                 if (report.BaselineTotal.HasValue)
                 {
-                    sb.AppendLine($"\n■ TREND: {report.BaselineTotal} → {report.Total} ({report.TrendSymbol})");
+                    builder.AddSection("Trend vs Baseline")
+                        .Metric("Baseline", report.BaselineTotal.Value.ToString())
+                        .Metric("Current", report.Total.ToString())
+                        .Metric("Delta", report.TrendSymbol,
+                            report.Total < report.BaselineTotal ? "Improving" :
+                            report.Total > report.BaselineTotal ? "Worsening" : "Stable");
                 }
 
-                TaskDialog.Show("STING Warnings Dashboard", sb.ToString());
-                StingLog.Info($"WarningsDashboard: {report.Total} total, {report.AutoFixable} fixable");
+                // ── By Category table ──
+                if (report.ByCategory.Count > 0)
+                {
+                    var catRows = report.ByCategory.OrderByDescending(x => x.Value)
+                        .Select(kv => new[] { kv.Key.ToString(), kv.Value.ToString(),
+                            $"{(double)kv.Value / Math.Max(report.Total, 1) * 100:F0}%" })
+                        .ToList();
+                    builder.AddSection("By Category")
+                        .Table(new[] { "Category", "Count", "%" }, catRows);
+                }
+
+                // ── By Severity table ──
+                {
+                    var sevRows = new List<string[]>();
+                    foreach (WarningSeverity sev in Enum.GetValues(typeof(WarningSeverity)))
+                        if (report.BySeverity.TryGetValue(sev, out int cnt) && cnt > 0)
+                            sevRows.Add(new[] { sev.ToString(), cnt.ToString(),
+                                $"{(double)cnt / Math.Max(report.Total, 1) * 100:F0}%" });
+                    if (sevRows.Count > 0)
+                        builder.AddSection("By Severity")
+                            .Table(new[] { "Severity", "Count", "%" }, sevRows);
+                }
+
+                // ── By Discipline table ──
+                if (report.ByDiscipline.Count > 0)
+                {
+                    var discRows = report.ByDiscipline.OrderByDescending(x => x.Value)
+                        .Select(kv => new[] { kv.Key, kv.Value.ToString() }).ToList();
+                    builder.AddSection("By Discipline")
+                        .Table(new[] { "Discipline", "Count" }, discRows);
+                }
+
+                // ── By Level table (top 10) ──
+                if (report.ByLevel.Count > 0)
+                {
+                    var lvlRows = report.ByLevel.OrderByDescending(x => x.Value).Take(10)
+                        .Select(kv => new[] { kv.Key, kv.Value.ToString() }).ToList();
+                    builder.AddSection("By Level (top 10)")
+                        .Table(new[] { "Level", "Count" }, lvlRows);
+                }
+
+                // ── Hotspot elements (top 10) ──
+                if (report.Hotspots.Count > 0)
+                {
+                    var hotRows = report.Hotspots.Take(10)
+                        .Select(hs => new[] { hs.Item2, hs.Item3.ToString() }).ToList();
+                    builder.AddSection("Hotspot Elements (most warnings)")
+                        .Table(new[] { "Element", "Warnings" }, hotRows);
+                }
+
+                // ── SLA violations ──
+                if (report.SLAViolations > 0)
+                {
+                    builder.AddSection("SLA Violations")
+                        .MetricError("Overdue", report.SLAViolations.ToString(), "Warnings exceeding SLA thresholds")
+                        .Metric("Avg Critical Age", $"{report.AvgCriticalAgeHours:F1} hours");
+                }
+
+                // Build plain text for clipboard/fallback
+                var sb = new StringBuilder();
+                sb.AppendLine($"STING Warnings Dashboard — {report.Total} total {report.TrendSymbol}");
+                sb.AppendLine($"Health Score: {healthScore}/100");
+                sb.AppendLine($"Critical: {critical}  High: {high}  Medium: {medium}  Low: {low}");
+                sb.AppendLine($"Auto-fixable: {report.AutoFixable}  Manual: {report.ManualReview}");
+                if (report.ByCategory.Count > 0)
+                {
+                    sb.AppendLine("\nBy Category:");
+                    foreach (var kv in report.ByCategory.OrderByDescending(x => x.Value))
+                        sb.AppendLine($"  {kv.Key}: {kv.Value}");
+                }
+                if (report.Hotspots.Count > 0)
+                {
+                    sb.AppendLine("\nHotspot Elements:");
+                    foreach (var (id, name, count) in report.Hotspots.Take(10))
+                        sb.AppendLine($"  {name}: {count} warnings");
+                }
+                builder.SetRawText(sb.ToString());
+
+                builder.Show();
+
+                StingLog.Info($"WarningsDashboard: {report.Total} total, {report.AutoFixable} fixable, health={healthScore}");
                 return Result.Succeeded;
             }
             catch (Exception ex)

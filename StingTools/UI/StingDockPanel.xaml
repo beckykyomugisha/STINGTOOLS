@@ -2049,6 +2049,53 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- WARNINGS MANAGER — HIGH VISIBILITY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚠  WARNINGS MANAGER"/>
+                        <Border BorderBrush="#E65100" BorderThickness="2" CornerRadius="3" Margin="0,0,0,4" Padding="6"
+                                Background="#FFF3E0">
+                            <StackPanel>
+                                <TextBlock Text="Classify, auto-fix, track and export Revit warnings with SLA enforcement" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="0,0,0,4">
+                                    <Button Tag="WarningsDashboard" Click="Cmd_Click" FontWeight="Bold" FontSize="11" Cursor="Hand"
+                                            ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
+                                                        CornerRadius="3" Padding="10,6">
+                                                    <TextBlock Text="⚠  WARNINGS DASHBOARD" FontWeight="Bold" FontSize="11"
+                                                               Foreground="White" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#F4511E"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#BF360C"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
+                                            ToolTip="Auto-fix: duplicate instances, room separation overlaps, duplicate marks, unjoined geometry" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="WarningsExport" Click="Cmd_Click"
+                                            ToolTip="Export all classified warnings to CSV for BIM360/Aconex tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Baseline" Tag="WarningsBaseline" Click="Cmd_Click"
+                                            ToolTip="Save warning count baseline for trend tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select" Tag="WarningsSelect" Click="Cmd_Click"
+                                            ToolTip="Select elements by warning type in model"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppress" Tag="WarningsSuppress" Click="Cmd_Click"
+                                            ToolTip="Suppress warning types from dashboard (persisted to config)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="WarningsCompliance" Click="Cmd_Click"
+                                            ToolTip="ISO 19650 / CIBSE / BS 7671 compliance mapping"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Monitor" Tag="WarningsMonitor" Click="Cmd_Click"
+                                            ToolTip="Track warning count before/after operations"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- PROJECT OVERVIEW -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT OVERVIEW"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
@@ -2343,27 +2390,6 @@
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
                                 <!-- BIM COORDINATION CENTER (see prominent button at top of BIM tab) -->
-                                <!-- WARNINGS MANAGER (Phase 46) -->
-                                <TextBlock Text="WARNINGS MANAGER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
-                                           Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
-                                <WrapPanel Margin="2,0,2,2">
-                                    <Button Style="{StaticResource BlueBtn}" Content="⚠ Dashboard" Tag="WarningsDashboard" Click="Cmd_Click"
-                                            ToolTip="Warnings dashboard: category/severity/level/discipline breakdown with trend" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
-                                            ToolTip="Auto-fix: duplicate instances, separation overlaps, duplicate marks"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="WarningsExport" Click="Cmd_Click"
-                                            ToolTip="Export warnings to CSV for external tracking"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Baseline" Tag="WarningsBaseline" Click="Cmd_Click"
-                                            ToolTip="Save warning count baseline for trend tracking"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Select" Tag="WarningsSelect" Click="Cmd_Click"
-                                            ToolTip="Select elements by warning type"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Suppress" Tag="WarningsSuppress" Click="Cmd_Click"
-                                            ToolTip="Suppress warning types from dashboard"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="WarningsCompliance" Click="Cmd_Click"
-                                            ToolTip="ISO 19650 / CIBSE / BS 7671 compliance check"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Monitor" Tag="WarningsMonitor" Click="Cmd_Click"
-                                            ToolTip="Track warning count before/after commands"/>
-                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
