@@ -92,8 +92,9 @@ namespace StingTools.Tags
                             try
                             {
                                 bool ok = TagPipelineHelper.RunFullPipeline(
-                                    doc, el, popCtx, seqCounters, tagIndex,
-                                    formulas, gridLines, overwrite: false);
+                                    doc, el, popCtx, tagIndex, seqCounters,
+                                    formulas, gridLines, overwrite: false,
+                                    skipComplete: false, collisionMode: TagCollisionMode.AutoIncrement);
                                 if (ok)
                                 {
                                     tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);

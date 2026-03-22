@@ -165,6 +165,7 @@ namespace StingTools.Tags
             catch (Exception ssEx) { StingLog.Warn($"RepairDuplicateSeq SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "RepairDuplicateSeq");
 
             TaskDialog.Show("Repair Duplicate SEQ",
                 $"Repaired {retagged} elements across {duplicates.Count} duplicate groups.");

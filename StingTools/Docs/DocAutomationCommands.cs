@@ -43,8 +43,25 @@ namespace StingTools.Docs
             // Get the active view to protect it
             ElementId activeViewId = ctx.ActiveView.Id;
 
+            // Phase 40: Build multi-sheet placement map for safety reporting
+            var viewToSheets = new Dictionary<ElementId, List<string>>();
+            foreach (var sheet in new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+            {
+                foreach (var vId in sheet.GetAllPlacedViews())
+                {
+                    if (!viewToSheets.ContainsKey(vId))
+                        viewToSheets[vId] = new List<string>();
+                    viewToSheets[vId].Add(sheet.SheetNumber);
+                }
+            }
+
+            // Phase 40: Filter out dependent views (deleting a dependent can crash Revit
+            // or orphan the parent view's crop region and annotation references).
+            // Also protect views placed on multiple sheets (viewToSheets count > 1).
             var unplaced = allViews
-                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
+                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId
+                    && v.GetPrimaryViewId() == ElementId.InvalidElementId) // exclude dependent views
                 .ToList();
 
             if (unplaced.Count == 0)
@@ -359,7 +376,33 @@ namespace StingTools.Docs
             if (!hasRole && parts.Length < 4)
                 return $"No recognised role code in '{num}' — expected A/S/M/E/P/C prefix";
 
-            return null; // compliant enough
+            // Phase 39: ISO 19650 strict mode — validate full 7-segment format
+            // Format: Project-Originator-Volume-Level-Type-Role-Number
+            // Enabled via project_config.json SHEET_NAMING_STRICT_MODE = true
+            string strictMode = Core.TagConfig.GetConfigValue("SHEET_NAMING_STRICT_MODE");
+            if (!string.IsNullOrEmpty(strictMode) && (strictMode == "true" || strictMode == "1"))
+            {
+                if (parts.Length < 5)
+                    return $"ISO 19650 strict: '{num}' has {parts.Length} segments (need 5+ for Project-Originator-Volume-Level-Type-Role-Number)";
+                // Validate type code segment (usually DR, SH, SP, etc.)
+                bool hasTypeCode = false;
+                foreach (string part in parts)
+                {
+                    if (ValidTypeCodes.Contains(part)) { hasTypeCode = true; break; }
+                }
+                if (!hasTypeCode)
+                    return $"ISO 19650 strict: '{num}' missing document type code (DR/SH/SP/RP/MO)";
+                // Validate role code is a known discipline
+                bool hasStrictRole = false;
+                foreach (string part in parts)
+                {
+                    if (ValidRoleCodes.Contains(part)) { hasStrictRole = true; break; }
+                }
+                if (!hasStrictRole)
+                    return $"ISO 19650 strict: '{num}' missing recognised role code (A/S/M/E/P/C)";
+            }
+
+            return null; // compliant
         }
 
         private static string SuggestCompliantNumber(string num, string name, string projectNum, string originator)

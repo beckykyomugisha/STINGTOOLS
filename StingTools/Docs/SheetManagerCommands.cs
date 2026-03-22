@@ -126,6 +126,11 @@ namespace StingTools.Docs
                 "RenumberDisc" => "SM_RenumberDisc",
                 "SwapTitleBlock" => "SM_SwapTitleBlock",
                 "EnforceISONaming" => "SM_EnforceISONaming",
+                "RevertISONaming" => "SM_RevertISONaming",
+                "SM_GetViewTemplates" => "SM_GetViewTemplates",
+                "SM_AssignSpecificTemplate" => "SM_AssignSpecificTemplate",
+                "SM_RemoveViewTemplate" => "SM_RemoveViewTemplate",
+                "SM_SelectElementIds" => "SM_SelectElementIds",
                 _ => operation // Fall through to standard dispatch tags
             };
 
@@ -189,6 +194,18 @@ namespace StingTools.Docs
 
                 case "EnforceISONaming":
                     return EnforceISONaming(doc, result);
+
+                case "RevertISONaming":
+                    return RevertISONaming(doc, result);
+
+                case "ActivateView":
+                    if (result.Options.TryGetValue("ViewTag", out object avTag) && avTag is ElementId avId)
+                    {
+                        var view = doc.GetElement(avId) as View;
+                        if (view != null && ctx.UIDoc != null)
+                            ctx.UIDoc.ActiveView = view;
+                    }
+                    return Result.Succeeded;
 
                 default:
                     StingLog.Info($"Sheet Manager operation '{result.Operation}' — no handler.");
@@ -284,7 +301,7 @@ namespace StingTools.Docs
 
         private Result CreateNewSheet(Document doc)
         {
-            // Find a title block type
+            // ── Collect title block types ──
             var tbTypes = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsElementType()
@@ -297,21 +314,195 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
-            // Use the first available title block
-            var tbType = tbTypes.First();
+            var tbNames = tbTypes.Select(t => $"{t.FamilyName}: {t.Name}").OrderBy(n => n).ToList();
+            string defaultTb = tbNames.Count > 0 ? tbNames[0] : "";
 
-            string disc = "G";
-            string nextNum = SheetManagerEngine.GetNextSheetNumber(doc, disc);
+            // ── Collect scope boxes ──
+            var scopeBoxes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType()
+                .Select(e => e.Name)
+                .OrderBy(n => n)
+                .ToList();
 
-            using (var tx = new Transaction(doc, "STING Create Sheet"))
+            // ── Collect unplaced views (dependent views candidates) ──
+            var unplacedViews = SheetManagerEngine.GetUnplacedViews(doc)
+                .Select(v => v.Name)
+                .OrderBy(n => n)
+                .ToList();
+
+            // ── Collect view templates ──
+            var viewTemplates = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => v.IsTemplate)
+                .Select(v => v.Name)
+                .OrderBy(n => n)
+                .ToList();
+
+            // ── Collect custom shared parameters bound to ViewSheet category ──
+            var sheetParamNames = new List<string>();
+            try
+            {
+                // Get shared params from an existing sheet, or from binding map
+                var sampleSheet = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .FirstOrDefault() as ViewSheet;
+
+                if (sampleSheet != null)
+                {
+                    // Iterate all parameters and find shared/project params (non built-in, writable text)
+                    foreach (Parameter p in sampleSheet.Parameters)
+                    {
+                        if (p.IsShared && !p.IsReadOnly
+                            && p.StorageType == StorageType.String
+                            && p.Definition != null
+                            && !string.IsNullOrEmpty(p.Definition.Name))
+                        {
+                            string pName = p.Definition.Name;
+                            // Skip STING internal params and standard Revit params
+                            if (!pName.StartsWith("STING_") && !pName.StartsWith("ASS_TAG_")
+                                && pName != "Sheet Number" && pName != "Sheet Name")
+                            {
+                                sheetParamNames.Add(pName);
+                            }
+                        }
+                    }
+                }
+                sheetParamNames.Sort();
+            }
+            catch (Exception ex) { StingLog.Warn($"Failed to collect sheet parameters: {ex.Message}"); }
+
+            // Suggest next sheet number
+            string suggestedNum = SheetManagerEngine.GetNextSheetNumber(doc, "A");
+
+            // ── Show Naviate-style New Sheet dialog ──
+            var rows = NewSheetDialog.Show(
+                tbNames, scopeBoxes, unplacedViews, viewTemplates,
+                out bool autoPlaceDependentViews,
+                defaultTb, "A", suggestedNum, sheetParamNames);
+
+            if (rows == null || rows.Count == 0)
+                return Result.Succeeded; // Cancelled
+
+            // ── Create sheets from dialog rows ──
+            int created = 0;
+            int errors = 0;
+
+            // Build title block lookup (display name → FamilySymbol)
+            var tbLookup = new Dictionary<string, FamilySymbol>();
+            foreach (var tb in tbTypes)
+            {
+                string key = $"{tb.FamilyName}: {tb.Name}";
+                if (!tbLookup.ContainsKey(key)) tbLookup[key] = tb;
+            }
+
+            // Build scope box lookup
+            var scopeBoxLookup = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sb in new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType())
+            {
+                if (!scopeBoxLookup.ContainsKey(sb.Name)) scopeBoxLookup[sb.Name] = sb;
+            }
+
+            // Build unplaced view lookup
+            var viewLookup = new Dictionary<string, View>(StringComparer.OrdinalIgnoreCase);
+            foreach (var v in SheetManagerEngine.GetUnplacedViews(doc))
+            {
+                if (!viewLookup.ContainsKey(v.Name)) viewLookup[v.Name] = v;
+            }
+
+            using (var tx = new Transaction(doc, "STING Create Sheets"))
             {
                 tx.Start();
-                var sheet = ViewSheet.Create(doc, tbType.Id);
-                try { sheet.SheetNumber = nextNum; } catch (Exception ex) { StingLog.Warn($"Sheet number conflict: {ex.Message}"); }
-                try { sheet.Name = "New Sheet"; } catch (Exception ex) { StingLog.Warn($"Sheet name conflict: {ex.Message}"); }
+                foreach (var row in rows)
+                {
+                    try
+                    {
+                        // Resolve title block
+                        FamilySymbol tbSym = tbLookup.ContainsKey(row.TitleBlock)
+                            ? tbLookup[row.TitleBlock]
+                            : tbTypes.First();
+
+                        // Activate if needed
+                        if (!tbSym.IsActive) tbSym.Activate();
+
+                        // Create sheet
+                        var sheet = ViewSheet.Create(doc, tbSym.Id);
+                        try { sheet.SheetNumber = row.SheetNumber; }
+                        catch (Exception ex) { StingLog.Warn($"Sheet number conflict '{row.SheetNumber}': {ex.Message}"); }
+
+                        try { sheet.Name = row.SheetName; }
+                        catch (Exception ex) { StingLog.Warn($"Sheet name conflict '{row.SheetName}': {ex.Message}"); }
+
+                        // Write custom shared parameter values
+                        if (row.CustomParams != null && row.CustomParams.Count > 0)
+                        {
+                            foreach (var kvp in row.CustomParams)
+                            {
+                                if (string.IsNullOrEmpty(kvp.Value)) continue;
+                                try
+                                {
+                                    var p = sheet.LookupParameter(kvp.Key);
+                                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                                        p.Set(kvp.Value);
+                                }
+                                catch (Exception ex) { StingLog.Warn($"Failed to set param '{kvp.Key}': {ex.Message}"); }
+                            }
+                        }
+
+                        // Assign scope box if specified
+                        if (!string.IsNullOrEmpty(row.ScopeBox) && row.ScopeBox != "(None)"
+                            && scopeBoxLookup.TryGetValue(row.ScopeBox, out Element sb))
+                        {
+                            try
+                            {
+                                var scopeParam = sheet.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                                if (scopeParam != null && !scopeParam.IsReadOnly)
+                                    scopeParam.Set(sb.Id);
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Scope box assignment failed: {ex.Message}"); }
+                        }
+
+                        // Place dependent views if requested
+                        if (autoPlaceDependentViews && !string.IsNullOrEmpty(row.DependentViews))
+                        {
+                            var viewNames = row.DependentViews.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                .Select(n => n.Trim()).Where(n => !string.IsNullOrEmpty(n));
+
+                            double x = 0.5; // Start placement offset (feet)
+                            foreach (var vName in viewNames)
+                            {
+                                if (viewLookup.TryGetValue(vName, out View depView))
+                                {
+                                    try
+                                    {
+                                        Viewport.Create(doc, sheet.Id, depView.Id, new XYZ(x, 0.5, 0));
+                                        x += 0.8; // Offset each viewport
+                                        // Remove from lookup so it can't be placed twice
+                                        viewLookup.Remove(vName);
+                                    }
+                                    catch (Exception ex) { StingLog.Warn($"Failed to place view '{vName}': {ex.Message}"); }
+                                }
+                            }
+                        }
+
+                        created++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error($"Failed to create sheet '{row.SheetNumber}': {ex.Message}");
+                        errors++;
+                    }
+                }
                 tx.Commit();
-                TaskDialog.Show("Sheet Manager", $"Created sheet '{sheet.SheetNumber} - {sheet.Name}'.");
             }
+
+            TaskDialog.Show("Sheet Manager",
+                $"Created {created} sheet{(created == 1 ? "" : "s")}" +
+                (errors > 0 ? $" ({errors} error{(errors == 1 ? "" : "s")})" : "") + ".");
+
             return Result.Succeeded;
         }
 
@@ -624,9 +815,13 @@ namespace StingTools.Docs
             ViewSheet sheet = null;
             if (sheetId != null) sheet = doc.GetElement(sheetId) as ViewSheet;
 
+            // Fallback to active view if no sheet selected
+            if (sheet == null && doc.ActiveView is ViewSheet activeSheet)
+                sheet = activeSheet;
+
             if (sheet == null)
             {
-                TaskDialog.Show("STING", "No sheet selected for title block swap.");
+                TaskDialog.Show("STING", "Navigate to a sheet view or select a sheet in the Sheet Manager.");
                 return Result.Succeeded;
             }
 
@@ -699,10 +894,157 @@ namespace StingTools.Docs
             return Result.Succeeded;
         }
 
+        // ── ISO Naming Backup Storage ───────────────────────────────────
+        // Stores original sheet names before ISO rename for revert capability.
+        // Key: ElementId.Value, Value: (OriginalNumber, OriginalName)
+        private static Dictionary<long, (string Number, string Name)> _isoBackup;
+
+        /// <summary>
+        /// Get the ISO naming backup sidecar file path for the current project.
+        /// </summary>
+        private static string GetIsoBackupPath(Document doc)
+        {
+            if (string.IsNullOrEmpty(doc.PathName)) return null;
+            return System.IO.Path.ChangeExtension(doc.PathName, ".sting_sheet_backup.json");
+        }
+
+        /// <summary>
+        /// Save the ISO naming backup to sidecar file alongside the .rvt.
+        /// </summary>
+        private static void SaveIsoBackup(Document doc)
+        {
+            if (_isoBackup == null || _isoBackup.Count == 0) return;
+            string path = GetIsoBackupPath(doc);
+            if (path == null) return;
+            try
+            {
+                var entries = _isoBackup.Select(kv =>
+                    $"    \"{kv.Key}\": {{\"Number\": \"{EscapeJson(kv.Value.Number)}\", \"Name\": \"{EscapeJson(kv.Value.Name)}\"}}");
+                string json = "{\n" + string.Join(",\n", entries) + "\n}";
+                System.IO.File.WriteAllText(path, json);
+                StingLog.Info($"ISO backup saved: {_isoBackup.Count} entries → {path}");
+            }
+            catch (Exception ex) { StingLog.Warn($"Save ISO backup: {ex.Message}"); }
+        }
+
+        private static string EscapeJson(string s) =>
+            (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+        /// <summary>
+        /// Load the ISO naming backup from sidecar file.
+        /// </summary>
+        private static void LoadIsoBackup(Document doc)
+        {
+            if (_isoBackup != null) return; // already loaded
+            _isoBackup = new Dictionary<long, (string, string)>();
+            string path = GetIsoBackupPath(doc);
+            if (path == null || !System.IO.File.Exists(path)) return;
+            try
+            {
+                string json = System.IO.File.ReadAllText(path);
+                // Simple JSON parse — extract key/Number/Name pairs
+                var matches = Regex.Matches(json, @"""(\d+)""\s*:\s*\{\s*""Number""\s*:\s*""([^""]*)""\s*,\s*""Name""\s*:\s*""([^""]*)""");
+                foreach (System.Text.RegularExpressions.Match m in matches)
+                {
+                    if (long.TryParse(m.Groups[1].Value, out long id))
+                        _isoBackup[id] = (m.Groups[2].Value, m.Groups[3].Value);
+                }
+                StingLog.Info($"ISO backup loaded: {_isoBackup.Count} entries from {path}");
+            }
+            catch (Exception ex) { StingLog.Warn($"Load ISO backup: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Revert sheets to their original names stored before ISO enforcement.
+        /// </summary>
+        private Result RevertISONaming(Document doc, SheetManagerResult result)
+        {
+            LoadIsoBackup(doc);
+            if (_isoBackup == null || _isoBackup.Count == 0)
+            {
+                TaskDialog.Show("Revert ISO Naming",
+                    "No ISO naming backup found.\nOriginal sheet names were not stored or the backup file is missing.");
+                return Result.Succeeded;
+            }
+
+            var allSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder && _isoBackup.ContainsKey(s.Id.Value))
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (allSheets.Count == 0)
+            {
+                TaskDialog.Show("Revert ISO Naming",
+                    $"Backup has {_isoBackup.Count} entries but no matching sheets found in current project.");
+                return Result.Succeeded;
+            }
+
+            // Show preview
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"Revert {allSheets.Count} sheet(s) to original names:\n");
+            int shown = 0;
+            foreach (var sheet in allSheets)
+            {
+                var orig = _isoBackup[sheet.Id.Value];
+                report.AppendLine($"  {sheet.SheetNumber,-30} \u2192 {orig.Number}");
+                if (++shown >= 30) { report.AppendLine("  ... (truncated)"); break; }
+            }
+
+            var td = new TaskDialog("Revert ISO Naming");
+            td.MainInstruction = $"Revert {allSheets.Count} sheet(s) to original names?";
+            td.MainContent = report.ToString();
+            td.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+            if (td.Show() != TaskDialogResult.Yes) return Result.Succeeded;
+
+            int reverted = 0;
+            using (var tx = new Transaction(doc, "STING Revert ISO Naming"))
+            {
+                tx.Start();
+                // Pass 1: temporary names to avoid conflicts
+                for (int i = 0; i < allSheets.Count; i++)
+                {
+                    try { allSheets[i].SheetNumber = $"_STING_REVERT_{i:D5}"; }
+                    catch (Exception ex) { StingLog.Warn($"ISO revert temp: {ex.Message}"); }
+                }
+                // Pass 2: restore original numbers
+                foreach (var sheet in allSheets)
+                {
+                    try
+                    {
+                        var orig = _isoBackup[sheet.Id.Value];
+                        sheet.SheetNumber = orig.Number;
+                        sheet.Name = orig.Name;
+                        reverted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"ISO revert failed for '{sheet.SheetNumber}': {ex.Message}");
+                    }
+                }
+                tx.Commit();
+            }
+
+            // Clear backup after successful revert
+            _isoBackup.Clear();
+            string backupPath = GetIsoBackupPath(doc);
+            if (backupPath != null && System.IO.File.Exists(backupPath))
+            {
+                try { System.IO.File.Delete(backupPath); }
+                catch (Exception ex) { StingLog.Warn($"Delete ISO backup: {ex.Message}"); }
+            }
+
+            TaskDialog.Show("Revert ISO Naming",
+                $"Reverted {reverted}/{allSheets.Count} sheets to original names.");
+            return Result.Succeeded;
+        }
+
         /// <summary>
         /// Enforce ISO 19650 naming convention on sheets.
         /// Format: PROJECT-ORIGINATOR-VOLUME-LEVEL-TYPE-ROLE-NUMBER
         /// Options: All sheets, selected sheet, non-compliant only.
+        /// Stores original names for revert capability.
         /// </summary>
         private Result EnforceISONaming(Document doc, SheetManagerResult result)
         {
@@ -730,7 +1072,7 @@ namespace StingTools.Docs
             if (originator.Length > 3) originator = originator.Substring(0, 3);
             originator = originator.ToUpperInvariant();
 
-            // Mode selection
+            // Mode selection — now includes Revert option
             var td = new TaskDialog("Enforce ISO 19650 Sheet Naming");
             td.MainInstruction = "ISO 19650 Sheet Naming Convention";
             td.MainContent =
@@ -746,36 +1088,24 @@ namespace StingTools.Docs
                 "Rename only sheets that don't follow ISO format");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
                 "Enforce on ALL Sheets — overwrite existing",
-                "Force ISO naming on every sheet (destructive)");
+                "Force ISO naming on every sheet (destructive — originals stored for revert)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Enforce on Selected Sheet Only",
-                "Rename only the currently selected sheet");
+                "\u21BA Revert to Original Names",
+                "Restore sheet names saved before last ISO enforcement");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
             var choice = td.Show();
             if (choice == TaskDialogResult.Cancel) return Result.Succeeded;
 
+            // Handle Revert option
+            if (choice == TaskDialogResult.CommandLink4)
+                return RevertISONaming(doc, result);
+
             bool auditOnly = choice == TaskDialogResult.CommandLink1;
             bool allScope = choice == TaskDialogResult.CommandLink3;
-            bool selectedOnly = choice == TaskDialogResult.CommandLink4;
 
             // Determine scope
-            List<ViewSheet> targetSheets;
-            if (selectedOnly)
-            {
-                var selId = result.Options.ContainsKey("SelectedTag") ? result.Options["SelectedTag"] as ElementId : null;
-                var selSheet = selId != null ? doc.GetElement(selId) as ViewSheet : null;
-                if (selSheet == null)
-                {
-                    TaskDialog.Show("STING", "No sheet selected.");
-                    return Result.Succeeded;
-                }
-                targetSheets = new List<ViewSheet> { selSheet };
-            }
-            else
-            {
-                targetSheets = allSheets;
-            }
+            List<ViewSheet> targetSheets = allSheets;
 
             // Classify each sheet and build rename plan
             var renamePlan = new List<(ViewSheet sheet, string oldNum, string newNum, string reason)>();
@@ -857,6 +1187,14 @@ namespace StingTools.Docs
             confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
             if (confirm.Show() != TaskDialogResult.Yes) return Result.Succeeded;
 
+            // Store original names for revert capability
+            LoadIsoBackup(doc);
+            foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
+            {
+                if (!_isoBackup.ContainsKey(sheet.Id.Value))
+                    _isoBackup[sheet.Id.Value] = (oldNum, sheet.Name);
+            }
+
             // Apply renames in two-pass to avoid Revit duplicate number conflicts
             int renamed = 0;
             using (var tx = new Transaction(doc, "STING Enforce ISO Naming"))
@@ -893,9 +1231,13 @@ namespace StingTools.Docs
                 tx.Commit();
             }
 
+            // Save backup for revert capability
+            SaveIsoBackup(doc);
+
             TaskDialog.Show("ISO Naming",
                 $"Renamed {renamed}/{renamePlan.Count} sheets to ISO 19650 format.\n\n" +
-                $"Format: {projectCode}-{originator}-VOL-LVL-TYPE-ROLE-SEQ");
+                $"Format: {projectCode}-{originator}-VOL-LVL-TYPE-ROLE-SEQ\n\n" +
+                "Original names stored — use 'Revert to Original Names' to undo.");
             return Result.Succeeded;
         }
 

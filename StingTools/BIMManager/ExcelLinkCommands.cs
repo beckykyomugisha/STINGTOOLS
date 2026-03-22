@@ -1212,9 +1212,30 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // Phase 40: Audit trail — record previous tag before rebuild
+                                    try
+                                    {
+                                        string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                        if (!string.IsNullOrEmpty(prevTag))
+                                        {
+                                            ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                                            ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                                                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                                        }
+                                    }
+                                    catch (Exception atEx) { StingLog.Warn($"ExcelLink audit trail for {el.Id}: {atEx.Message}"); }
                                     // Inherit family-type token defaults before rebuild
                                     try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
                                     catch (Exception tiEx) { StingLog.Warn($"ExcelLink TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+                                    // Phase 40: PopulateAll — derive all 9 tokens from spatial/category context
+                                    // This was MISSING — elements imported with empty tokens stayed empty
+                                    try
+                                    {
+                                        var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                                        if (popCtx != null && popCtx.IsValid())
+                                            TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                                    }
+                                    catch (Exception paEx) { StingLog.Warn($"ExcelLink PopulateAll for {el.Id}: {paEx.Message}"); }
                                     // FIX-10: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink NativeMapper for {el.Id}: {nmEx.Message}"); }
@@ -1296,6 +1317,7 @@ namespace StingTools.BIMManager
                 // after import to prevent SEQ collisions on next auto-tag operation
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                TagConfig.CheckComplianceGate(doc, "ExcelImport");
                 if (rebuilt > 0)
                     StingLog.Info($"ExcelLink: Rebuilt tags for {rebuilt} elements");
 
@@ -1548,9 +1570,29 @@ namespace StingTools.BIMManager
                                 try
                                 {
                                     string catName = ParameterHelpers.GetCategoryName(el);
+                                    // Phase 40: Audit trail — record previous tag before rebuild
+                                    try
+                                    {
+                                        string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                        if (!string.IsNullOrEmpty(prevTag))
+                                        {
+                                            ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                                            ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                                                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                                        }
+                                    }
+                                    catch (Exception atEx) { StingLog.Warn($"ExcelLink RoundTrip audit trail for {el.Id}: {atEx.Message}"); }
                                     // Inherit family-type token defaults before round-trip rebuild
                                     try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
                                     catch (Exception tiEx) { StingLog.Warn($"ExcelLink RoundTrip TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+                                    // Phase 40: PopulateAll — derive all 9 tokens from spatial/category context
+                                    try
+                                    {
+                                        var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                                        if (popCtx != null && popCtx.IsValid())
+                                            TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                                    }
+                                    catch (Exception paEx) { StingLog.Warn($"ExcelLink RoundTrip PopulateAll for {el.Id}: {paEx.Message}"); }
                                     // Phase2: Bridge native params before tag rebuild
                                     try { NativeParamMapper.MapAll(doc, el); }
                                     catch (Exception nmEx) { StingLog.Warn($"ExcelLink RoundTrip NativeMapper for {el.Id}: {nmEx.Message}"); }
@@ -1621,6 +1663,7 @@ namespace StingTools.BIMManager
                 // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                TagConfig.CheckComplianceGate(doc, "ExcelRoundTrip");
                 if (rebuilt > 0)
                     StingLog.Info($"ExcelLink RoundTrip: Rebuilt tags for {rebuilt} elements");
 

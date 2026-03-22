@@ -83,6 +83,7 @@ STINGTOOLS/
     │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
     │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
     │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
+    │   ├── DocumentManagementDialog.cs  # ISO 19650 Document Management Center — 7-tab action bar, code legend, quick workflows
     │   ├── DocAutomationDialog.cs      # 4-tab unified doc automation dialog (Sheets/Views/Viewports/Export)
     │   ├── ModelCreationDialog.cs      # Unified model creation dialog with element type selector + dynamic options
     │   ├── ScheduleWizardDialog.cs     # Unified schedule wizard dialog (create/populate/audit/export/manage)
@@ -554,6 +555,7 @@ STINGTOOLS/
 | `UI/StingModePicker.cs` | 0 (reusable WPF mode picker dialog) | 200 |
 | `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
 | `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
+| `UI/DocumentManagementDialog.cs` | 0 (ISO 19650 Document Management Center: 7-tab action bar, code legend, 14 data loaders, quick transmittal/issue creation, keyboard shortcuts) | 3,100+ |
 | `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
 | `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
 | `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
@@ -804,6 +806,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `SmartPlacementWizard` | `UI/SmartPlacementWizard.cs` | Smart tag placement configuration wizard |
 | `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
 | `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
+| `DocumentManagementDialog` | `UI/DocumentManagementDialog.cs` | ISO 19650 Document Management Center: 7-tab action bar (FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP), code legend (all ISO 19650 codes), dashboard strip with clickable RAG metrics, navigator tree (17 grouping modes), 14 data loaders, quick transmittal/issue creation, bulk CDE/status operations, keyboard shortcuts, VirtualizingStackPanel, drag-drop import |
 | `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
@@ -2002,6 +2005,82 @@ Critical review of the tagging workflow identified the following logic, automati
 388. **GAP-09: SkipIfDataUnchanged sidecar hash** — Added `.sting_data_hash.json` sidecar file for workshared model compatibility; replaced project parameter storage with sidecar pattern.
 389. **GAP-10: NLPCommandProcessor Phase 26-28 patterns** — Added 5 NLP intent patterns for RetagStale, AnomalyAutoFix, SetSeqScheme, MapSheets, WorkflowTrend commands.
 390. **PostTagCleanup coverage audit** — Verified all tagging commands with SEQ counters have SaveSeqSidecar + InvalidateCache + InvalidateContext + CheckComplianceGate. Fixed PopulationResult bool comparison in AutoPopulateCommand.
+
+#### Completed (Phase 39 — Deep Review: BIM Automation, Tagging Logic & Workflow Enhancement)
+
+391. **FUNC-SYS cross-validation** — `ISO19650Validator.ValidateElement()` now validates FUNC codes against a comprehensive SYS→FUNC mapping table (`GetValidFuncsForSys`). Each of 17 system codes has a set of valid function codes per CIBSE TM40 and Uniclass 2015. Previously, FUNC was only checked against the primary FuncMap default, allowing cross-discipline mismatches (e.g., FUNC=PWR on SYS=HVAC).
+392. **Four-bucket validation report** — `ValidateTagsCommand` now distinguishes 4 compliance buckets: RESOLVED (production-ready), COMPLETE_PLACEHOLDERS (8 segments but GEN/XX/ZZ/0000), INCOMPLETE (<8 segments), and UNTAGGED. Previously conflated "complete with placeholders" and "fully resolved" as both "VALID", making it impossible for BIM coordinators to prioritise placeholder resolution.
+393. **PopulationContext.IsValid()** — Added validation method to `TokenAutoPopulator.PopulationContext` that checks all critical fields (RoomIndex, KnownCategories, CachedPhases) are non-null. Prevents NullReferenceException crashes on corrupted documents where Build() returns a partially-initialized context. Added `DiagnosticSummary` property for troubleshooting.
+394. **Container write verification guard** — `TagPipelineHelper.RunFullPipeline()` now checks TAG2 as a sentinel after `BuildAndWriteTag`. If TAG1 is populated but TAG2 is empty (indicating containers partially failed), retries `WriteContainers` explicitly. Prevents "tagged but containers empty" silent failures that broke COBie export and compliance scanning.
+395. **ComplianceScan cache concurrency fix** — Fixed race condition where concurrent calls during an active scan could return null instead of stale cached data, causing dashboard to flicker to "0% compliant". Now returns empty `ComplianceResult` instead of null when no cache exists during concurrent scan.
+396. **WorkflowEngine extended conditions** — Added `RequiresWorksharedModel`, `MinElementCount`, `MaxElementCount`, and `TimeoutSeconds` to `WorkflowStep`. Conditions evaluated before step execution, allowing workflows to adapt to model complexity. Element count conditions prevent large-model commands from running on small test models and vice versa.
+397. **WorkflowStepResult per-step metrics** — `WorkflowRunRecord` now includes `StepResults` list with per-step `CommandTag`, `Label`, `Status`, `DurationMs`, and `ErrorMessage`. Also captures `UserName` from environment. Enables full audit trail for compliance gates, failure diagnosis, and team accountability.
+398. **Sheet naming strict mode** — `SheetNamingCheckCommand.ValidateSheetNumber()` extended with ISO 19650 strict mode (enabled via `SHEET_NAMING_STRICT_MODE` in project_config.json). Strict mode requires 5+ segments, validated document type code (DR/SH/SP/etc.), and recognised role code. Default relaxed mode unchanged.
+399. **MorningHealthCheck workflow** — New `WORKFLOW_MorningHealthCheck.json` preset with 10 adaptive steps: retag stale → pre-tag audit → batch tag new → validate → sheet naming → model health → template audit → issues → revisions → compliance dashboard. Designed for BIM coordinator daily morning routine.
+400. **WeeklyDataDrop workflow** — New `WORKFLOW_WeeklyDataDrop.json` preset with 10 steps for ISO 19650 information exchange: retag stale → resolve placeholders → validate → audit CSV → COBie export → Excel export → sheet compliance → sheet register → model health → full dashboard. Supports CDE submission requirements.
+
+#### Completed (Phase 40 — Pipeline Unification, COBie Data Quality, CDE Lifecycle & SEQ Safety)
+
+401. **Excel import PopulateAll + audit trail** — Added `TokenAutoPopulator.PopulateAll()` to both `ImportFromExcel` and `ExcelRoundTrip` tag rebuild paths. Previously, elements imported with empty tokens stayed empty (no spatial/category auto-detection). Also added `ASS_TAG_PREV_TXT` + `ASS_TAG_MODIFIED_DT` audit trail capture before tag rebuild so Excel-imported changes are tracked.
+402. **COBie InstallationDate ISO 8601** — Fixed `COBieExportCommand` InstallationDate fallback from exporting phase NAME ("New Construction") to exporting project start date in ISO 8601 format ("2025-03-22"). Uses `PROJECT_ISSUE_DATE` built-in parameter with current-date fallback. Also auto-derives `WarrantyStartDate` from `InstallationDate` when warranty start is empty.
+403. **COBie BarCode cross-project uniqueness** — Changed BarCode fallback from tag number (duplicate across projects) to `{doc.Title}_{assetId}` for project-scoped uniqueness, with `el.UniqueId` as last resort. Prevents CAFM system record overwrites when merging multi-project datasets.
+404. **DeleteTagsCommand SEQ sidecar persistence** — Added `TagConfig.SaveSeqSidecar()` after tag deletion so deleted elements' sequence numbers are no longer re-used on next session. Previously, deleted SEQ values would be re-assigned to new elements after model reopen.
+405. **SwapTagsCommand sidecar-merged counters** — Changed from `GetExistingSequenceCounters()` (project-params-only) to `BuildTagIndexAndCounters()` (merges `.sting_seq.json` sidecar data). Prevents counter drift in worksharing environments where sidecar shows N=500 but parameters show N=100.
+406. **ComplianceScan view-scoped overload** — Added `ComplianceScan.ScanView(doc, view)` method using `FilteredElementCollector(doc, view.Id)` for per-view compliance feedback. Does not update the project-level cache. Enables quick compliance checks after view-scoped AutoTag without full-project scan overhead.
+407. **DeleteUnusedViewsCommand cascade protection** — Added dependent view filter (`GetPrimaryViewId() == InvalidElementId`) and multi-sheet placement tracking. Dependent views are now excluded from deletion to prevent Revit crashes from orphaned crop regions and annotation references.
+408. **FullAutoPopulate compliance gate** — Added `TagConfig.CheckComplianceGate()` call after pipeline completion. Previously, FullAutoPopulate was the only major tagging command that didn't check the compliance gate, allowing models to stay non-compliant without warning.
+409. **CDE status lifecycle validation** — Expanded `BIMManagerEngine.CDEStates` from 4 to 7 ISO 19650-2 states (added SUPERSEDED, WITHDRAWN, OBSOLETE). Added `CDEStateTransitions` dictionary defining valid one-way transitions (WIP→SHARED→PUBLISHED→ARCHIVE) and `ValidateCDETransition()` method for state machine enforcement.
+410. **Configurable cost rates filename** — Added `TagConfig.CostRatesFileName` property loaded from `COST_RATES_FILE` config key in `project_config.json`. Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files. Also added `SHEET_NAMING_STRICT_MODE` to known config keys.
+
+#### Completed (Phase 41 — Build Error Fix: CS1597 Semicolon After Method)
+
+411. **CS1597 fix: ValidateCDETransition trailing semicolon** — Removed invalid trailing semicolon (`};` → `}`) from `BIMManagerEngine.ValidateCDETransition()` method closing brace in `BIMManagerCommands.cs:110`. The semicolon is valid after lambda/delegate declarations but not after regular methods. The remaining 12 build errors (CS8300 merge conflict markers) are from the user's local build environment where a prior merge was not fully resolved — no merge conflict markers exist in the branch source files.
+#### Completed (Phase 39 — Document Management Center Enhancement)
+
+391. **Action bar TabControl redesign** — Replaced single-row horizontal-scrolling `WrapPanel` (58+ hidden buttons requiring sideways scroll) with 7-tab `TabControl`: FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP. All buttons visible without scrolling. Each tab groups related operations with section labels.
+392. **Code Legend dialog** — New `ShowCodeLegend()` method displays comprehensive ISO 19650 quick reference: CDE status (WIP/SHARED/PUBLISHED/ARCHIVE), Suitability codes (S0-S7, CR, AB), Document status codes, Document type codes, Issue types (14 BCF+NEC/JCT codes), Issue statuses, Priority & SLA thresholds, Transmittal statuses, Discipline codes, Data drop milestones (DD1-DD4), ISO 19650 file naming convention, RAG compliance thresholds. Accessible via Code Legend button and Ctrl+L shortcut.
+393. **Quick Transmittal** — Inline transmittal creation from selected document items: select files → enter recipient → auto-generates transmittal record in `transmittals.json` with unique TX-NNNN ID, date, document list, creator, DRAFT status, and status history.
+394. **Quick Issue creation** — `QuickIssue()` method for rapid RFI/NCR/SI creation directly in the dialog: enter title → select priority → auto-generates issue in `issues.json` with typed ID (e.g., RFI-0001), auto-detected revision, discipline from current filter context, and audit trail.
+395. **Export Visible CSV** — `ExportVisibleToCSV()` with SaveFileDialog exports all currently filtered/visible rows to CSV (19 columns including Suitability, Overdue, CreatedBy). Logged to activity feed.
+396. **Keyboard shortcuts** — F5=Refresh, F2=Rename, Delete=Delete, Escape=Close, Ctrl+E=Export CSV, Ctrl+L=Code Legend, Ctrl+F=Focus search box.
+397. **VirtualizingStackPanel** — ListView now uses `VirtualizationMode.Recycling` and `IsDeferredScrollingEnabled` for smooth scrolling with 1000+ document items.
+398. **Coordination tab** — New COORDINATION tab consolidates: Clashes (Run/BCF Export/Import), Review (Review Tracker/Model Health/Full Compliance/Stage Gate), and Exchange (Excel Export/Import/Round-Trip/Platform Sync).
+399. **Enhanced revision tab** — Added Issue Sheets, Tag Integration, and Auto on Tag Change buttons for full revision lifecycle management.
+400. **Search box promoted to field** — `_searchBox` field enables Ctrl+F keyboard shortcut access from any context within the dialog.
+
+#### Completed (Phase 39b — Document Management: CDE State Machine, Row Coloring, Restore, BIM Commands)
+
+401. **CDE state machine enforcement (CDE-01)** — `BulkUpdateCDE` now enforces ISO 19650 one-way transitions: WIP→SHARED→PUBLISHED→ARCHIVE (with SHARED→WIP rework path). Mixed CDE state warning for multi-select. Terminal state blocking for ARCHIVE. Valid transitions shown as descriptive options.
+402. **Suitability transition logging (CDE-03)** — All CDE state changes now logged in `status_history` with timestamp, old/new CDE state, old/new suitability code, and username. Status codes properly mapped: SHARED→IFC (Issued for Coordination), PUBLISHED→IFA (Issued for Approval), ARCHIVE→IFR (Issued for Record). Suitability mapped per 2021 UK NA: SHARED→S3, PUBLISHED→S4.
+403. **Row coloring by status (UX-05)** — `BuildRowStyle()` applies conditional background colors: overdue items (light red + red text), CRITICAL priority (light orange + bold), RED compliance (light red tint), GREEN compliance (light green tint), CLOSED issues (grey italic), alternating row colors for readability. Uses `DataTrigger` bindings.
+404. **Restore from recycle (PFE-01)** — `RestoreFromRecycle()` method lists files in `_RECYCLE` folder, lets user pick file and destination folder. Context menu item added. Activity logged.
+405. **Auto-correct filename (PFE-03)** — Context menu item "Auto-correct Name" calls `ProjectFolderEngine.AutoCorrectFileName()` with before/after preview and confirmation. Activity logged.
+406. **Missing BIM commands wired** — Added to COORDINATION tab: ProjectDashboard, BulkBIMExport, MeasuredQuantities, ElementCountSummary. Added to HANDOVER tab: Export4DTimeline, Export5DCostData. Added to NOTES/BEP tab: GenerateBEP, UpdateBEP.
+407. **ListView alternation** — `AlternationCount = 2` for alternating row background colors.
+
+#### Completed (Phase 41 — Automation Logic Enhancements)
+
+414. **COBie pre-export cache invalidation** — Added `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after inline `WriteContainers` in COBie export pre-flight. Prevents stale compliance data after container population.
+415. **MasterSetup post-validation** — After all 18 setup steps, automatically runs `ValidateTemplateCommand` (45 checks) to catch configuration issues. Results shown in `StingResultPanel` with pass/fail counts and overall RAG bar.
+416. **ConfigEditor auto-reload** — After saving `project_config.json`, automatically calls `TagConfig.LoadFromFile()` + `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` + `ParameterHelpers.InvalidateSessionCaches()`. Changes take effect immediately without manual reload.
+417. **PostTaggingQA workflow** — New built-in workflow preset: PreTagAudit → ValidateTags → CompletenessDashboard → TagRegisterExport → ValidateTemplate. Provides standardised post-tagging validation chain.
+418. **AutoTag collision mode auto-select** — `ExtraParam("AutoTagMode")` allows dockable panel or workflows to pre-set collision mode (skip/overwrite/increment) without showing dialog.
+419. **TagNewOnly scope auto-select** — `ExtraParam("TagNewScope")` pre-sets scope. Falls back to `TagConfig.AutoDetectScope()` with session memory. Scope dialog only shown when no auto-detection possible.
+420. **Formula session cache** — `TagPipelineHelper.LoadFormulas()` now uses 5-minute TTL session cache, preventing 40+ redundant CSV reads per session. `InvalidateSessionCaches()` clears on document close/switch.
+415. **Grid line session cache** — `TagPipelineHelper.LoadGridLines()` now uses 2-minute TTL cache keyed by document path, preventing repeated `FilteredElementCollector` scans.
+416. **Compliance gate rollout** — Added `TagConfig.CheckComplianceGate()` to 6 commands missing it: `SystemParamPushCommand`, `RepairDuplicateSeqCommand`, `FamilyStagePopulateCommand`, `CombineParametersCommand`, `ExcelLinkCommands` (Import and RoundTrip). All tagging operations now validate compliance after commit.
+417. **Scope auto-detection** — `TagConfig.AutoDetectScope(uidoc)` auto-detects scope from selection state (selection > 0 → "selection", else → last used or "active_view"). `LastScope` persists across commands in session. `GetScopeLabel()` for display.
+418. **BatchRunner utility** — `ParameterHelpers.RunBatch()` reusable per-element error recovery for batch operations. Failed elements logged and skipped, not rolled back. `BatchResult` with processed/succeeded/failed counts and `AddToPanel()` for StingResultPanel integration.
+419. **Session cache invalidation** — All 3 document close/switch handlers now call `ParameterHelpers.InvalidateSessionCaches()` alongside `ClearParamCache()`.
+
+#### Completed (Phase 40 — Rich Result Panels, Meeting Manager & Dialog UX)
+
+408. **StingResultPanel** — `UI/StingResultPanel.cs` (530 lines): Reusable rich WPF result display component replacing plain-text TaskDialog for audit reports. Builder API with sections, metrics, RAG bars, pass/fail checklists, tables, alerts, action buttons. Supports CSV export path, clipboard copy, plain-text fallback. Color-coded section headers, aligned key-value metrics, progress bars with RAG coloring.
+409. **PreTagAudit rich panel** — Converted from 170-line StringBuilder + TaskDialog to structured StingResultPanel with 8 colored sections: Scope, Tag Prediction, Spatial Intelligence, Status Prediction, Revision Prediction, Family-Aware PROD Codes, Token Coverage, ISO 19650 Compliance, By Discipline (table). Auto-fix action button triggers AnomalyAutoFix + ResolveAllIssues inline.
+410. **ValidateTags rich panel** — Converted from 250-line narrative StringBuilder to StingResultPanel with RAG bars for compliance, STATUS, REV percentages. Sections: Three-Bucket Compliance, ISO 19650 Code Compliance, Construction Status & Phasing (with status distribution table), Revision Tracking, Empty Tokens, Issues by Category (table), Full Compliance Summary with verdict text. Action buttons for Create Legend and Fix All Issues.
+411. **ValidateTemplate rich panel** — Converted from plain text to StingResultPanel with Summary section (RAG bar, pass/fail/critical counts), Failures section (pass/fail checklist with severity), All Checks section (full pass/fail checklist). CSV export path auto-detected.
+412. **Keep-dialog-open loop** — `StingCommandHandler` DocumentManager dispatch now loops: shows dialog → user clicks command → dialog closes → command executes → dialog re-opens. User stays in Document Management Center across multiple operations without navigating back.
+413. **Meeting Manager tab** — 8th tab "MEETINGS" in DocumentManagementDialog with 3 sections (PREPARE/DURING/REVIEW): New Meeting (5 types: BIM Coordination, Design Review, Client Review, Handover, Clash Resolution), Auto Agenda (auto-generates from open issues, pending transmittals, recent revisions, compliance status, open action items), Meeting Templates, Log Minutes (multi-line text editor), Add Action Item (description/assignee/due date), Quick Issue, Meeting History (StingResultPanel with per-meeting sections), Open Actions (grouped by overdue/upcoming), Export Minutes (to timestamped .txt file). Data stored in `_bim_manager/meetings.json`.
 
 ### External Tool References
 

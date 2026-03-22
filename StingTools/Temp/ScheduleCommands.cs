@@ -985,6 +985,10 @@ namespace StingTools.Temp
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
 
+            // Phase 40: Check compliance gate after full auto-populate (was missing — GAP-A01)
+            try { TagConfig.CheckComplianceGate(doc, "FullAutoPopulate"); }
+            catch (Exception cgEx) { StingLog.Warn($"FullAutoPopulate ComplianceGate: {cgEx.Message}"); }
+
             // Phase 39: Tag sheets with ISO 19650 document codes after element pipeline
             int sheetsTagged = 0, sheetTokens = 0;
             try

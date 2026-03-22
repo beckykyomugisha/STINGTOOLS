@@ -109,6 +109,17 @@ namespace StingTools.UI
         private static Point _dragStartPoint;
         private static TreeViewItem _lastHighlighted;
 
+        // ── Multi-selection state ─────────────────────────────────────
+        private static readonly HashSet<TreeViewItem> _selectedViewItems = new();
+        private static readonly HashSet<TreeViewItem> _selectedSheetItems = new();
+        private static TreeViewItem _lastClickedViewItem;
+        private static TreeViewItem _lastClickedSheetItem;
+        private static readonly SolidColorBrush BrSelected = new(Color.FromRgb(0xE3, 0xF2, 0xFD)); // Light blue selection
+
+        // ── Template / scope box names cache for context menu ─────────
+        internal static List<string> _cachedTemplateNames;
+        internal static List<KeyValuePair<long, string>> _cachedScopeBoxes;
+
         /// <summary>Data model for sheet tree nodes.</summary>
         internal class SheetNode
         {
@@ -393,11 +404,125 @@ namespace StingTools.UI
             if (_headerStats == null) return;
             int depCount = _allViews?.Count(v => v.IsDependent) ?? 0;
             int withTemplate = _allViews?.Count(v => !string.IsNullOrEmpty(v.TemplateName)) ?? 0;
+            int noTemplate = (_allViews?.Count ?? 0) - withTemplate;
             int scopeBoxed = _allViews?.Count(v => !string.IsNullOrEmpty(v.ScopeBoxName)) ?? 0;
-            _headerStats.Text = $"  |  {_sheetNodes?.Count ?? 0} sheets  \u2022  " +
-                $"{_unplacedViews?.Count ?? 0} unplaced  \u2022  " +
-                $"{_allViews?.Count ?? 0} views  \u2022  " +
-                $"{withTemplate} templated  \u2022  {depCount} dependent  \u2022  {scopeBoxed} scoped";
+
+            // Replace single TextBlock with clickable metric links
+            var parent = _headerStats.Parent as Panel;
+            if (parent == null) return;
+            int idx = -1;
+            for (int i = 0; i < parent.Children.Count; i++)
+            {
+                if (parent.Children[i] == _headerStats) { idx = i; break; }
+            }
+            if (idx < 0) return;
+
+            var metricsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12, 0, 0, 0) };
+            metricsPanel.Children.Add(MakeStatBadge($"{_sheetNodes?.Count ?? 0} sheets", BrFgWhite, "Sheets",
+                () => HighlightByFilter(v => false, s => true, "All sheets")));
+            metricsPanel.Children.Add(MakeStatBadge($"{_unplacedViews?.Count ?? 0} unplaced", BrRed, "Unplaced",
+                () => HighlightByFilter(v => !v.IsPlaced, s => false, "Unplaced views")));
+            metricsPanel.Children.Add(MakeStatBadge($"{_allViews?.Count ?? 0} views", BrFgWhite, "Views",
+                () => HighlightByFilter(v => true, s => false, "All views")));
+            metricsPanel.Children.Add(MakeStatBadge($"{withTemplate} templated", BrGreen, "Templated",
+                () => HighlightByFilter(v => !string.IsNullOrEmpty(v.TemplateName), s => false, "Views with templates")));
+            metricsPanel.Children.Add(MakeStatBadge($"{noTemplate} no template", BrAccent, "NoTemplate",
+                () => HighlightByFilter(v => string.IsNullOrEmpty(v.TemplateName), s => false, "Views WITHOUT templates")));
+            metricsPanel.Children.Add(MakeStatBadge($"{depCount} dependent", BrDependent, "Dependent",
+                () => HighlightByFilter(v => v.IsDependent, s => false, "Dependent views")));
+            metricsPanel.Children.Add(MakeStatBadge($"{scopeBoxed} scoped", BrFgWhite, "ScopeBoxed",
+                () => HighlightByFilter(v => !string.IsNullOrEmpty(v.ScopeBoxName), s => false, "Views with scope boxes")));
+
+            parent.Children.RemoveAt(idx);
+            parent.Children.Insert(idx, metricsPanel);
+            _headerStats = new TextBlock(); // keep reference valid but unused
+        }
+
+        /// <summary>Creates a clickable header metric badge.</summary>
+        private static Border MakeStatBadge(string text, SolidColorBrush color, string tag, Action onClick)
+        {
+            var tb = new TextBlock
+            {
+                Text = text, FontSize = 11, Foreground = color,
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = Cursors.Hand
+            };
+            var border = new Border
+            {
+                Child = tb, Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(2, 0, 2, 0), Tag = tag,
+                CornerRadius = new CornerRadius(3),
+                Background = Brushes.Transparent
+            };
+            border.MouseEnter += (s, e) => border.Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            border.MouseLeave += (s, e) => border.Background = Brushes.Transparent;
+            border.MouseLeftButtonDown += (s, e) => { onClick?.Invoke(); e.Handled = true; };
+            border.ToolTip = $"Click to highlight: {text}";
+            return border;
+        }
+
+        /// <summary>
+        /// Highlight views/sheets in the trees matching a filter predicate.
+        /// Sends matching element IDs to the execution callback for Revit selection.
+        /// </summary>
+        private static void HighlightByFilter(Func<AllViewNode, bool> viewFilter,
+            Func<SheetNode, bool> sheetFilter, string description)
+        {
+            // Collect matching element IDs
+            var matchIds = new List<object>();
+            if (_allViews != null)
+                matchIds.AddRange(_allViews.Where(viewFilter).Select(v => v.Tag));
+            if (_sheetNodes != null)
+                matchIds.AddRange(_sheetNodes.Where(sheetFilter).Select(s => s.Tag));
+
+            // Highlight matching items in trees
+            int highlighted = 0;
+            HighlightMatchingItems(_viewsTree, v =>
+            {
+                if (v is AllViewNode avn) return viewFilter(avn);
+                return false;
+            }, ref highlighted);
+            HighlightMatchingItems(_sheetsTree, v =>
+            {
+                if (v is SheetNode sn) return sheetFilter(sn);
+                return false;
+            }, ref highlighted);
+
+            // Send IDs to Revit for element selection
+            if (matchIds.Count > 0)
+            {
+                var opts = new Dictionary<string, object>
+                {
+                    { "ElementIds", string.Join(",", matchIds.Select(id => id?.ToString() ?? "")) },
+                    { "Description", description }
+                };
+                ExecuteOp("SM_SelectElementIds", opts);
+            }
+
+            UpdateStatus($"\u2714 {description}: {matchIds.Count} elements");
+        }
+
+        private static void HighlightMatchingItems(TreeView tree, Func<object, bool> matcher, ref int count)
+        {
+            if (tree == null) return;
+            foreach (TreeViewItem item in tree.Items)
+                HighlightMatchingItemsRecursive(item, matcher, ref count);
+        }
+
+        private static void HighlightMatchingItemsRecursive(TreeViewItem item, Func<object, bool> matcher, ref int count)
+        {
+            if (item.Tag != null && matcher(item.Tag))
+            {
+                item.Background = BrSelected;
+                item.BringIntoView();
+                count++;
+            }
+            else
+            {
+                item.Background = Brushes.Transparent;
+            }
+            foreach (TreeViewItem child in item.Items)
+                HighlightMatchingItemsRecursive(child, matcher, ref count);
         }
 
 
@@ -547,6 +672,7 @@ namespace StingTools.UI
             };
             _viewsTree.MouseDoubleClick += ViewsTree_DoubleClick;
             _viewsTree.PreviewMouseLeftButtonDown += ViewsTree_PreviewMouseLeftButtonDown;
+            _viewsTree.PreviewMouseLeftButtonUp += (s, e) => HandleMultiSelect(_viewsTree, e, _selectedViewItems, ref _lastClickedViewItem);
             _viewsTree.MouseMove += ViewsTree_MouseMove;
             _viewsTree.ContextMenu = CreateViewsContextMenu();
             panel.Children.Add(_viewsTree);
@@ -712,6 +838,7 @@ namespace StingTools.UI
             };
             _sheetsTree.MouseDoubleClick += SheetsTree_DoubleClick;
             _sheetsTree.PreviewMouseLeftButtonDown += SheetsTree_PreviewMouseLeftButtonDown;
+            _sheetsTree.PreviewMouseLeftButtonUp += (s, e) => HandleMultiSelect(_sheetsTree, e, _selectedSheetItems, ref _lastClickedSheetItem);
             _sheetsTree.MouseMove += SheetsTree_MouseMove;
             _sheetsTree.DragOver += SheetsTree_DragOver;
             _sheetsTree.DragLeave += SheetsTree_DragLeave;
@@ -858,7 +985,8 @@ namespace StingTools.UI
             qaRow.Children.Add(MakeRibbonLabel("QA"));
             qaRow.Children.Add(MakeToolBtn("Audit", "SheetAudit", BrBlue, "Sheet/viewport statistics audit"));
             qaRow.Children.Add(MakeToolBtn("ISO Check", "SheetComplianceCheck", BrGreen, "ISO 19650 sheet compliance (10 rules)"));
-            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrAccent, "Force ISO 19650 naming on sheets (audit/rename/overwrite)"));
+            qaRow.Children.Add(MakeToolBtn("\u26A0 Enforce ISO", "SM_EnforceISONaming", BrAccent, "Force ISO 19650 naming on sheets"));
+            qaRow.Children.Add(MakeToolBtn("\u21A9 Revert ISO", "SM_RevertISONaming", BrFgSubtle, "Revert to original sheet names before ISO rename"));
             qaRow.Children.Add(MakeToolBtn("Template Compliance", "TemplateComplianceScore", BrGreen, "View template compliance scoring"));
             qaRow.Children.Add(MakeToolBtn("Export CSV", "ExportSheetSet", BrFgSubtle, "Export sheet inventory to CSV"));
             qaRow.Children.Add(MakeToolBtn("Register", "ExportSheetRegister", BrFgSubtle, "Export comprehensive sheet register"));
@@ -1135,14 +1263,107 @@ namespace StingTools.UI
             depItem.Foreground = BrDependent;
             menu.Items.Add(depItem);
 
-            var assignTpl = new MenuItem { Header = "Assign View Template" };
-            assignTpl.Click += (s, e) => ExecuteOp("AutoAssignTemplates");
+            var assignTpl = new MenuItem { Header = "Assign View Template \u25B6" };
             assignTpl.Foreground = BrTemplate;
+            // Dynamically populate submenu with all project templates on open
+            assignTpl.SubmenuOpened += (s, e) =>
+            {
+                assignTpl.Items.Clear();
+                // Auto-assign option (5-layer intelligence)
+                var autoItem = new MenuItem { Header = "\u2728 Auto-Assign (intelligent)", FontWeight = FontWeights.Bold };
+                autoItem.Click += (s2, e2) => ExecuteOp("AutoAssignTemplates");
+                assignTpl.Items.Add(autoItem);
+                assignTpl.Items.Add(new Separator());
+                // Remove template option
+                var removeItem = new MenuItem { Header = "\u2715 Remove Template", Foreground = BrRed };
+                removeItem.Click += (s2, e2) =>
+                {
+                    var vt = GetSelectedViewTag();
+                    if (vt != null)
+                        ExecuteOp("SM_RemoveViewTemplate", new Dictionary<string, object> { { "SelectedTag", vt } });
+                };
+                assignTpl.Items.Add(removeItem);
+                assignTpl.Items.Add(new Separator());
+                // Populate with all project templates
+                ExecuteOp("SM_GetViewTemplates", new Dictionary<string, object>());
+                if (_cachedTemplateNames != null)
+                {
+                    foreach (var tplName in _cachedTemplateNames.OrderBy(n => n))
+                    {
+                        var tplItem = new MenuItem { Header = tplName };
+                        string capturedName = tplName;
+                        tplItem.Click += (s2, e2) =>
+                        {
+                            var vt = GetSelectedViewTag();
+                            if (vt != null)
+                                ExecuteOp("SM_AssignSpecificTemplate", new Dictionary<string, object>
+                                {
+                                    { "SelectedTag", vt },
+                                    { "TemplateName", capturedName }
+                                });
+                        };
+                        assignTpl.Items.Add(tplItem);
+                    }
+                }
+                else
+                {
+                    assignTpl.Items.Add(new MenuItem { Header = "(loading...)", IsEnabled = false });
+                }
+            };
+            // Seed with placeholder so the arrow shows
+            assignTpl.Items.Add(new MenuItem { Header = "(loading...)", IsEnabled = false });
             menu.Items.Add(assignTpl);
 
-            var scopeItem = new MenuItem { Header = "Assign Scope Box" };
-            scopeItem.Click += (s, e) => ExecuteOp("ScopeBoxManager");
+            var scopeItem = new MenuItem { Header = "Assign Scope Box \u25B6" };
             scopeItem.Foreground = BrScopeBox;
+            scopeItem.SubmenuOpened += (s, e) =>
+            {
+                scopeItem.Items.Clear();
+                // Remove scope box option
+                var removeItem = new MenuItem { Header = "\u2715 Remove Scope Box", Foreground = BrRed };
+                removeItem.Click += (s2, e2) =>
+                {
+                    var vt = GetSelectedViewTag();
+                    if (vt != null)
+                        ExecuteOp("SM_RemoveScopeBox", new Dictionary<string, object> { { "SelectedTag", vt } });
+                };
+                scopeItem.Items.Add(removeItem);
+                scopeItem.Items.Add(new Separator());
+                // Manage scope boxes option
+                var manageItem = new MenuItem { Header = "\u2699 Manage Scope Boxes..." };
+                manageItem.Click += (s2, e2) => ExecuteOp("ScopeBoxManager");
+                scopeItem.Items.Add(manageItem);
+                scopeItem.Items.Add(new Separator());
+                // Populate with all project scope boxes
+                ExecuteOp("SM_GetScopeBoxes", new Dictionary<string, object>());
+                if (_cachedScopeBoxes != null && _cachedScopeBoxes.Count > 0)
+                {
+                    foreach (var sb in _cachedScopeBoxes)
+                    {
+                        var sbItem = new MenuItem { Header = sb.Value };
+                        long capturedId = sb.Key;
+                        string capturedName = sb.Value;
+                        sbItem.Click += (s2, e2) =>
+                        {
+                            var vt = GetSelectedViewTag();
+                            if (vt != null)
+                                ExecuteOp("SM_AssignScopeBox", new Dictionary<string, object>
+                                {
+                                    { "SelectedTag", vt },
+                                    { "ScopeBoxId", capturedId.ToString() },
+                                    { "ScopeBoxName", capturedName }
+                                });
+                        };
+                        scopeItem.Items.Add(sbItem);
+                    }
+                }
+                else
+                {
+                    scopeItem.Items.Add(new MenuItem { Header = "(no scope boxes in project)", IsEnabled = false });
+                }
+            };
+            // Seed with placeholder so the arrow shows
+            scopeItem.Items.Add(new MenuItem { Header = "(loading...)", IsEnabled = false });
             menu.Items.Add(scopeItem);
 
             var cropItem = new MenuItem { Header = "Crop to Content" };
@@ -1218,21 +1439,51 @@ namespace StingTools.UI
             // ── Title block submenu ──
             var tbMenu = new MenuItem { Header = "Title Block \u25B6" };
             var tbSwap = new MenuItem { Header = "Swap Title Block" };
-            tbSwap.Click += (s, e) => ExecuteOp("SM_SwapTitleBlock");
+            tbSwap.Click += (s, e) =>
+            {
+                var sel = GetSelectedSheetTag();
+                var opts = new Dictionary<string, object>();
+                if (sel != null) opts["SelectedTag"] = sel;
+                ExecuteOp("SM_SwapTitleBlock", opts);
+            };
             tbMenu.Items.Add(tbSwap);
             var tbReset = new MenuItem { Header = "Reset to Origin" };
             tbReset.Click += (s, e) => ExecuteOp("TitleBlockReset");
             tbMenu.Items.Add(tbReset);
             menu.Items.Add(tbMenu);
 
-            var isoItem = new MenuItem { Header = "ISO 19650 Compliance Check" };
-            isoItem.Click += (s, e) => ExecuteOp("SheetComplianceCheck");
-            isoItem.Foreground = BrGreen;
-            menu.Items.Add(isoItem);
+            // ── ISO & Naming ──
+            var isoMenu = new MenuItem { Header = "ISO 19650 \u25B6" };
+            var isoCheck = new MenuItem { Header = "\u2714 Compliance Check", Foreground = BrGreen };
+            isoCheck.Click += (s, e) => ExecuteOp("SheetComplianceCheck");
+            isoMenu.Items.Add(isoCheck);
+            var isoEnforce = new MenuItem { Header = "\u270E Enforce ISO Naming" };
+            isoEnforce.Click += (s, e) => ExecuteOp("EnforceISONaming");
+            isoMenu.Items.Add(isoEnforce);
+            var isoRevert = new MenuItem { Header = "\u21A9 Revert to Original Names" };
+            isoRevert.Click += (s, e) => ExecuteOp("RevertISONaming");
+            isoMenu.Items.Add(isoRevert);
+            menu.Items.Add(isoMenu);
 
             var renumItem = new MenuItem { Header = "Renumber Sheets..." };
             renumItem.Click += (s, e) => ExecuteOp("RenumberDisc");
             menu.Items.Add(renumItem);
+
+            menu.Items.Add(new Separator());
+
+            // ── Export ──
+            var exportMenu = new MenuItem { Header = "Export \u25B6" };
+            var pdfItem = new MenuItem { Header = "\U0001F4C4 Print/Export to PDF" };
+            pdfItem.Click += (s, e) => ExecuteOp("BatchPrintSheets");
+            exportMenu.Items.Add(pdfItem);
+            var csvItem = new MenuItem { Header = "\U0001F4CA Export Sheet Register (CSV)" };
+            csvItem.Click += (s, e) => ExecuteOp("ExportSheetRegister");
+            exportMenu.Items.Add(csvItem);
+            var setItem = new MenuItem { Header = "\U0001F4CB Export Sheet Set" };
+            setItem.Click += (s, e) => ExecuteOp("ExportSheetSet");
+            exportMenu.Items.Add(setItem);
+            menu.Items.Add(exportMenu);
+
             menu.Items.Add(new Separator());
 
             // ── Viewport operations (when viewport selected) ──
@@ -1301,6 +1552,10 @@ namespace StingTools.UI
             }
             else
             {
+                // Pass options as ExtraParams so StingCommandHandler can read them
+                foreach (var kv in options)
+                    StingCommandHandler.SetExtraParam("SM_" + kv.Key, kv.Value?.ToString() ?? "");
+
                 if (StingDockPanel.DispatchCommand(operation))
                     UpdateStatus($"Running: {operation}...");
                 else
@@ -1870,6 +2125,114 @@ namespace StingTools.UI
                 Margin = new Thickness(6, 0, 6, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  MULTI-SELECTION — Shift/Ctrl + Click on TreeView items
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Handles Shift/Ctrl multi-selection on TreeView items.
+        /// Ctrl+Click toggles individual items.
+        /// Shift+Click selects range from last clicked to current.
+        /// </summary>
+        private static void HandleMultiSelect(TreeView tree, MouseButtonEventArgs e,
+            HashSet<TreeViewItem> selectedSet, ref TreeViewItem lastClicked)
+        {
+            var item = GetTreeViewItemUnderMouse(tree, e);
+            if (item == null || item.Tag == null) return;
+
+            bool isCtrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+            bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+
+            if (isCtrl)
+            {
+                // Toggle selection of this item
+                if (selectedSet.Contains(item))
+                {
+                    selectedSet.Remove(item);
+                    item.Background = Brushes.Transparent;
+                }
+                else
+                {
+                    selectedSet.Add(item);
+                    item.Background = BrSelected;
+                }
+                lastClicked = item;
+                UpdateMultiSelectStatus(selectedSet);
+            }
+            else if (isShift && lastClicked != null)
+            {
+                // Select range from last clicked to current
+                var flatList = FlattenTreeItems(tree);
+                int startIdx = flatList.IndexOf(lastClicked);
+                int endIdx = flatList.IndexOf(item);
+                if (startIdx >= 0 && endIdx >= 0)
+                {
+                    int lo = Math.Min(startIdx, endIdx);
+                    int hi = Math.Max(startIdx, endIdx);
+                    for (int i = lo; i <= hi; i++)
+                    {
+                        if (flatList[i].Tag != null)
+                        {
+                            selectedSet.Add(flatList[i]);
+                            flatList[i].Background = BrSelected;
+                        }
+                    }
+                }
+                UpdateMultiSelectStatus(selectedSet);
+            }
+            else
+            {
+                // Normal click — clear previous selection
+                ClearMultiSelect(selectedSet);
+                selectedSet.Add(item);
+                item.Background = BrSelected;
+                lastClicked = item;
+            }
+        }
+
+        private static void ClearMultiSelect(HashSet<TreeViewItem> selectedSet)
+        {
+            foreach (var item in selectedSet)
+                item.Background = Brushes.Transparent;
+            selectedSet.Clear();
+        }
+
+        private static List<TreeViewItem> FlattenTreeItems(TreeView tree)
+        {
+            var result = new List<TreeViewItem>();
+            foreach (TreeViewItem item in tree.Items)
+                FlattenRecursive(item, result);
+            return result;
+        }
+
+        private static void FlattenRecursive(TreeViewItem item, List<TreeViewItem> result)
+        {
+            result.Add(item);
+            foreach (TreeViewItem child in item.Items)
+                FlattenRecursive(child, result);
+        }
+
+        private static void UpdateMultiSelectStatus(HashSet<TreeViewItem> selectedSet)
+        {
+            if (selectedSet.Count > 1)
+                UpdateStatus($"\u2714 {selectedSet.Count} items selected (Ctrl+Click to toggle, Shift+Click for range)");
+        }
+
+        /// <summary>Gets all multi-selected element IDs from the current selection set.</summary>
+        internal static List<object> GetMultiSelectedTags(HashSet<TreeViewItem> selectedSet)
+        {
+            var tags = new List<object>();
+            foreach (var item in selectedSet)
+            {
+                if (item.Tag is AllViewNode avn) tags.Add(avn.Tag);
+                else if (item.Tag is SheetNode sn) tags.Add(sn.Tag);
+                else if (item.Tag is ViewportNode vn) tags.Add(vn.Tag);
+                else if (item.Tag is UnplacedViewNode un) tags.Add(un.Tag);
+                else if (item.Tag != null) tags.Add(item.Tag);
+            }
+            return tags;
         }
 
         private static Button MakeToolBtn(string label, string tag, SolidColorBrush color, string tooltip = null)

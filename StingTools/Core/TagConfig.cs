@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -513,20 +514,19 @@ namespace StingTools.Core
             }
 
             // Cross-validate: FUNC should be consistent with SYS
+            // Phase 39: Expanded FUNC-SYS cross-validation with discipline-aware mapping.
+            // Each SYS code has a set of valid FUNC codes (primary + smart sub-functions).
+            // FUNC codes from unrelated disciplines are flagged as cross-validation errors.
             string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
             if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(sys))
             {
-                string expectedFunc = TagConfig.GetFuncCode(sys);
-                // Allow smart FUNC codes (EXH, RTN, FRA, DHW) as valid overrides
-                if (!string.IsNullOrEmpty(expectedFunc) && expectedFunc != func)
+                var validFuncsForSys = GetValidFuncsForSys(sys);
+                if (validFuncsForSys.Count > 0 && !validFuncsForSys.Contains(func))
                 {
-                    // Only flag if FUNC doesn't belong to any related system
-                    bool isSmartFunc = (sys == "HVAC" && (func == "SUP" || func == "RTN" || func == "EXH" || func == "FRA")) ||
-                                       (sys == "HWS" && (func == "HTG" || func == "DHW"));
-                    if (!isSmartFunc)
-                        errors.Add(new ValidationError(
-                            $"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')",
-                            ValidationErrorType.CrossValidation));
+                    string expectedList = string.Join("/", validFuncsForSys);
+                    errors.Add(new ValidationError(
+                        $"FUNC '{func}' not valid for SYS '{sys}' (expected one of: {expectedList})",
+                        ValidationErrorType.CrossValidation));
                 }
             }
 
@@ -580,6 +580,48 @@ namespace StingTools.Core
 
             return null; // valid
         }
+
+        /// <summary>
+        /// Phase 39: Get valid FUNC codes for a given SYS code.
+        /// Each system has primary FUNC + allowed sub-function variants (e.g., HVAC allows SUP/RTN/EXH/FRA).
+        /// Returns empty set if SYS is unknown (no validation applied).
+        /// Cross-references CIBSE TM40, Uniclass 2015 Ss tables, and ISO 19650 annex.
+        /// </summary>
+        internal static HashSet<string> GetValidFuncsForSys(string sys)
+        {
+            if (_validFuncsForSys.TryGetValue(sys, out var funcs)) return funcs;
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping for cross-validation.
+        /// Covers all 17 system codes with primary + variant functions per CIBSE/Uniclass.</summary>
+        private static readonly Dictionary<string, HashSet<string>> _validFuncsForSys =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Mechanical systems
+                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "GEN" } },
+                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "HTG", "DHW", "GEN" } },
+                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DHW", "GEN" } },
+                // Plumbing systems
+                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DCW", "GEN" } },
+                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "GEN" } },
+                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "GEN" } },
+                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "GEN" } },
+                // Fire protection
+                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FP", "FLS", "GEN" } },
+                // Electrical systems
+                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "GEN" } },
+                { "FLS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FLS", "GEN" } },
+                // Communications / low voltage
+                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COM", "GEN" } },
+                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ICT", "COM", "GEN" } },
+                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCL", "GEN" } },
+                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SEC", "GEN" } },
+                // Architectural / structural / general
+                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FIT", "GEN" } },
+                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STR", "GEN" } },
+                { "GEN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GEN" } },
+            };
 
         /// <summary>Known PROD codes by discipline group for cross-validation.</summary>
         private static readonly Dictionary<string, HashSet<string>> ProdCodesByDisc =
@@ -690,6 +732,10 @@ namespace StingTools.Core
 
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
+
+        /// <summary>Phase 40: Configurable cost rates CSV filename (via COST_RATES_FILE config key).
+        /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
+        public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
 
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
@@ -867,6 +913,44 @@ namespace StingTools.Core
 
         public static string ConfigSource { get; private set; }
 
+        // ── Scope auto-detection and session memory ──
+
+        /// <summary>Last scope used by tagging commands. Persists across commands in same session.
+        /// Values: "selection", "active_view", "project". Auto-detected from selection state.</summary>
+        public static string LastScope { get; set; }
+
+        /// <summary>Auto-detect scope from current state: if selection exists use it,
+        /// otherwise default to active view. Returns "selection", "active_view", or "project".</summary>
+        public static string AutoDetectScope(Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            if (uidoc == null) return LastScope ?? "active_view";
+            try
+            {
+                var sel = uidoc.Selection.GetElementIds();
+                if (sel != null && sel.Count > 0)
+                {
+                    LastScope = "selection";
+                    return "selection";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoDetectScope: {ex.Message}"); }
+
+            // Default to last used scope, or active view
+            return LastScope ?? "active_view";
+        }
+
+        /// <summary>Get scope label for display in reports.</summary>
+        public static string GetScopeLabel(string scope, Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            return scope switch
+            {
+                "selection" => $"selected elements ({uidoc?.Selection?.GetElementIds()?.Count ?? 0})",
+                "active_view" => $"active view '{uidoc?.ActiveView?.Name ?? "unknown"}'",
+                "project" => "entire project",
+                _ => scope ?? "unknown"
+            };
+        }
+
         /// <summary>
         /// When false (default), LOC/ZONE validation uses format checks (alphanumeric, 1-8 chars)
         /// instead of strict code-list validation. Set to true in project_config.json via
@@ -945,7 +1029,8 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
-                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED"
+                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
+                    "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1125,6 +1210,16 @@ namespace StingTools.Core
                     if (gateObj is long gl) ComplianceGatePct = (int)gl;
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
+
+                // Phase 40: Configurable cost rates filename
+                if (data.TryGetValue("COST_RATES_FILE", out object crfObj) && crfObj != null)
+                {
+                    string crfVal = crfObj.ToString().Trim();
+                    if (!string.IsNullOrEmpty(crfVal)) CostRatesFileName = crfVal;
+                }
+
+                // Phase 40: Sheet naming strict mode
+                // (read here for reference but validated in SheetNamingCheckCommand directly)
 
                 // PERF-06: PerformanceTracker opt-in via config
                 if (data.TryGetValue("PERF_TRACKING_ENABLED", out object perfObj) && perfObj is bool perfEnabled)
@@ -2933,7 +3028,7 @@ namespace StingTools.Core
             // (views, sheets, annotations, text notes, dimensions, etc.)
             var cats = SharedParamGuids.AllCategoryEnums;
             IEnumerable<Element> collector;
-            if (cats != null && cats.Count > 0)
+            if (cats != null && cats.Length > 0)
             {
                 var catFilter = new ElementMulticategoryFilter(cats);
                 collector = new FilteredElementCollector(doc)

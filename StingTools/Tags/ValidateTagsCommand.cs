@@ -125,13 +125,15 @@ namespace StingTools.Tags
                     tag1Valid++;
                     fullyResolved++;
                     bucketFully++;
-                    tag1Status = "VALID";
+                    tag1Status = "RESOLVED";
                 }
                 else if (TagConfig.TagIsComplete(tag1ForValidation))
                 {
+                    // Phase 39: Distinguish COMPLETE (8 segments but has placeholders)
+                    // from RESOLVED (no placeholders). Previously both were "VALID".
                     tag1Valid++;
                     bucketPartial++;
-                    tag1Status = "VALID";
+                    tag1Status = "COMPLETE_PLACEHOLDERS";
                 }
                 else
                 {
@@ -272,19 +274,24 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 55));
             report.AppendLine();
 
-            // Three-bucket compliance summary
-            report.AppendLine("── Three-Bucket Compliance ──");
-            report.AppendLine($"  Fully tagged:     {bucketFully,6:N0}  (complete + resolved, no placeholders)");
-            report.AppendLine($"  Partially tagged: {bucketPartial,6:N0}  (has tag data but incomplete or unresolved)");
-            report.AppendLine($"  Untagged:         {bucketUntagged,6:N0}  (no tag at all)");
-            report.AppendLine($"  Compliance score: {compliancePct:F1}%  (fully=1.0, partial=0.5, untagged=0.0)");
+            // Phase 39: Four-bucket compliance summary — separates "complete with placeholders"
+            // from "partially tagged" for clearer BIM coordinator action items.
+            int completePlaceholder = bucketPartial; // elements with 8 segments but GEN/XX/ZZ/0000
+            int incomplete = tag1Incomplete; // elements with <8 segments
+            report.AppendLine("── Four-Bucket Compliance ──");
+            report.AppendLine($"  Fully resolved:       {bucketFully,6:N0}  (8 segments, no placeholders, ISO valid)");
+            report.AppendLine($"  Complete+placeholders: {completePlaceholder,6:N0}  (8 segments but contains GEN/XX/ZZ/0000)");
+            report.AppendLine($"  Incomplete tags:      {incomplete,6:N0}  (<8 segments or missing data)");
+            report.AppendLine($"  Untagged:             {bucketUntagged,6:N0}  (no tag at all)");
+            report.AppendLine($"  Compliance score:     {compliancePct:F1}%  (resolved=1.0, partial=0.5, rest=0.0)");
             report.AppendLine();
 
             // Tag completeness narrative paragraph
             report.AppendLine("── Tag Completeness ──");
             report.Append($"Of the {total:N0} taggable elements in this project, ");
-            report.Append($"{bucketFully:N0} are fully tagged with complete resolved tags, ");
-            report.Append($"{bucketPartial:N0} are partially tagged (incomplete or containing placeholders), ");
+            report.Append($"{bucketFully:N0} are fully resolved with production-ready tags, ");
+            report.Append($"{completePlaceholder:N0} have complete 8-segment tags but contain placeholder values (GEN/XX/ZZ/0000) that require attention, ");
+            report.Append($"{incomplete:N0} have partially populated tags, ");
             report.Append($"and {bucketUntagged:N0} have no tag at all. ");
             report.Append($"The weighted compliance score is {compliancePct:F1}%. ");
             report.AppendLine();
@@ -439,55 +446,124 @@ namespace StingTools.Tags
             {
                 csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_Validation_Report.csv");
                 File.WriteAllText(csvPath, string.Join(Environment.NewLine, csvRows));
-                report.AppendLine();
-                report.AppendLine($"── CSV exported to: {csvPath} ──");
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Validation CSV export: {ex.Message}");
-            }
+            catch (Exception ex) { StingLog.Warn($"Validation CSV export: {ex.Message}"); }
 
-            // BIM integration: auto-register export and raise compliance issues
+            // BIM integration
             if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
                 StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, csvPath, "RP", "Tag validation report (ISO 19650 compliance)");
             int issuesRaised = StingTools.BIMManager.BIMManagerEngine.AutoRaiseComplianceIssues(doc);
             if (issuesRaised > 0)
                 StingLog.Info($"ValidateTagsCommand: auto-raised {issuesRaised} BIM compliance issues");
 
-            TaskDialog td = new TaskDialog("Validate Tags (ISO 19650)");
-            td.MainInstruction = $"Compliance: {compliancePct:F1}% | Full: {bucketFully} | Partial: {bucketPartial} | Untagged: {bucketUntagged} | Violations: {isoViolations}";
-            td.MainContent = report.ToString();
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Create Validation Legend", "Generate a validation status legend view");
-            // GAP-008: Add repair link
+            // ── Build rich result panel ──
+            var panel = UI.StingResultPanel.Create("Validate Tags (ISO 19650)")
+                .SetSubtitle($"Compliance: {compliancePct:F1}% | Full: {bucketFully} | Partial: {bucketPartial} | Untagged: {bucketUntagged} | Violations: {isoViolations}")
+                .SetOverallPct(compliancePct);
+            if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+
+            // Three-bucket compliance
+            panel.AddSection("THREE-BUCKET COMPLIANCE")
+                .RAGBar(compliancePct)
+                .MetricHighlight("Fully tagged", $"{bucketFully:N0}", "complete + resolved, no placeholders")
+                .MetricWarn("Partially tagged", $"{bucketPartial:N0}", "has tag data but incomplete or unresolved")
+                .MetricError("Untagged", $"{bucketUntagged:N0}", "no tag at all");
+
+            // ISO 19650 code compliance
+            panel.AddSection("ISO 19650 CODE COMPLIANCE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+            if (isoViolations == 0 && crossValErrors == 0 && duplicateTags == 0)
+                panel.Info("All tag codes conform to ISO 19650, CIBSE, and Uniclass 2015. No duplicates found.");
+            else
+            {
+                if (isoViolations > 0) panel.MetricError("Token-level violations", $"{isoViolations:N0}");
+                if (crossValErrors > 0) panel.MetricWarn("Cross-validation mismatches", $"{crossValErrors:N0}");
+                if (duplicateTags > 0) panel.MetricWarn("Duplicate tags", $"{duplicateTags:N0}", $"{dupElements:N0} elements affected");
+                foreach (var kvp in isoIssueTypes.OrderByDescending(x => x.Value).Take(5))
+                    panel.Alert($"{kvp.Key}: {kvp.Value}x");
+            }
+
+            // STATUS & Phasing
+            panel.AddSection("CONSTRUCTION STATUS & PHASING")
+                .RAGBar(statusPct, $"{statusPct:F1}% have STATUS");
+            if (statusEmpty > 0)
+                panel.MetricError("Missing STATUS", $"{statusEmpty:N0}", $"{(100.0 - statusPct):F1}% of model");
+            if (statusMismatch > 0)
+                panel.MetricWarn("Phase mismatches", $"{statusMismatch:N0}", "STATUS differs from Revit phase");
+            if (statusDistribution.Count > 0)
+            {
+                var statusHeaders = new[] { "Status", "Count" };
+                var statusRows = statusDistribution.OrderByDescending(x => x.Value)
+                    .Select(x => new[] { x.Key, x.Value.ToString() }).ToList();
+                panel.Table(statusHeaders, statusRows);
+            }
+
+            // Revision tracking
+            panel.AddSection("REVISION TRACKING")
+                .RAGBar(revPct, $"{revPct:F1}% have REV");
+            if (revEmpty == 0) panel.Info($"All {total:N0} elements have REV assigned.");
+            else if (revEmpty == total) panel.Alert("No elements have a revision code assigned.");
+            else panel.Metric("Elements with REV", $"{total - revEmpty:N0}", $"{revEmpty:N0} still missing");
+
+            // Token coverage
+            if (tokenIssues.Count > 0)
+            {
+                panel.AddSection("EMPTY TOKENS (TOP 10)");
+                foreach (var kvp in tokenIssues.OrderByDescending(x => x.Value).Take(10))
+                {
+                    string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
+                    panel.MetricError(shortName, $"{kvp.Value:N0} empty");
+                }
+            }
+
+            // Issues by category
+            if (issuesByCategory.Count > 0)
+            {
+                var catHeaders = new[] { "Category", "Issues" };
+                var catRows = issuesByCategory.OrderByDescending(x => x.Value).Take(15)
+                    .Select(x => new[] { x.Key, x.Value.ToString() }).ToList();
+                panel.AddSection("ISSUES BY CATEGORY").Table(catHeaders, catRows);
+            }
+
+            // Full compliance summary
+            panel.AddSection("FULL COMPLIANCE SUMMARY")
+                .RAGBar(fullPct, $"{fullPct:F1}% fully compliant")
+                .Metric("Fully valid elements", $"{fullyValid:N0} of {total:N0}");
+            if (tokensMissing > 0) panel.Metric("Empty token values", $"{tokensMissing:N0}");
+            if (containersEmpty > 0) panel.Metric("Empty containers", $"{containersEmpty:N0}", "TAG_2 through TAG_6");
+            string verdict = fullPct >= 95 ? "Excellent — ready for delivery" :
+                fullPct >= 75 ? "Good progress — needs attention before delivery" :
+                fullPct >= 50 ? "Significant work remains" : "Substantial tagging effort required";
+            panel.Text(verdict, fullPct >= 75
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0x7D, 0x32))
+                : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+
+            // Action buttons
+            panel.Action("Create Validation Legend", "Generate a validation status legend view", null);
             bool hasIssues = tag1Missing > 0 || tag1Incomplete > 0 || isoViolations > 0 || duplicateTags > 0;
             if (hasIssues)
             {
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Fix All Issues Now",
-                    "Run ResolveAllIssues to auto-fix missing tokens, duplicates, and violations");
-            }
-            td.CommonButtons = TaskDialogCommonButtons.Close;
-
-            TaskDialogResult tdResult = td.Show();
-
-            // GAP-008: Run resolve all issues if requested
-            if (tdResult == TaskDialogResult.CommandLink2 && hasIssues)
-            {
-                try
+                panel.Action("Fix All Issues Now",
+                    "Run ResolveAllIssues to auto-fix missing tokens, duplicates, and violations", win =>
                 {
-                    var resolver = new ResolveAllIssuesCommand();
-                    string resolveMsg = "";
-                    resolver.Execute(commandData, ref resolveMsg, elements);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Error("ValidateTagsCommand: ResolveAllIssues invocation failed", ex);
-                    TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex.Message}");
-                }
+                    win.Close();
+                    try
+                    {
+                        var resolver = new ResolveAllIssuesCommand();
+                        string resolveMsg = "";
+                        resolver.Execute(commandData, ref resolveMsg, elements);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("ValidateTagsCommand: ResolveAllIssues failed", ex);
+                        TaskDialog.Show("Validate Tags", $"Auto-fix failed: {ex.Message}");
+                    }
+                });
             }
 
-            if (tdResult == TaskDialogResult.CommandLink1)
+            int clickedAction = panel.Show();
+
+            if (clickedAction == 0) // Create Validation Legend
             {
                 // Build validation legend entries from actual counts
                 var legendEntries = new List<LegendBuilder.LegendEntry>();

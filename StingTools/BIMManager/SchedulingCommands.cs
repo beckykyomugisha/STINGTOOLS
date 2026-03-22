@@ -2422,7 +2422,9 @@ namespace StingTools.BIMManager
         private Dictionary<string, CostRateEntry> LoadCostRates()
         {
             var rates = new Dictionary<string, CostRateEntry>(StringComparer.OrdinalIgnoreCase);
-            string path = StingToolsApp.FindDataFile("cost_rates_5d.csv");
+            // Phase 40: Use configurable cost rates filename from project_config.json
+            string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
+            string path = StingToolsApp.FindDataFile(costFile);
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
 
             try

@@ -100,6 +100,13 @@ namespace StingTools.Core
         private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
             = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
+        /// <summary>Invalidate all session-level caches (formulas, grid lines) in TagPipelineHelper.
+        /// Forwarding method for callers that reference ParameterHelpers.</summary>
+        public static void InvalidateSessionCaches()
+        {
+            TagPipelineHelper.InvalidateSessionCaches();
+        }
+
         /// <summary>Clear the parameter lookup cache and solid fill cache. Call on document
         /// close or when shared parameters change (e.g., after LoadSharedParams).</summary>
         public static void ClearParamCache()
@@ -111,7 +118,7 @@ namespace StingTools.Core
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
-        private static string GetStableDocKey(Document doc)
+        internal static string GetStableDocKey(Document doc)
         {
             return doc.PathName ?? doc.Title ?? "Untitled";
         }
@@ -1217,6 +1224,26 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
+            /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
+            /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
+            public bool IsValid()
+            {
+                // RoomIndex can be empty (no rooms placed yet) but must not be null
+                if (RoomIndex == null) return false;
+                if (KnownCategories == null || KnownCategories.Count == 0) return false;
+                if (CachedPhases == null) return false;
+                // ProjectLoc may be null/empty (no Project Info set) — acceptable
+                // ProjectRev may be null/empty (no revisions defined) — acceptable
+                return true;
+            }
+
+            /// <summary>Phase 39: Summary of context health for diagnostics.</summary>
+            public string DiagnosticSummary =>
+                $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
+                $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
+                $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
@@ -2247,14 +2274,15 @@ namespace StingTools.Core
 
             return (processed, tokensWritten);
         }
-    }
 
-    /// <summary>
-    /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
-    /// for ViewSheet elements by scanning viewport contents.
-    /// </summary>
-    internal static class SheetTagger
-    {
+    // ── SheetTagger (nested helper for sheet-level ISO 19650 tagging) ─────────
+
+        /// <summary>
+        /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
+        /// for ViewSheet elements by scanning viewport contents.
+        /// </summary>
+        internal static class SheetTagger
+        {
         /// <summary>
         /// Tag a single sheet with ISO 19650 document code tokens.
         /// Returns number of parameters written.
@@ -2637,6 +2665,9 @@ namespace StingTools.Core
             if (trailingDigits.Length > 0) return "L" + trailingDigits.PadLeft(2, '0');
             return "XX";
         }
+        } // end SheetTagger
+
+    // ── NativeParamMapper private helpers (MapBuiltIn, SetIfEmptyInt, etc.) ────
 
         /// <summary>Write parameter, always overwrite. Returns 1 on success, 0 on failure.</summary>
         private static int SetStr(Element el, string paramName, string value)
@@ -2651,7 +2682,6 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(value)) return 0;
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
-    }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
         private static int MapBuiltInString(Element el, BuiltInParameter bip, string targetParam)
@@ -2820,7 +2850,7 @@ namespace StingTools.Core
             // PopulateAll runs before NativeParamMapper in RunFullPipeline, so these
             // will almost always be non-empty already.
             written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
-            string existingRev = GetString(el, ParamRegistry.REV);
+            string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
             if (string.IsNullOrEmpty(existingRev))
             {
                 string rev = PhaseAutoDetect.DetectProjectRevision(doc);
@@ -3362,9 +3392,16 @@ namespace StingTools.Core
                 // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // GAP-A3 fix: Removed redundant WriteContainers retry call.
-                // BuildAndWriteTag (above) already writes all 53 containers.
-                // The duplicate write caused ~20% overhead on batch operations.
+                // Phase 39: Verify container write succeeded. BuildAndWriteTag writes containers
+                // internally, but may return success even if containers partially failed (read-only params).
+                // Re-check TAG2 as a sentinel — if TAG1 is populated but TAG2 is empty, retry containers.
+                string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string tag2Check = ParameterHelpers.GetString(el, ParamRegistry.TAG2);
+                if (!string.IsNullOrEmpty(tag1Check) && string.IsNullOrEmpty(tag2Check))
+                {
+                    ParamRegistry.WriteContainers(el, tokenVals, catName);
+                    StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, TAG2 was empty)");
+                }
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
@@ -3392,18 +3429,35 @@ namespace StingTools.Core
             }
         }
 
+        // ── Session caches for formulas and grid lines ──
+        private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
+        private static DateTime _formulaCacheTime;
+        private static readonly TimeSpan FormulaCacheTTL = TimeSpan.FromMinutes(5);
+
+        private static List<Grid> _cachedGridLines;
+        private static string _gridCacheDocKey;
+        private static DateTime _gridCacheTime;
+        private static readonly TimeSpan GridCacheTTL = TimeSpan.FromMinutes(2);
+
         /// <summary>
         /// Build context objects required by RunFullPipeline. Call once before the element loop.
         /// Returns formulas sorted by DependencyLevel (empty list if no formula file found).
+        /// Uses session cache with 5-minute TTL to prevent redundant CSV reads (40+ callers/session).
         /// </summary>
         public static List<Temp.FormulaEngine.FormulaDefinition> LoadFormulas()
         {
+            // Return cached formulas if still valid
+            if (_cachedFormulas != null && (DateTime.UtcNow - _formulaCacheTime) < FormulaCacheTTL)
+                return _cachedFormulas;
+
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
                 if (csvPath == null) return new List<Temp.FormulaEngine.FormulaDefinition>();
                 var formulas = Temp.FormulaEngine.LoadFormulas(csvPath);
                 formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+                _cachedFormulas = formulas;
+                _formulaCacheTime = DateTime.UtcNow;
                 return formulas;
             }
             catch (Exception ex)
@@ -3413,17 +3467,89 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>P5: Load all Grid elements once before the element loop.</summary>
+        /// <summary>P5: Load all Grid elements once before the element loop.
+        /// Uses session cache with 2-minute TTL keyed by document path.</summary>
         public static List<Grid> LoadGridLines(Document doc)
         {
+            string docKey = ParameterHelpers.GetStableDocKey(doc);
+            if (_cachedGridLines != null && _gridCacheDocKey == docKey &&
+                (DateTime.UtcNow - _gridCacheTime) < GridCacheTTL)
+                return _cachedGridLines;
+
             try
             {
-                return new FilteredElementCollector(doc)
+                var grids = new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
+                _cachedGridLines = grids;
+                _gridCacheDocKey = docKey;
+                _gridCacheTime = DateTime.UtcNow;
+                return grids;
             }
             catch (Exception ex) { StingLog.Warn($"LoadGridLines: {ex.Message}"); return new List<Grid>(); }
+        }
+
+        /// <summary>Invalidate formula and grid line caches (call on document close/switch).</summary>
+        public static void InvalidateSessionCaches()
+        {
+            _cachedFormulas = null;
+            _cachedGridLines = null;
+            _gridCacheDocKey = null;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  BATCH RUNNER — Reusable per-element error recovery for batch ops
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>Result from a batch operation with per-element error tracking.</summary>
+        public class BatchResult
+        {
+            public int Processed { get; set; }
+            public int Succeeded { get; set; }
+            public int Failed { get; set; }
+            public int Skipped { get; set; }
+            public List<(ElementId Id, string Reason)> Failures { get; set; } = new();
+
+            /// <summary>Add failure summary to a StingResultPanel section.</summary>
+            public void AddToPanel(UI.StingResultPanel.Builder panel)
+            {
+                panel.Metric("Processed", Processed.ToString());
+                panel.MetricHighlight("Succeeded", Succeeded.ToString());
+                if (Failed > 0) panel.MetricError("Failed", Failed.ToString());
+                if (Skipped > 0) panel.MetricWarn("Skipped", Skipped.ToString());
+                if (Failures.Count > 0)
+                {
+                    panel.Separator();
+                    foreach (var (id, reason) in Failures.Take(10))
+                        panel.Alert($"Element {id}: {reason}");
+                    if (Failures.Count > 10)
+                        panel.Text($"... and {Failures.Count - 10} more failures (see log)");
+                }
+            }
+        }
+
+        /// <summary>Run an action on each element with per-element error recovery.
+        /// Failed elements are logged and skipped, not rolled back.</summary>
+        public static BatchResult RunBatch(IList<Element> elements, Action<Element> action, string operationName)
+        {
+            var result = new BatchResult();
+            foreach (var el in elements)
+            {
+                result.Processed++;
+                try
+                {
+                    action(el);
+                    result.Succeeded++;
+                }
+                catch (Exception ex)
+                {
+                    result.Failed++;
+                    result.Failures.Add((el.Id, ex.Message));
+                    StingLog.Warn($"{operationName}: Element {el.Id} failed: {ex.Message}");
+                }
+            }
+            return result;
         }
     }
 }

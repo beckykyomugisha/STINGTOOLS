@@ -287,10 +287,35 @@ namespace StingTools.Temp
             if (failed > 0)
                 report.AppendLine($"  Failed: {failed} — check StingTools.log for details");
 
-            TaskDialog td = new TaskDialog("STING Master Setup");
-            td.MainInstruction = $"Master Setup: {passed}/{stepNum} steps complete";
-            td.MainContent = report.ToString();
-            td.Show();
+            // GAP-1C: Run post-setup validation to catch configuration issues
+            try
+            {
+                var validator = new ValidateTemplateCommand();
+                string valMsg = "";
+                validator.Execute(commandData, ref valMsg, elements);
+                // Validation results shown by ValidateTemplateCommand itself
+                StingLog.Info("Master Setup: post-setup validation completed");
+            }
+            catch (Exception valEx)
+            {
+                StingLog.Warn($"Master Setup post-validation: {valEx.Message}");
+                report.AppendLine($"  Post-validation: skipped ({valEx.Message})");
+            }
+
+            var panel = UI.StingResultPanel.Create("Master Setup Complete")
+                .SetSubtitle($"{passed}/{stepNum} steps succeeded in {totalSw.Elapsed.TotalSeconds:F1}s")
+                .SetOverallPct(stepNum > 0 ? passed * 100.0 / stepNum : 0)
+                .SetRawText(report.ToString());
+
+            panel.AddSection("SETUP RESULTS")
+                .Metric("Steps completed", $"{passed}/{stepNum}")
+                .Metric("Duration", $"{totalSw.Elapsed.TotalSeconds:F1}s");
+            if (failed > 0)
+                panel.MetricError("Failed steps", failed.ToString(), "check StingTools.log");
+            else
+                panel.Info("All steps completed successfully.");
+
+            panel.Show();
 
             StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed, " +
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
