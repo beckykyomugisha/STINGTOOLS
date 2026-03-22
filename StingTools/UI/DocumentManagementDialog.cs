@@ -289,22 +289,22 @@ namespace StingTools.UI
             int criticalIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == "CRITICAL");
             int overdueIssues = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
             _dashPanel.Children.Add(MakeDashCard($"{openIssues}",
-                "Open issues", openIssues == 0 ? BrGreen : BrOrange));
+                "Open issues", openIssues == 0 ? BrGreen : BrOrange, "CAT:ISSUE"));
             if (criticalIssues > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{criticalIssues}", "CRITICAL", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{criticalIssues}", "CRITICAL", BrRed, "PRIORITY:CRITICAL"));
             if (overdueIssues > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed, "OVERDUE"));
 
             // Revision count
             int revCount = _allItems.Count(i => i.Category == "REVISION");
             int issuedRevs = _allItems.Count(i => i.Category == "REVISION" && i.Status == "ISSUED");
             _dashPanel.Children.Add(MakeDashCard($"{issuedRevs}/{revCount}",
-                "Revisions issued", BrPurple));
+                "Revisions issued", BrPurple, "CAT:REVISION"));
 
             // Clash count
             int clashCount = _allItems.Count(i => i.Category == "CLASH");
             if (clashCount > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed, "CAT:CLASH"));
 
             // Document totals
             int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
@@ -319,7 +319,7 @@ namespace StingTools.UI
                     SolidColorBrush ddBrush = dd.ReadyPercent >= 100 ? BrGreen :
                         dd.ReadyPercent >= 50 ? BrAmber : BrRed;
                     _dashPanel.Children.Add(MakeDashCard($"{dd.ReadyPercent:F0}%",
-                        $"{dd.DataDropId}: {dd.ReadyCount}/{dd.TotalCount}", ddBrush));
+                        $"{dd.DataDropId}: {dd.ReadyCount}/{dd.TotalCount}", ddBrush, $"DD:{dd.DataDropId}"));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr dashboard drops: {ex.Message}"); }
@@ -347,6 +347,21 @@ namespace StingTools.UI
                 HorizontalAlignment = HorizontalAlignment.Center
             });
             card.Child = stack;
+            return card;
+        }
+
+        /// <summary>Clickable dashboard card — clicking sets filter and refreshes grid.</summary>
+        private static Border MakeDashCard(string value, string label, SolidColorBrush color, string filterOnClick)
+        {
+            var card = MakeDashCard(value, label, color);
+            card.Cursor = Cursors.Hand;
+            card.MouseLeftButtonDown += (s, e) =>
+            {
+                _currentFilter = filterOnClick;
+                _view?.Refresh();
+                UpdateCounts();
+            };
+            card.ToolTip = $"Click to filter: {filterOnClick}";
             return card;
         }
 
@@ -998,15 +1013,55 @@ namespace StingTools.UI
 
         private static void ListView_DoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (_listView.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+            if (_listView.SelectedItem is not DocItemVM item) return;
+
+            // Sticky note: inline edit
+            if (item.Category == "STICKY")
             {
-                try
-                {
-                    if (File.Exists(item.FilePath))
-                        Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
-                }
-                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+                EditStickyNote(item);
+                return;
             }
+
+            // File: open in default app
+            if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
+            {
+                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); }
+                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+                return;
+            }
+
+            // Compliance item: show detail
+            if (item.Category == "COMPLIANCE" || item.Category == "DATADROP")
+            {
+                MessageBox.Show($"{item.Title}\n\nStatus: {item.Status}\nDate: {item.Date}",
+                    "STING Detail", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private static void EditStickyNote(DocItemVM item)
+        {
+            string newText = PromptForText("Edit Sticky Note", "Update note text:", item.Title);
+            if (string.IsNullOrEmpty(newText) || newText == item.Title) return;
+
+            try
+            {
+                string bimDir = GetBimManagerDir(_doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                if (!File.Exists(stickyPath)) return;
+
+                var arr = JArray.Parse(File.ReadAllText(stickyPath));
+                var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
+                if (note != null)
+                {
+                    note["text"] = newText;
+                    note["modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
+                    item.Title = newText;
+                    _view?.Refresh();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EditStickyNote: {ex.Message}"); }
         }
 
         // UI-02: Column sorting
@@ -1073,7 +1128,9 @@ namespace StingTools.UI
             wrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
             wrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
             wrap.Children.Add(MakeActBtn("Close Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
+            wrap.Children.Add(MakeActBtn("Delete Notes", BrRed, (s, e) => BulkDeleteStickyNotes(doc)));
             wrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
+            wrap.Children.Add(MakeActBtn("Update Trans Status", BrTeal, (s, e) => BulkUpdateTransmittalStatus(doc)));
             wrap.Children.Add(MakeSep());
 
             // ── DOCUMENTS ──
@@ -1421,6 +1478,71 @@ namespace StingTools.UI
             MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
                 (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
             RefreshData();
+        }
+
+        // ── OP-003: Bulk delete sticky notes ──
+        private static void BulkDeleteStickyNotes(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "STICKY").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select sticky notes to delete."); return; }
+            if (MessageBox.Show($"Delete {selected.Count} sticky notes?",
+                "Bulk Delete Notes", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                if (!File.Exists(stickyPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(stickyPath));
+                int deleted = 0;
+                foreach (var item in selected)
+                {
+                    var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
+                    if (note != null) { arr.Remove(note); deleted++; _allItems.Remove(item); }
+                }
+                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "BULK_DELETE_NOTES", $"{deleted}", $"Deleted {deleted} notes");
+                MessageBox.Show($"Deleted {deleted} sticky notes.");
+                UpdateCounts();
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkDeleteNotes: {ex.Message}"); }
+        }
+
+        // ── OP-005: Transmittal status transition ──
+        private static void BulkUpdateTransmittalStatus(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "TRANSMITTAL").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select transmittals to update."); return; }
+            var statusOptions = ValidTransmittalStatuses.OrderBy(s => s).ToList();
+            string newStatus = StingListPicker.Show("Update Transmittal Status",
+                $"Set status for {selected.Count} transmittals:", statusOptions);
+            if (string.IsNullOrEmpty(newStatus)) return;
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string transPath = Path.Combine(bimDir, "transmittals.json");
+                if (!File.Exists(transPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(transPath));
+                int updated = 0;
+                foreach (var item in selected)
+                {
+                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id);
+                    if (trans != null)
+                    {
+                        string oldStatus = trans["status"]?.ToString() ?? "";
+                        trans["status"] = newStatus;
+                        trans["status_history"] = (trans["status_history"]?.ToString() ?? "")
+                            + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {oldStatus}->{newStatus}";
+                        updated++;
+                    }
+                }
+                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "TRANS_STATUS", $"{updated}", $"→ {newStatus}");
+                MessageBox.Show($"Updated {updated} transmittal(s) to {newStatus}.");
+                RefreshData();
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkUpdateTransStatus: {ex.Message}"); }
         }
 
         // ── DM-05: Inline sticky note creation ──
@@ -1806,14 +1928,15 @@ namespace StingTools.UI
                     _allItems.Add(new DocItemVM
                     {
                         Id = t["transmittal_id"]?.ToString() ?? "",
-                        Title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "",
+                        Title = BuildTransmittalTitle(t, docCount),
                         Type = "TR", TypeDesc = "Transmittal",
                         Status = ValidateTransmittalStatus(t["status"]?.ToString()),
+                        StatusHistory = t["status_history"]?.ToString() ?? "", // PERSIST-02
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
                         AssignedTo = t["recipient"]?.ToString() ?? "",
-                        CreatedBy = t["created_by"]?.ToString() ?? "", // PERSIST-01
+                        CreatedBy = t["created_by"]?.ToString() ?? "",
                         ElementCount = docCount,
                         DaysOpen = tDaysOpen, Aging = tAging, // GRID-02
                         Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
@@ -2157,6 +2280,25 @@ namespace StingTools.UI
         {
             if (string.IsNullOrEmpty(status)) return "DRAFT";
             return ValidTransmittalStatuses.Contains(status) ? status : "DRAFT";
+        }
+
+        /// <summary>Build transmittal title showing file count and contents summary.</summary>
+        private static string BuildTransmittalTitle(JToken t, int docCount)
+        {
+            string title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "";
+            if (docCount > 0)
+            {
+                // Show file list preview if available
+                if (t["documents"] is JArray docs && docs.Count > 0)
+                {
+                    var fileNames = docs.Take(3).Select(d => d.ToString()).ToList();
+                    string preview = string.Join(", ", fileNames);
+                    if (docs.Count > 3) preview += $" +{docs.Count - 3} more";
+                    return $"{title} ({docCount} files: {preview})";
+                }
+                return $"{title} ({docCount} files)";
+            }
+            return title;
         }
 
         private static void SetAllTreeItemsVisible(ItemsControl parent, bool visible)
