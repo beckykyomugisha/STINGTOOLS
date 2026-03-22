@@ -1867,6 +1867,43 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow load: {ex.Message}"); }
 
+                // 4b. Load workflow execution history rows
+                var workflowHistoryRows = new List<UI.BIMCoordinationCenter.WorkflowRunRow>();
+                try
+                {
+                    string docPath4 = doc.PathName;
+                    if (!string.IsNullOrEmpty(docPath4))
+                    {
+                        string logPath4 = Path.Combine(Path.GetDirectoryName(docPath4), "STING_WORKFLOW_LOG.json");
+                        if (File.Exists(logPath4))
+                        {
+                            foreach (string line in File.ReadAllLines(logPath4).TakeLast(20).Reverse())
+                            {
+                                try
+                                {
+                                    var rec = Newtonsoft.Json.Linq.JObject.Parse(line);
+                                    workflowHistoryRows.Add(new UI.BIMCoordinationCenter.WorkflowRunRow
+                                    {
+                                        Timestamp = (rec.Value<string>("timestamp") ?? "").Length > 16
+                                            ? rec.Value<string>("timestamp").Substring(0, 16) : rec.Value<string>("timestamp") ?? "",
+                                        Preset = rec.Value<string>("preset") ?? "",
+                                        Steps = rec.Value<int?>("totalSteps") ?? 0,
+                                        Passed = rec.Value<int?>("passedSteps") ?? 0,
+                                        Failed = rec.Value<int?>("failedSteps") ?? 0,
+                                        Skipped = rec.Value<int?>("skippedSteps") ?? 0,
+                                        Duration = $"{rec.Value<double?>("durationMs") ?? 0 / 1000.0:F1}s",
+                                        CompBefore = rec.Value<double?>("complianceBefore") ?? 0,
+                                        CompAfter = rec.Value<double?>("complianceAfter") ?? 0,
+                                        User = rec.Value<string>("user") ?? ""
+                                    });
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow history: {ex.Message}"); }
+
                 // 5. Warning regression delta
                 var (warnAdded, warnRemoved, warnUnchanged, newTypes) = WarningsEngine.CompareWithRevisionBaseline(doc);
 
@@ -2054,6 +2091,7 @@ namespace StingTools.Core
                     SyncChanges = syncChanges,
                     WorkflowRuns = workflowRuns,
                     LastWorkflow = lastWorkflow,
+                    WorkflowHistory = workflowHistoryRows,
                     ModelHealthScore = modelHealthScore,
                     ModelHealthRating = modelHealthRating,
                     HealthChecks = healthChecks,
@@ -2512,6 +2550,12 @@ namespace StingTools.Core
                 { "StreamingCOBieExport", "StreamingCOBieExport" },
                 { "BOQExport", "BOQExport" },
                 { "ExportTemplate", "ExportExcelTemplate" },
+
+                // QA extended
+                { "SchemaValidate", "SchemaValidate" },
+                { "LoadSharedParams", "LoadSharedParams" },
+                { "EvaluateFormulas", "EvaluateFormulas" },
+                { "CombineParameters", "CombineParameters" },
 
                 // Report action
                 { "ExportReport", "ExportModelHealth" },
