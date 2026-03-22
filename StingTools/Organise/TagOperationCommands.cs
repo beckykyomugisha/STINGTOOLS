@@ -1389,7 +1389,7 @@ namespace StingTools.Organise
                     .Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>Build override settings for annotation coloring.</summary>
@@ -1793,7 +1793,7 @@ namespace StingTools.Organise
             var (allTags, fromSel) = AnnotationColorHelper.GetTargetTags(uidoc);
             var leaderTags = allTags.Where(t =>
             {
-                try { return t.HasLeader; } catch { return false; }
+                try { return t.HasLeader; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }).ToList();
 
             if (leaderTags.Count == 0)
@@ -1867,7 +1867,7 @@ namespace StingTools.Organise
                     if (tag.HasLeader) withLeaders.Add(tag);
                     else withoutLeaders.Add(tag);
                 }
-                catch { withoutLeaders.Add(tag); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); withoutLeaders.Add(tag); }
             }
 
             // Step 1: Pick text color (applied to ALL tags first)
@@ -1994,7 +1994,7 @@ namespace StingTools.Organise
             foreach (var tag in allTags)
             {
                 try { if (tag.HasLeader) withLeaders.Add(tag); else withoutLeaders.Add(tag); }
-                catch { withoutLeaders.Add(tag); }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); withoutLeaders.Add(tag); }
             }
 
             // Step 1: Text color
@@ -2634,7 +2634,7 @@ namespace StingTools.Organise
                 .Where(fs =>
                 {
                     try { return fs.Family.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 })
                 .OrderBy(fs => fs.Family.Name)
                 .ThenBy(fs => fs.Name)
@@ -2703,10 +2703,7 @@ namespace StingTools.Organise
                             swapped++;
                         }
                     }
-                    catch
-                    {
-                        failed++;
-                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); failed++; }
                 }
                 tx.Commit();
             }
@@ -3079,7 +3076,7 @@ namespace StingTools.Organise
                     ? (p.AsString() ?? "")
                     : (p.AsValueString() ?? "");
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>Get first non-empty dimensional value from parameter list.</summary>
@@ -3736,7 +3733,7 @@ namespace StingTools.Organise
                         return new XYZ(center3D.X, center3D.Y, vbb.Min.Z);
                     }
                 }
-                catch { /* fall through to global BB */ }
+                catch (Exception ex) { StingLog.Warn($"fall through to global BB: {ex.Message}"); }
             }
 
             // Global bounding box as final fallback
@@ -3786,7 +3783,7 @@ namespace StingTools.Organise
                 else
                     return dy > 0 ? "above" : "below";
             }
-            catch { return "right"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "right"; }
         }
 
         /// <summary>
@@ -3829,7 +3826,7 @@ namespace StingTools.Organise
                                 leaderAnchor = elbow; // Use elbow as the anchor — more accurate direction
                         }
                     }
-                    catch { /* fallback to hostCenter */ }
+                    catch (Exception ex) { StingLog.Warn($"fallback to hostCenter: {ex.Message}"); }
 
                     double dx = tagHead.X - leaderAnchor.X;
                     double dy = tagHead.Y - leaderAnchor.Y;
@@ -3951,7 +3948,7 @@ namespace StingTools.Organise
 
                     XYZ elbow;
                     try { elbow = tag.GetLeaderElbow(refs.First()); }
-                    catch { count90++; continue; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); count90++; continue; }
                     if (elbow == null) { count90++; continue; }
 
                     // Use vector dot product to classify angle between two leader segments:
@@ -3979,7 +3976,7 @@ namespace StingTools.Organise
                     else
                         count45++;      // Between — 45° range
                 }
-                catch { count90++; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); count90++; }
             }
 
             // Determine dominant angle and cycle to next
@@ -5169,7 +5166,7 @@ namespace StingTools.Organise
 
                             XYZ pos;
                             try { pos = tag.TagHeadPosition; }
-                            catch { continue; }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                             if (!tagGroups.ContainsKey(groupKey))
                                 tagGroups[groupKey] = new List<(IndependentTag, XYZ, Element)>();
@@ -5367,7 +5364,7 @@ namespace StingTools.Organise
                                 Parameter p = e.LookupParameter(ParamRegistry.CLUSTER_COUNT);
                                 return p != null && p.AsInteger() > 1;
                             }
-                            catch { return false; }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                         })
                         .ToList();
 
@@ -5404,7 +5401,7 @@ namespace StingTools.Organise
                                                 .Where(t =>
                                                 {
                                                     try { return t.GetTaggedLocalElementIds().Contains(hostElId); }
-                                                    catch { return false; }
+                                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                                                 });
                                             foreach (var tag in tags)
                                             {
@@ -5485,7 +5482,7 @@ namespace StingTools.Organise
                             Parameter p = e.LookupParameter(ParamRegistry.STALE);
                             return p != null && p.AsInteger() == 1;
                         }
-                        catch { return false; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                     })
                     .ToList();
             }
@@ -5500,7 +5497,7 @@ namespace StingTools.Organise
                             Parameter p = e.LookupParameter(ParamRegistry.STALE);
                             return p != null && p.AsInteger() == 1;
                         }
-                        catch { return false; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                     })
                     .ToList();
             }

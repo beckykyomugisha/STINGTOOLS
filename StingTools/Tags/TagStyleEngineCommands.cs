@@ -227,7 +227,7 @@ namespace StingTools.Tags
                 .Where(fs =>
                 {
                     try { return fs.Family.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 });
 
             foreach (var fs in tagTypes)
@@ -256,7 +256,7 @@ namespace StingTools.Tags
                 if (hostIds.Count == 0) return null;
                 return doc.GetElement(hostIds.First());
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         // ── Preview / dry-run ───────────────────────────────────────────

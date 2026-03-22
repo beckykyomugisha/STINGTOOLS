@@ -45,7 +45,7 @@ namespace StingTools.Tags
                         $"Command failed with an unexpected error:\n\n{ex.Message}\n\n" +
                         "Check StingTools.log for details.");
                 }
-                catch { /* If even the dialog fails, don't crash Revit */ }
+                catch (Exception ex) { StingLog.Warn($"If even the dialog fails, don't crash Revit: {ex.Message}"); }
                 return Result.Failed;
             }
         }
@@ -263,10 +263,7 @@ namespace StingTools.Tags
                                 else
                                     skipped++;
                             }
-                            catch
-                            {
-                                skipped++;
-                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
                         }
 
                         tx.Commit();
@@ -523,7 +520,7 @@ namespace StingTools.Tags
                         }
                     }
                 }
-                catch { /* path resolution failed */ }
+                catch (Exception ex) { StingLog.Warn($"path resolution failed: {ex.Message}"); }
             }
 
             // 3. Search known deployment paths — flat lookups only, NO recursive search

@@ -581,7 +581,7 @@ namespace StingTools.Temp
                                     activeView.SetCategoryHidden(sub.Id, true);
                                     overrides++;
                                 }
-                                catch { /* some categories can't be hidden */ }
+                                catch (Exception ex) { StingLog.Warn($"some categories can't be hidden: {ex.Message}"); }
                             }
                         }
                     }
@@ -903,7 +903,7 @@ namespace StingTools.Temp
                                         wallHeight, 0, false, false);
                                     if (wall != null) wallCount++;
                                 }
-                                catch { /* skip invalid lines */ }
+                                catch (Exception ex) { StingLog.Warn($"skip invalid lines: {ex.Message}"); }
                             }
                             t.Commit();
                         }
@@ -943,7 +943,7 @@ namespace StingTools.Temp
                                         roomCount++;
                                     }
                                 }
-                                catch { /* skip invalid rooms */ }
+                                catch (Exception ex) { StingLog.Warn($"skip invalid rooms: {ex.Message}"); }
                             }
                             t.Commit();
                         }
@@ -1017,7 +1017,7 @@ namespace StingTools.Temp
                                             }
                                         }
                                     }
-                                    catch { /* skip failed placements */ }
+                                    catch (Exception ex) { StingLog.Warn($"skip failed placements: {ex.Message}"); }
                                 }
                                 t.Commit();
                             }

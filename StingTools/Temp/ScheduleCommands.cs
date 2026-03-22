@@ -332,7 +332,7 @@ namespace StingTools.Temp
                                         template.SetFilterVisibility(filter.Id, true);
                                         filtersLinked++;
                                     }
-                                    catch { /* Filter may already be on template */ }
+                                    catch (Exception ex) { StingLog.Warn($"Filter may already be on template: {ex.Message}"); }
                                 }
                             }
                         }
@@ -1648,7 +1648,7 @@ namespace StingTools.Temp
                         }
                     }
                 }
-                catch { row.Scale = "NTS"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.Scale = "NTS"; }
 
                 // Paper size — from title block family instance dimensions
                 try
@@ -1667,7 +1667,7 @@ namespace StingTools.Temp
                         row.PaperSize = ClassifyPaperSize(widthMm, heightMm);
                     }
                 }
-                catch { row.PaperSize = "A1"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.PaperSize = "A1"; }
 
                 // Revision
                 var revIds = sheet.GetAllRevisionIds();

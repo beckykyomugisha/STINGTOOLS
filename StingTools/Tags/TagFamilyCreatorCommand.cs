@@ -479,7 +479,7 @@ namespace StingTools.Tags
                             return dir;
                     }
                 }
-                catch { /* permission issues */ }
+                catch (Exception ex) { StingLog.Warn($"permission issues: {ex.Message}"); }
 
                 // PRIORITY 3: Directories containing any .rft (may have Generic Annotation.rft
                 // which can be used as fallback for all categories).
@@ -537,7 +537,7 @@ namespace StingTools.Tags
                             return dir;
                     }
                 }
-                catch { /* permission issues */ }
+                catch (Exception ex) { StingLog.Warn($"permission issues: {ex.Message}"); }
             }
 
             return null;
@@ -1216,7 +1216,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalFile))
                         app.SharedParametersFilename = originalFile;
                 }
-                catch { /* best effort */ }
+                catch (Exception ex) { StingLog.Warn($"best effort: {ex.Message}"); }
             }
         }
 
@@ -1305,7 +1305,7 @@ namespace StingTools.Tags
                                 labelParam.Set(ParamRegistry.TAG1);
                             }
                         }
-                        catch { /* Not supported — expected */ }
+                        catch (Exception ex) { StingLog.Warn($"Not supported — expected: {ex.Message}"); }
                     }
 
                     tx.Commit();
@@ -2170,7 +2170,7 @@ namespace StingTools.Tags
                         mismatches.Add((def.Name, spec.TypeId));
                     }
                 }
-                catch { /* older Revit API */ }
+                catch (Exception ex) { StingLog.Warn($"older Revit API: {ex.Message}"); }
             }
 
             return mismatches;

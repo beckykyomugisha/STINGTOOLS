@@ -92,7 +92,7 @@ namespace StingTools.Core
                 }
             }
             catch (InvalidOperationException) { throw; }
-            catch { /* config read failure is non-fatal */ }
+            catch (Exception ex) { StingLog.Warn($"config read failure is non-fatal: {ex.Message}"); }
 
             if (!_tempFallbackWarned)
             {
@@ -104,7 +104,7 @@ namespace StingTools.Core
                         $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
                         "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
                 }
-                catch { /* TaskDialog may not be available outside Revit thread */ }
+                catch (Exception ex) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex.Message}"); }
             }
             return tempDir;
         }
@@ -303,10 +303,7 @@ namespace StingTools.Core
                 File.Delete(testFile);
                 return true;
             }
-            catch
-            {
-                return false;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 }

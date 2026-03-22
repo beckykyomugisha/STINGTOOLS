@@ -218,7 +218,7 @@ namespace StingTools.BIMManager
                         return p.AsValueString() ?? "";
                 }
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>
@@ -244,7 +244,7 @@ namespace StingTools.BIMManager
                 if (room != null)
                     roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
             }
-            catch { /* element may not have spatial context */ }
+            catch (Exception ex) { StingLog.Warn($"element may not have spatial context: {ex.Message}"); }
             row["Room"] = roomName;
 
             // ── Parameter columns (tokens, tags, status, description, etc.) ──
@@ -590,7 +590,7 @@ namespace StingTools.BIMManager
                     if (ReadOnlyColumns.Contains(columnName)) continue;
 
                     string paramName = null;
-                    try { paramName = colKvp.Value(); } catch { continue; }
+                    try { paramName = colKvp.Value(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                     if (string.IsNullOrEmpty(paramName)) continue;
 
                     if (!excelRow.TryGetValue(columnName, out string excelValue))
@@ -1286,7 +1286,7 @@ namespace StingTools.BIMManager
                 } // end try
                 catch (Exception tgEx)
                 {
-                    try { tg.RollBack(); } catch { }
+                    try { tg.RollBack(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     StingLog.Error("ExcelLink import TransactionGroup rolled back", tgEx);
                     throw;
                 }
@@ -1764,7 +1764,7 @@ namespace StingTools.BIMManager
                                 if (string.IsNullOrEmpty(headerText))
                                     headerText = $"Column_{c + 1}";
                             }
-                            catch { headerText = $"Column_{c + 1}"; }
+                            catch (Exception ex) { StingLog.Warn($"Header read: {ex.Message}"); headerText = $"Column_{c + 1}"; }
 
                             var cell = ws.Cell(1, c + 1);
                             cell.Value = headerText;
@@ -1958,7 +1958,7 @@ namespace StingTools.BIMManager
                         for (int c = 0; c < cols; c++)
                         {
                             try { schedHeaders.Add(sched.GetCellText(SectionType.Header, headerRows - 1, c).Trim()); }
-                            catch { schedHeaders.Add(""); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); schedHeaders.Add(""); }
                         }
                     }
 
@@ -1976,7 +1976,7 @@ namespace StingTools.BIMManager
                             string excelVal = ws.Cell(excelRow, ec + 1).GetString().Trim();
                             string currentVal = "";
                             try { currentVal = sched.GetCellText(SectionType.Body, r, schedCol).Trim(); }
-                            catch { continue; }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                             if (excelVal != currentVal)
                             {
@@ -2099,7 +2099,7 @@ namespace StingTools.BIMManager
                                 string excelVal = ws.Cell(excelRow, ec + 1).GetString().Trim();
                                 string currentVal = "";
                                 try { currentVal = sched.GetCellText(SectionType.Body, r, schedCol).Trim(); }
-                                catch { continue; }
+                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                                 if (excelVal == currentVal) { skippedCells++; continue; }
 

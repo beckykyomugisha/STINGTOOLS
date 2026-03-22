@@ -87,7 +87,7 @@ namespace StingTools.Temp
                     else
                         elementScheduleCount++;
                 }
-                catch { elementScheduleCount++; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elementScheduleCount++; }
 
                 var def = sched.Definition;
                 int fCount = def.GetFieldCount();
@@ -363,7 +363,7 @@ namespace StingTools.Temp
             for (int i = 0; i < count; i++)
             {
                 try { names.Add(sched.Definition.GetField(i).GetName()); }
-                catch { names.Add($"[field {i}]"); }
+                catch (Exception ex) { StingLog.Warn($"Field read: {ex.Message}"); names.Add($"[field {i}]"); }
             }
             return names;
         }
@@ -700,7 +700,7 @@ namespace StingTools.Temp
                     fields.Add($"  {i + 1}. {status} {field.GetName()} → \"{field.ColumnHeading}\"");
                     if (field.IsHidden) hiddenCount++;
                 }
-                catch { fields.Add($"  {i + 1}. [?] (error reading field)"); }
+                catch (Exception ex) { StingLog.Warn($"Field read: {ex.Message}"); fields.Add($"  {i + 1}. [?] (error reading field)"); }
             }
 
             // Operation selection
@@ -1117,7 +1117,7 @@ namespace StingTools.Temp
                 color = new Color(r, g, b);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 
@@ -1259,7 +1259,7 @@ namespace StingTools.Temp
                     string total = field.DisplayType == ScheduleFieldDisplayType.Totals ? " [SUM]" : "";
                     report.AppendLine($"  [{vis}] {field.GetName()} → \"{field.ColumnHeading}\"{total}");
                 }
-                catch { report.AppendLine($"  [?] (error reading field {i})"); }
+                catch (Exception ex) { StingLog.Warn($"Field read: {ex.Message}"); report.AppendLine($"  [?] (error reading field {i})"); }
             }
             report.AppendLine($"\n  Visible: {fieldCount - hidden}, Hidden: {hidden}");
 
@@ -1363,9 +1363,7 @@ namespace StingTools.Temp
                     doc.Delete(deleteIds);
                     deleted = deleteIds.Count;
                 }
-                catch
-                {
-                    foreach (var sched in targets)
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var sched in targets)
                     {
                         try { doc.Delete(sched.Id); deleted++; }
                         catch (Exception ex) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}"); }
@@ -1386,7 +1384,7 @@ namespace StingTools.Temp
                 var body = sched.GetTableData()?.GetSectionData(SectionType.Body);
                 return body == null || body.NumberOfRows == 0;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
     }
 

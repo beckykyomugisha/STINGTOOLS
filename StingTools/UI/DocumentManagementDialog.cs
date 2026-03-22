@@ -12,6 +12,7 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Select;
 using Color = System.Windows.Media.Color;
 using System.Windows.Data;
 using Binding = System.Windows.Data.Binding;
@@ -394,7 +395,7 @@ namespace StingTools.UI
                 FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White
             });
             string projName = "";
-            try { projName = doc?.ProjectInformation?.Name ?? ""; } catch { }
+            try { projName = doc?.ProjectInformation?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             left.Children.Add(new TextBlock
             {
                 Text = $"Project: {projName}  |  ISO 19650",
@@ -478,7 +479,7 @@ namespace StingTools.UI
                         {
                             _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     });
                     MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
                         "External file changes will auto-refresh the document list.",
@@ -1665,7 +1666,7 @@ namespace StingTools.UI
                     arr = new JArray();
 
                 string user = "";
-                try { user = doc?.Application?.Username ?? Environment.UserName; } catch { user = Environment.UserName; }
+                try { user = doc?.Application?.Username ?? Environment.UserName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
 
                 string noteId = $"NOTE-{DateTime.Now:yyyyMMdd-HHmmss}";
                 arr.Add(new JObject
@@ -1912,15 +1913,15 @@ namespace StingTools.UI
                 foreach (var rev in revisions)
                 {
                     string revNum = "";
-                    try { revNum = rev.RevisionNumber; } catch { }
+                    try { revNum = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string desc = "";
-                    try { desc = rev.Description; } catch { }
+                    try { desc = rev.Description; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string date = "";
-                    try { date = rev.RevisionDate; } catch { }
+                    try { date = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string issuedBy = "";
-                    try { issuedBy = rev.IssuedBy; } catch { }
+                    try { issuedBy = rev.IssuedBy; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     string issuedTo = "";
-                    try { issuedTo = rev.IssuedTo; } catch { }
+                    try { issuedTo = rev.IssuedTo; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     // GAP GRID-07: Count revision clouds
                     int cloudCount = 0;
@@ -1931,7 +1932,7 @@ namespace StingTools.UI
                             .Cast<RevisionCloud>()
                             .Count(c => c.RevisionId == rev.Id);
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                     _allItems.Add(new DocItemVM
                     {

@@ -129,7 +129,7 @@ namespace StingTools.BIMManager
                     if (File.Exists(lockFile))
                     {
                         string lockInfo = "(unknown)";
-                        try { lockInfo = File.ReadAllText(lockFile); } catch { }
+                        try { lockInfo = File.ReadAllText(lockFile); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         return CollaborationResult.ConflictsFound(
                             $"Another user is currently syncing.\nLock info: {lockInfo}",
                             new[] { "Wait a moment and try again.", "If the lock is stale, delete it manually." });
@@ -248,7 +248,7 @@ namespace StingTools.BIMManager
                 {
                     foreach (var old in backups.Skip(10))
                     {
-                        try { File.Delete(old); } catch { }
+                        try { File.Delete(old); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     }
                 }
 
@@ -359,7 +359,7 @@ namespace StingTools.BIMManager
                 {
                     if (Directory.Exists(dir)) return true;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (attempt < 2) System.Threading.Thread.Sleep(2000);
             }
             return false;

@@ -212,7 +212,7 @@ namespace StingTools.Select
                 if (string.IsNullOrEmpty(name)) continue;
                 BuiltInCategory bic;
                 try { bic = (BuiltInCategory)cat.Id.Value; }
-                catch { continue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
 
                 if (catCounts.TryGetValue(name, out var existing))
                     catCounts[name] = (existing.bic, existing.count + 1);

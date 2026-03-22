@@ -618,7 +618,7 @@ namespace StingTools.Temp
                                 Autodesk.Revit.DB.Structure.StructuralType.Column);
                             created++;
                         }
-                        catch { /* skip failed placements */ }
+                        catch (Exception ex) { StingLog.Warn($"skip failed placements: {ex.Message}"); }
                     }
 
                     t.Commit();
@@ -697,10 +697,7 @@ namespace StingTools.Temp
                                     created++;
                                 }
                             }
-                            catch
-                            {
-                                unenclosed++;
-                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); unenclosed++; }
                         }
                     }
 

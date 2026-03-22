@@ -586,7 +586,7 @@ namespace StingTools.Select
             {
                 string orient;
                 try { orient = tag.TagOrientation == TagOrientation.Horizontal ? "Horizontal" : "Vertical"; }
-                catch { orient = "<Unknown>"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); orient = "<Unknown>"; }
 
                 if (!groups.ContainsKey(orient))
                     groups[orient] = new List<ElementId>();
@@ -858,7 +858,7 @@ namespace StingTools.Select
                 string text = tag.TagText;
                 return string.IsNullOrWhiteSpace(text) ? "<Empty>" : text;
             }
-            catch { return "<Error>"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Error>"; }
         }
 
         private static double GetTagTextSizeMm(Document doc, IndependentTag tag)
@@ -894,7 +894,7 @@ namespace StingTools.Select
 
                 return 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static string GetArrowheadName(Document doc, IndependentTag tag)
@@ -934,7 +934,7 @@ namespace StingTools.Select
 
                 return "<Default>";
             }
-            catch { return "<Error>"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Error>"; }
         }
 
         private static int GetLeaderLineWeight(Document doc, View view, IndependentTag tag)
@@ -982,7 +982,7 @@ namespace StingTools.Select
             try
             {
                 bool hasLeader;
-                try { hasLeader = tag.HasLeader; } catch { return "No Leader"; }
+                try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "No Leader"; }
                 if (!hasLeader) return "No Leader";
 
                 // Get leader elbow and end points to compute angle
@@ -995,7 +995,7 @@ namespace StingTools.Select
 
                 Reference refr = null;
                 try { refr = tag.GetTaggedReferences().FirstOrDefault(); }
-                catch { return "<Unknown>"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Unknown>"; }
 
                 if (refr == null) return "<Unknown>";
 
@@ -1006,7 +1006,7 @@ namespace StingTools.Select
                     elbowPt = tag.GetLeaderElbow(refr);
                     endPt = tag.GetLeaderEnd(refr);
                 }
-                catch { return "Attached (no elbow)"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "Attached (no elbow)"; }
 
                 if (elbowPt == null || endPt == null) return "Attached (no elbow)";
 
@@ -1028,7 +1028,7 @@ namespace StingTools.Select
                 if (Math.Abs(angleDeg - 180) < 10) return "180° (U-turn)";
                 return $"~{angleDeg:F0}° Elbow";
             }
-            catch { return "<Unknown>"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Unknown>"; }
         }
 
         private static string GetTagFamilyName(Document doc, IndependentTag tag)
@@ -1042,7 +1042,7 @@ namespace StingTools.Select
                     return $"{fs.Family?.Name ?? "?"} : {fs.Name}";
                 return tagType?.Name ?? "<Unknown>";
             }
-            catch { return "<Error>"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Error>"; }
         }
 
         private static string GetHostCategoryName(Document doc, IndependentTag tag)
@@ -1072,12 +1072,12 @@ namespace StingTools.Select
             try
             {
                 bool hasLeader;
-                try { hasLeader = tag.HasLeader; } catch { return "<Unknown>"; }
+                try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Unknown>"; }
                 if (!hasLeader) return "No Leader";
 
                 LeaderEndCondition endCond;
                 try { endCond = tag.LeaderEndCondition; }
-                catch { return "Has Leader"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "Has Leader"; }
 
                 switch (endCond)
                 {
@@ -1086,7 +1086,7 @@ namespace StingTools.Select
                     default: return "Has Leader";
                 }
             }
-            catch { return "<Unknown>"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "<Unknown>"; }
         }
 
         private static Element GetHostElement(Document doc, IndependentTag tag)

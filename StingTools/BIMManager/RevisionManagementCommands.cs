@@ -399,7 +399,7 @@ namespace StingTools.BIMManager
             }
 
             // HR-04: Size-based pruning
-            long totalBytes = files.Sum(f => { try { return new FileInfo(f).Length; } catch { return 0L; } });
+            long totalBytes = files.Sum(f => { try { return new FileInfo(f).Length; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0L; } });
             long maxBytes = MaxSnapshotBytes;
             while (totalBytes > maxBytes && files.Count > 1)
             {

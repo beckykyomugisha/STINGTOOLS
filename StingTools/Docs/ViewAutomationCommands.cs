@@ -245,7 +245,7 @@ namespace StingTools.Docs
                 if (et is FamilySymbol fs) return fs.FamilyName;
                 return et.FamilyName ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private record RenameTarget(string Name, string Category, ElementId Id);

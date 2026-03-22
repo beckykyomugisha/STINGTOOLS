@@ -1825,7 +1825,7 @@ namespace StingTools.Temp
                 string s = p.AsString();
                 return double.TryParse(s, out double d) ? d : 0;
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>
@@ -2478,7 +2478,7 @@ namespace StingTools.Temp
                                 }
                             }
                         }
-                        catch { /* Solid extraction can fail on some families */ }
+                        catch (Exception ex) { StingLog.Warn($"Solid extraction can fail on some families: {ex.Message}"); }
                     }
                     checked_count++;
                 }
@@ -3168,7 +3168,7 @@ namespace StingTools.Temp
                     var draftView = ViewDrafting.Create(doc, viewFamilyType.Id);
                     string viewName = $"STING Excel — {fileName} [{selectedSheet}]";
                     try { draftView.Name = viewName; }
-                    catch { draftView.Name = $"STING Excel — {fileName} {DateTime.Now:HHmmss}"; }
+                    catch (Exception ex) { StingLog.Warn($"Name conflict: {ex.Message}"); draftView.Name = $"STING Excel — {fileName} {DateTime.Now:HHmmss}"; }
                     draftView.Scale = 1; // 1:1 for data display
 
                     // Draw the table

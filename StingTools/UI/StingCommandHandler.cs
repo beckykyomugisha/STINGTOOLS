@@ -1576,7 +1576,7 @@ namespace StingTools.UI
                 // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
                 // was never called after execution.
                 try { StingDockPanel.NotifyCommandComplete(); }
-                catch { /* Non-critical — panel may not be open */ }
+                catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.

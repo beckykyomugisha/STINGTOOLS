@@ -648,7 +648,7 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"TailReadLines: {ex.Message}");
                 // Fallback: read all
-                try { lines = File.ReadAllLines(filePath).ToList(); } catch { }
+                try { lines = File.ReadAllLines(filePath).ToList(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return lines;
         }
@@ -707,7 +707,7 @@ namespace StingTools.Core
                 errors.Add($"Expected 6+ segments separated by '-', got {parts.Length}");
                 // Auto-suggest a compliant name
                 string projCode = "PRJ";
-                try { projCode = doc?.ProjectInformation?.Number ?? "PRJ"; } catch { }
+                try { projCode = doc?.ProjectInformation?.Number ?? "PRJ"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (string.IsNullOrEmpty(projCode) || projCode.Length < 2) projCode = "PRJ";
                 string suggested = $"{projCode}-ZZ-ZZ-XX-DR-Z-{nameOnly}{ext}";
                 return (false, suggested, errors);
@@ -752,7 +752,7 @@ namespace StingTools.Core
                 string num = doc?.ProjectInformation?.Number;
                 if (!string.IsNullOrEmpty(num) && num.Length >= 2) projCode = num;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             string originator = "ZZ";
             string volume = "ZZ";
@@ -795,7 +795,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(user))
                 {
                     try { user = doc?.Application?.Username ?? Environment.UserName; }
-                    catch { user = Environment.UserName; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
                 }
 
                 var entry = new JObject
@@ -842,7 +842,7 @@ namespace StingTools.Core
                             User = obj["user"]?.ToString() ?? ""
                         });
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.GetRecentActivity: {ex.Message}"); }
@@ -886,7 +886,7 @@ namespace StingTools.Core
                 if (Directory.Exists(folder))
                 {
                     try { hasFiles = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories).Length > 0; }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 status.Items.Add(new DataDropItem
                 {
@@ -927,7 +927,7 @@ namespace StingTools.Core
                     bimDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "STING_BIM_MANAGER");
                 if (string.IsNullOrEmpty(bimDir) || !Directory.Exists(bimDir))
                 {
-                    try { Directory.CreateDirectory(bimDir); } catch { return; }
+                    try { Directory.CreateDirectory(bimDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return; }
                 }
 
                 string transPath = Path.Combine(bimDir, "transmittals.json");
@@ -939,7 +939,7 @@ namespace StingTools.Core
 
                 string transId = $"TR-{DateTime.Now:yyyyMMdd-HHmmss}";
                 string user = "";
-                try { user = doc?.Application?.Username ?? Environment.UserName; } catch { user = Environment.UserName; }
+                try { user = doc?.Application?.Username ?? Environment.UserName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); user = Environment.UserName; }
 
                 var trans = new JObject
                 {

@@ -2252,7 +2252,7 @@ namespace StingTools.BIMManager
                     if (widParam != null && widParam.HasValue) nomWidth = Math.Round(widParam.AsDouble() * 304.8, 0).ToString();
                     if (htParam != null && htParam.HasValue) nomHeight = Math.Round(htParam.AsDouble() * 304.8, 0).ToString();
                 }
-                catch { /* dimension extraction optional */ }
+                catch (Exception ex) { StingLog.Warn($"Dimension extraction: {ex.Message}"); }
 
                 // Derive sustainability/code/accessibility from STING params
                 string sustainability = ParameterHelpers.GetString(fs, "PER_CARBON_FOOTPRINT_KG_NR");
@@ -3269,7 +3269,7 @@ namespace StingTools.BIMManager
                 FormatJsonToken(obj, sb, 0, maxLines);
                 return sb.ToString();
             }
-            catch { return json.Substring(0, Math.Min(json.Length, 5000)); }
+            catch (Exception ex) { StingLog.Warn($"JSON formatting: {ex.Message}"); return json.Substring(0, Math.Min(json.Length, 5000)); }
         }
 
         private static void FormatJsonToken(JToken token, StringBuilder sb, int indent, int maxLines)
@@ -3461,7 +3461,7 @@ namespace StingTools.BIMManager
                 string exportDir = OutputLocationHelper.PromptForExportPath(doc, "BEP.xlsx", "Excel Files|*.xlsx", "BEP");
                 if (!string.IsNullOrEmpty(exportDir)) bimDir = exportDir;
             }
-            catch (Exception) { /* use default dir */ }
+            catch (Exception ex) { StingLog.Warn($"Output dir fallback: {ex.Message}"); }
 
             try
             {
@@ -6334,7 +6334,7 @@ namespace StingTools.BIMManager
                         int sectionCount = bepJson.Properties().Count();
                         bepScore = Math.Min(100, sectionCount * 5); // ~20 sections = 100%
                     }
-                    catch { bepScore = 50; } // File exists but parse issue
+                    catch (Exception ex) { bepScore = 50; StingLog.Warn($"BEP parse: {ex.Message}"); }
                 }
 
                 // ── Issue register ──
@@ -7209,7 +7209,7 @@ namespace StingTools.BIMManager
                     }
                 }
             }
-            catch { revDetail = "Could not check REV status"; }
+            catch (Exception ex) { revDetail = "Could not check REV status"; StingLog.Warn($"REV status: {ex.Message}"); }
             checks.Add(("Revision Status", revScore, 10, revDetail));
 
             // 9. Room coverage (ratio-based: expect at least 3 rooms per level for a meaningful model)
@@ -7269,7 +7269,7 @@ namespace StingTools.BIMManager
                 }
                 paramScore = boundParams >= 3 ? 10 : boundParams >= 1 ? 5 : 0;
             }
-            catch { paramScore = 0; }
+            catch (Exception ex) { paramScore = 0; StingLog.Warn($"Param score: {ex.Message}"); }
             checks.Add(("Parameter Binding", paramScore, 10, $"{boundParams}/3 key STING parameters bound"));
 
             // 13. File size estimation via element count (proxy for model bloat)
@@ -7395,7 +7395,7 @@ namespace StingTools.BIMManager
                 return $"\nTrend ({recent.Count} checks): {arrow} {Math.Abs(delta)} points " +
                     $"({oldScore} → {newScore}). Last check: {newest[0]}";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Health trend: {ex.Message}"); return ""; }
         }
     }
 

@@ -136,7 +136,7 @@ namespace StingTools.BIMManager
                             }
                         }
                     }
-                    catch { /* Skip elements without geometry */ }
+                    catch (Exception ex) { StingLog.Warn($"Skip elements without geometry: {ex.Message}"); }
 
                     if (volumeCuFt <= 0) continue;
 
