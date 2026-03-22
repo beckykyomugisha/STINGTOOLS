@@ -3028,7 +3028,7 @@ namespace StingTools.Core
             // (views, sheets, annotations, text notes, dimensions, etc.)
             var cats = SharedParamGuids.AllCategoryEnums;
             IEnumerable<Element> collector;
-            if (cats != null && cats.Count > 0)
+            if (cats != null && cats.Length > 0)
             {
                 var catFilter = new ElementMulticategoryFilter(cats);
                 collector = new FilteredElementCollector(doc)

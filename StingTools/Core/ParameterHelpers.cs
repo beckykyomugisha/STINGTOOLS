@@ -2850,7 +2850,7 @@ namespace StingTools.Core
             // PopulateAll runs before NativeParamMapper in RunFullPipeline, so these
             // will almost always be non-empty already.
             written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
-            string existingRev = GetString(el, ParamRegistry.REV);
+            string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
             if (string.IsNullOrEmpty(existingRev))
             {
                 string rev = PhaseAutoDetect.DetectProjectRevision(doc);
@@ -3399,7 +3399,7 @@ namespace StingTools.Core
                 string tag2Check = ParameterHelpers.GetString(el, ParamRegistry.TAG2);
                 if (!string.IsNullOrEmpty(tag1Check) && string.IsNullOrEmpty(tag2Check))
                 {
-                    ParamRegistry.WriteContainers(el, tokenVals);
+                    ParamRegistry.WriteContainers(el, tokenVals, catName);
                     StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, TAG2 was empty)");
                 }
 

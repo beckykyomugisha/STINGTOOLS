@@ -238,6 +238,7 @@ namespace StingTools.Tags
             var (_, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int assigned = 0;
+            int rebuilt = 0;
             using (Transaction tx = new Transaction(doc, "STING Assign Numbers"))
             {
                 tx.Start();
@@ -295,7 +296,7 @@ namespace StingTools.Tags
                 // reflect the new sequence. Previously TAG1 remained stale until a separate
                 // BuildTags command was run.
                 var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                int rebuilt = 0;
+                rebuilt = 0;
                 foreach (ElementId id in targetIds)
                 {
                     Element elem = doc.GetElement(id);
@@ -720,8 +721,8 @@ namespace StingTools.Tags
                     .Cast<ViewSheet>()
                     .ToList();
 
-                string originator = SheetTagger.DetectOriginator(doc);
-                string projectCode = SheetTagger.DetectProjectCode(doc);
+                string originator = NativeParamMapper.SheetTagger.DetectOriginator(doc);
+                string projectCode = NativeParamMapper.SheetTagger.DetectProjectCode(doc);
                 string rev = PhaseAutoDetect.DetectProjectRevision(doc);
 
                 var pDlg = StingProgressDialog.Show("Tag Sheets", allSheets.Count);
@@ -738,7 +739,7 @@ namespace StingTools.Tags
 
                     pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
 
-                    int written = SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                    int written = NativeParamMapper.SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
                     tokensWritten += written;
                     sheetsProcessed++;
                 }
