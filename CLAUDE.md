@@ -2031,7 +2031,13 @@ Critical review of the tagging workflow identified the following logic, automati
 
 #### Completed (Phase 41 — Automation Logic Enhancements)
 
-414. **Formula session cache** — `TagPipelineHelper.LoadFormulas()` now uses 5-minute TTL session cache, preventing 40+ redundant CSV reads per session. `InvalidateSessionCaches()` clears on document close/switch.
+414. **COBie pre-export cache invalidation** — Added `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` after inline `WriteContainers` in COBie export pre-flight. Prevents stale compliance data after container population.
+415. **MasterSetup post-validation** — After all 18 setup steps, automatically runs `ValidateTemplateCommand` (45 checks) to catch configuration issues. Results shown in `StingResultPanel` with pass/fail counts and overall RAG bar.
+416. **ConfigEditor auto-reload** — After saving `project_config.json`, automatically calls `TagConfig.LoadFromFile()` + `ComplianceScan.InvalidateCache()` + `StingAutoTagger.InvalidateContext()` + `ParameterHelpers.InvalidateSessionCaches()`. Changes take effect immediately without manual reload.
+417. **PostTaggingQA workflow** — New built-in workflow preset: PreTagAudit → ValidateTags → CompletenessDashboard → TagRegisterExport → ValidateTemplate. Provides standardised post-tagging validation chain.
+418. **AutoTag collision mode auto-select** — `ExtraParam("AutoTagMode")` allows dockable panel or workflows to pre-set collision mode (skip/overwrite/increment) without showing dialog.
+419. **TagNewOnly scope auto-select** — `ExtraParam("TagNewScope")` pre-sets scope. Falls back to `TagConfig.AutoDetectScope()` with session memory. Scope dialog only shown when no auto-detection possible.
+420. **Formula session cache** — `TagPipelineHelper.LoadFormulas()` now uses 5-minute TTL session cache, preventing 40+ redundant CSV reads per session. `InvalidateSessionCaches()` clears on document close/switch.
 415. **Grid line session cache** — `TagPipelineHelper.LoadGridLines()` now uses 2-minute TTL cache keyed by document path, preventing repeated `FilteredElementCollector` scans.
 416. **Compliance gate rollout** — Added `TagConfig.CheckComplianceGate()` to 6 commands missing it: `SystemParamPushCommand`, `RepairDuplicateSeqCommand`, `FamilyStagePopulateCommand`, `CombineParametersCommand`, `ExcelLinkCommands` (Import and RoundTrip). All tagging operations now validate compliance after commit.
 417. **Scope auto-detection** — `TagConfig.AutoDetectScope(uidoc)` auto-detects scope from selection state (selection > 0 → "selection", else → last used or "active_view"). `LastScope` persists across commands in session. `GetScopeLabel()` for display.

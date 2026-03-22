@@ -4816,6 +4816,9 @@ namespace StingTools.BIMManager
                             combTx.Commit();
                         }
                         StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements");
+                        // GAP-1B: Invalidate caches after pre-export WriteContainers
+                        ComplianceScan.InvalidateCache();
+                        StingAutoTagger.InvalidateContext();
                     }
                     catch (Exception combEx)
                     {

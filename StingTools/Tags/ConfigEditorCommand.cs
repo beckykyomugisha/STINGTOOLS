@@ -225,10 +225,20 @@ namespace StingTools.Tags
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(path, json);
 
-                TaskDialog.Show("Config Saved",
-                    $"Configuration saved to:\n{path}\n\n" +
-                    "Edit this JSON file to customise lookup tables for this project. " +
-                    "Use 'Reload' to apply changes.");
+                // GAP-6B: Reload config immediately after save so changes take effect
+                try
+                {
+                    TagConfig.LoadFromFile(path);
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                    ParameterHelpers.InvalidateSessionCaches();
+                    StingLog.Info("Config auto-reloaded after save");
+                }
+                catch (Exception reloadEx) { StingLog.Warn($"Config auto-reload: {reloadEx.Message}"); }
+
+                TaskDialog.Show("Config Saved & Applied",
+                    $"Configuration saved and reloaded:\n{path}\n\n" +
+                    "Changes are now active. Edit this JSON file to customise lookup tables.");
                 StingLog.Info($"Config saved to {path}");
             }
             catch (Exception ex)
