@@ -211,6 +211,73 @@ namespace StingTools.Temp
             return result;
         }
 
+        /// <summary>
+        /// Collects ALL view templates in the project, indexed by name.
+        /// Used as fallback when no STING-prefixed templates exist.
+        /// </summary>
+        public static Dictionary<string, View> GetAllViewTemplates(Document doc)
+        {
+            var result = new Dictionary<string, View>(StringComparer.OrdinalIgnoreCase);
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate))
+            {
+                result[v.Name] = v;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Enhanced template matching that tries STING templates first,
+        /// then falls back to matching ANY project template by name keywords.
+        /// </summary>
+        public static string FindMatchingTemplateFlexible(View view, Dictionary<string, View> allTemplates)
+        {
+            // First try the standard 5-layer algorithm
+            string stingMatch = FindMatchingTemplate(view);
+            if (stingMatch != null && allTemplates.ContainsKey(stingMatch))
+                return stingMatch;
+
+            // Fall back: search all templates by keyword matching
+            string viewName = (view.Name ?? "").ToLowerInvariant();
+            string viewTypeName = view.ViewType.ToString().ToLowerInvariant();
+
+            foreach (var kv in allTemplates)
+            {
+                string tplName = kv.Key.ToLowerInvariant();
+
+                // Match templates that share keywords with the view name
+                // e.g. view "Mechanical Floor Plan" matches template "Mechanical Plan"
+                if (viewName.Contains("mechanical") && tplName.Contains("mechanical")) return kv.Key;
+                if (viewName.Contains("electrical") && tplName.Contains("electrical")) return kv.Key;
+                if (viewName.Contains("plumbing") && tplName.Contains("plumbing")) return kv.Key;
+                if (viewName.Contains("structural") && tplName.Contains("structural")) return kv.Key;
+                if (viewName.Contains("architectural") && tplName.Contains("architectural")) return kv.Key;
+                if (viewName.Contains("fire") && tplName.Contains("fire")) return kv.Key;
+                if (viewName.Contains("coordination") && tplName.Contains("coordination")) return kv.Key;
+                if (viewName.Contains("hvac") && tplName.Contains("hvac")) return kv.Key;
+                if (viewName.Contains("lighting") && tplName.Contains("lighting")) return kv.Key;
+                if (viewName.Contains("ceiling") && tplName.Contains("ceiling")) return kv.Key;
+                if (viewName.Contains("section") && tplName.Contains("section")) return kv.Key;
+                if (viewName.Contains("elevation") && tplName.Contains("elevation")) return kv.Key;
+                if (viewName.Contains("detail") && tplName.Contains("detail")) return kv.Key;
+                if (viewName.Contains("3d") && tplName.Contains("3d")) return kv.Key;
+            }
+
+            // Fall back to view type matching against template names
+            foreach (var kv in allTemplates)
+            {
+                string tplName = kv.Key.ToLowerInvariant();
+                if (viewTypeName == "floorplan" && tplName.Contains("plan") && !tplName.Contains("ceiling")) return kv.Key;
+                if (viewTypeName == "ceilingplan" && (tplName.Contains("ceiling") || tplName.Contains("rcp"))) return kv.Key;
+                if (viewTypeName == "section" && tplName.Contains("section")) return kv.Key;
+                if (viewTypeName == "elevation" && tplName.Contains("elevation")) return kv.Key;
+                if (viewTypeName == "threed" && tplName.Contains("3d")) return kv.Key;
+            }
+
+            return null;
+        }
+
         /// <summary>Collects all non-template views that can have templates assigned.</summary>
         public static List<View> GetAssignableViews(Document doc)
         {
@@ -1114,13 +1181,23 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Try STING templates first, fall back to ALL project templates
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
-            if (stingTemplates.Count == 0)
+            var allTemplates = stingTemplates.Count > 0
+                ? stingTemplates
+                : TemplateManager.GetAllViewTemplates(doc);
+            bool usingFallback = stingTemplates.Count == 0;
+
+            if (allTemplates.Count == 0)
             {
                 TaskDialog.Show("Auto-Assign Templates",
-                    "No STING view templates found.\nRun 'View Templates' first.");
+                    "No view templates found in the project.\n" +
+                    "Create view templates first, or run 'View Templates' to generate STING templates.");
                 return Result.Succeeded;
             }
+
+            if (usingFallback)
+                StingLog.Info($"Auto-assign: No STING templates found, using {allTemplates.Count} project templates.");
 
             var views = TemplateManager.GetAssignableViews(doc);
             int assigned = 0, skipped = 0, noMatch = 0, alreadyAssigned = 0;
@@ -1146,10 +1223,13 @@ namespace StingTools.Temp
                     if (view.ViewTemplateId != ElementId.InvalidElementId)
                     { alreadyAssigned++; continue; }
 
-                    string matchName = TemplateManager.FindMatchingTemplate(view);
+                    // Use flexible matching that works with both STING and non-STING templates
+                    string matchName = usingFallback
+                        ? TemplateManager.FindMatchingTemplateFlexible(view, allTemplates)
+                        : TemplateManager.FindMatchingTemplate(view);
                     if (matchName == null) { noMatch++; continue; }
 
-                    if (!stingTemplates.TryGetValue(matchName, out View template))
+                    if (!allTemplates.TryGetValue(matchName, out View template))
                     { skipped++; continue; }
 
                     try

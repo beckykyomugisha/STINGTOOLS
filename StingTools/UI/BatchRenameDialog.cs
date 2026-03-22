@@ -291,19 +291,43 @@ namespace StingTools.UI
                 BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
                 BorderThickness = new Thickness(1),
                 Background = Brushes.White,
-                FontSize = 11
+                FontSize = 11,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
             };
+            // Ensure ListViewItems stretch to full width so inner Grid star columns work
+            var itemContainerStyle = new Style(typeof(ListViewItem));
+            itemContainerStyle.Setters.Add(new Setter(ListViewItem.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+            itemContainerStyle.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
+            _listView.ItemContainerStyle = itemContainerStyle;
 
-            // Set up GridView columns
-            var gridView = new GridView();
-            gridView.Columns.Add(new GridViewColumn { Header = "Original Name", Width = 260 });
-            gridView.Columns.Add(new GridViewColumn { Header = "New Name", Width = 260 });
-            gridView.Columns.Add(new GridViewColumn { Header = "Category", Width = 100 });
-            gridView.Columns.Add(new GridViewColumn { Header = "Family", Width = 120 });
-            _listView.View = gridView;
+            // Column header row (manual, since GridView.DisplayMemberBinding
+            // doesn't work well with our custom Grid content)
+            var headerRow = new Grid { Background = new SolidColorBrush(Color.FromRgb(240, 240, 245)), Height = 28, Margin = new Thickness(0, 0, SystemParameters.VerticalScrollBarWidth, 0) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // checkbox
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // orig
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // new
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) }); // category
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // family
+            var hdrCheck = new TextBlock { Text = "\u2611", FontSize = 12, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            Grid.SetColumn(hdrCheck, 0); headerRow.Children.Add(hdrCheck);
+            var hdrOrig = new TextBlock { Text = "Original Name", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
+            Grid.SetColumn(hdrOrig, 1); headerRow.Children.Add(hdrOrig);
+            var hdrNew = new TextBlock { Text = "New Name", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0), Foreground = AccentBrush };
+            Grid.SetColumn(hdrNew, 2); headerRow.Children.Add(hdrNew);
+            var hdrCatBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            hdrCatBorder.Child = new TextBlock { Text = "Category", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(hdrCatBorder, 3); headerRow.Children.Add(hdrCatBorder);
+            var hdrFamBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            hdrFamBorder.Child = new TextBlock { Text = "Family", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(hdrFamBorder, 4); headerRow.Children.Add(hdrFamBorder);
 
-            Grid.SetRow(_listView, 3);
-            root.Children.Add(_listView);
+            var listContainer = new DockPanel();
+            DockPanel.SetDock(headerRow, Dock.Top);
+            listContainer.Children.Add(headerRow);
+            listContainer.Children.Add(_listView);
+
+            Grid.SetRow(listContainer, 3);
+            root.Children.Add(listContainer);
 
             // ── Row 4: Status + Buttons ──────────────────────────────
             var bottomBar = new Border
@@ -478,8 +502,9 @@ namespace StingTools.UI
                 else
                     return name.Replace(find, replace, StringComparison.OrdinalIgnoreCase);
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"BatchRename regex error: {ex.Message}");
                 return name; // Invalid regex — no change
             }
         }
@@ -558,15 +583,28 @@ namespace StingTools.UI
         private void RefreshListView()
         {
             _listView.Items.Clear();
-            var gv = _listView.View as GridView;
 
             foreach (var item in _filteredItems)
             {
                 var row = new Grid();
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });  // checkbox
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // orig
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // new
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) }); // category
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) }); // family
+
+                // Checkbox column
+                var check = new CheckBox
+                {
+                    IsChecked = item.IsSelected,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                var capturedItem = item;
+                check.Checked += (s, e) => { capturedItem.IsSelected = true; UpdateStatusText(); };
+                check.Unchecked += (s, e) => { capturedItem.IsSelected = false; UpdateStatusText(); };
+                Grid.SetColumn(check, 0);
+                row.Children.Add(check);
 
                 var origText = new TextBlock
                 {
@@ -575,48 +613,66 @@ namespace StingTools.UI
                     Foreground = item.IsChanged ? Brushes.Gray : UnchangedBrush,
                     TextDecorations = item.IsChanged ? TextDecorations.Strikethrough : null,
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = item.OriginalName
+                    ToolTip = item.OriginalName,
+                    Margin = new Thickness(4, 0, 4, 0),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                Grid.SetColumn(origText, 0);
+                Grid.SetColumn(origText, 1);
                 row.Children.Add(origText);
 
                 var newText = new TextBlock
                 {
-                    Text = item.NewName,
+                    Text = item.IsChanged ? item.NewName : "",
                     FontSize = 11,
                     FontWeight = item.IsChanged ? FontWeights.SemiBold : FontWeights.Normal,
                     Foreground = item.IsChanged ? ChangedBrush : UnchangedBrush,
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    ToolTip = item.NewName
+                    ToolTip = item.IsChanged ? $"{item.OriginalName} \u2192 {item.NewName}" : null,
+                    Margin = new Thickness(4, 0, 4, 0),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                Grid.SetColumn(newText, 1);
+                Grid.SetColumn(newText, 2);
                 row.Children.Add(newText);
 
-                var catText = new TextBlock
+                var catBorder = new Border
                 {
-                    Text = item.Category ?? "",
-                    FontSize = 10,
-                    Foreground = Brushes.Gray,
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderThickness = new Thickness(1, 0, 0, 0),
+                    Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = item.Category ?? "",
+                        FontSize = 10,
+                        Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
                 };
-                Grid.SetColumn(catText, 2);
-                row.Children.Add(catText);
+                Grid.SetColumn(catBorder, 3);
+                row.Children.Add(catBorder);
 
-                var famText = new TextBlock
+                var famBorder = new Border
                 {
-                    Text = item.Family ?? "",
-                    FontSize = 10,
-                    Foreground = Brushes.Gray,
-                    TextTrimming = TextTrimming.CharacterEllipsis
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderThickness = new Thickness(1, 0, 0, 0),
+                    Padding = new Thickness(4, 0, 4, 0),
+                    Child = new TextBlock
+                    {
+                        Text = item.Family ?? "",
+                        FontSize = 10,
+                        Foreground = Brushes.Gray,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
                 };
-                Grid.SetColumn(famText, 3);
-                row.Children.Add(famText);
+                Grid.SetColumn(famBorder, 4);
+                row.Children.Add(famBorder);
 
                 var lvi = new ListViewItem
                 {
                     Content = row,
                     Tag = item,
-                    Padding = new Thickness(4, 3, 4, 3),
+                    Padding = new Thickness(0, 2, 0, 2),
                     Background = item.IsChanged
                         ? new SolidColorBrush(Color.FromRgb(232, 245, 233))
                         : Brushes.Transparent

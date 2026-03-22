@@ -464,8 +464,189 @@ namespace StingTools.UI
                     case "SM_RenumberDisc":
                     case "SM_SwapTitleBlock":
                     case "SM_EnforceISONaming":
+                    case "SM_RevertISONaming":
+                    // Non-prefixed aliases for context menu dispatch
+                    case "PlaceViewOnSheet":
+                    case "PlaceOnNewSheet":
+                    case "MoveViewportToSheet":
+                    case "RemoveViewport":
+                    case "ArrangeOnSheet":
+                    case "AutoScaleSheet":
+                    case "AutoLayoutMode":
+                    case "DeleteView":
+                    case "RenumberDisc":
+                    case "SwapTitleBlock":
+                    case "EnforceISONaming":
+                    case "RevertISONaming":
                         RunSheetManagerOp(app, tag);
                         break;
+
+                    case "ActivateView":
+                    {
+                        var uidoc = app.ActiveUIDocument;
+                        if (uidoc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_ViewTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = uidoc.Document.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                    uidoc.ActiveView = view;
+                            }
+                        }
+                        break;
+                    }
+
+                    // ── Sheet Manager template & selection operations ──
+                    case "SM_GetViewTemplates":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                            SheetManagerDialog._cachedTemplateNames = templates.Keys.OrderBy(k => k).ToList();
+                        }
+                        break;
+                    }
+                    case "SM_AssignSpecificTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string tplName = GetExtraParam("SM_TemplateName");
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(tplName) && !string.IsNullOrEmpty(viewIdStr))
+                            {
+                                var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                                if (templates.TryGetValue(tplName, out View tpl) && long.TryParse(viewIdStr, out long vid))
+                                {
+                                    var view = doc.GetElement(new ElementId(vid)) as View;
+                                    if (view != null)
+                                    {
+                                        using (var tx = new Transaction(doc, "STING Assign View Template"))
+                                        {
+                                            tx.Start();
+                                            view.ViewTemplateId = tpl.Id;
+                                            tx.Commit();
+                                        }
+                                        TaskDialog.Show("STING", $"Assigned template '{tplName}' to '{view.Name}'.");
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_RemoveViewTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Remove View Template"))
+                                    {
+                                        tx.Start();
+                                        view.ViewTemplateId = ElementId.InvalidElementId;
+                                        tx.Commit();
+                                    }
+                                    TaskDialog.Show("STING", $"Removed template from '{view.Name}'.");
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_SelectElementIds":
+                    {
+                        var uidoc = app.ActiveUIDocument;
+                        if (uidoc != null)
+                        {
+                            string idsStr = GetExtraParam("SM_ElementIds");
+                            if (!string.IsNullOrEmpty(idsStr))
+                            {
+                                var ids = idsStr.Split(',')
+                                    .Where(s => long.TryParse(s.Trim(), out _))
+                                    .Select(s => new ElementId(long.Parse(s.Trim())))
+                                    .ToList();
+                                if (ids.Count > 0)
+                                    uidoc.Selection.SetElementIds(ids);
+                            }
+                        }
+                        break;
+                    }
+
+                    // ── Sheet Manager scope box operations ──
+                    case "SM_GetScopeBoxes":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var scopeBoxes = Docs.DocAutomationHelper.GetScopeBoxes(doc);
+                            SheetManagerDialog._cachedScopeBoxes = scopeBoxes
+                                .Select(sb => new KeyValuePair<long, string>(sb.Id.Value, sb.Name))
+                                .OrderBy(kv => kv.Value)
+                                .ToList();
+                        }
+                        break;
+                    }
+                    case "SM_AssignScopeBox":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            string scopeBoxIdStr = GetExtraParam("SM_ScopeBoxId");
+                            string scopeBoxName = GetExtraParam("SM_ScopeBoxName");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid)
+                                && !string.IsNullOrEmpty(scopeBoxIdStr) && long.TryParse(scopeBoxIdStr, out long sbId))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Assign Scope Box"))
+                                    {
+                                        tx.Start();
+                                        bool ok = Docs.DocAutomationHelper.AssignScopeBox(view, new ElementId(sbId));
+                                        tx.Commit();
+                                        if (ok)
+                                            StingLog.Info($"Assigned scope box '{scopeBoxName}' to '{view.Name}'.");
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_RemoveScopeBox":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Remove Scope Box"))
+                                    {
+                                        tx.Start();
+                                        try
+                                        {
+                                            Parameter p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                                            if (p != null && !p.IsReadOnly)
+                                                p.Set(ElementId.InvalidElementId);
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"RemoveScopeBox: {ex.Message}"); }
+                                        tx.Commit();
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
 
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
