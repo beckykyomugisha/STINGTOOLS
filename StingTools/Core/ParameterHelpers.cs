@@ -2931,7 +2931,7 @@ namespace StingTools.Core
         /// Uses session cache with 2-minute TTL keyed by document path.</summary>
         public static List<Grid> LoadGridLines(Document doc)
         {
-            string docKey = GetStableDocKey(doc);
+            string docKey = ParameterHelpers.GetStableDocKey(doc);
             if (_cachedGridLines != null && _gridCacheDocKey == docKey &&
                 (DateTime.UtcNow - _gridCacheTime) < GridCacheTTL)
                 return _cachedGridLines;
