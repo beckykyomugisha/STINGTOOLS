@@ -245,12 +245,15 @@ namespace StingTools.Model
 
         // ── Page 2: DWG Selection ────────────────────────────────────────
 
+        // Stores the user's layer checkbox selections
+        private readonly Dictionary<string, CheckBox> _layerCheckboxes = new();
+
         private FrameworkElement BuildDWGSelectionPage()
         {
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = "Select the DWG import to convert and preview structural layers:",
+                Text = "Select the DWG import, then choose which layers to convert:",
                 FontSize = 12, Margin = new Thickness(0, 0, 0, 12),
             });
 
@@ -259,7 +262,7 @@ namespace StingTools.Model
             {
                 _selectedImport = imports[0];
 
-                var listBox = new ListBox { MinHeight = 100, Margin = new Thickness(0, 0, 0, 8) };
+                var listBox = new ListBox { MinHeight = 80, MaxHeight = 100, Margin = new Thickness(0, 0, 0, 8) };
                 foreach (var imp in imports)
                 {
                     string name = "DWG Import";
@@ -275,49 +278,114 @@ namespace StingTools.Model
                 };
                 stack.Children.Add(listBox);
 
-                // Preview button
-                var previewBox = new TextBox
+                // Scale detection display
+                var scaleText = new TextBlock
                 {
-                    IsReadOnly = true,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontSize = 10,
-                    Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                    Foreground = new SolidColorBrush(Color.FromRgb(0xCE, 0x91, 0x78)),
-                    Padding = new Thickness(12),
-                    TextWrapping = TextWrapping.NoWrap,
-                    AcceptsReturn = true,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    MinHeight = 250,
-                    Text = "(Click 'Analyze' to preview structural layers)",
+                    Text = "DWG Scale: (click Analyze to detect)",
+                    FontSize = 11, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 4, 0, 8),
+                };
+                stack.Children.Add(scaleText);
+
+                // Layer selection panel — MISS-01 FIX
+                var layerPanel = new StackPanel();
+                var layerBorder = new Border
+                {
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 4, 0, 8),
+                    MaxHeight = 250,
+                    Child = new ScrollViewer
+                    {
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        Content = layerPanel,
+                    },
                 };
 
-                var analyzeBtn = MakeButton("Analyze Structural Layers", (s, e) =>
+                var layerHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+                layerHeader.Children.Add(new TextBlock
                 {
-                    if (_selectedImport != null)
-                    {
-                        _extraction = _pipeline.ExtractStructuralGeometry(_selectedImport);
-                        var sb = new System.Text.StringBuilder();
-                        sb.AppendLine(_extraction.Summary);
-                        sb.AppendLine();
-                        sb.AppendLine("LAYER CLASSIFICATION:");
-                        foreach (var kvp in _extraction.LayerClassification
-                            .OrderByDescending(k => k.Key.StartsWith("STRUCT")))
-                        {
-                            sb.AppendLine($"  {kvp.Key}: {kvp.Value} entities");
-                        }
-                        previewBox.Text = sb.ToString();
-                    }
+                    Text = "LAYER SELECTION:", FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 0, 12, 0),
                 });
+                var selectAllBtn = MakeButton("Select All", (s, e) =>
+                {
+                    foreach (var cb in _layerCheckboxes.Values) cb.IsChecked = true;
+                });
+                selectAllBtn.Height = 22; selectAllBtn.MinWidth = 70; selectAllBtn.FontSize = 10;
+                var selectNoneBtn = MakeButton("Select None", (s, e) =>
+                {
+                    foreach (var cb in _layerCheckboxes.Values) cb.IsChecked = false;
+                });
+                selectNoneBtn.Height = 22; selectNoneBtn.MinWidth = 70; selectNoneBtn.FontSize = 10;
+                var selectStructBtn = MakeButton("Structural Only", (s, e) =>
+                {
+                    foreach (var kvp in _layerCheckboxes)
+                        kvp.Value.IsChecked = StructuralLayerClassifier.IsStructuralLayer(kvp.Key);
+                });
+                selectStructBtn.Height = 22; selectStructBtn.MinWidth = 90; selectStructBtn.FontSize = 10;
+                selectStructBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
+                selectStructBtn.Foreground = Brushes.White;
+                layerHeader.Children.Add(selectAllBtn);
+                layerHeader.Children.Add(selectNoneBtn);
+                layerHeader.Children.Add(selectStructBtn);
+                stack.Children.Add(layerHeader);
+
+                // Analyze button — populates layer checkboxes
+                var analyzeBtn = MakeButton("★ Analyze DWG Layers", (s, e) =>
+                {
+                    if (_selectedImport == null) return;
+
+                    var manifest = _pipeline.ExtractLayerManifest(_selectedImport);
+                    layerPanel.Children.Clear();
+                    _layerCheckboxes.Clear();
+
+                    // Sort: structural layers first, then by entity count
+                    var sorted = manifest.OrderByDescending(kvp => kvp.Value.Confidence)
+                        .ThenByDescending(kvp => kvp.Value.Count);
+
+                    foreach (var kvp in sorted)
+                    {
+                        bool isStruct = kvp.Value.Confidence > 0;
+                        var cb = new CheckBox
+                        {
+                            Content = $"{kvp.Key}  —  {kvp.Value.Count} entities  →  {kvp.Value.Classification}" +
+                                (isStruct ? $" ({kvp.Value.Confidence * 100:F0}%)" : ""),
+                            IsChecked = isStruct, // Auto-select structural layers
+                            Margin = new Thickness(0, 1, 0, 1),
+                            FontSize = 11,
+                            FontWeight = isStruct ? FontWeights.SemiBold : FontWeights.Normal,
+                            Foreground = isStruct
+                                ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))
+                                : Brushes.Gray,
+                        };
+                        _layerCheckboxes[kvp.Key] = cb;
+                        layerPanel.Children.Add(cb);
+                    }
+
+                    // Detect scale
+                    var extraction = _pipeline.ExtractStructuralGeometry(_selectedImport);
+                    _extraction = extraction;
+                    double scale = extraction.DetectedScaleFactor;
+                    string scaleDesc = Math.Abs(scale - 1.0) < 0.001 ? "1:1 (no conversion)"
+                        : Math.Abs(scale - 0.00328) < 0.001 ? "ft → internal (imperial DWG)"
+                        : $"{scale:F4} (custom)";
+                    scaleText.Text = $"DWG Scale: {scaleDesc}";
+                    scaleText.Foreground = Math.Abs(scale - 1.0) < 0.001 ? Brushes.Green : Brushes.Orange;
+                });
+
                 analyzeBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
                 analyzeBtn.Foreground = Brushes.White;
+                analyzeBtn.FontWeight = FontWeights.Bold;
                 stack.Children.Add(analyzeBtn);
-                stack.Children.Add(previewBox);
+                stack.Children.Add(layerBorder);
             }
             else
             {
                 stack.Children.Add(new TextBlock
                 {
-                    Text = "No imported DWG files found.\nLink a structural DWG first, then re-open this wizard.",
+                    Text = "No imported DWG files found.\nLink a structural DWG first.",
                     Foreground = Brushes.Red, FontWeight = FontWeights.Bold,
                 });
             }
@@ -607,6 +675,18 @@ namespace StingTools.Model
 
         private void OnBack(object sender, RoutedEventArgs e) => ShowPage(_currentPage - 1);
         private void OnNext(object sender, RoutedEventArgs e) => ShowPage(_currentPage + 1);
+
+        /// <summary>Gets the user-selected layer names from the wizard checkboxes.</summary>
+        public HashSet<string> GetSelectedLayers()
+        {
+            var selected = new HashSet<string>();
+            foreach (var kvp in _layerCheckboxes)
+            {
+                if (kvp.Value.IsChecked == true)
+                    selected.Add(kvp.Key);
+            }
+            return selected;
+        }
 
         private void OnFinish(object sender, RoutedEventArgs e)
         {

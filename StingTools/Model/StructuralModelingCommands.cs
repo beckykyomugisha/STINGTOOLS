@@ -956,8 +956,9 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                // Run the full pipeline with wizard settings
+                // Run the full pipeline with wizard settings + selected layers
                 var pipeline = new StructuralCADPipeline(doc);
+                pipeline.SelectedLayers = wizard.GetSelectedLayers();
                 var result = pipeline.RunFullPipeline(
                     wizard.SelectedImport,
                     wizard.SelectedLevel,

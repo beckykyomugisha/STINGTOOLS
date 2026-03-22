@@ -77,11 +77,15 @@ namespace StingTools.Model
         public double LengthMm { get; set; }
         public bool IsActive { get; set; }
 
-        /// <summary>Euclidean distance in (width, depth) space to target dimensions.</summary>
-        public double DimensionDistance(double targetWidthMm, double targetDepthMm)
+        /// <summary>
+        /// Weighted Euclidean distance in (width, depth) space.
+        /// ACC-07 fix: depth weighted 1.5× for beams where depth is the critical dimension.
+        /// </summary>
+        public double DimensionDistance(double targetWidthMm, double targetDepthMm,
+            double depthWeight = 1.0)
         {
             double dw = WidthMm - targetWidthMm;
-            double dd = DepthMm - targetDepthMm;
+            double dd = (DepthMm - targetDepthMm) * depthWeight;
             return Math.Sqrt(dw * dw + dd * dd);
         }
     }
@@ -104,10 +108,8 @@ namespace StingTools.Model
         private List<FamilyCatalogEntry> _catalog;
         private readonly Dictionary<string, ElementId> _createdTypes = new();
 
-        // Tolerance for "close match" — within this percentage difference
-        private const double CloseMatchTolerance = 0.10; // 10%
-        // Maximum distance in mm for auto-duplicate
-        private const double MaxDuplicateDistanceMm = 200;
+        // ACC-09 fix: Relative tolerance (15% of target size) instead of fixed 200mm
+        private const double RelativeDuplicateTolerance = 0.15;
 
         public StructuralTypeFactory(Document doc)
         {
@@ -260,19 +262,21 @@ namespace StingTools.Model
             }
 
             // Strategy 3: Scan all type parameters for dimension-like values
+            // PERF-03 fix: early exit once both dimensions found
             if (w <= 0 || d <= 0)
             {
                 foreach (Parameter p in sym.Parameters)
                 {
+                    if (w > 0 && d > 0) break; // Early exit
                     if (p.StorageType != StorageType.Double) continue;
                     string name = p.Definition?.Name?.ToLowerInvariant() ?? "";
                     double val = p.AsDouble() * Units.FeetToMm;
-                    if (val <= 0 || val > 5000) continue; // Sanity range
+                    if (val <= 0 || val > 5000) continue;
 
-                    if (w <= 0 && (name.Contains("width") || name.Contains("b") && name.Length <= 3))
+                    if (w <= 0 && (name.Contains("width") || (name.Contains("b") && name.Length <= 3)))
                         w = val;
                     else if (d <= 0 && (name.Contains("depth") || name.Contains("height") ||
-                        (name == "d" || name == "h")))
+                        name == "d" || name == "h"))
                         d = val;
                 }
             }
@@ -295,11 +299,16 @@ namespace StingTools.Model
 
         /// <summary>
         /// Parses dimensions from a name string like "UC 305x305", "200x400mm", "W14x22".
+        /// ALG-07 fix: Unit-aware parsing — detects inches from imperial prefixes (W, HP, C).
         /// Returns (width, depth) in mm, or (0,0) if not parseable.
         /// </summary>
         internal static (double Width, double Depth) ParseDimensionsFromName(string name)
         {
             if (string.IsNullOrEmpty(name)) return (0, 0);
+
+            // Detect if name uses imperial convention (W shapes, HP shapes, C channels)
+            bool isImperial = System.Text.RegularExpressions.Regex.IsMatch(
+                name, @"^(W|HP|WT|MC|C|S|L|HSS)\d", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             // Pattern: NUMBERxNUMBER or NUMBER×NUMBER
             var match = System.Text.RegularExpressions.Regex.Match(
@@ -309,17 +318,25 @@ namespace StingTools.Model
                 if (double.TryParse(match.Groups[1].Value, out double v1) &&
                     double.TryParse(match.Groups[2].Value, out double v2))
                 {
+                    // Imperial sections: values are in inches (W14x22 = 14" deep, 22 lb/ft)
+                    if (isImperial)
+                        return (v1 * 25.4, v1 * 25.4); // Use depth for both (weight is not a dimension)
+                    // Metric: values already in mm if > 20, otherwise likely cm
+                    if (v1 < 20 && v2 < 20) { v1 *= 10; v2 *= 10; } // cm → mm
                     return (v1, v2);
                 }
             }
 
-            // Pattern: single number after common structural prefix (W14, C200, etc.)
+            // Pattern: single number after prefix (W14, C200, UB305, etc.)
             match = System.Text.RegularExpressions.Regex.Match(
                 name, @"[A-Za-z]+\s*(\d{2,4})");
             if (match.Success)
             {
                 if (double.TryParse(match.Groups[1].Value, out double v))
-                    return (v, v); // Assume square for single dimension
+                {
+                    if (isImperial) v *= 25.4; // inches → mm
+                    return (v, v);
+                }
             }
 
             return (0, 0);
@@ -375,7 +392,7 @@ namespace StingTools.Model
             }
 
             // Close match (within tolerance)
-            if (best.entry.DimensionDistance(widthMm, depthMm) < MaxDuplicateDistanceMm)
+            if (best.entry.DimensionDistance(widthMm, depthMm) < Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance)
             {
                 // Try to duplicate and resize
                 var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
@@ -442,7 +459,7 @@ namespace StingTools.Model
                     best.entry.TypeName, TypeMatchMethod.ExactMatch, best.score);
             }
 
-            if (best.entry.DimensionDistance(widthMm, depthMm) < MaxDuplicateDistanceMm)
+            if (best.entry.DimensionDistance(widthMm, depthMm) < Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance)
             {
                 var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
                     $"{best.entry.FamilyName} {depthMm:F0}x{widthMm:F0}");
@@ -722,15 +739,17 @@ namespace StingTools.Model
                 double dist = c.DimensionDistance(targetWidthMm, targetDepthMm);
                 double dimScore = 1.0 - Math.Min(1.0, dist / maxDist);
 
-                // Name relevance: bonus for structural keywords
-                double nameScore = 0.5; // default
+                // ALG-06 fix: Exclusive keyword matching (highest-priority keyword wins)
                 string lowerName = (c.FamilyName + " " + c.TypeName).ToLowerInvariant();
+                double nameScore;
                 if (lowerName.Contains("concrete") || lowerName.Contains("rc"))
-                    nameScore += 0.3;
-                if (lowerName.Contains("steel") || lowerName.Contains("stl"))
-                    nameScore += 0.2;
-                if (lowerName.Contains("structural") || lowerName.Contains("str"))
-                    nameScore += 0.1;
+                    nameScore = 0.95;
+                else if (lowerName.Contains("steel") || lowerName.Contains("stl"))
+                    nameScore = 0.90;
+                else if (lowerName.Contains("structural") || lowerName.Contains("str"))
+                    nameScore = 0.80;
+                else
+                    nameScore = 0.50;
 
                 // Activation bonus
                 double activeScore = c.IsActive ? 1.0 : 0.0;
@@ -779,20 +798,24 @@ namespace StingTools.Model
                     newSymbol = sourceSymbol.Duplicate(newName) as FamilySymbol;
                     if (newSymbol != null)
                     {
-                        // Try to set dimensions via common parameter names
-                        TrySetDimension(newSymbol, "Width", targetWidthMm);
-                        TrySetDimension(newSymbol, "Depth", targetDepthMm);
-                        TrySetDimension(newSymbol, "Height", targetDepthMm);
-                        TrySetDimension(newSymbol, "b", targetWidthMm);
-                        TrySetDimension(newSymbol, "d", targetDepthMm);
-                        TrySetDimension(newSymbol, "h", targetDepthMm);
-                        TrySetDimension(newSymbol, "B", targetWidthMm);
-                        TrySetDimension(newSymbol, "D", targetDepthMm);
-                        TrySetDimension(newSymbol, "H", targetDepthMm);
+                        // ACC-08 fix: Track which parameters were actually set
+                        int dimsSet = 0;
+                        var widthNames = new[] { "Width", "b", "B" };
+                        var depthNames = new[] { "Depth", "Height", "d", "h", "D", "H" };
+
+                        foreach (var pn in widthNames)
+                            if (TrySetDimension(newSymbol, pn, targetWidthMm)) { dimsSet++; break; }
+                        foreach (var pn in depthNames)
+                            if (TrySetDimension(newSymbol, pn, targetDepthMm)) { dimsSet++; break; }
 
                         // Built-in structural section params
-                        TrySetBuiltIn(newSymbol, BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH, targetWidthMm);
-                        TrySetBuiltIn(newSymbol, BuiltInParameter.STRUCTURAL_SECTION_COMMON_HEIGHT, targetDepthMm);
+                        if (TrySetBuiltIn(newSymbol, BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH, targetWidthMm))
+                            dimsSet++;
+                        if (TrySetBuiltIn(newSymbol, BuiltInParameter.STRUCTURAL_SECTION_COMMON_HEIGHT, targetDepthMm))
+                            dimsSet++;
+
+                        if (dimsSet == 0)
+                            StingLog.Warn($"TypeFactory: Created '{newName}' but NO dimension parameters were set — type may be identical to source");
 
                         newSymbol.Activate();
                         _doc.Regenerate();
@@ -829,26 +852,34 @@ namespace StingTools.Model
             return TypeMatchResult.NotFound("Duplication failed.");
         }
 
-        private void TrySetDimension(FamilySymbol sym, string paramName, double valueMm)
+        private bool TrySetDimension(FamilySymbol sym, string paramName, double valueMm)
         {
             try
             {
                 var p = sym.LookupParameter(paramName);
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                {
                     p.Set(Units.Mm(valueMm));
+                    return true;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"SetDim {paramName}: {ex.Message}"); }
+            return false;
         }
 
-        private void TrySetBuiltIn(FamilySymbol sym, BuiltInParameter bip, double valueMm)
+        private bool TrySetBuiltIn(FamilySymbol sym, BuiltInParameter bip, double valueMm)
         {
             try
             {
                 var p = sym.get_Parameter(bip);
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                {
                     p.Set(Units.Mm(valueMm));
+                    return true;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"SetBuiltIn: {ex.Message}"); }
+            return false;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────
