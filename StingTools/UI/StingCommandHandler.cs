@@ -1226,6 +1226,17 @@ namespace StingTools.UI
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
 
+                    // Workflow presets dispatched from Document Manager
+                    case "WorkflowPreset_DailyQA":
+                    case "WorkflowPreset_DocumentPackage":
+                    case "WorkflowPreset_ProjectKickoff":
+                    {
+                        string presetName = _currentCommand.Replace("WorkflowPreset_", "");
+                        SetExtraParam("WorkflowPresetName", presetName);
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+
                     // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
                     case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
                     case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
@@ -1592,6 +1603,7 @@ namespace StingTools.UI
                     case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
 
                     // ── Temp: Data Validation ──
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
