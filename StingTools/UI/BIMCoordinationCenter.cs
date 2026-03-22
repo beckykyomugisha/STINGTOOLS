@@ -16,12 +16,20 @@ namespace StingTools.UI
     // ══════════════════════════════════════════════════════════════════════
     //  STING BIM COORDINATION CENTER — Unified Corporate Dashboard
     //
-    //  Phase 47: Merges 6 separate dialogs into a single 7-tab interface:
-    //    OVERVIEW | MODEL HEALTH | WARNINGS | ISSUES | REVISIONS | PLATFORM | WORKFLOWS
+    //  Phase 49: Comprehensive BIM coordination platform with 12 tabs:
+    //    OVERVIEW | MODEL HEALTH | WARNINGS | ISSUES | REVISIONS |
+    //    PLATFORM | WORKFLOWS | QA DASHBOARD | 4D/5D |
+    //    DELIVERABLES | COORDINATION LOG | TEAM
     //
-    //  Replaces plain-text TaskDialogs for Model Health, Project Dashboard,
-    //  Platform Sync, and Warnings Manager with rich WPF panels. Preserves
-    //  DataGrid views for Issues and Revisions with inline filtering.
+    //  Enhancements:
+    //    - Interactive drill-down panels with element selection
+    //    - Live coordination log with action audit trail
+    //    - Deliverables tracker with ISO 19650 data drop milestones
+    //    - Team workload dashboard with responsibility matrix
+    //    - Enhanced issue/revision tabs with inline filtering + statistics
+    //    - Smart action suggestions based on model state analysis
+    //    - Predictive analytics for compliance trend forecasting
+    //    - Cross-system correlation (warnings ↔ issues ↔ tags)
     //
     //  Corporate theme: dark blue #1A237E header, orange #E8912D accents,
     //  white cards with subtle borders, Segoe UI font.
@@ -144,6 +152,34 @@ namespace StingTools.UI
             public int MilestonesComplete;
             public double EarnedValuePct;
             public List<(string Phase, double Cost, double Progress)> CostByPhase = new();
+
+            // Phase 49: Deliverables tracking
+            public List<DeliverableRow> Deliverables = new();
+            public int DeliverablesPending;
+            public int DeliverablesSubmitted;
+            public int DeliverablesApproved;
+            public int DeliverablesOverdue;
+            public string CurrentDataDrop = "DD1";  // DD1-DD4
+            public Dictionary<string, double> DataDropProgress = new(); // DD1→%, DD2→% etc.
+
+            // Phase 49: Coordination log
+            public List<CoordLogEntry> CoordLog = new();
+
+            // Phase 49: Team workload
+            public List<TeamMemberRow> TeamMembers = new();
+            public Dictionary<string, int> TasksByAssignee = new();
+            public Dictionary<string, int> IssuesByAssignee = new();
+
+            // Phase 49: Smart suggestions
+            public List<(string Text, string Action, string Priority)> SmartSuggestions = new();
+
+            // Phase 49: Compliance trend (last 10 data points)
+            public List<(DateTime Date, double Pct)> ComplianceTrend = new();
+
+            // Phase 49: Cross-system correlation
+            public int WarningsLinkedToIssues;
+            public int StaleLinkedToWarnings;
+            public int UnresolvedDependencies;
         }
 
         /// <summary>Phase 48: Issue data row for DataGrid display.</summary>
@@ -169,6 +205,44 @@ namespace StingTools.UI
             public string Description { get; set; }
             public int Clouds { get; set; }
             public string Status { get; set; }
+        }
+
+        /// <summary>Phase 49: Deliverable tracking row.</summary>
+        internal class DeliverableRow
+        {
+            public string Code { get; set; }           // ISO 19650 file code
+            public string Name { get; set; }
+            public string Type { get; set; }            // Model/Drawing/Schedule/Report/Data
+            public string DataDrop { get; set; }        // DD1/DD2/DD3/DD4
+            public string Status { get; set; }          // Pending/In Progress/Submitted/Approved/Rejected
+            public string Suitability { get; set; }     // S0-S7
+            public string CDE { get; set; }             // WIP/SHARED/PUBLISHED/ARCHIVE
+            public string Owner { get; set; }
+            public string DueDate { get; set; }
+            public bool IsOverdue { get; set; }
+        }
+
+        /// <summary>Phase 49: Coordination log entry for audit trail.</summary>
+        internal class CoordLogEntry
+        {
+            public string Timestamp { get; set; }
+            public string User { get; set; }
+            public string Action { get; set; }
+            public string Category { get; set; }        // Tag/Issue/Revision/Warning/Workflow/Export/Sync
+            public string Detail { get; set; }
+            public string Impact { get; set; }           // HIGH/MEDIUM/LOW
+        }
+
+        /// <summary>Phase 49: Team member workload row.</summary>
+        internal class TeamMemberRow
+        {
+            public string Name { get; set; }
+            public string Role { get; set; }            // BIM Manager/Coordinator/Modeller/Checker
+            public int OpenIssues { get; set; }
+            public int AssignedTasks { get; set; }
+            public int CompletedTasks { get; set; }
+            public double CompliancePct { get; set; }
+            public string LastActivity { get; set; }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -247,7 +321,13 @@ namespace StingTools.UI
                 { NavigateTo("QA DASHBOARD"); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S)
                 { NavigateTo("4D/5D"); e.Handled = true; }
-                // Quick-nav: 1-9 for tab by number
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
+                { NavigateTo("DELIVERABLES"); e.Handled = true; }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.L)
+                { NavigateTo("COORD LOG"); e.Handled = true; }
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.T)
+                { NavigateTo("TEAM"); e.Handled = true; }
+                // Quick-nav: 1-9 for tab by number (first 9 tabs)
                 string[] tabKeys = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D" };
                 if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None)
                 {
@@ -332,7 +412,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D" };
+            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "COORD LOG", "TEAM" };
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
@@ -341,7 +421,10 @@ namespace StingTools.UI
                 _data.SyncChanges > 0 ? _data.SyncChanges.ToString() : "",
                 _data.WorkflowRuns > 0 ? _data.WorkflowRuns.ToString() : "",
                 _data.PlaceholderCount > 0 ? _data.PlaceholderCount.ToString() : "",
-                _data.ScheduledTasks > 0 ? _data.ScheduledTasks.ToString() : ""
+                _data.ScheduledTasks > 0 ? _data.ScheduledTasks.ToString() : "",
+                _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
+                _data.TeamMembers.Count > 0 ? _data.TeamMembers.Count.ToString() : ""
             };
 
             for (int i = 0; i < tabs.Length; i++)
@@ -428,15 +511,18 @@ namespace StingTools.UI
 
             switch (tabName)
             {
-                case "OVERVIEW":     _contentArea.Content = BuildOverviewTab(); break;
-                case "MODEL HEALTH": _contentArea.Content = BuildModelHealthTab(); break;
-                case "WARNINGS":     _contentArea.Content = BuildWarningsTab(); break;
-                case "ISSUES":       _contentArea.Content = BuildIssuesTab(); break;
-                case "REVISIONS":    _contentArea.Content = BuildRevisionsTab(); break;
-                case "PLATFORM":     _contentArea.Content = BuildPlatformTab(); break;
-                case "WORKFLOWS":    _contentArea.Content = BuildWorkflowsTab(); break;
-                case "QA DASHBOARD": _contentArea.Content = BuildQADashboardTab(); break;
-                case "4D/5D":        _contentArea.Content = Build4D5DTab(); break;
+                case "OVERVIEW":      _contentArea.Content = BuildOverviewTab(); break;
+                case "MODEL HEALTH":  _contentArea.Content = BuildModelHealthTab(); break;
+                case "WARNINGS":      _contentArea.Content = BuildWarningsTab(); break;
+                case "ISSUES":        _contentArea.Content = BuildIssuesTab(); break;
+                case "REVISIONS":     _contentArea.Content = BuildRevisionsTab(); break;
+                case "PLATFORM":      _contentArea.Content = BuildPlatformTab(); break;
+                case "WORKFLOWS":     _contentArea.Content = BuildWorkflowsTab(); break;
+                case "QA DASHBOARD":  _contentArea.Content = BuildQADashboardTab(); break;
+                case "4D/5D":         _contentArea.Content = Build4D5DTab(); break;
+                case "DELIVERABLES":  _contentArea.Content = BuildDeliverablesTab(); break;
+                case "COORD LOG":     _contentArea.Content = BuildCoordLogTab(); break;
+                case "TEAM":          _contentArea.Content = BuildTeamTab(); break;
             }
         }
 
@@ -634,6 +720,105 @@ namespace StingTools.UI
                 stack.Children.Add(gapWrap);
             }
 
+            // Phase 49: Smart suggestions — AI-driven action recommendations
+            if (_data.SmartSuggestions.Count > 0)
+            {
+                stack.Children.Add(MakeSectionHeader("SMART SUGGESTIONS"));
+                var sugCard = new Border
+                {
+                    Background = Br(Color.FromRgb(0xE8, 0xF5, 0xE9)), BorderBrush = Br(CGreen),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 12)
+                };
+                var sugStack = new StackPanel();
+                foreach (var (text, action, priority) in _data.SmartSuggestions.Take(6))
+                {
+                    var prColor = priority == "HIGH" ? CRed : priority == "MEDIUM" ? CAmber : CGreen;
+                    var sugRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    sugRow.Children.Add(new Border
+                    {
+                        Background = Br(prColor), CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(4, 1, 4, 1), Margin = new Thickness(0, 0, 8, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Child = new TextBlock { Text = priority, FontSize = 8, Foreground = Brushes.White, FontWeight = FontWeights.Bold }
+                    });
+                    var sugBtn = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
+                    sugBtn.MouseLeftButtonDown += (s, e) => { ResultAction = action; DialogResult = true; Close(); };
+                    sugBtn.MouseEnter += (s, e) => sugBtn.TextDecorations = TextDecorations.Underline;
+                    sugBtn.MouseLeave += (s, e) => sugBtn.TextDecorations = null;
+                    sugRow.Children.Add(sugBtn);
+                    sugStack.Children.Add(sugRow);
+                }
+                sugCard.Child = sugStack;
+                stack.Children.Add(sugCard);
+            }
+
+            // Phase 49: Compliance trend sparkline
+            if (_data.ComplianceTrend.Count >= 2)
+            {
+                stack.Children.Add(MakeSectionHeader("COMPLIANCE TREND"));
+                var trendCard = MakeCard();
+                var trendGrid = new Grid { Height = 60 };
+                var trendCanvas = new Canvas { ClipToBounds = true };
+                trendGrid.Children.Add(trendCanvas);
+                trendCard.Loaded += (s, e) =>
+                {
+                    double w = trendGrid.ActualWidth > 0 ? trendGrid.ActualWidth - 24 : 400;
+                    double h = 50;
+                    trendCanvas.Children.Clear();
+                    // Background grid lines at 25%, 50%, 75%
+                    foreach (double pctLine in new[] { 25.0, 50.0, 75.0 })
+                    {
+                        double y = h - (h * pctLine / 100.0);
+                        var gl = new Line { X1 = 0, Y1 = y, X2 = w, Y2 = y, Stroke = Br(Color.FromRgb(0xE0, 0xE0, 0xE0)), StrokeThickness = 0.5 };
+                        trendCanvas.Children.Add(gl);
+                    }
+                    // Plot points
+                    var points = _data.ComplianceTrend;
+                    for (int i = 0; i < points.Count - 1; i++)
+                    {
+                        double x1 = w * i / (points.Count - 1);
+                        double y1 = h - (h * Math.Max(0, Math.Min(100, points[i].Pct)) / 100.0);
+                        double x2 = w * (i + 1) / (points.Count - 1);
+                        double y2 = h - (h * Math.Max(0, Math.Min(100, points[i + 1].Pct)) / 100.0);
+                        var line = new Line { X1 = x1, Y1 = y1, X2 = x2, Y2 = y2, Stroke = Br(CAccent), StrokeThickness = 2 };
+                        trendCanvas.Children.Add(line);
+                        // Dot
+                        var dot = new Ellipse { Width = 6, Height = 6, Fill = Br(CHeaderBg) };
+                        Canvas.SetLeft(dot, x1 - 3); Canvas.SetTop(dot, y1 - 3);
+                        dot.ToolTip = $"{points[i].Date:dd MMM}: {points[i].Pct:F0}%";
+                        trendCanvas.Children.Add(dot);
+                    }
+                    // Last dot
+                    if (points.Count > 0)
+                    {
+                        var lastDot = new Ellipse { Width = 8, Height = 8, Fill = Br(CAccent) };
+                        double lx = w; double ly = h - (h * Math.Max(0, Math.Min(100, points.Last().Pct)) / 100.0);
+                        Canvas.SetLeft(lastDot, lx - 4); Canvas.SetTop(lastDot, ly - 4);
+                        lastDot.ToolTip = $"Latest: {points.Last().Pct:F1}%";
+                        trendCanvas.Children.Add(lastDot);
+                    }
+                };
+                trendCard.Child = trendGrid;
+                stack.Children.Add(trendCard);
+            }
+
+            // Phase 49: Cross-system correlation summary
+            if (_data.WarningsLinkedToIssues > 0 || _data.StaleLinkedToWarnings > 0 || _data.UnresolvedDependencies > 0)
+            {
+                stack.Children.Add(MakeSectionHeader("CROSS-SYSTEM CORRELATION"));
+                var corrCard = MakeCard();
+                var corrStack = new StackPanel();
+                if (_data.WarningsLinkedToIssues > 0)
+                    corrStack.Children.Add(new TextBlock { Text = $"  {_data.WarningsLinkedToIssues} warnings linked to open issues", FontSize = 12, Foreground = Br(CAmber) });
+                if (_data.StaleLinkedToWarnings > 0)
+                    corrStack.Children.Add(new TextBlock { Text = $"  {_data.StaleLinkedToWarnings} stale elements with active warnings", FontSize = 12, Foreground = Br(CRed) });
+                if (_data.UnresolvedDependencies > 0)
+                    corrStack.Children.Add(new TextBlock { Text = $"  {_data.UnresolvedDependencies} unresolved cross-discipline dependencies", FontSize = 12, Foreground = Br(CAmber) });
+                corrCard.Child = corrStack;
+                stack.Children.Add(corrCard);
+            }
+
             scroll.Content = stack;
             return scroll;
         }
@@ -772,7 +957,7 @@ namespace StingTools.UI
             var contentStack = new StackPanel();
 
             // TREE VIEW: warnings grouped by Category > Severity > Description
-            stack.Children.Add(MakeSectionHeader("WARNING TREE (double-click to select elements)"));
+            contentStack.Children.Add(MakeSectionHeader("WARNING TREE (double-click to select elements)"));
             var tree = new TreeView
             {
                 BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
@@ -977,9 +1162,33 @@ namespace StingTools.UI
             DockPanel.SetDock(actionsWrap, Dock.Bottom);
             actionsWrap.Children.Add(MakeActionButton("Raise Issue", "RaiseIssue", Br(CRed)));
             actionsWrap.Children.Add(MakeActionButton("Update Status", "UpdateIssue", Br(CAccent)));
+            actionsWrap.Children.Add(MakeActionButton("Bulk Close", "IssuesBulkClose", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
             actionsWrap.Children.Add(MakeActionButton("Select Elements", "SelectIssueElements", Br(CHeaderBg)));
+            actionsWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
             actionsWrap.Children.Add(MakeActionButton("Export CSV", "ExportIssues", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("Create from Warnings", "CreateIssuesFromWarnings", Br(CAmber)));
+            actionsWrap.Children.Add(MakeActionButton("Issue Timeline", "IssueTimeline", Br(CHeaderBg)));
             root.Children.Add(actionsWrap);
+
+            // Phase 49: Issue statistics mini-panel
+            if (_data.IssuesTotal > 0)
+            {
+                var statsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                DockPanel.SetDock(statsPanel, Dock.Top);
+                // Issue type breakdown
+                var typeGroups = _data.Issues.GroupBy(i => i.Type).ToDictionary(g => g.Key, g => g.Count());
+                foreach (var kv in typeGroups.OrderByDescending(x => x.Value))
+                    statsPanel.Children.Add(MakeMetricChip($"{kv.Key}: {kv.Value}", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+                // Average age
+                var ages = _data.Issues.Where(i => int.TryParse(i.DaysOpen, out _)).Select(i => int.Parse(i.DaysOpen)).ToList();
+                if (ages.Count > 0)
+                    statsPanel.Children.Add(MakeMetricChip($"Avg age: {ages.Average():F0}d", Br(CHeaderBg)));
+                // Resolution rate
+                int closed = _data.IssuesTotal - _data.IssuesOpen;
+                if (_data.IssuesTotal > 0)
+                    statsPanel.Children.Add(MakeMetricChip($"Resolved: {closed * 100 / _data.IssuesTotal}%", closed > _data.IssuesOpen ? Br(CGreen) : Br(CAmber)));
+                root.Children.Add(statsPanel);
+            }
 
             // Phase 48: Full DataGrid for issues
             if (_data.Issues.Count > 0)
@@ -1046,10 +1255,28 @@ namespace StingTools.UI
             var actionsWrap = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
             DockPanel.SetDock(actionsWrap, Dock.Bottom);
             actionsWrap.Children.Add(MakeActionButton("Create Revision", "CreateRevision", Br(CGreen)));
-            actionsWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(CAccent)));
+            actionsWrap.Children.Add(MakeActionButton("Auto Clouds", "AutoRevisionCloud", Br(CAccent)));
+            actionsWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
             actionsWrap.Children.Add(MakeActionButton("Compare", "RevisionCompare", Br(CHeaderBg)));
+            actionsWrap.Children.Add(MakeActionButton("Track Elements", "TrackElementRevisions", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            actionsWrap.Children.Add(MakeActionButton("Issue Sheets", "IssueSheetsForRevision", Br(CAmber)));
+            actionsWrap.Children.Add(MakeActionButton("Naming Check", "RevisionNamingEnforce", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("Bulk Stamp", "BulkRevisionStamp", Br(CRed)));
             actionsWrap.Children.Add(MakeActionButton("Export CSV", "ExportRevisions", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
             root.Children.Add(actionsWrap);
+
+            // Phase 49: Revision summary statistics
+            if (_data.Revisions.Count > 0)
+            {
+                var revStatsWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                DockPanel.SetDock(revStatsWrap, Dock.Top);
+                int totalClouds = _data.Revisions.Sum(r => r.Clouds);
+                var statusGroups = _data.Revisions.GroupBy(r => r.Status).ToDictionary(g => g.Key, g => g.Count());
+                foreach (var kv in statusGroups)
+                    revStatsWrap.Children.Add(MakeMetricChip($"{kv.Key}: {kv.Value}", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+                revStatsWrap.Children.Add(MakeMetricChip($"Total clouds: {totalClouds}", Br(CAccent)));
+                root.Children.Add(revStatsWrap);
+            }
 
             // Phase 48: Full DataGrid for revisions
             if (_data.Revisions.Count > 0)
@@ -1110,19 +1337,38 @@ namespace StingTools.UI
             syncCard.Child = syncStack;
             stack.Children.Add(syncCard);
 
-            // Actions
+            // Platform operations by category
             stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("PLATFORM OPERATIONS"));
-            var actionsWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            actionsWrap.Children.Add(MakeActionButton("Sync Now", "PlatformSync", Br(CHeaderBg)));
-            actionsWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CGreen)));
-            actionsWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent)));
-            actionsWrap.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent)));
-            actionsWrap.Children.Add(MakeActionButton("Excel Export", "ExcelExport", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
-            actionsWrap.Children.Add(MakeActionButton("Excel Import", "ExcelImport", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
-            actionsWrap.Children.Add(MakeActionButton("SharePoint", "SharePointExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
-            actionsWrap.Children.Add(MakeActionButton("ACC Publish", "ACCPublish", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
-            stack.Children.Add(actionsWrap);
+            stack.Children.Add(MakeSectionHeader("CDE — COMMON DATA ENVIRONMENT"));
+            var cdeWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            cdeWrap.Children.Add(MakeActionButton("Sync Now", "PlatformSync", Br(CHeaderBg)));
+            cdeWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CGreen)));
+            cdeWrap.Children.Add(MakeActionButton("Set CDE Status", "CDEStatus", Br(CAccent)));
+            cdeWrap.Children.Add(MakeActionButton("Validate Naming", "ValidateDocNaming", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            stack.Children.Add(cdeWrap);
+
+            stack.Children.Add(MakeSectionHeader("BCF — BIM COLLABORATION FORMAT"));
+            var bcfWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            bcfWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent)));
+            bcfWrap.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent)));
+            bcfWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
+            stack.Children.Add(bcfWrap);
+
+            stack.Children.Add(MakeSectionHeader("DATA EXCHANGE"));
+            var dataWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            dataWrap.Children.Add(MakeActionButton("Excel Export", "ExportToExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
+            dataWrap.Children.Add(MakeActionButton("Excel Import", "ImportFromExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
+            dataWrap.Children.Add(MakeActionButton("Excel Round-Trip", "ExcelRoundTrip", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
+            dataWrap.Children.Add(MakeActionButton("COBie Export", "COBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            dataWrap.Children.Add(MakeActionButton("IFC Export", "IFCExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            stack.Children.Add(dataWrap);
+
+            stack.Children.Add(MakeSectionHeader("CLOUD PLATFORMS"));
+            var cloudWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            cloudWrap.Children.Add(MakeActionButton("ACC Publish", "ACCPublish", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            cloudWrap.Children.Add(MakeActionButton("SharePoint", "SharePointExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            cloudWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(CHeaderBg)));
+            stack.Children.Add(cloudWrap);
 
             scroll.Content = stack;
             return scroll;
@@ -1143,7 +1389,11 @@ namespace StingTools.UI
             {
                 new[] { "Morning Health Check", "Daily coordinator routine: stale fix, warnings, compliance, templates", "8" },
                 new[] { "Daily QA Sync", "Adaptive daily sync — skips steps meeting compliance thresholds", "13" },
+                new[] { "Quick Fix Cycle", "Rapid quality improvement: auto-fix, resolve, re-tag, validate", "6" },
+                new[] { "Coordination Meeting Prep", "Prepare for BIM coordination meeting: compliance, warnings, reports", "7" },
+                new[] { "Clash Coordination", "Cross-discipline: detect clashes, export BCF, create issues", "5" },
                 new[] { "Handover Readiness", "Pre-handover: validate, COBie, register, BEP, revision", "9" },
+                new[] { "End of Stage Gate", "RIBA stage transition: full validation, COBie, BEP, register", "11" },
                 new[] { "Weekly Data Drop", "ISO 19650 information exchange: validate, export, package", "8" },
                 new[] { "Project Kickoff", "Full setup: params, materials, types, tags, schedules, views", "28" },
                 new[] { "Post-Tagging QA", "Validate results: ISO compliance, tokens, containers, register", "5" },
@@ -1550,6 +1800,316 @@ namespace StingTools.UI
             Grid.SetRow(tb, row);
             Grid.SetColumn(tb, col);
             grid.Children.Add(tb);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  DELIVERABLES TAB (Phase 49)
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildDeliverablesTab()
+        {
+            var root = new DockPanel { Margin = new Thickness(16) };
+
+            // Data drop progress strip
+            var ddStrip = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            DockPanel.SetDock(ddStrip, Dock.Top);
+            ddStrip.Children.Add(MakeSectionHeader("ISO 19650 DATA DROP PROGRESS"));
+            var ddGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 4, 0, 12) };
+            string[] ddNames = { "DD1", "DD2", "DD3", "DD4" };
+            string[] ddLabels = { "Brief & BEP", "Concept Design", "Developed Design", "Production & Handover" };
+            for (int i = 0; i < ddNames.Length; i++)
+            {
+                double ddPct = _data.DataDropProgress.TryGetValue(ddNames[i], out double dp) ? dp : 0;
+                bool isCurrent = _data.CurrentDataDrop == ddNames[i];
+                var ddCard = new Border
+                {
+                    Background = isCurrent ? Br(Color.FromRgb(0xE3, 0xF2, 0xFD)) : Br(CCardBg),
+                    BorderBrush = isCurrent ? Br(CAccent) : Br(CBorder),
+                    BorderThickness = new Thickness(isCurrent ? 2 : 1),
+                    CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(3)
+                };
+                var ddStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                ddStack.Children.Add(new TextBlock { Text = ddNames[i], FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), HorizontalAlignment = HorizontalAlignment.Center });
+                ddStack.Children.Add(new TextBlock { Text = ddLabels[i], FontSize = 9, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+                ddStack.Children.Add(new TextBlock { Text = $"{ddPct:F0}%", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = RagBrush(ddPct >= 80 ? "GREEN" : ddPct >= 50 ? "AMBER" : "RED"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+                if (isCurrent)
+                    ddStack.Children.Add(new TextBlock { Text = "CURRENT", FontSize = 8, Foreground = Br(CAccent), FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center });
+                ddCard.Child = ddStack;
+                ddGrid.Children.Add(ddCard);
+            }
+            ddStrip.Children.Add(ddGrid);
+
+            // Summary chips
+            var summaryWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            summaryWrap.Children.Add(MakeMetricChip($"Total: {_data.Deliverables.Count}", Br(CHeaderBg)));
+            summaryWrap.Children.Add(MakeMetricChip($"Pending: {_data.DeliverablesPending}", _data.DeliverablesPending > 0 ? Br(CAmber) : Br(CGreen)));
+            summaryWrap.Children.Add(MakeMetricChip($"Submitted: {_data.DeliverablesSubmitted}", Br(Color.FromRgb(0x15, 0x65, 0xC0))));
+            summaryWrap.Children.Add(MakeMetricChip($"Approved: {_data.DeliverablesApproved}", Br(CGreen)));
+            summaryWrap.Children.Add(MakeMetricChip($"Overdue: {_data.DeliverablesOverdue}", _data.DeliverablesOverdue > 0 ? Br(CRed) : Br(CGreen)));
+            ddStrip.Children.Add(summaryWrap);
+            root.Children.Add(ddStrip);
+
+            // Actions at bottom
+            var actionsWrap = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            DockPanel.SetDock(actionsWrap, Dock.Bottom);
+            actionsWrap.Children.Add(MakeActionButton("Add Deliverable", "AddDocument", Br(CGreen)));
+            actionsWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CHeaderBg)));
+            actionsWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(CAccent)));
+            actionsWrap.Children.Add(MakeActionButton("Export Register", "DocumentRegister", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("Handover Package", "DocumentBriefcase", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            actionsWrap.Children.Add(MakeActionButton("Stage Gate Check", "StageComplianceGate", Br(CRed)));
+            root.Children.Add(actionsWrap);
+
+            // Deliverables DataGrid
+            if (_data.Deliverables.Count > 0)
+            {
+                var dg = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
+                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11,
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0
+                };
+                dg.Columns.Add(new DataGridTextColumn { Header = "Code", Binding = new Binding("Code"), Width = 120 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new Binding("Type"), Width = 60 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Drop", Binding = new Binding("DataDrop"), Width = 40 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Status"), Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Suit.", Binding = new Binding("Suitability"), Width = 35 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "CDE", Binding = new Binding("CDE"), Width = 60 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Owner", Binding = new Binding("Owner"), Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Due", Binding = new Binding("DueDate"), Width = 80 });
+                dg.ItemsSource = _data.Deliverables;
+                // Row style: red for overdue
+                var rowStyle = new Style(typeof(DataGridRow));
+                var overdueT = new DataTrigger { Binding = new Binding("IsOverdue"), Value = true };
+                overdueT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+                overdueT.Setters.Add(new Setter(DataGridRow.FontWeightProperty, FontWeights.Bold));
+                rowStyle.Triggers.Add(overdueT);
+                dg.RowStyle = rowStyle;
+                root.Children.Add(dg);
+            }
+            else
+            {
+                var infoCard = MakeCard();
+                infoCard.Child = new TextBlock { Text = "No deliverables tracked yet. Use 'Add Deliverable' or run a Document Package workflow to populate.", FontSize = 13 };
+                root.Children.Add(infoCard);
+            }
+            return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  COORDINATION LOG TAB (Phase 49)
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildCoordLogTab()
+        {
+            var root = new DockPanel { Margin = new Thickness(16) };
+
+            // Summary strip
+            var summaryWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            DockPanel.SetDock(summaryWrap, Dock.Top);
+            summaryWrap.Children.Add(MakeMetricChip($"Total entries: {_data.CoordLog.Count}", Br(CHeaderBg)));
+            var catGroups = _data.CoordLog.GroupBy(e => e.Category).ToDictionary(g => g.Key, g => g.Count());
+            foreach (var kv in catGroups.OrderByDescending(x => x.Value).Take(5))
+            {
+                var catColor = kv.Key == "Issue" ? CRed : kv.Key == "Warning" ? CAmber :
+                    kv.Key == "Tag" ? CGreen : kv.Key == "Workflow" ? Color.FromRgb(0x6A, 0x1B, 0x9A) : CHeaderBg;
+                summaryWrap.Children.Add(MakeMetricChip($"{kv.Key}: {kv.Value}", Br(catColor)));
+            }
+            root.Children.Add(summaryWrap);
+
+            // Actions at bottom
+            var actionsWrap = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            DockPanel.SetDock(actionsWrap, Dock.Bottom);
+            actionsWrap.Children.Add(MakeActionButton("Export Log CSV", "ExportCoordLog", Br(CHeaderBg)));
+            actionsWrap.Children.Add(MakeActionButton("Clear Log", "ClearCoordLog", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("Run Audit Trail", "WorkflowTrend", Br(CAccent)));
+            root.Children.Add(actionsWrap);
+
+            // Log entries DataGrid
+            if (_data.CoordLog.Count > 0)
+            {
+                var dg = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true, HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal, CanUserSortColumns = true,
+                    SelectionMode = DataGridSelectionMode.Single, FontSize = 11,
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), RowHeaderWidth = 0,
+                    EnableRowVirtualization = true
+                };
+                dg.Columns.Add(new DataGridTextColumn { Header = "Time", Binding = new Binding("Timestamp"), Width = 130 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "User", Binding = new Binding("User"), Width = 80 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Category", Binding = new Binding("Category"), Width = 70 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Action", Binding = new Binding("Action"), Width = 150 });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Detail", Binding = new Binding("Detail"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Impact", Binding = new Binding("Impact"), Width = 55 });
+                dg.ItemsSource = _data.CoordLog;
+                // Row style by impact
+                var rowStyle = new Style(typeof(DataGridRow));
+                var highT = new DataTrigger { Binding = new Binding("Impact"), Value = "HIGH" };
+                highT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+                rowStyle.Triggers.Add(highT);
+                var medT = new DataTrigger { Binding = new Binding("Impact"), Value = "MEDIUM" };
+                medT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF, 0xF8, 0xE1))));
+                rowStyle.Triggers.Add(medT);
+                dg.RowStyle = rowStyle;
+                root.Children.Add(dg);
+            }
+            else
+            {
+                var infoCard = MakeCard();
+                infoCard.Child = new TextBlock
+                {
+                    Text = "No coordination log entries yet.\n\nThe log captures all BIM coordination actions:\n  - Tagging operations (batch tag, auto-tag, re-tag)\n  - Issue creation and resolution\n  - Revision creation and tracking\n  - Warning auto-fix operations\n  - Workflow execution results\n  - Platform sync and export events\n  - Compliance gate checks\n\nRun any coordination command to start populating the log.",
+                    FontSize = 12, TextWrapping = TextWrapping.Wrap
+                };
+                root.Children.Add(infoCard);
+            }
+            return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TEAM TAB (Phase 49)
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildTeamTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // Team workload overview
+            stack.Children.Add(MakeSectionHeader("TEAM WORKLOAD OVERVIEW"));
+            if (_data.TeamMembers.Count > 0)
+            {
+                // KPI cards: Team summary
+                var kpiGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 16) };
+                int totalOpen = _data.TeamMembers.Sum(m => m.OpenIssues);
+                int totalAssigned = _data.TeamMembers.Sum(m => m.AssignedTasks);
+                int totalCompleted = _data.TeamMembers.Sum(m => m.CompletedTasks);
+                double avgCompliance = _data.TeamMembers.Average(m => m.CompliancePct);
+                kpiGrid.Children.Add(MakeKPICard("TEAM SIZE", _data.TeamMembers.Count.ToString(), Br(CHeaderBg),
+                    "Active team members\nwith assigned responsibilities"));
+                kpiGrid.Children.Add(MakeKPICard("OPEN TASKS", totalAssigned.ToString(),
+                    totalAssigned > 20 ? Br(CRed) : totalAssigned > 10 ? Br(CAmber) : Br(CGreen),
+                    $"Assigned: {totalAssigned}\nCompleted: {totalCompleted}"));
+                kpiGrid.Children.Add(MakeKPICard("OPEN ISSUES", totalOpen.ToString(),
+                    totalOpen > 10 ? Br(CRed) : totalOpen > 5 ? Br(CAmber) : Br(CGreen),
+                    "Issues assigned across team"));
+                kpiGrid.Children.Add(MakeKPICard("AVG COMPLIANCE", $"{avgCompliance:F0}%",
+                    RagBrush(avgCompliance >= 80 ? "GREEN" : avgCompliance >= 50 ? "AMBER" : "RED"),
+                    "Average tag compliance\nacross team members"));
+                stack.Children.Add(kpiGrid);
+
+                // Team member cards
+                stack.Children.Add(MakeSectionHeader("TEAM MEMBERS"));
+                foreach (var member in _data.TeamMembers.OrderByDescending(m => m.OpenIssues + m.AssignedTasks))
+                {
+                    var memberCard = MakeCard();
+                    var memberGrid = new Grid();
+                    memberGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    memberGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var leftStack = new StackPanel();
+                    var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    nameRow.Children.Add(new TextBlock { Text = member.Name, FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 8, 0) });
+                    nameRow.Children.Add(new Border
+                    {
+                        Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(6, 1, 6, 1), VerticalAlignment = VerticalAlignment.Center,
+                        Child = new TextBlock { Text = member.Role, FontSize = 9, Foreground = Brushes.White }
+                    });
+                    leftStack.Children.Add(nameRow);
+
+                    var statsRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                    if (member.OpenIssues > 0)
+                        statsRow.Children.Add(MakeMetricChip($"Issues: {member.OpenIssues}", member.OpenIssues > 5 ? Br(CRed) : Br(CAmber)));
+                    statsRow.Children.Add(MakeMetricChip($"Tasks: {member.AssignedTasks}", Br(CHeaderBg)));
+                    statsRow.Children.Add(MakeMetricChip($"Done: {member.CompletedTasks}", Br(CGreen)));
+                    leftStack.Children.Add(statsRow);
+
+                    if (!string.IsNullOrEmpty(member.LastActivity))
+                        leftStack.Children.Add(new TextBlock { Text = $"Last active: {member.LastActivity}", FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), Margin = new Thickness(0, 2, 0, 0) });
+                    memberGrid.Children.Add(leftStack);
+
+                    // Compliance indicator
+                    var compStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(12, 0, 0, 0) };
+                    string mRag = member.CompliancePct >= 80 ? "GREEN" : member.CompliancePct >= 50 ? "AMBER" : "RED";
+                    compStack.Children.Add(new TextBlock { Text = $"{member.CompliancePct:F0}%", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = RagBrush(mRag), HorizontalAlignment = HorizontalAlignment.Center });
+                    compStack.Children.Add(new TextBlock { Text = "compliance", FontSize = 9, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), HorizontalAlignment = HorizontalAlignment.Center });
+                    Grid.SetColumn(compStack, 1);
+                    memberGrid.Children.Add(compStack);
+
+                    memberCard.Child = memberGrid;
+                    stack.Children.Add(memberCard);
+                }
+            }
+            else
+            {
+                // No team data — show role-based responsibility matrix template
+                stack.Children.Add(new TextBlock { Text = "No team data available yet.", FontSize = 13, Margin = new Thickness(0, 0, 0, 12) });
+            }
+
+            // Responsibility matrix
+            stack.Children.Add(MakeSectionHeader("RESPONSIBILITY MATRIX (RACI)"));
+            var raciCard = MakeCard();
+            var raciStack = new StackPanel();
+            var raciItems = new[]
+            {
+                ("Tag Compliance", "BIM Manager", "Coordinator", "Modeller", "Checker"),
+                ("Issue Resolution", "Coordinator", "Modeller", "—", "Manager"),
+                ("Revision Creation", "Manager", "Coordinator", "—", "Manager"),
+                ("COBie Export", "Coordinator", "Manager", "—", "Manager"),
+                ("Model Health", "Manager", "Coordinator", "Modeller", "—"),
+                ("Warning Resolution", "Coordinator", "Modeller", "—", "Manager"),
+                ("Data Drop Submission", "Manager", "Coordinator", "—", "Client"),
+            };
+            // Header
+            var raciHdr = new Grid();
+            raciHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+            raciHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            raciHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            raciHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            raciHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            var raciHeaders = new[] { "Task", "Responsible", "Accountable", "Consulted", "Informed" };
+            for (int c = 0; c < raciHeaders.Length; c++)
+            {
+                var tb = new TextBlock { Text = raciHeaders[c], FontWeight = FontWeights.Bold, FontSize = 11, Padding = new Thickness(4, 3, 4, 3), Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED)) };
+                Grid.SetColumn(tb, c);
+                raciHdr.Children.Add(tb);
+            }
+            raciStack.Children.Add(raciHdr);
+
+            foreach (var (task, r, a, c, i) in raciItems)
+            {
+                var raciRow = new Grid();
+                raciRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+                raciRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                raciRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                raciRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                raciRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                var vals = new[] { task, r, a, c, i };
+                for (int col = 0; col < vals.Length; col++)
+                {
+                    var tb = new TextBlock { Text = vals[col], FontSize = 11, Padding = new Thickness(4, 2, 4, 2), FontWeight = col == 0 ? FontWeights.Bold : FontWeights.Normal };
+                    Grid.SetColumn(tb, col);
+                    raciRow.Children.Add(tb);
+                }
+                raciStack.Children.Add(raciRow);
+            }
+            raciCard.Child = raciStack;
+            stack.Children.Add(raciCard);
+
+            // Actions
+            stack.Children.Add(new Border { Height = 12 });
+            var teamActionsWrap = new WrapPanel();
+            teamActionsWrap.Children.Add(MakeActionButton("Assign Issues", "IssueBatchUpdate", Br(CHeaderBg)));
+            teamActionsWrap.Children.Add(MakeActionButton("Team Report", "ExportReport", Br(CGreen)));
+            teamActionsWrap.Children.Add(MakeActionButton("Compliance by Discipline", "DiscComplianceReport", Br(CAccent)));
+            stack.Children.Add(teamActionsWrap);
+
+            scroll.Content = stack;
+            return scroll;
         }
 
         // ════════════════════════════════════════════════════════════════

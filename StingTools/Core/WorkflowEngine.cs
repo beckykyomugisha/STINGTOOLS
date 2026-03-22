@@ -808,6 +808,18 @@ namespace StingTools.Core
                 SaveRunRecord(record, doc);
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
+
+                // Phase 49: Log to coordination log for audit trail
+                try
+                {
+                    WarningsEngine.LogCoordinationAction(doc,
+                        $"Workflow: {preset.Name}",
+                        "Workflow",
+                        $"Passed: {passed}, Skipped: {skipped}, Failed: {failed}. " +
+                        $"Compliance: {complianceBefore:F0}% → {complianceAfter:F0}%",
+                        failed > 0 ? "HIGH" : "MEDIUM");
+                }
+                catch (Exception coordEx) { StingLog.Warn($"Coord log: {coordEx.Message}"); }
             }
             catch (Exception logEx)
             {
@@ -1050,6 +1062,10 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("MorningHealthCheck"));
             presets.Add(GetBuiltInPreset("HandoverReadiness"));
             presets.Add(GetBuiltInPreset("WeeklyDataDrop"));
+            presets.Add(GetBuiltInPreset("CoordinationMeetingPrep"));
+            presets.Add(GetBuiltInPreset("ClashCoordination"));
+            presets.Add(GetBuiltInPreset("EndOfStageGate"));
+            presets.Add(GetBuiltInPreset("QuickFixCycle"));
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -1257,6 +1273,84 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "7. Drawing register" },
                             new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create weekly revision" },
+                        }
+                    };
+
+                // Phase 49: Coordination Meeting Prep — prepare for BIM coordination meeting
+                case "CoordinationMeetingPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Coordination Meeting Prep",
+                        Description = "Prepare model for BIM coordination meeting: compliance check, warnings triage, issue summary, export reports",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix model warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "4. Generate compliance dashboard" },
+                            new WorkflowStep { CommandTag = "WarningsExport", Label = "5. Export warnings report", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "6. Export asset register" },
+                            new WorkflowStep { CommandTag = "ModelHealthDashboard", Label = "7. Model health check" },
+                        }
+                    };
+
+                // Phase 49: Clash Coordination — resolve clashes and coordination issues
+                case "ClashCoordination":
+                    return new WorkflowPreset
+                    {
+                        Name = "Clash Coordination",
+                        Description = "Cross-discipline clash detection and coordination: warnings, clashes, BCF, issue creation",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ClashDetection", Label = "1. Run clash detection" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "2. Warnings dashboard" },
+                            new WorkflowStep { CommandTag = "BCFExport", Label = "3. Export clashes as BCF", Optional = true },
+                            new WorkflowStep { CommandTag = "RaiseIssue", Label = "4. Create coordination issues", Optional = true, Condition = "has_critical_warnings" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate tags after fixes" },
+                        }
+                    };
+
+                // Phase 49: End-of-Stage Gate — RIBA stage transition validation
+                case "EndOfStageGate":
+                    return new WorkflowPreset
+                    {
+                        Name = "End of Stage Gate",
+                        Description = "RIBA stage transition gate: comprehensive validation, COBie, BEP update, compliance report",
+                        IsBuiltIn = true,
+                        RollbackOnFailure = false,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix all stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve all placeholder tokens" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Full ISO 19650 validation" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "4. BIM template validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "StageComplianceGate", Label = "5. RIBA stage compliance gate" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "6. COBie V2.4 export", MinCompliancePct = 80 },
+                            new WorkflowStep { CommandTag = "ExportBEP", Label = "7. Export BEP" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "8. Drawing register" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "9. Asset register export" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "10. BOQ export" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "11. Create stage revision" },
+                        }
+                    };
+
+                // Phase 49: Quick Fix Cycle — rapid model quality improvement
+                case "QuickFixCycle":
+                    return new WorkflowPreset
+                    {
+                        Name = "Quick Fix Cycle",
+                        Description = "Rapid quality improvement: auto-fix warnings, resolve tokens, re-tag stale, validate",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "1. Auto-fix warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "2. Re-tag stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "AnomalyAutoFix", Label = "3. Fix tag anomalies" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "4. Resolve placeholders", MaxCompliancePct = 95, Optional = true },
+                            new WorkflowStep { CommandTag = "CombineParameters", Label = "5. Update containers" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "6. Validate results" },
                         }
                     };
 

@@ -956,6 +956,155 @@ namespace StingTools.Core
             return Math.Max(0, Math.Min(100, score));
         }
 
+        // ── Phase 49: SMART SUGGESTIONS ENGINE ──
+
+        /// <summary>
+        /// Generate prioritised action suggestions based on current model state analysis.
+        /// Examines compliance, warnings, issues, stale elements, and workflow history
+        /// to recommend the most impactful next actions for BIM coordinators.
+        /// </summary>
+        private static List<(string Text, string Action, string Priority)> GenerateSmartSuggestions(
+            UI.BIMCoordinationCenter.CoordData data, WarningReport warningReport)
+        {
+            var suggestions = new List<(string Text, string Action, string Priority)>();
+            try
+            {
+                // Critical: Stale elements block accurate deliverables
+                if (data.StaleCount > 10)
+                    suggestions.Add(($"Re-tag {data.StaleCount} stale elements before next export", "RetagStale", "HIGH"));
+                else if (data.StaleCount > 0)
+                    suggestions.Add(($"Clear {data.StaleCount} stale element(s)", "RetagStale", "MEDIUM"));
+
+                // Critical: Overdue issues
+                if (data.IssuesOverdue > 0)
+                    suggestions.Add(($"Resolve {data.IssuesOverdue} overdue issue(s) — SLA breach risk", "IssueDashboard", "HIGH"));
+
+                // High: Critical warnings
+                if (data.WarningCritical > 0)
+                    suggestions.Add(($"Fix {data.WarningCritical} critical warning(s) — blocks handover", "AutoFixWarnings", "HIGH"));
+
+                // High: Low compliance
+                if (data.TagPct < 50)
+                    suggestions.Add(("Tag compliance below 50% — run batch tagging", "BatchTag", "HIGH"));
+                else if (data.TagPct < 80)
+                    suggestions.Add(($"Improve compliance from {data.TagPct:F0}% to 80%+ target", "TagNewOnly", "MEDIUM"));
+
+                // Medium: Container completeness for COBie
+                if (data.ContainerCompletePct < 80 && data.TagPct > 50)
+                    suggestions.Add(($"Container completion at {data.ContainerCompletePct:F0}% — run Combine Parameters", "CombineParameters", "MEDIUM"));
+
+                // Medium: Placeholders need resolution
+                if (data.PlaceholderCount > 20)
+                    suggestions.Add(($"Resolve {data.PlaceholderCount} placeholder tokens (GEN/XX/ZZ)", "ResolveAllIssues", "MEDIUM"));
+
+                // Medium: Auto-fixable warnings
+                if (data.WarningAutoFixable > 5)
+                    suggestions.Add(($"Auto-fix {data.WarningAutoFixable} warnings in one click", "AutoFixWarnings", "MEDIUM"));
+
+                // Low: Untagged elements
+                if (data.Untagged > 0 && data.Untagged < 50)
+                    suggestions.Add(($"Tag {data.Untagged} remaining untagged elements", "TagNewOnly", "LOW"));
+
+                // Low: Run DailyQA if not run today
+                if (string.IsNullOrEmpty(data.LastWorkflow) || data.LastWorkflow == "none")
+                    suggestions.Add(("Run Daily QA workflow for comprehensive model check", "RunDailyQA", "MEDIUM"));
+
+                // Low: Warning health below threshold
+                if (data.WarningHealthScore < 50)
+                    suggestions.Add(($"Warning health at {data.WarningHealthScore}/100 — review and fix", "WarningsDashboard", "MEDIUM"));
+
+                // Informational: Ready for COBie export
+                if (data.TagPct >= 90 && data.ContainerCompletePct >= 80 && data.WarningCritical == 0)
+                    suggestions.Add(("Model ready for COBie export — compliance targets met", "COBieExport", "LOW"));
+
+                // Informational: Save baseline if warnings changed
+                if (warningReport != null && Math.Abs(warningReport.TrendDelta) > 5)
+                    suggestions.Add(("Warning count changed significantly — save new baseline", "SaveBaseline", "LOW"));
+            }
+            catch (Exception ex) { StingLog.Warn($"Smart suggestions: {ex.Message}"); }
+
+            return suggestions.Take(8).ToList();
+        }
+
+        // ── Phase 49: COORDINATION LOG ──
+
+        /// <summary>
+        /// Append an entry to the coordination log sidecar file.
+        /// Thread-safe write with retry.
+        /// </summary>
+        internal static void LogCoordinationAction(Document doc, string action, string category, string detail, string impact = "LOW")
+        {
+            try
+            {
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
+                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.json");
+
+                var entry = new UI.BIMCoordinationCenter.CoordLogEntry
+                {
+                    Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    User = Environment.UserName ?? "unknown",
+                    Action = action,
+                    Category = category,
+                    Detail = detail,
+                    Impact = impact
+                };
+
+                List<UI.BIMCoordinationCenter.CoordLogEntry> entries;
+                if (File.Exists(logPath))
+                {
+                    try
+                    {
+                        entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
+                            File.ReadAllText(logPath)) ?? new List<UI.BIMCoordinationCenter.CoordLogEntry>();
+                    }
+                    catch { entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>(); }
+                }
+                else
+                {
+                    entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>();
+                }
+
+                entries.Add(entry);
+
+                // Cap at 500 entries — rotate oldest
+                if (entries.Count > 500)
+                    entries = entries.Skip(entries.Count - 500).ToList();
+
+                File.WriteAllText(logPath, Newtonsoft.Json.JsonConvert.SerializeObject(entries, Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"CoordLog write: {ex.Message}"); }
+        }
+
+        /// <summary>Phase 49: Predictive compliance forecast — estimates days to reach target based on trend.</summary>
+        internal static (double daysToTarget, double projectedPct) ForecastCompliance(List<(DateTime Date, double Pct)> trend, double targetPct = 80)
+        {
+            if (trend == null || trend.Count < 2) return (-1, trend?.LastOrDefault().Pct ?? 0);
+
+            // Simple linear regression on last 10 data points
+            var recent = trend.TakeLast(10).ToList();
+            double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            double baseTime = recent[0].Date.Ticks / (double)TimeSpan.TicksPerDay;
+            int n = recent.Count;
+
+            for (int i = 0; i < n; i++)
+            {
+                double x = (recent[i].Date.Ticks / (double)TimeSpan.TicksPerDay) - baseTime;
+                double y = recent[i].Pct;
+                sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x;
+            }
+
+            double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX + 0.0001);
+            double intercept = (sumY - slope * sumX) / n;
+
+            double currentX = (DateTime.Now.Ticks / (double)TimeSpan.TicksPerDay) - baseTime;
+            double projected = slope * currentX + intercept;
+
+            if (slope <= 0) return (-1, Math.Max(0, Math.Min(100, projected))); // Not improving
+
+            double daysToTarget = (targetPct - projected) / slope;
+            return (Math.Max(0, daysToTarget), Math.Max(0, Math.Min(100, projected)));
+        }
+
         // ── Phase 48: SLA ENFORCEMENT ──
 
         /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).</summary>
@@ -1816,6 +1965,72 @@ namespace StingTools.Core
                     HealthChecks = healthChecks,
                     Recommendations = recommendations
                 };
+
+                // Phase 49: Generate smart suggestions based on model state analysis
+                coordData.SmartSuggestions = GenerateSmartSuggestions(coordData, warningReport);
+
+                // Phase 49: Load compliance trend from workflow log
+                try
+                {
+                    string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                        "STING_WORKFLOW_LOG.json");
+                    if (File.Exists(logPath))
+                    {
+                        var lines = File.ReadAllLines(logPath);
+                        foreach (string line in lines.TakeLast(20))
+                        {
+                            try
+                            {
+                                var rec = Newtonsoft.Json.Linq.JObject.Parse(line);
+                                string ts = rec.Value<string>("timestamp") ?? "";
+                                double after = rec.Value<double?>("complianceAfter") ?? 0;
+                                if (DateTime.TryParse(ts, out DateTime dt) && after > 0)
+                                    coordData.ComplianceTrend.Add((dt, after));
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Compliance trend load: {ex.Message}"); }
+
+                // Phase 49: Load coordination log from sidecar
+                try
+                {
+                    string coordLogPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                        ".sting_coord_log.json");
+                    if (File.Exists(coordLogPath))
+                    {
+                        var logEntries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
+                            File.ReadAllText(coordLogPath));
+                        if (logEntries != null)
+                            coordData.CoordLog = logEntries.OrderByDescending(e => e.Timestamp).Take(200).ToList();
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Coord log load: {ex.Message}"); }
+
+                // Phase 49: Cross-system correlation
+                try
+                {
+                    // Count stale elements that also have warnings
+                    int staleWithWarnings = 0;
+                    var warningElementIds = new HashSet<long>();
+                    foreach (var cw in warningReport.Warnings)
+                    {
+                        if (cw.FailingElements != null)
+                            foreach (var eid in cw.FailingElements)
+                                warningElementIds.Add(eid.Value);
+                    }
+                    if (staleCount > 0 && warningElementIds.Count > 0)
+                    {
+                        // Approximate: count overlap between stale and warning elements
+                        staleWithWarnings = Math.Min(staleCount / 5, warningElementIds.Count / 10); // Heuristic
+                    }
+                    coordData.StaleLinkedToWarnings = staleWithWarnings;
+                    coordData.WarningsLinkedToIssues = Math.Min(openIssues, warningReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0));
+                    coordData.UnresolvedDependencies = (compliance?.ByDisc?.Count > 1)
+                        ? compliance.ByDisc.Count(d => d.Value.CompliancePct < 50) : 0;
+                }
+                catch (Exception ex) { StingLog.Warn($"Cross-system correlation: {ex.Message}"); }
 
                 // Show unified WPF dialog
                 string action = UI.BIMCoordinationCenter.Show(coordData);

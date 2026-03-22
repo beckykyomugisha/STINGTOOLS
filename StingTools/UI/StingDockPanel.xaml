@@ -1388,6 +1388,20 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Rev Clouds" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Auto-place revision clouds on sheets with changed elements"/>
                             </WrapPanel>
                         </Border>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK WORKFLOWS" Foreground="#6A1B9A"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Morning Check" Tag="RunWorkflow_MorningHealthCheck" Click="Cmd_Click" ToolTip="Daily coordinator routine: stale fix, warnings, compliance (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Quick Fix" Tag="RunWorkflow_QuickFixCycle" Click="Cmd_Click" ToolTip="Rapid quality improvement: auto-fix, resolve, validate (6 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Daily QA" Tag="RunWorkflow_DailyQASync" Click="Cmd_Click" ToolTip="Adaptive daily sync: tag new, delta-sync, validate (13 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Meeting Prep" Tag="RunWorkflow_CoordinationMeetingPrep" Click="Cmd_Click" ToolTip="Prepare for coordination meeting: compliance, warnings, reports (7 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clash Coord" Tag="RunWorkflow_ClashCoordination" Click="Cmd_Click" ToolTip="Cross-discipline clash detection and coordination (5 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="RunWorkflow_WeeklyDataDrop" Click="Cmd_Click" ToolTip="ISO 19650 weekly information exchange (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="RunWorkflow_HandoverReadiness" Click="Cmd_Click" ToolTip="Pre-handover validation and export (9 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="RunWorkflow_EndOfStageGate" Click="Cmd_Click" ToolTip="RIBA stage transition gate: full validation (11 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Repeat Last" Tag="RepeatLastWorkflow" Click="Cmd_Click" ToolTip="Re-run the last executed workflow preset"/>
+                            </WrapPanel>
+                        </Border>
 
                     </StackPanel>
                 </ScrollViewer>
