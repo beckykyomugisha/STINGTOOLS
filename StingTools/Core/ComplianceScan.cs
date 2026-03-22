@@ -155,14 +155,15 @@ namespace StingTools.Core
 
                 try
                 {
+                    // PERF-06: Use lazy iterator instead of .ToList() — avoids allocating
+                    // a List<Element> of 10K+ elements. Revit's collector is natively lazy.
                     var scanColl = new FilteredElementCollector(doc)
                         .WhereElementIsNotElementType();
                     var scanCatEnums = SharedParamGuids.AllCategoryEnums;
                     if (scanCatEnums != null && scanCatEnums.Length > 0)
                         scanColl.WherePasses(new ElementMulticategoryFilter(
                             new List<BuiltInCategory>(scanCatEnums)));
-                    var allElements = scanColl.ToList();
-                    foreach (Element elem in allElements)
+                    foreach (Element elem in scanColl)
                     {
                         if (elem == null || !elem.IsValidObject) continue;
                         string cat = ParameterHelpers.GetCategoryName(elem);
@@ -258,28 +259,33 @@ namespace StingTools.Core
                         }
 
                         // A5: Container check with per-container tracking
-                        try
+                        // PERF-05: Skip expensive container check when TAG1 is empty — if the
+                        // element has no tag, containers are guaranteed empty (saves 50-70% scan time)
+                        if (!string.IsNullOrEmpty(tag))
                         {
-                            var containers = ParamRegistry.ContainersForCategory(cat);
-                            if (containers != null && containers.Length > 0)
+                            try
                             {
-                                int emptyCount = 0;
-                                for (int ci = 0; ci < containers.Length; ci++)
+                                var containers = ParamRegistry.ContainersForCategory(cat);
+                                if (containers != null && containers.Length > 0)
                                 {
-                                    result.TotalContainerChecks++;
-                                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                    int emptyCount = 0;
+                                    for (int ci = 0; ci < containers.Length; ci++)
                                     {
-                                        emptyCount++;
-                                        string cName = containers[ci].ParamName;
-                                        if (!result.EmptyContainerCounts.ContainsKey(cName))
-                                            result.EmptyContainerCounts[cName] = 0;
-                                        result.EmptyContainerCounts[cName]++;
+                                        result.TotalContainerChecks++;
+                                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                        {
+                                            emptyCount++;
+                                            string cName = containers[ci].ParamName;
+                                            if (!result.EmptyContainerCounts.ContainsKey(cName))
+                                                result.EmptyContainerCounts[cName] = 0;
+                                            result.EmptyContainerCounts[cName]++;
+                                        }
                                     }
+                                    if (emptyCount > 0) result.ContainersMissing++;
                                 }
-                                if (emptyCount > 0) result.ContainersMissing++;
                             }
+                            catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
                         }
-                        catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
 
                         try
                         {

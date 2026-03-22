@@ -2036,6 +2036,10 @@ namespace StingTools.BIMManager
                 ["assigned_to"] = assignedTo,
                 ["discipline"] = discipline,
                 ["raised_by"] = Environment.UserName,
+                ["created_by"] = Environment.UserName,
+                ["created_date"] = DateTime.Now.ToString("o"),
+                ["modified_by"] = Environment.UserName,
+                ["modified_date"] = DateTime.Now.ToString("o"),
                 ["date_raised"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                 ["date_due"] = priority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
                                priority == "HIGH" ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
@@ -5233,6 +5237,20 @@ namespace StingTools.BIMManager
                 _ => null
             };
             if (status == null) return Result.Cancelled;
+
+            // LOGIC-04: Enforce CDE state machine — validate transition before writing
+            string currentCDE = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
+            if (!string.IsNullOrEmpty(currentCDE) && currentCDE != status)
+            {
+                string transError = BIMManagerEngine.ValidateCDETransition(currentCDE, status);
+                if (transError != null)
+                {
+                    TaskDialog.Show("STING CDE Transition Invalid",
+                        $"Cannot change CDE status from {currentCDE} to {status}.\n\n{transError}\n\n" +
+                        "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE");
+                    return Result.Failed;
+                }
+            }
 
             string suitCode = status == "PUBLISHED" ? "S6" : status == "SHARED" ? "S3" : "S0";
 

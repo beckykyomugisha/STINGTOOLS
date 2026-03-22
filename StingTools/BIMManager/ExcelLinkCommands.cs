@@ -521,29 +521,40 @@ namespace StingTools.BIMManager
             }
 
             // Read header row to build column index map
+            // LOGIC-06: Case-insensitive header mapping — "Disc" matches "DISC"
             var headerMap = new Dictionary<int, string>();
             int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
             for (int c = 1; c <= lastCol; c++)
             {
-                string header = ws.Cell(1, c).GetString().Trim();
+                string header = ws.Cell(1, c).GetString()?.Trim() ?? "";
                 if (!string.IsNullOrEmpty(header))
-                    headerMap[c] = header;
+                    headerMap[c] = header.ToUpperInvariant();
             }
 
-            // Verify ElementId column exists
-            int? elementIdCol = headerMap.FirstOrDefault(kv => kv.Value == "ElementId").Key;
+            // Verify ElementId column exists (case-insensitive)
+            int? elementIdCol = headerMap.FirstOrDefault(kv =>
+                string.Equals(kv.Value, "ELEMENTID", StringComparison.OrdinalIgnoreCase)).Key;
             if (elementIdCol == null || elementIdCol == 0)
                 throw new InvalidOperationException("ElementId column not found in header row.");
 
-            // Read data rows
+            // EL-CRIT-01: Guard against oversized Excel files causing memory exhaustion
+            const int MaxImportRows = 10000;
             int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            int dataRows = lastRow - 1;
+            if (dataRows > MaxImportRows)
+            {
+                StingLog.Warn($"Excel import limited to {MaxImportRows} rows (file has {dataRows})");
+                lastRow = MaxImportRows + 1; // Clamp to max
+            }
+
+            // Read data rows
             for (int r = 2; r <= lastRow; r++)
             {
                 string idStr = ws.Cell(r, elementIdCol.Value).GetString().Trim();
                 if (string.IsNullOrEmpty(idStr)) continue;
                 if (!long.TryParse(idStr, out long elementId)) continue;
 
-                var rowData = new Dictionary<string, string>(StringComparer.Ordinal);
+                var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kvp in headerMap)
                 {
                     rowData[kvp.Value] = ws.Cell(r, kvp.Key).GetString();

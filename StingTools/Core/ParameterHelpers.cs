@@ -1258,6 +1258,9 @@ namespace StingTools.Core
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
+                // PERF-CRIT-01: Build spatial candidate cache for CopyTokensFromNearest
+                TokenAutoPopulator.BuildSpatialCandidateCache(doc);
+
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
@@ -1412,8 +1415,17 @@ namespace StingTools.Core
 
             // ENH-01: Inherit tokens from connected MEP elements before population
             // so that PopulateAll's SetIfEmpty calls won't overwrite inherited values
+            // PERF-04: Early-exit for elements with zero connectors to avoid expensive traversal
             if (isMepCategory)
-                ConnectorInherit(doc, el);
+            {
+                try
+                {
+                    var fi = el as FamilyInstance;
+                    if (fi?.MEPModel?.ConnectorManager?.Connectors?.Size > 0)
+                        ConnectorInherit(doc, el);
+                }
+                catch (Exception ex) { StingLog.Warn($"ConnectorInherit check: {ex.Message}"); }
+            }
 
             // DISC — deterministic from category (default "A" for unmapped categories)
             string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
@@ -1739,16 +1751,63 @@ namespace StingTools.Core
             }
         }
 
+        // PERF-CRIT-01: Spatial candidate cache — avoids O(n²) FilteredElementCollector per element.
+        // Key: categoryId.IntegerValue. Value: list of (elementId, center point, tag1 value).
+        // Built once per batch in PopulationContext, reused for all CopyTokensFromNearest calls.
+        private static readonly Dictionary<int, List<(ElementId Id, XYZ Center, string Tag1)>>
+            _spatialCandidateCache = new Dictionary<int, List<(ElementId, XYZ, string)>>();
+        private static int _spatialCacheDocHash;
+
+        /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
+        public static void BuildSpatialCandidateCache(Document doc)
+        {
+            int docHash = (doc.PathName ?? doc.Title ?? "").GetHashCode();
+            if (_spatialCacheDocHash == docHash && _spatialCandidateCache.Count > 0) return;
+            _spatialCandidateCache.Clear();
+            _spatialCacheDocHash = docHash;
+            try
+            {
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums == null || catEnums.Length == 0) return;
+                var coll = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                foreach (var e in coll)
+                {
+                    if (e?.Category == null) continue;
+                    string tag1 = GetString(e, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue; // Only include already-tagged
+                    XYZ center = null;
+                    var loc = e.Location;
+                    if (loc is LocationPoint lp) center = lp.Point;
+                    else if (loc is LocationCurve lc) center = lc.Curve.Evaluate(0.5, true);
+                    if (center == null) continue;
+                    int catKey = e.Category.Id.IntegerValue;
+                    if (!_spatialCandidateCache.TryGetValue(catKey, out var list))
+                    {
+                        list = new List<(ElementId, XYZ, string)>();
+                        _spatialCandidateCache[catKey] = list;
+                    }
+                    list.Add((e.Id, center, tag1));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildSpatialCandidateCache: {ex.Message}"); }
+        }
+
+        /// <summary>Invalidate spatial candidate cache (call after batch tagging completes).</summary>
+        public static void InvalidateSpatialCache() { _spatialCandidateCache.Clear(); }
+
         /// <summary>
         /// Copies specified token values from the nearest already-tagged element of the same
         /// category within a configurable radius (TagConfig.ProximityRadiusFt, default 10 ft).
         /// Useful for inheriting SYS/FUNC from adjacent elements when MEP detection yields
         /// empty or generic defaults.
+        /// PERF-CRIT-01: Uses pre-built spatial candidate cache instead of per-element collector.
         /// </summary>
         /// <param name="doc">The Revit document</param>
         /// <param name="el">Target element to copy tokens TO</param>
         /// <param name="tokensToCopy">Parameter names to copy (e.g., ParamRegistry.SYS, ParamRegistry.FUNC)</param>
-        /// <param name="candidatePool">Pre-collected candidate elements (null = collect from doc)</param>
+        /// <param name="candidatePool">Pre-collected candidate elements (null = use spatial cache or collect from doc)</param>
         /// <returns>Number of tokens successfully copied</returns>
         public static int CopyTokensFromNearest(Document doc, Element el,
             string[] tokensToCopy, IList<Element> candidatePool = null)
@@ -1769,47 +1828,62 @@ namespace StingTools.Core
 
                 double radiusFt = TagConfig.ProximityRadiusFt;
 
-                // Collect candidates: same category, already tagged, within radius
-                IEnumerable<Element> candidates;
-                if (candidatePool != null)
-                {
-                    candidates = candidatePool;
-                }
-                else
-                {
-                    var catId = el.Category?.Id;
-                    if (catId == null) return 0;
-                    candidates = new FilteredElementCollector(doc)
-                        .OfCategoryId(catId)
-                        .WhereElementIsNotElementType()
-                        .Where(e => e.Id != el.Id);
-                }
-
+                // PERF-CRIT-01: Use pre-built spatial candidate cache for O(n) instead of O(n²).
+                // Falls back to candidatePool or collector if cache is empty.
                 Element nearest = null;
                 double minDist = double.MaxValue;
 
-                foreach (var candidate in candidates)
+                if (candidatePool != null)
                 {
-                    if (candidate.Id == el.Id) continue;
-                    string candidateCat = ParameterHelpers.GetCategoryName(candidate);
-                    if (candidateCat != elCat) continue;
-
-                    // Must have a non-empty TAG1
-                    string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
-                    if (string.IsNullOrEmpty(tag1)) continue;
-
-                    // Get candidate location
-                    XYZ cPoint = null;
-                    var cLoc = candidate.Location;
-                    if (cLoc is LocationPoint clp) cPoint = clp.Point;
-                    else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
-                    if (cPoint == null) continue;
-
-                    double dist = point.DistanceTo(cPoint);
-                    if (dist < minDist && dist <= radiusFt)
+                    // Legacy path: use provided candidate pool
+                    foreach (var candidate in candidatePool)
                     {
-                        minDist = dist;
-                        nearest = candidate;
+                        if (candidate == null || candidate.Id == el.Id) continue;
+                        string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+                        XYZ cPoint = null;
+                        var cLoc = candidate.Location;
+                        if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                        else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                        if (cPoint == null) continue;
+                        double dist = point.DistanceTo(cPoint);
+                        if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                    }
+                }
+                else
+                {
+                    // Fast path: use spatial candidate cache (pre-built, no collector needed)
+                    int catKey = el.Category?.Id?.IntegerValue ?? 0;
+                    if (_spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
+                    {
+                        ElementId nearestId = null;
+                        foreach (var (cId, cCenter, _) in cached)
+                        {
+                            if (cId == el.Id) continue;
+                            double dist = point.DistanceTo(cCenter);
+                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearestId = cId; }
+                        }
+                        if (nearestId != null) nearest = doc.GetElement(nearestId);
+                    }
+                    else
+                    {
+                        // Fallback: collect from doc (cold cache scenario)
+                        var catId = el.Category?.Id;
+                        if (catId == null) return 0;
+                        foreach (var candidate in new FilteredElementCollector(doc)
+                            .OfCategoryId(catId).WhereElementIsNotElementType())
+                        {
+                            if (candidate.Id == el.Id) continue;
+                            string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag1)) continue;
+                            XYZ cPoint = null;
+                            var cLoc = candidate.Location;
+                            if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                            else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                            if (cPoint == null) continue;
+                            double dist = point.DistanceTo(cPoint);
+                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                        }
                     }
                 }
 

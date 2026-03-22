@@ -46,6 +46,10 @@ namespace StingTools.Core
         private static HashSet<string> _cachedExistingTags;
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
+        // PERF-07: TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
+        // Instead of rebuilding immediately on every InvalidateContext(), use a 5-second TTL.
+        private static DateTime _contextCacheTime = DateTime.MinValue;
+        private const int ContextCacheTtlMs = 5000;
         // G2.3: Cached formulas and grid lines for pipeline helper
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
@@ -283,7 +287,10 @@ namespace StingTools.Core
                 }
 
                 // D1: Use cached context; rebuild only when invalidated
-                if (_contextInvalid || _cachedCtx == null)
+                // PERF-07: TTL-based context rebuild — avoids redundant rebuilds when
+                // multiple commands invalidate context in rapid succession (e.g., AutoTag → Combine → AutoTag)
+                bool ttlExpired = (DateTime.UtcNow - _contextCacheTime).TotalMilliseconds > ContextCacheTtlMs;
+                if (_contextInvalid || _cachedCtx == null || ttlExpired)
                 {
                     _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
                     var built = TagConfig.BuildTagIndexAndCounters(doc);
@@ -292,6 +299,7 @@ namespace StingTools.Core
                     _formulas = TagPipelineHelper.LoadFormulas();
                     _gridLines = TagPipelineHelper.LoadGridLines(doc);
                     _contextInvalid = false;
+                    _contextCacheTime = DateTime.UtcNow;
                     StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas, {_gridLines.Count} grids)");
                 }
                 var ctx = _cachedCtx;

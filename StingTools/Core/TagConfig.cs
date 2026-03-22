@@ -2102,26 +2102,16 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
-            // A3: In non-overwrite mode, use the element's actual stored token values for
-            // the seqKey so that the SEQ counter matches the group the element will end up in.
-            // SetIfEmpty preserves existing values, so derived values may differ from stored ones.
-            string seqLoc = loc, seqZone = zone, seqLvl = lvl, seqSys = sys;
-            if (!overwriteTokens)
-            {
-                string[] existingTokens = ParamRegistry.ReadTokenValues(el);
-                if (!string.IsNullOrEmpty(existingTokens[1]) && existingTokens[1] != "XX")
-                    seqLoc = existingTokens[1];
-                if (!string.IsNullOrEmpty(existingTokens[2]) && existingTokens[2] != "XX" && existingTokens[2] != "ZZ")
-                    seqZone = existingTokens[2];
-                if (!string.IsNullOrEmpty(existingTokens[3]) && existingTokens[3] != "L00")
-                    seqLvl = existingTokens[3];
-                if (!string.IsNullOrEmpty(existingTokens[4]))
-                    seqSys = existingTokens[4];
-            }
-
+            // LOGIC-CRIT-01: Always use DERIVED token values for seqKey, not stored values.
+            // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
+            // but the SEQ counter group MUST use the canonical derived values to prevent:
+            //   - Counter group mismatch when stored SYS="HWS" but derived SYS="DCW"
+            //   - Duplicate SEQ numbers across mismatched groups
+            //   - Counter drift between sessions
+            // The tag string itself will be rebuilt from actual stored values later (line 2234+).
             string seqKey = SeqIncludeZone
-                ? $"{disc}_{seqZone}_{seqSys}_{seqLvl}"
-                : $"{disc}_{seqSys}_{seqLvl}";
+                ? $"{disc}_{zone}_{sys}_{lvl}"
+                : $"{disc}_{sys}_{lvl}";
 
             // A1: Warn once per session when SEQ scheme has changed — counter keys may not
             // match existing tags, leading to duplicate or restarted sequences.
@@ -2191,12 +2181,15 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Safety limit exhausted: tag collision could not be resolved
+                // LOGIC-CRIT-02: Safety limit exhausted — do NOT write a duplicate tag.
+                // Return false to skip this element rather than silently writing a collision.
                 if (collisionCount >= MaxCollisionDepth)
                 {
-                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — tag '{tag}' may still be a duplicate";
-                    StingLog.Warn(safetyMsg);
+                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent duplicate tag '{tag}'";
+                    StingLog.Error(safetyMsg);
                     stats?.RecordWarning(safetyMsg);
+                    sequenceCounters[seqKey] = preIncrementValue; // Rollback counter
+                    return false;
                 }
                 // Remove the element's old tag from index (it's being replaced)
                 // so stale entries don't cause false collisions for other elements

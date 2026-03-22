@@ -558,10 +558,14 @@ namespace StingTools.Core
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
-                        // After each step that modifies data, invalidate cached compliance so next
-                        // step's threshold check reflects current state
+                        // LOGIC-01: After each successful step that modifies data, invalidate ALL
+                        // cached checks so next step's threshold/condition checks reflect current state.
+                        // Previously only compliance was invalidated — stale cache was left stale.
                         if (stepResult == Result.Succeeded)
+                        {
                             _cachedCompliancePct = null;
+                            _cachedHasStale = null; // Force re-check for stale elements
+                        }
 
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
                         if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.Optional)
