@@ -1421,6 +1421,7 @@ namespace StingTools.UI
                     case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
 
                     // ── Temp: Data Validation ──
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;

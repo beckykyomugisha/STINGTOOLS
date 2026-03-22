@@ -258,6 +258,30 @@ namespace StingTools.UI
 
                 if (cr.StaleCount > 0)
                     _dashPanel.Children.Add(MakeDashCard($"{cr.StaleCount}", "Stale elements", BrRed));
+
+                // Data completeness (tags + STATUS + containers weighted)
+                _dashPanel.Children.Add(MakeDashCard($"{cr.DataCompletenessPercent:F0}%",
+                    "Data completeness", cr.DataCompletenessPercent >= 80 ? BrGreen : cr.DataCompletenessPercent >= 50 ? BrAmber : BrRed));
+
+                // Status distribution summary
+                if (cr.StatusDistribution != null && cr.StatusDistribution.Count > 0)
+                {
+                    int missing = cr.StatusDistribution.GetValueOrDefault("", 0) + cr.StatusDistribution.GetValueOrDefault("NONE", 0);
+                    if (missing > 0)
+                        _dashPanel.Children.Add(MakeDashCard($"{missing}", "Missing STATUS", BrOrange));
+                }
+
+                // Empty containers
+                if (cr.EmptyContainerCounts != null && cr.EmptyContainerCounts.Count > 0)
+                {
+                    int emptyContainers = cr.EmptyContainerCounts.Values.Sum();
+                    if (emptyContainers > 0)
+                    {
+                        string worstContainer = cr.EmptyContainerCounts.OrderByDescending(kv => kv.Value).First().Key;
+                        _dashPanel.Children.Add(MakeDashCard($"{emptyContainers}",
+                            $"Empty containers (worst: {worstContainer})", BrOrange));
+                    }
+                }
             }
 
             // Issue counts
@@ -615,7 +639,7 @@ namespace StingTools.UI
             issuesNode.Items.Add(typeNode);
             // By status
             var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
-            foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "CLOSED" })
+            foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "ACCEPTED", "REJECTED", "CLOSED", "VOID" })
             {
                 int count = _allItems.Count(i => i.Category == "ISSUE" && i.Status == st);
                 if (count > 0)
@@ -860,6 +884,10 @@ namespace StingTools.UI
             _listView.View = gridView;
             _listView.MouseDoubleClick += ListView_DoubleClick;
 
+            // UI-02: Column sorting
+            _listView.AddHandler(GridViewColumnHeader.ClickEvent,
+                new RoutedEventHandler(ColumnHeader_Click));
+
             panel.Children.Add(_listView);
             UpdateCounts();
             return panel;
@@ -885,6 +913,33 @@ namespace StingTools.UI
                         Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
                 }
                 catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+            }
+        }
+
+        // UI-02: Column sorting
+        private static string _lastSortProperty;
+        private static ListSortDirection _lastSortDir = ListSortDirection.Ascending;
+
+        private static void ColumnHeader_Click(object sender, RoutedEventArgs e)
+        {
+            if (e.OriginalSource is not GridViewColumnHeader header) return;
+            if (header.Column?.DisplayMemberBinding is not Binding binding) return;
+            string prop = binding.Path.Path;
+            if (string.IsNullOrEmpty(prop)) return;
+
+            if (prop == _lastSortProperty)
+                _lastSortDir = _lastSortDir == ListSortDirection.Ascending
+                    ? ListSortDirection.Descending : ListSortDirection.Ascending;
+            else
+            {
+                _lastSortProperty = prop;
+                _lastSortDir = ListSortDirection.Ascending;
+            }
+
+            if (_view != null)
+            {
+                _view.SortDescriptions.Clear();
+                _view.SortDescriptions.Add(new SortDescription(prop, _lastSortDir));
             }
         }
 
@@ -1142,6 +1197,41 @@ namespace StingTools.UI
             }
             // Auto-generate transmittal when moving to SHARED or PUBLISHED
             ProjectFolderEngine.AutoLogTransmittal(doc, movedPaths, newCDE.ToUpperInvariant());
+
+            // OP-003: Sync document register with new CDE status
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string regPath = Path.Combine(bimDir, "document_register.json");
+                if (File.Exists(regPath))
+                {
+                    var regArr = JArray.Parse(File.ReadAllText(regPath));
+                    int synced = 0;
+                    foreach (var item in selected)
+                    {
+                        string docId = item.Id ?? "";
+                        var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                        if (entry != null)
+                        {
+                            entry["cde_status"] = newCDE.ToUpperInvariant();
+                            entry["date"] = DateTime.Now.ToString("yyyy-MM-dd");
+                            // Map CDE to suitability
+                            string suit = newCDE.ToUpperInvariant() switch
+                            {
+                                "WIP" => "S0", "SHARED" => "S3",
+                                "PUBLISHED" => "S6", "ARCHIVE" => "AB",
+                                _ => "S0"
+                            };
+                            entry["suitability"] = suit;
+                            entry["status_code"] = newCDE == "PUBLISHED" ? "IFA" : "IFI";
+                            synced++;
+                        }
+                    }
+                    if (synced > 0)
+                        File.WriteAllText(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkUpdateCDE register sync: {ex.Message}"); }
 
             MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
                 (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
@@ -1732,13 +1822,7 @@ namespace StingTools.UI
             return bimDir;
         }
 
-        private static string FormatSize(long bytes)
-        {
-            if (bytes < 1024) return $"{bytes} B";
-            if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
-            if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
-            return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
-        }
+        private static string FormatSize(long bytes) => ProjectFolderEngine.FormatSize(bytes);
 
         private static bool Contains(string val, string search)
         {

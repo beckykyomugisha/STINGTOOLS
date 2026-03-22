@@ -334,15 +334,17 @@ namespace StingTools.Core
 
         // ── File operations ───────────────────────────────────────────────
 
-        /// <summary>Delete a file and remove from index.</summary>
+        /// <summary>Delete a file and log the activity.</summary>
         public static bool DeleteFile(string filePath)
         {
             try
             {
                 if (File.Exists(filePath))
                 {
+                    string name = Path.GetFileName(filePath);
                     File.Delete(filePath);
                     StingLog.Info($"ProjectFolderEngine: Deleted {filePath}");
+                    LogActivity(null, "DELETE", name, filePath);
                     return true;
                 }
             }
@@ -350,51 +352,62 @@ namespace StingTools.Core
             return false;
         }
 
-        /// <summary>Rename a file.</summary>
+        /// <summary>Rename a file and log the activity.</summary>
         public static bool RenameFile(string filePath, string newName)
         {
             try
             {
                 if (!File.Exists(filePath)) return false;
                 string dir = Path.GetDirectoryName(filePath);
+                string oldName = Path.GetFileName(filePath);
                 string newPath = Path.Combine(dir, newName);
                 if (File.Exists(newPath)) return false;
                 File.Move(filePath, newPath);
-                StingLog.Info($"ProjectFolderEngine: Renamed {Path.GetFileName(filePath)} → {newName}");
+                StingLog.Info($"ProjectFolderEngine: Renamed {oldName} → {newName}");
+                LogActivity(null, "RENAME", newName, $"{oldName} -> {newName}");
                 return true;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RenameFile: {ex.Message}"); }
             return false;
         }
 
-        /// <summary>Move a file to a different folder.</summary>
+        /// <summary>Move a file to a different folder. Auto-logs transmittal when target is CDE folder.</summary>
         public static bool MoveFile(Document doc, string filePath, string targetFolderId)
         {
             try
             {
                 if (!File.Exists(filePath)) return false;
                 string targetDir = GetFolderPath(doc, targetFolderId);
-                string newPath = Path.Combine(targetDir, Path.GetFileName(filePath));
+                string fileName = Path.GetFileName(filePath);
+                string newPath = Path.Combine(targetDir, fileName);
                 if (File.Exists(newPath)) newPath = GetUniqueFileName(newPath);
                 File.Move(filePath, newPath);
-                StingLog.Info($"ProjectFolderEngine: Moved {Path.GetFileName(filePath)} → {targetFolderId}");
+                StingLog.Info($"ProjectFolderEngine: Moved {fileName} → {targetFolderId}");
+                LogActivity(doc, "MOVE", fileName, $"→ {targetFolderId}");
+
+                // AUTO-001: Auto-log transmittal when moving to CDE folders
+                if (targetFolderId == "SHARED" || targetFolderId == "PUBLISHED")
+                    AutoLogTransmittal(doc, new List<string> { newPath }, targetFolderId);
+
                 return true;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.MoveFile: {ex.Message}"); }
             return false;
         }
 
-        /// <summary>Copy external file into the project folder structure.</summary>
+        /// <summary>Copy external file into the project folder structure with activity logging.</summary>
         public static string ImportFile(Document doc, string sourcePath, string targetFolderId)
         {
             try
             {
                 if (!File.Exists(sourcePath)) return null;
                 string targetDir = GetFolderPath(doc, targetFolderId);
-                string targetPath = Path.Combine(targetDir, Path.GetFileName(sourcePath));
+                string fileName = Path.GetFileName(sourcePath);
+                string targetPath = Path.Combine(targetDir, fileName);
                 if (File.Exists(targetPath)) targetPath = GetUniqueFileName(targetPath);
                 File.Copy(sourcePath, targetPath);
-                StingLog.Info($"ProjectFolderEngine: Imported {Path.GetFileName(sourcePath)} → {targetFolderId}");
+                StingLog.Info($"ProjectFolderEngine: Imported {fileName} → {targetFolderId}");
+                LogActivity(doc, "IMPORT", fileName, $"→ {targetFolderId}");
                 return targetPath;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.ImportFile: {ex.Message}"); }
@@ -460,7 +473,7 @@ namespace StingTools.Core
 
         // ── Helpers ───────────────────────────────────────────────────────
 
-        private static string FormatSize(long bytes)
+        internal static string FormatSize(long bytes)
         {
             if (bytes < 1024) return $"{bytes} B";
             if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
