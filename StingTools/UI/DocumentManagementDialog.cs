@@ -13,6 +13,7 @@ using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using Color = System.Windows.Media.Color;
+using System.Windows.Data;
 using Binding = System.Windows.Data.Binding;
 using Visibility = System.Windows.Visibility;
 
