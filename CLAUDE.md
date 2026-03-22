@@ -83,6 +83,7 @@ STINGTOOLS/
     │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
     │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
     │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
+    │   ├── DocumentManagementDialog.cs  # ISO 19650 Document Management Center — 7-tab action bar, code legend, quick workflows
     │   ├── DocAutomationDialog.cs      # 4-tab unified doc automation dialog (Sheets/Views/Viewports/Export)
     │   ├── ModelCreationDialog.cs      # Unified model creation dialog with element type selector + dynamic options
     │   ├── ScheduleWizardDialog.cs     # Unified schedule wizard dialog (create/populate/audit/export/manage)
@@ -554,6 +555,7 @@ STINGTOOLS/
 | `UI/StingModePicker.cs` | 0 (reusable WPF mode picker dialog) | 200 |
 | `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
 | `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
+| `UI/DocumentManagementDialog.cs` | 0 (ISO 19650 Document Management Center: 7-tab action bar, code legend, 14 data loaders, quick transmittal/issue creation, keyboard shortcuts) | 3,100+ |
 | `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
 | `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
 | `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
@@ -804,6 +806,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `SmartPlacementWizard` | `UI/SmartPlacementWizard.cs` | Smart tag placement configuration wizard |
 | `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
 | `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
+| `DocumentManagementDialog` | `UI/DocumentManagementDialog.cs` | ISO 19650 Document Management Center: 7-tab action bar (FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP), code legend (all ISO 19650 codes), dashboard strip with clickable RAG metrics, navigator tree (17 grouping modes), 14 data loaders, quick transmittal/issue creation, bulk CDE/status operations, keyboard shortcuts, VirtualizingStackPanel, drag-drop import |
 | `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
@@ -2002,6 +2005,19 @@ Critical review of the tagging workflow identified the following logic, automati
 388. **GAP-09: SkipIfDataUnchanged sidecar hash** — Added `.sting_data_hash.json` sidecar file for workshared model compatibility; replaced project parameter storage with sidecar pattern.
 389. **GAP-10: NLPCommandProcessor Phase 26-28 patterns** — Added 5 NLP intent patterns for RetagStale, AnomalyAutoFix, SetSeqScheme, MapSheets, WorkflowTrend commands.
 390. **PostTagCleanup coverage audit** — Verified all tagging commands with SEQ counters have SaveSeqSidecar + InvalidateCache + InvalidateContext + CheckComplianceGate. Fixed PopulationResult bool comparison in AutoPopulateCommand.
+
+#### Completed (Phase 39 — Document Management Center Enhancement)
+
+391. **Action bar TabControl redesign** — Replaced single-row horizontal-scrolling `WrapPanel` (58+ hidden buttons requiring sideways scroll) with 7-tab `TabControl`: FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP. All buttons visible without scrolling. Each tab groups related operations with section labels.
+392. **Code Legend dialog** — New `ShowCodeLegend()` method displays comprehensive ISO 19650 quick reference: CDE status (WIP/SHARED/PUBLISHED/ARCHIVE), Suitability codes (S0-S7, CR, AB), Document status codes, Document type codes, Issue types (14 BCF+NEC/JCT codes), Issue statuses, Priority & SLA thresholds, Transmittal statuses, Discipline codes, Data drop milestones (DD1-DD4), ISO 19650 file naming convention, RAG compliance thresholds. Accessible via Code Legend button and Ctrl+L shortcut.
+393. **Quick Transmittal** — Inline transmittal creation from selected document items: select files → enter recipient → auto-generates transmittal record in `transmittals.json` with unique TX-NNNN ID, date, document list, creator, DRAFT status, and status history.
+394. **Quick Issue creation** — `QuickIssue()` method for rapid RFI/NCR/SI creation directly in the dialog: enter title → select priority → auto-generates issue in `issues.json` with typed ID (e.g., RFI-0001), auto-detected revision, discipline from current filter context, and audit trail.
+395. **Export Visible CSV** — `ExportVisibleToCSV()` with SaveFileDialog exports all currently filtered/visible rows to CSV (19 columns including Suitability, Overdue, CreatedBy). Logged to activity feed.
+396. **Keyboard shortcuts** — F5=Refresh, F2=Rename, Delete=Delete, Escape=Close, Ctrl+E=Export CSV, Ctrl+L=Code Legend, Ctrl+F=Focus search box.
+397. **VirtualizingStackPanel** — ListView now uses `VirtualizationMode.Recycling` and `IsDeferredScrollingEnabled` for smooth scrolling with 1000+ document items.
+398. **Coordination tab** — New COORDINATION tab consolidates: Clashes (Run/BCF Export/Import), Review (Review Tracker/Model Health/Full Compliance/Stage Gate), and Exchange (Excel Export/Import/Round-Trip/Platform Sync).
+399. **Enhanced revision tab** — Added Issue Sheets, Tag Integration, and Auto on Tag Change buttons for full revision lifecycle management.
+400. **Search box promoted to field** — `_searchBox` field enables Ctrl+F keyboard shortcut access from any context within the dialog.
 
 ### External Tool References
 
