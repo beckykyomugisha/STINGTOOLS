@@ -2678,7 +2678,6 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(value)) return 0;
             return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
-    }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
         private static int MapBuiltInString(Element el, BuiltInParameter bip, string targetParam)
