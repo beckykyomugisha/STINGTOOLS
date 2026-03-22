@@ -102,13 +102,20 @@ namespace StingTools.Core
 
         /// <summary>Clear the parameter lookup cache. Call on document close or when
         /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// <summary>Invalidate all session-level caches (formulas, grid lines) in TagPipelineHelper.
+        /// Forwarding method for callers that reference ParameterHelpers.</summary>
+        public static void InvalidateSessionCaches()
+        {
+            TagPipelineHelper.InvalidateSessionCaches();
+        }
+
         public static void ClearParamCache()
         {
             _paramCache.Clear();
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
-        private static string GetStableDocKey(Document doc)
+        internal static string GetStableDocKey(Document doc)
         {
             return doc.PathName ?? doc.Title ?? "Untitled";
         }

@@ -284,10 +284,9 @@ namespace StingTools.Temp
                 report.AppendLine($"  Failed: {failed} — check StingTools.log for details");
 
             // GAP-1C: Run post-setup validation to catch configuration issues
-            int validationPassed = 0, validationFailed = 0;
             try
             {
-                var validator = new DataPipelineCommands.ValidateTemplateCommand();
+                var validator = new ValidateTemplateCommand();
                 string valMsg = "";
                 validator.Execute(commandData, ref valMsg, elements);
                 // Validation results shown by ValidateTemplateCommand itself
