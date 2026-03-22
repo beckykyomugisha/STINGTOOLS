@@ -285,6 +285,20 @@ namespace StingTools.UI
             // Document totals
             int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
             _dashPanel.Children.Add(MakeDashCard($"{totalDocs}", "Documents", BrTeal));
+
+            // Data drop readiness (milestone tracking)
+            try
+            {
+                var drops = ProjectFolderEngine.CheckAllDataDrops(doc);
+                foreach (var dd in drops)
+                {
+                    SolidColorBrush ddBrush = dd.ReadyPercent >= 100 ? BrGreen :
+                        dd.ReadyPercent >= 50 ? BrAmber : BrRed;
+                    _dashPanel.Children.Add(MakeDashCard($"{dd.ReadyPercent:F0}%",
+                        $"{dd.DataDropId}: {dd.ReadyCount}/{dd.TotalCount}", ddBrush));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr dashboard drops: {ex.Message}"); }
         }
 
         private static Border MakeDashCard(string value, string label, SolidColorBrush color)
@@ -666,6 +680,44 @@ namespace StingTools.UI
             if (stickyCount > 0)
                 _treeView.Items.Add(MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false));
 
+            // ── DATA DROPS (milestone tracking) ──
+            var ddNode = MakeTreeItem("DATA DROPS", "DD_ROOT", false);
+            try
+            {
+                var drops = ProjectFolderEngine.CheckAllDataDrops(_doc);
+                foreach (var dd in drops)
+                {
+                    string ddStatus = dd.ReadyPercent >= 100 ? "READY" : dd.ReadyPercent >= 50 ? "PARTIAL" : "NOT READY";
+                    ddNode.Items.Add(MakeTreeItem(
+                        $"{dd.DataDropId}: {dd.Stage} [{ddStatus} {dd.ReadyPercent:F0}%]",
+                        $"DD:{dd.DataDropId}", false));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr tree drops: {ex.Message}"); }
+            _treeView.Items.Add(ddNode);
+
+            // ── ACTIVITY LOG ──
+            int activityCount = _allItems.Count(i => i.Category == "ACTIVITY");
+            _treeView.Items.Add(MakeTreeItem($"ACTIVITY LOG ({activityCount})", "CAT:ACTIVITY", false));
+
+            // ── CLASH GROUPS ──
+            try
+            {
+                var clashGroups = ProjectFolderEngine.GroupClashes(_doc);
+                if (clashGroups.Count > 0)
+                {
+                    var cgNode = MakeTreeItem("CLASH GROUPS", "CLASHGROUP_ROOT", false);
+                    foreach (var cg in clashGroups)
+                    {
+                        cgNode.Items.Add(MakeTreeItem(
+                            $"{cg.Discipline}: {cg.OpenClashes} open / {cg.TotalClashes} total ({cg.CriticalClashes} critical)",
+                            $"CLASHDISC:{cg.Discipline}", false));
+                    }
+                    _treeView.Items.Add(cgNode);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr tree clash groups: {ex.Message}"); }
+
             allNode.IsExpanded = true;
             allNode.IsSelected = true;
         }
@@ -948,7 +1000,18 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(newName) && newName != currentName)
             {
                 if (ProjectFolderEngine.RenameFile(item.FilePath, newName))
+                {
+                    // Validate against ISO 19650 naming
+                    var (valid, suggested, errors) = ProjectFolderEngine.ValidateFileName(_doc, newName);
+                    if (!valid && errors.Count > 0)
+                    {
+                        MessageBox.Show($"Warning: filename may not be ISO 19650 compliant:\n\n" +
+                            string.Join("\n", errors.Take(3)),
+                            "STING Naming", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    ProjectFolderEngine.LogActivity(_doc, "RENAME", item.Id ?? "", $"{currentName} -> {newName}");
                     RefreshData();
+                }
             }
         }
 
@@ -957,6 +1020,7 @@ namespace StingTools.UI
             if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
             if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
+                ProjectFolderEngine.LogActivity(_doc, "DELETE", item.Id ?? item.Title, item.FilePath ?? "");
                 ProjectFolderEngine.DeleteFile(item.FilePath);
                 _allItems.Remove(item);
                 UpdateCounts();
@@ -1064,11 +1128,23 @@ namespace StingTools.UI
                 _ => "WIP"
             };
             int moved = 0;
+            var movedPaths = new List<string>();
             foreach (var item in selected)
             {
-                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, targetFolder)) moved++;
+                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, targetFolder))
+                {
+                    moved++;
+                    movedPaths.Add(item.FilePath);
+                    // Log activity for each file
+                    ProjectFolderEngine.LogActivity(doc, "CDE_UPDATE", item.Id ?? item.Title,
+                        $"Moved to {newCDE}");
+                }
             }
-            MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}.");
+            // Auto-generate transmittal when moving to SHARED or PUBLISHED
+            ProjectFolderEngine.AutoLogTransmittal(doc, movedPaths, newCDE.ToUpperInvariant());
+
+            MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
+                (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
             RefreshData();
         }
 
@@ -1144,6 +1220,8 @@ namespace StingTools.UI
             LoadComplianceData(doc);
             LoadStickyNotes(doc);     // GAP DM-05
             LoadModelHealthTrend(doc); // GAP DM-06
+            LoadActivityLog(doc);      // Activity feed
+            LoadDataDropStatus(doc);   // Data drop milestones
         }
 
         private static void LoadProjectFiles(Document doc)
@@ -1504,6 +1582,56 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadHealth: {ex.Message}"); }
         }
 
+        // Activity feed loading
+        private static void LoadActivityLog(Document doc)
+        {
+            try
+            {
+                var entries = ProjectFolderEngine.GetRecentActivity(doc, 30);
+                foreach (var entry in entries)
+                {
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = $"ACT-{entry.Timestamp}",
+                        Title = $"{entry.Action}: {entry.DocId} — {entry.Details}",
+                        Type = "LOG", TypeDesc = "Activity",
+                        Status = entry.Action,
+                        Date = entry.Timestamp,
+                        AssignedTo = entry.User,
+                        Category = "ACTIVITY", Folder = ""
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadActivity: {ex.Message}"); }
+        }
+
+        // Data drop milestone loading
+        private static void LoadDataDropStatus(Document doc)
+        {
+            try
+            {
+                var drops = ProjectFolderEngine.CheckAllDataDrops(doc);
+                foreach (var dd in drops)
+                {
+                    string status = dd.ReadyPercent >= 100 ? "READY" : dd.ReadyPercent >= 50 ? "PARTIAL" : "NOT READY";
+                    string missingItems = string.Join(", ",
+                        dd.Items.Where(i => !i.HasFiles).Select(i => i.ExportType));
+
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = dd.DataDropId,
+                        Title = $"{dd.DataDropId}: {dd.Stage} — {dd.ReadyPercent:F0}% ready" +
+                            (string.IsNullOrEmpty(missingItems) ? "" : $" (missing: {missingItems})"),
+                        Type = "DD", TypeDesc = "Data Drop",
+                        Status = status,
+                        Date = "",
+                        Category = "DATADROP", Folder = ""
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDataDrop: {ex.Message}"); }
+        }
+
         // ══════════════════════════════════════════════════════════════════
         //  FILTERING (Enhanced with time/discipline/priority/overdue)
         // ══════════════════════════════════════════════════════════════════
@@ -1547,6 +1675,10 @@ namespace StingTools.UI
                 return item.Category == "ISSUE" && Eq(item.Status, _currentFilter.Substring(12));
             if (_currentFilter == "OVERDUE")
                 return item.IsOverdue;
+            if (_currentFilter.StartsWith("DD:"))
+                return item.Category == "DATADROP" && Eq(item.Id, _currentFilter.Substring(3));
+            if (_currentFilter.StartsWith("CLASHDISC:"))
+                return item.Category == "CLASH" && Eq(item.Discipline, _currentFilter.Substring(10));
 
             // Time-based filters (GAP NAV-02)
             if (_currentFilter == "TIME:TODAY") return IsToday(item.Date);
