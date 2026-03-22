@@ -1616,7 +1616,7 @@ namespace StingTools.UI
         private static string GetMeetingsPath(Document doc) =>
             Path.Combine(GetBimManagerDir(doc), "meetings.json");
 
-        /// <summary>Create a new meeting with auto-populated metadata.</summary>
+        /// <summary>Create a new meeting with attendees, series support, and follow-up from previous.</summary>
         private static void CreateMeeting(Document doc)
         {
             var types = new List<string>
@@ -1630,29 +1630,133 @@ namespace StingTools.UI
             string bimDir = GetBimManagerDir(doc);
             if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
             string path = GetMeetingsPath(doc);
-
             var meetings = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
+
+            // Calculate series number (sequential within same type)
+            int seriesNum = meetings.Count(m => m["type"]?.ToString() == meetingType) + 1;
             int nextId = meetings.Count + 1;
+
+            // Find previous meeting of same type to carry forward open actions
+            var prevMeeting = meetings.LastOrDefault(m => m["type"]?.ToString() == meetingType);
+            int carryForwardActions = 0;
+            if (prevMeeting?["actions"] is JArray prevActs)
+                carryForwardActions = prevActs.Count(a => a["status"]?.ToString() != "CLOSED");
+
+            // Attendee input dialog
+            var attendeeWin = new Window
+            {
+                Title = $"Meeting Attendees — {meetingType} #{seriesNum}",
+                Width = 500, Height = 380,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            var attStack = new StackPanel { Margin = new Thickness(12) };
+            attStack.Children.Add(new TextBlock
+            {
+                Text = $"Meeting: {meetingType} #{seriesNum}\nDate: {DateTime.Now:yyyy-MM-dd}",
+                FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8)
+            });
+            if (carryForwardActions > 0)
+            {
+                attStack.Children.Add(new TextBlock
+                {
+                    Text = $"\u2139 {carryForwardActions} open action(s) will carry forward from previous meeting",
+                    Foreground = BrTeal, Margin = new Thickness(0, 0, 0, 8), FontStyle = FontStyles.Italic
+                });
+            }
+            attStack.Children.Add(new TextBlock { Text = "Chair:", Margin = new Thickness(0, 4, 0, 2) });
+            var chairBox = new System.Windows.Controls.TextBox { Text = Environment.UserName };
+            attStack.Children.Add(chairBox);
+            attStack.Children.Add(new TextBlock
+            {
+                Text = "Attendees (one per line — Name, Role, Discipline):",
+                Margin = new Thickness(0, 8, 0, 2)
+            });
+            var attBox = new System.Windows.Controls.TextBox
+            {
+                AcceptsReturn = true, Height = 140, TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Text = $"{Environment.UserName}, BIM Coordinator, M\n"
+            };
+            attStack.Children.Add(attBox);
+            var createBtn = new Button
+            {
+                Content = "Create Meeting", Margin = new Thickness(0, 10, 0, 0),
+                Padding = new Thickness(16, 6, 16, 6)
+            };
+            bool created = false;
+            createBtn.Click += (s, e) => { created = true; attendeeWin.DialogResult = true; attendeeWin.Close(); };
+            attStack.Children.Add(createBtn);
+            attendeeWin.Content = attStack;
+            attendeeWin.ShowDialog();
+            if (!created) return;
+
+            // Parse attendees
+            var attendees = new JArray();
+            foreach (string line in attBox.Text.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
+            {
+                var parts = line.Split(',').Select(p => p.Trim()).ToArray();
+                attendees.Add(new JObject
+                {
+                    ["name"] = parts.Length > 0 ? parts[0] : "",
+                    ["role"] = parts.Length > 1 ? parts[1] : "",
+                    ["discipline"] = parts.Length > 2 ? parts[2] : "",
+                    ["present"] = true
+                });
+            }
 
             var meeting = new JObject
             {
                 ["id"] = $"MTG-{nextId:D4}",
                 ["type"] = meetingType,
+                ["series_num"] = seriesNum,
                 ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
                 ["time"] = DateTime.Now.ToString("HH:mm"),
                 ["status"] = "PLANNED",
+                ["chair"] = chairBox.Text,
                 ["created_by"] = Environment.UserName,
-                ["attendees"] = new JArray(),
+                ["previous_meeting"] = prevMeeting?["id"]?.ToString() ?? "",
+                ["attendees"] = attendees,
                 ["agenda"] = new JArray(),
                 ["minutes"] = "",
                 ["actions"] = new JArray()
             };
 
+            // Carry forward open actions from previous meeting
+            if (prevMeeting?["actions"] is JArray prevActions)
+            {
+                foreach (var a in prevActions.Where(a => a["status"]?.ToString() != "CLOSED"))
+                {
+                    var carried = a.DeepClone();
+                    carried["carried_from"] = prevMeeting["id"]?.ToString();
+                    (meeting["actions"] as JArray)?.Add(carried);
+                }
+            }
+
             meetings.Add(meeting);
             File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
-            ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(), meetingType);
-            MessageBox.Show($"Meeting created: {meeting["id"]}\nType: {meetingType}\n\nUse 'Auto Agenda' to populate agenda items.",
-                "STING Meeting Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(),
+                $"{meetingType} #{seriesNum}, {attendees.Count} attendees" +
+                (carryForwardActions > 0 ? $", {carryForwardActions} actions carried forward" : ""));
+
+            // Show confirmation in result panel
+            var panel = StingResultPanel.Create("Meeting Created")
+                .SetSubtitle($"{meetingType} #{seriesNum}")
+                .AddSection("DETAILS")
+                .Metric("Meeting ID", meeting["id"].ToString())
+                .Metric("Type", meetingType)
+                .Metric("Series #", seriesNum.ToString())
+                .Metric("Date", DateTime.Now.ToString("yyyy-MM-dd"))
+                .Metric("Chair", chairBox.Text)
+                .Metric("Attendees", attendees.Count.ToString());
+            if (carryForwardActions > 0)
+                panel.AddSection("CARRIED FORWARD")
+                    .Info($"{carryForwardActions} open action items carried from {prevMeeting["id"]}");
+
+            panel.AddSection("NEXT STEPS")
+                .Text("Use 'Auto Agenda' to populate agenda from issues, transmittals, and revisions")
+                .Text("Use 'Log Minutes' during the meeting to record notes")
+                .Text("Use 'Add Action' to assign action items");
+            panel.Show();
             RefreshData();
         }
 
@@ -1748,31 +1852,62 @@ namespace StingTools.UI
             try
             {
                 var scan = ComplianceScan.Scan(doc);
+                string ragEmoji = scan.RAGStatus == "GREEN" ? "\u2705" : scan.RAGStatus == "AMBER" ? "\u26A0" : "\u274C";
                 agenda.Add(new JObject { ["num"] = itemNum++,
-                    ["topic"] = $"Model compliance status: {scan.CompliancePercent:F0}% ({scan.RAGStatus})",
-                    ["source"] = "COMPLIANCE", ["duration_min"] = 5 });
+                    ["topic"] = $"{ragEmoji} Model compliance: {scan.CompliancePercent:F0}% — {scan.Untagged} untagged, {scan.StaleCount} stale",
+                    ["source"] = "COMPLIANCE", ["duration_min"] = 5, ["section"] = "Compliance & Quality" });
+
+                // Per-discipline breakdown if available
+                if (scan.ByDisc != null && scan.ByDisc.Count > 0)
+                {
+                    var lowDisc = scan.ByDisc.Where(d => d.Value.CompliancePct < 50).OrderBy(d => d.Value.CompliancePct).ToList();
+                    if (lowDisc.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++,
+                            ["topic"] = $"Low compliance disciplines: {string.Join(", ", lowDisc.Select(d => $"{d.Key}={d.Value.CompliancePct:F0}%"))}",
+                            ["source"] = "COMPLIANCE", ["duration_min"] = 3, ["section"] = "Compliance & Quality" });
+                }
             }
             catch (Exception ex) { StingLog.Warn($"AutoAgenda compliance: {ex.Message}"); }
 
-            // 6. AOB
-            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Any other business", ["source"] = "STANDARD", ["duration_min"] = 5 });
+            // 6. Model upload / submission status (check linked models)
+            try
+            {
+                var links = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().ToList();
+                if (links.Count > 0)
+                    agenda.Add(new JObject { ["num"] = itemNum++,
+                        ["topic"] = $"Linked model status: {links.Count} models linked",
+                        ["source"] = "MODELS", ["duration_min"] = 3, ["section"] = "Model Status" });
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoAgenda links: {ex.Message}"); }
+
+            // 7. Upcoming milestones / next meeting
+            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Upcoming milestones and MIDP deadlines", ["source"] = "STANDARD", ["duration_min"] = 5, ["section"] = "Planning" });
+
+            // 8. AOB
+            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Any other business", ["source"] = "STANDARD", ["duration_min"] = 5, ["section"] = "AOB" });
 
             target["agenda"] = agenda;
             int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
             File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
-            // Show agenda in result panel
+            // Show agenda in result panel, grouped by section
             var panel = StingResultPanel.Create("Meeting Agenda")
-                .SetSubtitle($"{target["type"]} — {target["date"]} | Est. {totalMin} minutes");
+                .SetSubtitle($"{target["type"]} — {target["date"]} | Est. {totalMin} minutes | {agenda.Count} items");
 
-            panel.AddSection("AUTO-GENERATED AGENDA");
-            foreach (var item in agenda)
-                panel.Metric($"{item["num"]}. [{item["source"]}]",
-                    item["topic"]?.ToString(),
-                    $"{item["duration_min"]}min");
+            // Group agenda items by section
+            var sections = agenda.GroupBy(a => a["section"]?.ToString() ?? a["source"]?.ToString() ?? "General");
+            foreach (var section in sections)
+            {
+                panel.AddSection(section.Key.ToUpperInvariant());
+                foreach (var item in section)
+                    panel.Metric($"{item["num"]}.", item["topic"]?.ToString(), $"{item["duration_min"]}min");
+            }
 
-            panel.AddSection("MEETING INFO")
+            panel.AddSection("MEETING SUMMARY")
                 .Metric("Meeting ID", meetId)
+                .Metric("Total agenda items", agenda.Count.ToString())
+                .Metric("Estimated duration", $"{totalMin} minutes")
                 .Metric("Open action items", allActions.Count.ToString())
                 .Metric("Open issues", openIssues.ToString());
 
@@ -2009,31 +2144,62 @@ namespace StingTools.UI
             if (target == null) return;
 
             var sb = new StringBuilder();
-            sb.AppendLine($"MEETING MINUTES — {target["id"]}");
-            sb.AppendLine($"Type: {target["type"]}");
-            sb.AppendLine($"Date: {target["date"]} {target["time"]}");
-            sb.AppendLine($"Created by: {target["created_by"]}");
-            sb.AppendLine(new string('═', 60));
+            sb.AppendLine($"╔══════════════════════════════════════════════════════════╗");
+            sb.AppendLine($"║  MEETING MINUTES — {target["id"],-38} ║");
+            sb.AppendLine($"╚══════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"  Type:       {target["type"]}");
+            sb.AppendLine($"  Series #:   {target["series_num"]}");
+            sb.AppendLine($"  Date:       {target["date"]} {target["time"]}");
+            sb.AppendLine($"  Chair:      {target["chair"]}");
+            sb.AppendLine($"  Status:     {target["status"]}");
+            sb.AppendLine($"  Created by: {target["created_by"]}");
+            if (!string.IsNullOrEmpty(target["previous_meeting"]?.ToString()))
+                sb.AppendLine($"  Previous:   {target["previous_meeting"]}");
+            sb.AppendLine();
+
+            // Attendees
+            sb.AppendLine("── ATTENDEES ──");
+            if (target["attendees"] is JArray attArr)
+            {
+                sb.AppendLine($"  {"Name",-25} {"Role",-20} {"Disc",-5} {"Present",-8}");
+                sb.AppendLine($"  {new string('─', 60)}");
+                foreach (var att in attArr)
+                    sb.AppendLine($"  {att["name"]?.ToString() ?? "",-25} {att["role"]?.ToString() ?? "",-20} " +
+                        $"{att["discipline"]?.ToString() ?? "",-5} {(att["present"]?.Value<bool>() ?? true ? "Yes" : "No"),-8}");
+            }
+            sb.AppendLine();
 
             // Agenda
-            sb.AppendLine("\nAGENDA:");
+            sb.AppendLine("── AGENDA ──");
             if (target["agenda"] is JArray agendaArr)
             {
                 foreach (var item in agendaArr)
-                    sb.AppendLine($"  {item["num"]}. {item["topic"]} [{item["source"]}] ({item["duration_min"]}min)");
+                    sb.AppendLine($"  {item["num"]}. [{item["source"]}] {item["topic"]} ({item["duration_min"]}min)");
             }
+            sb.AppendLine();
 
             // Minutes
-            sb.AppendLine("\nMINUTES:");
+            sb.AppendLine("── MINUTES ──");
             sb.AppendLine(target["minutes"]?.ToString() ?? "(no minutes recorded)");
+            sb.AppendLine();
 
             // Action items
-            sb.AppendLine("\nACTION ITEMS:");
-            if (target["actions"] is JArray actsArr)
+            sb.AppendLine("── ACTION ITEMS ──");
+            if (target["actions"] is JArray actsArr && actsArr.Count > 0)
             {
+                sb.AppendLine($"  {"ID",-16} {"Status",-12} {"Assignee",-15} {"Due",-12} Description");
+                sb.AppendLine($"  {new string('─', 80)}");
                 foreach (var a in actsArr)
-                    sb.AppendLine($"  [{a["status"]}] {a["id"]}: {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+                {
+                    sb.AppendLine($"  {a["id"]?.ToString() ?? "",-16} {a["status"]?.ToString() ?? "",-12} " +
+                        $"{a["assigned_to"]?.ToString() ?? "",-15} {a["due_date"]?.ToString() ?? "",-12} {a["description"]}");
+                    if (!string.IsNullOrEmpty(a["carried_from"]?.ToString()))
+                        sb.AppendLine($"                 (carried from {a["carried_from"]})");
+                }
             }
+            else
+                sb.AppendLine("  (no action items)");
 
             try
             {
