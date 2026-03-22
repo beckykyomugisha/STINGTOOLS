@@ -45,7 +45,7 @@ namespace StingTools.Tags
                         $"Command failed with an unexpected error:\n\n{ex.Message}\n\n" +
                         "Check StingTools.log for details.");
                 }
-                catch (Exception ex) { StingLog.Warn($"If even the dialog fails, don't crash Revit: {ex.Message}"); }
+                catch (Exception ex2) { StingLog.Warn($"If even the dialog fails, don't crash Revit: {ex2.Message}"); }
                 return Result.Failed;
             }
         }

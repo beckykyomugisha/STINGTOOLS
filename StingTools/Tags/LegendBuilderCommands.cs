@@ -3439,7 +3439,7 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var v in toDelete)
                     {
                         try { doc.Delete(v.Id); deleted++; }
-                        catch (Exception ex) { StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"DeleteStaleLegend: failed to delete '{v.Name}': {ex2.Message}"); }
                     }
                 }
                 tx.Commit();
@@ -4971,7 +4971,7 @@ namespace StingTools.Tags
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var legend in stingLegends)
                         {
                             try { doc.Delete(legend.Id); deleted++; }
-                            catch (Exception ex) { StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Cannot delete legend '{legend.Name}': {ex2.Message}"); }
                         }
                     }
                     tx.Commit();

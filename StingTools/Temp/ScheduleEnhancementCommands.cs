@@ -1366,7 +1366,7 @@ namespace StingTools.Temp
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var sched in targets)
                     {
                         try { doc.Delete(sched.Id); deleted++; }
-                        catch (Exception ex) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex.Message}"); }
+                        catch (Exception ex2) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex2.Message}"); }
                     }
                 }
                 tx.Commit();

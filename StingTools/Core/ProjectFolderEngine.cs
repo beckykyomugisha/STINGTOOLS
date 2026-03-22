@@ -648,7 +648,7 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"TailReadLines: {ex.Message}");
                 // Fallback: read all
-                try { lines = File.ReadAllLines(filePath).ToList(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { lines = File.ReadAllLines(filePath).ToList(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             }
             return lines;
         }
