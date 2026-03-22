@@ -1043,12 +1043,8 @@ namespace StingTools.Core
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
                 // BIM Coordination Center dispatch targets
-                case "ValidateTags":            return new Tags.ValidateTagsCommand();
-                case "PreTagAudit":             return new Tags.PreTagAuditCommand();
-                case "TagNewOnly":              return new Tags.TagNewOnlyCommand();
                 case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
                 case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();
-                case "ValidateTemplate":        return new Temp.ValidateTemplateCommand();
                 case "RaiseIssue":              return new BIMManager.RaiseIssueCommand();
                 case "UpdateIssue":             return new BIMManager.UpdateIssueCommand();
                 case "SelectIssueElements":     return new BIMManager.SelectIssueElementsCommand();
