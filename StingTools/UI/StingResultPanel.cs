@@ -417,17 +417,19 @@ namespace StingTools.UI
             container.Children.Add(header);
 
             // Section content
-            var contentPanel = new StackPanel
+            var contentBorder = new Border
             {
                 Background = BrWhite, Padding = new Thickness(16, 6, 16, 8)
             };
+            var contentPanel = new StackPanel();
+            contentBorder.Child = contentPanel;
 
             foreach (var item in section.Items)
             {
                 contentPanel.Children.Add(BuildItem(item));
             }
 
-            container.Children.Add(contentPanel);
+            container.Children.Add(contentBorder);
             return container;
         }
 
