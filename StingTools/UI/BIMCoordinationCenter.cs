@@ -1395,8 +1395,14 @@ namespace StingTools.UI
             actionsWrap.Children.Add(MakeActionButton("Select Elements", "SelectIssueElements", Br(CHeaderBg)));
             actionsWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
             actionsWrap.Children.Add(MakeActionButton("Export CSV", "ExportIssues", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
-            actionsWrap.Children.Add(MakeActionButton("Create from Warnings", "CreateIssuesFromWarnings", Br(CAmber)));
-            actionsWrap.Children.Add(MakeActionButton("Issue Timeline", "IssueTimeline", Br(CHeaderBg)));
+            actionsWrap.Children.Add(MakeActionButton("Create from Warnings", "CreateIssuesFromWarnings", Br(CAmber),
+                "Auto-create NCR/SI issues from critical/high Revit warnings with element linking"));
+            actionsWrap.Children.Add(MakeActionButton("Issue Timeline", "IssueTimeline", Br(CHeaderBg),
+                "Show issue timeline with status changes, comments and resolution history"));
+            actionsWrap.Children.Add(MakeActionButton("Add to Meeting", "AutoAgenda", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "Auto-populate next meeting agenda with open issues grouped by type and priority"));
+            actionsWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Create ISO 19650 transmittal linking resolved issues to document exchange"));
             root.Children.Add(actionsWrap);
 
             // Phase 49: Issue statistics mini-panel
@@ -3125,6 +3131,102 @@ namespace StingTools.UI
             actionsCard.Child = actStack;
             stack.Children.Add(actionsCard);
 
+            // ── AUTOMATION RULES ──
+            stack.Children.Add(new Border { Height = 12 });
+            stack.Children.Add(MakeSectionHeader("AUTOMATION RULES"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Cross-system automation links meetings ↔ issues ↔ transmittals ↔ compliance for seamless BIM coordination workflows.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+            var autoCard = MakeCard();
+            var autoStack = new StackPanel();
+
+            // Rule 1: Overdue actions → auto-escalate to issues
+            int overdueNotEscalated = actions.Count(a => a.IsOverdue && a.Status == "OPEN");
+            var rule1 = MakeAutomationRule(
+                "Overdue Action → Issue Escalation",
+                overdueNotEscalated > 0
+                    ? $"{overdueNotEscalated} overdue action(s) can be escalated to NCR issues"
+                    : "No overdue actions requiring escalation",
+                overdueNotEscalated > 0, "EscalateActions",
+                "Auto-create HIGH-priority NCR issues from overdue meeting actions with element linking");
+            autoStack.Children.Add(rule1);
+
+            // Rule 2: Open issues → auto-populate next meeting agenda
+            int openIssuesForAgenda = _data.IssuesOpen;
+            var rule2 = MakeAutomationRule(
+                "Open Issues → Next Meeting Agenda",
+                openIssuesForAgenda > 0
+                    ? $"{openIssuesForAgenda} open issue(s) will auto-populate next meeting agenda"
+                    : "No open issues for agenda",
+                openIssuesForAgenda > 0, "AutoAgenda",
+                "Auto-generate meeting agenda from open issues grouped by type and priority");
+            autoStack.Children.Add(rule2);
+
+            // Rule 3: Compliance gate → auto-transmittal trigger
+            bool complianceReady = _data.TagPct >= 80 && _data.ContainerCompletePct >= 80 && _data.WarningCritical == 0;
+            var rule3 = MakeAutomationRule(
+                "Compliance Gate → Transmittal Trigger",
+                complianceReady
+                    ? $"Model ready for transmittal: {_data.TagPct:F0}% tagged, {_data.ContainerCompletePct:F0}% containers, 0 critical warnings"
+                    : $"Not ready: {_data.TagPct:F0}% tagged (need ≥80%), {_data.WarningCritical} critical warnings (need 0)",
+                complianceReady, "CreateTransmittal",
+                "Auto-create SHARED transmittal when compliance ≥80%, containers ≥80%, and 0 critical warnings");
+            autoStack.Children.Add(rule3);
+
+            // Rule 4: Meeting closure → follow-up meeting creation
+            int plannedMeetings = meetings.Count(m => m.Status == "PLANNED");
+            var rule4 = MakeAutomationRule(
+                "Meeting Closure → Follow-Up Scheduling",
+                plannedMeetings == 0
+                    ? "No upcoming meetings scheduled — create follow-up"
+                    : $"{plannedMeetings} meeting(s) already scheduled",
+                plannedMeetings == 0, "NewMeeting",
+                "Auto-schedule follow-up meeting carrying forward open actions and unresolved issues");
+            autoStack.Children.Add(rule4);
+
+            // Rule 5: SLA violation → issue priority escalation
+            int slaViolations = _data.SLACriticalViolations + _data.SLAHighViolations;
+            var rule5 = MakeAutomationRule(
+                "SLA Violation → Priority Escalation",
+                slaViolations > 0
+                    ? $"{slaViolations} SLA violation(s) — issues should be escalated or reassigned"
+                    : "No SLA violations detected",
+                slaViolations > 0, "UpdateIssue",
+                "Auto-escalate issue priority when SLA threshold exceeded (CRITICAL=4h, HIGH=24h)");
+            autoStack.Children.Add(rule5);
+
+            // Rule 6: Stale elements → retag trigger
+            var rule6 = MakeAutomationRule(
+                "Stale Elements → Auto-Retag",
+                _data.StaleCount > 0
+                    ? $"{_data.StaleCount} stale element(s) detected — tags no longer match context"
+                    : "No stale elements",
+                _data.StaleCount > 0, "RetagStale",
+                "Auto-retag elements that have moved level, changed system, or been modified since last tag");
+            autoStack.Children.Add(rule6);
+
+            autoCard.Child = autoStack;
+            stack.Children.Add(autoCard);
+
+            // ── CROSS-SYSTEM LINKS ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("CROSS-SYSTEM LINKS"));
+            var linksCard = MakeCard();
+            var linksStack = new StackPanel();
+            linksStack.Children.Add(new TextBlock
+            {
+                Text = $"Meetings → Issues: {_data.IssuesOpen} open issues linked to coordination\n" +
+                       $"Issues → Transmittals: {_data.DeliverablesSubmitted} transmittals issued with linked issues\n" +
+                       $"Transmittals → Compliance: {_data.TagPct:F0}% tag compliance at last transmittal\n" +
+                       $"Compliance → Warnings: {_data.WarningsLinkedToIssues} warnings linked to issues\n" +
+                       $"Warnings → Stale: {_data.StaleLinkedToWarnings} stale elements with active warnings",
+                FontSize = 11, LineHeight = 20, TextWrapping = TextWrapping.Wrap
+            });
+            linksCard.Child = linksStack;
+            stack.Children.Add(linksCard);
+
             // ── COORDINATION METRICS ──
             stack.Children.Add(new Border { Height = 12 });
             stack.Children.Add(MakeSectionHeader("COORDINATION METRICS"));
@@ -3154,6 +3256,56 @@ namespace StingTools.UI
 
             scroll.Content = stack;
             return scroll;
+        }
+
+        // ── Automation rule helper ──
+        private UIElement MakeAutomationRule(string title, string status, bool actionable, string actionTag, string tooltip)
+        {
+            var border = new Border
+            {
+                BorderBrush = Br(actionable ? CAccent : CBorder),
+                BorderThickness = new Thickness(2, 0, 0, 0),
+                Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = tooltip
+            };
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var textStack = new StackPanel();
+            textStack.Children.Add(new TextBlock
+            {
+                Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = actionable ? Br(CAccent) : Brushes.Black
+            });
+            textStack.Children.Add(new TextBlock
+            {
+                Text = status, FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+            });
+            grid.Children.Add(textStack);
+
+            if (actionable)
+            {
+                var btn = MakeActionButton("Run", actionTag, Br(CAccent), tooltip);
+                btn.VerticalAlignment = VerticalAlignment.Center;
+                btn.Height = 24; btn.FontSize = 10;
+                Grid.SetColumn(btn, 1);
+                grid.Children.Add(btn);
+            }
+            else
+            {
+                var check = new TextBlock
+                {
+                    Text = "\u2714", FontSize = 14, Foreground = Br(CGreen),
+                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(8, 0, 0, 0)
+                };
+                Grid.SetColumn(check, 1);
+                grid.Children.Add(check);
+            }
+
+            border.Child = grid;
+            return border;
         }
 
         // ── Meeting data helpers ──

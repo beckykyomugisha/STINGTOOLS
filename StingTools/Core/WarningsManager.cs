@@ -2594,6 +2594,9 @@ namespace StingTools.Core
                 { "ExportMinutes", "DocumentManager" },
                 { "SendReminder", "DocumentManager" },
 
+                // Automation rule actions
+                { "EscalateActions", "RaiseIssue" },
+
                 // Coord Log actions
                 { "ExportCoordLog", "ExportModelHealth" },
                 { "ClearCoordLog", "ConfigEditor" },
