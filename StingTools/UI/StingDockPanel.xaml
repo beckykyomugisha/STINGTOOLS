@@ -2585,6 +2585,26 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- ── COORDINATION CENTER ── -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="4" Padding="8,6" Margin="0,0,0,6">
+                            <StackPanel>
+                                <TextBlock Text="COORDINATION CENTER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource HeaderFg}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Live coordination, notifications, access control, dashboards" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="★ Coord Center" Tag="CoordinationCenter" Click="Cmd_Click"
+                                            ToolTip="Open the full Coordination Center — notifications, file monitor, access control, dashboards"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Dashboard" Tag="GenerateDashboard" Click="Cmd_Click"
+                                            ToolTip="Generate self-contained HTML dashboard for stakeholders (phone/tablet/desktop)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="File Monitor" Tag="ToggleFileMonitor" Click="Cmd_Click"
+                                            ToolTip="Start/stop live file monitoring with push notifications"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Broadcast" Tag="BroadcastNotification" Click="Cmd_Click"
+                                            ToolTip="Send a broadcast notification to all team channels"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Access" Tag="AccessControl" Click="Cmd_Click"
+                                            ToolTip="Manage user roles, company access, and discipline filters"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

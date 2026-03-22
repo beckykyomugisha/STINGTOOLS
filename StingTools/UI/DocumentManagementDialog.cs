@@ -373,7 +373,9 @@ namespace StingTools.UI
             stack.Children.Add(new TextBlock
             {
                 Text = label, FontSize = 9, Foreground = BrFgSub,
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+                MaxWidth = 120
             });
             card.Child = stack;
             return card;
@@ -1265,6 +1267,13 @@ namespace StingTools.UI
             coordWrap.Children.Add(MakeDispatchBtn("Bulk Export", "BulkBIMExport", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Quantities", "MeasuredQuantities", BrTeal, win));
             coordWrap.Children.Add(MakeDispatchBtn("Element Summary", "ElementCountSummary", BrTeal, win));
+            coordWrap.Children.Add(MakeSep());
+            coordWrap.Children.Add(MakeSectionLabel("LIVE COORDINATION"));
+            coordWrap.Children.Add(MakeDispatchBtn("★ Coord Center", "CoordinationCenter", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Dashboard", "GenerateDashboard", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("File Monitor", "ToggleFileMonitor", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Broadcast", "BroadcastNotification", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Access", "AccessControl", BrTeal, win));
             tabs.Items.Add(new TabItem { Header = "COORDINATION", Content = coordWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 6: HANDOVER ──
@@ -1333,6 +1342,11 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeActBtn("SLA Check", BrRed, (s, e) => RunSLACheck(doc)));
             meetWrap.Children.Add(MakeActBtn("Workload", BrTeal, (s, e) => ShowWorkloadDashboard(doc)));
             meetWrap.Children.Add(MakeActBtn("Notifications", BrFgDark, (s, e) => ShowNotificationQueue(doc)));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("COORDINATION"));
+            meetWrap.Children.Add(MakeActBtn("Send Reminder", BrAccent, (s, e) => SendMeetingReminder(doc)));
+            meetWrap.Children.Add(MakeActBtn("Smart Agenda", BrGreen, (s, e) => GenerateSmartAgendaFromDialog(doc)));
+            meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "CoordinationCenter", BrAccent, win));
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             bar.Child = tabs;
@@ -3265,8 +3279,160 @@ namespace StingTools.UI
 
             panel.AddSection("NOTE")
                 .Text("Notifications are queued for manual delivery or email integration.")
-                .Text("Mark as delivered after sending emails or forwarding to team.");
+                .Text("Configure Telegram/Teams/Discord channels in the Coordination Center for automatic delivery.");
+            panel.Action("Open Coordination Center", "Configure notification channels for automatic delivery", (w) =>
+            {
+                BIMManager.CoordinationCenterDialog.Show(doc);
+            });
             panel.Show();
+        }
+
+        /// <summary>Send a meeting reminder via all notification channels.</summary>
+        private static void SendMeetingReminder(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
+
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var planned = meetings.Where(m => m["status"]?.ToString() == "PLANNED").ToList();
+            if (planned.Count == 0) { MessageBox.Show("No planned meetings found."); return; }
+
+            // Pick which meeting to remind about
+            var labels = planned.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string picked = StingListPicker.Show("Send Meeting Reminder", "Select meeting:", labels);
+            if (string.IsNullOrEmpty(picked)) return;
+
+            int idx = labels.IndexOf(picked);
+            if (idx < 0 || idx >= planned.Count) return;
+            var meeting = planned[idx];
+
+            string meetId = meeting["id"]?.ToString() ?? "";
+            string meetType = meeting["type"]?.ToString() ?? "";
+            string meetDate = meeting["date"]?.ToString() ?? "";
+            string chair = meeting["chair"]?.ToString() ?? "";
+            int attCount = (meeting["attendees"] as JArray)?.Count ?? 0;
+            int openActions = (meeting["actions"] as JArray)?.Count(a =>
+                a["status"]?.ToString() != "CLOSED" && a["status"]?.ToString() != "COMPLETED") ?? 0;
+
+            // Send notification
+            BIMManager.NotificationDeliveryEngine.LoadConfig(doc);
+            string title = $"Meeting Reminder: {meetType}";
+            string message = $"Meeting {meetId} is scheduled for {meetDate}.\n" +
+                $"Chair: {chair}\nAttendees: {attCount}\n" +
+                (openActions > 0 ? $"Open actions: {openActions} — please prepare updates.\n" : "") +
+                "Please confirm attendance.";
+
+            BIMManager.NotificationDeliveryEngine.SendNotification(doc, title, message, "MEDIUM", meetId);
+
+            // Also get attendee emails for email notification
+            var emails = new List<string>();
+            if (meeting["attendees"] is JArray atts)
+            {
+                foreach (var att in atts)
+                {
+                    string email = att["email"]?.ToString();
+                    if (!string.IsNullOrEmpty(email)) emails.Add(email);
+                }
+            }
+
+            ProjectFolderEngine.LogActivity(doc, "MEETING_REMINDER", meetId, $"Reminder sent for {meetType}");
+            MessageBox.Show($"Meeting reminder sent for {meetId}.\nNotification delivered to {BIMManager.NotificationDeliveryEngine.GetEnabledChannels().Count} channels.",
+                "STING", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>Generate smart agenda from open items and show in result panel.</summary>
+        private static void GenerateSmartAgendaFromDialog(Document doc)
+        {
+            try
+            {
+                BIMManager.NotificationDeliveryEngine.LoadConfig(doc);
+                // Reuse the smart agenda generator from CoordinationCenterDialog
+                // Build agenda inline
+                var items = new List<string>();
+                string bimDir = GetBimManagerDir(doc);
+
+                // Compliance status
+                try
+                {
+                    var cr = ComplianceScan.Scan(doc);
+                    if (cr.CompliancePercent < 80)
+                        items.Add($"COMPLIANCE: Tag compliance at {cr.CompliancePercent:F0}% — below 80% target");
+                    if (cr.StaleCount > 0)
+                        items.Add($"STALE ELEMENTS: {cr.StaleCount} elements need re-tagging");
+                }
+                catch (Exception ex) { StingLog.Warn($"SmartAgenda compliance: {ex.Message}"); }
+
+                // Open issues
+                try
+                {
+                    string issuePath = Path.Combine(bimDir, "issues.json");
+                    if (File.Exists(issuePath))
+                    {
+                        var issues = JArray.Parse(File.ReadAllText(issuePath));
+                        var open = issues.Where(i => i["status"]?.ToString() != "CLOSED").ToList();
+                        var critical = open.Where(i => i["priority"]?.ToString() == "CRITICAL").ToList();
+                        if (critical.Count > 0)
+                            items.Add($"CRITICAL ISSUES ({critical.Count}): Requires immediate attention");
+                        var overdue = open.Where(i =>
+                        {
+                            if (!DateTime.TryParse(i["sla_deadline"]?.ToString(), out var dl)) return false;
+                            return DateTime.Now > dl;
+                        }).ToList();
+                        if (overdue.Count > 0)
+                            items.Add($"OVERDUE ISSUES ({overdue.Count}): SLA breached — escalation needed");
+                        if (open.Count > 0)
+                            items.Add($"OPEN ISSUES: {open.Count} total ({open.Count(i => i["status"]?.ToString() == "IN_PROGRESS")} in progress)");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SmartAgenda issues: {ex.Message}"); }
+
+                // Open actions
+                int totalActions = 0;
+                try
+                {
+                    string mtgPath = Path.Combine(bimDir, "meetings.json");
+                    if (File.Exists(mtgPath))
+                    {
+                        var meetings = JArray.Parse(File.ReadAllText(mtgPath));
+                        foreach (var m in meetings)
+                        {
+                            if (m["actions"] is JArray acts)
+                                totalActions += acts.Count(a => a["status"]?.ToString() != "CLOSED" && a["status"]?.ToString() != "COMPLETED");
+                        }
+                        if (totalActions > 0)
+                            items.Add($"OPEN ACTIONS: {totalActions} across all meetings");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SmartAgenda actions: {ex.Message}"); }
+
+                // Pending transmittals
+                try
+                {
+                    string txPath = Path.Combine(bimDir, "transmittals.json");
+                    if (File.Exists(txPath))
+                    {
+                        var txs = JArray.Parse(File.ReadAllText(txPath));
+                        var pending = txs.Count(t => t["status"]?.ToString() == "DRAFT" || t["status"]?.ToString() == "SENT");
+                        if (pending > 0) items.Add($"PENDING TRANSMITTALS: {pending} awaiting review");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SmartAgenda tx: {ex.Message}"); }
+
+                if (items.Count == 0) items.Add("No outstanding items — project is in good health!");
+
+                var panel = StingResultPanel.Create("Smart Meeting Agenda")
+                    .SetSubtitle($"Auto-generated from project data | {DateTime.Now:yyyy-MM-dd HH:mm}");
+                panel.AddSection("AGENDA ITEMS");
+                int idx = 1;
+                foreach (string item in items)
+                    panel.Text($"{idx++}. {item}");
+
+                panel.AddSection("ACTIONS")
+                    .Text("Copy this agenda to meeting notes or share with attendees")
+                    .Text("Use 'Send Reminder' to notify attendees via Telegram/Teams/Email");
+                panel.Show();
+            }
+            catch (Exception ex) { StingLog.Warn($"GenerateSmartAgenda: {ex.Message}"); }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -3900,8 +4066,8 @@ namespace StingTools.UI
             {
                 FontSize = 10, Foreground = BrFgSub,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis, // UI-04: prevent overflow
-                MaxWidth = 900
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 1200
             };
             System.Windows.Controls.Grid.SetColumn(_statusText, 0);
             grid.Children.Add(_statusText);

@@ -1724,6 +1724,13 @@ namespace StingTools.UI
                     case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
                     case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
 
+                    // ── Phase 42: Coordination Center Commands ──
+                    case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
+                    case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "ToggleFileMonitor": RunCommand<BIMManager.ToggleFileMonitorCommand>(app); break;
+                    case "BroadcastNotification": RunCommand<BIMManager.BroadcastNotificationCommand>(app); break;
+                    case "AccessControl": RunCommand<BIMManager.AccessControlCommand>(app); break;
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
