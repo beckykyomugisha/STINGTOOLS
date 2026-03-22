@@ -1288,6 +1288,28 @@ namespace StingTools.UI
                         break;
                     }
 
+                    // Phase 48b: Coordination Center drill-down actions
+                    case string s when s.StartsWith("SelectByDisc_"):
+                    {
+                        string disc = s.Substring("SelectByDisc_".Length);
+                        SetExtraParam("DiscFilter", disc);
+                        RunCommand<Select.SelectByDisciplineCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectWarning_"):
+                    {
+                        // Format: SelectWarning_Category_Description
+                        RunCommand<Core.WarningsSelectElementsCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectIssue_"):
+                    {
+                        string issueId = s.Substring("SelectIssue_".Length);
+                        SetExtraParam("IssueId", issueId);
+                        RunCommand<BIMManager.SelectIssueElementsCommand>(app);
+                        break;
+                    }
+
                     // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
                     case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
                     case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;

@@ -487,7 +487,50 @@ namespace StingTools.UI
             actionsWrap.Children.Add(MakeActionButton("Tag New Elements", "TagNewOnly", Br(CAccent)));
             actionsWrap.Children.Add(MakeActionButton("Export COBie", "ExportCOBie", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
             actionsWrap.Children.Add(MakeActionButton("Export Report", "ExportReport", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("Repeat Last Workflow", "RepeatLastWorkflow", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
+            actionsWrap.Children.Add(MakeActionButton("Full Compliance", "FullComplianceDashboard", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            actionsWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
             stack.Children.Add(actionsWrap);
+
+            // Phase 48b: Action Required section — top 3 priority items
+            var actionRequired = new List<(string text, string action, SolidColorBrush color)>();
+            if (_data.StaleCount > 0)
+                actionRequired.Add(($"{_data.StaleCount} stale elements need re-tagging", "RetagStale", Br(CRed)));
+            if (_data.IssuesOverdue > 0)
+                actionRequired.Add(($"{_data.IssuesOverdue} overdue issues need attention", "IssueDashboard", Br(CRed)));
+            if (_data.WarningCritical > 0)
+                actionRequired.Add(($"{_data.WarningCritical} critical warnings need resolution", "AutoFixWarnings", Br(CAmber)));
+            if (_data.Untagged > 50)
+                actionRequired.Add(($"{_data.Untagged} untagged elements", "TagNewOnly", Br(CAmber)));
+            if (_data.PlaceholderCount > 20)
+                actionRequired.Add(($"{_data.PlaceholderCount} elements with placeholder tokens", "ResolveAllIssues", Br(CAmber)));
+            if (_data.WarningSLAViolations > 0)
+                actionRequired.Add(($"{_data.WarningSLAViolations} warnings exceeding SLA", "WarningsDashboard", Br(CRed)));
+
+            if (actionRequired.Count > 0)
+            {
+                stack.Children.Add(MakeSectionHeader("ACTION REQUIRED"));
+                var arCard = new Border
+                {
+                    Background = Br(Color.FromRgb(0xFF, 0xF8, 0xE1)), BorderBrush = Br(CAmber),
+                    BorderThickness = new Thickness(1, 1, 1, 1), CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 12)
+                };
+                var arStack = new StackPanel();
+                foreach (var (text, action, color) in actionRequired.Take(5))
+                {
+                    var arRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    arRow.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = color, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+                    var arText = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
+                    arText.MouseLeftButtonDown += (s, e) => { ResultAction = action; DialogResult = true; Close(); };
+                    arText.MouseEnter += (s, e) => arText.TextDecorations = TextDecorations.Underline;
+                    arText.MouseLeave += (s, e) => arText.TextDecorations = null;
+                    arRow.Children.Add(arText);
+                    arStack.Children.Add(arRow);
+                }
+                arCard.Child = arStack;
+                stack.Children.Add(arCard);
+            }
 
             // Per-discipline compliance table
             if (_data.ByDisc.Count > 0)
@@ -514,12 +557,31 @@ namespace StingTools.UI
                 {
                     discGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                     double pct = kv.Value.CompliancePct;
-                    string rag = pct >= 80 ? "GREEN" : pct >= 50 ? "AMBER" : "RED";
+                    string rag = pct >= _data.RAGGreenThreshold ? "GREEN" : pct >= _data.RAGAmberThreshold ? "AMBER" : "RED";
                     AddCellToGrid(discGrid, kv.Key, row, 0, false, FontWeights.Bold);
                     AddCellToGrid(discGrid, kv.Value.Total.ToString(), row, 1);
                     AddCellToGrid(discGrid, kv.Value.Tagged.ToString(), row, 2);
                     AddCellToGrid(discGrid, $"{pct:F0}%", row, 3, false, FontWeights.Normal, RagBrush(rag));
                     AddCellToGrid(discGrid, rag, row, 4, false, FontWeights.Bold, RagBrush(rag));
+
+                    // Phase 48b: Make entire row clickable — double-click selects discipline elements
+                    int rowIdx = row;
+                    string disc = kv.Key;
+                    for (int c = 0; c < 5; c++)
+                    {
+                        var cell = discGrid.Children.Cast<UIElement>().LastOrDefault(e => Grid.GetRow(e) == rowIdx && Grid.GetColumn(e) == c);
+                        if (cell is TextBlock tb)
+                        {
+                            tb.Cursor = Cursors.Hand;
+                            tb.ToolTip = $"Double-click to select all {disc} elements ({kv.Value.Total} total, {kv.Value.Untagged} untagged)";
+                            tb.MouseLeftButtonDown += (s, e) =>
+                            {
+                                if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{disc}"; DialogResult = true; Close(); }
+                            };
+                            tb.MouseEnter += (s, e) => tb.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
+                            tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : Br(Color.FromRgb(0xF5, 0xF5, 0xF5));
+                        }
+                    }
                     row++;
                 }
                 var discBorder = new Border
@@ -687,6 +749,8 @@ namespace StingTools.UI
             summaryWrap.Children.Add(MakeMetricChip($"Auto-Fixable: {_data.WarningAutoFixable}", Br(CGreen)));
             summaryWrap.Children.Add(MakeMetricChip($"Health: {_data.WarningHealthScore}/100",
                 _data.WarningHealthScore >= 80 ? Br(CGreen) : _data.WarningHealthScore >= 50 ? Br(CAmber) : Br(CRed)));
+            if (_data.WarningSLAViolations > 0)
+                summaryWrap.Children.Add(MakeMetricChip($"SLA Violations: {_data.WarningSLAViolations}", Br(CRed)));
             if (!_data.WarningGatePass)
                 summaryWrap.Children.Add(MakeMetricChip($"GATE: FAIL", Br(CRed)));
             root.Children.Add(summaryWrap);
@@ -703,9 +767,67 @@ namespace StingTools.UI
             actionsWrap.Children.Add(MakeActionButton("Compliance Check", "WarningsCompliance", Br(CHeaderBg)));
             root.Children.Add(actionsWrap);
 
-            // Warning breakdown cards
+            // Phase 48b: Warning TreeView — interactive, double-click to select+zoom
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var contentStack = new StackPanel();
+
+            // TREE VIEW: warnings grouped by Category > Severity > Description
+            stack.Children.Add(MakeSectionHeader("WARNING TREE (double-click to select elements)"));
+            var tree = new TreeView
+            {
+                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                MaxHeight = 300, Margin = new Thickness(0, 0, 0, 12),
+                Background = Br(CCardBg)
+            };
+
+            // Group: Category → Severity → Description
+            var catGroups = _data.WarningByCategory.OrderByDescending(x => x.Value);
+            foreach (var catKv in catGroups)
+            {
+                var catColor = catKv.Key == WarningCategory.Critical || catKv.Key == WarningCategory.Spatial ? CRed :
+                    catKv.Key == WarningCategory.MEP ? CAmber : Color.FromRgb(0x37, 0x47, 0x4F);
+                var catNode = new TreeViewItem
+                {
+                    Header = new StackPanel { Orientation = Orientation.Horizontal, Children =
+                    {
+                        new Ellipse { Width = 10, Height = 10, Fill = Br(catColor), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center },
+                        new TextBlock { Text = $"{catKv.Key} ({catKv.Value})", FontWeight = FontWeights.Bold, FontSize = 12 }
+                    }},
+                    IsExpanded = catKv.Key == WarningCategory.Spatial || catKv.Key == WarningCategory.MEP
+                };
+
+                // Sub-group by severity within category
+                if (_data.WarningTopByCategory.TryGetValue(catKv.Key, out var topDescs))
+                {
+                    foreach (var (desc, count) in topDescs)
+                    {
+                        var descNode = new TreeViewItem
+                        {
+                            Header = new TextBlock { Text = $"({count}) {desc}", FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 },
+                            Tag = $"SelectWarning_{catKv.Key}_{desc}",
+                            Cursor = Cursors.Hand,
+                            ToolTip = "Double-click to select affected elements in model"
+                        };
+                        descNode.MouseDoubleClick += (s, e) =>
+                        {
+                            if (descNode.Tag is string tag)
+                            { ResultAction = tag; DialogResult = true; Close(); }
+                            e.Handled = true;
+                        };
+                        catNode.Items.Add(descNode);
+                    }
+                    if (catKv.Value > topDescs.Sum(t => t.Count))
+                    {
+                        catNode.Items.Add(new TreeViewItem
+                        {
+                            Header = new TextBlock { Text = $"...and {catKv.Value - topDescs.Sum(t => t.Count)} more", FontSize = 10,
+                                Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontStyle = FontStyles.Italic }
+                        });
+                    }
+                }
+                tree.Items.Add(catNode);
+            }
+            contentStack.Children.Add(tree);
 
             // By Category
             if (_data.WarningByCategory.Count > 0)
@@ -787,6 +909,33 @@ namespace StingTools.UI
                 }
                 hotCard.Child = hotStack;
                 contentStack.Children.Add(hotCard);
+            }
+
+            // By Discipline
+            if (_data.WarningByDiscipline.Count > 0)
+            {
+                contentStack.Children.Add(MakeSectionHeader("BY DISCIPLINE"));
+                var discCard = MakeCard();
+                var discStack = new StackPanel();
+                foreach (var kv in _data.WarningByDiscipline.OrderByDescending(x => x.Value))
+                {
+                    var dRow = new Grid();
+                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+                    dRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    dRow.Children.Add(new TextBlock { Text = kv.Key, FontWeight = FontWeights.Bold, FontSize = 12, Margin = new Thickness(0, 2, 0, 2) });
+                    var cntTb = new TextBlock { Text = kv.Value.ToString(), FontSize = 12 };
+                    Grid.SetColumn(cntTb, 1);
+                    dRow.Children.Add(cntTb);
+                    double dBarPct = _data.WarningTotal > 0 ? kv.Value * 100.0 / _data.WarningTotal : 0;
+                    var dBar = new Border { Background = Br(CAccent), Height = 8, CornerRadius = new CornerRadius(4),
+                        Width = Math.Max(4, dBarPct * 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+                    Grid.SetColumn(dBar, 2);
+                    dRow.Children.Add(dBar);
+                    discStack.Children.Add(dRow);
+                }
+                discCard.Child = discStack;
+                contentStack.Children.Add(discCard);
             }
 
             // Regression info
