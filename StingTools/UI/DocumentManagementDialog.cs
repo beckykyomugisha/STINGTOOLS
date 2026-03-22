@@ -2424,7 +2424,7 @@ namespace StingTools.UI
 
         /// <summary>Create a new meeting with team-registry attendee picker, recurring meeting defaults,
         /// distribution group support, and follow-up from previous.</summary>
-        private static void CreateMeeting(Document doc)
+        internal static void CreateMeeting(Document doc)
         {
             var types = new List<string>
             {
@@ -2656,7 +2656,7 @@ namespace StingTools.UI
         }
 
         /// <summary>Auto-generate meeting agenda from open issues, pending transmittals, and recent revisions.</summary>
-        private static void GenerateAutoAgenda(Document doc)
+        internal static void GenerateAutoAgenda(Document doc)
         {
             string bimDir = GetBimManagerDir(doc);
             string meetPath = GetMeetingsPath(doc);
@@ -2810,7 +2810,7 @@ namespace StingTools.UI
             RefreshData();
         }
 
-        private static void ShowMeetingTemplates(Document doc)
+        internal static void ShowMeetingTemplates(Document doc)
         {
             var templates = new List<string>
             {
@@ -2826,7 +2826,7 @@ namespace StingTools.UI
                     "STING Meeting Templates");
         }
 
-        private static void LogMeetingMinutes(Document doc)
+        internal static void LogMeetingMinutes(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
@@ -2872,7 +2872,7 @@ namespace StingTools.UI
             RefreshData();
         }
 
-        private static void AddActionItem(Document doc)
+        internal static void AddActionItem(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
@@ -2966,7 +2966,7 @@ namespace StingTools.UI
             RefreshData();
         }
 
-        private static void ShowMeetingHistory(Document doc)
+        internal static void ShowMeetingHistory(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
@@ -2999,7 +2999,7 @@ namespace StingTools.UI
             panel.Show();
         }
 
-        private static void ShowOpenActions(Document doc)
+        internal static void ShowOpenActions(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
@@ -3038,7 +3038,7 @@ namespace StingTools.UI
             panel.Show();
         }
 
-        private static void ExportMeetingMinutes(Document doc)
+        internal static void ExportMeetingMinutes(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
@@ -3296,7 +3296,7 @@ namespace StingTools.UI
         }
 
         /// <summary>Send a meeting reminder via all notification channels.</summary>
-        private static void SendMeetingReminder(Document doc)
+        internal static void SendMeetingReminder(Document doc)
         {
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }

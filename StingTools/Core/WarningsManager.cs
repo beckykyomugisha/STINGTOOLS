@@ -2318,6 +2318,46 @@ namespace StingTools.Core
                         WarningsEngine.SaveExtendedBaseline(doc);
                         TaskDialog.Show("STING", "Extended warning baseline saved.");
                         return;
+
+                    // ── Meeting Manager actions — call DocumentManagementDialog methods directly ──
+                    case "NewMeeting":
+                        UI.DocumentManagementDialog.CreateMeeting(doc);
+                        return;
+                    case "AddActionItem":
+                        UI.DocumentManagementDialog.AddActionItem(doc);
+                        return;
+                    case "AutoAgenda":
+                        UI.DocumentManagementDialog.GenerateAutoAgenda(doc);
+                        return;
+                    case "LogMinutes":
+                        UI.DocumentManagementDialog.LogMeetingMinutes(doc);
+                        return;
+                    case "MeetingTemplates":
+                        UI.DocumentManagementDialog.ShowMeetingTemplates(doc);
+                        return;
+                    case "MeetingHistory":
+                        UI.DocumentManagementDialog.ShowMeetingHistory(doc);
+                        return;
+                    case "OpenActions":
+                        UI.DocumentManagementDialog.ShowOpenActions(doc);
+                        return;
+                    case "ExportMinutes":
+                        UI.DocumentManagementDialog.ExportMeetingMinutes(doc);
+                        return;
+                    case "SendReminder":
+                        UI.DocumentManagementDialog.SendMeetingReminder(doc);
+                        return;
+
+                    // ── Permission actions — handle inline ──
+                    case "EditUserRole":
+                        EditUserRoleInline(doc);
+                        return;
+                    case "TakeSnapshot":
+                        TakeModelSnapshot(doc);
+                        return;
+                    case "EscalateActions":
+                        EscalateOverdueActions(doc);
+                        return;
                 }
 
                 // Dispatch through command resolution
@@ -2326,6 +2366,329 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"ProcessAction({action}): {ex.Message}");
+            }
+        }
+
+        /// <summary>Edit user role inline — WPF dialog for role selection with CDE permission preview.</summary>
+        private static void EditUserRoleInline(Document doc)
+        {
+            try
+            {
+                var roles = new List<string>
+                {
+                    "A — Architect (Design Lead)",
+                    "M — Mechanical Engineer (MEP Lead)",
+                    "E — Electrical Engineer",
+                    "S — Structural Engineer",
+                    "H — HVAC Engineer",
+                    "P — Plumbing Engineer",
+                    "C — BIM Coordinator",
+                    "I — Information Manager",
+                    "K — Client Representative",
+                    "Q — QA/QC Manager",
+                    "F — Facilities Manager",
+                    "W — Contractor / Main Works",
+                    "L — Landscape Architect",
+                    "Z — Specialist / Sub-contractor"
+                };
+
+                // Load current role from project config
+                string configPath = "";
+                if (!string.IsNullOrEmpty(doc.PathName))
+                    configPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                string currentRole = "C";
+                if (File.Exists(configPath))
+                {
+                    try
+                    {
+                        var cfg = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath));
+                        currentRole = cfg.Value<string>("USER_ROLE") ?? "C";
+                    }
+                    catch { }
+                }
+
+                string currentLabel = roles.FirstOrDefault(r => r.StartsWith(currentRole + " ")) ?? roles[6];
+
+                var win = new System.Windows.Window
+                {
+                    Title = "Edit User Role — ISO 19650 CDE Permissions",
+                    Width = 500, Height = 520,
+                    WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xF5, 0xF5))
+                };
+
+                var stack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+                stack.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = $"Current Role: {currentLabel}",
+                    FontWeight = System.Windows.FontWeights.Bold, FontSize = 13,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8)
+                });
+                stack.Children.Add(new System.Windows.Controls.TextBlock
+                {
+                    Text = "Select your active role. This determines CDE folder write access, approval rights, and notification routing.",
+                    TextWrapping = System.Windows.TextWrapping.Wrap, FontSize = 11,
+                    Foreground = System.Windows.Media.Brushes.Gray,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 12)
+                });
+
+                var listBox = new System.Windows.Controls.ListBox
+                {
+                    Height = 300, FontSize = 12,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 12)
+                };
+                foreach (var r in roles)
+                {
+                    var item = new System.Windows.Controls.ListBoxItem { Content = r, Padding = new System.Windows.Thickness(8, 4, 8, 4) };
+                    if (r == currentLabel) item.IsSelected = true;
+                    listBox.Items.Add(item);
+                }
+                stack.Children.Add(listBox);
+
+                // Permission preview
+                var previewText = new System.Windows.Controls.TextBlock
+                {
+                    Text = GetRolePermissionPreview(currentRole),
+                    FontSize = 10, TextWrapping = System.Windows.TextWrapping.Wrap,
+                    Foreground = System.Windows.Media.Brushes.DarkSlateGray,
+                    Margin = new System.Windows.Thickness(0, 0, 0, 8)
+                };
+                stack.Children.Add(previewText);
+
+                listBox.SelectionChanged += (s, e) =>
+                {
+                    if (listBox.SelectedItem is System.Windows.Controls.ListBoxItem sel)
+                    {
+                        string code = sel.Content.ToString().Substring(0, 1);
+                        previewText.Text = GetRolePermissionPreview(code);
+                    }
+                };
+
+                var saveBtn = new System.Windows.Controls.Button
+                {
+                    Content = "Apply Role", Padding = new System.Windows.Thickness(20, 8, 20, 8),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0x91, 0x2D)),
+                    Foreground = System.Windows.Media.Brushes.White, FontWeight = System.Windows.FontWeights.Bold
+                };
+                saveBtn.Click += (s, e) =>
+                {
+                    if (listBox.SelectedItem is System.Windows.Controls.ListBoxItem sel)
+                    {
+                        string newRole = sel.Content.ToString().Substring(0, 1);
+                        // Save to project_config.json
+                        if (!string.IsNullOrEmpty(configPath))
+                        {
+                            try
+                            {
+                                var cfg = File.Exists(configPath)
+                                    ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath))
+                                    : new Newtonsoft.Json.Linq.JObject();
+                                cfg["USER_ROLE"] = newRole;
+                                cfg["USER_ROLE_CHANGED"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                                File.WriteAllText(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
+                                StingLog.Info($"User role changed to: {newRole}");
+                            }
+                            catch (Exception ex) { StingLog.Warn($"EditUserRole save: {ex.Message}"); }
+                        }
+                        TaskDialog.Show("STING", $"Role updated to: {sel.Content}\n\nCDE permissions will reflect this role for all subsequent operations.");
+                        win.DialogResult = true;
+                        win.Close();
+                    }
+                };
+                stack.Children.Add(saveBtn);
+                win.Content = stack;
+                win.ShowDialog();
+            }
+            catch (Exception ex) { StingLog.Warn($"EditUserRoleInline: {ex.Message}"); }
+        }
+
+        /// <summary>Get CDE permission preview text for a given role code.</summary>
+        private static string GetRolePermissionPreview(string roleCode)
+        {
+            switch (roleCode)
+            {
+                case "A": return "CDE Access: WIP (Read/Write), SHARED (Read/Write), PUBLISHED (Read)\nCan Approve: Design documents, Drawing submissions\nNotifications: Design reviews, Client feedback, Coordination clashes";
+                case "M": return "CDE Access: WIP (Read/Write), SHARED (Read/Write), PUBLISHED (Read)\nCan Approve: MEP coordination, System design\nNotifications: MEP clashes, System changes, Equipment updates";
+                case "E": return "CDE Access: WIP (Read/Write), SHARED (Read/Write), PUBLISHED (Read)\nCan Approve: Electrical design, Panel schedules\nNotifications: Electrical clashes, Circuit changes";
+                case "S": return "CDE Access: WIP (Read/Write), SHARED (Read/Write), PUBLISHED (Read)\nCan Approve: Structural design, Load calculations\nNotifications: Structural clashes, Foundation changes";
+                case "C": return "CDE Access: WIP (Read/Write), SHARED (Read/Write), PUBLISHED (Read/Write), ARCHIVE (Read/Write)\nCan Approve: All document types, CDE state transitions\nNotifications: All activities, SLA violations, Compliance changes";
+                case "I": return "CDE Access: All folders (Full control)\nCan Approve: All documents, CDE transitions, BEP changes\nNotifications: All activities, Security events, Audit trail";
+                case "K": return "CDE Access: SHARED (Read), PUBLISHED (Read/Approve)\nCan Approve: Stage gate deliverables, Final publications\nNotifications: Transmittals, Stage gate reviews, Handover packages";
+                case "F": return "CDE Access: PUBLISHED (Read), HANDOVER (Read/Write), COBIE (Read)\nCan Approve: O&M manuals, COBie data, Handover packages\nNotifications: Handover submissions, Asset data changes";
+                default: return "CDE Access: WIP (Read/Write), SHARED (Read)\nNotifications: Discipline-specific activities";
+            }
+        }
+
+        /// <summary>Take model snapshot — captures compliance, tag, and warning state for meeting record.</summary>
+        private static void TakeModelSnapshot(Document doc)
+        {
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                var result = ComplianceScan.Scan(doc);
+                var warningReport = WarningsEngine.ScanWarnings(doc);
+
+                string docPath = doc.PathName;
+                if (string.IsNullOrEmpty(docPath))
+                {
+                    TaskDialog.Show("STING", "Save the document first to create a snapshot.");
+                    return;
+                }
+
+                string bimDir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
+
+                string snapshotPath = Path.Combine(bimDir, "snapshots.json");
+                var snapshots = File.Exists(snapshotPath)
+                    ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(snapshotPath))
+                    : new Newtonsoft.Json.Linq.JArray();
+
+                var snap = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["id"] = $"SNAP-{snapshots.Count + 1:D4}",
+                    ["timestamp"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    ["user"] = Environment.UserName,
+                    ["tag_compliance_pct"] = result?.CompliancePercent ?? 0,
+                    ["strict_compliance_pct"] = result?.StrictPercent ?? 0,
+                    ["container_complete_pct"] = result?.ContainerCompletePct ?? 0,
+                    ["rag_status"] = result?.RAGStatus ?? "RED",
+                    ["total_elements"] = result?.Total ?? 0,
+                    ["tagged_elements"] = result?.Tagged ?? 0,
+                    ["untagged_elements"] = result?.Untagged ?? 0,
+                    ["stale_elements"] = result?.StaleCount ?? 0,
+                    ["warnings_total"] = warningReport?.TotalWarnings ?? 0,
+                    ["warnings_critical"] = warningReport?.CriticalCount ?? 0,
+                    ["warning_health_score"] = WarningsEngine.CalculateWarningHealthScore(warningReport)
+                };
+
+                // Per-discipline breakdown
+                if (result?.ByDisc != null)
+                {
+                    var discObj = new Newtonsoft.Json.Linq.JObject();
+                    foreach (var kvp in result.ByDisc)
+                        discObj[kvp.Key] = new Newtonsoft.Json.Linq.JObject
+                        {
+                            ["total"] = kvp.Value.Total,
+                            ["tagged"] = kvp.Value.Tagged,
+                            ["pct"] = kvp.Value.CompliancePct
+                        };
+                    snap["by_discipline"] = discObj;
+                }
+
+                snapshots.Add(snap);
+                File.WriteAllText(snapshotPath, snapshots.ToString(Newtonsoft.Json.Formatting.Indented));
+
+                TaskDialog.Show("STING Snapshot",
+                    $"Model snapshot saved: {snap["id"]}\n\n" +
+                    $"Tag Compliance: {snap["tag_compliance_pct"]:F1}% ({snap["rag_status"]})\n" +
+                    $"Container Completeness: {snap["container_complete_pct"]:F1}%\n" +
+                    $"Elements: {snap["tagged_elements"]}/{snap["total_elements"]} tagged, {snap["stale_elements"]} stale\n" +
+                    $"Warnings: {snap["warnings_total"]} total ({snap["warnings_critical"]} critical)\n" +
+                    $"Health Score: {snap["warning_health_score"]}/100\n\n" +
+                    $"Timestamp: {snap["timestamp"]}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TakeModelSnapshot: {ex.Message}");
+                TaskDialog.Show("STING", $"Snapshot failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Escalate overdue meeting actions to ISO 19650 issues.</summary>
+        private static void EscalateOverdueActions(Document doc)
+        {
+            try
+            {
+                string docPath = doc.PathName;
+                if (string.IsNullOrEmpty(docPath)) { TaskDialog.Show("STING", "Save the document first."); return; }
+
+                string meetPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "meetings.json");
+                if (!File.Exists(meetPath)) { TaskDialog.Show("STING", "No meetings found."); return; }
+
+                var meetings = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(meetPath));
+                var overdueActions = new List<(string meetingId, Newtonsoft.Json.Linq.JToken action)>();
+
+                foreach (var mtg in meetings)
+                {
+                    string meetId = mtg["id"]?.ToString() ?? "";
+                    if (mtg["actions"] is Newtonsoft.Json.Linq.JArray actions)
+                    {
+                        foreach (var act in actions)
+                        {
+                            if (act["status"]?.ToString() == "OPEN")
+                            {
+                                string dueStr = act["due_date"]?.ToString() ?? "";
+                                if (DateTime.TryParse(dueStr, out var dueDate) && dueDate < DateTime.Now)
+                                    overdueActions.Add((meetId, act));
+                            }
+                        }
+                    }
+                }
+
+                if (overdueActions.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No overdue action items to escalate.");
+                    return;
+                }
+
+                var td = new TaskDialog("STING — Escalate Overdue Actions");
+                td.MainContent = $"Found {overdueActions.Count} overdue action item(s).\n\n" +
+                    string.Join("\n", overdueActions.Take(10).Select(a =>
+                        $"  • {a.action["description"]} — {a.action["assigned_to"]} (due: {a.action["due_date"]})")) +
+                    (overdueActions.Count > 10 ? $"\n  ... and {overdueActions.Count - 10} more" : "") +
+                    "\n\nEscalate to NCR issues?";
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Escalate All", "Create NCR issues for all overdue actions");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel");
+                var result = td.Show();
+                if (result != TaskDialogResult.CommandLink1) return;
+
+                // Create issues
+                string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                var issues = File.Exists(issuesPath)
+                    ? Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath))
+                    : new Newtonsoft.Json.Linq.JArray();
+
+                int created = 0;
+                foreach (var (meetId, action) in overdueActions)
+                {
+                    int nextId = issues.Count + 1;
+                    var issue = new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["id"] = $"NCR-{nextId:D4}",
+                        ["title"] = $"Overdue Action: {action["description"]}",
+                        ["type"] = "NCR",
+                        ["priority"] = "HIGH",
+                        ["status"] = "OPEN",
+                        ["assignee"] = action["assigned_to"]?.ToString() ?? "",
+                        ["description"] = $"Escalated from meeting {meetId}. Original due date: {action["due_date"]}. " +
+                            $"Action: {action["description"]}",
+                        ["created_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                        ["created_by"] = Environment.UserName,
+                        ["source"] = $"Meeting action escalation from {meetId}",
+                        ["element_ids"] = new Newtonsoft.Json.Linq.JArray()
+                    };
+                    issues.Add(issue);
+
+                    // Mark original action as escalated
+                    action["status"] = "ESCALATED";
+                    action["escalated_to"] = issue["id"]?.ToString();
+                    action["escalated_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    created++;
+                }
+
+                File.WriteAllText(issuesPath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+
+                TaskDialog.Show("STING Escalation",
+                    $"Created {created} NCR issue(s) from overdue actions.\n\n" +
+                    "Original actions marked as ESCALATED with issue cross-reference.");
+                StingLog.Info($"EscalateOverdueActions: created {created} NCR issues from overdue meeting actions");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EscalateOverdueActions: {ex.Message}");
+                TaskDialog.Show("STING", $"Escalation failed: {ex.Message}");
             }
         }
 

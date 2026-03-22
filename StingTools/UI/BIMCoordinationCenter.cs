@@ -640,6 +640,12 @@ namespace StingTools.UI
             actionsWrap.Children.Add(MakeActionButton("Repeat Last Workflow", "RepeatLastWorkflow", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
             actionsWrap.Children.Add(MakeActionButton("Full Compliance", "FullComplianceDashboard", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
             actionsWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actionsWrap.Children.Add(MakeActionButton("New Meeting", "NewMeeting", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "Create a new coordination meeting: BIM Coordination, Design Review, Client Review, Handover, or Clash Resolution"));
+            actionsWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Capture model compliance state for meeting record — saves tag %, warnings, stale count to snapshots.json"));
+            actionsWrap.Children.Add(MakeActionButton("Validate Tags", "ValidateTags", Br(CGreen),
+                "Run ISO 19650 tag validation — checks all tokens, cross-validates DISC/SYS, reports 4-bucket compliance"));
             stack.Children.Add(actionsWrap);
 
             // Phase 48b: Action Required section — top 3 priority items
@@ -2763,6 +2769,27 @@ namespace StingTools.UI
                 "AddDocument" => "Register new deliverable in document register",
                 "DocumentRegister" => "View/manage document register entries",
                 "StageComplianceGate" => "RIBA stage-gated compliance check with data drop requirements",
+                // Meeting Manager
+                "NewMeeting" => "Create new meeting: BIM Coordination, Design Review, Client Review, Handover, Clash Resolution. Auto-populates attendees from team registry and carries forward open actions from previous meetings.",
+                "AddActionItem" => "Create action item with description, assignee (from team registry), due date, and priority. Links to active meeting with unique ACT-NNNN ID.",
+                "AutoAgenda" => "Auto-generate meeting agenda from: open issues (grouped by type/priority), pending transmittals, recent revisions, compliance status, outstanding action items.",
+                "LogMinutes" => "Record timestamped meeting minutes with topic/discussion/action format. Saved alongside meeting record in meetings.json.",
+                "MeetingTemplates" => "Browse 5 meeting templates: BIM Coordination (weekly), Design Team (fortnightly), Client Progress (monthly), Stage Gate (RIBA), Ad-hoc (on-demand).",
+                "MeetingHistory" => "View all past meetings with minutes, action items, outcomes, and attendee lists. Drill down per meeting.",
+                "OpenActions" => "View all outstanding action items grouped by: overdue first, then by assignee and due date. Options to mark complete, reassign, or escalate.",
+                "ExportMinutes" => "Export meeting minutes to timestamped text file for distribution via email or CDE.",
+                "SendReminder" => "Generate email reminder text for outstanding action items with overdue highlighting.",
+                "TakeSnapshot" => "Capture model compliance snapshot: tag %, container %, warnings, stale count, per-discipline breakdown. Saved to snapshots.json for trend tracking.",
+                "EscalateActions" => "Auto-create NCR issues from overdue meeting actions. Original actions marked ESCALATED with cross-reference to new issue ID.",
+                // Permissions
+                "EditUserRole" => "Change your active ISO 19650 role (A/M/E/S/C/I/K/F/etc.). Determines CDE folder access, approval rights, and notification routing.",
+                "SavePermissions" => "Save permission matrix to project_config.json for team-wide consistency.",
+                "CreateFolders" => "Create ISO 19650 CDE folder structure (WIP/SHARED/PUBLISHED/ARCHIVE + discipline sub-folders).",
+                "ExportPermissionMatrix" => "Export role-based permission matrix to CSV for auditing and BEP compliance.",
+                // Workflow
+                "ExportReport" => "Export current model health and compliance report to CSV or HTML",
+                "SelectAllTaggable" => "Select all taggable elements in the active view for batch operations",
+                "CombineParameters" => "Write tag values to all 53 discipline-specific container parameters",
                 _ => null
             };
         }
@@ -3055,7 +3082,38 @@ namespace StingTools.UI
                 rGrid.Children.Add(statusChip);
 
                 row.Child = rGrid;
-                row.ToolTip = $"Meeting: {mtg.Title}\nType: {mtg.Type}\nDate: {mtg.Date}\nStatus: {mtg.Status}\nAttendees: {mtg.Attendees}";
+                row.Cursor = Cursors.Hand;
+                row.ToolTip = new ToolTip
+                {
+                    Content = new TextBlock
+                    {
+                        Text = $"Meeting: {mtg.Title}\nType: {mtg.Type}\nDate: {mtg.Date}\nStatus: {mtg.Status}\nAttendees: {mtg.Attendees}\n\n" +
+                               "Click: View meeting history\nRight-click: Log minutes / Add action",
+                        MaxWidth = 350, TextWrapping = TextWrapping.Wrap, FontSize = 12
+                    },
+                    Background = Br(Color.FromRgb(0x2D, 0x2D, 0x30)),
+                    Foreground = Brushes.White, Padding = new Thickness(10, 6, 10, 6)
+                };
+                // Hover
+                row.MouseEnter += (s, e) => { row.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD)); };
+                row.MouseLeave += (s, e) => { row.Background = Brushes.Transparent; };
+                // Click → meeting history
+                row.MouseLeftButtonDown += (s, e) => { ResultAction = "MeetingHistory"; DialogResult = true; Close(); };
+                // Context menu
+                var mtgCtx = new ContextMenu();
+                var logMin = new MenuItem { Header = "Log Minutes" };
+                logMin.Click += (s, e) => { ResultAction = "LogMinutes"; DialogResult = true; Close(); };
+                mtgCtx.Items.Add(logMin);
+                var addAct = new MenuItem { Header = "Add Action Item" };
+                addAct.Click += (s, e) => { ResultAction = "AddActionItem"; DialogResult = true; Close(); };
+                mtgCtx.Items.Add(addAct);
+                var expMin = new MenuItem { Header = "Export Minutes" };
+                expMin.Click += (s, e) => { ResultAction = "ExportMinutes"; DialogResult = true; Close(); };
+                mtgCtx.Items.Add(expMin);
+                var sendRem = new MenuItem { Header = "Send Reminder" };
+                sendRem.Click += (s, e) => { ResultAction = "SendReminder"; DialogResult = true; Close(); };
+                mtgCtx.Items.Add(sendRem);
+                row.ContextMenu = mtgCtx;
                 ucStack.Children.Add(row);
             }
             upcomingCard.Child = ucStack;
@@ -3114,18 +3172,136 @@ namespace StingTools.UI
                 actChips.Children.Add(MakeMetricChip($"Overdue: {overdueActions}", Br(CRed)));
             actStack.Children.Add(actChips);
 
-            // Show top 5 overdue/open actions
-            foreach (var act in actions.Where(a => a.Status == "OPEN").OrderByDescending(a => a.IsOverdue).Take(5))
+            // Show top 8 overdue/open actions — interactive with hover highlight and context menu
+            foreach (var act in actions.Where(a => a.Status == "OPEN").OrderByDescending(a => a.IsOverdue).Take(8))
             {
-                var actRow = new TextBlock
+                var actBorder = new Border
                 {
-                    Text = $"  {(act.IsOverdue ? "⚠" : "•")}  {act.Description}  —  {act.Assignee}  (due: {act.DueDate})",
-                    FontSize = 11, Margin = new Thickness(0, 2, 0, 2),
+                    Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 1, 0, 1),
+                    CornerRadius = new CornerRadius(3), Cursor = Cursors.Hand,
+                    Background = act.IsOverdue
+                        ? Br(Color.FromRgb(0xFF, 0xEB, 0xEE))
+                        : Brushes.Transparent,
+                    BorderBrush = act.IsOverdue ? Br(Color.FromRgb(0xFF, 0xCD, 0xD2)) : Brushes.Transparent,
+                    BorderThickness = new Thickness(act.IsOverdue ? 1 : 0)
+                };
+
+                var actGrid = new Grid();
+                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                actGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+
+                var descText = new TextBlock
+                {
+                    Text = $"{(act.IsOverdue ? "⚠ " : "• ")}{act.Description}",
+                    FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis,
                     Foreground = act.IsOverdue ? Br(CRed) : Brushes.Black,
                     FontWeight = act.IsOverdue ? FontWeights.SemiBold : FontWeights.Normal,
-                    ToolTip = $"Action: {act.Description}\nAssignee: {act.Assignee}\nDue: {act.DueDate}\nStatus: {act.Status}{(act.IsOverdue ? "\n⚠ OVERDUE" : "")}"
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                actStack.Children.Add(actRow);
+                actGrid.Children.Add(descText);
+
+                var assignText = new TextBlock
+                {
+                    Text = act.Assignee, FontSize = 10,
+                    Foreground = Br(Color.FromRgb(0x60, 0x60, 0x60)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                Grid.SetColumn(assignText, 1);
+                actGrid.Children.Add(assignText);
+
+                var dueText = new TextBlock
+                {
+                    Text = act.DueDate, FontSize = 10,
+                    Foreground = act.IsOverdue ? Br(CRed) : Br(Color.FromRgb(0x60, 0x60, 0x60)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                Grid.SetColumn(dueText, 2);
+                actGrid.Children.Add(dueText);
+
+                actBorder.Child = actGrid;
+
+                // Rich tooltip with full details
+                actBorder.ToolTip = new ToolTip
+                {
+                    Content = new TextBlock
+                    {
+                        Text = $"Action: {act.Description}\n" +
+                               $"Assignee: {act.Assignee}\n" +
+                               $"Due: {act.DueDate}\n" +
+                               $"Status: {act.Status}\n" +
+                               (act.IsOverdue ? "⚠ OVERDUE — right-click to escalate to NCR issue\n" : "") +
+                               "\nLeft-click: Open action details\nRight-click: Options menu",
+                        FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                        MaxWidth = 350, TextWrapping = TextWrapping.Wrap
+                    },
+                    Background = Br(Color.FromRgb(0x2D, 0x2D, 0x30)),
+                    Foreground = Brushes.White, Padding = new Thickness(10, 6, 10, 6)
+                };
+
+                // Hover effect
+                var origBg = actBorder.Background;
+                actBorder.MouseEnter += (s, e) =>
+                {
+                    actBorder.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
+                    actBorder.BorderBrush = Br(CAccent);
+                    actBorder.BorderThickness = new Thickness(1);
+                };
+                actBorder.MouseLeave += (s, e) =>
+                {
+                    actBorder.Background = origBg;
+                    actBorder.BorderBrush = act.IsOverdue ? Br(Color.FromRgb(0xFF, 0xCD, 0xD2)) : Brushes.Transparent;
+                    actBorder.BorderThickness = new Thickness(act.IsOverdue ? 1 : 0);
+                };
+
+                // Click to view open actions
+                actBorder.MouseLeftButtonDown += (s, e) =>
+                {
+                    ResultAction = "OpenActions"; DialogResult = true; Close();
+                };
+
+                // Context menu
+                var ctxMenu = new ContextMenu();
+                var markDone = new MenuItem { Header = "Mark as Completed" };
+                markDone.Click += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                ctxMenu.Items.Add(markDone);
+
+                if (act.IsOverdue)
+                {
+                    var escalate = new MenuItem { Header = "Escalate to NCR Issue", Foreground = Br(CRed) };
+                    escalate.Click += (s, e) => { ResultAction = "EscalateActions"; DialogResult = true; Close(); };
+                    ctxMenu.Items.Add(escalate);
+                }
+
+                var reassign = new MenuItem { Header = "Reassign..." };
+                reassign.Click += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                ctxMenu.Items.Add(reassign);
+
+                var addNote = new MenuItem { Header = "Add to Meeting Agenda" };
+                addNote.Click += (s, e) => { ResultAction = "AutoAgenda"; DialogResult = true; Close(); };
+                ctxMenu.Items.Add(addNote);
+
+                actBorder.ContextMenu = ctxMenu;
+                actStack.Children.Add(actBorder);
+            }
+
+            // Show count of remaining actions not displayed
+            int remaining = actions.Count(a => a.Status == "OPEN") - 8;
+            if (remaining > 0)
+            {
+                var moreText = new TextBlock
+                {
+                    Text = $"  + {remaining} more open action(s) — click 'Open Actions' to view all",
+                    FontSize = 10, FontStyle = FontStyles.Italic,
+                    Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
+                    Margin = new Thickness(0, 4, 0, 0), Cursor = Cursors.Hand
+                };
+                moreText.MouseLeftButtonDown += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                moreText.MouseEnter += (s, e) => moreText.TextDecorations = TextDecorations.Underline;
+                moreText.MouseLeave += (s, e) => moreText.TextDecorations = null;
+                actStack.Children.Add(moreText);
             }
 
             actionsCard.Child = actStack;
