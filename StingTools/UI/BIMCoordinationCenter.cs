@@ -184,6 +184,21 @@ namespace StingTools.UI
             public int WarningsLinkedToIssues;
             public int StaleLinkedToWarnings;
             public int UnresolvedDependencies;
+
+            // Permission & Access Control
+            public string CurrentUserRole = "BIM Manager";
+            public string CurrentUserName = "";
+            public List<FolderPermission> FolderPermissions = new();
+            public List<RoleDefinition> Roles = new();
+
+            // Compliance forecasting
+            public double ForecastedCompliancePct;
+            public string ForecastLabel = "";
+
+            // SLA violations detail
+            public int SLACriticalViolations;
+            public int SLAHighViolations;
+            public double AvgCriticalAgeHours;
         }
 
         /// <summary>Phase 48: Issue data row for DataGrid display.</summary>
@@ -247,6 +262,30 @@ namespace StingTools.UI
             public int CompletedTasks { get; set; }
             public double CompliancePct { get; set; }
             public string LastActivity { get; set; }
+        }
+
+        /// <summary>ISO 19650 folder permission definition.</summary>
+        internal class FolderPermission
+        {
+            public string Folder { get; set; }         // e.g., "01_WIP", "02_SHARED"
+            public string CDEState { get; set; }        // WIP/SHARED/PUBLISHED/ARCHIVE
+            public string ReadRoles { get; set; }       // Comma-separated role codes: "A,M,E,S"
+            public string WriteRoles { get; set; }      // Comma-separated role codes: "A"
+            public string ApproveRoles { get; set; }    // Comma-separated: "K,A" (Client, Architect)
+            public bool IsLocked { get; set; }          // True if folder is locked for edits
+            public string Description { get; set; }
+        }
+
+        /// <summary>ISO 19650 team role definition.</summary>
+        internal class RoleDefinition
+        {
+            public string Code { get; set; }            // A, M, E, S, etc.
+            public string Name { get; set; }            // "Architect", "Mechanical Engineer"
+            public string Discipline { get; set; }      // "Architecture", "Mechanical"
+            public string CDEAccess { get; set; }       // "WIP,SHARED" — CDE states this role can write to
+            public string CanApprove { get; set; }      // "true"/"false" — can approve transitions
+            public string CanIssue { get; set; }        // "true"/"false" — can issue transmittals
+            public string Members { get; set; }         // Comma-separated team member names
         }
 
         /// <summary>Workflow execution history row.</summary>
@@ -433,7 +472,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "MEETINGS", "COORD LOG", "TEAM" };
+            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "MEETINGS", "PERMISSIONS", "COORD LOG", "TEAM" };
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
@@ -445,6 +484,7 @@ namespace StingTools.UI
                 _data.ScheduledTasks > 0 ? _data.ScheduledTasks.ToString() : "",
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
+                _data.Roles.Count > 0 ? _data.Roles.Count.ToString() : "", // PERMISSIONS
                 _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
                 _data.TeamMembers.Count > 0 ? _data.TeamMembers.Count.ToString() : ""
             };
@@ -544,6 +584,7 @@ namespace StingTools.UI
                 case "4D/5D":         _contentArea.Content = Build4D5DTab(); break;
                 case "DELIVERABLES":  _contentArea.Content = BuildDeliverablesTab(); break;
                 case "MEETINGS":      _contentArea.Content = BuildMeetingsTab(); break;
+                case "PERMISSIONS":   _contentArea.Content = BuildPermissionsTab(); break;
                 case "COORD LOG":     _contentArea.Content = BuildCoordLogTab(); break;
                 case "TEAM":          _contentArea.Content = BuildTeamTab(); break;
             }
@@ -840,6 +881,54 @@ namespace StingTools.UI
                     corrStack.Children.Add(new TextBlock { Text = $"  {_data.UnresolvedDependencies} unresolved cross-discipline dependencies", FontSize = 12, Foreground = Br(CAmber) });
                 corrCard.Child = corrStack;
                 stack.Children.Add(corrCard);
+            }
+
+            // SLA violations alert
+            if (_data.SLACriticalViolations > 0 || _data.SLAHighViolations > 0)
+            {
+                stack.Children.Add(MakeSectionHeader("SLA VIOLATIONS"));
+                var slaCard = MakeCard();
+                var slaStack = new StackPanel();
+                if (_data.SLACriticalViolations > 0)
+                    slaStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\u2718 {_data.SLACriticalViolations} CRITICAL issue(s) exceeded 4-hour SLA",
+                        FontSize = 12, Foreground = Br(CRed), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 2, 0, 2)
+                    });
+                if (_data.SLAHighViolations > 0)
+                    slaStack.Children.Add(new TextBlock
+                    {
+                        Text = $"\u26A0 {_data.SLAHighViolations} HIGH issue(s) exceeded 24-hour SLA",
+                        FontSize = 12, Foreground = Br(CAmber), Margin = new Thickness(0, 2, 0, 2)
+                    });
+                if (_data.AvgCriticalAgeHours > 0)
+                    slaStack.Children.Add(new TextBlock
+                    {
+                        Text = $"Average critical issue age: {_data.AvgCriticalAgeHours:F0} hours",
+                        FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 2)
+                    });
+                slaCard.Child = slaStack;
+                stack.Children.Add(slaCard);
+            }
+
+            // Compliance forecast
+            if (_data.ForecastedCompliancePct > 0 && !string.IsNullOrEmpty(_data.ForecastLabel))
+            {
+                stack.Children.Add(MakeSectionHeader("COMPLIANCE FORECAST"));
+                var forecastCard = MakeCard();
+                var forecastStack = new StackPanel();
+                forecastStack.Children.Add(new TextBlock
+                {
+                    Text = $"Projected compliance: {_data.ForecastedCompliancePct:F0}%",
+                    FontSize = 14, FontWeight = FontWeights.Bold,
+                    Foreground = RagBrush(_data.ForecastedCompliancePct >= 80 ? "GREEN" : _data.ForecastedCompliancePct >= 50 ? "AMBER" : "RED")
+                });
+                forecastStack.Children.Add(new TextBlock
+                {
+                    Text = _data.ForecastLabel, FontSize = 11, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+                });
+                forecastCard.Child = forecastStack;
+                stack.Children.Add(forecastCard);
             }
 
             scroll.Content = stack;
@@ -2668,6 +2757,243 @@ namespace StingTools.UI
                 "DocumentRegister" => "View/manage document register entries",
                 "StageComplianceGate" => "RIBA stage-gated compliance check with data drop requirements",
                 _ => null
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  PERMISSIONS & ACCESS CONTROL TAB
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildPermissionsTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // ── Current User ──
+            stack.Children.Add(MakeSectionHeader("CURRENT USER"));
+            var userCard = MakeCard();
+            var userGrid = new Grid();
+            userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var userInfo = new StackPanel();
+            userInfo.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(_data.CurrentUserName) ? Environment.UserName : _data.CurrentUserName,
+                FontSize = 16, FontWeight = FontWeights.Bold
+            });
+            userInfo.Children.Add(new TextBlock
+            {
+                Text = $"Role: {_data.CurrentUserRole}  |  CDE Access: WIP, SHARED",
+                FontSize = 12, Foreground = Brushes.Gray
+            });
+            userInfo.Children.Add(new TextBlock
+            {
+                Text = "Can approve: Yes  |  Can issue transmittals: Yes  |  Can modify published: No",
+                FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0)
+            });
+            userGrid.Children.Add(userInfo);
+            var editRoleBtn = MakeActionButton("Change Role", "EditUserRole", Br(CAccent),
+                "Change your active role for CDE permission evaluation");
+            editRoleBtn.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(editRoleBtn, 1);
+            userGrid.Children.Add(editRoleBtn);
+            userCard.Child = userGrid;
+            stack.Children.Add(userCard);
+
+            // ── ISO 19650 Role Definitions ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("ISO 19650 ROLE DEFINITIONS"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Roles define CDE folder access, approval rights, and document naming originator codes per ISO 19650-2.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            // Role definition table
+            var roleCard = MakeCard();
+            var roleStack = new StackPanel();
+
+            // Header
+            var roleHdr = new Grid();
+            var roleColWidths = new[] { 40.0, 140, 100, 130, 70, 70 };
+            foreach (double w in roleColWidths) roleHdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+            string[] roleHeaders = { "Code", "Role", "Discipline", "CDE Write Access", "Approve", "Issue" };
+            for (int c = 0; c < roleHeaders.Length; c++)
+            {
+                var tb = new TextBlock
+                {
+                    Text = roleHeaders[c], FontWeight = FontWeights.Bold, FontSize = 10,
+                    Padding = new Thickness(4, 3, 4, 3), Background = Br(Color.FromRgb(0xE8, 0xEA, 0xED))
+                };
+                Grid.SetColumn(tb, c);
+                roleHdr.Children.Add(tb);
+            }
+            roleStack.Children.Add(roleHdr);
+
+            // Default ISO 19650 roles
+            var defaultRoles = _data.Roles.Count > 0 ? _data.Roles : GetDefaultRoles();
+            foreach (var role in defaultRoles)
+            {
+                var rRow = new Grid { ToolTip = $"Role {role.Code}: {role.Name}\nDiscipline: {role.Discipline}\nCDE Access: {role.CDEAccess}\nCan Approve: {role.CanApprove}\nCan Issue: {role.CanIssue}\nMembers: {role.Members}" };
+                foreach (double w in roleColWidths) rRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                string[] vals = { role.Code, role.Name, role.Discipline, role.CDEAccess, role.CanApprove, role.CanIssue };
+                for (int c = 0; c < vals.Length; c++)
+                {
+                    var tb = new TextBlock
+                    {
+                        Text = vals[c], FontSize = 10, Padding = new Thickness(4, 2, 4, 2),
+                        Foreground = (c == 4 || c == 5) && vals[c] == "Yes" ? Br(CGreen) :
+                                     (c == 4 || c == 5) && vals[c] == "No" ? Brushes.Gray : Brushes.Black
+                    };
+                    Grid.SetColumn(tb, c);
+                    rRow.Children.Add(tb);
+                }
+                roleStack.Children.Add(rRow);
+            }
+            roleCard.Child = roleStack;
+            stack.Children.Add(roleCard);
+
+            // ── CDE Folder Permissions ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("CDE FOLDER PERMISSIONS"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "ISO 19650 CDE folder access matrix — controls who can read, write, and approve documents in each CDE state folder.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            var folderCard = MakeCard();
+            var folderStack = new StackPanel();
+            var defaultFolders = _data.FolderPermissions.Count > 0 ? _data.FolderPermissions : GetDefaultFolderPermissions();
+            foreach (var fp in defaultFolders)
+            {
+                var fpBorder = new Border
+                {
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(0, 0, 0, 1),
+                    Padding = new Thickness(8, 6, 8, 6),
+                    ToolTip = $"Folder: {fp.Folder}\nCDE State: {fp.CDEState}\nRead: {fp.ReadRoles}\nWrite: {fp.WriteRoles}\nApprove: {fp.ApproveRoles}\n{fp.Description}"
+                };
+                var fpGrid = new Grid();
+                fpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                fpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+                fpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                fpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var folderName = new TextBlock { Text = fp.Folder, FontWeight = FontWeights.SemiBold, FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+                fpGrid.Children.Add(folderName);
+
+                var cdeChip = MakeMetricChip(fp.CDEState,
+                    fp.CDEState == "WIP" ? Br(CAmber) :
+                    fp.CDEState == "SHARED" ? Br(Color.FromRgb(0x15, 0x65, 0xC0)) :
+                    fp.CDEState == "PUBLISHED" ? Br(CGreen) : Br(Color.FromRgb(0x45, 0x50, 0x6E)));
+                Grid.SetColumn(cdeChip, 1);
+                fpGrid.Children.Add(cdeChip);
+
+                var accessText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                accessText.Children.Add(new TextBlock { Text = $"Read: {fp.ReadRoles}", FontSize = 10, Foreground = Brushes.Gray });
+                accessText.Children.Add(new TextBlock { Text = $"Write: {fp.WriteRoles}", FontSize = 10, Foreground = Br(CHeaderBg) });
+                if (!string.IsNullOrEmpty(fp.ApproveRoles))
+                    accessText.Children.Add(new TextBlock { Text = $"Approve: {fp.ApproveRoles}", FontSize = 10, Foreground = Br(CGreen) });
+                Grid.SetColumn(accessText, 2);
+                fpGrid.Children.Add(accessText);
+
+                if (fp.IsLocked)
+                {
+                    var lockIcon = new TextBlock { Text = "\uD83D\uDD12", FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Folder locked — no modifications allowed" };
+                    Grid.SetColumn(lockIcon, 3);
+                    fpGrid.Children.Add(lockIcon);
+                }
+
+                fpBorder.Child = fpGrid;
+                folderStack.Children.Add(fpBorder);
+            }
+            folderCard.Child = folderStack;
+            stack.Children.Add(folderCard);
+
+            // ── CDE State Transition Rules ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("CDE STATE TRANSITION RULES"));
+            var transCard = MakeCard();
+            var transStack = new StackPanel();
+            var transitions = new[]
+            {
+                ("WIP", "SHARED", "Share for coordination/review — requires originator approval", "A,M,E,S,H,P"),
+                ("SHARED", "PUBLISHED", "Publish for approved use — requires client/lead approval", "K,A"),
+                ("SHARED", "WIP", "Return to WIP for rework — originator-initiated", "A,M,E,S,H,P"),
+                ("PUBLISHED", "ARCHIVE", "Archive after supersession — requires BIM Manager", "K,A"),
+                ("PUBLISHED", "SUPERSEDED", "Replaced by newer revision", "K,A"),
+                ("Any", "WITHDRAWN", "Remove from CDE — requires BIM Manager approval", "K,A"),
+                ("ARCHIVE", "OBSOLETE", "Terminal state — retained for audit trail only", "K"),
+            };
+            foreach (var (from, to, desc, approvers) in transitions)
+            {
+                var tRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                tRow.Children.Add(MakeMetricChip(from, Br(CAmber)));
+                tRow.Children.Add(new TextBlock { Text = " → ", FontSize = 14, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) });
+                tRow.Children.Add(MakeMetricChip(to, Br(CGreen)));
+                tRow.Children.Add(new TextBlock { Text = $"  {desc}", FontSize = 10, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), TextWrapping = TextWrapping.Wrap });
+                tRow.ToolTip = $"{from} → {to}\n{desc}\nApprovers: {approvers}";
+                transStack.Children.Add(tRow);
+            }
+            transCard.Child = transStack;
+            stack.Children.Add(transCard);
+
+            // ── Actions ──
+            stack.Children.Add(new Border { Height = 12 });
+            var actionsWrap = new WrapPanel();
+            actionsWrap.Children.Add(MakeActionButton("Save Permissions", "SavePermissions", Br(CHeaderBg),
+                "Save folder permissions and role definitions to project_config.json"));
+            actionsWrap.Children.Add(MakeActionButton("Set CDE Status", "CDEStatus", Br(CGreen),
+                "Transition document CDE status with role-based approval checking"));
+            actionsWrap.Children.Add(MakeActionButton("Validate Naming", "ValidateDocNaming", Br(CAccent),
+                "Check all files against ISO 19650 naming with originator role validation"));
+            actionsWrap.Children.Add(MakeActionButton("Create Folders", "CreateFolders", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Create ISO 19650 project folder structure with permission metadata"));
+            actionsWrap.Children.Add(MakeActionButton("Export Matrix", "ExportPermissionMatrix", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export permission matrix to CSV for BIM coordination plan"));
+            stack.Children.Add(actionsWrap);
+
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        private static List<RoleDefinition> GetDefaultRoles()
+        {
+            return new List<RoleDefinition>
+            {
+                new() { Code = "A", Name = "Architect", Discipline = "Architecture", CDEAccess = "WIP,SHARED", CanApprove = "Yes", CanIssue = "Yes", Members = "" },
+                new() { Code = "M", Name = "Mechanical Engineer", Discipline = "Mechanical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "E", Name = "Electrical Engineer", Discipline = "Electrical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "S", Name = "Structural Engineer", Discipline = "Structural", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "H", Name = "HVAC Engineer", Discipline = "Mechanical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "P", Name = "Public Health Engineer", Discipline = "Plumbing", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "C", Name = "Civil Engineer", Discipline = "Civil", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "I", Name = "Interior Designer", Discipline = "Architecture", CDEAccess = "WIP", CanApprove = "No", CanIssue = "No", Members = "" },
+                new() { Code = "K", Name = "Client / Employer", Discipline = "—", CDEAccess = "SHARED,PUBLISHED", CanApprove = "Yes", CanIssue = "No", Members = "" },
+                new() { Code = "Q", Name = "Quantity Surveyor", Discipline = "Cost", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "F", Name = "Facilities Manager", Discipline = "FM", CDEAccess = "PUBLISHED,ARCHIVE", CanApprove = "Yes", CanIssue = "No", Members = "" },
+                new() { Code = "W", Name = "Contractor", Discipline = "Construction", CDEAccess = "SHARED", CanApprove = "No", CanIssue = "No", Members = "" },
+                new() { Code = "L", Name = "Landscape Architect", Discipline = "Landscape", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
+                new() { Code = "Z", Name = "General / Non-disciplinary", Discipline = "—", CDEAccess = "WIP", CanApprove = "No", CanIssue = "No", Members = "" },
+            };
+        }
+
+        private static List<FolderPermission> GetDefaultFolderPermissions()
+        {
+            return new List<FolderPermission>
+            {
+                new() { Folder = "01_WIP", CDEState = "WIP", ReadRoles = "All team", WriteRoles = "A,M,E,S,H,P,C,I,Q,L", ApproveRoles = "", IsLocked = false, Description = "Work in progress — originator's active workspace" },
+                new() { Folder = "02_SHARED", CDEState = "SHARED", ReadRoles = "All team", WriteRoles = "A,M,E,S (originators)", ApproveRoles = "A,K", IsLocked = false, Description = "Shared for coordination — approved by originator for team review" },
+                new() { Folder = "03_PUBLISHED", CDEState = "PUBLISHED", ReadRoles = "All team + Client", WriteRoles = "BIM Manager only", ApproveRoles = "K,A", IsLocked = true, Description = "Published — approved deliverables, locked for modification" },
+                new() { Folder = "04_ARCHIVE", CDEState = "ARCHIVE", ReadRoles = "All team", WriteRoles = "None", ApproveRoles = "K", IsLocked = true, Description = "Archive — superseded documents retained for audit trail" },
+                new() { Folder = "05_MODELS", CDEState = "WIP", ReadRoles = "All team", WriteRoles = "A,M,E,S,H,P,C", ApproveRoles = "", IsLocked = false, Description = "Revit models (.rvt), IFC exports, Navisworks coordination" },
+                new() { Folder = "06_DRAWINGS", CDEState = "SHARED", ReadRoles = "All team + Client", WriteRoles = "A,M,E,S", ApproveRoles = "A", IsLocked = false, Description = "Drawing sheets (PDF, DWG), plotted layouts" },
+                new() { Folder = "07_SCHEDULES", CDEState = "SHARED", ReadRoles = "All team", WriteRoles = "A,M,E,S,Q", ApproveRoles = "", IsLocked = false, Description = "Equipment schedules, door/window schedules, BOQ" },
+                new() { Folder = "08_COBIE", CDEState = "PUBLISHED", ReadRoles = "All team + FM", WriteRoles = "BIM Manager", ApproveRoles = "K,F", IsLocked = true, Description = "COBie V2.4 FM handover data — locked after approval" },
+                new() { Folder = "09_BEP", CDEState = "PUBLISHED", ReadRoles = "All team + Client", WriteRoles = "BIM Manager", ApproveRoles = "K", IsLocked = true, Description = "BIM Execution Plan — ISO 19650-2 §5.3 pre-contract document" },
+                new() { Folder = "10_ISSUES", CDEState = "SHARED", ReadRoles = "All team", WriteRoles = "All team", ApproveRoles = "", IsLocked = false, Description = "RFI, clash, NCR, snagging issues and BCF files" },
+                new() { Folder = "11_CLASHES", CDEState = "SHARED", ReadRoles = "All team", WriteRoles = "Coordinator", ApproveRoles = "", IsLocked = false, Description = "Clash detection reports and coordination records" },
+                new() { Folder = "12_HANDOVER", CDEState = "PUBLISHED", ReadRoles = "All team + FM + Client", WriteRoles = "BIM Manager", ApproveRoles = "K,F", IsLocked = true, Description = "FM handover package — O&M, asset register, maintenance schedules" },
             };
         }
 

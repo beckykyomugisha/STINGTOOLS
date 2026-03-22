@@ -2164,6 +2164,50 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"Cross-system correlation: {ex.Message}"); }
 
+                // SLA violation detail
+                try
+                {
+                    int slaCritical = 0, slaHigh = 0;
+                    double critAgeTotal = 0; int critCount = 0;
+                    foreach (var issue in issueRows)
+                    {
+                        if (!issue.IsOverdue) continue;
+                        if (issue.Priority == "CRITICAL") { slaCritical++; }
+                        else if (issue.Priority == "HIGH") { slaHigh++; }
+                        if (issue.Priority == "CRITICAL" && DateTime.TryParse(issue.Created, out DateTime cd))
+                        { critAgeTotal += (DateTime.Now - cd).TotalHours; critCount++; }
+                    }
+                    coordData.SLACriticalViolations = slaCritical;
+                    coordData.SLAHighViolations = slaHigh;
+                    coordData.AvgCriticalAgeHours = critCount > 0 ? critAgeTotal / critCount : 0;
+                }
+                catch (Exception ex) { StingLog.Warn($"SLA violations: {ex.Message}"); }
+
+                // Compliance forecast from trend data
+                try
+                {
+                    if (coordData.ComplianceTrend.Count >= 3)
+                    {
+                        var recent = coordData.ComplianceTrend.TakeLast(5).ToList();
+                        double avgDelta = 0;
+                        for (int i = 1; i < recent.Count; i++)
+                            avgDelta += recent[i].Pct - recent[i - 1].Pct;
+                        avgDelta /= Math.Max(1, recent.Count - 1);
+                        double forecast = Math.Min(100, Math.Max(0, tagPct + avgDelta * 3));
+                        coordData.ForecastedCompliancePct = forecast;
+                        coordData.ForecastLabel = avgDelta > 0.5
+                            ? $"Trending up — projected {forecast:F0}% in 3 workflow cycles (avg +{avgDelta:F1}% per cycle)"
+                            : avgDelta < -0.5
+                                ? $"Trending down — projected {forecast:F0}% in 3 cycles (avg {avgDelta:F1}% per cycle). Action required."
+                                : $"Stable at {tagPct:F0}% — no significant trend detected";
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Compliance forecast: {ex.Message}"); }
+
+                // Current user info
+                coordData.CurrentUserName = Environment.UserName;
+                coordData.FilePath = doc.PathName ?? "";
+
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
             }
@@ -2526,6 +2570,12 @@ namespace StingTools.Core
                 { "ImportMSProject", "ImportMSProject" },
                 { "MilestoneRegister", "MilestoneRegister" },
                 { "PhaseSummary", "PhaseSummary" },
+
+                // Permission actions (handled inline)
+                { "SavePermissions", "ConfigEditor" },
+                { "CreateFolders", "CreateFolders" },
+                { "ExportPermissionMatrix", "ExportModelHealth" },
+                { "EditUserRole", "ConfigEditor" },
 
                 // Deliverables actions
                 { "AddDocument", "AddDocument" },
