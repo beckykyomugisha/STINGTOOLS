@@ -453,13 +453,25 @@ namespace StingTools.BIMManager
                 _ => "changed"
             };
 
+            // NTF-07: Type-based priority filtering — BIM deliverables get higher priority
+            string ext = Path.GetExtension(name).ToLowerInvariant();
+            string priority;
+            if (ext == ".rvt" || ext == ".ifc" || ext == ".nwd" || ext == ".nwc")
+                priority = "HIGH";       // Model files — critical for coordination
+            else if (ext == ".pdf" || ext == ".xlsx" || ext == ".csv" || ext == ".bcf" || ext == ".dwg")
+                priority = "MEDIUM";     // Document deliverables
+            else if (ext == ".jpg" || ext == ".png" || ext == ".bmp" || ext == ".log" || ext == ".bak")
+                return;                  // Skip images, logs, backups entirely — reduce noise
+            else
+                priority = "LOW";        // Other files
+
             string relPath = e.FullPath.Replace(_watchPath, "").TrimStart(Path.DirectorySeparatorChar);
             string folder = Path.GetDirectoryName(relPath)?.Replace(Path.DirectorySeparatorChar.ToString(), "/") ?? "";
             string title = $"Document {action}: {name}";
             string message = $"File: {relPath}\nFolder: {folder}\nAction: {action}";
 
-            // Send notification
-            NotificationDeliveryEngine.SendNotification(_doc, title, message, "LOW", relPath);
+            // Send notification with type-based priority
+            NotificationDeliveryEngine.SendNotification(_doc, title, message, priority, relPath);
 
             // Log to activity feed
             try { ProjectFolderEngine.LogActivity(_doc, $"FILE_{action.ToUpperInvariant()}", name, relPath); }

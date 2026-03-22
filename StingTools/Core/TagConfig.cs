@@ -1587,6 +1587,10 @@ namespace StingTools.Core
         }
 
         /// <summary>AL-05: Check compliance gate after a batch tag operation. Shows warning dialog if below threshold.</summary>
+        /// <summary>
+        /// GAP-12: Enhanced compliance gate with per-discipline breakdown and suggested actions.
+        /// Shows which disciplines are below threshold and what actions to take.
+        /// </summary>
         public static void CheckComplianceGate(Document doc, string commandName)
         {
             if (ComplianceGatePct <= 0) return;
@@ -1595,11 +1599,38 @@ namespace StingTools.Core
                 var result = ComplianceScan.Scan(doc, forceRefresh: true);
                 if (result != null && result.CompliancePercent < ComplianceGatePct)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show($"STING Compliance Gate",
-                        $"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
-                        $"is below the configured gate ({ComplianceGatePct}%).\n\n" +
-                        $"Untagged: {result.Untagged} elements\n" +
-                        $"Run 'Pre-Tag Audit' or 'Resolve All Issues' to investigate.");
+                    double gap = ComplianceGatePct - result.CompliancePercent;
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
+                        $"is below the configured gate ({ComplianceGatePct}%).");
+                    sb.AppendLine($"Gap: {gap:F0}% ({result.Untagged} untagged elements)");
+                    sb.AppendLine();
+
+                    // Per-discipline breakdown
+                    if (result.ByDisc != null && result.ByDisc.Count > 0)
+                    {
+                        sb.AppendLine("By discipline:");
+                        foreach (var kv in result.ByDisc.OrderBy(d => d.Value.CompliancePct))
+                        {
+                            string status = kv.Value.CompliancePct >= ComplianceGatePct ? "✓" : "✗";
+                            sb.AppendLine($"  {kv.Key}: {kv.Value.CompliancePct:F0}% {status} " +
+                                $"({kv.Value.Tagged}/{kv.Value.Total} tagged, " +
+                                $"{kv.Value.MissingProd} missing PROD)");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    // Suggested actions based on gap analysis
+                    sb.AppendLine("Suggested actions:");
+                    if (result.StaleCount > 0)
+                        sb.AppendLine($"  1. Run 'Retag Stale' — {result.StaleCount} stale elements detected");
+                    sb.AppendLine("  2. Run 'Pre-Tag Audit' to identify specific gaps");
+                    if (result.Untagged > 50)
+                        sb.AppendLine("  3. Run 'Batch Tag' to tag all untagged elements");
+                    else if (result.Untagged > 0)
+                        sb.AppendLine("  3. Run 'Resolve All Issues' for auto-fix");
+
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Compliance Gate", sb.ToString());
                     StingLog.Warn($"ComplianceGate: {commandName} result {result.CompliancePercent:F0}% < gate {ComplianceGatePct}%");
                 }
             }

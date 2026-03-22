@@ -2082,6 +2082,35 @@ Critical review of the tagging workflow identified the following logic, automati
 412. **Keep-dialog-open loop** — `StingCommandHandler` DocumentManager dispatch now loops: shows dialog → user clicks command → dialog closes → command executes → dialog re-opens. User stays in Document Management Center across multiple operations without navigating back.
 413. **Meeting Manager tab** — 8th tab "MEETINGS" in DocumentManagementDialog with 3 sections (PREPARE/DURING/REVIEW): New Meeting (5 types: BIM Coordination, Design Review, Client Review, Handover, Clash Resolution), Auto Agenda (auto-generates from open issues, pending transmittals, recent revisions, compliance status, open action items), Meeting Templates, Log Minutes (multi-line text editor), Add Action Item (description/assignee/due date), Quick Issue, Meeting History (StingResultPanel with per-meeting sections), Open Actions (grouped by overdue/upcoming), Export Minutes (to timestamped .txt file). Data stored in `_bim_manager/meetings.json`.
 
+#### Completed (Phase 43 — Deep Gap Analysis: Performance & Automation Logic Fixes)
+
+420. **PERF-CRIT-01: Spatial candidate cache** — `TokenAutoPopulator.BuildSpatialCandidateCache(doc)` pre-builds per-category spatial index in `PopulationContext.Build()`. `CopyTokensFromNearest` uses cached positions for O(n) lookup. Saves 500ms-2s per 1000-element batch.
+421. **LOGIC-CRIT-01: SeqKey derived values** — `BuildAndWriteTag` seqKey always uses derived token values, preventing counter group mismatch and duplicate SEQ numbers.
+422. **LOGIC-CRIT-02: Safety limit returns false** — `MaxCollisionDepth` exhaustion returns `false` with counter rollback instead of writing duplicate tag.
+423. **SM-CRIT-01: Oversized viewport rejection** — Viewports larger than drawable zone skipped entirely, preventing infinite overflow sheet creation.
+424. **EL-CRIT-01: Excel import safety** — 10K row guard + case-insensitive header mapping.
+425. **PERF-03: BIP availability cache** — `ConcurrentDictionary` caches absent BuiltInParameters per category, saving 10-30ms/element.
+426. **PERF-04: ConnectorInherit early-exit** — Zero-connector elements skip graph traversal.
+427. **PERF-05+06: ComplianceScan optimized** — Skip container check when TAG1 empty + lazy iterator (no .ToList()).
+428. **PERF-07: AutoTagger TTL context** — 5-second TTL instead of immediate rebuild on every invalidation.
+429. **LOGIC-01: Workflow cache fix** — Both compliance AND stale caches invalidated after each step.
+430. **LOGIC-02: Retry stepResult fix** — `stepResult = Result.Failed` on exception catch in retry loop.
+431. **LOGIC-04: CDE enforcement** — `ValidateCDETransition()` called before CDE state writes.
+432. **LOGIC-05: Issue audit trail** — `created_by`, `created_date`, `modified_by`, `modified_date` fields added.
+433. **TS-02: Sheet renumber conflict** — Pre-flight conflict detection against all existing sheet numbers.
+
+#### Completed (Phase 44 — BIM Coordinator Workflow Automation & Event-Driven Notifications)
+
+434. **NTF-01: Issue creation notification** — Push notification via Telegram/Teams/Discord/Email after `RaiseIssueCommand`. Priority mapped from issue severity.
+435. **NTF-02: Issue update notification** — Notification after bulk status changes in `UpdateIssueCommand`.
+436. **NTF-03: Revision creation notification** — HIGH priority notification with compliance %, stale count, snapshot size after `CreateRevisionCommand`.
+437. **NTF-05: COBie export notification** — MEDIUM priority notification with component/system counts after COBie data assembly.
+438. **NTF-07: File monitor priority filtering** — `.rvt/.ifc/.nwd/.nwc` → HIGH, `.pdf/.xlsx/.csv/.bcf/.dwg` → MEDIUM, `.jpg/.png/.bmp/.log/.bak` → SKIP. Reduces notification noise.
+439. **WF-03: Pre-revision compliance gate** — `CreateRevisionCommand` checks compliance before creating revision. If <80%, shows discipline breakdown with tag/stale/untagged counts. Option to proceed or cancel.
+440. **GAP-11: Container write retry fix** — Checks category-specific containers via `ContainersForCategory()` instead of TAG2 sentinel.
+441. **GAP-12: Compliance gate discipline breakdown** — `CheckComplianceGate()` shows per-discipline compliance table, stale count, and prioritized suggested actions.
+442. **REV-02: COBie revision audit trail** — Instruction sheet includes source revision, compliance %, export timestamp, model title for FM change traceability.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance

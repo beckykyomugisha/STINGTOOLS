@@ -3502,15 +3502,27 @@ namespace StingTools.Core
                 // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // Phase 39: Verify container write succeeded. BuildAndWriteTag writes containers
-                // internally, but may return success even if containers partially failed (read-only params).
-                // Re-check TAG2 as a sentinel — if TAG1 is populated but TAG2 is empty, retry containers.
+                // GAP-11: Verify container write by checking CATEGORY-SPECIFIC containers,
+                // not just TAG2 (which may not be applicable for all categories).
+                // If TAG1 is present but no applicable container is populated, retry.
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                string tag2Check = ParameterHelpers.GetString(el, ParamRegistry.TAG2);
-                if (!string.IsNullOrEmpty(tag1Check) && string.IsNullOrEmpty(tag2Check))
+                if (!string.IsNullOrEmpty(tag1Check))
                 {
-                    ParamRegistry.WriteContainers(el, tokenVals, catName);
-                    StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, TAG2 was empty)");
+                    var catContainers = ParamRegistry.ContainersForCategory(catName);
+                    if (catContainers != null && catContainers.Length > 0)
+                    {
+                        bool anyContainerPopulated = false;
+                        for (int ci = 0; ci < catContainers.Length && !anyContainerPopulated; ci++)
+                        {
+                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, catContainers[ci].ParamName)))
+                                anyContainerPopulated = true;
+                        }
+                        if (!anyContainerPopulated)
+                        {
+                            ParamRegistry.WriteContainers(el, tokenVals, catName);
+                            StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, no category containers populated)");
+                        }
+                    }
                 }
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);

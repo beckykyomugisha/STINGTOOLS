@@ -503,6 +503,28 @@ namespace StingTools.BIMManager
                     result == TaskDialogResult.CommandLink1 ? "Preliminary" :
                     result == TaskDialogResult.CommandLink2 ? "Construction" : "As-Built");
 
+                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                try
+                {
+                    var preRevScan = ComplianceScan.Scan(doc);
+                    if (preRevScan.CompliancePercent < 80)
+                    {
+                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
+                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
+                        gateDlg.MainContent =
+                            $"Total elements: {preRevScan.TotalElements}\n" +
+                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
+                            $"Stale: {preRevScan.StaleCount}\n\n" +
+                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                            "Recommended: tag to ≥80% before creating revision.";
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
+                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
+                            return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
+
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -530,6 +552,21 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache so dashboard reflects new revision
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+
+                // NTF-03: Notify team that revision is open
+                try
+                {
+                    NotificationDeliveryEngine.LoadConfig(doc);
+                    var revScan = ComplianceScan.Scan(doc);
+                    string ntfBody = $"Revision {prefix} created by {Environment.UserName}.\n" +
+                        $"Description: {description}\n" +
+                        $"Tag compliance: {revScan.CompliancePercent:F0}%\n" +
+                        $"Stale elements: {revScan.StaleCount}\n" +
+                        $"Snapshot: {snapshot.Count} elements tracked";
+                    NotificationDeliveryEngine.SendNotification(doc,
+                        $"Revision Created: {prefix}", ntfBody, "HIGH", prefix);
+                }
+                catch (Exception ex) { StingLog.Warn($"Revision notification: {ex.Message}"); }
 
                 StingLog.Info($"Revision created: {prefix} — {description}");
                 return Result.Succeeded;

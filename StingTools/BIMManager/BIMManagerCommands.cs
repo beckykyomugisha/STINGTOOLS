@@ -2115,7 +2115,35 @@ namespace StingTools.BIMManager
                 ["Description"] = $"Tag Format: {string.Join(ParamRegistry.Separator, ParamRegistry.SegmentOrder)} ({ParamRegistry.NumPad}-digit SEQ)",
                 ["Notes"] = "Example: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
             });
+            // REV-02: Add source revision and compliance snapshot to Instruction sheet
+            // so FM can trace which model state produced this COBie data drop
+            string sourceRev = "";
+            try { sourceRev = RevisionEngine.GetCurrentProjectRevision(doc); }
+            catch (Exception ex) { StingLog.Warn($"COBie instruction revision lookup: {ex.Message}"); }
+            double cobieCompPct = 0;
+            try { cobieCompPct = ComplianceScan.Scan(doc)?.CompliancePercent ?? 0; }
+            catch (Exception ex) { StingLog.Warn($"COBie instruction compliance: {ex.Message}"); }
+            int instrRow = activePreset != null ? 7 : 5;
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = instrRow.ToString(),
+                ["Description"] = $"Source Revision: {(string.IsNullOrEmpty(sourceRev) ? "N/A" : sourceRev)}",
+                ["Notes"] = $"Tag Compliance: {cobieCompPct:F0}% | Export: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Model: {doc.Title}"
+            });
             data["Instruction"] = instructions;
+
+            // NTF-05: Notify team that COBie export is complete
+            try
+            {
+                NotificationDeliveryEngine.LoadConfig(doc);
+                NotificationDeliveryEngine.SendNotification(doc,
+                    "COBie Export Complete",
+                    $"COBie V2.4 data exported by {createdBy}.\n" +
+                    $"Revision: {sourceRev}\nCompliance: {cobieCompPct:F0}%\n" +
+                    $"Components: {components.Count}\nSystems: {systems.Count}",
+                    "MEDIUM", "COBIE_EXPORT");
+            }
+            catch (Exception ex) { StingLog.Warn($"COBie export notification: {ex.Message}"); }
 
             // ── Contact (from project_bep.json team data + fallback) ──
             var contacts = new List<Dictionary<string, string>>();
@@ -4003,6 +4031,19 @@ namespace StingTools.BIMManager
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
+            // NTF-01: Send notification to assigned party on issue creation
+            try
+            {
+                NotificationDeliveryEngine.LoadConfig(doc);
+                string ntfTitle = $"New {issueType}: {autoTitle}";
+                string ntfBody = $"Priority: {priority}\nAssigned to: {assignee}\n" +
+                    $"Discipline: {discipline}\nElements: {selectedIds.Count}\n" +
+                    $"Due: {issue["date_due"]}\n\n{description}";
+                string ntfPriority = priority == "CRITICAL" ? "CRITICAL" : priority == "HIGH" ? "HIGH" : "MEDIUM";
+                NotificationDeliveryEngine.SendNotification(doc, ntfTitle, ntfBody, ntfPriority, nextId);
+            }
+            catch (Exception ex) { StingLog.Warn($"Issue creation notification: {ex.Message}"); }
+
             var report = new StringBuilder();
             report.AppendLine($"Issue Raised: {nextId}");
             report.AppendLine(new string('═', 40));
@@ -4345,6 +4386,16 @@ namespace StingTools.BIMManager
 
             if (updated > 0)
             {
+                // NTF-02: Notify on issue status change (especially reassignment and closure)
+                try
+                {
+                    NotificationDeliveryEngine.LoadConfig(doc);
+                    string ntfTitle = $"Issue Updated: {updated} issue(s) changed";
+                    string ntfBody = $"Updated by {Environment.UserName} at {DateTime.Now:HH:mm}";
+                    NotificationDeliveryEngine.SendNotification(doc, ntfTitle, ntfBody, "MEDIUM", "ISSUE_UPDATE");
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue update notification: {ex.Message}"); }
+
                 BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
                 // Validate closed/accepted issues: check linked elements are tagged and compliant
