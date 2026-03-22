@@ -123,6 +123,11 @@ namespace StingTools.UI
         private static ComplianceScan.ComplianceResult _complianceResult;
         private static System.Windows.Controls.TextBox _searchBox;
 
+        // GAP-BIM-010: Persist dialog state across reopens (tab, filter, search)
+        private static int _lastTabIndex = 0;
+        private static string _lastFilter = "ALL";
+        private static string _lastSearchText = "";
+
         // ══════════════════════════════════════════════════════════════════
         //  SHOW
         // ══════════════════════════════════════════════════════════════════
@@ -1348,6 +1353,11 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeActBtn("Smart Agenda", BrGreen, (s, e) => GenerateSmartAgendaFromDialog(doc)));
             meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "CoordinationCenter", BrAccent, win));
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
+
+            // GAP-BIM-010: Restore last-used tab on reopen (saves navigation time)
+            if (_lastTabIndex >= 0 && _lastTabIndex < tabs.Items.Count)
+                tabs.SelectedIndex = _lastTabIndex;
+            tabs.SelectionChanged += (s, e) => { if (tabs.SelectedIndex >= 0) _lastTabIndex = tabs.SelectedIndex; };
 
             bar.Child = tabs;
             return bar;

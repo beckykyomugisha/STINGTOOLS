@@ -425,17 +425,24 @@ namespace StingTools.BIMManager
 
         private static void OnFileEvent(object sender, FileSystemEventArgs e)
         {
-            // Debounce: ignore rapid-fire events for same file within 3 seconds
+            // GAP-BIM-006: Deduplicate by FILE PATH (not ChangeType:Path) with 5-second window.
+            // FileSystemWatcher fires Created+Modified+Attributes for a single save operation,
+            // and network drives can trigger Created+Deleted+Created during antivirus scanning.
+            // Coalescing all events for the same file within 5s prevents notification spam.
             lock (_eventLock)
             {
-                string key = $"{e.ChangeType}:{e.FullPath}";
-                if (_recentEvents.TryGetValue(key, out DateTime last) && (DateTime.Now - last).TotalSeconds < 3)
+                string key = e.FullPath; // Deduplicate by path only, not ChangeType
+                if (_recentEvents.TryGetValue(key, out DateTime last) && (DateTime.Now - last).TotalSeconds < 5)
                     return;
                 _recentEvents[key] = DateTime.Now;
 
-                // Clean old entries
-                var stale = _recentEvents.Where(kv => (DateTime.Now - kv.Value).TotalMinutes > 5).Select(kv => kv.Key).ToList();
-                foreach (var s in stale) _recentEvents.Remove(s);
+                // Clean old entries periodically
+                if (_recentEvents.Count > 200)
+                {
+                    var stale = _recentEvents.Where(kv => (DateTime.Now - kv.Value).TotalMinutes > 5)
+                        .Select(kv => kv.Key).ToList();
+                    foreach (var s in stale) _recentEvents.Remove(s);
+                }
             }
 
             // Skip temp files, lock files, and STING internal files

@@ -82,6 +82,12 @@ namespace StingTools.Core
             public double RevisionPercent =>
                 TotalElements > 0 ? RevisionComplete * 100.0 / TotalElements : 0;
 
+            /// <summary>LOGIC-003: Percentage of tagged elements that have all applicable containers populated.
+            /// Separate from CompliancePercent — an element can be "tagged" (TAG1 exists) but have empty
+            /// discipline containers, which breaks COBie export and platform deliverables.</summary>
+            public double ContainerCompletePct =>
+                TaggedComplete > 0 ? (TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
+
             /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
             {
@@ -97,9 +103,10 @@ namespace StingTools.Core
                 }
             }
 
-            /// <summary>Short summary for status bar display — includes revision, STATUS, and stale counts.</summary>
+            /// <summary>Short summary for status bar display — includes revision, STATUS, container, and stale counts.</summary>
             public string StatusBarText =>
                 $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | " +
+                $"{(ContainersMissing > 0 ? $"{ContainerCompletePct:F0}% containers | " : "")}" +
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
                 $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +

@@ -3528,12 +3528,18 @@ namespace StingTools.Core
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
+                // LOGIC-010: Log once per session when no grids exist in document
                 if (gridLines != null && gridLines.Count > 0
                     && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
                 {
                     string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
                     if (!string.IsNullOrEmpty(gridRef))
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                }
+                else if ((gridLines == null || gridLines.Count == 0) && !_noGridsLoggedThisSession)
+                {
+                    _noGridsLoggedThisSession = true;
+                    StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
                 }
 
                 // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
@@ -3550,6 +3556,9 @@ namespace StingTools.Core
                 return false;
             }
         }
+
+        // ── LOGIC-010: Track whether "no grids" info has been logged this session ──
+        private static bool _noGridsLoggedThisSession;
 
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
@@ -3618,6 +3627,7 @@ namespace StingTools.Core
             _cachedFormulas = null;
             _cachedGridLines = null;
             _gridCacheDocKey = null;
+            _noGridsLoggedThisSession = false; // LOGIC-010: Reset per-session flag
         }
 
         // ══════════════════════════════════════════════════════════════════

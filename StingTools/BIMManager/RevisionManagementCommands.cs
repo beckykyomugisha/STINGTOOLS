@@ -452,6 +452,39 @@ namespace StingTools.BIMManager
             public string ParamName { get; set; }
             public string OldValue { get; set; }
             public string NewValue { get; set; }
+
+            /// <summary>
+            /// GAP-BIM-004: Categorize change type for granular revision reporting.
+            /// TOKEN_CHANGE = source token modified (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ)
+            /// CONTAINER_REGEN = discipline container regenerated (HVC_EQP_TAG etc.)
+            /// NARRATIVE_CHANGE = TAG7 sub-section changed (TAG7A-F)
+            /// STATUS_CHANGE = STATUS or REV changed
+            /// TAG_REFORMAT = TAG1-TAG6 changed (may be reformat, not content change)
+            /// </summary>
+            public string ChangeCategory
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(ParamName)) return "UNKNOWN";
+                    if (ParamName == ParamRegistry.STATUS || ParamName == ParamRegistry.REV)
+                        return "STATUS_CHANGE";
+                    if (ParamName == ParamRegistry.DISC || ParamName == ParamRegistry.LOC ||
+                        ParamName == ParamRegistry.ZONE || ParamName == ParamRegistry.LVL ||
+                        ParamName == ParamRegistry.SYS || ParamName == ParamRegistry.FUNC ||
+                        ParamName == ParamRegistry.PROD || ParamName == ParamRegistry.SEQ)
+                        return "TOKEN_CHANGE";
+                    if (ParamName == ParamRegistry.TAG7A || ParamName == ParamRegistry.TAG7B ||
+                        ParamName == ParamRegistry.TAG7C || ParamName == ParamRegistry.TAG7D ||
+                        ParamName == ParamRegistry.TAG7E || ParamName == ParamRegistry.TAG7F ||
+                        ParamName == ParamRegistry.TAG7)
+                        return "NARRATIVE_CHANGE";
+                    if (ParamName == ParamRegistry.TAG1 || ParamName == ParamRegistry.TAG2 ||
+                        ParamName == ParamRegistry.TAG3 || ParamName == ParamRegistry.TAG4 ||
+                        ParamName == ParamRegistry.TAG5 || ParamName == ParamRegistry.TAG6)
+                        return "TAG_REFORMAT";
+                    return "CONTAINER_REGEN"; // Discipline-specific containers
+                }
+            }
         }
     }
 

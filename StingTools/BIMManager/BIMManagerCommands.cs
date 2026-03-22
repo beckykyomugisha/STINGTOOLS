@@ -227,6 +227,58 @@ namespace StingTools.BIMManager
             ["INFO"]     = "For information only — no action required"
         };
 
+        /// <summary>GAP-BIM-005: SLA thresholds in hours per priority level (ISO 19650 coordination response times).</summary>
+        internal static readonly Dictionary<string, int> SLAThresholdsHours = new Dictionary<string, int>
+        {
+            ["CRITICAL"] = 4,       // 4 hours — blocks progress
+            ["HIGH"]     = 24,      // 24 hours — significant impact
+            ["MEDIUM"]   = 168,     // 1 week — moderate impact
+            ["LOW"]      = 336,     // 2 weeks — minor impact
+            ["INFO"]     = 0        // No SLA
+        };
+
+        /// <summary>
+        /// GAP-BIM-005: Check all open issues for SLA violations.
+        /// Returns list of overdue issues with hours overdue and escalation recommendation.
+        /// Called from DocumentOpened event for morning SLA report.
+        /// </summary>
+        internal static List<(string issueId, string priority, string title, double hoursOverdue)> CheckSLAViolations(Document doc)
+        {
+            var overdue = new List<(string, string, string, double)>();
+            try
+            {
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                var issues = LoadJsonArray(issuesPath);
+                foreach (var issue in issues)
+                {
+                    string status = issue["status"]?.ToString() ?? "";
+                    if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
+
+                    string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+                    if (!SLAThresholdsHours.TryGetValue(priority, out int slaHours) || slaHours <= 0) continue;
+
+                    string createdStr = issue["created_date"]?.ToString() ?? issue["date_raised"]?.ToString();
+                    if (string.IsNullOrEmpty(createdStr)) continue;
+
+                    if (DateTime.TryParse(createdStr, out DateTime created))
+                    {
+                        double elapsed = (DateTime.Now - created).TotalHours;
+                        if (elapsed > slaHours)
+                        {
+                            overdue.Add((
+                                issue["issue_id"]?.ToString() ?? "?",
+                                priority,
+                                issue["title"]?.ToString() ?? "",
+                                elapsed - slaHours
+                            ));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SLA check failed: {ex.Message}"); }
+            return overdue;
+        }
+
         // ── BEP Section Definitions (ISO 19650-2 §5.3 / UK BIM Framework / PAS 1192-2) ──
         internal static readonly string[] BEPSections = new[]
         {
