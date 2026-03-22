@@ -412,146 +412,115 @@ namespace StingTools.Tags
             _lastAuditTime = DateTime.Now;
             StingLog.Info($"PreTagAudit: stored {auditIssues.Count} audit issues for auto-fix chain");
 
-            // Build report
-            var report2 = new StringBuilder();
-            report2.AppendLine("══════════════════════════════════════════════════");
-            report2.AppendLine("  PRE-TAG AUDIT — DRY RUN (no changes made)");
-            report2.AppendLine("══════════════════════════════════════════════════");
-            report2.AppendLine($"  Scope: {scopeLabel}");
-            report2.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
-            report2.AppendLine();
+            // Build rich result panel
+            var panel = UI.StingResultPanel.Create("Pre-Tag Audit")
+                .SetSubtitle($"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)");
 
-            // Summary
-            report2.AppendLine("── TAG PREDICTION ──");
-            report2.AppendLine($"  Total taggable:     {totalTaggable}");
-            report2.AppendLine($"  Already tagged:     {alreadyTagged} (will be skipped)");
-            report2.AppendLine($"  Will be tagged:     {willBeTagged}");
+            panel.AddSection("SCOPE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x75, 0x75, 0x75)))
+                .Metric("Scope", scopeLabel)
+                .Metric("Duration", $"{sw.Elapsed.TotalSeconds:F1}s");
+
+            panel.AddSection("TAG PREDICTION")
+                .Metric("Total taggable", totalTaggable.ToString())
+                .Metric("Already tagged", alreadyTagged.ToString(), "will be skipped")
+                .MetricHighlight("Will be tagged", willBeTagged.ToString());
             if (predictedCollisions > 0)
-                report2.AppendLine($"  Collisions to resolve: {predictedCollisions} (SEQ auto-increment)");
-            report2.AppendLine();
+                panel.MetricWarn("Collisions to resolve", predictedCollisions.ToString(), "SEQ auto-increment");
 
-            // Spatial auto-detection
-            report2.AppendLine("── SPATIAL INTELLIGENCE ──");
-            report2.AppendLine($"  LOC missing:        {missingLocCount}");
-            report2.AppendLine($"  LOC auto-detectable: {locWillAutoDetect} (from rooms/project info)");
-            report2.AppendLine($"  ZONE missing:       {missingZoneCount}");
-            report2.AppendLine($"  ZONE auto-detectable: {zoneWillAutoDetect} (from rooms)");
-            report2.AppendLine();
+            panel.AddSection("SPATIAL INTELLIGENCE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x00, 0x69, 0x5C)))
+                .Metric("LOC missing", missingLocCount.ToString())
+                .MetricHighlight("LOC auto-detectable", locWillAutoDetect.ToString(), "from rooms/project info")
+                .Metric("ZONE missing", missingZoneCount.ToString())
+                .MetricHighlight("ZONE auto-detectable", zoneWillAutoDetect.ToString(), "from rooms");
 
-            // STATUS prediction
-            report2.AppendLine("── STATUS PREDICTION ──");
-            report2.AppendLine($"  STATUS missing:     {statusMissing}");
-            report2.AppendLine($"  Will auto-detect:   {statusWillAutoDetect} (from Revit phases/worksets)");
+            panel.AddSection("STATUS PREDICTION")
+                .Metric("STATUS missing", statusMissing.ToString())
+                .MetricHighlight("Will auto-detect", statusWillAutoDetect.ToString(), "from Revit phases/worksets");
             if (phaseMismatches > 0)
-                report2.AppendLine($"  Phase mismatches:   {phaseMismatches} (existing STATUS differs from detected)");
+                panel.MetricWarn("Phase mismatches", phaseMismatches.ToString(), "existing STATUS differs from detected");
             if (statusDistribution.Count > 0)
-            {
-                report2.Append("  Distribution:       ");
-                report2.AppendLine(string.Join(", ",
-                    statusDistribution.OrderByDescending(x => x.Value)
-                        .Select(x => $"{x.Key}={x.Value}")));
-            }
-            report2.AppendLine();
+                panel.Metric("Distribution", string.Join(", ",
+                    statusDistribution.OrderByDescending(x => x.Value).Select(x => $"{x.Key}={x.Value}")));
 
-            // REV prediction
-            report2.AppendLine("── REVISION PREDICTION ──");
-            report2.AppendLine($"  REV missing:        {revMissing}");
-            report2.AppendLine($"  Will auto-set:      {revWillAutoSet}" +
-                (string.IsNullOrEmpty(projectRev) ? " (no project revisions)" : $" (revision '{projectRev}')"));
-            report2.AppendLine();
+            panel.AddSection("REVISION PREDICTION")
+                .Metric("REV missing", revMissing.ToString())
+                .MetricHighlight("Will auto-set", revWillAutoSet.ToString(),
+                    string.IsNullOrEmpty(projectRev) ? "no project revisions" : $"revision '{projectRev}'");
 
-            // Family PROD intelligence
-            report2.AppendLine("── FAMILY-AWARE PROD CODES ──");
-            report2.AppendLine($"  Family-specific PRODs: {familyProdCount}");
-            if (familyProdBreakdown.Count > 0)
-            {
-                foreach (var kvp in familyProdBreakdown.OrderByDescending(x => x.Value).Take(10))
-                    report2.AppendLine($"    {kvp.Key}: {kvp.Value}");
-            }
-            report2.AppendLine();
+            panel.AddSection("FAMILY-AWARE PROD CODES")
+                .Metric("Family-specific PRODs", familyProdCount.ToString());
+            foreach (var kvp in familyProdBreakdown.OrderByDescending(x => x.Value).Take(10))
+                panel.Metric($"  {kvp.Key}", kvp.Value.ToString());
 
-            // Token coverage
-            report2.AppendLine("── TOKEN COVERAGE ──");
-            report2.AppendLine($"  Elements with missing tokens: {missingTokenElements}");
+            panel.AddSection("TOKEN COVERAGE")
+                .Metric("Elements with missing tokens", missingTokenElements.ToString());
             foreach (var kvp in emptyTokenCounts.Where(x => x.Value > 0).OrderByDescending(x => x.Value))
             {
                 string shortName = kvp.Key.Replace("ASS_", "").Replace("_TXT", "").Replace("_COD", "");
-                report2.AppendLine($"    {shortName,-20} {kvp.Value} empty");
+                panel.MetricError(shortName, $"{kvp.Value} empty");
             }
-            report2.AppendLine();
 
-            // ISO 19650 compliance
+            // ISO 19650 compliance section
             int predictedTokenIssueCount = auditIssues.Count(a => a.IssueType == "ISO_PREDICTED_TOKEN");
             int existingTagIssueCount = auditIssues.Count(a => a.IssueType == "ISO_FORMAT" || a.IssueType == "ISO_TOKEN");
-            report2.AppendLine("── ISO 19650 COMPLIANCE ──");
-            report2.AppendLine($"  Elements with ISO violations: {isoViolations}");
-            if (existingTagIssueCount > 0)
-                report2.AppendLine($"    Existing tag issues:        {existingTagIssueCount}");
-            if (predictedTokenIssueCount > 0)
-            {
-                report2.AppendLine($"    Predicted token violations: {predictedTokenIssueCount}");
-                // Show top invalid codes
-                var topInvalid = auditIssues
-                    .Where(a => a.IssueType == "ISO_PREDICTED_TOKEN")
-                    .GroupBy(a => a.Description)
-                    .OrderByDescending(g => g.Count())
-                    .Take(5);
-                foreach (var g in topInvalid)
-                    report2.AppendLine($"      {g.Count()}× {g.Key}");
-            }
+            panel.AddSection("ISO 19650 COMPLIANCE", new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
             if (isoViolations == 0)
-                report2.AppendLine("    All tokens conform to ISO 19650");
-            report2.AppendLine();
-
-            // Per-discipline breakdown
-            report2.AppendLine("── BY DISCIPLINE ──");
-            report2.AppendLine($"  {"DISC",-6} {"Total",6} {"Tagged",7} {"New",5} {"ISO!",5}");
-            report2.AppendLine($"  {new string('─', 32)}");
-            foreach (var kvp in discStats.OrderBy(x => x.Key))
+                panel.Info("All tokens conform to ISO 19650");
+            else
             {
-                var s = kvp.Value;
-                report2.AppendLine($"  {kvp.Key,-6} {s.total,6} {s.tagged,7} {s.untagged,5} {s.violations,5}");
+                panel.MetricError("Elements with ISO violations", isoViolations.ToString());
+                if (existingTagIssueCount > 0)
+                    panel.Metric("Existing tag issues", existingTagIssueCount.ToString());
+                if (predictedTokenIssueCount > 0)
+                {
+                    panel.Metric("Predicted token violations", predictedTokenIssueCount.ToString());
+                    var topInvalid = auditIssues
+                        .Where(a => a.IssueType == "ISO_PREDICTED_TOKEN")
+                        .GroupBy(a => a.Description)
+                        .OrderByDescending(g => g.Count())
+                        .Take(5);
+                    foreach (var g in topInvalid)
+                        panel.Alert($"{g.Count()}× {g.Key}");
+                }
             }
 
-            // Export CSV
+            // Per-discipline table
+            var discHeaders = new[] { "DISC", "Total", "Tagged", "New", "ISO!" };
+            var discRows = discStats.OrderBy(x => x.Key)
+                .Select(kvp => new[] { kvp.Key, kvp.Value.total.ToString(),
+                    kvp.Value.tagged.ToString(), kvp.Value.untagged.ToString(),
+                    kvp.Value.violations.ToString() }).ToList();
+            if (discRows.Count > 0)
+                panel.AddSection("BY DISCIPLINE").Table(discHeaders, discRows);
+
+            // CSV export path
             try
             {
                 string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_PreTagAudit", ".csv");
                 File.WriteAllText(csvPath, string.Join("\n", csvRows));
-                report2.AppendLine();
-                report2.AppendLine($"  CSV exported: {csvPath}");
-
-                // AE-02: Auto-open CSV export unless suppressed
+                panel.SetCsvPath(csvPath);
                 try
                 {
                     bool autoOpen = !string.Equals(TagConfig.GetConfigValue("OPEN_EXPORTS_AUTOMATICALLY"), "false",
                         StringComparison.OrdinalIgnoreCase);
                     if (autoOpen)
-                    {
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
                         { UseShellExecute = true });
-                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"PreTagAudit: auto-open failed: {ex.Message}"); }
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"PreTagAudit CSV export: {ex.Message}");
-            }
+            catch (Exception ex) { StingLog.Warn($"PreTagAudit CSV export: {ex.Message}"); }
 
-            TaskDialog td = new TaskDialog("Pre-Tag Audit");
-            td.MainInstruction = $"Will tag {willBeTagged} elements ({alreadyTagged} already tagged, {predictedCollisions} collisions)";
-            td.MainContent = report2.ToString();
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Auto-fix all correctable issues",
-                "Runs AnomalyAutoFix + ResolveAllIssues to address fixable issues");
-            td.CommonButtons = TaskDialogCommonButtons.Close;
-            var tdResult = td.Show();
-
-            if (tdResult == TaskDialogResult.CommandLink1)
+            // Action buttons
+            panel.Action("Auto-fix all correctable issues",
+                "Runs AnomalyAutoFix + ResolveAllIssues to address fixable issues", win =>
             {
                 try
                 {
+                    win.Close();
                     string msg2 = "";
                     var fixCmd = new Organise.AnomalyAutoFixCommand();
                     fixCmd.Execute(commandData, ref msg2, elements);
@@ -565,18 +534,23 @@ namespace StingTools.Tags
 
                     var afterScan = ComplianceScan.Scan(doc, forceRefresh: true);
                     double improvement = afterScan.CompliancePercent - scanBefore;
-                    TaskDialog.Show("Pre-Tag Audit \u2014 Auto-Fix Complete",
-                        $"Compliance: {scanBefore:F1}% \u2192 {afterScan.CompliancePercent:F1}% " +
-                        $"({(improvement >= 0 ? "+" : "")}{improvement:F1}%)\n\n" +
-                        $"Elements now tagged: {afterScan.TaggedComplete}\n" +
-                        $"Still untagged: {afterScan.Untagged}");
+                    UI.StingResultPanel.Create("Pre-Tag Audit — Auto-Fix Complete")
+                        .SetSubtitle($"Compliance: {scanBefore:F1}% → {afterScan.CompliancePercent:F1}% " +
+                            $"({(improvement >= 0 ? "+" : "")}{improvement:F1}%)")
+                        .SetOverallPct(afterScan.CompliancePercent)
+                        .AddSection("RESULTS")
+                        .Metric("Elements now tagged", afterScan.TaggedComplete.ToString())
+                        .Metric("Still untagged", afterScan.Untagged.ToString())
+                        .Show();
                 }
                 catch (Exception ex)
                 {
                     StingLog.Error("PreTagAudit auto-fix", ex);
                     TaskDialog.Show("STING", $"Auto-fix encountered an error: {ex.Message}");
                 }
-            }
+            });
+
+            panel.Show();
 
             StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +
                 $"{isoViolations} ISO violations, {willBeTagged} untagged" +

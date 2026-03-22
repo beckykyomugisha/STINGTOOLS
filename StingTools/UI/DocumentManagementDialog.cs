@@ -1305,6 +1305,24 @@ namespace StingTools.UI
             notesWrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
             tabs.Items.Add(new TabItem { Header = "NOTES / BEP", Content = notesWrap, Padding = new Thickness(8, 2, 8, 2) });
 
+            // ── TAB 8: MEETINGS ──
+            var meetWrap = new WrapPanel { Margin = new Thickness(4) };
+            meetWrap.Children.Add(MakeSectionLabel("PREPARE"));
+            meetWrap.Children.Add(MakeActBtn("New Meeting", BrAccent, (s, e) => CreateMeeting(doc)));
+            meetWrap.Children.Add(MakeActBtn("Auto Agenda", BrGreen, (s, e) => GenerateAutoAgenda(doc)));
+            meetWrap.Children.Add(MakeActBtn("Meeting Templates", BrTeal, (s, e) => ShowMeetingTemplates(doc)));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("DURING"));
+            meetWrap.Children.Add(MakeActBtn("Log Minutes", BrAccent, (s, e) => LogMeetingMinutes(doc)));
+            meetWrap.Children.Add(MakeActBtn("Add Action", BrGreen, (s, e) => AddActionItem(doc)));
+            meetWrap.Children.Add(MakeActBtn("Quick Issue", BrRed, (s, e) => QuickIssue(doc, "ACTION")));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("REVIEW"));
+            meetWrap.Children.Add(MakeActBtn("Meeting History", BrTeal, (s, e) => ShowMeetingHistory(doc)));
+            meetWrap.Children.Add(MakeActBtn("Open Actions", BrRed, (s, e) => ShowOpenActions(doc)));
+            meetWrap.Children.Add(MakeActBtn("Export Minutes", BrGreen, (s, e) => ExportMeetingMinutes(doc)));
+            tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
+
             bar.Child = tabs;
             return bar;
         }
@@ -1589,6 +1607,448 @@ namespace StingTools.UI
                 RefreshData();
             }
             catch (Exception ex2) { StingLog.Warn($"QuickIssue: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  MEETING MANAGER — Agenda, Minutes, Action Items
+        // ══════════════════════════════════════════════════════════════════
+
+        private static string GetMeetingsPath(Document doc) =>
+            Path.Combine(GetBimManagerDir(doc), "meetings.json");
+
+        /// <summary>Create a new meeting with auto-populated metadata.</summary>
+        private static void CreateMeeting(Document doc)
+        {
+            var types = new List<string>
+            {
+                "BIM Coordination Meeting", "Design Review", "Client Review",
+                "Handover Review", "Clash Resolution", "Ad-hoc / Other"
+            };
+            string meetingType = StingListPicker.Show("New Meeting", "Select meeting type:", types);
+            if (string.IsNullOrEmpty(meetingType)) return;
+
+            string bimDir = GetBimManagerDir(doc);
+            if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
+            string path = GetMeetingsPath(doc);
+
+            var meetings = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
+            int nextId = meetings.Count + 1;
+
+            var meeting = new JObject
+            {
+                ["id"] = $"MTG-{nextId:D4}",
+                ["type"] = meetingType,
+                ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                ["time"] = DateTime.Now.ToString("HH:mm"),
+                ["status"] = "PLANNED",
+                ["created_by"] = Environment.UserName,
+                ["attendees"] = new JArray(),
+                ["agenda"] = new JArray(),
+                ["minutes"] = "",
+                ["actions"] = new JArray()
+            };
+
+            meetings.Add(meeting);
+            File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(), meetingType);
+            MessageBox.Show($"Meeting created: {meeting["id"]}\nType: {meetingType}\n\nUse 'Auto Agenda' to populate agenda items.",
+                "STING Meeting Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            RefreshData();
+        }
+
+        /// <summary>Auto-generate meeting agenda from open issues, pending transmittals, and recent revisions.</summary>
+        private static void GenerateAutoAgenda(Document doc)
+        {
+            string bimDir = GetBimManagerDir(doc);
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found. Create a meeting first."); return; }
+
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var planned = meetings.Where(m => m["status"]?.ToString() == "PLANNED").ToList();
+            if (planned.Count == 0) { MessageBox.Show("No planned meetings. Create a meeting first."); return; }
+
+            // Select meeting
+            var meetList = planned.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Select Meeting", "Generate agenda for:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            var agenda = new JArray();
+            int itemNum = 1;
+
+            // 1. Review previous action items
+            var allActions = new JArray();
+            foreach (var m in meetings)
+            {
+                if (m["actions"] is JArray acts)
+                    foreach (var a in acts)
+                        if (a["status"]?.ToString() != "CLOSED")
+                            allActions.Add(a);
+            }
+            if (allActions.Count > 0)
+                agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Review open action items ({allActions.Count} outstanding)", ["source"] = "ACTIONS", ["duration_min"] = 10 });
+
+            // 2. Open issues
+            string issuesPath = Path.Combine(bimDir, "issues.json");
+            int openIssues = 0;
+            if (File.Exists(issuesPath))
+            {
+                try
+                {
+                    var issues = JArray.Parse(File.ReadAllText(issuesPath));
+                    openIssues = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED");
+                    if (openIssues > 0)
+                    {
+                        // Group by type
+                        var byType = issues.Where(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED")
+                            .GroupBy(i => i["type"]?.ToString() ?? "OTHER");
+                        foreach (var g in byType.OrderByDescending(g => g.Count()))
+                            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Review {g.Key} issues ({g.Count()} open)", ["source"] = "ISSUES", ["duration_min"] = 5 });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda issues: {ex.Message}"); }
+            }
+
+            // 3. Pending transmittals
+            string txPath = Path.Combine(bimDir, "transmittals.json");
+            if (File.Exists(txPath))
+            {
+                try
+                {
+                    var txs = JArray.Parse(File.ReadAllText(txPath));
+                    var pending = txs.Where(t => t["status"]?.ToString() == "DRAFT" || t["status"]?.ToString() == "SENT").ToList();
+                    if (pending.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Transmittal status update ({pending.Count} pending)", ["source"] = "TRANSMITTALS", ["duration_min"] = 5 });
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda transmittals: {ex.Message}"); }
+            }
+
+            // 4. Recent revisions
+            string revPath = Path.Combine(bimDir, "revisions.json");
+            if (File.Exists(revPath))
+            {
+                try
+                {
+                    var revs = JArray.Parse(File.ReadAllText(revPath));
+                    var recent = revs.Where(r =>
+                    {
+                        if (DateTime.TryParse(r["date"]?.ToString(), out DateTime dt))
+                            return (DateTime.Now - dt).TotalDays <= 14;
+                        return false;
+                    }).ToList();
+                    if (recent.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Recent revisions ({recent.Count} in last 14 days)", ["source"] = "REVISIONS", ["duration_min"] = 5 });
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda revisions: {ex.Message}"); }
+            }
+
+            // 5. Compliance status
+            try
+            {
+                var scan = ComplianceScan.Scan(doc);
+                agenda.Add(new JObject { ["num"] = itemNum++,
+                    ["topic"] = $"Model compliance status: {scan.CompliancePercent:F0}% ({scan.RAGStatus})",
+                    ["source"] = "COMPLIANCE", ["duration_min"] = 5 });
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoAgenda compliance: {ex.Message}"); }
+
+            // 6. AOB
+            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Any other business", ["source"] = "STANDARD", ["duration_min"] = 5 });
+
+            target["agenda"] = agenda;
+            int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
+            File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+
+            // Show agenda in result panel
+            var panel = StingResultPanel.Create("Meeting Agenda")
+                .SetSubtitle($"{target["type"]} — {target["date"]} | Est. {totalMin} minutes");
+
+            panel.AddSection("AUTO-GENERATED AGENDA");
+            foreach (var item in agenda)
+                panel.Metric($"{item["num"]}. [{item["source"]}]",
+                    item["topic"]?.ToString(),
+                    $"{item["duration_min"]}min");
+
+            panel.AddSection("MEETING INFO")
+                .Metric("Meeting ID", meetId)
+                .Metric("Open action items", allActions.Count.ToString())
+                .Metric("Open issues", openIssues.ToString());
+
+            panel.Show();
+            RefreshData();
+        }
+
+        private static void ShowMeetingTemplates(Document doc)
+        {
+            var templates = new List<string>
+            {
+                "Weekly BIM Coordination — Review clashes, actions, model health, transmittals",
+                "Design Review — Present design intent, review comments, agree next steps",
+                "Client Stage Review — RIBA stage deliverables, compliance, sign-off",
+                "Handover Review — COBie readiness, O&M data, asset register completeness",
+                "Clash Resolution — Discipline-pair clash walkthrough with assignments"
+            };
+            string pick = StingListPicker.Show("Meeting Templates", "Select template to apply:", templates);
+            if (!string.IsNullOrEmpty(pick))
+                MessageBox.Show($"Template selected: {pick.Split('—')[0].Trim()}\n\nCreate a meeting and use 'Auto Agenda' to generate agenda items based on current project data.",
+                    "STING Meeting Templates");
+        }
+
+        private static void LogMeetingMinutes(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var active = meetings.Where(m => m["status"]?.ToString() != "CLOSED").ToList();
+            if (active.Count == 0) { MessageBox.Show("No active meetings."); return; }
+
+            var meetList = active.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Log Minutes", "Select meeting:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            // Simple input for minutes text
+            var inputWin = new Window
+            {
+                Title = $"Meeting Minutes — {meetId}", Width = 520, Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen, ResizeMode = ResizeMode.CanResize
+            };
+            var stack = new StackPanel { Margin = new Thickness(12) };
+            stack.Children.Add(new TextBlock { Text = "Enter meeting minutes:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8) });
+            var tb = new System.Windows.Controls.TextBox
+            {
+                AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+                Height = 200, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Text = target["minutes"]?.ToString() ?? ""
+            };
+            stack.Children.Add(tb);
+            var saveBtn = new Button { Content = "Save Minutes", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(16, 6, 16, 6) };
+            saveBtn.Click += (s, e) =>
+            {
+                target["minutes"] = tb.Text;
+                target["status"] = "IN_PROGRESS";
+                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "MINUTES_LOGGED", meetId, $"{tb.Text.Length} chars");
+                inputWin.DialogResult = true;
+                inputWin.Close();
+            };
+            stack.Children.Add(saveBtn);
+            inputWin.Content = stack;
+            inputWin.ShowDialog();
+            RefreshData();
+        }
+
+        private static void AddActionItem(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var active = meetings.Where(m => m["status"]?.ToString() != "CLOSED").ToList();
+            if (active.Count == 0) { MessageBox.Show("No active meetings."); return; }
+
+            var meetList = active.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Add Action Item", "Add action to which meeting:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            // Quick input dialog
+            var inputWin = new Window
+            {
+                Title = $"New Action Item — {meetId}", Width = 450, Height = 280,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            var grid = new System.Windows.Controls.Grid { Margin = new Thickness(12) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            void AddRow(int row, string label, out System.Windows.Controls.TextBox box)
+            {
+                var lbl = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(lbl, row);
+                System.Windows.Controls.Grid.SetColumn(lbl, 0);
+                grid.Children.Add(lbl);
+                box = new System.Windows.Controls.TextBox { Margin = new Thickness(0, 2, 0, 2) };
+                System.Windows.Controls.Grid.SetRow(box, row);
+                System.Windows.Controls.Grid.SetColumn(box, 1);
+                grid.Children.Add(box);
+            }
+
+            AddRow(0, "Description:", out var descBox);
+            AddRow(1, "Assigned To:", out var assignBox);
+            assignBox.Text = Environment.UserName;
+            AddRow(2, "Due Date:", out var dueBox);
+            dueBox.Text = DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
+
+            var saveBtn = new Button
+            {
+                Content = "Add Action", Margin = new Thickness(100, 8, 0, 0),
+                Padding = new Thickness(16, 6, 16, 6)
+            };
+            System.Windows.Controls.Grid.SetRow(saveBtn, 3);
+            System.Windows.Controls.Grid.SetColumnSpan(saveBtn, 2);
+            grid.Children.Add(saveBtn);
+            saveBtn.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(descBox.Text)) { MessageBox.Show("Description required."); return; }
+                var actions = target["actions"] as JArray ?? new JArray();
+                actions.Add(new JObject
+                {
+                    ["id"] = $"ACT-{meetId.Replace("MTG-", "")}-{actions.Count + 1:D2}",
+                    ["description"] = descBox.Text,
+                    ["assigned_to"] = assignBox.Text,
+                    ["due_date"] = dueBox.Text,
+                    ["status"] = "OPEN",
+                    ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                });
+                target["actions"] = actions;
+                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "ACTION_ADDED", meetId, descBox.Text);
+                inputWin.DialogResult = true;
+                inputWin.Close();
+            };
+
+            inputWin.Content = grid;
+            inputWin.ShowDialog();
+            RefreshData();
+        }
+
+        private static void ShowMeetingHistory(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            if (meetings.Count == 0) { MessageBox.Show("No meetings recorded."); return; }
+
+            var panel = StingResultPanel.Create("Meeting History")
+                .SetSubtitle($"{meetings.Count} meetings recorded");
+
+            foreach (var m in meetings.Reverse())
+            {
+                string status = m["status"]?.ToString() ?? "PLANNED";
+                var brush = status == "CLOSED"
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x75, 0x75, 0x75))
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1A, 0x23, 0x7E));
+                panel.AddSection($"{m["id"]} — {m["type"]} ({m["date"]})", brush)
+                    .Metric("Status", status)
+                    .Metric("Created by", m["created_by"]?.ToString() ?? "")
+                    .Metric("Agenda items", (m["agenda"] as JArray)?.Count.ToString() ?? "0")
+                    .Metric("Action items", (m["actions"] as JArray)?.Count.ToString() ?? "0");
+
+                // Show open actions
+                if (m["actions"] is JArray acts)
+                {
+                    foreach (var a in acts.Where(a => a["status"]?.ToString() != "CLOSED"))
+                        panel.Alert($"[{a["status"]}] {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+                }
+            }
+
+            panel.Show();
+        }
+
+        private static void ShowOpenActions(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+
+            var openActions = new List<(string MeetId, JToken Action)>();
+            foreach (var m in meetings)
+            {
+                if (m["actions"] is JArray acts)
+                    foreach (var a in acts.Where(a => a["status"]?.ToString() != "CLOSED"))
+                        openActions.Add((m["id"]?.ToString() ?? "", a));
+            }
+
+            if (openActions.Count == 0) { MessageBox.Show("No open action items."); return; }
+
+            var panel = StingResultPanel.Create("Open Action Items")
+                .SetSubtitle($"{openActions.Count} actions outstanding");
+
+            // Group by due date
+            var overdue = openActions.Where(a =>
+                DateTime.TryParse(a.Action["due_date"]?.ToString(), out var dt) && dt < DateTime.Now).ToList();
+            var upcoming = openActions.Except(overdue).ToList();
+
+            if (overdue.Count > 0)
+            {
+                panel.AddSection($"OVERDUE ({overdue.Count})", new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+                foreach (var (meetId, a) in overdue)
+                    panel.Alert($"[{meetId}] {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+            }
+
+            panel.AddSection($"UPCOMING ({upcoming.Count})");
+            foreach (var (meetId, a) in upcoming)
+                panel.Metric($"[{meetId}] {a["assigned_to"]}", a["description"]?.ToString(), $"due {a["due_date"]}");
+
+            panel.Show();
+        }
+
+        private static void ExportMeetingMinutes(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            if (meetings.Count == 0) { MessageBox.Show("No meetings recorded."); return; }
+
+            var meetList = meetings.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Export Minutes", "Export minutes for:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"MEETING MINUTES — {target["id"]}");
+            sb.AppendLine($"Type: {target["type"]}");
+            sb.AppendLine($"Date: {target["date"]} {target["time"]}");
+            sb.AppendLine($"Created by: {target["created_by"]}");
+            sb.AppendLine(new string('═', 60));
+
+            // Agenda
+            sb.AppendLine("\nAGENDA:");
+            if (target["agenda"] is JArray agendaArr)
+            {
+                foreach (var item in agendaArr)
+                    sb.AppendLine($"  {item["num"]}. {item["topic"]} [{item["source"]}] ({item["duration_min"]}min)");
+            }
+
+            // Minutes
+            sb.AppendLine("\nMINUTES:");
+            sb.AppendLine(target["minutes"]?.ToString() ?? "(no minutes recorded)");
+
+            // Action items
+            sb.AppendLine("\nACTION ITEMS:");
+            if (target["actions"] is JArray actsArr)
+            {
+                foreach (var a in actsArr)
+                    sb.AppendLine($"  [{a["status"]}] {a["id"]}: {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+            }
+
+            try
+            {
+                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
+                File.WriteAllText(exportPath, sb.ToString());
+                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true });
+                ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ExportMinutes: {ex.Message}");
+                // Fallback: copy to clipboard
+                try { Clipboard.SetText(sb.ToString()); MessageBox.Show("Minutes copied to clipboard."); }
+                catch (Exception ex2) { StingLog.Warn($"Clipboard: {ex2.Message}"); }
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════

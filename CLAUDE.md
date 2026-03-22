@@ -2029,6 +2029,15 @@ Critical review of the tagging workflow identified the following logic, automati
 406. **Missing BIM commands wired** — Added to COORDINATION tab: ProjectDashboard, BulkBIMExport, MeasuredQuantities, ElementCountSummary. Added to HANDOVER tab: Export4DTimeline, Export5DCostData. Added to NOTES/BEP tab: GenerateBEP, UpdateBEP.
 407. **ListView alternation** — `AlternationCount = 2` for alternating row background colors.
 
+#### Completed (Phase 40 — Rich Result Panels, Meeting Manager & Dialog UX)
+
+408. **StingResultPanel** — `UI/StingResultPanel.cs` (530 lines): Reusable rich WPF result display component replacing plain-text TaskDialog for audit reports. Builder API with sections, metrics, RAG bars, pass/fail checklists, tables, alerts, action buttons. Supports CSV export path, clipboard copy, plain-text fallback. Color-coded section headers, aligned key-value metrics, progress bars with RAG coloring.
+409. **PreTagAudit rich panel** — Converted from 170-line StringBuilder + TaskDialog to structured StingResultPanel with 8 colored sections: Scope, Tag Prediction, Spatial Intelligence, Status Prediction, Revision Prediction, Family-Aware PROD Codes, Token Coverage, ISO 19650 Compliance, By Discipline (table). Auto-fix action button triggers AnomalyAutoFix + ResolveAllIssues inline.
+410. **ValidateTags rich panel** — Converted from 250-line narrative StringBuilder to StingResultPanel with RAG bars for compliance, STATUS, REV percentages. Sections: Three-Bucket Compliance, ISO 19650 Code Compliance, Construction Status & Phasing (with status distribution table), Revision Tracking, Empty Tokens, Issues by Category (table), Full Compliance Summary with verdict text. Action buttons for Create Legend and Fix All Issues.
+411. **ValidateTemplate rich panel** — Converted from plain text to StingResultPanel with Summary section (RAG bar, pass/fail/critical counts), Failures section (pass/fail checklist with severity), All Checks section (full pass/fail checklist). CSV export path auto-detected.
+412. **Keep-dialog-open loop** — `StingCommandHandler` DocumentManager dispatch now loops: shows dialog → user clicks command → dialog closes → command executes → dialog re-opens. User stays in Document Management Center across multiple operations without navigating back.
+413. **Meeting Manager tab** — 8th tab "MEETINGS" in DocumentManagementDialog with 3 sections (PREPARE/DURING/REVIEW): New Meeting (5 types: BIM Coordination, Design Review, Client Review, Handover, Clash Resolution), Auto Agenda (auto-generates from open issues, pending transmittals, recent revisions, compliance status, open action items), Meeting Templates, Log Minutes (multi-line text editor), Add Action Item (description/assignee/due date), Quick Issue, Meeting History (StingResultPanel with per-meeting sections), Open Actions (grouped by overdue/upcoming), Export Minutes (to timestamped .txt file). Data stored in `_bim_manager/meetings.json`.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
