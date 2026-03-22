@@ -3317,9 +3317,9 @@ namespace StingTools.UI
             var result = new List<MeetingInfo>();
             try
             {
-                string dir = Path.GetDirectoryName(_data.FilePath ?? "");
+                string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
                 if (string.IsNullOrEmpty(dir)) return result;
-                string path = Path.Combine(dir, "_bim_manager", "meetings.json");
+                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
                 if (!File.Exists(path)) return result;
                 var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
                 foreach (var item in arr)
@@ -3343,9 +3343,9 @@ namespace StingTools.UI
             var result = new List<ActionItemInfo>();
             try
             {
-                string dir = Path.GetDirectoryName(_data.FilePath ?? "");
+                string dir = System.IO.Path.GetDirectoryName(_data.FilePath ?? "");
                 if (string.IsNullOrEmpty(dir)) return result;
-                string path = Path.Combine(dir, "_bim_manager", "meetings.json");
+                string path = System.IO.Path.Combine(dir, "_bim_manager", "meetings.json");
                 if (!File.Exists(path)) return result;
                 var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
                 foreach (var mtg in arr)
