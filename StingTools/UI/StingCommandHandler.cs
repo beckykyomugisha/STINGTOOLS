@@ -1175,6 +1175,16 @@ namespace StingTools.UI
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
+                    // Warnings Manager (Phase 46)
+                    case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
+                    case "WarningsAutoFix": RunCommand<Core.WarningsAutoFixCommand>(app); break;
+                    case "WarningsExport": RunCommand<Core.WarningsExportCommand>(app); break;
+                    case "WarningsBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
+                    case "WarningsSelect": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
+                    case "WarningsSuppress": RunCommand<Core.WarningsSuppressCommand>(app); break;
+                    case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
+                    case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
+
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;

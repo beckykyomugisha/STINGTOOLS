@@ -243,6 +243,8 @@ namespace StingTools.Core
                         StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
                     if (TagConfig.AutoTaggerStaleMarker.HasValue)
                         StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                    // GAP-AT-03: Restore discipline filter from project config
+                    StingAutoTagger.RestoreDisciplineFilter();
                 }
                 catch (Exception atEx)
                 {

@@ -237,12 +237,37 @@ namespace StingTools.Core
         /// <summary>Get current visual tagging state.</summary>
         public static bool IsVisualTaggingEnabled => _visualTaggingEnabled;
 
-        /// <summary>Set the allowed discipline filter. Empty set = all disciplines.</summary>
+        /// <summary>Set the allowed discipline filter. Empty set = all disciplines.
+        /// GAP-AT-03: Also persists to project_config.json for restoration on document open.</summary>
         public static void SetDisciplineFilter(IEnumerable<string> discs)
         {
             _allowedDiscs = discs != null
                 ? new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase)
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Persist filter to config so it survives document close/reopen
+            try
+            {
+                TagConfig.SetConfigValue("AUTO_TAGGER_DISC_FILTER",
+                    _allowedDiscs.Count > 0 ? string.Join(",", _allowedDiscs) : "");
+            }
+            catch (Exception ex) { StingLog.Warn($"Persist disc filter: {ex.Message}"); }
+        }
+
+        /// <summary>GAP-AT-03: Restore discipline filter from config (called on DocumentOpened).</summary>
+        public static void RestoreDisciplineFilter()
+        {
+            try
+            {
+                string filterStr = TagConfig.GetConfigValue("AUTO_TAGGER_DISC_FILTER");
+                if (!string.IsNullOrEmpty(filterStr))
+                {
+                    var discs = filterStr.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    _allowedDiscs = new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase);
+                    if (discs.Count > 0)
+                        StingLog.Info($"AutoTagger: discipline filter restored ({string.Join(",", discs)})");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Restore disc filter: {ex.Message}"); }
         }
 
         /// <summary>
@@ -279,10 +304,14 @@ namespace StingTools.Core
                 if (addedIds == null || addedIds.Count == 0) return;
 
                 // Guard: limit elements per trigger to prevent performance issues
+                // GAP-AT-01: For bulk paste (>50 elements), queue for deferred processing
+                // instead of silently skipping. Elements will be tagged on next command or sync.
                 if (addedIds.Count > MaxElementsPerTrigger)
                 {
-                    StingLog.Info($"StingAutoTagger: skipping batch of {addedIds.Count} elements " +
-                        $"(exceeds limit of {MaxElementsPerTrigger})");
+                    foreach (ElementId id in addedIds)
+                        EnqueueDeferred(id);
+                    StingLog.Info($"StingAutoTagger: bulk paste of {addedIds.Count} elements queued for deferred processing " +
+                        $"(exceeds per-trigger limit of {MaxElementsPerTrigger})");
                     return;
                 }
 

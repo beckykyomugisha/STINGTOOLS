@@ -2296,6 +2296,27 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
+                                <!-- WARNINGS MANAGER (Phase 46) -->
+                                <TextBlock Text="⚠ WARNINGS MANAGER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
+                                <WrapPanel Margin="2,0,2,2">
+                                    <Button Style="{StaticResource BlueBtn}" Content="⚠ Dashboard" Tag="WarningsDashboard" Click="Cmd_Click"
+                                            ToolTip="Warnings dashboard: category/severity/level/discipline breakdown with trend" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
+                                            ToolTip="Auto-fix: duplicate instances, separation overlaps, duplicate marks"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="WarningsExport" Click="Cmd_Click"
+                                            ToolTip="Export warnings to CSV for external tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Baseline" Tag="WarningsBaseline" Click="Cmd_Click"
+                                            ToolTip="Save warning count baseline for trend tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select" Tag="WarningsSelect" Click="Cmd_Click"
+                                            ToolTip="Select elements by warning type"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppress" Tag="WarningsSuppress" Click="Cmd_Click"
+                                            ToolTip="Suppress warning types from dashboard"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="WarningsCompliance" Click="Cmd_Click"
+                                            ToolTip="ISO 19650 / CIBSE / BS 7671 compliance check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Monitor" Tag="WarningsMonitor" Click="Cmd_Click"
+                                            ToolTip="Track warning count before/after commands"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
