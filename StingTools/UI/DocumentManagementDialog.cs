@@ -138,6 +138,10 @@ namespace StingTools.UI
             try { _complianceResult = ComplianceScan.Scan(doc); }
             catch (Exception ex) { StingLog.Warn($"DocMgr compliance scan: {ex.Message}"); }
 
+            // Initialize team registry for member picker dropdowns
+            try { ProjectTeamRegistry.Load(doc); ProjectTeamRegistry.SetLastDoc(doc); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr team registry: {ex.Message}"); }
+
             LoadAllData(doc);
             _view = (ListCollectionView)CollectionViewSource.GetDefaultView(_allItems);
             _view.Filter = FilterItem;
@@ -1322,6 +1326,13 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeActBtn("Meeting History", BrTeal, (s, e) => ShowMeetingHistory(doc)));
             meetWrap.Children.Add(MakeActBtn("Open Actions", BrRed, (s, e) => ShowOpenActions(doc)));
             meetWrap.Children.Add(MakeActBtn("Export Minutes", BrGreen, (s, e) => ExportMeetingMinutes(doc)));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("TEAM & SLA"));
+            meetWrap.Children.Add(MakeActBtn("Team Registry", BrAccent, (s, e) => ProjectTeamRegistry.ShowTeamManagement(doc)));
+            meetWrap.Children.Add(MakeActBtn("Add Member", BrGreen, (s, e) => { ProjectTeamRegistry.Load(doc); ProjectTeamRegistry.ShowAddMemberDialog(); }));
+            meetWrap.Children.Add(MakeActBtn("SLA Check", BrRed, (s, e) => RunSLACheck(doc)));
+            meetWrap.Children.Add(MakeActBtn("Workload", BrTeal, (s, e) => ShowWorkloadDashboard(doc)));
+            meetWrap.Children.Add(MakeActBtn("Notifications", BrFgDark, (s, e) => ShowNotificationQueue(doc)));
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             bar.Child = tabs;
@@ -1506,7 +1517,7 @@ namespace StingTools.UI
             MessageBox.Show($"Exported {_view.Count} rows to:\n{dlg.FileName}", "STING Export", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        /// <summary>Quick transmittal creation from selected document items.</summary>
+        /// <summary>Quick transmittal creation with distribution group/multi-recipient picker.</summary>
         private static void QuickTransmittal(Document doc)
         {
             var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
@@ -1517,8 +1528,98 @@ namespace StingTools.UI
                 return;
             }
 
-            string recipient = PromptForText("Quick Transmittal", $"Recipient for {selected.Count} document(s):", "");
-            if (string.IsNullOrEmpty(recipient)) return;
+            // Load team registry for recipient picker
+            ProjectTeamRegistry.Load(doc);
+            ProjectTeamRegistry.SetLastDoc(doc);
+
+            // Show transmittal dialog with recipient picker
+            var win = new Window
+            {
+                Title = "Create Transmittal",
+                Width = 520, Height = 480,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize
+            };
+            var stack = new StackPanel { Margin = new Thickness(14) };
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"TRANSMITTAL — {selected.Count} document(s)",
+                FontWeight = FontWeights.Bold, FontSize = 13, Margin = new Thickness(0, 0, 0, 6)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = string.Join("\n", selected.Select(s => $"  {s.Title}")),
+                FontSize = 10, Foreground = BrFgSub, Margin = new Thickness(0, 0, 0, 8),
+                MaxHeight = 60
+            });
+
+            // Recipients section with group picker
+            stack.Children.Add(new TextBlock { Text = "Recipients:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 2) });
+            var recipientPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var addRecipientBtn = new Button { Content = "+ Member", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 4, 0), FontSize = 10 };
+            var addGroupBtn = new Button { Content = "+ Group", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 4, 0), FontSize = 10 };
+            recipientPanel.Children.Add(addRecipientBtn);
+            recipientPanel.Children.Add(addGroupBtn);
+            stack.Children.Add(recipientPanel);
+
+            var recipientBox = new System.Windows.Controls.TextBox
+            {
+                AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                ToolTip = "One recipient per line. Use + buttons to pick from team registry."
+            };
+            stack.Children.Add(recipientBox);
+
+            addRecipientBtn.Click += (s, e) =>
+            {
+                string picked = ProjectTeamRegistry.PickMember("Add Recipient", "Select transmittal recipient:");
+                if (!string.IsNullOrEmpty(picked) && !recipientBox.Text.Contains(picked))
+                    recipientBox.AppendText(picked + "\n");
+            };
+            addGroupBtn.Click += (s, e) =>
+            {
+                var recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group", doc);
+                foreach (string name in recipients)
+                    if (!recipientBox.Text.Contains(name))
+                        recipientBox.AppendText(name + "\n");
+            };
+
+            // Suitability code
+            stack.Children.Add(new TextBlock { Text = "Suitability Code:", Margin = new Thickness(0, 6, 0, 2) });
+            var suitCombo = new System.Windows.Controls.ComboBox();
+            foreach (string s in new[] { "S0 — WIP", "S1 — Coordination", "S2 — Information", "S3 — Review & Comment",
+                "S4 — Stage Approval", "S5 — Costing", "S6 — Contractor Design", "S7 — Manufacture" })
+                suitCombo.Items.Add(s);
+            suitCombo.SelectedIndex = 2;
+            stack.Children.Add(suitCombo);
+
+            // Purpose / notes
+            stack.Children.Add(new TextBlock { Text = "Notes / Purpose:", Margin = new Thickness(0, 6, 0, 2) });
+            var notesBox = new System.Windows.Controls.TextBox { Height = 40, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+            stack.Children.Add(notesBox);
+
+            // Delivery tracking
+            var trackCheck = new System.Windows.Controls.CheckBox { Content = "Track delivery (mark as SENT and log per-recipient status)", IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
+            stack.Children.Add(trackCheck);
+
+            bool confirmed = false;
+            var createBtn = new Button { Content = "Create Transmittal", Padding = new Thickness(16, 6, 16, 6), Margin = new Thickness(0, 12, 0, 0) };
+            createBtn.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(recipientBox.Text)) { MessageBox.Show("At least one recipient is required."); return; }
+                confirmed = true;
+                win.DialogResult = true;
+                win.Close();
+            };
+            stack.Children.Add(createBtn);
+            win.Content = stack;
+            win.ShowDialog();
+            if (!confirmed) return;
+
+            // Parse recipients
+            var recipientNames = recipientBox.Text.Split('\n')
+                .Select(r => r.Trim()).Where(r => !string.IsNullOrEmpty(r)).Distinct().ToList();
 
             try
             {
@@ -1529,32 +1630,70 @@ namespace StingTools.UI
                 catch { arr = new JArray(); }
 
                 string transId = $"TX-{arr.Count + 1:D4}";
+                string suitCode = (suitCombo.SelectedItem?.ToString() ?? "S2").Split(' ')[0];
                 var docList = new JArray(selected.Select(s => s.Title).ToArray());
+
+                // Build per-recipient delivery tracking
+                var deliveryTracking = new JArray();
+                foreach (string name in recipientNames)
+                {
+                    var mbr = ProjectTeamRegistry.FindMember(name);
+                    deliveryTracking.Add(new JObject
+                    {
+                        ["name"] = name,
+                        ["email"] = mbr?["email"]?.ToString() ?? "",
+                        ["company"] = mbr != null ? ProjectTeamRegistry.GetCompanyName(mbr["company_id"]?.ToString() ?? "") : "",
+                        ["status"] = trackCheck.IsChecked == true ? "SENT" : "DRAFT",
+                        ["sent_date"] = trackCheck.IsChecked == true ? DateTime.Now.ToString("yyyy-MM-dd HH:mm") : "",
+                        ["acknowledged"] = false,
+                        ["acknowledged_date"] = ""
+                    });
+                }
+
                 var trans = new JObject
                 {
                     ["transmittal_id"] = transId,
                     ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["recipient"] = recipient,
-                    ["status"] = "DRAFT",
+                    ["recipients"] = new JArray(recipientNames.ToArray()),
+                    ["recipient"] = string.Join("; ", recipientNames), // backwards compat
+                    ["recipient_count"] = recipientNames.Count,
+                    ["delivery_tracking"] = deliveryTracking,
+                    ["suitability"] = suitCode,
+                    ["notes"] = notesBox.Text,
+                    ["status"] = trackCheck.IsChecked == true ? "SENT" : "DRAFT",
                     ["revision"] = selected.FirstOrDefault()?.Revision ?? "",
                     ["documents"] = docList,
+                    ["document_count"] = selected.Count,
                     ["created_by"] = Environment.UserName,
                     ["title"] = transId,
-                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} CREATED by {Environment.UserName}"
+                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} CREATED by {Environment.UserName}" +
+                        (trackCheck.IsChecked == true ? $"\n{DateTime.Now:yyyy-MM-dd HH:mm} SENT to {recipientNames.Count} recipients" : "")
                 };
                 arr.Add(trans);
                 File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId, $"{selected.Count} docs to {recipient}");
-                MessageBox.Show($"Transmittal {transId} created:\n{selected.Count} documents → {recipient}\n\nStatus: DRAFT",
+                ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId,
+                    $"{selected.Count} docs to {recipientNames.Count} recipients ({string.Join(", ", recipientNames)})");
+
+                // Generate notification queue entry
+                LogNotification(doc, "transmittal_created", transId,
+                    $"Transmittal {transId}: {selected.Count} docs sent to {recipientNames.Count} recipients",
+                    recipientNames);
+
+                MessageBox.Show($"Transmittal {transId} created:\n{selected.Count} documents → {recipientNames.Count} recipients\n\n" +
+                    $"Recipients: {string.Join(", ", recipientNames)}\nSuitability: {suitCode}\nStatus: {trans["status"]}",
                     "STING Transmittal", MessageBoxButton.OK, MessageBoxImage.Information);
                 RefreshData();
             }
             catch (Exception ex2) { StingLog.Warn($"QuickTransmittal: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
         }
 
-        /// <summary>Quick issue creation with type pre-set (RFI/NCR/SI/TQ).</summary>
+        /// <summary>Quick issue creation with team member assignment, SLA calculation, and auto-escalation.</summary>
         private static void QuickIssue(Document doc, string issueType)
         {
+            // Load team registry
+            ProjectTeamRegistry.Load(doc);
+            ProjectTeamRegistry.SetLastDoc(doc);
+
             string title = PromptForText($"Quick {issueType}", $"Enter {issueType} title/description:", "");
             if (string.IsNullOrEmpty(title)) return;
 
@@ -1567,6 +1706,13 @@ namespace StingTools.UI
             string disc = "";
             if (_currentFilter.StartsWith("DISC:")) disc = _currentFilter.Substring(5);
 
+            // Assignee picker from team registry with workload-based suggestion
+            string suggestedAssignee = ProjectTeamRegistry.SuggestAssignee(doc, disc, "BIM_COORD");
+            string assignedTo = ProjectTeamRegistry.PickMember(
+                $"Assign {issueType}",
+                $"Assign to (suggested: {(string.IsNullOrEmpty(suggestedAssignee) ? "none" : suggestedAssignee)}):",
+                suggestedAssignee, disc);
+
             try
             {
                 string bimDir = GetBimManagerDir(doc);
@@ -1576,6 +1722,11 @@ namespace StingTools.UI
                 catch { arr = new JArray(); }
 
                 string issueId = $"{issueType}-{arr.Count(i => i["type"]?.ToString() == issueType) + 1:D4}";
+                DateTime now = DateTime.Now;
+
+                // Calculate SLA deadline
+                DateTime? slaDeadline = ProjectTeamRegistry.CalculateSLADeadline(priority, now);
+
                 var issue = new JObject
                 {
                     ["issue_id"] = issueId,
@@ -1583,13 +1734,17 @@ namespace StingTools.UI
                     ["title"] = title,
                     ["status"] = "OPEN",
                     ["priority"] = priority,
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
-                    ["assigned_to"] = "",
+                    ["date"] = now.ToString("yyyy-MM-dd"),
+                    ["assigned_to"] = assignedTo,
                     ["discipline"] = disc,
                     ["description"] = title,
                     ["created_by"] = Environment.UserName,
                     ["linked_elements"] = new JArray(),
-                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}"
+                    ["sla_deadline"] = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                    ["escalation_level"] = 0,
+                    ["status_history"] = $"{now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}" +
+                        (!string.IsNullOrEmpty(assignedTo) ? $" — assigned to {assignedTo}" : "") +
+                        (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : "")
                 };
 
                 // Auto-detect revision
@@ -1602,8 +1757,21 @@ namespace StingTools.UI
 
                 arr.Add(issue);
                 File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title}");
-                MessageBox.Show($"Issue {issueId} created:\n\nType: {issueType}\nPriority: {priority}\nTitle: {title}",
+                ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title} → {assignedTo}");
+
+                // Generate notification for critical/high priority issues
+                if (priority == "CRITICAL" || priority == "HIGH")
+                {
+                    string eventType = priority == "CRITICAL" ? "issue_created_critical" : "issue_created_high";
+                    var notifyMembers = ProjectTeamRegistry.GetNotificationRecipients(eventType);
+                    LogNotification(doc, eventType, issueId,
+                        $"[{priority}] {issueType} {issueId}: {title} — assigned to {assignedTo}", notifyMembers);
+                }
+
+                string slaInfo = slaDeadline.HasValue ? $"\nSLA Deadline: {slaDeadline:yyyy-MM-dd HH:mm}" : "";
+                MessageBox.Show($"Issue {issueId} created:\n\nType: {issueType}\nPriority: {priority}\n" +
+                    $"Assigned To: {(string.IsNullOrEmpty(assignedTo) ? "(unassigned)" : assignedTo)}\n" +
+                    $"Title: {title}{slaInfo}",
                     "STING Issues", MessageBoxButton.OK, MessageBoxImage.Information);
                 RefreshData();
             }
@@ -1611,13 +1779,629 @@ namespace StingTools.UI
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  MEETING MANAGER — Agenda, Minutes, Action Items
+        //  PROJECT TEAM REGISTRY — ACC-inspired member/role/company/group mgmt
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>ACC-inspired project team registry with roles, companies, distribution groups,
+        /// SLA rules, escalation chains, RACI matrix, and recurring meeting configuration.</summary>
+        internal static class ProjectTeamRegistry
+        {
+            private static JObject _teamData;
+            private static string _teamPath;
+
+            public static string GetTeamPath(Document doc) =>
+                Path.Combine(GetBimManagerDir(doc), "project_team.json");
+
+            /// <summary>Load or initialize team data from project_team.json.</summary>
+            public static JObject Load(Document doc)
+            {
+                string path = GetTeamPath(doc);
+                _teamPath = path;
+                if (File.Exists(path))
+                {
+                    try { _teamData = JObject.Parse(File.ReadAllText(path)); return _teamData; }
+                    catch (Exception ex) { StingLog.Warn($"TeamRegistry load: {ex.Message}"); }
+                }
+                // Initialize from template
+                _teamData = CreateDefault(doc);
+                Save();
+                return _teamData;
+            }
+
+            private static JObject CreateDefault(Document doc)
+            {
+                // Try loading from bundled template
+                string templatePath = StingToolsApp.FindDataFile("PROJECT_TEAM_TEMPLATE.json");
+                if (!string.IsNullOrEmpty(templatePath) && File.Exists(templatePath))
+                {
+                    try
+                    {
+                        var tmpl = JObject.Parse(File.ReadAllText(templatePath));
+                        tmpl["project_name"] = doc?.Title ?? "";
+                        tmpl["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                        // Add current user as first member
+                        var members = tmpl["members"] as JArray ?? new JArray();
+                        if (members.Count > 0)
+                        {
+                            members[0]["name"] = Environment.UserName;
+                            members[0]["added_date"] = DateTime.Now.ToString("yyyy-MM-dd");
+                        }
+                        return tmpl;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TeamRegistry template: {ex.Message}"); }
+                }
+                // Minimal fallback
+                return new JObject
+                {
+                    ["version"] = "1.0",
+                    ["project_name"] = doc?.Title ?? "",
+                    ["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["roles"] = new JArray(),
+                    ["companies"] = new JArray(),
+                    ["members"] = new JArray(),
+                    ["distribution_groups"] = new JArray(),
+                    ["sla_rules"] = new JObject(),
+                    ["escalation_chain"] = new JArray(),
+                    ["notification_preferences"] = new JObject(),
+                    ["raci_matrix"] = new JObject(),
+                    ["recurring_meetings"] = new JArray()
+                };
+            }
+
+            public static void Save()
+            {
+                if (_teamData == null || string.IsNullOrEmpty(_teamPath)) return;
+                try
+                {
+                    _teamData["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    File.WriteAllText(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
+                }
+                catch (Exception ex) { StingLog.Warn($"TeamRegistry save: {ex.Message}"); }
+            }
+
+            // ── MEMBERS ──
+
+            public static JArray GetMembers() => _teamData?["members"] as JArray ?? new JArray();
+
+            public static List<string> GetMemberNames()
+            {
+                return GetMembers().Select(m => m["name"]?.ToString() ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList();
+            }
+
+            /// <summary>Get members filtered by status (default: ACTIVE only).</summary>
+            public static List<JToken> GetActiveMembers(string status = "ACTIVE")
+            {
+                return GetMembers().Where(m => m["status"]?.ToString() == status || status == "ALL").ToList();
+            }
+
+            /// <summary>Get display list for member picker: "Name (Role — Company — Disc)".</summary>
+            public static List<string> GetMemberPickerList()
+            {
+                var result = new List<string>();
+                foreach (var m in GetActiveMembers())
+                {
+                    string name = m["name"]?.ToString() ?? "";
+                    string roleId = m["role_id"]?.ToString() ?? "";
+                    string roleTitle = GetRoleTitle(roleId);
+                    string companyId = m["company_id"]?.ToString() ?? "";
+                    string companyName = GetCompanyName(companyId);
+                    string disc = m["discipline"]?.ToString() ?? "";
+                    string display = name;
+                    var parts = new List<string>();
+                    if (!string.IsNullOrEmpty(roleTitle)) parts.Add(roleTitle);
+                    if (!string.IsNullOrEmpty(companyName)) parts.Add(companyName);
+                    if (!string.IsNullOrEmpty(disc)) parts.Add(disc);
+                    if (parts.Count > 0) display += $" ({string.Join(" | ", parts)})";
+                    result.Add(display);
+                }
+                return result;
+            }
+
+            /// <summary>Extract just the name from a picker display string.</summary>
+            public static string ExtractName(string pickerDisplay)
+            {
+                if (string.IsNullOrEmpty(pickerDisplay)) return "";
+                int paren = pickerDisplay.IndexOf(" (");
+                return paren > 0 ? pickerDisplay.Substring(0, paren).Trim() : pickerDisplay.Trim();
+            }
+
+            public static JToken FindMember(string name) =>
+                GetMembers().FirstOrDefault(m => string.Equals(m["name"]?.ToString(), name, StringComparison.OrdinalIgnoreCase));
+
+            public static string AddMember(string name, string email, string roleId, string companyId, string discipline)
+            {
+                var members = GetMembers();
+                int nextNum = members.Count + 1;
+                string id = $"MBR-{nextNum:D4}";
+                members.Add(new JObject
+                {
+                    ["id"] = id,
+                    ["name"] = name,
+                    ["email"] = email ?? "",
+                    ["phone"] = "",
+                    ["role_id"] = roleId,
+                    ["company_id"] = companyId,
+                    ["discipline"] = discipline,
+                    ["status"] = "ACTIVE",
+                    ["cde_access"] = "EDITOR",
+                    ["added_date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                    ["notes"] = ""
+                });
+                Save();
+                return id;
+            }
+
+            // ── ROLES ──
+
+            public static JArray GetRoles() => _teamData?["roles"] as JArray ?? new JArray();
+
+            public static string GetRoleTitle(string roleId)
+            {
+                var role = GetRoles().FirstOrDefault(r => r["id"]?.ToString() == roleId);
+                return role?["title"]?.ToString() ?? roleId;
+            }
+
+            public static List<string> GetRolePickerList() =>
+                GetRoles().Select(r => $"{r["id"]} — {r["title"]}").ToList();
+
+            // ── COMPANIES ──
+
+            public static JArray GetCompanies() => _teamData?["companies"] as JArray ?? new JArray();
+
+            public static string GetCompanyName(string companyId)
+            {
+                var co = GetCompanies().FirstOrDefault(c => c["id"]?.ToString() == companyId);
+                return co?["name"]?.ToString() ?? companyId;
+            }
+
+            public static List<string> GetCompanyPickerList() =>
+                GetCompanies().Select(c => $"{c["id"]} — {c["name"]}").ToList();
+
+            // ── DISTRIBUTION GROUPS ──
+
+            public static JArray GetDistributionGroups() => _teamData?["distribution_groups"] as JArray ?? new JArray();
+
+            /// <summary>Get display list for distribution group picker.</summary>
+            public static List<string> GetGroupPickerList()
+            {
+                return GetDistributionGroups()
+                    .Select(g => $"{g["id"]} — {g["name"]} ({g["description"]})")
+                    .ToList();
+            }
+
+            /// <summary>Resolve a distribution group to member names using auto_rule or explicit member_ids.</summary>
+            public static List<string> ResolveGroupMembers(string groupId)
+            {
+                var group = GetDistributionGroups().FirstOrDefault(g => g["id"]?.ToString() == groupId);
+                if (group == null) return new List<string>();
+
+                string autoRule = group["auto_rule"]?.ToString() ?? "";
+                var explicitIds = (group["member_ids"] as JArray)?.Select(t => t.ToString()).ToList() ?? new List<string>();
+                var members = GetActiveMembers();
+
+                // Resolve auto_rule
+                List<JToken> resolved;
+                if (autoRule == "ALL_ACTIVE")
+                    resolved = members;
+                else if (autoRule.StartsWith("DISC:"))
+                {
+                    string disc = autoRule.Substring(5);
+                    resolved = members.Where(m => m["discipline"]?.ToString() == disc).ToList();
+                }
+                else if (autoRule.StartsWith("LEVEL:"))
+                {
+                    string level = autoRule.Substring(6);
+                    var roles = GetRoles().Where(r => r["level"]?.ToString() == level).Select(r => r["id"]?.ToString()).ToHashSet();
+                    resolved = members.Where(m => roles.Contains(m["role_id"]?.ToString())).ToList();
+                }
+                else if (autoRule.StartsWith("ROLE:"))
+                {
+                    var roleIds = autoRule.Substring(5).Split(',').Select(r => r.Trim()).ToHashSet();
+                    resolved = members.Where(m => roleIds.Contains(m["role_id"]?.ToString())).ToList();
+                }
+                else
+                {
+                    // Explicit member IDs
+                    var idSet = explicitIds.ToHashSet();
+                    resolved = members.Where(m => idSet.Contains(m["id"]?.ToString())).ToList();
+                }
+
+                return resolved.Select(m => m["name"]?.ToString() ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList();
+            }
+
+            // ── SLA RULES ──
+
+            public static JObject GetSLARules() => _teamData?["sla_rules"] as JObject ?? new JObject();
+
+            /// <summary>Calculate SLA deadline based on priority and creation date.</summary>
+            public static DateTime? CalculateSLADeadline(string priority, DateTime createdDate)
+            {
+                var rules = GetSLARules();
+                var rule = rules[priority] as JObject;
+                if (rule == null) return null;
+                int resolutionHours = rule["resolution_hours"]?.Value<int>() ?? 0;
+                if (resolutionHours <= 0) return null;
+                return createdDate.AddHours(resolutionHours);
+            }
+
+            /// <summary>Check if an issue should be escalated based on SLA rules.</summary>
+            public static (bool ShouldEscalate, int EscalationLevel, List<string> NotifyRoles) CheckEscalation(
+                string priority, DateTime createdDate, string currentStatus)
+            {
+                if (currentStatus == "CLOSED" || currentStatus == "RESOLVED")
+                    return (false, 0, new List<string>());
+
+                var rules = GetSLARules();
+                var rule = rules[priority] as JObject;
+                if (rule == null) return (false, 0, new List<string>());
+
+                int escalationHours = rule["escalation_after_hours"]?.Value<int>() ?? 0;
+                if (escalationHours <= 0) return (false, 0, new List<string>());
+
+                double hoursOpen = (DateTime.Now - createdDate).TotalHours;
+                if (hoursOpen < escalationHours) return (false, 0, new List<string>());
+
+                // Determine escalation level based on multiples of escalation period
+                int level = Math.Min(3, (int)(hoursOpen / escalationHours));
+                var chain = _teamData?["escalation_chain"] as JArray ?? new JArray();
+                var escalation = chain.FirstOrDefault(c => c["level"]?.Value<int>() == level);
+                var notifyRoles = (escalation?["role_ids"] as JArray)?.Select(r => r.ToString()).ToList() ?? new List<string>();
+                var notifyNames = new List<string>();
+                foreach (string roleId in notifyRoles)
+                {
+                    var roleMembers = GetActiveMembers().Where(m => m["role_id"]?.ToString() == roleId);
+                    notifyNames.AddRange(roleMembers.Select(m => m["name"]?.ToString() ?? ""));
+                }
+
+                return (true, level, notifyNames);
+            }
+
+            // ── RACI MATRIX ──
+
+            public static JObject GetRACIMatrix() => _teamData?["raci_matrix"] as JObject ?? new JObject();
+
+            /// <summary>Get RACI assignments for a given activity.</summary>
+            public static (List<string> Responsible, List<string> Accountable, List<string> Consulted, List<string> Informed)
+                GetRACIForActivity(string activity)
+            {
+                var raci = GetRACIMatrix();
+                var entry = raci[activity] as JObject;
+                if (entry == null) return (new(), new(), new(), new());
+
+                List<string> ResolveRoles(string key)
+                {
+                    var roleIds = (entry[key] as JArray)?.Select(r => r.ToString()).ToList() ?? new List<string>();
+                    var names = new List<string>();
+                    foreach (string roleId in roleIds)
+                    {
+                        // Check if it's a distribution group
+                        if (roleId.StartsWith("DG-"))
+                        {
+                            names.AddRange(ResolveGroupMembers(roleId));
+                            continue;
+                        }
+                        var members = GetActiveMembers().Where(m => m["role_id"]?.ToString() == roleId);
+                        names.AddRange(members.Select(m => m["name"]?.ToString() ?? ""));
+                    }
+                    return names.Distinct().ToList();
+                }
+
+                return (ResolveRoles("R"), ResolveRoles("A"), ResolveRoles("C"), ResolveRoles("I"));
+            }
+
+            // ── RECURRING MEETINGS ──
+
+            public static JArray GetRecurringMeetings() => _teamData?["recurring_meetings"] as JArray ?? new JArray();
+
+            /// <summary>Get default attendee names for a meeting type from recurring config.</summary>
+            public static List<string> GetDefaultAttendees(string meetingType)
+            {
+                var recur = GetRecurringMeetings().FirstOrDefault(r => r["type"]?.ToString() == meetingType);
+                if (recur == null) return new List<string>();
+                var groupIds = (recur["default_attendee_groups"] as JArray)?.Select(g => g.ToString()).ToList() ?? new List<string>();
+                var names = new HashSet<string>();
+                foreach (string gid in groupIds)
+                    foreach (string name in ResolveGroupMembers(gid))
+                        names.Add(name);
+                return names.ToList();
+            }
+
+            // ── NOTIFICATION PREFERENCES ──
+
+            /// <summary>Get member names who should be notified for a given event.</summary>
+            public static List<string> GetNotificationRecipients(string eventType)
+            {
+                var prefs = _teamData?["notification_preferences"] as JObject;
+                var groupIds = (prefs?[eventType] as JArray)?.Select(g => g.ToString()).ToList() ?? new List<string>();
+                var names = new HashSet<string>();
+                foreach (string gid in groupIds)
+                    foreach (string name in ResolveGroupMembers(gid))
+                        names.Add(name);
+                return names.ToList();
+            }
+
+            // ── WORKLOAD TRACKING ──
+
+            /// <summary>Count open assignments per team member across issues and actions.</summary>
+            public static Dictionary<string, int> GetWorkloadCounts(Document doc)
+            {
+                var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                string bimDir = GetBimManagerDir(doc);
+
+                // Count issue assignments
+                string issuePath = Path.Combine(bimDir, "issues.json");
+                if (File.Exists(issuePath))
+                {
+                    try
+                    {
+                        var issues = JArray.Parse(File.ReadAllText(issuePath));
+                        foreach (var i in issues.Where(i => i["status"]?.ToString() != "CLOSED"))
+                        {
+                            string assignee = i["assigned_to"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(assignee))
+                                counts[assignee] = counts.TryGetValue(assignee, out int c) ? c + 1 : 1;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Workload issues: {ex.Message}"); }
+                }
+
+                // Count meeting action assignments
+                string meetPath = Path.Combine(bimDir, "meetings.json");
+                if (File.Exists(meetPath))
+                {
+                    try
+                    {
+                        var meetings = JArray.Parse(File.ReadAllText(meetPath));
+                        foreach (var m in meetings)
+                            if (m["actions"] is JArray acts)
+                                foreach (var a in acts.Where(a => a["status"]?.ToString() != "CLOSED"))
+                                {
+                                    string assignee = a["assigned_to"]?.ToString() ?? "";
+                                    if (!string.IsNullOrEmpty(assignee))
+                                        counts[assignee] = counts.TryGetValue(assignee, out int c) ? c + 1 : 1;
+                                }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Workload meetings: {ex.Message}"); }
+                }
+
+                return counts;
+            }
+
+            /// <summary>Suggest least-loaded team member for a given discipline/role.</summary>
+            public static string SuggestAssignee(Document doc, string discipline = "", string roleId = "")
+            {
+                var workload = GetWorkloadCounts(doc);
+                var candidates = GetActiveMembers();
+
+                if (!string.IsNullOrEmpty(discipline))
+                    candidates = candidates.Where(m => m["discipline"]?.ToString() == discipline).ToList();
+                if (!string.IsNullOrEmpty(roleId))
+                    candidates = candidates.Where(m => m["role_id"]?.ToString() == roleId).ToList();
+
+                if (candidates.Count == 0) return "";
+
+                // Pick member with lowest workload
+                return candidates
+                    .OrderBy(m => workload.TryGetValue(m["name"]?.ToString() ?? "", out int c) ? c : 0)
+                    .Select(m => m["name"]?.ToString() ?? "")
+                    .FirstOrDefault() ?? "";
+            }
+
+            // ── TEAM MANAGEMENT UI ──
+
+            /// <summary>Show team member picker dialog. Returns selected member name or empty string.</summary>
+            public static string PickMember(string title = "Select Team Member", string prompt = "Select assignee:",
+                string currentValue = "", string filterDiscipline = "")
+            {
+                Load(_lastDoc);
+                var pickerList = GetMemberPickerList();
+
+                // Add option to type custom name
+                pickerList.Insert(0, "[+ Add New Team Member]");
+                if (!string.IsNullOrEmpty(filterDiscipline))
+                {
+                    // Discipline-filtered view
+                    var filtered = GetActiveMembers()
+                        .Where(m => m["discipline"]?.ToString() == filterDiscipline)
+                        .Select(m => {
+                            string name = m["name"]?.ToString() ?? "";
+                            string roleTitle = GetRoleTitle(m["role_id"]?.ToString() ?? "");
+                            return $"{name} ({roleTitle} | {filterDiscipline})";
+                        }).ToList();
+                    filtered.Insert(0, "[+ Add New Team Member]");
+                    // Add unfiltered option
+                    filtered.Add("[Show All Members]");
+                    string pick = StingListPicker.Show(title, $"{prompt}\n(Showing {filterDiscipline} discipline)", filtered);
+                    if (pick == "[Show All Members]")
+                        pick = StingListPicker.Show(title, prompt, pickerList);
+                    if (string.IsNullOrEmpty(pick)) return currentValue;
+                    if (pick == "[+ Add New Team Member]") return ShowAddMemberDialog() ?? currentValue;
+                    return ExtractName(pick);
+                }
+
+                string selected = StingListPicker.Show(title, prompt, pickerList);
+                if (string.IsNullOrEmpty(selected)) return currentValue;
+                if (selected == "[+ Add New Team Member]") return ShowAddMemberDialog() ?? currentValue;
+                return ExtractName(selected);
+            }
+
+            /// <summary>Pick multiple members or a distribution group. Returns list of names.</summary>
+            public static List<string> PickRecipients(string title = "Select Recipients", Document doc = null)
+            {
+                Load(doc ?? _lastDoc);
+                var options = new List<string>();
+                options.Add("-- DISTRIBUTION GROUPS --");
+                foreach (var g in GetDistributionGroups())
+                {
+                    var resolved = ResolveGroupMembers(g["id"]?.ToString() ?? "");
+                    options.Add($"[GROUP] {g["name"]} ({resolved.Count} members)");
+                }
+                options.Add("-- INDIVIDUAL MEMBERS --");
+                options.AddRange(GetMemberPickerList());
+                options.Add("[+ Add New Team Member]");
+
+                string pick = StingListPicker.Show(title, "Select recipients (group or individual):", options);
+                if (string.IsNullOrEmpty(pick)) return new List<string>();
+
+                if (pick.StartsWith("[GROUP]"))
+                {
+                    // Extract group name and resolve
+                    string groupName = pick.Replace("[GROUP] ", "").Split('(')[0].Trim();
+                    var group = GetDistributionGroups().FirstOrDefault(g => g["name"]?.ToString() == groupName);
+                    if (group != null) return ResolveGroupMembers(group["id"]?.ToString() ?? "");
+                }
+                if (pick == "[+ Add New Team Member]")
+                {
+                    string newName = ShowAddMemberDialog();
+                    return string.IsNullOrEmpty(newName) ? new List<string>() : new List<string> { newName };
+                }
+                if (pick.StartsWith("--")) return new List<string>(); // Section header
+
+                return new List<string> { ExtractName(pick) };
+            }
+
+            /// <summary>Show dialog to add a new team member. Returns name or null.</summary>
+            public static string ShowAddMemberDialog()
+            {
+                var win = new Window
+                {
+                    Title = "Add Team Member",
+                    Width = 460, Height = 380,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    ResizeMode = ResizeMode.NoResize
+                };
+                var stack = new StackPanel { Margin = new Thickness(14) };
+
+                stack.Children.Add(new TextBlock { Text = "ADD NEW TEAM MEMBER", FontWeight = FontWeights.Bold, FontSize = 13, Margin = new Thickness(0, 0, 0, 10) });
+
+                var nameBox = new System.Windows.Controls.TextBox();
+                stack.Children.Add(new TextBlock { Text = "Full Name *", FontSize = 10, Margin = new Thickness(0, 4, 0, 2) });
+                stack.Children.Add(nameBox);
+
+                var emailBox = new System.Windows.Controls.TextBox();
+                stack.Children.Add(new TextBlock { Text = "Email", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
+                stack.Children.Add(emailBox);
+
+                // Role dropdown
+                var roleCombo = new System.Windows.Controls.ComboBox { IsEditable = true };
+                foreach (string r in GetRolePickerList()) roleCombo.Items.Add(r);
+                if (roleCombo.Items.Count > 0) roleCombo.SelectedIndex = 2; // BIM Coordinator default
+                stack.Children.Add(new TextBlock { Text = "Role", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
+                stack.Children.Add(roleCombo);
+
+                // Company dropdown
+                var companyCombo = new System.Windows.Controls.ComboBox { IsEditable = true };
+                foreach (string c in GetCompanyPickerList()) companyCombo.Items.Add(c);
+                if (companyCombo.Items.Count > 0) companyCombo.SelectedIndex = 0;
+                stack.Children.Add(new TextBlock { Text = "Company", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
+                stack.Children.Add(companyCombo);
+
+                // Discipline dropdown
+                var discCombo = new System.Windows.Controls.ComboBox();
+                foreach (string d in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "" }) discCombo.Items.Add(d);
+                discCombo.SelectedIndex = 0;
+                stack.Children.Add(new TextBlock { Text = "Discipline", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
+                stack.Children.Add(discCombo);
+
+                string resultName = null;
+                var addBtn = new Button { Content = "Add Member", Padding = new Thickness(16, 6, 16, 6), Margin = new Thickness(0, 12, 0, 0) };
+                addBtn.Click += (s, e) =>
+                {
+                    if (string.IsNullOrWhiteSpace(nameBox.Text)) { MessageBox.Show("Name is required."); return; }
+                    string roleId = (roleCombo.SelectedItem?.ToString() ?? "").Split(' ')[0];
+                    string compId = (companyCombo.SelectedItem?.ToString() ?? "").Split(' ')[0];
+                    string disc = discCombo.SelectedItem?.ToString() ?? "";
+                    AddMember(nameBox.Text.Trim(), emailBox.Text.Trim(), roleId, compId, disc);
+                    resultName = nameBox.Text.Trim();
+                    win.DialogResult = true;
+                    win.Close();
+                };
+                stack.Children.Add(addBtn);
+                win.Content = stack;
+                win.ShowDialog();
+                return resultName;
+            }
+
+            /// <summary>Show full team management dialog.</summary>
+            public static void ShowTeamManagement(Document doc)
+            {
+                Load(doc);
+                var panel = StingResultPanel.Create("Project Team Registry")
+                    .SetSubtitle($"{GetActiveMembers().Count} active members | {GetCompanies().Count} companies | {GetDistributionGroups().Count} distribution groups");
+
+                // Members
+                panel.AddSection("TEAM MEMBERS");
+                var workload = GetWorkloadCounts(doc);
+                foreach (var m in GetActiveMembers())
+                {
+                    string name = m["name"]?.ToString() ?? "";
+                    string roleTitle = GetRoleTitle(m["role_id"]?.ToString() ?? "");
+                    string company = GetCompanyName(m["company_id"]?.ToString() ?? "");
+                    string disc = m["discipline"]?.ToString() ?? "";
+                    int load = workload.TryGetValue(name, out int c) ? c : 0;
+                    string loadIndicator = load == 0 ? "" : load <= 3 ? $" [{load} tasks]" : $" [{load} tasks!]";
+                    panel.Metric($"{disc} | {name}", $"{roleTitle} @ {company}{loadIndicator}");
+                }
+
+                // Distribution Groups
+                panel.AddSection("DISTRIBUTION GROUPS");
+                foreach (var g in GetDistributionGroups())
+                {
+                    var members = ResolveGroupMembers(g["id"]?.ToString() ?? "");
+                    panel.Metric(g["name"]?.ToString() ?? "", $"{members.Count} members — {g["description"]}");
+                }
+
+                // Companies
+                panel.AddSection("COMPANIES / ORGANISATIONS");
+                foreach (var co in GetCompanies())
+                    panel.Metric(co["name"]?.ToString() ?? "", $"{co["type"]} | {co["id"]}");
+
+                // RACI
+                var raci = GetRACIMatrix();
+                if (raci.Count > 0)
+                {
+                    panel.AddSection("RACI MATRIX");
+                    foreach (var prop in raci.Properties())
+                    {
+                        var (r, a, consult, inform) = GetRACIForActivity(prop.Name);
+                        string raciText = $"R: {string.Join(", ", r)} | A: {string.Join(", ", a)}";
+                        if (consult.Count > 0) raciText += $" | C: {string.Join(", ", consult)}";
+                        if (inform.Count > 0) raciText += $" | I: {string.Join(", ", inform)}";
+                        panel.Metric(prop.Name.Replace("_", " "), raciText);
+                    }
+                }
+
+                // SLA
+                var sla = GetSLARules();
+                if (sla.Count > 0)
+                {
+                    panel.AddSection("SLA RULES");
+                    foreach (var prop in sla.Properties())
+                    {
+                        var rule = prop.Value as JObject;
+                        if (rule == null) continue;
+                        panel.Metric(prop.Name,
+                            $"Response: {rule["response_hours"]}h | Resolution: {rule["resolution_hours"]}h | Escalate: {rule["escalation_after_hours"]}h");
+                    }
+                }
+
+                panel.Action("Add Member", "Add a new team member to the registry", (w) => { ShowAddMemberDialog(); });
+                panel.Show();
+            }
+
+            private static Document _lastDoc;
+            public static void SetLastDoc(Document doc) => _lastDoc = doc;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  MEETING MANAGER — Agenda, Minutes, Action Items (Enhanced)
         // ══════════════════════════════════════════════════════════════════
 
         private static string GetMeetingsPath(Document doc) =>
             Path.Combine(GetBimManagerDir(doc), "meetings.json");
 
-        /// <summary>Create a new meeting with attendees, series support, and follow-up from previous.</summary>
+        /// <summary>Create a new meeting with team-registry attendee picker, recurring meeting defaults,
+        /// distribution group support, and follow-up from previous.</summary>
         private static void CreateMeeting(Document doc)
         {
             var types = new List<string>
@@ -1628,26 +2412,52 @@ namespace StingTools.UI
             string meetingType = StingListPicker.Show("New Meeting", "Select meeting type:", types);
             if (string.IsNullOrEmpty(meetingType)) return;
 
+            // Load team registry for attendee resolution
+            var teamData = ProjectTeamRegistry.Load(doc);
+            ProjectTeamRegistry.SetLastDoc(doc);
+
             string bimDir = GetBimManagerDir(doc);
             if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
             string path = GetMeetingsPath(doc);
             var meetings = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
 
-            // Calculate series number (sequential within same type)
             int seriesNum = meetings.Count(m => m["type"]?.ToString() == meetingType) + 1;
             int nextId = meetings.Count + 1;
 
-            // Find previous meeting of same type to carry forward open actions
             var prevMeeting = meetings.LastOrDefault(m => m["type"]?.ToString() == meetingType);
             int carryForwardActions = 0;
             if (prevMeeting?["actions"] is JArray prevActs)
                 carryForwardActions = prevActs.Count(a => a["status"]?.ToString() != "CLOSED");
 
-            // Attendee input dialog
+            // Resolve default attendees from recurring meeting config or previous meeting
+            var defaultAttendees = ProjectTeamRegistry.GetDefaultAttendees(meetingType);
+            string defaultAttText = "";
+            if (defaultAttendees.Count > 0)
+            {
+                foreach (string name in defaultAttendees)
+                {
+                    var mbr = ProjectTeamRegistry.FindMember(name);
+                    string role = mbr != null ? ProjectTeamRegistry.GetRoleTitle(mbr["role_id"]?.ToString() ?? "") : "";
+                    string disc = mbr?["discipline"]?.ToString() ?? "";
+                    defaultAttText += $"{name}, {role}, {disc}\n";
+                }
+            }
+            else if (prevMeeting?["attendees"] is JArray prevAtts && prevAtts.Count > 0)
+            {
+                // Carry forward attendees from previous meeting of same type
+                foreach (var att in prevAtts)
+                    defaultAttText += $"{att["name"]}, {att["role"]}, {att["discipline"]}\n";
+            }
+            else
+            {
+                defaultAttText = $"{Environment.UserName}, BIM Coordinator, M\n";
+            }
+
+            // Attendee input dialog with team picker integration
             var attendeeWin = new Window
             {
                 Title = $"Meeting Attendees — {meetingType} #{seriesNum}",
-                Width = 500, Height = 380,
+                Width = 550, Height = 480,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen
             };
             var attStack = new StackPanel { Margin = new Thickness(12) };
@@ -1664,21 +2474,79 @@ namespace StingTools.UI
                     Foreground = BrTeal, Margin = new Thickness(0, 0, 0, 8), FontStyle = FontStyles.Italic
                 });
             }
+            if (defaultAttendees.Count > 0)
+            {
+                attStack.Children.Add(new TextBlock
+                {
+                    Text = $"\u2705 {defaultAttendees.Count} default attendees loaded from recurring meeting config",
+                    Foreground = BrGreen, Margin = new Thickness(0, 0, 0, 4), FontSize = 10
+                });
+            }
+
+            // Chair picker (dropdown from team)
             attStack.Children.Add(new TextBlock { Text = "Chair:", Margin = new Thickness(0, 4, 0, 2) });
+            var chairPanel = new DockPanel();
             var chairBox = new System.Windows.Controls.TextBox { Text = Environment.UserName };
-            attStack.Children.Add(chairBox);
+            DockPanel.SetDock(chairBox, Dock.Left);
+            var chairPickBtn = new Button { Content = "Pick", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(4, 0, 0, 0) };
+            chairPickBtn.Click += (s, e) =>
+            {
+                string picked = ProjectTeamRegistry.PickMember("Select Chair", "Select meeting chair:");
+                if (!string.IsNullOrEmpty(picked)) chairBox.Text = picked;
+            };
+            DockPanel.SetDock(chairPickBtn, Dock.Right);
+            chairPanel.Children.Add(chairPickBtn);
+            chairPanel.Children.Add(chairBox);
+            attStack.Children.Add(chairPanel);
+
+            // Attendee list with group picker buttons
             attStack.Children.Add(new TextBlock
             {
                 Text = "Attendees (one per line — Name, Role, Discipline):",
                 Margin = new Thickness(0, 8, 0, 2)
             });
+
+            // Quick-add buttons for distribution groups
+            var groupPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var addMemberBtn = new Button { Content = "+ Member", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 4, 0), FontSize = 10 };
+            var addGroupBtn = new Button { Content = "+ Group", Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 4, 0), FontSize = 10 };
+            groupPanel.Children.Add(addMemberBtn);
+            groupPanel.Children.Add(addGroupBtn);
+            attStack.Children.Add(groupPanel);
+
             var attBox = new System.Windows.Controls.TextBox
             {
-                AcceptsReturn = true, Height = 140, TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true, Height = 160, TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Text = $"{Environment.UserName}, BIM Coordinator, M\n"
+                Text = defaultAttText
             };
             attStack.Children.Add(attBox);
+
+            addMemberBtn.Click += (s, e) =>
+            {
+                string picked = ProjectTeamRegistry.PickMember("Add Attendee", "Select team member:");
+                if (!string.IsNullOrEmpty(picked))
+                {
+                    var mbr = ProjectTeamRegistry.FindMember(picked);
+                    string role = mbr != null ? ProjectTeamRegistry.GetRoleTitle(mbr["role_id"]?.ToString() ?? "") : "";
+                    string disc = mbr?["discipline"]?.ToString() ?? "";
+                    attBox.AppendText($"{picked}, {role}, {disc}\n");
+                }
+            };
+            addGroupBtn.Click += (s, e) =>
+            {
+                var recipients = ProjectTeamRegistry.PickRecipients("Add Group", doc);
+                foreach (string name in recipients)
+                {
+                    // Don't add duplicates
+                    if (attBox.Text.Contains(name)) continue;
+                    var mbr = ProjectTeamRegistry.FindMember(name);
+                    string role = mbr != null ? ProjectTeamRegistry.GetRoleTitle(mbr["role_id"]?.ToString() ?? "") : "";
+                    string disc = mbr?["discipline"]?.ToString() ?? "";
+                    attBox.AppendText($"{name}, {role}, {disc}\n");
+                }
+            };
+
             var createBtn = new Button
             {
                 Content = "Create Meeting", Margin = new Thickness(0, 10, 0, 0),
@@ -1696,11 +2564,15 @@ namespace StingTools.UI
             foreach (string line in attBox.Text.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
             {
                 var parts = line.Split(',').Select(p => p.Trim()).ToArray();
+                string name = parts.Length > 0 ? parts[0] : "";
+                // Look up email from team registry
+                var member = ProjectTeamRegistry.FindMember(name);
                 attendees.Add(new JObject
                 {
-                    ["name"] = parts.Length > 0 ? parts[0] : "",
+                    ["name"] = name,
                     ["role"] = parts.Length > 1 ? parts[1] : "",
                     ["discipline"] = parts.Length > 2 ? parts[2] : "",
+                    ["email"] = member?["email"]?.ToString() ?? "",
                     ["present"] = true
                 });
             }
@@ -2021,7 +2893,21 @@ namespace StingTools.UI
 
             AddRow(0, "Description:", out var descBox);
             AddRow(1, "Assigned To:", out var assignBox);
-            assignBox.Text = Environment.UserName;
+            // Default to suggested assignee from team registry
+            string suggested = ProjectTeamRegistry.SuggestAssignee(doc);
+            assignBox.Text = !string.IsNullOrEmpty(suggested) ? suggested : Environment.UserName;
+            // Add pick button for assignee
+            var pickAssigneeBtn = new Button { Content = "Pick", Padding = new Thickness(6, 1, 6, 1), FontSize = 10, Margin = new Thickness(4, 2, 0, 2) };
+            pickAssigneeBtn.Click += (ps, pe) =>
+            {
+                string picked = ProjectTeamRegistry.PickMember("Assign Action", "Select team member:");
+                if (!string.IsNullOrEmpty(picked)) assignBox.Text = picked;
+            };
+            System.Windows.Controls.Grid.SetRow(pickAssigneeBtn, 1);
+            System.Windows.Controls.Grid.SetColumn(pickAssigneeBtn, 1);
+            pickAssigneeBtn.HorizontalAlignment = HorizontalAlignment.Right;
+            grid.Children.Add(pickAssigneeBtn);
+
             AddRow(2, "Due Date:", out var dueBox);
             dueBox.Text = DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
 
@@ -2216,6 +3102,171 @@ namespace StingTools.UI
                 try { Clipboard.SetText(sb.ToString()); MessageBox.Show("Minutes copied to clipboard."); }
                 catch (Exception ex2) { StingLog.Warn($"Clipboard: {ex2.Message}"); }
             }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  NOTIFICATION QUEUE & SLA AUTOMATION
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>Log a notification to the notification_queue.json for pending delivery.</summary>
+        private static void LogNotification(Document doc, string eventType, string refId,
+            string message, List<string> recipientNames)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string notifyPath = Path.Combine(bimDir, "notification_queue.json");
+                JArray queue;
+                try { queue = File.Exists(notifyPath) ? JArray.Parse(File.ReadAllText(notifyPath)) : new JArray(); }
+                catch { queue = new JArray(); }
+
+                queue.Add(new JObject
+                {
+                    ["id"] = $"NTF-{queue.Count + 1:D4}",
+                    ["event_type"] = eventType,
+                    ["ref_id"] = refId,
+                    ["message"] = message,
+                    ["recipients"] = new JArray(recipientNames.Select(n =>
+                    {
+                        var mbr = ProjectTeamRegistry.FindMember(n);
+                        return new JObject
+                        {
+                            ["name"] = n,
+                            ["email"] = mbr?["email"]?.ToString() ?? "",
+                            ["delivered"] = false
+                        };
+                    }).ToArray()),
+                    ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["created_by"] = Environment.UserName,
+                    ["status"] = "PENDING"
+                });
+
+                File.WriteAllText(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"LogNotification: {ex.Message}"); }
+        }
+
+        /// <summary>Run SLA check across all open issues and generate escalation notifications.</summary>
+        private static void RunSLACheck(Document doc)
+        {
+            ProjectTeamRegistry.Load(doc);
+            string bimDir = GetBimManagerDir(doc);
+            string issuePath = Path.Combine(bimDir, "issues.json");
+            if (!File.Exists(issuePath)) { MessageBox.Show("No issues found."); return; }
+
+            var issues = JArray.Parse(File.ReadAllText(issuePath));
+            int escalated = 0, overdue = 0, onTrack = 0;
+            var escalationReport = new List<string>();
+
+            foreach (var issue in issues)
+            {
+                string status = issue["status"]?.ToString() ?? "";
+                if (status == "CLOSED" || status == "RESOLVED") continue;
+
+                string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+                if (!DateTime.TryParse(issue["date"]?.ToString(), out DateTime created)) continue;
+
+                // Check SLA
+                DateTime? slaDeadline = ProjectTeamRegistry.CalculateSLADeadline(priority, created);
+                if (slaDeadline.HasValue && DateTime.Now > slaDeadline.Value)
+                    overdue++;
+                else
+                    onTrack++;
+
+                // Check escalation
+                var (shouldEscalate, level, notifyNames) = ProjectTeamRegistry.CheckEscalation(priority, created, status);
+                int currentLevel = issue["escalation_level"]?.Value<int>() ?? 0;
+                if (shouldEscalate && level > currentLevel)
+                {
+                    issue["escalation_level"] = level;
+                    string issueId = issue["issue_id"]?.ToString() ?? "";
+                    escalationReport.Add($"  L{level}: [{priority}] {issueId} — {issue["title"]} → notify {string.Join(", ", notifyNames)}");
+                    LogNotification(doc, "action_overdue", issueId,
+                        $"ESCALATION L{level}: {issueId} ({priority}) overdue — {issue["title"]}",
+                        notifyNames);
+                    escalated++;
+                }
+            }
+
+            File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+
+            var panel = StingResultPanel.Create("SLA Compliance Check")
+                .SetSubtitle($"{issues.Count(i => i["status"]?.ToString() != "CLOSED")} open issues scanned")
+                .AddSection("SLA STATUS")
+                .Metric("On Track", onTrack.ToString())
+                .Metric("Overdue", overdue.ToString())
+                .Metric("Newly Escalated", escalated.ToString());
+
+            if (escalationReport.Count > 0)
+            {
+                panel.AddSection("ESCALATIONS TRIGGERED");
+                foreach (string line in escalationReport) panel.Alert(line);
+            }
+            panel.Show();
+        }
+
+        /// <summary>Show workload dashboard across all team members.</summary>
+        private static void ShowWorkloadDashboard(Document doc)
+        {
+            ProjectTeamRegistry.Load(doc);
+            var workload = ProjectTeamRegistry.GetWorkloadCounts(doc);
+            var members = ProjectTeamRegistry.GetActiveMembers();
+
+            var panel = StingResultPanel.Create("Team Workload Dashboard")
+                .SetSubtitle($"{members.Count} active members | {workload.Values.Sum()} total open tasks");
+
+            panel.AddSection("WORKLOAD BY MEMBER");
+            var sorted = members
+                .Select(m => (Name: m["name"]?.ToString() ?? "", Role: ProjectTeamRegistry.GetRoleTitle(m["role_id"]?.ToString() ?? ""),
+                    Disc: m["discipline"]?.ToString() ?? "", Count: workload.TryGetValue(m["name"]?.ToString() ?? "", out int c) ? c : 0))
+                .OrderByDescending(m => m.Count).ToList();
+
+            foreach (var m in sorted)
+            {
+                string load = m.Count == 0 ? "Available" : m.Count <= 3 ? $"{m.Count} tasks" : $"{m.Count} tasks (HIGH)";
+                panel.Metric($"{m.Disc} | {m.Name} ({m.Role})", load);
+            }
+
+            if (sorted.Count > 0)
+            {
+                panel.AddSection("BALANCE SUMMARY");
+                double avg = sorted.Average(m => m.Count);
+                int max = sorted.Max(m => m.Count);
+                panel.Metric("Average tasks per person", avg.ToString("F1"));
+                panel.Metric("Max tasks (busiest)", $"{max} ({sorted.First(m => m.Count == max).Name})");
+                panel.Metric("Available members", sorted.Count(m => m.Count == 0).ToString());
+            }
+
+            panel.Show();
+        }
+
+        /// <summary>Show notification queue status.</summary>
+        private static void ShowNotificationQueue(Document doc)
+        {
+            string bimDir = GetBimManagerDir(doc);
+            string notifyPath = Path.Combine(bimDir, "notification_queue.json");
+            if (!File.Exists(notifyPath)) { MessageBox.Show("No notifications queued."); return; }
+
+            var queue = JArray.Parse(File.ReadAllText(notifyPath));
+            var pending = queue.Where(n => n["status"]?.ToString() == "PENDING").ToList();
+
+            var panel = StingResultPanel.Create("Notification Queue")
+                .SetSubtitle($"{pending.Count} pending | {queue.Count} total notifications");
+
+            if (pending.Count > 0)
+            {
+                panel.AddSection($"PENDING ({pending.Count})");
+                foreach (var n in pending.TakeLast(20))
+                {
+                    var recipients = (n["recipients"] as JArray)?.Select(r => r["name"]?.ToString()).ToList() ?? new List<string>();
+                    panel.Metric($"[{n["event_type"]}] {n["ref_id"]}", $"{n["message"]} → {string.Join(", ", recipients)}");
+                }
+            }
+
+            panel.AddSection("NOTE")
+                .Text("Notifications are queued for manual delivery or email integration.")
+                .Text("Mark as delivered after sending emails or forwarding to team.");
+            panel.Show();
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -3770,14 +4821,39 @@ namespace StingTools.UI
                 UpdateIssueField(doc, item.Id, "priority", pick);
                 _view?.Refresh();
             }));
-            menu.Items.Add(MakeMenuItem("Assign To...", "Assign issue to team member", (s, e) =>
+            menu.Items.Add(MakeMenuItem("Assign To...", "Assign issue to team member (from project team registry)", (s, e) =>
             {
                 if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
-                string name = PromptForText("Assign To", "Enter assignee name:", item.AssignedTo ?? "");
-                if (!string.IsNullOrEmpty(name))
+                ProjectTeamRegistry.Load(doc);
+                ProjectTeamRegistry.SetLastDoc(doc);
+                // Use team picker with discipline-aware filtering
+                string disc = item.Discipline ?? "";
+                string suggested = ProjectTeamRegistry.SuggestAssignee(doc, disc);
+                string name = ProjectTeamRegistry.PickMember("Assign Issue",
+                    $"Assign {item.Id} to:" + (!string.IsNullOrEmpty(suggested) ? $"\n(Suggested: {suggested})" : ""),
+                    item.AssignedTo ?? "", disc);
+                if (!string.IsNullOrEmpty(name) && name != (item.AssignedTo ?? ""))
                 {
                     item.AssignedTo = name;
                     UpdateIssueField(doc, item.Id, "assigned_to", name);
+                    // Log assignment change in status history
+                    string bimDir = GetBimManagerDir(doc);
+                    string issuePath = Path.Combine(bimDir, "issues.json");
+                    try
+                    {
+                        if (File.Exists(issuePath))
+                        {
+                            var issues = JArray.Parse(File.ReadAllText(issuePath));
+                            var issue = issues.FirstOrDefault(i => i["issue_id"]?.ToString() == item.Id);
+                            if (issue != null)
+                            {
+                                string hist = issue["status_history"]?.ToString() ?? "";
+                                issue["status_history"] = hist + $"\n{DateTime.Now:yyyy-MM-dd HH:mm} REASSIGNED to {name} by {Environment.UserName}";
+                                File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                            }
+                        }
+                    }
+                    catch (Exception ex3) { StingLog.Warn($"Assign history: {ex3.Message}"); }
                     _view?.Refresh();
                 }
             }));
