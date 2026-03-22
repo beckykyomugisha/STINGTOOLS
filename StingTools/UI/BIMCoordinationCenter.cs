@@ -2739,7 +2739,7 @@ namespace StingTools.UI
                 // Revisions
                 "CreateRevision" => "Create new revision with ISO 19650 naming and compliance gate",
                 "AutoRevisionCloud" => "Auto-generate revision clouds for changed elements",
-                "TakeSnapshot" => "Take tag snapshot for change tracking between revisions",
+                "TakeSnapshot" => "Capture model compliance snapshot: tag %, container %, warnings, stale count, per-discipline breakdown. Saved to snapshots.json for trend tracking.",
                 "RevisionCompare" => "Compare tag values between revision snapshots",
                 // Platform
                 "PlatformSync" => "Bidirectional sync with CDE platform (delta detection)",
@@ -2779,7 +2779,6 @@ namespace StingTools.UI
                 "OpenActions" => "View all outstanding action items grouped by: overdue first, then by assignee and due date. Options to mark complete, reassign, or escalate.",
                 "ExportMinutes" => "Export meeting minutes to timestamped text file for distribution via email or CDE.",
                 "SendReminder" => "Generate email reminder text for outstanding action items with overdue highlighting.",
-                "TakeSnapshot" => "Capture model compliance snapshot: tag %, container %, warnings, stale count, per-discipline breakdown. Saved to snapshots.json for trend tracking.",
                 "EscalateActions" => "Auto-create NCR issues from overdue meeting actions. Original actions marked ESCALATED with cross-reference to new issue ID.",
                 // Permissions
                 "EditUserRole" => "Change your active ISO 19650 role (A/M/E/S/C/I/K/F/etc.). Determines CDE folder access, approval rights, and notification routing.",

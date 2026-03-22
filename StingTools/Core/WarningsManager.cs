@@ -2553,12 +2553,12 @@ namespace StingTools.Core
                     ["strict_compliance_pct"] = result?.StrictPercent ?? 0,
                     ["container_complete_pct"] = result?.ContainerCompletePct ?? 0,
                     ["rag_status"] = result?.RAGStatus ?? "RED",
-                    ["total_elements"] = result?.Total ?? 0,
-                    ["tagged_elements"] = result?.Tagged ?? 0,
+                    ["total_elements"] = result?.TotalElements ?? 0,
+                    ["tagged_elements"] = result?.TaggedComplete ?? 0,
                     ["untagged_elements"] = result?.Untagged ?? 0,
                     ["stale_elements"] = result?.StaleCount ?? 0,
-                    ["warnings_total"] = warningReport?.TotalWarnings ?? 0,
-                    ["warnings_critical"] = warningReport?.CriticalCount ?? 0,
+                    ["warnings_total"] = warningReport?.Total ?? 0,
+                    ["warnings_critical"] = warningReport?.BySeverity?.GetValueOrDefault(WarningSeverity.Critical, 0) ?? 0,
                     ["warning_health_score"] = WarningsEngine.CalculateWarningHealthScore(warningReport)
                 };
 
