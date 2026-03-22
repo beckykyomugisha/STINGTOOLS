@@ -99,6 +99,18 @@ namespace StingTools.Tags
                 total++;
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
 
+                // VAL-01: Strip TAG_PREFIX and TAG_SUFFIX before validation so prefixed/suffixed
+                // tags are not incorrectly flagged as incomplete (e.g., "PRJ-M-BLD1-Z01-..." has 9+ segments)
+                string tag1ForValidation = tag1;
+                if (!string.IsNullOrEmpty(tag1ForValidation))
+                {
+                    string sep = ParamRegistry.Separator;
+                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix) && tag1ForValidation.StartsWith(TagConfig.TagPrefix + sep))
+                        tag1ForValidation = tag1ForValidation.Substring(TagConfig.TagPrefix.Length + sep.Length);
+                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix) && tag1ForValidation.EndsWith(sep + TagConfig.TagSuffix))
+                        tag1ForValidation = tag1ForValidation.Substring(0, tag1ForValidation.Length - sep.Length - TagConfig.TagSuffix.Length);
+                }
+
                 // Check TAG_1
                 string tag1Status;
                 if (string.IsNullOrEmpty(tag1))
@@ -108,14 +120,14 @@ namespace StingTools.Tags
                     tag1Status = "MISSING";
                     IncrementDict(issuesByCategory, catName);
                 }
-                else if (TagConfig.TagIsComplete(tag1) && TagConfig.TagIsFullyResolved(tag1))
+                else if (TagConfig.TagIsComplete(tag1ForValidation) && TagConfig.TagIsFullyResolved(tag1ForValidation))
                 {
                     tag1Valid++;
                     fullyResolved++;
                     bucketFully++;
                     tag1Status = "VALID";
                 }
-                else if (TagConfig.TagIsComplete(tag1))
+                else if (TagConfig.TagIsComplete(tag1ForValidation))
                 {
                     tag1Valid++;
                     bucketPartial++;

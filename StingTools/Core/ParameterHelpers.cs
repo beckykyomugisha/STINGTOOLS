@@ -100,11 +100,14 @@ namespace StingTools.Core
         private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
             = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
-        /// <summary>Clear the parameter lookup cache. Call on document close or when
-        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// <summary>Clear the parameter lookup cache and solid fill cache. Call on document
+        /// close or when shared parameters change (e.g., after LoadSharedParams).</summary>
         public static void ClearParamCache()
         {
             _paramCache.Clear();
+            // CACHE-01: Also clear solid fill pattern cache to prevent stale entries
+            // when switching between documents with different fill patterns.
+            lock (_solidFillCache) { _solidFillCache.Clear(); }
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -427,12 +430,26 @@ namespace StingTools.Core
         /// Find the solid fill pattern element in the document.
         /// Used by color override commands and template configuration.
         /// </summary>
+        /// <summary>PERF-04: Cached solid fill pattern lookup to avoid per-call FilteredElementCollector.</summary>
+        private static readonly Dictionary<string, FillPatternElement> _solidFillCache = new Dictionary<string, FillPatternElement>();
         public static FillPatternElement GetSolidFillPattern(Document doc)
         {
-            return new FilteredElementCollector(doc)
+            string key = doc.PathName ?? doc.Title ?? "Untitled";
+            lock (_solidFillCache)
+            {
+                if (_solidFillCache.TryGetValue(key, out var cached))
+                {
+                    // Validate the cached element is still valid
+                    if (cached != null && cached.IsValidObject) return cached;
+                    _solidFillCache.Remove(key);
+                }
+            }
+            var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            lock (_solidFillCache) { _solidFillCache[key] = result; }
+            return result;
         }
 
         /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
@@ -1888,7 +1905,18 @@ namespace StingTools.Core
                         Phase phase = doc.GetElement(phaseId) as Phase;
                         if (phase != null && !string.IsNullOrEmpty(phase.Name))
                         {
-                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
+                            // LOGIC-04: Use phase name as installation context instead of DateTime.Now.
+                            // DateTime.Now is incorrect for existing/demolished elements — they weren't
+                            // installed today. Write phase name as a meaningful lifecycle marker instead.
+                            string installContext = phase.Name;
+                            // If phase looks like "New Construction" or "Existing", record it;
+                            // only write today's date for elements in a construction phase
+                            if (phase.Name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                phase.Name.IndexOf("Construction", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                installContext = DateTime.Now.ToString("yyyy-MM-dd");
+                            }
+                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", installContext);
                             written++;
                         }
                     }
@@ -2174,11 +2202,456 @@ namespace StingTools.Core
                 .ToList();
             foreach (var sheet in sheets)
             {
-                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, "SHT_NUMBER_TXT");
-                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, "SHT_NAME_TXT");
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, ParamRegistry.SHT_NUMBER);
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, ParamRegistry.SHT_NAME);
             }
             return written;
         }
+
+        /// <summary>
+        /// Sheet-level tagging engine. Derives ISO 19650 document codes for all sheets
+        /// by scanning viewport contents for discipline, level, and form data.
+        /// Returns (sheetsProcessed, tokensWritten).
+        /// </summary>
+        public static (int sheets, int tokens) TagSheets(Document doc)
+        {
+            if (doc == null) return (0, 0);
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            if (sheets.Count == 0) return (0, 0);
+
+            // Project-level tokens (shared across all sheets)
+            string originator = SheetTagger.DetectOriginator(doc);
+            string projectCode = SheetTagger.DetectProjectCode(doc);
+            string rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01";
+
+            int processed = 0, tokensWritten = 0;
+
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    int w = SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                    tokensWritten += w;
+                    processed++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSheets: sheet {sheet.SheetNumber}: {ex.Message}");
+                }
+            }
+
+            return (processed, tokensWritten);
+        }
+    }
+
+    /// <summary>
+    /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
+    /// for ViewSheet elements by scanning viewport contents.
+    /// </summary>
+    internal static class SheetTagger
+    {
+        /// <summary>
+        /// Tag a single sheet with ISO 19650 document code tokens.
+        /// Returns number of parameters written.
+        /// </summary>
+        public static int TagSheet(Document doc, ViewSheet sheet,
+            string originator, string projectCode, string rev)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int written = 0;
+
+            // 1. Map native sheet number/name
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
+
+            // 2. Derive DISC from viewport element discipline majority vote
+            string disc = DeriveSheetDiscipline(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_DISC, disc);
+
+            // 3. Derive FORM from viewport view types
+            string form = DeriveSheetForm(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_FORM, form);
+
+            // 4. Derive LEVEL from viewport view associated levels
+            string level = DeriveSheetLevel(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_LEVEL, level);
+
+            // 5. Write project-level tokens
+            written += SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
+            written += SetStr(sheet, ParamRegistry.SHT_REV, rev);
+
+            // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
+            // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
+            string sheetNum = sheet.SheetNumber ?? "00000";
+            string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
+            written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+
+            // 7. Build SHT_TAG_7 narrative
+            string tag7 = BuildSheetNarrative(doc, sheet, disc, form, level, rev);
+            written += SetStr(sheet, ParamRegistry.SHT_TAG_7, tag7);
+
+            // INT-12: Performance warning for slow sheets
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 2000)
+                StingLog.Warn($"TagSheet: {sheet.SheetNumber} took {sw.ElapsedMilliseconds}ms (slow — large viewport element count)");
+
+            return written;
+        }
+
+        /// <summary>Extract originator code from Project Information.</summary>
+        public static string DetectOriginator(Document doc)
+        {
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return "XX";
+
+                // Check for explicit originator parameter
+                Parameter orgP = pi.LookupParameter("Organization Name")
+                    ?? pi.LookupParameter("Client Name")
+                    ?? pi.LookupParameter("Author");
+                if (orgP != null && orgP.HasValue)
+                {
+                    string val = orgP.AsString();
+                    if (!string.IsNullOrWhiteSpace(val))
+                    {
+                        // Take first 3-6 uppercase chars as code
+                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
+                        return clean.Length <= 6
+                            ? clean.ToUpperInvariant()
+                            : clean.Substring(0, 6).ToUpperInvariant();
+                    }
+                }
+                return "XX";
+            }
+            catch (Exception ex) { StingLog.Warn($"DetectOriginator: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>Extract project code from Project Information.</summary>
+        public static string DetectProjectCode(Document doc)
+        {
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return "PR01";
+
+                Parameter numP = pi.LookupParameter("Project Number");
+                if (numP != null && numP.HasValue)
+                {
+                    string val = numP.AsString();
+                    if (!string.IsNullOrWhiteSpace(val))
+                    {
+                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
+                        return clean.Length <= 8
+                            ? clean.ToUpperInvariant()
+                            : clean.Substring(0, 8).ToUpperInvariant();
+                    }
+                }
+                return "PR01";
+            }
+            catch (Exception ex) { StingLog.Warn($"DetectProjectCode: {ex.Message}"); return "PR01"; }
+        }
+
+        /// <summary>
+        /// Derive sheet discipline by majority vote of element DISC codes
+        /// across all viewports on the sheet.
+        /// </summary>
+        private static string DeriveSheetDiscipline(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "GEN";
+
+                var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    // Use view-level discipline detection first
+                    var viewDiscs = TagConfig.GetViewRelevantDisciplines(view);
+                    if (viewDiscs != null && viewDiscs.Count > 0)
+                    {
+                        foreach (string d in viewDiscs)
+                        {
+                            discCounts.TryGetValue(d, out int c);
+                            discCounts[d] = c + 1;
+                        }
+                        continue;
+                    }
+
+                    // Fallback: sample elements in the view
+                    try
+                    {
+                        var elements = new FilteredElementCollector(doc, view.Id)
+                            .WhereElementIsNotElementType()
+                            .ToElements();
+
+                        int sampled = 0;
+                        foreach (var el in elements)
+                        {
+                            if (sampled >= 200) break; // cap for performance
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            if (string.IsNullOrEmpty(catName)) continue;
+
+                            // Check stored DISC first, then fall back to category map
+                            string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            if (string.IsNullOrEmpty(elDisc))
+                            {
+                                TagConfig.DiscMap.TryGetValue(catName, out elDisc);
+                            }
+                            if (!string.IsNullOrEmpty(elDisc))
+                            {
+                                discCounts.TryGetValue(elDisc, out int c);
+                                discCounts[elDisc] = c + 1;
+                                sampled++;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DeriveSheetDiscipline view {view.Name}: {ex.Message}");
+                    }
+                }
+
+                if (discCounts.Count == 0)
+                {
+                    // INT-15: Fallback to sheet name/number pattern matching
+                    return DeriveDiscFromSheetName(sheet);
+                }
+
+                // If multiple disciplines with significant presence → COORD
+                var sorted = discCounts.OrderByDescending(kv => kv.Value).ToList();
+                if (sorted.Count >= 2)
+                {
+                    double total = sorted.Sum(kv => kv.Value);
+                    double topPct = sorted[0].Value / total;
+                    if (topPct < 0.75) return "COORD"; // No single discipline dominates
+                }
+
+                return sorted[0].Key;
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetDiscipline: {ex.Message}"); return "GEN"; }
+        }
+
+        /// <summary>
+        /// Derive document form code from view types on the sheet.
+        /// DR=Drawing, SH=Schedule, M3=3D Model, SP=Specification, LG=Legend.
+        /// </summary>
+        private static string DeriveSheetForm(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "DR";
+
+                bool hasSchedule = false, has3D = false, hasLegend = false;
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    switch (view.ViewType)
+                    {
+                        case ViewType.Schedule:
+                            hasSchedule = true;
+                            break;
+                        case ViewType.ThreeD:
+                            has3D = true;
+                            break;
+                        case ViewType.Legend:
+                        case ViewType.DraftingView:
+                            hasLegend = true;
+                            break;
+                    }
+                }
+
+                // Priority: Schedule > 3D > Legend > Drawing
+                if (hasSchedule) return "SH";
+                if (has3D) return "M3";
+                if (hasLegend) return "LG";
+                return "DR";
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetForm: {ex.Message}"); return "DR"; }
+        }
+
+        /// <summary>
+        /// Derive level code from viewport views' associated levels.
+        /// Returns the most common level code, or "XX" if mixed/none.
+        /// </summary>
+        private static string DeriveSheetLevel(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "XX";
+
+                var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    // Get associated level — create a temp element lookup
+                    // via the view's GenLevel property
+                    Level lvl = view.GenLevel;
+                    if (lvl == null) continue;
+
+                    // Derive level code directly from level name
+                    // (can't use GetLevelCode which expects an element with LevelId)
+                    string lvlCode = DeriveLevelCodeFromName(lvl.Name);
+                    if (!string.IsNullOrEmpty(lvlCode))
+                    {
+                        levelCounts.TryGetValue(lvlCode, out int c);
+                        levelCounts[lvlCode] = c + 1;
+                    }
+                }
+
+                if (levelCounts.Count == 0) return "XX";
+                if (levelCounts.Count == 1) return levelCounts.Keys.First();
+
+                // Multiple levels — return most common
+                return levelCounts.OrderByDescending(kv => kv.Value).First().Key;
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetLevel: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>Build human-readable sheet narrative for SHT_TAG_7.</summary>
+        private static string BuildSheetNarrative(Document doc, ViewSheet sheet,
+            string disc, string form, string level, string rev)
+        {
+            var parts = new List<string>();
+
+            // Discipline description
+            string discDesc = disc switch
+            {
+                "M" => "Mechanical",
+                "E" => "Electrical",
+                "P" => "Plumbing",
+                "A" => "Architectural",
+                "S" => "Structural",
+                "FP" => "Fire Protection",
+                "LV" => "Low Voltage",
+                "G" => "General",
+                "COORD" => "Coordination (Multi-discipline)",
+                "GEN" => "General",
+                _ => disc
+            };
+
+            // Form description
+            string formDesc = form switch
+            {
+                "DR" => "Drawing",
+                "SH" => "Schedule",
+                "M3" => "3D Model",
+                "SP" => "Specification",
+                "LG" => "Legend",
+                _ => form
+            };
+
+            parts.Add($"{discDesc} {formDesc}");
+
+            // Level
+            if (level != "XX")
+            {
+                string levelDesc = level switch
+                {
+                    "GF" => "Ground Floor",
+                    "B1" => "Basement 1",
+                    "B2" => "Basement 2",
+                    "RF" => "Roof",
+                    _ => $"Level {level}"
+                };
+                parts.Add(levelDesc);
+            }
+
+            // Sheet name
+            if (!string.IsNullOrEmpty(sheet.Name))
+                parts.Add(sheet.Name);
+
+            // Revision
+            parts.Add($"Rev {rev}");
+
+            // Viewport count
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds != null && vpIds.Count > 0)
+                    parts.Add($"{vpIds.Count} viewport{(vpIds.Count == 1 ? "" : "s")}");
+            }
+            catch { /* skip */ }
+
+            return string.Join(" | ", parts);
+        }
+
+        /// <summary>
+        /// INT-15: Fallback discipline detection from sheet name/number patterns
+        /// when no viewport elements provide DISC data.
+        /// </summary>
+        private static string DeriveDiscFromSheetName(ViewSheet sheet)
+        {
+            string combined = $"{sheet.SheetNumber} {sheet.Name}".ToUpperInvariant();
+            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") || combined.StartsWith("M-") || combined.StartsWith("M ")) return "M";
+            if (combined.Contains("ELECTRICAL") || combined.Contains("LIGHTING") || combined.StartsWith("E-") || combined.StartsWith("E ")) return "E";
+            if (combined.Contains("PLUMBING") || combined.Contains("SANITARY") || combined.StartsWith("P-") || combined.StartsWith("P ")) return "P";
+            if (combined.Contains("ARCHITECTURAL") || combined.Contains("ARCH") || combined.StartsWith("A-") || combined.StartsWith("A ")) return "A";
+            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCT") || combined.StartsWith("S-") || combined.StartsWith("S ")) return "S";
+            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER") || combined.StartsWith("FP")) return "FP";
+            if (combined.Contains("LOW VOLTAGE") || combined.Contains("DATA") || combined.Contains("SECURITY")) return "LV";
+            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") || combined.Contains("MULTI")) return "COORD";
+            return "GEN";
+        }
+
+        /// <summary>Derive level code from level name string (same logic as GetLevelCode but from name).</summary>
+        private static string DeriveLevelCodeFromName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "XX";
+            string lower = name.Trim().ToLowerInvariant();
+            if (lower.StartsWith("level ") && name.Length > 6)
+            {
+                string digits = new string(name.Substring(6).Where(char.IsDigit).ToArray());
+                if (digits.Length > 0 && digits.Length <= 3) return "L" + digits.PadLeft(2, '0');
+            }
+            if (lower == "ground" || lower == "ground floor" || lower == "ground level") return "GF";
+            if (lower.StartsWith("basement")) return "B1";
+            if (lower.StartsWith("roof") || lower == "rf") return "RF";
+            if (lower.StartsWith("mezzanine") || lower == "mezz") return "MZ";
+            // Extract any trailing digits
+            string trailingDigits = new string(name.Where(char.IsDigit).ToArray());
+            if (trailingDigits.Length > 0) return "L" + trailingDigits.PadLeft(2, '0');
+            return "XX";
+        }
+
+        /// <summary>Write parameter, always overwrite. Returns 1 on success, 0 on failure.</summary>
+        private static int SetStr(Element el, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            return ParameterHelpers.SetString(el, paramName, value, overwrite: true) ? 1 : 0;
+        }
+
+        /// <summary>Write parameter only if empty. Returns 1 on success, 0 on failure.</summary>
+        private static int SetIfEmptyStr(Element el, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
+        }
+    }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
         private static int MapBuiltInString(Element el, BuiltInParameter bip, string targetParam)
@@ -2341,15 +2814,19 @@ namespace StingTools.Core
         {
             int written = 0;
 
-            // STATUS: auto-detect from Revit phase/workset, fallback to "NEW"
-            string status = PhaseAutoDetect.DetectStatus(doc, el);
-            if (string.IsNullOrEmpty(status)) status = "NEW";
-            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
-
-            // REV: auto-detect from project revision sequence
-            string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-            if (!string.IsNullOrEmpty(rev))
-                written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            // PERF-02: STATUS and REV are already populated by PopulateAll (which uses
+            // cached context). Only set here as a safety net using SetIfEmpty — skip
+            // the expensive uncached DetectStatus/DetectProjectRevision calls.
+            // PopulateAll runs before NativeParamMapper in RunFullPipeline, so these
+            // will almost always be non-empty already.
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
+            string existingRev = GetString(el, ParamRegistry.REV);
+            if (string.IsNullOrEmpty(existingRev))
+            {
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                if (!string.IsNullOrEmpty(rev))
+                    written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            }
 
             // ORIGIN: set from project originator field if available
             try
@@ -2633,14 +3110,6 @@ namespace StingTools.Core
             return true;
         }
 
-        /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
-        public static FillPatternElement GetSolidFillPattern(Document doc)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-        }
     }
 
     /// <summary>
@@ -2652,6 +3121,52 @@ namespace StingTools.Core
     internal static class TagPipelineHelper
     {
         /// <summary>
+        /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
+        /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
+        /// Returns false if owned by another user — the caller should skip/defer this element.
+        /// </summary>
+        public static bool IsEditableInWorksharing(Document doc, Element el)
+        {
+            if (!doc.IsWorkshared) return true;
+            try
+            {
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return true;
+                var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                if (string.IsNullOrEmpty(wsInfo.Owner) || wsInfo.Owner == "")
+                    return true; // unowned — safe to edit
+                return wsInfo.Owner == doc.Application.Username;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsEditableInWorksharing check failed for {el?.Id}: {ex.Message}");
+                return true; // fail-open: allow edit attempt, Revit will throw if truly locked
+            }
+        }
+
+        /// <summary>
+        /// GAP-PH-01: Check whether element is demolished in the project's current phase.
+        /// Returns true if element has a demolished phase set (PHASE_DEMOLISHED parameter is not InvalidElementId).
+        /// </summary>
+        public static bool IsDemolished(Element el)
+        {
+            try
+            {
+                Parameter demParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demParam != null && demParam.HasValue)
+                {
+                    ElementId demPhaseId = demParam.AsElementId();
+                    return demPhaseId != null && demPhaseId != ElementId.InvalidElementId;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsDemolished check failed for {el?.Id}: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Centralized post-tagging cleanup: saves SEQ sidecar, invalidates caches,
         /// checks compliance gate. Call after tx.Commit() in any tagging command.
         /// </summary>
@@ -2661,6 +3176,9 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // DIAG-01: Reset read-only skip counter at batch boundary so each operation
+            // gets fresh diagnostic logging (first 5 warnings + every 100th).
+            ParameterHelpers.ResetReadOnlySkipCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 
@@ -2844,17 +3362,9 @@ namespace StingTools.Core
                 // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // Verify container write succeeded inside BuildAndWriteTag.
-                // If it failed silently (exception caught at TagConfig line 2068-2072),
-                // retry here so TAG1 and containers are never out of sync (Gap G001 fix).
-                try
-                {
-                    ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwrite);
-                }
-                catch (Exception containerEx)
-                {
-                    StingLog.Warn($"TagPipeline: container retry failed for {el.Id}: {containerEx.Message}");
-                }
+                // GAP-A3 fix: Removed redundant WriteContainers retry call.
+                // BuildAndWriteTag (above) already writes all 53 containers.
+                // The duplicate write caused ~20% overhead on batch operations.
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 

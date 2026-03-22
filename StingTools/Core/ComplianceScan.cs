@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Autodesk.Revit.DB;
 
 namespace StingTools.Core
@@ -18,7 +19,8 @@ namespace StingTools.Core
         private static ComplianceResult _cached;
         private static DateTime _cacheTime = DateTime.MinValue;
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
-        private static volatile bool _scanning = false;
+        /// <summary>LOGIC-01: Use int + Interlocked for atomic scanning guard instead of volatile bool race.</summary>
+        private static int _scanning = 0; // 0 = not scanning, 1 = scanning
 
         /// <summary>
         /// Quick compliance scan results.
@@ -48,6 +50,14 @@ namespace StingTools.Core
             public int TotalContainerChecks { get; set; }
             /// <summary>FIX-12: Elements marked as stale (spatial context may have changed).</summary>
             public int StaleCount { get; set; }
+            /// <summary>Phase 39: Sheet-level compliance tracking.</summary>
+            public int TotalSheets { get; set; }
+            /// <summary>Phase 39: Sheets with SHT_TAG_1 populated.</summary>
+            public int SheetsTagged { get; set; }
+            /// <summary>Phase 39: Sheets without SHT_TAG_1.</summary>
+            public int SheetsUntagged { get; set; }
+            /// <summary>Phase 39: Sheet tagging compliance percentage.</summary>
+            public double SheetCompliancePct => TotalSheets > 0 ? SheetsTagged * 100.0 / TotalSheets : 0;
             /// <summary>AE-05: Per-token empty count for granular compliance reporting.</summary>
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
@@ -92,6 +102,7 @@ namespace StingTools.Core
                 $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | " +
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
+                $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +
                 $"{Untagged} untagged";
 
             /// <summary>Per-discipline compliance breakdown.</summary>
@@ -127,12 +138,11 @@ namespace StingTools.Core
                     return _cached;
             }
 
-            // Prevent concurrent scans (non-blocking check)
-            if (_scanning)
+            // LOGIC-01: Atomic compare-exchange prevents concurrent scan race condition
+            if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
                 lock (_cacheLock) { return _cached; } // return stale rather than deadlock
             }
-            _scanning = true;
 
             try
             {
@@ -284,6 +294,27 @@ namespace StingTools.Core
                     StingLog.Warn($"Compliance scan failed: {ex.Message}");
                 }
 
+                // Phase 39: Sheet compliance scan
+                try
+                {
+                    var sheets = new FilteredElementCollector(doc)
+                        .OfClass(typeof(ViewSheet))
+                        .Cast<ViewSheet>()
+                        .ToList();
+                    result.TotalSheets = sheets.Count;
+                    foreach (var sheet in sheets)
+                    {
+                        string shtTag = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
+                        if (!string.IsNullOrEmpty(shtTag))
+                            result.SheetsTagged++;
+                        else
+                            result.SheetsUntagged++;
+                    }
+                    if (result.SheetsUntagged > 0)
+                        AddIssue(result, $"Sheets untagged");
+                }
+                catch (Exception ex) { StingLog.Warn($"Sheet compliance scan: {ex.Message}"); }
+
                 // Write result under brief lock
                 lock (_cacheLock)
                 {
@@ -294,7 +325,7 @@ namespace StingTools.Core
             }
             finally
             {
-                _scanning = false;
+                Interlocked.Exchange(ref _scanning, 0);
             }
         }
 

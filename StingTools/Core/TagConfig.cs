@@ -238,14 +238,18 @@ namespace StingTools.Core
             "M", "E", "P", "A", "S", "FP", "LV", "G"
         };
 
-        /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001).</summary>
+        /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001). Cached to avoid per-access allocation.</summary>
+        private static HashSet<string> _cachedValidDiscCodes;
         public static HashSet<string> ValidDiscCodes
         {
             get
             {
                 if (CustomDiscCodes.Count == 0) return _builtInDiscCodes;
+                var cached = _cachedValidDiscCodes;
+                if (cached != null) return cached;
                 var combined = new HashSet<string>(_builtInDiscCodes, StringComparer.OrdinalIgnoreCase);
                 foreach (string c in CustomDiscCodes) combined.Add(c);
+                _cachedValidDiscCodes = combined;
                 return combined;
             }
         }
@@ -274,10 +278,21 @@ namespace StingTools.Core
         /// This ensures custom project SYS codes in project_config.json are accepted.
         /// BUG-06: Uses Count > 0 check to handle empty but non-null SysMap.
         /// </summary>
-        public static HashSet<string> ValidSysCodes =>
-            TagConfig.SysMap != null && TagConfig.SysMap.Count > 0
-                ? new HashSet<string>(TagConfig.SysMap.Keys, StringComparer.OrdinalIgnoreCase)
-                : _fallbackSysCodes;
+        /// <summary>PERF-01: Cached SYS codes set — rebuilt only when SysMap changes (via InvalidateValidatorCaches).</summary>
+        private static HashSet<string> _cachedValidSysCodes;
+        public static HashSet<string> ValidSysCodes
+        {
+            get
+            {
+                if (TagConfig.SysMap == null || TagConfig.SysMap.Count == 0) return _fallbackSysCodes;
+                var cached = _cachedValidSysCodes;
+                if (cached != null) return cached;
+                var set = new HashSet<string>(TagConfig.SysMap.Keys, StringComparer.OrdinalIgnoreCase);
+                if (CustomSysCodes.Count > 0) foreach (string c in CustomSysCodes) set.Add(c);
+                _cachedValidSysCodes = set;
+                return set;
+            }
+        }
 
         /// <summary>ISO 19650 fallback FUNC codes used when no project-specific config is loaded.</summary>
         private static readonly HashSet<string> _fallbackFuncCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -293,10 +308,29 @@ namespace StingTools.Core
         /// so project-specific codes added via project_config.json are accepted.
         /// Falls back to ISO 19650 standard codes when FuncMap is empty.
         /// </summary>
-        public static HashSet<string> ValidFuncCodes =>
-            TagConfig.FuncMap != null && TagConfig.FuncMap.Count > 0
-                ? new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase)
-                : _fallbackFuncCodes;
+        /// <summary>PERF-01: Cached FUNC codes set — rebuilt only when FuncMap changes (via InvalidateValidatorCaches).</summary>
+        private static HashSet<string> _cachedValidFuncCodes;
+        public static HashSet<string> ValidFuncCodes
+        {
+            get
+            {
+                if (TagConfig.FuncMap == null || TagConfig.FuncMap.Count == 0) return _fallbackFuncCodes;
+                var cached = _cachedValidFuncCodes;
+                if (cached != null) return cached;
+                var set = new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase);
+                if (CustomFuncCodes.Count > 0) foreach (string c in CustomFuncCodes) set.Add(c);
+                _cachedValidFuncCodes = set;
+                return set;
+            }
+        }
+
+        /// <summary>PERF-01: Invalidate cached validator code sets. Call after LoadFromFile/LoadDefaults or custom code changes.</summary>
+        internal static void InvalidateValidatorCaches()
+        {
+            _cachedValidDiscCodes = null;
+            _cachedValidSysCodes = null;
+            _cachedValidFuncCodes = null;
+        }
 
         /// <summary>
         /// Validate a single token value against its allowed code list.
@@ -1147,6 +1181,7 @@ namespace StingTools.Core
                 else { AutoTaggerStaleMarker = null; }
 
                 ConfigSource = path;
+                ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -1199,6 +1234,7 @@ namespace StingTools.Core
             AutoRunWorkflowOnOpen = string.Empty;
             CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
+            ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets
             ComplianceGatePct = 0;
             SeparatorHistory = new List<string>();
             AutoRunWorkflowOnOpen = string.Empty;
@@ -1745,8 +1781,8 @@ namespace StingTools.Core
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.
         /// </summary>
-        /// <summary>LOG-07: Historical separators to handle tags written under previous config.</summary>
-        private static readonly char[] _separatorHistory = new[] { '-', '_', '.' };
+        // TAG-04: Removed dead _separatorHistory char[] array — SeparatorHistory list property
+        // (loaded from project_config.json) is the actual implementation used in TagIsComplete.
 
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {
@@ -2893,7 +2929,22 @@ namespace StingTools.Core
         public static HashSet<string> BuildExistingTagIndex(Document doc)
         {
             var index = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            // PERF-03: Use ElementMulticategoryFilter to skip non-taggable elements
+            // (views, sheets, annotations, text notes, dimensions, etc.)
+            var cats = SharedParamGuids.AllCategoryEnums;
+            IEnumerable<Element> collector;
+            if (cats != null && cats.Count > 0)
+            {
+                var catFilter = new ElementMulticategoryFilter(cats);
+                collector = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(catFilter);
+            }
+            else
+            {
+                collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            }
+            foreach (Element elem in collector)
             {
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
@@ -2913,7 +2964,14 @@ namespace StingTools.Core
             var maxSeq = new Dictionary<string, int>();
             var known = new HashSet<string>(DiscMap.Keys);
 
-            foreach (Element elem in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            // PERF-06: Use ElementMulticategoryFilter to skip non-taggable elements
+            var seqCats = SharedParamGuids.AllCategoryEnums;
+            FilteredElementCollector seqCollector = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            if (seqCats != null && seqCats.Length > 0)
+                seqCollector.WherePasses(new ElementMulticategoryFilter(
+                    new List<BuiltInCategory>(seqCats)));
+            foreach (Element elem in seqCollector)
             {
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;

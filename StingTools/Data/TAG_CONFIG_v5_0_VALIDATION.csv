@@ -197,3 +197,12 @@ TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_DEFERRED_DUCT,STATUS=DEFERRED on duct,CIBSE Gui
 TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_NO_PHASE,ASS_TIEIN_PHASE_TXT empty,ISO 19650-3,Tie-in has no construction phase assigned
 TIEIN_RULE,MEDIUM,WARN_ASS_TIEIN_NO_RESPONSIBLE,ASS_TIEIN_BY_TXT empty,ISO 19650-2,Tie-in has no responsible party assigned
 TIEIN_RULE,LOW,WARN_ASS_TIEIN_NO_IFC_REF,ASS_TIEIN_IFC_REF_TXT empty,ISO 19650-2,Tie-in has no IFC/interface reference
+
+# ─── Section 14: Sheet-Level Validation Rules ───────────────────────────────
+# v5.1 | Phase 39: ISO 19650 document code validation for ViewSheet elements
+SHEET_RULE,HIGH,WARN_SHT_NO_TAG1,SHT_TAG_1_TXT empty,ISO 19650-2:2018 Clause 11,Sheet has no ISO 19650 document code — run TagSheets
+SHEET_RULE,HIGH,WARN_SHT_NO_DISC,SHT_DISC_TXT empty,ISO 19650-2:2018 Clause 11,Sheet has no discipline code — empty viewports or unrecognised categories
+SHEET_RULE,MEDIUM,WARN_SHT_NO_ORIGINATOR,SHT_ORIGINATOR_TXT=XX,ISO 19650-2:2018 Clause 11,Sheet originator defaults to XX — set Organization Name in Project Info
+SHEET_RULE,MEDIUM,WARN_SHT_NO_LEVEL,SHT_LEVEL_TXT=XX,ISO 19650-2:2018 Clause 11,Sheet level code unknown — views have no associated level
+SHEET_RULE,LOW,WARN_SHT_NO_TAG7,SHT_TAG_7_TXT empty,ISO 19650-2:2018,Sheet has no rich narrative description
+SHEET_RULE,LOW,WARN_SHT_DISC_MISMATCH,SHT_DISC_TXT != sheet number prefix,ISO 19650-2:2018 Clause 11,Sheet discipline derived from viewports doesn't match sheet number prefix convention

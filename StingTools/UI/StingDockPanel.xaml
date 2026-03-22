@@ -937,6 +937,8 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Journal" Tag="JournalParser" Click="Cmd_Click" ToolTip="Parse Revit journal files for addin errors, crash diagnostics, and command timeline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Map Sheets" Tag="MapSheets" Click="Cmd_Click" ToolTip="Map native sheet number/name to STING parameters"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes (DISC, FORM, LEVEL, REV, TAG1, TAG7)"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SHEET NUMBER"/>
                                 <WrapPanel>
@@ -986,6 +988,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="From Template" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Save Template" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sheet Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
                                 </WrapPanel>
                                 <WrapPanel>
