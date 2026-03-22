@@ -732,6 +732,10 @@ namespace StingTools.Core
         /// <summary>Configurable batch size for streaming COBie export. Default 5000.</summary>
         public static int CobieStreamBatchSize { get; internal set; } = 5000;
 
+        /// <summary>Phase 40: Configurable cost rates CSV filename (via COST_RATES_FILE config key).
+        /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
+        public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
+
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
@@ -986,7 +990,8 @@ namespace StingTools.Core
                     "CUSTOM_VALID_DISC","CUSTOM_VALID_SYS","CUSTOM_VALID_FUNC",
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
-                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED"
+                    "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
+                    "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1166,6 +1171,16 @@ namespace StingTools.Core
                     if (gateObj is long gl) ComplianceGatePct = (int)gl;
                     else if (int.TryParse(gateObj?.ToString(), out int gi)) ComplianceGatePct = gi;
                 }
+
+                // Phase 40: Configurable cost rates filename
+                if (data.TryGetValue("COST_RATES_FILE", out object crfObj) && crfObj != null)
+                {
+                    string crfVal = crfObj.ToString().Trim();
+                    if (!string.IsNullOrEmpty(crfVal)) CostRatesFileName = crfVal;
+                }
+
+                // Phase 40: Sheet naming strict mode
+                // (read here for reference but validated in SheetNamingCheckCommand directly)
 
                 // PERF-06: PerformanceTracker opt-in via config
                 if (data.TryGetValue("PERF_TRACKING_ENABLED", out object perfObj) && perfObj is bool perfEnabled)

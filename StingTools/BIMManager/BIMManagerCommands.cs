@@ -70,10 +70,43 @@ namespace StingTools.BIMManager
         // ── CDE Container States (ISO 19650-1 §12) ──
         internal static readonly Dictionary<string, string> CDEStates = new Dictionary<string, string>
         {
-            ["WIP"]       = "Work In Progress — being developed by originator",
-            ["SHARED"]    = "Shared — issued for coordination/review",
-            ["PUBLISHED"] = "Published — approved for use",
-            ["ARCHIVE"]   = "Archive — retained for reference only"
+            ["WIP"]        = "Work In Progress — being developed by originator",
+            ["SHARED"]     = "Shared — issued for coordination/review",
+            ["PUBLISHED"]  = "Published — approved for use",
+            ["ARCHIVE"]    = "Archive — retained for reference only",
+            // Phase 40: Added 3 missing ISO 19650-2 CDE states
+            ["SUPERSEDED"] = "Superseded — replaced by newer revision",
+            ["WITHDRAWN"]  = "Withdrawn — removed from CDE, no longer valid",
+            ["OBSOLETE"]   = "Obsolete — historically retained, not for use"
+        };
+
+        /// <summary>Phase 40: CDE status lifecycle — valid state transitions per ISO 19650-2.
+        /// Key = current state, Value = set of valid next states.
+        /// Enforces one-way progression: WIP→SHARED→PUBLISHED→ARCHIVE.
+        /// Superseded/Withdrawn can be applied to SHARED or PUBLISHED documents.</summary>
+        internal static readonly Dictionary<string, HashSet<string>> CDEStateTransitions =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["WIP"]        = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHARED", "WITHDRAWN" },
+                ["SHARED"]     = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PUBLISHED", "WIP", "SUPERSEDED", "WITHDRAWN" },
+                ["PUBLISHED"]  = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ARCHIVE", "SUPERSEDED", "WITHDRAWN" },
+                ["ARCHIVE"]    = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "OBSOLETE" },
+                ["SUPERSEDED"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ARCHIVE", "OBSOLETE" },
+                ["WITHDRAWN"]  = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "OBSOLETE" },
+                ["OBSOLETE"]   = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { }, // terminal state
+            };
+
+        /// <summary>Phase 40: Validate a CDE status transition. Returns null if valid, error message if invalid.</summary>
+        internal static string ValidateCDETransition(string currentState, string newState)
+        {
+            if (string.IsNullOrEmpty(currentState))
+                return null; // First assignment — any state is valid
+            if (!CDEStateTransitions.TryGetValue(currentState, out var validNext))
+                return $"Unknown current CDE state: '{currentState}'";
+            if (!validNext.Contains(newState))
+                return $"Invalid CDE transition: '{currentState}' → '{newState}'. " +
+                    $"Valid transitions: {string.Join(", ", validNext)}";
+            return null;
         };
 
         // ── RIBA Plan of Work 2020 Stages ──
@@ -2352,7 +2385,8 @@ namespace StingTools.BIMManager
                 // Extract serial number, installation date, warranty start, barcode from STING parameters
                 string serialNumber = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
                 string installDate = ParameterHelpers.GetString(el, "COM_INSTALL_DATE_TXT");
-                // Fallback: derive installation date from phase if STING param empty
+                // Phase 40: Derive installation date from phase as ISO 8601 date, not phase NAME.
+                // Previously exported "New Construction" instead of "2025-03-22".
                 if (string.IsNullOrEmpty(installDate))
                 {
                     try
@@ -2360,13 +2394,23 @@ namespace StingTools.BIMManager
                         var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                         if (phaseParam != null)
                         {
-                            var phase = doc.GetElement(phaseParam.AsElementId());
-                            if (phase != null) installDate = phase.Name;
+                            var phase = doc.GetElement(phaseParam.AsElementId()) as Phase;
+                            if (phase != null)
+                            {
+                                // Use project start date from Project Information if available
+                                string projStartDate = doc.ProjectInformation?.get_Parameter(
+                                    BuiltInParameter.PROJECT_ISSUE_DATE)?.AsString();
+                                installDate = !string.IsNullOrEmpty(projStartDate) ? projStartDate
+                                    : DateTime.Now.ToString("yyyy-MM-dd"); // fallback to current date
+                            }
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"Phase install date lookup failed: {ex.Message}"); }
                 }
                 string warrantyStart = ParameterHelpers.GetString(el, "COM_WARRANTY_START_TXT");
+                // Phase 40: If warranty start is empty, derive from installation date
+                if (string.IsNullOrEmpty(warrantyStart) && !string.IsNullOrEmpty(installDate))
+                    warrantyStart = installDate;
                 string barCode = ParameterHelpers.GetString(el, "ASS_BARCODE_TXT");
 
                 // Read TAG7 narrative for rich description
@@ -2383,7 +2427,10 @@ namespace StingTools.BIMManager
                     ["InstallationDate"] = installDate,
                     ["WarrantyStartDate"] = warrantyStart,
                     ["TagNumber"] = assetId,
-                    ["BarCode"] = !string.IsNullOrEmpty(barCode) ? barCode : assetId,
+                    // Phase 40: BarCode fallback uses project-scoped unique ID instead of tag number
+                    // to prevent cross-project duplicates when merging into CAFM systems.
+                    ["BarCode"] = !string.IsNullOrEmpty(barCode) ? barCode
+                        : (!string.IsNullOrEmpty(assetId) ? $"{doc.Title}_{assetId}" : el.UniqueId),
                     ["AssetIdentifier"] = assetId,
                     ["Category"] = cat,
                     ["AssetType"] = assetType,

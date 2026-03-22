@@ -537,6 +537,14 @@ namespace StingTools.Organise
             }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            // Phase 40: Save SEQ sidecar after deletion so counter state is persisted.
+            // Without this, deleted elements' SEQ numbers would be re-used on next session.
+            try
+            {
+                var (_, dtSeq) = TagConfig.BuildTagIndexAndCounters(doc);
+                TagConfig.SaveSeqSidecar(doc, dtSeq);
+            }
+            catch (Exception ssEx) { StingLog.Warn($"DeleteTags SaveSeqSidecar: {ssEx.Message}"); }
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -1242,8 +1250,9 @@ namespace StingTools.Organise
                 // SWAP-01: Use BuildAndWriteTag for TAG1 rebuild (provides collision
                 // detection and proper SEQ counter tracking). Previously manual string.Join
                 // could produce duplicate tags when swapping.
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                // Phase 40: Use BuildTagIndexAndCounters (merges sidecar data) instead of
+                // GetExistingSequenceCounters (project-params-only, loses sidecar counters).
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 try
                 {
                     // Rebuild element A
@@ -1272,7 +1281,12 @@ namespace StingTools.Organise
 
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+            // Phase 40: Use merged counters for sidecar save (consistent with BuildTagIndexAndCounters above)
+            try
+            {
+                var (_, mergedSeq) = TagConfig.BuildTagIndexAndCounters(doc);
+                TagConfig.SaveSeqSidecar(doc, mergedSeq);
+            }
             catch (Exception ssEx) { StingLog.Warn($"SwapTags SaveSeqSidecar: {ssEx.Message}"); }
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;

@@ -334,6 +334,60 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Phase 40: View-scoped compliance scan for quick per-view feedback.
+        /// Does NOT use or update the project-level cache.
+        /// Useful after AutoTag on a single view to show view-specific compliance.
+        /// </summary>
+        public static ComplianceResult ScanView(Document doc, View view)
+        {
+            var result = new ComplianceResult { ScanTime = DateTime.Now };
+            if (doc == null || view == null) return result;
+            try
+            {
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                var scanColl = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType();
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums != null && catEnums.Length > 0)
+                    scanColl.WherePasses(new ElementMulticategoryFilter(
+                        new List<BuiltInCategory>(catEnums)));
+
+                foreach (Element elem in scanColl)
+                {
+                    if (elem == null || !elem.IsValidObject) continue;
+                    string cat = ParameterHelpers.GetCategoryName(elem);
+                    if (!known.Contains(cat)) continue;
+
+                    result.TotalElements++;
+                    string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag))
+                    {
+                        result.Untagged++;
+                    }
+                    else
+                    {
+                        string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
+                        int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
+                        int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
+                        bool hasCorrectSegments = parts.Length >= 8 + po + so
+                            && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+
+                        if (!hasCorrectSegments)
+                            result.TaggedIncomplete++;
+                        else
+                        {
+                            result.TaggedComplete++;
+                            if (!TagConfig.TagHasPlaceholders(tag))
+                                result.FullyResolved++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ScanView: {ex.Message}"); }
+            return result;
+        }
+
+        /// <summary>
         /// LOG-01 FIX: Thread-safe accessor for cached result without triggering a new scan.
         /// Returns null if no cached result exists. Uses lock to prevent torn reads.
         /// </summary>

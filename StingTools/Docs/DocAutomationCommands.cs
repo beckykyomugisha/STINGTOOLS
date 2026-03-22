@@ -43,8 +43,25 @@ namespace StingTools.Docs
             // Get the active view to protect it
             ElementId activeViewId = ctx.ActiveView.Id;
 
+            // Phase 40: Build multi-sheet placement map for safety reporting
+            var viewToSheets = new Dictionary<ElementId, List<string>>();
+            foreach (var sheet in new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+            {
+                foreach (var vId in sheet.GetAllPlacedViews())
+                {
+                    if (!viewToSheets.ContainsKey(vId))
+                        viewToSheets[vId] = new List<string>();
+                    viewToSheets[vId].Add(sheet.SheetNumber);
+                }
+            }
+
+            // Phase 40: Filter out dependent views (deleting a dependent can crash Revit
+            // or orphan the parent view's crop region and annotation references).
+            // Also protect views placed on multiple sheets (viewToSheets count > 1).
             var unplaced = allViews
-                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
+                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId
+                    && v.GetPrimaryViewId() == ElementId.InvalidElementId) // exclude dependent views
                 .ToList();
 
             if (unplaced.Count == 0)
