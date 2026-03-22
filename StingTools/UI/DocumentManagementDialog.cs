@@ -199,6 +199,11 @@ namespace StingTools.UI
             splitter.Children.Add(rightPanel);
 
             root.Children.Add(splitter);
+
+            // Wire context menu to ListView (needs doc and win references)
+            if (_listView != null)
+                _listView.ContextMenu = BuildContextMenu(doc, win);
+
             win.Content = root;
 
             bool? dialogResult = win.ShowDialog();
@@ -289,22 +294,22 @@ namespace StingTools.UI
             int criticalIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == "CRITICAL");
             int overdueIssues = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
             _dashPanel.Children.Add(MakeDashCard($"{openIssues}",
-                "Open issues", openIssues == 0 ? BrGreen : BrOrange));
+                "Open issues", openIssues == 0 ? BrGreen : BrOrange, "CAT:ISSUE"));
             if (criticalIssues > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{criticalIssues}", "CRITICAL", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{criticalIssues}", "CRITICAL", BrRed, "PRIORITY:CRITICAL"));
             if (overdueIssues > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed, "OVERDUE"));
 
             // Revision count
             int revCount = _allItems.Count(i => i.Category == "REVISION");
             int issuedRevs = _allItems.Count(i => i.Category == "REVISION" && i.Status == "ISSUED");
             _dashPanel.Children.Add(MakeDashCard($"{issuedRevs}/{revCount}",
-                "Revisions issued", BrPurple));
+                "Revisions issued", BrPurple, "CAT:REVISION"));
 
             // Clash count
             int clashCount = _allItems.Count(i => i.Category == "CLASH");
             if (clashCount > 0)
-                _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed));
+                _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed, "CAT:CLASH"));
 
             // Document totals
             int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
@@ -319,7 +324,7 @@ namespace StingTools.UI
                     SolidColorBrush ddBrush = dd.ReadyPercent >= 100 ? BrGreen :
                         dd.ReadyPercent >= 50 ? BrAmber : BrRed;
                     _dashPanel.Children.Add(MakeDashCard($"{dd.ReadyPercent:F0}%",
-                        $"{dd.DataDropId}: {dd.ReadyCount}/{dd.TotalCount}", ddBrush));
+                        $"{dd.DataDropId}: {dd.ReadyCount}/{dd.TotalCount}", ddBrush, $"DD:{dd.DataDropId}"));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr dashboard drops: {ex.Message}"); }
@@ -347,6 +352,21 @@ namespace StingTools.UI
                 HorizontalAlignment = HorizontalAlignment.Center
             });
             card.Child = stack;
+            return card;
+        }
+
+        /// <summary>Clickable dashboard card — clicking sets filter and refreshes grid.</summary>
+        private static Border MakeDashCard(string value, string label, SolidColorBrush color, string filterOnClick)
+        {
+            var card = MakeDashCard(value, label, color);
+            card.Cursor = Cursors.Hand;
+            card.MouseLeftButtonDown += (s, e) =>
+            {
+                _currentFilter = filterOnClick;
+                _view?.Refresh();
+                UpdateCounts();
+            };
+            card.ToolTip = $"Click to filter: {filterOnClick}";
             return card;
         }
 
@@ -387,6 +407,7 @@ namespace StingTools.UI
             rightBtns.Children.Add(MakeHeaderBtn("Import File", "ImportFile"));
             rightBtns.Children.Add(MakeHeaderBtn("Set Output Dir", "SetOutputDirectory"));
             rightBtns.Children.Add(MakeHeaderBtn("Refresh", "Refresh"));
+            rightBtns.Children.Add(MakeHeaderBtn("Watch Folder", "StartWatch"));
             System.Windows.Controls.Grid.SetColumn(rightBtns, 1);
             g.Children.Add(rightBtns);
 
@@ -446,6 +467,20 @@ namespace StingTools.UI
                     break;
                 case "Refresh":
                     RefreshData();
+                    break;
+                case "StartWatch":
+                    ProjectFolderEngine.StartWatching(_doc, changedFile =>
+                    {
+                        // Auto-refresh on external file changes (dispatched to UI thread)
+                        try
+                        {
+                            _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                        }
+                        catch { }
+                    });
+                    MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
+                        "External file changes will auto-refresh the document list.",
+                        "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
                     break;
             }
         }
@@ -902,7 +937,45 @@ namespace StingTools.UI
                 BorderThickness = new Thickness(0),
                 FontSize = 11,
                 ItemsSource = _view,
-                SelectionMode = SelectionMode.Extended  // GAP OP-04: multi-select
+                SelectionMode = SelectionMode.Extended,  // GAP OP-04: multi-select
+                AllowDrop = true  // DM-04: enable drag-drop
+            };
+
+            // DM-04: Drag-drop — drag files from Explorer into the list to import
+            _listView.DragEnter += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                    e.Effects = DragDropEffects.Copy;
+                else
+                    e.Effects = DragDropEffects.None;
+                e.Handled = true;
+            };
+            _listView.Drop += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    if (files == null || files.Length == 0) return;
+                    int imported = 0;
+                    foreach (string file in files)
+                    {
+                        string ext = Path.GetExtension(file).TrimStart('.').ToUpperInvariant();
+                        string targetFolder = "BRIEFCASE";
+                        if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
+                            targetFolder = fid;
+                        string result = ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
+                        if (result != null) imported++;
+                        else if (!ProjectFolderEngine.IsAllowedExtension(ext))
+                            MessageBox.Show($"Unsupported file type: .{ext}\n{Path.GetFileName(file)}",
+                                "STING Import", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    if (imported > 0)
+                    {
+                        MessageBox.Show($"Imported {imported} of {files.Length} files.",
+                            "STING Import", MessageBoxButton.OK, MessageBoxImage.Information);
+                        RefreshData();
+                    }
+                }
             };
 
             var gridView = new GridView();
@@ -923,6 +996,9 @@ namespace StingTools.UI
             gridView.Columns.Add(MakeCol("SLA", "SLADeadline", 70));  // GAP GRID-02
             _listView.View = gridView;
             _listView.MouseDoubleClick += ListView_DoubleClick;
+
+            // Right-click context menu — will be set when window context is available
+            _listView.Tag = "NEEDS_CONTEXT_MENU";
 
             // UI-02: Column sorting
             _listView.AddHandler(GridViewColumnHeader.ClickEvent,
@@ -945,15 +1021,55 @@ namespace StingTools.UI
 
         private static void ListView_DoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (_listView.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+            if (_listView.SelectedItem is not DocItemVM item) return;
+
+            // Sticky note: inline edit
+            if (item.Category == "STICKY")
             {
-                try
-                {
-                    if (File.Exists(item.FilePath))
-                        Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
-                }
-                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+                EditStickyNote(item);
+                return;
             }
+
+            // File: open in default app
+            if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
+            {
+                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); }
+                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+                return;
+            }
+
+            // Compliance item: show detail
+            if (item.Category == "COMPLIANCE" || item.Category == "DATADROP")
+            {
+                MessageBox.Show($"{item.Title}\n\nStatus: {item.Status}\nDate: {item.Date}",
+                    "STING Detail", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private static void EditStickyNote(DocItemVM item)
+        {
+            string newText = PromptForText("Edit Sticky Note", "Update note text:", item.Title);
+            if (string.IsNullOrEmpty(newText) || newText == item.Title) return;
+
+            try
+            {
+                string bimDir = GetBimManagerDir(_doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                if (!File.Exists(stickyPath)) return;
+
+                var arr = JArray.Parse(File.ReadAllText(stickyPath));
+                var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
+                if (note != null)
+                {
+                    note["text"] = newText;
+                    note["modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                    File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
+                    item.Title = newText;
+                    _view?.Refresh();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"EditStickyNote: {ex.Message}"); }
         }
 
         // UI-02: Column sorting
@@ -992,49 +1108,143 @@ namespace StingTools.UI
             var bar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                Padding = new Thickness(6, 4, 6, 4),
+                Padding = new Thickness(4, 2, 4, 2),
                 BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 1, 0, 0)
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                MaxHeight = 120
             };
+
+            var scroll = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
             var wrap = new WrapPanel();
 
-            // ── File operations ──
+            // ── FILE OPS ──
+            wrap.Children.Add(MakeSectionLabel("FILE"));
             wrap.Children.Add(MakeActBtn("Open", BrAccent, (s, e) => OpenSelected()));
             wrap.Children.Add(MakeActBtn("Open Folder", BrAccent, (s, e) => OpenFolder(doc)));
             wrap.Children.Add(MakeActBtn("Rename", BrFgDark, (s, e) => RenameSelected()));
             wrap.Children.Add(MakeActBtn("Delete", BrRed, (s, e) => DeleteSelected()));
-            wrap.Children.Add(MakeActBtn("Move To...", BrPurple, (s, e) => MoveSelected(doc)));
-
+            wrap.Children.Add(MakeActBtn("Move To", BrPurple, (s, e) => MoveSelected(doc)));
             wrap.Children.Add(MakeSep());
 
-            // ── Bulk operations (GAP OP-04) ──
+            // ── BULK ──
+            wrap.Children.Add(MakeSectionLabel("BULK"));
             wrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
             wrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
-            wrap.Children.Add(MakeActBtn("Close Selected Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
-            wrap.Children.Add(MakeActBtn("Update CDE Status", BrTeal, (s, e) => BulkUpdateCDE(doc)));
-
+            wrap.Children.Add(MakeActBtn("Close Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
+            wrap.Children.Add(MakeActBtn("Delete Notes", BrRed, (s, e) => BulkDeleteStickyNotes(doc)));
+            wrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
+            wrap.Children.Add(MakeActBtn("Update Trans Status", BrTeal, (s, e) => BulkUpdateTransmittalStatus(doc)));
             wrap.Children.Add(MakeSep());
 
-            // ── Dispatch commands ──
-            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
+            // ── DOCUMENTS ──
+            wrap.Children.Add(MakeSectionLabel("DOCS"));
             wrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
             wrap.Children.Add(MakeDispatchBtn("Add Doc", "AddDocument", BrGreen, win));
-
+            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("CDE Status", "CDEStatus", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Review Tracker", "ReviewTracker", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("MIDP Tracker", "MidpTracker", BrTeal, win));
             wrap.Children.Add(MakeSep());
 
-            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
+            // ── ISSUES ──
+            wrap.Children.Add(MakeSectionLabel("ISSUES"));
+            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
             wrap.Children.Add(MakeDispatchBtn("Issue Dash", "IssueDashboard", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Clashes", "ClashDetection", BrRed, win));
-            wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win)); // GAP OP-06
+            wrap.Children.Add(MakeDispatchBtn("Update Issue", "UpdateIssue", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Filter", "IssueFilter", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Timeline", "IssueTimeline", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Batch Update", "IssueBatchUpdate", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Export CSV", "ExportIssues", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Select Elements", "SelectIssueElements", BrOrange, win));
+            wrap.Children.Add(MakeSep());
 
-            bar.Child = wrap;
+            // ── REVISIONS ──
+            wrap.Children.Add(MakeSectionLabel("REVISIONS"));
+            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Compare", "RevisionCompare", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Track Elements", "TrackElementRevisions", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Schedule", "RevisionSchedule", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Export", "RevisionExport", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Bulk Stamp", "BulkRevisionStamp", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Naming Enforce", "RevisionNamingEnforce", BrPurple, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── CLASHES ──
+            wrap.Children.Add(MakeSectionLabel("CLASHES"));
+            wrap.Children.Add(MakeDispatchBtn("Run Clashes", "ClashDetection", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("BCF Export", "BCFExport", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("BCF Import", "BCFImport", BrRed, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── HANDOVER ──
+            wrap.Children.Add(MakeSectionLabel("HANDOVER"));
+            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Streaming COBie", "StreamingCOBieExport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Maintenance", "MaintenanceSchedule", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Asset Health", "AssetHealthReport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Space Handover", "SpaceHandover", BrTeal, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── COMPLIANCE ──
+            wrap.Children.Add(MakeSectionLabel("COMPLIANCE"));
+            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Full Compliance", "FullComplianceDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Stage Gate", "StageComplianceGate", BrGreen, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── DATA EXCHANGE ──
+            wrap.Children.Add(MakeSectionLabel("EXCHANGE"));
+            wrap.Children.Add(MakeDispatchBtn("Excel Export", "ExportToExcel", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Excel Round-Trip", "ExcelRoundTrip", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
+            wrap.Children.Add(MakeDispatchBtn("Platform Sync", "PlatformSync", BrAccent, win));
+            wrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── NOTES & BRIEFCASE ──
+            wrap.Children.Add(MakeSectionLabel("NOTES"));
+            wrap.Children.Add(MakeActBtn("Quick Note", BrFgDark, (s, e) => CreateInlineStickyNote(doc)));
+            wrap.Children.Add(MakeDispatchBtn("Add Note", "ElementStickyNote", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Dash", "StickyNoteDashboard", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Search", "StickyNoteSearch", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Export Notes", "ExportStickyNotes", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Briefcase", "DocumentBriefcase", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("View Briefcase", "BriefcaseView", BrTeal, win));
+
+            // ── BEP ──
+            wrap.Children.Add(MakeSep());
+            wrap.Children.Add(MakeSectionLabel("BEP"));
+            wrap.Children.Add(MakeDispatchBtn("Create BEP", "CreateBEP", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
+
+            scroll.Content = wrap;
+            bar.Child = scroll;
             return bar;
+        }
+
+        private static TextBlock MakeSectionLabel(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 8, FontWeight = FontWeights.Bold,
+                Foreground = BrFgSub, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 2, 0)
+            };
         }
 
         private static Button MakeActBtn(string label, SolidColorBrush fg, RoutedEventHandler handler)
@@ -1044,7 +1254,8 @@ namespace StingTools.UI
                 Content = label, Padding = new Thickness(7, 3, 7, 3),
                 Margin = new Thickness(2), FontSize = 10, FontWeight = FontWeights.SemiBold,
                 Background = Brushes.White, Foreground = fg,
-                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
+                ToolTip = GetButtonTooltip(label)
             };
             btn.Click += handler;
             return btn;
@@ -1057,10 +1268,98 @@ namespace StingTools.UI
                 Content = label, Padding = new Thickness(7, 3, 7, 3),
                 Margin = new Thickness(2), FontSize = 10,
                 Background = Brushes.White, Foreground = fg,
-                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
+                ToolTip = GetButtonTooltip(label, op)
             };
             btn.Click += (s, e) => { _selectedOperation = op; win.DialogResult = true; win.Close(); };
             return btn;
+        }
+
+        /// <summary>Rich tooltips for all action buttons — context-aware descriptions.</summary>
+        private static string GetButtonTooltip(string label, string op = "")
+        {
+            return label switch
+            {
+                // File ops
+                "Open" => "Open selected file in default application (double-click also works)",
+                "Open Folder" => "Open containing folder in Windows Explorer",
+                "Rename" => "Rename the selected file (validates ISO 19650 naming)",
+                "Delete" => "Move selected file to _RECYCLE folder (recoverable)",
+                "Move To" => "Move selected file to a different project folder",
+                // Bulk ops
+                "Bulk Move" => "Move all selected files to a chosen folder (multi-select with Ctrl/Shift)",
+                "Bulk Delete" => "Delete all selected files to recycle bin (Ctrl+Shift+click to multi-select)",
+                "Close Issues" => "Set status to CLOSED for all selected issues with audit trail",
+                "Delete Notes" => "Remove all selected sticky notes from the project",
+                "Update CDE" => "Change CDE status (WIP/SHARED/PUBLISHED/ARCHIVE) for selected docs. Auto-creates transmittal on SHARED/PUBLISHED",
+                "Update Trans Status" => "Transition transmittal status (DRAFT→SENT→RECEIVED→ACKNOWLEDGED→SIGNED)",
+                // Docs
+                "Doc Register" => "View and filter all registered project documents with ISO 19650 metadata (10+ columns, export to CSV)",
+                "Add Doc" => "Register a new document: select direction (IN/OUT), type code, and suitability. Auto-generates ISO 19650 Document ID",
+                "Tag Register" => "Export comprehensive 40+ column asset register (tags, identity, spatial, MEP, cost, validation) to CSV",
+                "Naming Check" => "Audit all sheet names against ISO 19650 naming convention with auto-correction suggestions",
+                "Transmittal" => "Create ISO 19650 transmittal record with document list, recipient, and delivery tracking",
+                "Publish CDE" => "Create ISO 19650 CDE folder package with discipline sub-folders and deliverable manifest",
+                "CDE Status" => "View/update Common Data Environment suitability codes (S0-S7) for project containers",
+                "Review Tracker" => "Track model review cycles, approval workflows, and information exchanges",
+                "MIDP Tracker" => "Master Information Delivery Plan — track deliverable progress per discipline and RIBA stage",
+                // Issues
+                "Raise Issue" => "Create new issue (RFI, TQ, NCR, EWN, SI, VO, AI, CVI, CE, PMI, CLASH, DESIGN, SNAGGING, RISK, ACTION, COMMENT). Links to BCF",
+                "Issue Dash" => "Full issue dashboard with statistics, trend analysis, priority breakdown, and overdue tracking",
+                "Update Issue" => "Update an existing issue: change status, priority, assignee, or add comments",
+                "Issue Filter" => "Advanced issue filtering by type, priority, status, assignee, discipline, and date range",
+                "Timeline" => "View issue timeline showing creation, updates, and resolution dates on a visual timeline",
+                "Statistics" => "Issue statistics: open vs closed, resolution time averages, SLA compliance, overdue rate",
+                "Batch Update" => "Bulk update multiple issues at once: change priority, status, or assignee for selected items",
+                "Export CSV" => "Export all issues to CSV file with full metadata (ID, type, priority, status, assignee, dates, elements)",
+                "Select Elements" => "Select Revit elements linked to the selected issue in the model view",
+                // Revisions
+                "Rev Dash" => "Revision dashboard showing all revisions, issue status, and cloud counts",
+                "Create Rev" => "Create a new revision with ISO 19650 naming (P01, C01 format)",
+                "Rev Compare" => "Compare tag snapshots between two revisions — shows changed elements and parameter deltas",
+                "Track Elements" => "Track which elements changed between revisions with parameter diff",
+                "Rev Schedule" => "View revision schedule with sequence numbers, dates, and sheet assignments",
+                "Rev Export" => "Export revision data to CSV with element counts and cloud statistics",
+                "Bulk Stamp" => "Apply revision stamp to multiple sheets at once",
+                "Auto Cloud" => "Automatically create revision clouds around changed elements",
+                "Naming Enforce" => "Enforce ISO 19650 revision naming conventions (P01 preliminary, C01 construction)",
+                // Clashes
+                "Run Clashes" => "Run clash detection between discipline models with grouping by category",
+                "BCF Export" => "Export issues and clashes as BCF 2.1 XML with camera viewpoints for external tools (Navisworks, Solibri, BIMcollab)",
+                "BCF Import" => "Import BCF file and create issues from external clash detection tools",
+                // Handover
+                "COBie Export" => "Full COBie V2.4 spreadsheet export (19 worksheets) with project type presets",
+                "Streaming COBie" => "Memory-efficient streaming COBie export for large models (5000+ elements)",
+                "FM Handover" => "Generate FM handover manual: asset register, spatial summary, system descriptions, compliance report",
+                "Maintenance" => "PPM and reactive maintenance schedule per ASTM E2018 / SFG20 standards",
+                "Asset Health" => "Asset condition scoring (0-100) with ISO 15686 lifecycle assessment and replacement forecasting",
+                "Space Handover" => "Room-by-room handover report with area, finishes, and services breakdown",
+                // Compliance
+                "Model Health" => "Model health dashboard: element counts, parameter completeness, quality metrics with RAG status",
+                "Export Health" => "Export model health data to JSON/CSV for trend tracking",
+                "Full Compliance" => "Comprehensive compliance dashboard: tag completeness, naming, COBie readiness, BEP compliance",
+                "Stage Gate" => "RIBA stage compliance gate: checks DD1-DD4 data drop readiness with pass/fail criteria",
+                // Exchange
+                "Excel Export" => "Export element data to Excel (30+ columns: tags, identity, spatial, MEP) with column selection",
+                "Excel Import" => "Import data from Excel with validation, change preview, and audit trail",
+                "Excel Round-Trip" => "One-click export → edit → import cycle with change tracking",
+                "ACC Publish" => "Package deliverables for Autodesk Construction Cloud (ACC/BIM 360)",
+                "Platform Sync" => "Bidirectional sync with CDE platform — detect and merge changes",
+                "SharePoint" => "Export deliverables to SharePoint/Microsoft Teams document library",
+                // Notes & Briefcase
+                "Quick Note" => "Create a text note directly in the Document Manager (no element selection needed)",
+                "Add Note" => "Create a sticky note linked to selected Revit elements (requires element selection in model)",
+                "Note Dash" => "Sticky note dashboard showing all notes by category, element, and date",
+                "Note Search" => "Search sticky notes by text content, category, or linked element",
+                "Export Notes" => "Export all sticky notes to CSV or JSON",
+                "Briefcase" => "Full briefcase manager: 8-file package (project info, tag register, compliance, stats, sheets)",
+                "View Briefcase" => "Browse reference documents in the project briefcase (BEP, standards, specifications)",
+                // BEP
+                "Create BEP" => "Create BIM Execution Plan from 22 project type presets with 23 ISO 19650-2 §5.3 sections",
+                "Export BEP" => "Export BEP to JSON with compliance scan enrichment and deliverable manifest",
+                "ISO 19650 Ref" => "Quick reference guide for ISO 19650 codes, suitability statuses, and BIM terminology",
+                _ => op
+            };
         }
 
         private static Border MakeSep()
@@ -1276,6 +1575,111 @@ namespace StingTools.UI
             MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
                 (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
             RefreshData();
+        }
+
+        // ── OP-003: Bulk delete sticky notes ──
+        private static void BulkDeleteStickyNotes(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "STICKY").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select sticky notes to delete."); return; }
+            if (MessageBox.Show($"Delete {selected.Count} sticky notes?",
+                "Bulk Delete Notes", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                if (!File.Exists(stickyPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(stickyPath));
+                int deleted = 0;
+                foreach (var item in selected)
+                {
+                    var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
+                    if (note != null) { arr.Remove(note); deleted++; _allItems.Remove(item); }
+                }
+                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "BULK_DELETE_NOTES", $"{deleted}", $"Deleted {deleted} notes");
+                MessageBox.Show($"Deleted {deleted} sticky notes.");
+                UpdateCounts();
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkDeleteNotes: {ex.Message}"); }
+        }
+
+        // ── OP-005: Transmittal status transition ──
+        private static void BulkUpdateTransmittalStatus(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "TRANSMITTAL").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select transmittals to update."); return; }
+            var statusOptions = ValidTransmittalStatuses.OrderBy(s => s).ToList();
+            string newStatus = StingListPicker.Show("Update Transmittal Status",
+                $"Set status for {selected.Count} transmittals:", statusOptions);
+            if (string.IsNullOrEmpty(newStatus)) return;
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string transPath = Path.Combine(bimDir, "transmittals.json");
+                if (!File.Exists(transPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(transPath));
+                int updated = 0;
+                foreach (var item in selected)
+                {
+                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id);
+                    if (trans != null)
+                    {
+                        string oldStatus = trans["status"]?.ToString() ?? "";
+                        trans["status"] = newStatus;
+                        trans["status_history"] = (trans["status_history"]?.ToString() ?? "")
+                            + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {oldStatus}->{newStatus}";
+                        updated++;
+                    }
+                }
+                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "TRANS_STATUS", $"{updated}", $"→ {newStatus}");
+                MessageBox.Show($"Updated {updated} transmittal(s) to {newStatus}.");
+                RefreshData();
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkUpdateTransStatus: {ex.Message}"); }
+        }
+
+        // ── DM-05: Inline sticky note creation ──
+        private static void CreateInlineStickyNote(Document doc)
+        {
+            string text = PromptForText("Create Sticky Note", "Enter note text:", "");
+            if (string.IsNullOrEmpty(text)) return;
+
+            var categories = new List<string> { "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA" };
+            string category = StingListPicker.Show("Note Category", "Select category:", categories);
+            if (string.IsNullOrEmpty(category)) category = "GENERAL";
+
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                JArray arr;
+                if (File.Exists(stickyPath))
+                    arr = JArray.Parse(File.ReadAllText(stickyPath));
+                else
+                    arr = new JArray();
+
+                string user = "";
+                try { user = doc?.Application?.Username ?? Environment.UserName; } catch { user = Environment.UserName; }
+
+                string noteId = $"NOTE-{DateTime.Now:yyyyMMdd-HHmmss}";
+                arr.Add(new JObject
+                {
+                    ["note_id"] = noteId,
+                    ["text"] = text,
+                    ["category"] = category,
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["user"] = user,
+                    ["element_ids"] = new JArray()
+                });
+                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "CREATE_NOTE", noteId, $"{category}: {text.Substring(0, Math.Min(50, text.Length))}");
+                RefreshData();
+            }
+            catch (Exception ex) { StingLog.Warn($"CreateInlineStickyNote: {ex.Message}"); }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -1621,14 +2025,15 @@ namespace StingTools.UI
                     _allItems.Add(new DocItemVM
                     {
                         Id = t["transmittal_id"]?.ToString() ?? "",
-                        Title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "",
+                        Title = BuildTransmittalTitle(t, docCount),
                         Type = "TR", TypeDesc = "Transmittal",
-                        Status = t["status"]?.ToString() ?? "SENT",
+                        Status = ValidateTransmittalStatus(t["status"]?.ToString()),
+                        StatusHistory = t["status_history"]?.ToString() ?? "", // PERSIST-02
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
                         AssignedTo = t["recipient"]?.ToString() ?? "",
-                        CreatedBy = t["created_by"]?.ToString() ?? "", // PERSIST-01
+                        CreatedBy = t["created_by"]?.ToString() ?? "",
                         ElementCount = docCount,
                         DaysOpen = tDaysOpen, Aging = tAging, // GRID-02
                         Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
@@ -1684,6 +2089,10 @@ namespace StingTools.UI
                 var arr = JArray.Parse(File.ReadAllText(stickyPath));
                 foreach (JToken note in arr)
                 {
+                    // GRID-01: element count for sticky notes
+                    int noteElemCount = 0;
+                    if (note["element_ids"] is JArray noteElems) noteElemCount = noteElems.Count;
+
                     _allItems.Add(new DocItemVM
                     {
                         Id = note["note_id"]?.ToString() ?? "",
@@ -1691,6 +2100,8 @@ namespace StingTools.UI
                         Type = "NOTE", TypeDesc = "Sticky Note",
                         Status = note["category"]?.ToString() ?? "GENERAL",
                         Date = note["date"]?.ToString() ?? "",
+                        ElementCount = noteElemCount,
+                        CreatedBy = note["user"]?.ToString() ?? "",
                         Category = "STICKY", Folder = "20_MISC"
                     });
                 }
@@ -1954,6 +2365,303 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
         //  UI-03: Tree search helpers
         // ══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        //  RIGHT-CLICK CONTEXT MENU (copy, file ops, status transitions)
+        // ══════════════════════════════════════════════════════════════════
+
+        private static ContextMenu BuildContextMenu(Document doc, Window win)
+        {
+            var menu = new ContextMenu();
+
+            // ── Clipboard ──
+            menu.Items.Add(MakeMenuItem("Copy Title", "Copy document title to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                    Clipboard.SetText(item.Title ?? "");
+            }));
+            menu.Items.Add(MakeMenuItem("Copy ID", "Copy document ID to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                    Clipboard.SetText(item.Id ?? "");
+            }));
+            menu.Items.Add(MakeMenuItem("Copy File Path", "Copy full file path to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                    Clipboard.SetText(item.FilePath);
+            }));
+            menu.Items.Add(MakeMenuItem("Copy Row as CSV", "Copy all columns as comma-separated text", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                {
+                    string csv = $"{item.Type},{item.Id},{item.Title},{item.Status},{item.CDE}," +
+                        $"{item.Revision},{item.Discipline},{item.Folder},{item.FileFormat}," +
+                        $"{item.Size},{item.Date},{item.Priority},{item.AssignedTo}";
+                    Clipboard.SetText(csv);
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Copy All Visible as CSV", "Export all visible rows to clipboard as CSV", (s, e) =>
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Type,ID,Title,Status,CDE,Rev,Disc,Folder,Format,Size,Date,Priority,Age,Elements,Assigned,SLA");
+                foreach (var obj in _view)
+                {
+                    if (obj is DocItemVM it)
+                        sb.AppendLine($"\"{it.Type}\",\"{it.Id}\",\"{it.Title}\",\"{it.Status}\",\"{it.CDE}\"," +
+                            $"\"{it.Revision}\",\"{it.Discipline}\",\"{it.Folder}\",\"{it.FileFormat}\"," +
+                            $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
+                            $"\"{it.AssignedTo}\",\"{it.SLADeadline}\"");
+                }
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show($"Copied {_view.Count} rows to clipboard.", "STING", MessageBoxButton.OK, MessageBoxImage.Information);
+            }));
+
+            menu.Items.Add(new Separator());
+
+            // ── File operations ──
+            menu.Items.Add(MakeMenuItem("Open File", "Open in default application", (s, e) => OpenSelected()));
+            menu.Items.Add(MakeMenuItem("Open Containing Folder", "Show in Windows Explorer", (s, e) => OpenFolder(doc)));
+            menu.Items.Add(MakeMenuItem("Copy File to...", "Copy file to another location", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+                if (!File.Exists(item.FilePath)) return;
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Copy file to...",
+                    FileName = Path.GetFileName(item.FilePath),
+                    Filter = "All files|*.*"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    File.Copy(item.FilePath, dlg.FileName, true);
+                    ProjectFolderEngine.LogActivity(doc, "COPY_FILE", Path.GetFileName(item.FilePath), dlg.FileName);
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Rename...", "Rename this file", (s, e) => RenameSelected()));
+            menu.Items.Add(MakeMenuItem("Move To Folder...", "Move to different project folder", (s, e) => MoveSelected(doc)));
+            menu.Items.Add(MakeMenuItem("Delete (Recycle)", "Move to recycle bin", (s, e) => DeleteSelected()));
+
+            menu.Items.Add(new Separator());
+
+            // ── CDE / Status ──
+            var cdeMenu = new MenuItem { Header = "Set CDE Status" };
+            foreach (string cde in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+            {
+                string c = cde;
+                cdeMenu.Items.Add(MakeMenuItem(c, $"Move to {c} folder and update register", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                    {
+                        ProjectFolderEngine.MoveFile(doc, item.FilePath, c);
+                        RefreshData();
+                    }
+                }));
+            }
+            menu.Items.Add(cdeMenu);
+
+            var statusMenu = new MenuItem { Header = "Set Document Status" };
+            foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
+            {
+                string code = kv.Key;
+                statusMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", $"Set status to {code}", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item)
+                    {
+                        UpdateDocRegisterField(doc, item.Id, "status_code", code);
+                        item.Status = code;
+                        item.StatusDesc = kv.Value;
+                        _view?.Refresh();
+                    }
+                }));
+            }
+            menu.Items.Add(statusMenu);
+
+            var suitMenu = new MenuItem { Header = "Set Suitability Code" };
+            foreach (var kv in BIMManager.BIMManagerEngine.SuitabilityCodes)
+            {
+                string code = kv.Key;
+                suitMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", "", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item)
+                    {
+                        UpdateDocRegisterField(doc, item.Id, "suitability", code);
+                        item.Suitability = code;
+                        _view?.Refresh();
+                    }
+                }));
+            }
+            menu.Items.Add(suitMenu);
+
+            menu.Items.Add(new Separator());
+
+            // ── Issue operations ──
+            menu.Items.Add(MakeMenuItem("Link to Revision...", "Associate this issue with a revision", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var revItems = _allItems.Where(i => i.Category == "REVISION")
+                    .Select(i => $"{i.Id}: {i.Title}").ToList();
+                if (revItems.Count == 0) { MessageBox.Show("No revisions found."); return; }
+                string pick = StingListPicker.Show("Link to Revision", "Select revision:", revItems);
+                if (string.IsNullOrEmpty(pick)) return;
+                string revId = pick.Split(':')[0].Trim();
+                item.LinkedRevision = revId;
+                UpdateIssueField(doc, item.Id, "revision", revId);
+                _view?.Refresh();
+            }));
+            menu.Items.Add(MakeMenuItem("Change Priority...", "Update issue priority", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+                string pick = StingListPicker.Show("Change Priority", "Select new priority:", priorities);
+                if (string.IsNullOrEmpty(pick)) return;
+                item.Priority = pick;
+                UpdateIssueField(doc, item.Id, "priority", pick);
+                _view?.Refresh();
+            }));
+            menu.Items.Add(MakeMenuItem("Assign To...", "Assign issue to team member", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                string name = PromptForText("Assign To", "Enter assignee name:", item.AssignedTo ?? "");
+                if (!string.IsNullOrEmpty(name))
+                {
+                    item.AssignedTo = name;
+                    UpdateIssueField(doc, item.Id, "assigned_to", name);
+                    _view?.Refresh();
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Close Issue", "Set status to CLOSED", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                UpdateIssueField(doc, item.Id, "status", "CLOSED");
+                item.Status = "CLOSED";
+                _view?.Refresh();
+            }));
+
+            menu.Items.Add(new Separator());
+
+            // ── Edit/View ──
+            menu.Items.Add(MakeMenuItem("Edit Note...", "Edit sticky note text", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item && item.Category == "STICKY")
+                    EditStickyNote(item);
+            }));
+            menu.Items.Add(MakeMenuItem("View Details", "Show full item details", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"ID:          {item.Id}");
+                    sb.AppendLine($"Title:       {item.Title}");
+                    sb.AppendLine($"Type:        {item.Type} ({item.TypeDesc})");
+                    sb.AppendLine($"Status:      {item.Status} ({item.StatusDesc})");
+                    sb.AppendLine($"CDE:         {item.CDE}");
+                    sb.AppendLine($"Suitability: {item.Suitability}");
+                    sb.AppendLine($"Revision:    {item.Revision}");
+                    sb.AppendLine($"Date:        {item.Date}");
+                    sb.AppendLine($"Discipline:  {item.Discipline}");
+                    sb.AppendLine($"Priority:    {item.Priority}");
+                    sb.AppendLine($"Assigned To: {item.AssignedTo}");
+                    sb.AppendLine($"Created By:  {item.CreatedBy}");
+                    sb.AppendLine($"Folder:      {item.Folder}");
+                    sb.AppendLine($"File:        {item.FilePath}");
+                    sb.AppendLine($"Format:      {item.FileFormat}");
+                    sb.AppendLine($"Size:        {item.Size}");
+                    sb.AppendLine($"Age:         {item.Aging} ({item.DaysOpen} days)");
+                    sb.AppendLine($"SLA:         {item.SLADeadline} {(item.IsOverdue ? "OVERDUE" : "")}");
+                    sb.AppendLine($"Elements:    {item.ElementCount}");
+                    sb.AppendLine($"Linked Rev:  {item.LinkedRevision}");
+                    sb.AppendLine($"Linked Issues: {item.LinkedIssues}");
+                    if (!string.IsNullOrEmpty(item.StatusHistory))
+                        sb.AppendLine($"\nStatus History:\n{item.StatusHistory.Replace("|", "\n")}");
+                    MessageBox.Show(sb.ToString(), "STING Document Details", MessageBoxButton.OK);
+                }
+            }));
+
+            return menu;
+        }
+
+        private static MenuItem MakeMenuItem(string header, string tooltip, RoutedEventHandler handler)
+        {
+            var item = new MenuItem { Header = header };
+            if (!string.IsNullOrEmpty(tooltip)) item.ToolTip = tooltip;
+            item.Click += handler;
+            return item;
+        }
+
+        // ── JSON field update helpers for right-click operations ──
+
+        private static void UpdateDocRegisterField(Document doc, string docId, string field, string value)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string regPath = Path.Combine(bimDir, "document_register.json");
+                if (!File.Exists(regPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(regPath));
+                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                if (entry != null)
+                {
+                    entry[field] = value;
+                    File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateDocRegister: {ex.Message}"); }
+        }
+
+        private static void UpdateIssueField(Document doc, string issueId, string field, string value)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string issuePath = Path.Combine(bimDir, "issues.json");
+                if (!File.Exists(issuePath)) return;
+                var arr = JArray.Parse(File.ReadAllText(issuePath));
+                var entry = arr.FirstOrDefault(i => i["issue_id"]?.ToString() == issueId);
+                if (entry != null)
+                {
+                    string old = entry[field]?.ToString() ?? "";
+                    entry[field] = value;
+                    entry["status_history"] = (entry["status_history"]?.ToString() ?? "")
+                        + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {field}: {old}->{value}";
+                    File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateIssue: {ex.Message}"); }
+        }
+
+        // DM-03: Valid transmittal statuses
+        private static readonly HashSet<string> ValidTransmittalStatuses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "DRAFT", "SENT", "RECEIVED", "ACKNOWLEDGED", "SIGNED",
+            "REJECTED", "SUPERSEDED", "AUTO_GENERATED", "VOID"
+        };
+
+        private static string ValidateTransmittalStatus(string status)
+        {
+            if (string.IsNullOrEmpty(status)) return "DRAFT";
+            return ValidTransmittalStatuses.Contains(status) ? status : "DRAFT";
+        }
+
+        /// <summary>Build transmittal title showing file count and contents summary.</summary>
+        private static string BuildTransmittalTitle(JToken t, int docCount)
+        {
+            string title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "";
+            if (docCount > 0)
+            {
+                // Show file list preview if available
+                if (t["documents"] is JArray docs && docs.Count > 0)
+                {
+                    var fileNames = docs.Take(3).Select(d => d.ToString()).ToList();
+                    string preview = string.Join(", ", fileNames);
+                    if (docs.Count > 3) preview += $" +{docs.Count - 3} more";
+                    return $"{title} ({docCount} files: {preview})";
+                }
+                return $"{title} ({docCount} files)";
+            }
+            return title;
+        }
 
         private static void SetAllTreeItemsVisible(ItemsControl parent, bool visible)
         {

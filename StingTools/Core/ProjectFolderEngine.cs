@@ -388,6 +388,7 @@ namespace StingTools.Core
                     StingLog.Info($"ProjectFolderEngine: Recycled {name} → _RECYCLE");
                     LogActivity(null, "RECYCLE", name, filePath);
                     InvalidateFolderStatsCache();
+                    RaiseFileChanged("RECYCLE", name, filePath);
                     return true;
                 }
                 catch
@@ -397,6 +398,7 @@ namespace StingTools.Core
                     StingLog.Info($"ProjectFolderEngine: Hard-deleted {name}");
                     LogActivity(null, "DELETE", name, filePath);
                     InvalidateFolderStatsCache();
+                    RaiseFileChanged("DELETE", name, filePath);
                     return true;
                 }
             }
@@ -421,6 +423,7 @@ namespace StingTools.Core
                 StingLog.Info($"ProjectFolderEngine: Restored {name}");
                 LogActivity(null, "RESTORE", name, targetPath);
                 InvalidateFolderStatsCache();
+                RaiseFileChanged("RESTORE", name, targetPath);
                 return true;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RestoreFile: {ex.Message}"); }
@@ -441,6 +444,7 @@ namespace StingTools.Core
                 StingLog.Info($"ProjectFolderEngine: Renamed {oldName} → {newName}");
                 LogActivity(null, "RENAME", newName, $"{oldName} -> {newName}");
                 InvalidateFolderStatsCache();
+                RaiseFileChanged("RENAME", newName, Path.Combine(dir, newName));
                 return true;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RenameFile: {ex.Message}"); }
@@ -461,6 +465,7 @@ namespace StingTools.Core
                 StingLog.Info($"ProjectFolderEngine: Moved {fileName} → {targetFolderId}");
                 LogActivity(doc, "MOVE", fileName, $"→ {targetFolderId}");
                 InvalidateFolderStatsCache();
+                RaiseFileChanged("MOVE", fileName, Path.Combine(targetDir, fileName));
 
                 // AUTO-001: Auto-log transmittal when moving to CDE folders
                 if (targetFolderId == "SHARED" || targetFolderId == "PUBLISHED")
@@ -495,6 +500,7 @@ namespace StingTools.Core
                 StingLog.Info($"ProjectFolderEngine: Imported {fileName} → {targetFolderId}");
                 LogActivity(doc, "IMPORT", fileName, $"→ {targetFolderId}");
                 InvalidateFolderStatsCache();
+                RaiseFileChanged("IMPORT", fileName, targetPath);
                 return targetPath;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.ImportFile: {ex.Message}"); }
@@ -1040,6 +1046,88 @@ namespace StingTools.Core
             public int OpenClashes { get; set; }
             public int CriticalClashes { get; set; }
             public List<string> ClashIds { get; set; } = new();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  INT-001: External hook / callback for file changes
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Event raised when a file is added, deleted, moved, or renamed in the project folder.
+        /// External tools can subscribe to this for integration.
+        /// </summary>
+        public static event Action<string, string, string> FileChanged; // (action, fileName, path)
+
+        internal static void RaiseFileChanged(string action, string fileName, string path)
+        {
+            try { FileChanged?.Invoke(action, fileName, path); }
+            catch (Exception ex) { StingLog.Warn($"FileChanged handler error: {ex.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  INT-002: FileSystemWatcher for project folder monitoring
+        // ══════════════════════════════════════════════════════════════════
+
+        private static FileSystemWatcher _watcher;
+        private static Action<string> _watcherCallback;
+
+        /// <summary>
+        /// Start monitoring the project folder for external changes.
+        /// Callback receives the changed file path.
+        /// </summary>
+        public static void StartWatching(Document doc, Action<string> onFileChanged = null)
+        {
+            StopWatching();
+            string root = GetRootPath(doc);
+            if (!Directory.Exists(root)) return;
+
+            _watcherCallback = onFileChanged;
+            try
+            {
+                _watcher = new FileSystemWatcher(root)
+                {
+                    IncludeSubdirectories = true,
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                    EnableRaisingEvents = true
+                };
+                _watcher.Created += (s, e) =>
+                {
+                    if (e.Name?.StartsWith(".") == true || e.Name?.Contains("_RECYCLE") == true) return;
+                    LogActivity(doc, "EXT_CREATE", Path.GetFileName(e.FullPath), e.FullPath);
+                    InvalidateFolderStatsCache();
+                    RaiseFileChanged("CREATE", Path.GetFileName(e.FullPath), e.FullPath);
+                    _watcherCallback?.Invoke(e.FullPath);
+                };
+                _watcher.Deleted += (s, e) =>
+                {
+                    if (e.Name?.StartsWith(".") == true || e.Name?.Contains("_RECYCLE") == true) return;
+                    LogActivity(doc, "EXT_DELETE", Path.GetFileName(e.FullPath), e.FullPath);
+                    InvalidateFolderStatsCache();
+                    RaiseFileChanged("DELETE", Path.GetFileName(e.FullPath), e.FullPath);
+                    _watcherCallback?.Invoke(e.FullPath);
+                };
+                _watcher.Renamed += (s, e) =>
+                {
+                    LogActivity(doc, "EXT_RENAME", Path.GetFileName(e.FullPath), $"{e.OldName} → {e.Name}");
+                    InvalidateFolderStatsCache();
+                    RaiseFileChanged("RENAME", Path.GetFileName(e.FullPath), e.FullPath);
+                    _watcherCallback?.Invoke(e.FullPath);
+                };
+                StingLog.Info($"ProjectFolderEngine: FileSystemWatcher started on {root}");
+            }
+            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.StartWatching: {ex.Message}"); }
+        }
+
+        /// <summary>Stop monitoring the project folder.</summary>
+        public static void StopWatching()
+        {
+            if (_watcher != null)
+            {
+                try { _watcher.EnableRaisingEvents = false; _watcher.Dispose(); }
+                catch (Exception ex) { StingLog.Warn($"StopWatching: {ex.Message}"); }
+                _watcher = null;
+                _watcherCallback = null;
+            }
         }
     }
 }
