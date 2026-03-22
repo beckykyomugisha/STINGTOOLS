@@ -1321,7 +1321,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
@@ -1469,7 +1469,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
@@ -1529,7 +1529,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
@@ -1551,7 +1551,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 int? prev = WarningsEngine.LoadBaseline(doc);
@@ -1577,7 +1577,7 @@ namespace StingTools.Core
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
                 Document doc = uidoc?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
@@ -1632,7 +1632,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
@@ -1680,7 +1680,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var report = WarningsEngine.ScanWarnings(doc);
@@ -1752,7 +1752,7 @@ namespace StingTools.Core
         {
             try
             {
-                Document doc = commandData.Application.ActiveUIDocument?.Document;
+                Document doc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument?.Document;
                 if (doc == null) return Result.Failed;
                 int count = doc.GetWarnings()?.Count ?? 0;
                 TaskDialog.Show("STING Warning Monitor",
@@ -1778,7 +1778,7 @@ namespace StingTools.Core
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
                 Document doc = uidoc?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
