@@ -1042,6 +1042,55 @@ namespace StingTools.Core
                 case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
+                // BIM Coordination Center dispatch targets
+                case "ValidateTags":            return new Tags.ValidateTagsCommand();
+                case "PreTagAudit":             return new Tags.PreTagAuditCommand();
+                case "TagNewOnly":              return new Tags.TagNewOnlyCommand();
+                case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
+                case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();
+                case "ValidateTemplate":        return new Temp.ValidateTemplateCommand();
+                case "RaiseIssue":              return new BIMManager.RaiseIssueCommand();
+                case "UpdateIssue":             return new BIMManager.UpdateIssueCommand();
+                case "SelectIssueElements":     return new BIMManager.SelectIssueElementsCommand();
+                case "IssueDashboard":          return new BIMManager.IssueDashboardCommand();
+                case "BCFExport":               return new BIMManager.BCFExportCommand();
+                case "BCFImport":               return new BIMManager.BCFImportCommand();
+                case "RevisionCompare":         return new BIMManager.RevisionCompareCommand();
+                case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
+                case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
+                case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
+                case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
+                case "PlatformSync":            return new BIMManager.PlatformSyncCommand();
+                case "CDEPackage":              return new BIMManager.CDEPackageCommand();
+                case "CDEStatus":               return new BIMManager.CDEStatusCommand();
+                case "ValidateDocNaming":       return new BIMManager.ValidateDocNamingCommand();
+                case "CreateTransmittal":       return new BIMManager.CreateTransmittalCommand();
+                case "ExportToExcel":           return new BIMManager.ExportToExcelCommand();
+                case "ImportFromExcel":         return new BIMManager.ImportFromExcelCommand();
+                case "ExcelRoundTrip":          return new BIMManager.ExcelRoundTripCommand();
+                case "IFCExport":               return new Temp.IFCExportCommand();
+                case "ACCPublish":              return new BIMManager.ACCPublishCommand();
+                case "SharePointExport":        return new BIMManager.SharePointExportCommand();
+                case "WorkflowPreset":          return new WorkflowPresetCommand();
+                case "CreateWorkflowPreset":    return new CreateWorkflowPresetCommand();
+                case "ListWorkflowPresets":     return new ListWorkflowPresetsCommand();
+                case "AddDocument":             return new BIMManager.AddDocumentCommand();
+                case "DocumentRegister":        return new BIMManager.DocumentRegisterCommand();
+                case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
+                case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
+                case "WarningsSuppress":        return new WarningsSuppressCommand();
+
+                // 4D/5D Scheduling
+                case "AutoSchedule4D":      return new BIMManager.AutoSchedule4DCommand();
+                case "AutoCost5D":          return new BIMManager.AutoCost5DCommand();
+                case "ViewTimeline4D":      return new BIMManager.ViewTimeline4DCommand();
+                case "CostReport5D":        return new BIMManager.CostReport5DCommand();
+                case "CashFlow5D":          return new BIMManager.CashFlow5DCommand();
+                case "ExportSchedule4D":    return new BIMManager.ExportSchedule4DCommand();
+                case "ImportMSProject":     return new BIMManager.ImportMSProjectCommand();
+                case "MilestoneRegister":   return new BIMManager.MilestoneRegisterCommand();
+                case "PhaseSummary":        return new BIMManager.PhaseSummaryCommand();
+
                 default: return null;
             }
         }

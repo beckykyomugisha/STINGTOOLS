@@ -125,8 +125,6 @@ namespace StingTools.UI
 
         // GAP-BIM-010: Persist dialog state across reopens (tab, filter, search)
         private static int _lastTabIndex = 0;
-        private static string _lastFilter = "ALL";
-        private static string _lastSearchText = "";
 
         // ══════════════════════════════════════════════════════════════════
         //  SHOW

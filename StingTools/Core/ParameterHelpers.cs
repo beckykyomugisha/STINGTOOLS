@@ -1756,10 +1756,10 @@ namespace StingTools.Core
         }
 
         // PERF-CRIT-01: Spatial candidate cache — avoids O(n²) FilteredElementCollector per element.
-        // Key: categoryId.IntegerValue. Value: list of (elementId, center point, tag1 value).
+        // Key: categoryId.Value. Value: list of (elementId, center point, tag1 value).
         // Built once per batch in PopulationContext, reused for all CopyTokensFromNearest calls.
-        private static readonly Dictionary<int, List<(ElementId Id, XYZ Center, string Tag1)>>
-            _spatialCandidateCache = new Dictionary<int, List<(ElementId, XYZ, string)>>();
+        private static readonly Dictionary<long, List<(ElementId Id, XYZ Center, string Tag1)>>
+            _spatialCandidateCache = new Dictionary<long, List<(ElementId, XYZ, string)>>();
         private static int _spatialCacheDocHash;
 
         /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
@@ -1786,7 +1786,7 @@ namespace StingTools.Core
                     if (loc is LocationPoint lp) center = lp.Point;
                     else if (loc is LocationCurve lc) center = lc.Curve.Evaluate(0.5, true);
                     if (center == null) continue;
-                    int catKey = e.Category.Id.IntegerValue;
+                    long catKey = e.Category.Id.Value;
                     if (!_spatialCandidateCache.TryGetValue(catKey, out var list))
                     {
                         list = new List<(ElementId, XYZ, string)>();
@@ -1857,7 +1857,7 @@ namespace StingTools.Core
                 else
                 {
                     // Fast path: use spatial candidate cache (pre-built, no collector needed)
-                    int catKey = el.Category?.Id?.IntegerValue ?? 0;
+                    long catKey = el.Category?.Id?.Value ?? 0;
                     if (_spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
                     {
                         ElementId nearestId = null;

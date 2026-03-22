@@ -133,8 +133,8 @@ namespace StingTools.UI
             // Workflows
             public int WorkflowRuns;
             public string LastWorkflow = "none";
-            public double LastComplianceBefore;
-            public double LastComplianceAfter;
+            public double LastComplianceBefore { get; set; }
+            public double LastComplianceAfter { get; set; }
 
             // Model Health
             public int ModelHealthScore;
@@ -143,23 +143,23 @@ namespace StingTools.UI
             public List<string> Recommendations = new();
 
             // QA Dashboard
-            public int AnomalyCount;
+            public int AnomalyCount { get; set; }
             public Dictionary<string, int> ValidationErrors = new();
 
             // 4D/5D Scheduling
-            public int ScheduledTasks;
-            public double TotalCostEstimate;
-            public int MilestonesTotal;
-            public int MilestonesComplete;
-            public double EarnedValuePct;
+            public int ScheduledTasks { get; set; }
+            public double TotalCostEstimate { get; set; }
+            public int MilestonesTotal { get; set; }
+            public int MilestonesComplete { get; set; }
+            public double EarnedValuePct { get; set; }
             public List<(string Phase, double Cost, double Progress)> CostByPhase = new();
 
             // Phase 49: Deliverables tracking
             public List<DeliverableRow> Deliverables = new();
-            public int DeliverablesPending;
-            public int DeliverablesSubmitted;
-            public int DeliverablesApproved;
-            public int DeliverablesOverdue;
+            public int DeliverablesPending { get; set; }
+            public int DeliverablesSubmitted { get; set; }
+            public int DeliverablesApproved { get; set; }
+            public int DeliverablesOverdue { get; set; }
             public string CurrentDataDrop = "DD1";  // DD1-DD4
             public Dictionary<string, double> DataDropProgress = new(); // DD1→%, DD2→% etc.
 

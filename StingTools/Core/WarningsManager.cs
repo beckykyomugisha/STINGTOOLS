@@ -2120,7 +2120,6 @@ namespace StingTools.Core
                                 : "No critical/high warnings found.");
                             break;
                         case "ExportWarnings":
-                        case "ExportReport":
                             string csvPath = WarningsEngine.ExportToCSV(doc, warningReport);
                             TaskDialog.Show("STING Export", $"Exported to:\n{csvPath}");
                             break;
@@ -2128,9 +2127,14 @@ namespace StingTools.Core
                             WarningsEngine.SaveBaseline(doc);
                             TaskDialog.Show("STING", "Warning baseline saved.");
                             break;
+                        case "SaveExtendedBaseline":
+                            WarningsEngine.SaveExtendedBaseline(doc);
+                            TaskDialog.Show("STING", "Extended warning baseline saved.");
+                            break;
                         default:
-                            // Dispatch other actions via StingCommandHandler ExtraParam
-                            UI.StingCommandHandler.SetExtraParam("CoordAction", action);
+                            // Dispatch action through StingCommandHandler command resolution.
+                            // We're already on the Revit API thread, so we can execute directly.
+                            DispatchCoordAction(action, commandData);
                             break;
                     }
                 }
@@ -2144,6 +2148,210 @@ namespace StingTools.Core
                 StingLog.Error("BIMCoordinationCenter failed", ex);
                 message = ex.Message;
                 return Result.Failed;
+            }
+        }
+
+        /// <summary>
+        /// Dispatches a BIM Coordination Center action tag to the matching IExternalCommand.
+        /// Maps action tags from dialog buttons to command classes and executes them directly
+        /// (we are already on the Revit API thread inside StingCommandHandler.Execute).
+        /// </summary>
+        private static void DispatchCoordAction(string action, ExternalCommandData commandData)
+        {
+            // Map action tags to command tags used by StingCommandHandler / WorkflowEngine
+            var actionToCommandTag = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Overview quick actions
+                { "RunDailyQA", "DailyQA" },
+                { "RunMorningCheck", "MorningHealthCheck" },
+                { "RetagStale", "RetagStale" },
+                { "TagNewOnly", "TagNewOnly" },
+                { "ExportCOBie", "COBieExport" },
+                { "FullComplianceDashboard", "FullComplianceDashboard" },
+
+                // Model health actions
+                { "RefreshHealth", "ModelHealthDashboard" },
+                { "ExportHealth", "ExportModelHealth" },
+                { "RunFullCheck", "ValidateTemplate" },
+
+                // Warnings actions
+                { "SelectWarningElements", "WarningsSelectElements" },
+                { "SuppressWarnings", "WarningsSuppress" },
+                { "WarningsCompliance", "WarningsCompliance" },
+
+                // Issues actions
+                { "RaiseIssue", "RaiseIssue" },
+                { "UpdateIssue", "UpdateIssue" },
+                { "IssuesBulkClose", "UpdateIssue" },
+                { "SelectIssueElements", "SelectIssueElements" },
+                { "BCFExport", "BCFExport" },
+                { "BCFImport", "BCFImport" },
+                { "ExportIssues", "IssueDashboard" },
+                { "IssueTimeline", "IssueDashboard" },
+
+                // Revisions actions
+                { "CreateRevision", "CreateRevision" },
+                { "AutoRevisionCloud", "AutoRevisionCloud" },
+                { "TakeSnapshot", "TrackElementRevisions" },
+                { "RevisionCompare", "RevisionCompare" },
+                { "TrackElementRevisions", "TrackElementRevisions" },
+                { "IssueSheetsForRevision", "IssueSheetsForRevision" },
+                { "RevisionNamingEnforce", "RevisionNamingEnforce" },
+                { "BulkRevisionStamp", "BulkRevisionStamp" },
+                { "ExportRevisions", "RevisionExport" },
+
+                // Platform actions
+                { "PlatformSync", "PlatformSync" },
+                { "CDEPackage", "CDEPackage" },
+                { "CDEStatus", "CDEStatus" },
+                { "ValidateDocNaming", "ValidateDocNaming" },
+                { "CreateTransmittal", "CreateTransmittal" },
+                { "ExportToExcel", "ExportToExcel" },
+                { "ImportFromExcel", "ImportFromExcel" },
+                { "ExcelRoundTrip", "ExcelRoundTrip" },
+                { "COBieExport", "COBieExport" },
+                { "IFCExport", "IFCExport" },
+                { "ACCPublish", "ACCPublish" },
+                { "SharePointExport", "SharePointExport" },
+
+                // Workflow actions
+                { "RunWorkflowPreset", "WorkflowPreset" },
+                { "CreateWorkflowPreset", "CreateWorkflowPreset" },
+                { "WorkflowTrend", "WorkflowTrend" },
+                { "ListWorkflowPresets", "ListWorkflowPresets" },
+
+                // QA Dashboard actions
+                { "ValidateTags", "ValidateTags" },
+                { "PreTagAudit", "PreTagAudit" },
+                { "AnomalyAutoFix", "AnomalyAutoFix" },
+                { "ResolveAllIssues", "ResolveAllIssues" },
+                { "TagRegisterExport", "TagRegisterExport" },
+                { "CompletenessDashboard", "CompletenessDashboard" },
+
+                // 4D/5D actions
+                { "AutoSchedule4D", "AutoSchedule4D" },
+                { "AutoCost5D", "AutoCost5D" },
+                { "ViewTimeline4D", "ViewTimeline4D" },
+                { "CostReport5D", "CostReport5D" },
+                { "CashFlow5D", "CashFlow5D" },
+                { "ExportSchedule4D", "ExportSchedule4D" },
+                { "ImportMSProject", "ImportMSProject" },
+                { "MilestoneRegister", "MilestoneRegister" },
+                { "PhaseSummary", "PhaseSummary" },
+
+                // Deliverables actions
+                { "AddDocument", "AddDocument" },
+                { "DocumentRegister", "DocumentRegister" },
+                { "DocumentBriefcase", "DocumentBriefcase" },
+                { "StageComplianceGate", "StageComplianceGate" },
+
+                // Report action
+                { "ExportReport", "ExportModelHealth" },
+                { "DiscComplianceReport", "DiscComplianceReport" },
+            };
+
+            // Handle RepeatLastWorkflow by resolving the last workflow name
+            if (string.Equals(action, "RepeatLastWorkflow", StringComparison.OrdinalIgnoreCase))
+            {
+                string last = WorkflowEngine.LastWorkflowName;
+                if (!string.IsNullOrEmpty(last))
+                {
+                    UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", last);
+                    var wfCmd = WorkflowEngine.GetCommandInstance("WorkflowPreset");
+                    if (wfCmd != null)
+                    {
+                        string msg = "";
+                        var els = new ElementSet();
+                        wfCmd.Execute(commandData, ref msg, els);
+                        StingLog.Info($"DispatchCoordAction: repeated workflow '{last}'");
+                    }
+                }
+                else
+                {
+                    TaskDialog.Show("STING", "No previous workflow to repeat.");
+                }
+                return;
+            }
+
+            // Handle DocumentManager inline (opens WPF dialog directly)
+            if (string.Equals(action, "DocumentManager", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var uiApp = UI.StingCommandHandler.CurrentApp;
+                    var doc2 = uiApp?.ActiveUIDocument?.Document;
+                    if (doc2 != null)
+                        UI.DocumentManagementDialog.Show(doc2);
+                }
+                catch (Exception ex) { StingLog.Warn($"DocumentManager dispatch: {ex.Message}"); }
+                return;
+            }
+
+            // Check for workflow preset actions: RunDailyQA, RunMorningCheck, RunWorkflow_*
+            var workflowPresets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "RunDailyQA", "RunMorningCheck" };
+
+            if (action.StartsWith("RunWorkflow_", StringComparison.OrdinalIgnoreCase)
+                || workflowPresets.Contains(action))
+            {
+                string presetName;
+                if (action.StartsWith("RunWorkflow_", StringComparison.OrdinalIgnoreCase))
+                    presetName = action.Substring("RunWorkflow_".Length);
+                else if (actionToCommandTag.TryGetValue(action, out var mapped2))
+                    presetName = mapped2;
+                else
+                    presetName = action;
+
+                UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", presetName);
+                var wfCmd = WorkflowEngine.GetCommandInstance("WorkflowPreset");
+                if (wfCmd != null)
+                {
+                    string msg = "";
+                    var els = new ElementSet();
+                    wfCmd.Execute(commandData, ref msg, els);
+                    StingLog.Info($"DispatchCoordAction: ran workflow preset '{presetName}'");
+                }
+                else
+                {
+                    StingLog.Warn($"DispatchCoordAction: could not resolve WorkflowPreset command");
+                }
+                return;
+            }
+
+            // Check for element selection patterns: "SelectByDisc_M", "SelectIssue_ISS-001", etc.
+            if (action.StartsWith("SelectByDisc_", StringComparison.OrdinalIgnoreCase))
+            {
+                string disc = action.Substring("SelectByDisc_".Length);
+                UI.StingCommandHandler.SetExtraParam("DiscFilter", disc);
+                var selCmd = new Organise.SelectByDisciplineCommand();
+                string msg = "";
+                var els = new ElementSet();
+                selCmd.Execute(commandData, ref msg, els);
+                return;
+            }
+
+            // Resolve via the action-to-tag map
+            string commandTag = actionToCommandTag.TryGetValue(action, out var mapped) ? mapped : action;
+            var cmd = WorkflowEngine.GetCommandInstance(commandTag);
+            if (cmd != null)
+            {
+                try
+                {
+                    string msg = "";
+                    var els = new ElementSet();
+                    cmd.Execute(commandData, ref msg, els);
+                    StingLog.Info($"DispatchCoordAction: executed '{action}' → {cmd.GetType().Name}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"DispatchCoordAction: '{action}' failed", ex);
+                    TaskDialog.Show("STING", $"Command '{action}' failed:\n{ex.Message}");
+                }
+            }
+            else
+            {
+                StingLog.Warn($"DispatchCoordAction: unrecognised action '{action}'");
+                TaskDialog.Show("STING", $"Action '{action}' is not yet available.");
             }
         }
     }
