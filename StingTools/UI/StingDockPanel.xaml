@@ -1977,6 +1977,45 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- STRUCTURAL AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
+                            <StackPanel>
+                                <TextBlock Text="Advanced structural modeling with load analysis" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Grid Frame" Tag="StrCreateGridFrame" Click="Cmd_Click" ToolTip="Create multi-bay structural grid frame (columns + beams + optional bracing)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Bay" Tag="StrCreateFullBayFrame" Click="Cmd_Click" ToolTip="Complete bay: 4 columns + beams + bracing + slab in one click" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="Foundations" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pad Footing" Tag="StrCreatePadFooting" Click="Cmd_Click" ToolTip="Isolated pad footing with auto-sizing from load"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Strip Footing" Tag="StrCreateStripFooting" Click="Cmd_Click" ToolTip="Strip/continuous footing along wall line"/>
+                                </WrapPanel>
+                                <TextBlock Text="Framing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Beam System" Tag="StrCreateBeamSystem" Click="Cmd_Click" ToolTip="Beam system with tributary area analysis and auto secondary beams"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing" Tag="StrCreateBracing" Click="Cmd_Click" ToolTip="Bracing patterns: X, V, chevron, K between columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Truss" Tag="StrCreateTruss" Click="Cmd_Click" ToolTip="Parametric truss: Pratt, Warren, Howe, Vierendeel"/>
+                                </WrapPanel>
+                                <TextBlock Text="Elements" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Wall" Tag="StrCreateStructuralWall" Click="Cmd_Click" ToolTip="Shear wall, core wall, or retaining wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Slab" Tag="StrCreateStructuralSlab" Click="Cmd_Click" ToolTip="Structural slab with optional openings"/>
+                                </WrapPanel>
+                                <TextBlock Text="Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrAnalyzeLoadPaths" Click="Cmd_Click" ToolTip="Load path analysis: connectivity graph, missing foundations"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Detect Bays" Tag="StrDetectBays" Click="Cmd_Click" ToolTip="Detect structural bays from existing columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Guide" Tag="StrRecommendGrid" Click="Cmd_Click" ToolTip="Optimal grid spacing recommendations by building type"/>
+                                </WrapPanel>
+                                <TextBlock Text="CAD → Structure" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Convert structural DWG layers to BIM elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview Struct" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- MEP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MEP"/>
                         <Border Style="{StaticResource GroupBorder}">
