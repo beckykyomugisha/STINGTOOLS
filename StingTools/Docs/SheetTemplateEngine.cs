@@ -240,13 +240,13 @@ namespace StingTools.Docs
             string disc = template.Discipline ?? "G";
             string nextNum = SheetManagerEngine.GetNextSheetNumber(doc, disc);
             try { sheet.SheetNumber = nextNum; }
-            catch (Exception) { /* conflict */ }
+            catch (Exception ex) { StingLog.Warn($"Template conflict: {ex.Message}"); }
 
             // Generate sheet name
             string name = template.SheetNamePattern ?? template.Name;
             name = name.Replace("{DISC}", disc);
             try { sheet.Name = name; }
-            catch (Exception) { /* conflict */ }
+            catch (Exception ex) { StingLog.Warn($"Template conflict: {ex.Message}"); }
 
             // Get drawable zone
             var zone = SheetManagerEngine.GetDrawableZone(doc, sheet);
@@ -287,7 +287,7 @@ namespace StingTools.Docs
                 if (slot.PreferredScale > 0 && bestView.Scale != slot.PreferredScale)
                 {
                     try { bestView.Scale = slot.PreferredScale; }
-                    catch (Exception) { /* locked by template */ }
+                    catch (Exception ex) { StingLog.Warn($"Locked by template: {ex.Message}"); }
                 }
 
                 // Denormalise position
@@ -309,7 +309,7 @@ namespace StingTools.Docs
                         if (vpType != null)
                         {
                             try { vp.ChangeTypeId(vpType.Id); }
-                            catch (Exception) { /* type not available */ }
+                            catch (Exception ex) { StingLog.Warn($"Type not available: {ex.Message}"); }
                         }
                     }
                 }

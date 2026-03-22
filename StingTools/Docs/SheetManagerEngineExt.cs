@@ -492,7 +492,7 @@ namespace StingTools.Docs
                     if (slot.Scale > 0 && view.Scale != slot.Scale)
                     {
                         try { view.Scale = slot.Scale; }
-                        catch (Exception) { /* scale may be locked by template */ }
+                        catch (Exception ex) { StingLog.Warn($"Scale locked: {ex.Message}"); }
                     }
                 }
             }
@@ -834,9 +834,9 @@ namespace StingTools.Docs
 
                 var newSheet = ViewSheet.Create(doc, titleBlockTypeId);
                 try { newSheet.SheetNumber = nextNum; }
-                catch (Exception) { /* number conflict */ }
+                catch (Exception ex) { StingLog.Warn($"Number conflict: {ex.Message}"); }
                 try { newSheet.Name = currentSheet.Name + " (cont.)"; }
-                catch (Exception) { /* name conflict */ }
+                catch (Exception ex) { StingLog.Warn($"Name conflict: {ex.Message}"); }
 
                 sheetsCreated++;
                 currentSheet = newSheet;

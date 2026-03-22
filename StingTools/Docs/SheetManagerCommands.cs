@@ -307,8 +307,8 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 var sheet = ViewSheet.Create(doc, tbType.Id);
-                try { sheet.SheetNumber = nextNum; } catch (Exception) { /* conflict */ }
-                try { sheet.Name = "New Sheet"; } catch (Exception) { /* conflict */ }
+                try { sheet.SheetNumber = nextNum; } catch (Exception ex) { StingLog.Warn($"Sheet number conflict: {ex.Message}"); }
+                try { sheet.Name = "New Sheet"; } catch (Exception ex) { StingLog.Warn($"Sheet name conflict: {ex.Message}"); }
                 tx.Commit();
                 TaskDialog.Show("Sheet Manager", $"Created sheet '{sheet.SheetNumber} - {sheet.Name}'.");
             }

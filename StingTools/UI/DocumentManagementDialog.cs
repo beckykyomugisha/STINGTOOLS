@@ -1760,6 +1760,8 @@ namespace StingTools.UI
             LoadModelHealthTrend(doc); // GAP DM-06
             LoadActivityLog(doc);      // Activity feed
             LoadDataDropStatus(doc);   // Data drop milestones
+            LoadBEPData(doc);          // BEP documents
+            LoadExportIndex(doc);      // STING_Exports indexing
             LinkIssuesAndRevisions();  // CROSS-01: Issue ↔ Revision join
         }
 
@@ -2188,6 +2190,94 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDataDrop: {ex.Message}"); }
+        }
+
+        // Load BEP documents from project folder
+        private static void LoadBEPData(Document doc)
+        {
+            try
+            {
+                // Check BIM manager dir for project_bep.json
+                string bimDir = GetBimManagerDir(doc);
+                string bepPath = Path.Combine(bimDir, "project_bep.json");
+                if (File.Exists(bepPath))
+                {
+                    var fi = new FileInfo(bepPath);
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = "BEP-PROJECT",
+                        Title = $"Project BEP ({FormatSize(fi.Length)})",
+                        Type = "BEP", TypeDesc = "BIM Execution Plan",
+                        Status = "ACTIVE", CDE = "PUBLISHED",
+                        Date = fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"),
+                        FilePath = bepPath, FileFormat = "JSON",
+                        Size = FormatSize(fi.Length),
+                        Category = "BEP", Folder = "09_BEP"
+                    });
+                }
+
+                // Also scan BEP folder in project structure
+                string bepFolder = ProjectFolderEngine.GetFolderPath(doc, "BEP");
+                if (Directory.Exists(bepFolder))
+                {
+                    foreach (string file in Directory.GetFiles(bepFolder, "*.*", SearchOption.AllDirectories))
+                    {
+                        var fileInfo = new FileInfo(file);
+                        if (fileInfo.Name.StartsWith(".")) continue;
+                        if (_allItems.Any(i => i.FilePath == file)) continue;
+                        _allItems.Add(new DocItemVM
+                        {
+                            Id = $"BEP-{Path.GetFileNameWithoutExtension(fileInfo.Name)}",
+                            Title = fileInfo.Name,
+                            Type = "BEP", TypeDesc = "BIM Execution Plan",
+                            Status = "ACTIVE",
+                            Date = fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm"),
+                            FilePath = file, FileFormat = fileInfo.Extension.TrimStart('.').ToUpperInvariant(),
+                            Size = FormatSize(fileInfo.Length),
+                            Category = "BEP", Folder = "09_BEP"
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadBEPData: {ex.Message}"); }
+        }
+
+        // Index all files in STING_Exports folder (legacy exports not in project folder)
+        private static void LoadExportIndex(Document doc)
+        {
+            try
+            {
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
+                string projDir = Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(projDir)) return;
+                string exportsDir = Path.Combine(projDir, "STING_Exports");
+                if (!Directory.Exists(exportsDir)) return;
+
+                foreach (string file in Directory.GetFiles(exportsDir, "*.*", SearchOption.AllDirectories))
+                {
+                    var fi = new FileInfo(file);
+                    if (fi.Name.StartsWith(".")) continue;
+                    if (_allItems.Any(i => i.FilePath == file)) continue;
+
+                    string ext = fi.Extension.TrimStart('.').ToUpperInvariant();
+                    string cat = "DOCUMENT";
+                    if (ext == "CSV" || ext == "XLSX") cat = "DOCUMENT";
+
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = Path.GetFileNameWithoutExtension(fi.Name),
+                        Title = fi.Name,
+                        Type = ext, TypeDesc = $"Export ({ext})",
+                        Status = "IFI", CDE = "WIP",
+                        Date = fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"),
+                        FilePath = file, FileFormat = ext,
+                        Size = FormatSize(fi.Length),
+                        Category = cat, Folder = "STING_Exports",
+                        FolderId = "MISC"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadExportIndex: {ex.Message}"); }
         }
 
         // ══════════════════════════════════════════════════════════════════

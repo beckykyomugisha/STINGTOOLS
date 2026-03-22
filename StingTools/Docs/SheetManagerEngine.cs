@@ -273,7 +273,7 @@ namespace StingTools.Docs
         {
             BoundingBoxXYZ cropBox = null;
             try { cropBox = view.CropBox; }
-            catch (Exception) { /* handled below */ }
+            catch (Exception ex) { StingLog.Warn($"Sheet operation: {ex.Message}"); }
             if (cropBox == null) return (0, 0);
 
             double modelWidth = Math.Abs(cropBox.Max.X - cropBox.Min.X);
@@ -567,7 +567,7 @@ namespace StingTools.Docs
                 if (typeId != ElementId.InvalidElementId)
                 {
                     try { newVp.ChangeTypeId(typeId); }
-                    catch (Exception) { /* viewport type may not exist */ }
+                    catch (Exception ex) { StingLog.Warn($"Viewport type: {ex.Message}"); }
                 }
                 return newVp;
             }
@@ -666,7 +666,7 @@ namespace StingTools.Docs
                             if (typeId != ElementId.InvalidElementId)
                             {
                                 try { newVp.ChangeTypeId(typeId); }
-                                catch (Exception) { /* type may not be available */ }
+                                catch (Exception ex) { StingLog.Warn($"Type not available: {ex.Message}"); }
                             }
                         }
                         catch (Exception ex)
@@ -972,11 +972,11 @@ namespace StingTools.Docs
                 string sheetNum = GetNextSheetNumber(doc, disc);
                 var sheet = ViewSheet.Create(doc, titleBlockTypeId);
                 try { sheet.SheetNumber = sheetNum; }
-                catch (Exception) { /* number may conflict */ }
+                catch (Exception ex) { StingLog.Warn($"Number conflict: {ex.Message}"); }
 
                 string viewTypes = string.Join(", ", viewList.Select(v => v.ViewType.ToString()).Distinct());
                 try { sheet.Name = $"{disc} - {viewTypes}"; }
-                catch (Exception) { /* name may conflict */ }
+                catch (Exception ex) { StingLog.Warn($"Name conflict: {ex.Message}"); }
 
                 sheetsCreated++;
 
