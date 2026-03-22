@@ -1165,7 +1165,7 @@ namespace StingTools.UI
             wrap.Children.Add(MakeDispatchBtn("Timeline", "IssueTimeline", BrOrange, win));
             wrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
             wrap.Children.Add(MakeDispatchBtn("Batch Update", "IssueBatchUpdate", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Export CSV", "ExportIssues", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Export CSV", "IssueExport", BrOrange, win));
             wrap.Children.Add(MakeDispatchBtn("Select Elements", "SelectIssueElements", BrOrange, win));
             wrap.Children.Add(MakeSep());
 
@@ -1220,9 +1220,9 @@ namespace StingTools.UI
             // ── NOTES & BRIEFCASE ──
             wrap.Children.Add(MakeSectionLabel("NOTES"));
             wrap.Children.Add(MakeActBtn("Quick Note", BrFgDark, (s, e) => CreateInlineStickyNote(doc)));
-            wrap.Children.Add(MakeDispatchBtn("Add Note", "ElementStickyNote", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Note Dash", "StickyNoteDashboard", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Note Search", "StickyNoteSearch", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Add Note", "StickyNote", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Dash", "StickyDashboard", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Search", "StickySearch", BrFgDark, win));
             wrap.Children.Add(MakeDispatchBtn("Export Notes", "ExportStickyNotes", BrFgDark, win));
             wrap.Children.Add(MakeDispatchBtn("Briefcase", "DocumentBriefcase", BrTeal, win));
             wrap.Children.Add(MakeDispatchBtn("View Briefcase", "BriefcaseView", BrTeal, win));
