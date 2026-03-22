@@ -107,7 +107,7 @@ namespace StingTools.BIMManager
                 return $"Invalid CDE transition: '{currentState}' → '{newState}'. " +
                     $"Valid transitions: {string.Join(", ", validNext)}";
             return null;
-        };
+        }
 
         // ── RIBA Plan of Work 2020 Stages ──
         internal static readonly Dictionary<int, string> RIBAStages = new Dictionary<int, string>

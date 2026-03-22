@@ -2029,6 +2029,10 @@ Critical review of the tagging workflow identified the following logic, automati
 409. **CDE status lifecycle validation** — Expanded `BIMManagerEngine.CDEStates` from 4 to 7 ISO 19650-2 states (added SUPERSEDED, WITHDRAWN, OBSOLETE). Added `CDEStateTransitions` dictionary defining valid one-way transitions (WIP→SHARED→PUBLISHED→ARCHIVE) and `ValidateCDETransition()` method for state machine enforcement.
 410. **Configurable cost rates filename** — Added `TagConfig.CostRatesFileName` property loaded from `COST_RATES_FILE` config key in `project_config.json`. Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files. Also added `SHEET_NAMING_STRICT_MODE` to known config keys.
 
+#### Completed (Phase 41 — Build Error Fix: CS1597 Semicolon After Method)
+
+411. **CS1597 fix: ValidateCDETransition trailing semicolon** — Removed invalid trailing semicolon (`};` → `}`) from `BIMManagerEngine.ValidateCDETransition()` method closing brace in `BIMManagerCommands.cs:110`. The semicolon is valid after lambda/delegate declarations but not after regular methods. The remaining 12 build errors (CS8300 merge conflict markers) are from the user's local build environment where a prior merge was not fully resolved — no merge conflict markers exist in the branch source files.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
