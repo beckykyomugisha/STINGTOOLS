@@ -387,6 +387,7 @@ namespace StingTools.UI
             rightBtns.Children.Add(MakeHeaderBtn("Import File", "ImportFile"));
             rightBtns.Children.Add(MakeHeaderBtn("Set Output Dir", "SetOutputDirectory"));
             rightBtns.Children.Add(MakeHeaderBtn("Refresh", "Refresh"));
+            rightBtns.Children.Add(MakeHeaderBtn("Watch Folder", "StartWatch"));
             System.Windows.Controls.Grid.SetColumn(rightBtns, 1);
             g.Children.Add(rightBtns);
 
@@ -446,6 +447,20 @@ namespace StingTools.UI
                     break;
                 case "Refresh":
                     RefreshData();
+                    break;
+                case "StartWatch":
+                    ProjectFolderEngine.StartWatching(_doc, changedFile =>
+                    {
+                        // Auto-refresh on external file changes (dispatched to UI thread)
+                        try
+                        {
+                            _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                        }
+                        catch { }
+                    });
+                    MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
+                        "External file changes will auto-refresh the document list.",
+                        "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
                     break;
             }
         }
@@ -902,7 +917,45 @@ namespace StingTools.UI
                 BorderThickness = new Thickness(0),
                 FontSize = 11,
                 ItemsSource = _view,
-                SelectionMode = SelectionMode.Extended  // GAP OP-04: multi-select
+                SelectionMode = SelectionMode.Extended,  // GAP OP-04: multi-select
+                AllowDrop = true  // DM-04: enable drag-drop
+            };
+
+            // DM-04: Drag-drop — drag files from Explorer into the list to import
+            _listView.DragEnter += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                    e.Effects = DragDropEffects.Copy;
+                else
+                    e.Effects = DragDropEffects.None;
+                e.Handled = true;
+            };
+            _listView.Drop += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    if (files == null || files.Length == 0) return;
+                    int imported = 0;
+                    foreach (string file in files)
+                    {
+                        string ext = Path.GetExtension(file).TrimStart('.').ToUpperInvariant();
+                        string targetFolder = "BRIEFCASE";
+                        if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
+                            targetFolder = fid;
+                        string result = ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
+                        if (result != null) imported++;
+                        else if (!ProjectFolderEngine.IsAllowedExtension(ext))
+                            MessageBox.Show($"Unsupported file type: .{ext}\n{Path.GetFileName(file)}",
+                                "STING Import", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    if (imported > 0)
+                    {
+                        MessageBox.Show($"Imported {imported} of {files.Length} files.",
+                            "STING Import", MessageBoxButton.OK, MessageBoxImage.Information);
+                        RefreshData();
+                    }
+                }
             };
 
             var gridView = new GridView();
@@ -1031,7 +1084,24 @@ namespace StingTools.UI
             wrap.Children.Add(MakeDispatchBtn("Clashes", "ClashDetection", BrRed, win));
             wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
             wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win)); // GAP OP-06
+            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win));
+
+            wrap.Children.Add(MakeSep());
+
+            // DM-05: Sticky note + additional operations
+            wrap.Children.Add(MakeDispatchBtn("Add Note", "ElementStickyNote", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Filter", "IssueFilter", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Timeline", "IssueTimeline", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Stats", "IssueStatistics", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Export Issues", "ExportIssues", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Compare", "RevisionCompare", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Export", "RevisionExport", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Track Rev Elements", "TrackElementRevisions", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("BCF Export", "BCFExport", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("BCF Import", "BCFImport", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("Full Briefcase", "DocumentBriefcase", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Excel Export", "ExportToExcel", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
 
             bar.Child = wrap;
             return bar;
@@ -1623,7 +1693,7 @@ namespace StingTools.UI
                         Id = t["transmittal_id"]?.ToString() ?? "",
                         Title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "",
                         Type = "TR", TypeDesc = "Transmittal",
-                        Status = t["status"]?.ToString() ?? "SENT",
+                        Status = ValidateTransmittalStatus(t["status"]?.ToString()),
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
@@ -1954,6 +2024,19 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
         //  UI-03: Tree search helpers
         // ══════════════════════════════════════════════════════════════════
+
+        // DM-03: Valid transmittal statuses
+        private static readonly HashSet<string> ValidTransmittalStatuses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "DRAFT", "SENT", "RECEIVED", "ACKNOWLEDGED", "SIGNED",
+            "REJECTED", "SUPERSEDED", "AUTO_GENERATED", "VOID"
+        };
+
+        private static string ValidateTransmittalStatus(string status)
+        {
+            if (string.IsNullOrEmpty(status)) return "DRAFT";
+            return ValidTransmittalStatuses.Contains(status) ? status : "DRAFT";
+        }
 
         private static void SetAllTreeItemsVisible(ItemsControl parent, bool visible)
         {
