@@ -1108,6 +1108,9 @@ namespace StingTools.UI
                     case "StrCADToStructural": RunCommand<Model.StrCADToStructuralCommand>(app); break;
                     case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
                     case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
+                    case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
+                    case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
+                    case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

@@ -924,3 +924,145 @@ namespace StingTools.Model
         }
     }
 }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STRUCTURAL CAD WIZARD (Full Automation)
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Launches the multi-page WPF wizard for structural CAD-to-BIM automation.
+    /// Guides user through prerequisites → DWG selection → configuration → execution.
+    /// Uses StructuralTypeFactory for intelligent family search + type creation.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCADWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var wizard = StructuralCADWizard.Show(doc);
+                if (!wizard.Confirmed) return Result.Cancelled;
+
+                if (wizard.SelectedImport == null)
+                {
+                    TaskDialog.Show("STRUCT — CAD Wizard", "No DWG import selected.");
+                    return Result.Cancelled;
+                }
+
+                // Run the full pipeline with wizard settings
+                var pipeline = new StructuralCADPipeline(doc);
+                var result = pipeline.RunFullPipeline(
+                    wizard.SelectedImport,
+                    wizard.SelectedLevel,
+                    wizard.CreateColumns,
+                    wizard.CreateBeams,
+                    wizard.CreateSlabs,
+                    wizard.CreateGrids,
+                    wizard.DefaultBeamDepthMm,
+                    wizard.DefaultSlabThickMm,
+                    wizard.DefaultStoreyHeightMm);
+
+                var msg = result.Summary;
+                if (result.Warnings.Count > 0)
+                    msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
+                        string.Join("\n", result.Warnings.Take(15).Select(w => $"• {w}"));
+
+                TaskDialog.Show("STRUCT — CAD Wizard", msg);
+
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrCADWizard failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PREREQUISITES CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks project prerequisites for structural automation without running conversion.
+    /// Shows loaded families, levels, DWG imports, and type catalog.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCheckPrerequisitesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var pipeline = new StructuralCADPipeline(doc);
+                var prereq = pipeline.CheckPrerequisites();
+
+                pipeline.TypeFactory.BuildCatalog();
+                var catalog = pipeline.TypeFactory.GetCatalogSummary();
+
+                TaskDialog.Show("STRUCT — Prerequisites",
+                    prereq.GetStatusText() + "\n\n" + catalog);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrCheckPrerequisites failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // TYPE CATALOG BROWSER
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shows all loaded structural family types with extracted dimensions.
+    /// Helps user understand what families are available for type matching.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrBrowseTypeCatalogCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var factory = new StructuralTypeFactory(doc);
+                factory.BuildCatalog();
+                TaskDialog.Show("STRUCT — Type Catalog", factory.GetCatalogSummary());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrBrowseTypeCatalog failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }

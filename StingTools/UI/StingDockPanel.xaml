@@ -1996,8 +1996,11 @@
                                 </WrapPanel>
                                 <TextBlock Text="CAD → Structure" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ CAD Wizard" Tag="StrCADWizard" Click="Cmd_Click" ToolTip="Full automation wizard: prerequisites → DWG analysis → type mapping → conversion" FontWeight="Bold"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Convert structural DWG layers to BIM elements"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Preview Struct" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Prerequisites" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Check loaded families and project readiness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Type Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Browse loaded structural families with extracted dimensions"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
