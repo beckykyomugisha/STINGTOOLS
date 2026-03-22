@@ -63,6 +63,10 @@ namespace StingTools.Core
                 try { OutputLocationHelper.LoadFromConfig(); }
                 catch (Exception ex) { StingLog.Warn($"OutputLocationHelper config load: {ex.Message}"); }
 
+                // Load project folder root from project_config.json
+                try { ProjectFolderEngine.LoadRootFromConfig(); }
+                catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine config load: {ex.Message}"); }
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
