@@ -1782,6 +1782,31 @@ namespace StingTools.Core
                 Document doc = uidoc?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
+                // Keep-dialog-open loop: re-open after each dispatched command
+                while (true)
+                {
+                    var coordData = BuildCoordData(doc);
+                    if (coordData == null) break;
+                    string action = UI.BIMCoordinationCenter.Show(coordData);
+                    if (string.IsNullOrEmpty(action)) break;
+                    ProcessAction(action, doc, ParameterHelpers.GetApp(commandData));
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BIMCoordinationCenter failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        /// <summary>Build CoordData for the unified WPF dialog. Can be called from StingCommandHandler loop.</summary>
+        internal static UI.BIMCoordinationCenter.CoordData BuildCoordData(Document doc)
+        {
+            try
+            {
                 // 1. Run compliance scan
                 ComplianceScan.InvalidateCache();
                 var compliance = ComplianceScan.Scan(doc);
@@ -2101,54 +2126,279 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"Cross-system correlation: {ex.Message}"); }
 
-                // Show unified WPF dialog
-                string action = UI.BIMCoordinationCenter.Show(coordData);
-
-                // Process returned action tag
-                if (!string.IsNullOrEmpty(action))
-                {
-                    switch (action)
-                    {
-                        case "AutoFixWarnings":
-                            var fixReport = WarningsEngine.BatchAutoFix(doc, warningReport.Warnings);
-                            TaskDialog.Show("STING Auto-Fix", $"Fixed: {fixReport.Fixed}\nSkipped: {fixReport.Skipped}\nFailed: {fixReport.Failed}");
-                            break;
-                        case "CreateIssuesFromWarnings":
-                            var created = WarningsEngine.CreateIssuesFromWarnings(doc, warningReport.Warnings);
-                            TaskDialog.Show("STING", created.Count > 0
-                                ? $"Created {created.Count} issue(s):\n" + string.Join("\n", created.Select(c => $"  {c.issueId}: {c.title}"))
-                                : "No critical/high warnings found.");
-                            break;
-                        case "ExportWarnings":
-                            string csvPath = WarningsEngine.ExportToCSV(doc, warningReport);
-                            TaskDialog.Show("STING Export", $"Exported to:\n{csvPath}");
-                            break;
-                        case "SaveBaseline":
-                            WarningsEngine.SaveBaseline(doc);
-                            TaskDialog.Show("STING", "Warning baseline saved.");
-                            break;
-                        case "SaveExtendedBaseline":
-                            WarningsEngine.SaveExtendedBaseline(doc);
-                            TaskDialog.Show("STING", "Extended warning baseline saved.");
-                            break;
-                        default:
-                            // Dispatch action through StingCommandHandler command resolution.
-                            // We're already on the Revit API thread, so we can execute directly.
-                            DispatchCoordAction(action, commandData);
-                            break;
-                    }
-                }
-
-                StingLog.Info($"BIMCoordinationCenter: health={healthScore}, warnings={warningReport.Total}, " +
-                    $"compliance={tagPct:F1}%, issues={openIssues}");
-                return Result.Succeeded;
+                StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
+                return coordData;
             }
             catch (Exception ex)
             {
-                StingLog.Error("BIMCoordinationCenter failed", ex);
-                message = ex.Message;
-                return Result.Failed;
+                StingLog.Error("BuildCoordData failed", ex);
+                return null;
             }
+        }
+
+        /// <summary>Process an action returned from the BIM Coordination Center dialog.</summary>
+        internal static void ProcessAction(string action, Document doc, UIApplication app)
+        {
+            if (string.IsNullOrEmpty(action)) return;
+
+            try
+            {
+                // Handle zoom-to-element actions (3D section box)
+                if (action.StartsWith("ZoomToElement_"))
+                {
+                    string idStr = action.Substring("ZoomToElement_".Length);
+                    ZoomToElementIn3D(doc, app, idStr);
+                    return;
+                }
+
+                // Handle zoom-to-warning actions (3D section box around warning elements)
+                if (action.StartsWith("ZoomToWarning_"))
+                {
+                    string warningKey = action.Substring("ZoomToWarning_".Length);
+                    ZoomToWarningIn3D(doc, app, warningKey);
+                    return;
+                }
+
+                // Handle zoom-to-issue actions (3D section box around issue-linked elements)
+                if (action.StartsWith("ZoomToIssue_") || action.StartsWith("SelectIssue_"))
+                {
+                    string issueId = action.Contains("ZoomToIssue_")
+                        ? action.Substring("ZoomToIssue_".Length)
+                        : action.Substring("SelectIssue_".Length);
+                    bool zoom = action.StartsWith("ZoomToIssue_");
+                    try
+                    {
+                        string docPath = doc.PathName;
+                        if (!string.IsNullOrEmpty(docPath))
+                        {
+                            string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                            if (File.Exists(issuesPath))
+                            {
+                                var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
+                                var issue = arr.FirstOrDefault(i => (i.Value<string>("id") ?? "") == issueId);
+                                if (issue != null)
+                                {
+                                    var elemIds = issue["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                                    if (elemIds != null && elemIds.Count > 0)
+                                    {
+                                        string csv = string.Join(",", elemIds.Select(e => e.ToString()));
+                                        if (zoom) ZoomToElementIn3D(doc, app, csv);
+                                        else
+                                        {
+                                            var ids = csv.Split(',').Where(s => long.TryParse(s, out _))
+                                                .Select(s => new ElementId(long.Parse(s))).ToList();
+                                            app?.ActiveUIDocument?.Selection.SetElementIds(ids);
+                                        }
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        TaskDialog.Show("STING", $"No linked elements found for issue {issueId}.");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ZoomToIssue: {ex.Message}"); }
+                    return;
+                }
+
+                // Handle select-warning actions
+                if (action.StartsWith("SelectWarning_"))
+                {
+                    string warningKey = action.Substring("SelectWarning_".Length);
+                    SelectWarningElements(doc, app, warningKey);
+                    return;
+                }
+
+                // Handle inline warning/issue actions
+                switch (action)
+                {
+                    case "AutoFixWarnings":
+                        var warningReport = WarningsEngine.ScanWarnings(doc);
+                        var fixReport = WarningsEngine.BatchAutoFix(doc, warningReport.Warnings);
+                        TaskDialog.Show("STING Auto-Fix", $"Fixed: {fixReport.Fixed}\nSkipped: {fixReport.Skipped}\nFailed: {fixReport.Failed}");
+                        return;
+                    case "CreateIssuesFromWarnings":
+                        var wr2 = WarningsEngine.ScanWarnings(doc);
+                        var created = WarningsEngine.CreateIssuesFromWarnings(doc, wr2.Warnings);
+                        TaskDialog.Show("STING", created.Count > 0
+                            ? $"Created {created.Count} issue(s):\n" + string.Join("\n", created.Select(c => $"  {c.issueId}: {c.title}"))
+                            : "No critical/high warnings found.");
+                        return;
+                    case "ExportWarnings":
+                        var wr3 = WarningsEngine.ScanWarnings(doc);
+                        string csvPath = WarningsEngine.ExportToCSV(doc, wr3);
+                        TaskDialog.Show("STING Export", $"Exported to:\n{csvPath}");
+                        return;
+                    case "SaveBaseline":
+                        WarningsEngine.SaveBaseline(doc);
+                        TaskDialog.Show("STING", "Warning baseline saved.");
+                        return;
+                    case "SaveExtendedBaseline":
+                        WarningsEngine.SaveExtendedBaseline(doc);
+                        TaskDialog.Show("STING", "Extended warning baseline saved.");
+                        return;
+                }
+
+                // Dispatch through command resolution
+                DispatchCoordAction(action, null);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ProcessAction({action}): {ex.Message}");
+            }
+        }
+
+        /// <summary>Zoom to element(s) by creating a 3D section box view around them.</summary>
+        private static void ZoomToElementIn3D(Document doc, UIApplication app, string elementIdsCsv)
+        {
+            try
+            {
+                var ids = elementIdsCsv.Split(',')
+                    .Select(s => s.Trim())
+                    .Where(s => long.TryParse(s, out _))
+                    .Select(s => new ElementId(long.Parse(s)))
+                    .ToList();
+
+                if (ids.Count == 0) return;
+
+                // Compute aggregate bounding box
+                BoundingBoxXYZ aggBB = null;
+                foreach (var id in ids)
+                {
+                    var el = doc.GetElement(id);
+                    if (el == null) continue;
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    if (aggBB == null)
+                    {
+                        aggBB = new BoundingBoxXYZ
+                        {
+                            Min = new XYZ(bb.Min.X, bb.Min.Y, bb.Min.Z),
+                            Max = new XYZ(bb.Max.X, bb.Max.Y, bb.Max.Z)
+                        };
+                    }
+                    else
+                    {
+                        aggBB.Min = new XYZ(
+                            Math.Min(aggBB.Min.X, bb.Min.X),
+                            Math.Min(aggBB.Min.Y, bb.Min.Y),
+                            Math.Min(aggBB.Min.Z, bb.Min.Z));
+                        aggBB.Max = new XYZ(
+                            Math.Max(aggBB.Max.X, bb.Max.X),
+                            Math.Max(aggBB.Max.Y, bb.Max.Y),
+                            Math.Max(aggBB.Max.Z, bb.Max.Z));
+                    }
+                }
+
+                if (aggBB == null) { TaskDialog.Show("STING", "Could not compute bounding box for selected elements."); return; }
+
+                // Add 3 ft padding around the box
+                double pad = 3.0;
+                aggBB.Min = new XYZ(aggBB.Min.X - pad, aggBB.Min.Y - pad, aggBB.Min.Z - pad);
+                aggBB.Max = new XYZ(aggBB.Max.X + pad, aggBB.Max.Y + pad, aggBB.Max.Z + pad);
+
+                // Find or create a 3D view
+                var view3d = new FilteredElementCollector(doc)
+                    .OfClass(typeof(View3D))
+                    .Cast<View3D>()
+                    .FirstOrDefault(v => !v.IsTemplate && v.Name.Contains("STING"));
+
+                using (var tx = new Transaction(doc, "STING Zoom to Element"))
+                {
+                    tx.Start();
+                    if (view3d == null)
+                    {
+                        var vft = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewFamilyType))
+                            .Cast<ViewFamilyType>()
+                            .FirstOrDefault(t => t.ViewFamily == ViewFamily.ThreeDimensional);
+                        if (vft != null)
+                        {
+                            view3d = View3D.CreateIsometric(doc, vft.Id);
+                            view3d.Name = "STING - Section Box Zoom";
+                        }
+                    }
+                    if (view3d != null)
+                    {
+                        view3d.IsSectionBoxActive = true;
+                        view3d.SetSectionBox(aggBB);
+                    }
+                    tx.Commit();
+                }
+
+                // Activate the 3D view and select elements
+                if (view3d != null)
+                {
+                    var uidoc = app?.ActiveUIDocument ?? new UIDocument(doc);
+                    uidoc.ActiveView = view3d;
+                    uidoc.Selection.SetElementIds(ids);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ZoomToElementIn3D: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// <summary>Find warning elements by description text and zoom to 3D section box.</summary>
+        private static void ZoomToWarningIn3D(Document doc, UIApplication app, string warningKey)
+        {
+            try
+            {
+                var warnings = doc.GetWarnings();
+                var ids = new List<ElementId>();
+                foreach (var w in warnings)
+                {
+                    string desc = w.GetDescriptionText() ?? "";
+                    if (warningKey.Contains(desc) || desc.Contains(warningKey.Split('_').LastOrDefault() ?? ""))
+                    {
+                        ids.AddRange(w.GetFailingElements());
+                        ids.AddRange(w.GetAdditionalElements());
+                    }
+                }
+                if (ids.Count == 0)
+                {
+                    // Fallback: collect all elements from matching warning category
+                    foreach (var w in warnings)
+                    {
+                        ids.AddRange(w.GetFailingElements());
+                        if (ids.Count > 50) break; // cap for performance
+                    }
+                }
+                if (ids.Count > 0)
+                    ZoomToElementIn3D(doc, app, string.Join(",", ids.Select(id => id.Value)));
+                else
+                    TaskDialog.Show("STING", "No elements found for this warning.");
+            }
+            catch (Exception ex) { StingLog.Warn($"ZoomToWarningIn3D: {ex.Message}"); }
+        }
+
+        /// <summary>Select elements associated with a warning description.</summary>
+        private static void SelectWarningElements(Document doc, UIApplication app, string warningKey)
+        {
+            try
+            {
+                var warnings = doc.GetWarnings();
+                var ids = new List<ElementId>();
+                foreach (var w in warnings)
+                {
+                    string desc = w.GetDescriptionText() ?? "";
+                    if (warningKey.Contains(desc) || desc.Contains(warningKey.Split('_').LastOrDefault() ?? ""))
+                    {
+                        ids.AddRange(w.GetFailingElements());
+                        ids.AddRange(w.GetAdditionalElements());
+                    }
+                }
+                if (ids.Count > 0)
+                {
+                    var uidoc = app?.ActiveUIDocument ?? new UIDocument(doc);
+                    uidoc.Selection.SetElementIds(ids);
+                    TaskDialog.Show("STING", $"Selected {ids.Count} element(s) from matching warnings.");
+                }
+                else
+                    TaskDialog.Show("STING", "No elements found for this warning.");
+            }
+            catch (Exception ex) { StingLog.Warn($"SelectWarningElements: {ex.Message}"); }
         }
 
         /// <summary>
@@ -2244,6 +2494,24 @@ namespace StingTools.Core
                 { "DocumentRegister", "DocumentRegister" },
                 { "DocumentBriefcase", "DocumentBriefcase" },
                 { "StageComplianceGate", "StageComplianceGate" },
+
+                // Meeting Manager actions
+                { "NewMeeting", "DocumentManager" },
+                { "AutoAgenda", "DocumentManager" },
+                { "MeetingTemplates", "DocumentManager" },
+                { "LogMinutes", "DocumentManager" },
+                { "AddActionItem", "DocumentManager" },
+                { "MeetingHistory", "DocumentManager" },
+                { "OpenActions", "DocumentManager" },
+                { "ExportMinutes", "DocumentManager" },
+                { "SendReminder", "DocumentManager" },
+
+                // Handover
+                { "HandoverManual", "HandoverManual" },
+                { "ExportSheetRegister", "ExportSheetRegister" },
+                { "StreamingCOBieExport", "StreamingCOBieExport" },
+                { "BOQExport", "BOQExport" },
+                { "ExportTemplate", "ExportExcelTemplate" },
 
                 // Report action
                 { "ExportReport", "ExportModelHealth" },

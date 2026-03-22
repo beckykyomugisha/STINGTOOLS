@@ -329,6 +329,8 @@ namespace StingTools.UI
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.T)
                 { NavigateTo("TEAM"); e.Handled = true; }
                 // Quick-nav: 1-9 for tab by number (first 9 tabs)
+                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
+                { NavigateTo("MEETINGS"); e.Handled = true; }
                 string[] tabKeys = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D" };
                 if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None)
                 {
@@ -413,7 +415,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "COORD LOG", "TEAM" };
+            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "MEETINGS", "COORD LOG", "TEAM" };
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
@@ -424,6 +426,7 @@ namespace StingTools.UI
                 _data.PlaceholderCount > 0 ? _data.PlaceholderCount.ToString() : "",
                 _data.ScheduledTasks > 0 ? _data.ScheduledTasks.ToString() : "",
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
+                "", // MEETINGS
                 _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
                 _data.TeamMembers.Count > 0 ? _data.TeamMembers.Count.ToString() : ""
             };
@@ -522,6 +525,7 @@ namespace StingTools.UI
                 case "QA DASHBOARD":  _contentArea.Content = BuildQADashboardTab(); break;
                 case "4D/5D":         _contentArea.Content = Build4D5DTab(); break;
                 case "DELIVERABLES":  _contentArea.Content = BuildDeliverablesTab(); break;
+                case "MEETINGS":      _contentArea.Content = BuildMeetingsTab(); break;
                 case "COORD LOG":     _contentArea.Content = BuildCoordLogTab(); break;
                 case "TEAM":          _contentArea.Content = BuildTeamTab(); break;
             }
@@ -992,14 +996,32 @@ namespace StingTools.UI
                             Header = new TextBlock { Text = $"({count}) {desc}", FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 },
                             Tag = $"SelectWarning_{catKv.Key}_{desc}",
                             Cursor = Cursors.Hand,
-                            ToolTip = "Double-click to select affected elements in model"
+                            ToolTip = "Double-click to zoom to a 3D section box around affected elements\nRight-click → Select to highlight in current view"
                         };
                         descNode.MouseDoubleClick += (s, e) =>
                         {
+                            // Zoom to 3D section box around warning elements
                             if (descNode.Tag is string tag)
-                            { ResultAction = tag; DialogResult = true; Close(); }
+                            { ResultAction = "ZoomToWarning_" + tag.Substring("SelectWarning_".Length); DialogResult = true; Close(); }
                             e.Handled = true;
                         };
+                        // Right-click context menu: Select only (no zoom)
+                        var ctx = new ContextMenu();
+                        var selectItem = new MenuItem { Header = "Select Elements in Model" };
+                        selectItem.Click += (s2, e2) =>
+                        {
+                            if (descNode.Tag is string t2)
+                            { ResultAction = t2; DialogResult = true; Close(); }
+                        };
+                        var zoomItem = new MenuItem { Header = "Zoom to 3D Section Box" };
+                        zoomItem.Click += (s2, e2) =>
+                        {
+                            if (descNode.Tag is string t3)
+                            { ResultAction = "ZoomToWarning_" + t3.Substring("SelectWarning_".Length); DialogResult = true; Close(); }
+                        };
+                        ctx.Items.Add(zoomItem);
+                        ctx.Items.Add(selectItem);
+                        descNode.ContextMenu = ctx;
                         catNode.Items.Add(descNode);
                     }
                     if (catKv.Value > topDescs.Sum(t => t.Count))
@@ -1091,7 +1113,19 @@ namespace StingTools.UI
                 var hotStack = new StackPanel();
                 foreach (var (name, count) in _data.WarningHotspots.Take(10))
                 {
-                    hotStack.Children.Add(new TextBlock { Text = $"  {name,-40} {count} warnings", FontSize = 11, FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0, 1, 0, 1) });
+                    var hotRow = new TextBlock
+                    {
+                        Text = $"  {name,-40} {count} warnings", FontSize = 11,
+                        FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0, 1, 0, 1),
+                        Cursor = Cursors.Hand,
+                        ToolTip = $"Element: {name}\nWarnings: {count}\nDouble-click to zoom to 3D section box"
+                    };
+                    hotRow.MouseLeftButtonDown += (s, e) =>
+                    {
+                        if (e.ClickCount == 2)
+                        { ResultAction = $"ZoomToWarning_{name}"; DialogResult = true; Close(); }
+                    };
+                    hotStack.Children.Add(hotRow);
                 }
                 hotCard.Child = hotStack;
                 contentStack.Children.Add(hotCard);
@@ -1211,12 +1245,13 @@ namespace StingTools.UI
                 dg.Columns.Add(new DataGridTextColumn { Header = "Created", Binding = new Binding("Created"), Width = 80 });
                 dg.Columns.Add(new DataGridTextColumn { Header = "Age", Binding = new Binding("DaysOpen"), Width = 45 });
                 dg.ItemsSource = _data.Issues;
-                // Double-click to select issue elements
+                // Double-click to zoom to 3D section box around issue elements
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is IssueRow issue)
-                    { ResultAction = $"SelectIssue_{issue.Id}"; DialogResult = true; Close(); }
+                    { ResultAction = $"ZoomToIssue_{issue.Id}"; DialogResult = true; Close(); }
                 };
+                dg.ToolTip = "Double-click a row to zoom to a 3D section box around issue elements\nRight-click for more options";
                 // Row style: red for overdue, amber for critical
                 var rowStyle = new Style(typeof(DataGridRow));
                 var overdueT = new DataTrigger { Binding = new Binding("IsOverdue"), Value = true };
@@ -1321,55 +1356,145 @@ namespace StingTools.UI
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
             var stack = new StackPanel();
 
-            // Last sync info
+            // ── SYNC STATUS ──
             stack.Children.Add(MakeSectionHeader("PLATFORM SYNC STATUS"));
             var syncCard = MakeCard();
             var syncStack = new StackPanel();
-            syncStack.Children.Add(new TextBlock
+            var syncGrid = new Grid();
+            syncGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            syncGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var syncLeft = new StackPanel();
+            syncLeft.Children.Add(new TextBlock
             {
                 Text = string.IsNullOrEmpty(_data.LastSyncTime) ? "No sync performed yet" : $"Last sync: {_data.LastSyncTime}",
                 FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4)
             });
-            syncStack.Children.Add(new TextBlock
+            syncLeft.Children.Add(new TextBlock
             {
                 Text = $"Changes detected: {_data.SyncChanges}",
-                FontSize = 13, Foreground = _data.SyncChanges > 0 ? Br(CAccent) : Br(CGreen)
+                FontSize = 12, Foreground = _data.SyncChanges > 0 ? Br(CAccent) : Br(CGreen)
             });
-            syncCard.Child = syncStack;
+            syncLeft.Children.Add(new TextBlock
+            {
+                Text = "Sync compares local model against CDE platform, detects added/modified/deleted files,\n" +
+                       "validates ISO 19650 naming convention, and reports delta for review before push.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+            });
+            syncGrid.Children.Add(syncLeft);
+            var syncBtn = MakeActionButton("Sync Now", "PlatformSync", Br(CHeaderBg),
+                "Bidirectional sync: detect changes, validate naming, generate delta report");
+            syncBtn.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(syncBtn, 1);
+            syncGrid.Children.Add(syncBtn);
+            syncCard.Child = syncGrid;
             stack.Children.Add(syncCard);
 
-            // Platform operations by category
+            // ── CDE ──
             stack.Children.Add(new Border { Height = 12 });
             stack.Children.Add(MakeSectionHeader("CDE — COMMON DATA ENVIRONMENT"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "ISO 19650-2 Common Data Environment: manage document status lifecycle (WIP → SHARED → PUBLISHED → ARCHIVE) with suitability codes and approval gates.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
             var cdeWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            cdeWrap.Children.Add(MakeActionButton("Sync Now", "PlatformSync", Br(CHeaderBg)));
-            cdeWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CGreen)));
-            cdeWrap.Children.Add(MakeActionButton("Set CDE Status", "CDEStatus", Br(CAccent)));
-            cdeWrap.Children.Add(MakeActionButton("Validate Naming", "ValidateDocNaming", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            cdeWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CGreen),
+                "Package deliverables into ISO 19650 CDE folder structure (WIP/Shared/Published/Archive)"));
+            cdeWrap.Children.Add(MakeActionButton("Set CDE Status", "CDEStatus", Br(CAccent),
+                "Transition document CDE status with lifecycle validation (one-way: WIP→SHARED→PUBLISHED→ARCHIVE)"));
+            cdeWrap.Children.Add(MakeActionButton("Validate Naming", "ValidateDocNaming", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Check all document names against ISO 19650 naming convention: Project-Originator-Volume-Level-Type-Role-Number"));
+            cdeWrap.Children.Add(MakeActionButton("Document Register", "DocumentRegister", Br(CHeaderBg),
+                "View/manage ISO 19650 document register with status tracking"));
             stack.Children.Add(cdeWrap);
 
+            // ── BCF ──
             stack.Children.Add(MakeSectionHeader("BCF — BIM COLLABORATION FORMAT"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "BCF 2.1 issue exchange for clash detection and coordination with Navisworks, Solibri, BIMcollab, Trimble Connect, and other BCF-compatible platforms.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
             var bcfWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            bcfWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent)));
-            bcfWrap.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent)));
-            bcfWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(Color.FromRgb(0x00, 0x69, 0x7C))));
+            bcfWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent),
+                "Export issues as BCF 2.1 XML with viewpoints for Navisworks/Solibri/BIMcollab"));
+            bcfWrap.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent),
+                "Import BCF issues from external clash detection tools (with duplicate detection)"));
+            bcfWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "Create ISO 19650 transmittal record with document list and recipient tracking"));
             stack.Children.Add(bcfWrap);
 
+            // ── DATA EXCHANGE ──
             stack.Children.Add(MakeSectionHeader("DATA EXCHANGE"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Bidirectional data exchange via Excel (30+ columns), COBie V2.4 (FM handover), and IFC (openBIM). Includes validation rules, change tracking, and audit trail.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
             var dataWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            dataWrap.Children.Add(MakeActionButton("Excel Export", "ExportToExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
-            dataWrap.Children.Add(MakeActionButton("Excel Import", "ImportFromExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
-            dataWrap.Children.Add(MakeActionButton("Excel Round-Trip", "ExcelRoundTrip", Br(Color.FromRgb(0x2E, 0x7D, 0x32))));
-            dataWrap.Children.Add(MakeActionButton("COBie Export", "COBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
-            dataWrap.Children.Add(MakeActionButton("IFC Export", "IFCExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
+            dataWrap.Children.Add(MakeActionButton("Excel Export", "ExportToExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                "Export element data to Excel: tags, identity, spatial, MEP data (30+ columns)"));
+            dataWrap.Children.Add(MakeActionButton("Excel Import", "ImportFromExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                "Import validated data from Excel with change preview and audit trail"));
+            dataWrap.Children.Add(MakeActionButton("Excel Round-Trip", "ExcelRoundTrip", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                "One-click export → edit in Excel → import cycle with change tracking"));
+            dataWrap.Children.Add(MakeActionButton("Export Template", "ExportTemplate", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                "Generate blank Excel template with PROD code dropdown validation"));
+            dataWrap.Children.Add(MakeActionButton("COBie Export", "COBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export COBie V2.4 FM handover (19 worksheets, 22 project presets)"));
+            dataWrap.Children.Add(MakeActionButton("COBie Stream", "StreamingCOBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Streaming COBie for 100K+ element models — batched low-memory processing"));
+            dataWrap.Children.Add(MakeActionButton("IFC Export", "IFCExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export IFC with STING property mapping for openBIM exchange"));
+            dataWrap.Children.Add(MakeActionButton("BOQ Export", "BOQExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Export Bill of Quantities with section headings and subtotals (XLSX)"));
             stack.Children.Add(dataWrap);
 
-            stack.Children.Add(MakeSectionHeader("CLOUD PLATFORMS"));
+            // ── CLOUD PLATFORMS ──
+            stack.Children.Add(MakeSectionHeader("CLOUD PLATFORMS & INTEGRATIONS"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Publish deliverables to cloud coordination platforms. Supports Autodesk Construction Cloud (ACC/BIM 360), SharePoint/Teams, and local CDE folders.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
             var cloudWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            cloudWrap.Children.Add(MakeActionButton("ACC Publish", "ACCPublish", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
-            cloudWrap.Children.Add(MakeActionButton("SharePoint", "SharePointExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A))));
-            cloudWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(CHeaderBg)));
+            cloudWrap.Children.Add(MakeActionButton("ACC / BIM 360", "ACCPublish", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "Package for Autodesk Construction Cloud / BIM 360: model, drawings, COBie, BEP"));
+            cloudWrap.Children.Add(MakeActionButton("SharePoint / Teams", "SharePointExport", Br(Color.FromRgb(0x00, 0x78, 0xD4)),
+                "Export to corporate SharePoint / Microsoft Teams document library"));
+            cloudWrap.Children.Add(MakeActionButton("Procore", "PlatformSync", Br(Color.FromRgb(0xF4, 0x7E, 0x20)),
+                "Sync deliverables with Procore construction management platform"));
+            cloudWrap.Children.Add(MakeActionButton("Aconex / Oracle", "PlatformSync", Br(Color.FromRgb(0xC6, 0x28, 0x28)),
+                "Sync with Oracle Aconex document management (ISO 19650 folder mapping)"));
+            cloudWrap.Children.Add(MakeActionButton("Trimble Connect", "PlatformSync", Br(Color.FromRgb(0x00, 0x57, 0xA8)),
+                "Sync with Trimble Connect for openBIM coordination"));
+            cloudWrap.Children.Add(MakeActionButton("Bentley iTwin", "PlatformSync", Br(Color.FromRgb(0x00, 0x84, 0x53)),
+                "Exchange with Bentley iTwin / ProjectWise infrastructure platform"));
+            cloudWrap.Children.Add(MakeActionButton("Viewpoint 4P", "PlatformSync", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Sync with Viewpoint For Projects (4Projects) document control"));
+            cloudWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(CHeaderBg),
+                "Open Document Management Center — folders, issues, revisions, CDE"));
             stack.Children.Add(cloudWrap);
+
+            // ── HANDOVER & EXPORT ──
+            stack.Children.Add(MakeSectionHeader("HANDOVER & BULK EXPORT"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "ISO 19650 information exchange packages for FM handover, stage gate deliverables, and multi-format bulk export.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+            var handoverWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            handoverWrap.Children.Add(MakeActionButton("FM Handover", "HandoverManual", Br(CGreen),
+                "Generate FM handover manual: asset register, spatial summary, system descriptions, compliance"));
+            handoverWrap.Children.Add(MakeActionButton("Bulk Export", "BulkBIMExport", Br(CAccent),
+                "Export all: BEP + COBie + 4D/5D + Sheet Register + Model Health"));
+            handoverWrap.Children.Add(MakeActionButton("Stage Gate", "StageComplianceGate", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "RIBA stage-gated compliance check: verify tag completeness meets data drop requirements"));
+            handoverWrap.Children.Add(MakeActionButton("Tag Register", "TagRegisterExport", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Export comprehensive 40+ column asset register CSV"));
+            handoverWrap.Children.Add(MakeActionButton("Sheet Register", "ExportSheetRegister", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Export sheet register CSV with ISO 19650 compliance status"));
+            stack.Children.Add(handoverWrap);
 
             scroll.Content = stack;
             return scroll;
@@ -1723,7 +1848,7 @@ namespace StingTools.UI
             };
         }
 
-        private Button MakeActionButton(string label, string actionTag, SolidColorBrush bg)
+        private Button MakeActionButton(string label, string actionTag, SolidColorBrush bg, string tooltip = null)
         {
             var btn = new Button
             {
@@ -1732,7 +1857,8 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 6, 6),
                 Background = bg, Foreground = Brushes.White,
                 BorderThickness = new Thickness(0),
-                FontSize = 11, Cursor = Cursors.Hand
+                FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = tooltip ?? GetActionTooltip(actionTag)
             };
             btn.Click += ActionBtn_Click;
             // Phase 48: Hover effect — lighten on enter, restore on leave
@@ -2111,6 +2237,304 @@ namespace StingTools.UI
 
             scroll.Content = stack;
             return scroll;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TOOLTIP DICTIONARY
+        // ════════════════════════════════════════════════════════════════
+
+        private static string GetActionTooltip(string actionTag)
+        {
+            return actionTag switch
+            {
+                // Overview
+                "RunDailyQA" => "Run Daily QA workflow: retag stale → validate → audit → dashboard",
+                "RunMorningCheck" => "Morning health check: warnings → tags → templates → issues → revisions",
+                "RetagStale" => "Find elements with stale tags (moved/changed) and re-derive their tags",
+                "TagNewOnly" => "Tag only new/untagged elements — skips already-tagged elements",
+                "ExportCOBie" => "Export COBie V2.4 FM handover data (17 worksheets, XLSX)",
+                "FullComplianceDashboard" => "Full project compliance report with per-discipline breakdown",
+                "DocumentManager" => "Open Document Management Center — folders, issues, revisions, CDE",
+                "RepeatLastWorkflow" => $"Re-run last workflow preset",
+                // Model Health
+                "RefreshHealth" => "Refresh model health metrics (warnings, tags, stale elements)",
+                "ExportHealth" => "Export model health report to CSV/HTML",
+                "RunFullCheck" => "Run 45-point template validation check (data files, parameters, formulas)",
+                // Warnings
+                "AutoFixWarnings" => "Auto-fix: duplicate instances, room separation overlaps, duplicate marks",
+                "CreateIssuesFromWarnings" => "Create NCR/SI issues from critical/high severity warnings",
+                "ExportWarnings" => "Export all classified warnings to CSV for BIM360/Aconex",
+                "SaveBaseline" => "Save current warning count as baseline for trend tracking",
+                "SaveExtendedBaseline" => "Save warning types + counts for regression analysis",
+                "SelectWarningElements" => "Select elements associated with a specific warning type",
+                "SuppressWarnings" => "Suppress warning types from dashboard (persisted to config)",
+                "WarningsCompliance" => "Map warnings to ISO 19650 / CIBSE / BS 7671 requirements",
+                // Issues
+                "RaiseIssue" => "Raise RFI/Clash/NCR/Snagging issue with element linking + BCF",
+                "UpdateIssue" => "Update issue status, priority, assignee, or close issues",
+                "BCFExport" => "Export issues as BCF 2.1 XML for Navisworks/Solibri/BIMcollab",
+                "BCFImport" => "Import BCF issues from external clash detection tools",
+                "CreateTransmittal" => "Create ISO 19650 document transmittal record",
+                // Revisions
+                "CreateRevision" => "Create new revision with ISO 19650 naming and compliance gate",
+                "AutoRevisionCloud" => "Auto-generate revision clouds for changed elements",
+                "TakeSnapshot" => "Take tag snapshot for change tracking between revisions",
+                "RevisionCompare" => "Compare tag values between revision snapshots",
+                // Platform
+                "PlatformSync" => "Bidirectional sync with CDE platform (delta detection)",
+                "CDEPackage" => "Package files into ISO 19650 CDE folder structure",
+                "CDEStatus" => "Set CDE status (WIP → SHARED → PUBLISHED → ARCHIVE)",
+                "ValidateDocNaming" => "Validate document naming against ISO 19650 convention",
+                "ExportToExcel" => "Export element data to Excel (30+ columns with tags, identity, spatial)",
+                "ImportFromExcel" => "Import data from Excel with validation and change tracking",
+                "ExcelRoundTrip" => "One-click export → edit → import Excel data exchange",
+                "COBieExport" => "Export COBie V2.4 (17 worksheets) for FM handover",
+                "IFCExport" => "Export model as IFC with STING property mapping",
+                "ACCPublish" => "Package for Autodesk Construction Cloud / BIM 360",
+                "SharePointExport" => "Export to corporate SharePoint / Microsoft Teams",
+                // 4D/5D
+                "AutoSchedule4D" => "Auto-generate 4D construction schedule from model phases",
+                "AutoCost5D" => "Auto-calculate 5D cost estimates from element quantities",
+                "ViewTimeline4D" => "Visualise 4D timeline as Gantt chart",
+                "CostReport5D" => "Generate 5D cost breakdown report",
+                "CashFlow5D" => "Generate cash flow forecast from scheduled costs",
+                "ImportMSProject" => "Import task schedule from Microsoft Project (.mpp/.xml)",
+                // QA
+                "ValidateTags" => "Validate tag completeness and ISO 19650 compliance",
+                "PreTagAudit" => "Dry-run audit: predict tags, collisions, ISO violations before tagging",
+                "AnomalyAutoFix" => "Auto-fix tag anomalies (DISC/SYS/FUNC/PROD/TAG7/stale)",
+                "ResolveAllIssues" => "One-click ISO 19650 compliance resolution (batched, 500 elements)",
+                // Deliverables
+                "AddDocument" => "Register new deliverable in document register",
+                "DocumentRegister" => "View/manage document register entries",
+                "StageComplianceGate" => "RIBA stage-gated compliance check with data drop requirements",
+                _ => null
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  MEETINGS TAB
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildMeetingsTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // ── UPCOMING MEETINGS ──
+            stack.Children.Add(MakeSectionHeader("UPCOMING MEETINGS"));
+            var upcomingCard = MakeCard();
+            var ucStack = new StackPanel();
+            // Load meetings from JSON sidecar
+            var meetings = LoadMeetings();
+            var upcoming = meetings.Where(m => m.Status == "PLANNED" || m.Status == "IN_PROGRESS")
+                .OrderBy(m => m.Date).Take(5).ToList();
+            if (upcoming.Count == 0)
+            {
+                ucStack.Children.Add(new TextBlock
+                {
+                    Text = "No upcoming meetings scheduled", FontSize = 12,
+                    Foreground = Brushes.Gray, FontStyle = FontStyles.Italic, Margin = new Thickness(0, 4, 0, 4)
+                });
+            }
+            foreach (var mtg in upcoming)
+            {
+                var row = new Border
+                {
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(0, 0, 0, 1),
+                    Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 2)
+                };
+                var rGrid = new Grid();
+                rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var leftSp = new StackPanel();
+                leftSp.Children.Add(new TextBlock { Text = mtg.Title, FontWeight = FontWeights.SemiBold, FontSize = 12 });
+                leftSp.Children.Add(new TextBlock
+                {
+                    Text = $"{mtg.Type}  •  {mtg.Date}  •  {mtg.Attendees} attendees",
+                    FontSize = 10, Foreground = Brushes.Gray
+                });
+                rGrid.Children.Add(leftSp);
+
+                var statusChip = MakeMetricChip(mtg.Status,
+                    mtg.Status == "IN_PROGRESS" ? Br(CAccent) : Br(Color.FromRgb(0x45, 0x50, 0x6E)));
+                Grid.SetColumn(statusChip, 1);
+                rGrid.Children.Add(statusChip);
+
+                row.Child = rGrid;
+                row.ToolTip = $"Meeting: {mtg.Title}\nType: {mtg.Type}\nDate: {mtg.Date}\nStatus: {mtg.Status}\nAttendees: {mtg.Attendees}";
+                ucStack.Children.Add(row);
+            }
+            upcomingCard.Child = ucStack;
+            stack.Children.Add(upcomingCard);
+
+            // ── PREPARE ──
+            stack.Children.Add(new Border { Height = 12 });
+            stack.Children.Add(MakeSectionHeader("PREPARE"));
+            var prepWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            prepWrap.Children.Add(MakeActionButton("New Meeting", "NewMeeting", Br(CHeaderBg),
+                "Create new meeting: BIM Coordination, Design Review, Client Review, Handover, or Clash Resolution"));
+            prepWrap.Children.Add(MakeActionButton("Auto Agenda", "AutoAgenda", Br(CGreen),
+                "Auto-generate agenda from open issues, pending transmittals, recent revisions, and compliance status"));
+            prepWrap.Children.Add(MakeActionButton("Meeting Templates", "MeetingTemplates", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "Browse and apply meeting templates for recurring coordination sessions"));
+            stack.Children.Add(prepWrap);
+
+            // ── DURING MEETING ──
+            stack.Children.Add(MakeSectionHeader("DURING MEETING"));
+            var duringWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            duringWrap.Children.Add(MakeActionButton("Log Minutes", "LogMinutes", Br(CAccent),
+                "Record meeting minutes with timestamped notes"));
+            duringWrap.Children.Add(MakeActionButton("Add Action Item", "AddActionItem", Br(CGreen),
+                "Create action item with assignee, due date, and priority"));
+            duringWrap.Children.Add(MakeActionButton("Quick Issue", "RaiseIssue", Br(CRed),
+                "Raise RFI/NCR/SI issue directly from meeting context"));
+            duringWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+                "Capture model state snapshot for meeting record"));
+            stack.Children.Add(duringWrap);
+
+            // ── REVIEW ──
+            stack.Children.Add(MakeSectionHeader("REVIEW & FOLLOW-UP"));
+            var reviewWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
+            reviewWrap.Children.Add(MakeActionButton("Meeting History", "MeetingHistory", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
+                "View all past meetings with minutes, actions, and outcomes"));
+            reviewWrap.Children.Add(MakeActionButton("Open Actions", "OpenActions", Br(CRed),
+                "View all outstanding action items grouped by overdue/upcoming"));
+            reviewWrap.Children.Add(MakeActionButton("Export Minutes", "ExportMinutes", Br(CGreen),
+                "Export meeting minutes to timestamped text file"));
+            reviewWrap.Children.Add(MakeActionButton("Send Reminder", "SendReminder", Br(CAccent),
+                "Generate email reminder for outstanding action items"));
+            stack.Children.Add(reviewWrap);
+
+            // ── ACTION ITEMS SUMMARY ──
+            stack.Children.Add(MakeSectionHeader("ACTION ITEMS SUMMARY"));
+            var actionsCard = MakeCard();
+            var actStack = new StackPanel();
+            var actions = LoadActionItems();
+            int overdueActions = actions.Count(a => a.IsOverdue);
+            int openActions = actions.Count(a => a.Status == "OPEN");
+
+            var actChips = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            actChips.Children.Add(MakeMetricChip($"Total: {actions.Count}", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
+            actChips.Children.Add(MakeMetricChip($"Open: {openActions}", openActions > 0 ? Br(CAmber) : Br(CGreen)));
+            if (overdueActions > 0)
+                actChips.Children.Add(MakeMetricChip($"Overdue: {overdueActions}", Br(CRed)));
+            actStack.Children.Add(actChips);
+
+            // Show top 5 overdue/open actions
+            foreach (var act in actions.Where(a => a.Status == "OPEN").OrderByDescending(a => a.IsOverdue).Take(5))
+            {
+                var actRow = new TextBlock
+                {
+                    Text = $"  {(act.IsOverdue ? "⚠" : "•")}  {act.Description}  —  {act.Assignee}  (due: {act.DueDate})",
+                    FontSize = 11, Margin = new Thickness(0, 2, 0, 2),
+                    Foreground = act.IsOverdue ? Br(CRed) : Brushes.Black,
+                    FontWeight = act.IsOverdue ? FontWeights.SemiBold : FontWeights.Normal,
+                    ToolTip = $"Action: {act.Description}\nAssignee: {act.Assignee}\nDue: {act.DueDate}\nStatus: {act.Status}{(act.IsOverdue ? "\n⚠ OVERDUE" : "")}"
+                };
+                actStack.Children.Add(actRow);
+            }
+
+            actionsCard.Child = actStack;
+            stack.Children.Add(actionsCard);
+
+            // ── COORDINATION METRICS ──
+            stack.Children.Add(new Border { Height = 12 });
+            stack.Children.Add(MakeSectionHeader("COORDINATION METRICS"));
+            var metricsCard = MakeCard();
+            var metStack = new StackPanel();
+            int totalMeetings = meetings.Count;
+            int completedMeetings = meetings.Count(m => m.Status == "COMPLETED");
+            int totalActions2 = actions.Count;
+            int closedActions = actions.Count(a => a.Status == "CLOSED");
+            double actionCloseRate = totalActions2 > 0 ? (closedActions * 100.0 / totalActions2) : 0;
+
+            var metGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 8) };
+            metGrid.Children.Add(MakeKPICard("MEETINGS", totalMeetings.ToString(), Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+                $"Completed: {completedMeetings}\nPlanned: {totalMeetings - completedMeetings}"));
+            metGrid.Children.Add(MakeKPICard("ACTIONS", totalActions2.ToString(), Br(CAccent),
+                $"Open: {openActions}\nOverdue: {overdueActions}\nClosed: {closedActions}"));
+            metGrid.Children.Add(MakeKPICard("CLOSE RATE", $"{actionCloseRate:F0}%",
+                actionCloseRate >= 80 ? Br(CGreen) : actionCloseRate >= 50 ? Br(CAmber) : Br(CRed),
+                "Percentage of action items closed vs total created"));
+            metGrid.Children.Add(MakeKPICard("OVERDUE", overdueActions.ToString(),
+                overdueActions == 0 ? Br(CGreen) : Br(CRed),
+                $"Action items past their due date\nRequires immediate follow-up"));
+            metStack.Children.Add(metGrid);
+
+            metricsCard.Child = metStack;
+            stack.Children.Add(metricsCard);
+
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        // ── Meeting data helpers ──
+        private class MeetingInfo { public string Title; public string Type; public string Date; public string Status; public int Attendees; }
+        private class ActionItemInfo { public string Description; public string Assignee; public string DueDate; public string Status; public bool IsOverdue; }
+
+        private List<MeetingInfo> LoadMeetings()
+        {
+            var result = new List<MeetingInfo>();
+            try
+            {
+                string dir = Path.GetDirectoryName(_data.FilePath ?? "");
+                if (string.IsNullOrEmpty(dir)) return result;
+                string path = Path.Combine(dir, "_bim_manager", "meetings.json");
+                if (!File.Exists(path)) return result;
+                var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
+                foreach (var item in arr)
+                {
+                    result.Add(new MeetingInfo
+                    {
+                        Title = item.Value<string>("title") ?? item.Value<string>("type") ?? "Meeting",
+                        Type = item.Value<string>("type") ?? "",
+                        Date = item.Value<string>("date") ?? "",
+                        Status = item.Value<string>("status") ?? "PLANNED",
+                        Attendees = (item["attendees"] as Newtonsoft.Json.Linq.JArray)?.Count ?? 0
+                    });
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"LoadMeetings: {ex.Message}"); }
+            return result;
+        }
+
+        private List<ActionItemInfo> LoadActionItems()
+        {
+            var result = new List<ActionItemInfo>();
+            try
+            {
+                string dir = Path.GetDirectoryName(_data.FilePath ?? "");
+                if (string.IsNullOrEmpty(dir)) return result;
+                string path = Path.Combine(dir, "_bim_manager", "meetings.json");
+                if (!File.Exists(path)) return result;
+                var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
+                foreach (var mtg in arr)
+                {
+                    var actions = mtg["action_items"] as Newtonsoft.Json.Linq.JArray;
+                    if (actions == null) continue;
+                    foreach (var act in actions)
+                    {
+                        string due = act.Value<string>("due") ?? "";
+                        bool overdue = false;
+                        if (DateTime.TryParse(due, out DateTime dueDate))
+                            overdue = dueDate < DateTime.Now;
+                        string st = act.Value<string>("status") ?? "OPEN";
+                        if (st == "CLOSED") overdue = false;
+                        result.Add(new ActionItemInfo
+                        {
+                            Description = act.Value<string>("description") ?? "",
+                            Assignee = act.Value<string>("assignee") ?? "",
+                            DueDate = due.Length > 10 ? due.Substring(0, 10) : due,
+                            Status = st,
+                            IsOverdue = overdue
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"LoadActionItems: {ex.Message}"); }
+            return result;
         }
 
         // ════════════════════════════════════════════════════════════════

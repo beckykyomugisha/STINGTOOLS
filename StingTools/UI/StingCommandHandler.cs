@@ -1186,7 +1186,23 @@ namespace StingTools.UI
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
 
                     // Phase 47: BIM Coordination Center (unified dashboard)
-                    case "BIMCoordinationCenter": RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
+                    // Keep-dialog-open loop: re-open after each dispatched command
+                    case "BIMCoordinationCenter":
+                    {
+                        var ccDoc = app.ActiveUIDocument?.Document;
+                        if (ccDoc != null)
+                        {
+                            while (true)
+                            {
+                                var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
+                                if (ccData == null) break;
+                                string ccAction = UI.BIMCoordinationCenter.Show(ccData);
+                                if (string.IsNullOrEmpty(ccAction)) break; // User closed
+                                Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                            }
+                        }
+                        break;
+                    }
 
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
