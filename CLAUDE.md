@@ -2029,6 +2029,15 @@ Critical review of the tagging workflow identified the following logic, automati
 406. **Missing BIM commands wired** — Added to COORDINATION tab: ProjectDashboard, BulkBIMExport, MeasuredQuantities, ElementCountSummary. Added to HANDOVER tab: Export4DTimeline, Export5DCostData. Added to NOTES/BEP tab: GenerateBEP, UpdateBEP.
 407. **ListView alternation** — `AlternationCount = 2` for alternating row background colors.
 
+#### Completed (Phase 41 — Automation Logic Enhancements)
+
+414. **Formula session cache** — `TagPipelineHelper.LoadFormulas()` now uses 5-minute TTL session cache, preventing 40+ redundant CSV reads per session. `InvalidateSessionCaches()` clears on document close/switch.
+415. **Grid line session cache** — `TagPipelineHelper.LoadGridLines()` now uses 2-minute TTL cache keyed by document path, preventing repeated `FilteredElementCollector` scans.
+416. **Compliance gate rollout** — Added `TagConfig.CheckComplianceGate()` to 6 commands missing it: `SystemParamPushCommand`, `RepairDuplicateSeqCommand`, `FamilyStagePopulateCommand`, `CombineParametersCommand`, `ExcelLinkCommands` (Import and RoundTrip). All tagging operations now validate compliance after commit.
+417. **Scope auto-detection** — `TagConfig.AutoDetectScope(uidoc)` auto-detects scope from selection state (selection > 0 → "selection", else → last used or "active_view"). `LastScope` persists across commands in session. `GetScopeLabel()` for display.
+418. **BatchRunner utility** — `ParameterHelpers.RunBatch()` reusable per-element error recovery for batch operations. Failed elements logged and skipped, not rolled back. `BatchResult` with processed/succeeded/failed counts and `AddToPanel()` for StingResultPanel integration.
+419. **Session cache invalidation** — All 3 document close/switch handlers now call `ParameterHelpers.InvalidateSessionCaches()` alongside `ClearParamCache()`.
+
 #### Completed (Phase 40 — Rich Result Panels, Meeting Manager & Dialog UX)
 
 408. **StingResultPanel** — `UI/StingResultPanel.cs` (530 lines): Reusable rich WPF result display component replacing plain-text TaskDialog for audit reports. Builder API with sections, metrics, RAG bars, pass/fail checklists, tables, alerts, action buttons. Supports CSV export path, clipboard copy, plain-text fallback. Color-coded section headers, aligned key-value metrics, progress bars with RAG coloring.

@@ -226,6 +226,7 @@ namespace StingTools.Tags
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "CombineParameters");
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

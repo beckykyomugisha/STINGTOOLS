@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -832,6 +833,44 @@ namespace StingTools.Core
         public static Dictionary<string, List<string>> ZonePatterns { get; internal set; } = new();
 
         public static string ConfigSource { get; private set; }
+
+        // ── Scope auto-detection and session memory ──
+
+        /// <summary>Last scope used by tagging commands. Persists across commands in same session.
+        /// Values: "selection", "active_view", "project". Auto-detected from selection state.</summary>
+        public static string LastScope { get; set; }
+
+        /// <summary>Auto-detect scope from current state: if selection exists use it,
+        /// otherwise default to active view. Returns "selection", "active_view", or "project".</summary>
+        public static string AutoDetectScope(Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            if (uidoc == null) return LastScope ?? "active_view";
+            try
+            {
+                var sel = uidoc.Selection.GetElementIds();
+                if (sel != null && sel.Count > 0)
+                {
+                    LastScope = "selection";
+                    return "selection";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoDetectScope: {ex.Message}"); }
+
+            // Default to last used scope, or active view
+            return LastScope ?? "active_view";
+        }
+
+        /// <summary>Get scope label for display in reports.</summary>
+        public static string GetScopeLabel(string scope, Autodesk.Revit.UI.UIDocument uidoc)
+        {
+            return scope switch
+            {
+                "selection" => $"selected elements ({uidoc?.Selection?.GetElementIds()?.Count ?? 0})",
+                "active_view" => $"active view '{uidoc?.ActiveView?.Name ?? "unknown"}'",
+                "project" => "entire project",
+                _ => scope ?? "unknown"
+            };
+        }
 
         /// <summary>
         /// When false (default), LOC/ZONE validation uses format checks (alphanumeric, 1-8 chars)

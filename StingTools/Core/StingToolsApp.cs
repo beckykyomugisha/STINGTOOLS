@@ -105,6 +105,7 @@ namespace StingTools.Core
             try
             {
                 ParameterHelpers.ClearParamCache();
+                ParameterHelpers.InvalidateSessionCaches();
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();

@@ -2882,18 +2882,35 @@ namespace StingTools.Core
             }
         }
 
+        // ── Session caches for formulas and grid lines ──
+        private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
+        private static DateTime _formulaCacheTime;
+        private static readonly TimeSpan FormulaCacheTTL = TimeSpan.FromMinutes(5);
+
+        private static List<Grid> _cachedGridLines;
+        private static string _gridCacheDocKey;
+        private static DateTime _gridCacheTime;
+        private static readonly TimeSpan GridCacheTTL = TimeSpan.FromMinutes(2);
+
         /// <summary>
         /// Build context objects required by RunFullPipeline. Call once before the element loop.
         /// Returns formulas sorted by DependencyLevel (empty list if no formula file found).
+        /// Uses session cache with 5-minute TTL to prevent redundant CSV reads (40+ callers/session).
         /// </summary>
         public static List<Temp.FormulaEngine.FormulaDefinition> LoadFormulas()
         {
+            // Return cached formulas if still valid
+            if (_cachedFormulas != null && (DateTime.UtcNow - _formulaCacheTime) < FormulaCacheTTL)
+                return _cachedFormulas;
+
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
                 if (csvPath == null) return new List<Temp.FormulaEngine.FormulaDefinition>();
                 var formulas = Temp.FormulaEngine.LoadFormulas(csvPath);
                 formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+                _cachedFormulas = formulas;
+                _formulaCacheTime = DateTime.UtcNow;
                 return formulas;
             }
             catch (Exception ex)
@@ -2903,17 +2920,89 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>P5: Load all Grid elements once before the element loop.</summary>
+        /// <summary>P5: Load all Grid elements once before the element loop.
+        /// Uses session cache with 2-minute TTL keyed by document path.</summary>
         public static List<Grid> LoadGridLines(Document doc)
         {
+            string docKey = GetStableDocKey(doc);
+            if (_cachedGridLines != null && _gridCacheDocKey == docKey &&
+                (DateTime.UtcNow - _gridCacheTime) < GridCacheTTL)
+                return _cachedGridLines;
+
             try
             {
-                return new FilteredElementCollector(doc)
+                var grids = new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
+                _cachedGridLines = grids;
+                _gridCacheDocKey = docKey;
+                _gridCacheTime = DateTime.UtcNow;
+                return grids;
             }
             catch (Exception ex) { StingLog.Warn($"LoadGridLines: {ex.Message}"); return new List<Grid>(); }
+        }
+
+        /// <summary>Invalidate formula and grid line caches (call on document close/switch).</summary>
+        public static void InvalidateSessionCaches()
+        {
+            _cachedFormulas = null;
+            _cachedGridLines = null;
+            _gridCacheDocKey = null;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  BATCH RUNNER — Reusable per-element error recovery for batch ops
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>Result from a batch operation with per-element error tracking.</summary>
+        public class BatchResult
+        {
+            public int Processed { get; set; }
+            public int Succeeded { get; set; }
+            public int Failed { get; set; }
+            public int Skipped { get; set; }
+            public List<(ElementId Id, string Reason)> Failures { get; set; } = new();
+
+            /// <summary>Add failure summary to a StingResultPanel section.</summary>
+            public void AddToPanel(UI.StingResultPanel.Builder panel)
+            {
+                panel.Metric("Processed", Processed.ToString());
+                panel.MetricHighlight("Succeeded", Succeeded.ToString());
+                if (Failed > 0) panel.MetricError("Failed", Failed.ToString());
+                if (Skipped > 0) panel.MetricWarn("Skipped", Skipped.ToString());
+                if (Failures.Count > 0)
+                {
+                    panel.Separator();
+                    foreach (var (id, reason) in Failures.Take(10))
+                        panel.Alert($"Element {id}: {reason}");
+                    if (Failures.Count > 10)
+                        panel.Text($"... and {Failures.Count - 10} more failures (see log)");
+                }
+            }
+        }
+
+        /// <summary>Run an action on each element with per-element error recovery.
+        /// Failed elements are logged and skipped, not rolled back.</summary>
+        public static BatchResult RunBatch(IList<Element> elements, Action<Element> action, string operationName)
+        {
+            var result = new BatchResult();
+            foreach (var el in elements)
+            {
+                result.Processed++;
+                try
+                {
+                    action(el);
+                    result.Succeeded++;
+                }
+                catch (Exception ex)
+                {
+                    result.Failed++;
+                    result.Failures.Add((el.Id, ex.Message));
+                    StingLog.Warn($"{operationName}: Element {el.Id} failed: {ex.Message}");
+                }
+            }
+            return result;
         }
     }
 }

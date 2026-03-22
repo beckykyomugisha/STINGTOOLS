@@ -1296,6 +1296,7 @@ namespace StingTools.BIMManager
                 // after import to prevent SEQ collisions on next auto-tag operation
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                TagConfig.CheckComplianceGate(doc, "ExcelImport");
                 if (rebuilt > 0)
                     StingLog.Info($"ExcelLink: Rebuilt tags for {rebuilt} elements");
 
@@ -1621,6 +1622,7 @@ namespace StingTools.BIMManager
                 // LOG-12 FIX: Invalidate AutoTagger cached seqCounters and compliance cache
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+                TagConfig.CheckComplianceGate(doc, "ExcelRoundTrip");
                 if (rebuilt > 0)
                     StingLog.Info($"ExcelLink RoundTrip: Rebuilt tags for {rebuilt} elements");
 
