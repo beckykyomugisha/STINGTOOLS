@@ -2274,14 +2274,15 @@ namespace StingTools.Core
 
             return (processed, tokensWritten);
         }
-    }
 
-    /// <summary>
-    /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
-    /// for ViewSheet elements by scanning viewport contents.
-    /// </summary>
-    internal static class SheetTagger
-    {
+    // ── SheetTagger (nested helper for sheet-level ISO 19650 tagging) ─────────
+
+        /// <summary>
+        /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
+        /// for ViewSheet elements by scanning viewport contents.
+        /// </summary>
+        internal static class SheetTagger
+        {
         /// <summary>
         /// Tag a single sheet with ISO 19650 document code tokens.
         /// Returns number of parameters written.
@@ -2664,6 +2665,9 @@ namespace StingTools.Core
             if (trailingDigits.Length > 0) return "L" + trailingDigits.PadLeft(2, '0');
             return "XX";
         }
+        } // end SheetTagger
+
+    // ── NativeParamMapper private helpers (MapBuiltIn, SetIfEmptyInt, etc.) ────
 
         /// <summary>Write parameter, always overwrite. Returns 1 on success, 0 on failure.</summary>
         private static int SetStr(Element el, string paramName, string value)
