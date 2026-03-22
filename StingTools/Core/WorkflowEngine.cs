@@ -426,6 +426,39 @@ namespace StingTools.Core
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
                         }
 
+                        // Phase 47: Warning-aware workflow conditions
+                        if (step.Condition == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_open_issues")
+                        {
+                            try
+                            {
+                                string issuesPath = BIMManager.BIMManagerEngine.GetBimManagerPath(doc, "issues.json");
+                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                string raw = File.ReadAllText(issuesPath);
+                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
+                        }
+
                         if (step.Condition == "has_untagged")
                         {
                             bool hasUntagged = false;
@@ -906,6 +939,21 @@ namespace StingTools.Core
                 case "TagSheets":            return new Tags.TagSheetsCommand();
                 case "MapSheets":            return new Tags.MapSheetsCommand();
 
+                // Phase 47: Warnings Manager workflow commands
+                case "WarningsDashboard":    return new WarningsDashboardCommand();
+                case "WarningsAutoFix":      return new WarningsAutoFixCommand();
+                case "WarningsExport":       return new WarningsExportCommand();
+                case "WarningsBaseline":     return new WarningsBaselineCommand();
+                case "WarningsCompliance":   return new WarningsComplianceCommand();
+
+                // Phase 47: BIM Coordination Center
+                case "BIMCoordinationCenter": return new BIMCoordinationCenterCommand();
+
+                // Phase 47: Additional tagging and compliance commands
+                case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
+                case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
+                case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
+
                 default: return null;
             }
         }
@@ -924,6 +972,9 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("DocumentPackage"));
             presets.Add(GetBuiltInPreset("BEPPackage"));
             presets.Add(GetBuiltInPreset("PostTaggingQA"));
+            presets.Add(GetBuiltInPreset("MorningHealthCheck"));
+            presets.Add(GetBuiltInPreset("HandoverReadiness"));
+            presets.Add(GetBuiltInPreset("WeeklyDataDrop"));
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -1069,6 +1120,68 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "Completeness Dashboard" },
                             new WorkflowStep { CommandTag = "TagRegisterExport", Label = "Export Tag Register (CSV)" },
                             new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate BIM Template (45 checks)" },
+                        }
+                    };
+
+                // Phase 47: Morning Health Check — BIM coordinator daily morning routine
+                case "MorningHealthCheck":
+                    return new WorkflowPreset
+                    {
+                        Name = "Morning Health Check",
+                        Description = "BIM coordinator daily morning routine: stale fix, warnings triage, compliance check, issue review",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix model warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "TagNewOnly", Label = "3. Tag new elements", MaxCompliancePct = 98 },
+                            new WorkflowStep { CommandTag = "PreTagAudit", Label = "4. Pre-tag audit", Optional = true, MaxCompliancePct = 95 },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "6. Re-assign view templates", Optional = true },
+                            new WorkflowStep { CommandTag = "TagSheets", Label = "7. Tag sheets", Optional = true },
+                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "8. Auto-revision check", Optional = true },
+                        }
+                    };
+
+                // Phase 47: Handover Readiness — pre-handover validation and export
+                case "HandoverReadiness":
+                    return new WorkflowPreset
+                    {
+                        Name = "Handover Readiness",
+                        Description = "ISO 19650 handover preparation: full validation, COBie export, drawing register, compliance gate",
+                        IsBuiltIn = true,
+                        RollbackOnFailure = false,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "TagAndCombine", Label = "2. Full tag pipeline", MaxCompliancePct = 95 },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. ISO 19650 validation" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "4. BIM template validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 70 },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "6. Drawing register" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "7. BOQ export" },
+                            new WorkflowStep { CommandTag = "UpdateBEP", Label = "8. Update BEP with model data" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "9. Create handover revision" },
+                        }
+                    };
+
+                // Phase 47: Weekly Data Drop — ISO 19650 information exchange
+                case "WeeklyDataDrop":
+                    return new WorkflowPreset
+                    {
+                        Name = "Weekly Data Drop",
+                        Description = "ISO 19650 weekly information exchange: validate, export, package for CDE",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholder tokens", MaxCompliancePct = 95, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "4. Export asset register CSV" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 60 },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "7. Drawing register" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create weekly revision" },
                         }
                     };
 

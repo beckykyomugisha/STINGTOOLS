@@ -2296,8 +2296,15 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
+                                <!-- BIM COORDINATION CENTER (Phase 47) -->
+                                <TextBlock Text="COORDINATION CENTER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
+                                           Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
+                                <WrapPanel Margin="2,0,2,2">
+                                    <Button Style="{StaticResource BlueBtn}" Content="Coordination Center" Tag="BIMCoordinationCenter" Click="Cmd_Click"
+                                            ToolTip="Unified BIM Coordination Center: Model Health + Warnings + Issues + Revisions + Platform + Workflows" FontWeight="Bold"/>
+                                </WrapPanel>
                                 <!-- WARNINGS MANAGER (Phase 46) -->
-                                <TextBlock Text="⚠ WARNINGS MANAGER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
+                                <TextBlock Text="WARNINGS MANAGER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
                                            Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
                                 <WrapPanel Margin="2,0,2,2">
                                     <Button Style="{StaticResource BlueBtn}" Content="⚠ Dashboard" Tag="WarningsDashboard" Click="Cmd_Click"

@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **119 source files** (116 C# + 3 XAML, ~134,400 lines of code) across 10 directories
-- **539 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **120 source files** (117 C# + 3 XAML, ~136,200 lines of code) across 10 directories
+- **540 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -2149,3 +2149,24 @@ Critical review of the tagging workflow identified the following logic, automati
 462. **GAP-AT-03: Discipline filter persistence** — `SetDisciplineFilter()` persists to `AUTO_TAGGER_DISC_FILTER` in project_config.json. `RestoreDisciplineFilter()` called from `OnDocumentOpened` so filter survives document close/reopen.
 463. **GAP-TW-01: SetDisc updates downstream SYS/FUNC** — `SetDiscCommand` now detects cross-discipline mismatches after DISC change (e.g., DISC=M but SYS=LV). Offers to auto-update SYS/FUNC tokens to match new discipline, preventing invalid ISO 19650 tags.
 464. **Dispatch + XAML** — 8 dispatch entries wired in StingCommandHandler.cs. 8 XAML buttons added to BIM tab Warnings Manager section.
+
+#### Completed (Phase 47 — Unified BIM Coordination Center, Enhanced Warnings Manager, Workflow Automation)
+
+465. **BIM Coordination Center** — `UI/BIMCoordinationCenter.cs` (~1,800 lines): Unified corporate-style WPF dialog merging 6 separate dialogs (Model Health, Project Dashboard, Platform Sync, Revision Dashboard, Issue Tracker, Warnings Manager) into a single 7-tab tabbed interface. Features: left navigation panel (OVERVIEW/MODEL HEALTH/WARNINGS/ISSUES/REVISIONS/PLATFORM/WORKFLOWS), header strip with project name + RAG status + compliance %, KPI cards (Total Elements, Tag Compliance %, Warnings, Open Issues), per-discipline compliance mini-table, RAG progress bars, quick action buttons dispatching to commands, corporate dark-blue/orange theme (#1A237E/#E8912D), VirtualizingStackPanel for all lists, keyboard shortcuts (F5=Refresh, Ctrl+E=Export, Escape=Close). Replaces plain-text TaskDialogs for Model Health Dashboard, Project Dashboard, and Platform Sync with rich WPF panels. Preserves DataGrid views for Issues and Revisions with inline filtering.
+466. **BIMCoordinationCenterCommand** — `Core/WarningsManager.cs`: New `IExternalCommand` that assembles all data (ComplianceScan, WarningsEngine, issues.json, revisions, model health metrics, platform sync state, workflow history) and opens the unified dialog. Processes returned action tags to dispatch follow-up commands (RunDailyQA, AutoFixWarnings, RaiseIssue, CreateRevision, SyncPlatform, ExportCOBie, etc.).
+467. **WarningsEngine cross-system integration** — 5 new methods in `WarningsEngine`:
+    - `CreateIssuesFromWarnings(doc, warnings, minSeverity)` — Auto-creates issues from critical/high warnings grouped by category. Issue type NCR for Critical, SI for High. Returns created issue summaries.
+    - `CheckWarningGate(doc, maxCritical, maxTotal)` — Compliance gate that blocks handover/export when critical warnings exceed threshold. Returns pass/fail with reason.
+    - `CompareWithRevisionBaseline(doc)` — Compares current warning types against last baseline, returns added/removed/unchanged delta with new warning type list.
+    - `CalculateWarningHealthScore(report)` — Weighted health score 0-100: Critical=-20, High=-5, Medium=-2, Low=-1 per warning from base 100.
+    - 12 new classification rules (stair path, railing, curtain wall, ceiling, level, family, workset, material, phase, underlay, grid, section) expanding coverage from 55 to 67 pattern rules.
+468. **Workflow automation enhancements** — 3 new built-in workflow presets:
+    - `MorningHealthCheck` (8 steps): Stale fix → warnings auto-fix → tag new → pre-tag audit → validate → template assign → tag sheets → revision check. Designed for BIM coordinator daily morning routine.
+    - `HandoverReadiness` (9 steps): Stale fix → full tag → validate → template validate → COBie export → drawing register → BOQ → update BEP → create revision. Pre-handover validation with compliance gates.
+    - `WeeklyDataDrop` (8 steps): Stale fix → resolve placeholders → validate → register export → COBie → sheet numbering → register → revision. ISO 19650 information exchange.
+469. **Warning-aware workflow conditions** — 3 new workflow step conditions:
+    - `has_warnings` — Skip step if model has zero warnings (for WarningsAutoFix step)
+    - `has_critical_warnings` — Skip step if no critical-severity warnings exist
+    - `has_open_issues` — Skip step if no open issues in issues.json
+470. **WorkflowEngine command resolution expanded** — Added 10 new command tags to `ResolveCommand()`: WarningsDashboard, WarningsAutoFix, WarningsExport, WarningsBaseline, WarningsCompliance, BIMCoordinationCenter, CompletenessDashboard, TagRegisterExport, ModelHealthDashboard.
+471. **Dispatch + XAML** — BIMCoordinationCenter dispatch entry wired in StingCommandHandler.cs. "Coordination Center" button added to BIM tab with blue styling and descriptive tooltip.

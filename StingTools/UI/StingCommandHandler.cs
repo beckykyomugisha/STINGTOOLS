@@ -1185,6 +1185,9 @@ namespace StingTools.UI
                     case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
 
+                    // Phase 47: BIM Coordination Center (unified dashboard)
+                    case "BIMCoordinationCenter": RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
+
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;

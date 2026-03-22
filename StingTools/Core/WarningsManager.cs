@@ -7,6 +7,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using StingTools.Tags;
 
 namespace StingTools.Core
 {
@@ -169,6 +170,20 @@ namespace StingTools.Core
             ("fire", WarningCategory.Compliance, WarningSeverity.High, "Verify fire rating compliance", false),
             ("accessibility", WarningCategory.Compliance, WarningSeverity.High, "Check accessibility requirements", false),
             ("code", WarningCategory.Compliance, WarningSeverity.Medium, "Review building code compliance", false),
+
+            // Phase 47: Enhanced classification patterns
+            ("stair path", WarningCategory.Geometric, WarningSeverity.Medium, "Review stair configuration", false),
+            ("railing", WarningCategory.Geometric, WarningSeverity.Low, "Check railing host", false),
+            ("curtain wall", WarningCategory.Geometric, WarningSeverity.Medium, "Review curtain wall panel", false),
+            ("ceiling", WarningCategory.Spatial, WarningSeverity.Medium, "Fix ceiling boundary", false),
+            ("level", WarningCategory.Data, WarningSeverity.Medium, "Check level assignment", false),
+            ("family", WarningCategory.Data, WarningSeverity.Medium, "Review family definition", false),
+            ("workset", WarningCategory.Data, WarningSeverity.Low, "Review workset assignment", false),
+            ("material", WarningCategory.Data, WarningSeverity.Low, "Fix material assignment", false),
+            ("phase", WarningCategory.Data, WarningSeverity.Medium, "Review phase/filter", false),
+            ("underlay", WarningCategory.Annotation, WarningSeverity.Info, "Review underlay settings", false),
+            ("grid", WarningCategory.Annotation, WarningSeverity.Low, "Fix grid head position", false),
+            ("section", WarningCategory.Annotation, WarningSeverity.Low, "Review section marker", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -642,6 +657,289 @@ namespace StingTools.Core
         }
 
         private static string Escape(string s) => (s ?? "").Replace("\"", "\"\"");
+
+        // ── Phase 47: WARNING-TO-ISSUE AUTO-CREATION ──
+
+        /// <summary>Phase 47: Auto-create issues from critical/high severity warnings.
+        /// Groups warnings by category, creates one issue per category with element links.</summary>
+        internal static List<(string issueId, string title, int elementCount)> CreateIssuesFromWarnings(
+            Document doc, List<ClassifiedWarning> warnings, WarningSeverity minSeverity = WarningSeverity.High)
+        {
+            var results = new List<(string issueId, string title, int elementCount)>();
+            try
+            {
+                var filtered = warnings.Where(w => w.Severity <= minSeverity).ToList(); // Critical=0, High=1 — lower enum = higher severity
+                if (filtered.Count == 0) return results;
+
+                var groups = filtered.GroupBy(w => w.Category);
+
+                // Load or initialize issues.json
+                string issuesDir = "";
+                try
+                {
+                    string docPath = doc?.PathName;
+                    if (!string.IsNullOrEmpty(docPath))
+                        issuesDir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                    else
+                        issuesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "STING_BIM", "_bim_manager");
+                }
+                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings directory: {ex.Message}"); }
+
+                if (string.IsNullOrEmpty(issuesDir)) return results;
+                Directory.CreateDirectory(issuesDir);
+                string issuesPath = Path.Combine(issuesDir, "issues.json");
+
+                // Load existing issues
+                var existingJson = new StringBuilder();
+                List<string> existingEntries = new();
+                if (File.Exists(issuesPath))
+                {
+                    try
+                    {
+                        string raw = File.ReadAllText(issuesPath);
+                        // Simple JSON array parse — extract entries between [ and ]
+                        raw = raw.Trim();
+                        if (raw.StartsWith("[") && raw.EndsWith("]"))
+                        {
+                            string inner = raw.Substring(1, raw.Length - 2).Trim();
+                            if (inner.Length > 0)
+                            {
+                                // Split on },{ pattern (simplified)
+                                int depth = 0;
+                                int start = 0;
+                                for (int i = 0; i < inner.Length; i++)
+                                {
+                                    if (inner[i] == '{') depth++;
+                                    else if (inner[i] == '}') depth--;
+                                    if (depth == 0 && i > start)
+                                    {
+                                        existingEntries.Add(inner.Substring(start, i - start + 1).Trim());
+                                        // Skip comma
+                                        while (i + 1 < inner.Length && (inner[i + 1] == ',' || inner[i + 1] == ' ' || inner[i + 1] == '\n' || inner[i + 1] == '\r'))
+                                            i++;
+                                        start = i + 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex.Message}"); }
+                }
+
+                // Determine next issue ID
+                int nextId = existingEntries.Count + 1;
+                string revision = "";
+                try { revision = Tags.PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
+                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings revision: {ex.Message}"); }
+
+                foreach (var group in groups)
+                {
+                    var groupWarnings = group.ToList();
+                    var maxSeverity = groupWarnings.Min(w => w.Severity); // Min enum = highest severity
+                    string issueType = maxSeverity == WarningSeverity.Critical ? "NCR" : "SI";
+                    string priority = maxSeverity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
+                    string severityLabel = maxSeverity == WarningSeverity.Critical ? "critical" : "high";
+                    string title = $"Warning: {group.Key} — {groupWarnings.Count} {severityLabel} issues detected";
+
+                    // Collect element IDs
+                    var elementIds = new HashSet<long>();
+                    foreach (var cw in groupWarnings)
+                    {
+                        if (cw.FailingElements != null)
+                            foreach (var eid in cw.FailingElements) elementIds.Add(eid.Value);
+                    }
+
+                    string issueId = $"{issueType}-{nextId:D4}";
+                    string now = DateTime.Now.ToString("o");
+                    string userName = Environment.UserName ?? "STING";
+
+                    // Build JSON entry
+                    string elementIdsStr = string.Join(",", elementIds);
+                    string entry = "{"
+                        + $"\"id\":\"{issueId}\","
+                        + $"\"type\":\"{issueType}\","
+                        + $"\"title\":\"{title.Replace("\"", "\\\"")}\","
+                        + $"\"description\":\"Auto-created from {groupWarnings.Count} Revit warnings in category {group.Key}.\","
+                        + $"\"priority\":\"{priority}\","
+                        + $"\"status\":\"OPEN\","
+                        + $"\"discipline\":\"{groupWarnings.FirstOrDefault()?.Discipline ?? ""}\","
+                        + $"\"revision\":\"{revision}\","
+                        + $"\"element_ids\":\"{elementIdsStr}\","
+                        + $"\"created_by\":\"{userName}\","
+                        + $"\"created_date\":\"{now}\","
+                        + $"\"modified_by\":\"{userName}\","
+                        + $"\"modified_date\":\"{now}\""
+                        + "}";
+
+                    existingEntries.Add(entry);
+                    results.Add((issueId, title, elementIds.Count));
+                    nextId++;
+                    StingLog.Info($"Created issue {issueId}: {title} ({elementIds.Count} elements)");
+                }
+
+                // Write back
+                try
+                {
+                    var jsonSb = new StringBuilder();
+                    jsonSb.AppendLine("[");
+                    for (int i = 0; i < existingEntries.Count; i++)
+                    {
+                        jsonSb.Append("  ");
+                        jsonSb.Append(existingEntries[i]);
+                        if (i < existingEntries.Count - 1) jsonSb.Append(",");
+                        jsonSb.AppendLine();
+                    }
+                    jsonSb.AppendLine("]");
+                    File.WriteAllText(issuesPath, jsonSb.ToString(), Encoding.UTF8);
+                    StingLog.Info($"Issues file updated: {issuesPath} ({existingEntries.Count} total entries)");
+                }
+                catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings write", ex); }
+            }
+            catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings", ex); }
+            return results;
+        }
+
+        // ── Phase 47: WARNING COMPLIANCE GATE ──
+
+        /// <summary>Phase 47: Check if warnings block compliance gate.
+        /// Returns true if model passes warning gate (no critical warnings, total below threshold).</summary>
+        internal static (bool pass, string reason) CheckWarningGate(Document doc, int maxCritical = 0, int maxTotal = -1)
+        {
+            try
+            {
+                var report = ScanWarnings(doc);
+
+                int criticalCount = report.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0);
+                if (criticalCount > maxCritical)
+                    return (false, $"Warning gate FAILED: {criticalCount} critical warning(s) exceed threshold of {maxCritical}. " +
+                        $"Resolve critical warnings before proceeding.");
+
+                if (maxTotal >= 0 && report.Total > maxTotal)
+                    return (false, $"Warning gate FAILED: {report.Total} total warning(s) exceed threshold of {maxTotal}. " +
+                        $"Reduce warnings before proceeding.");
+
+                string reason = $"Warning gate PASSED: {criticalCount} critical (max {maxCritical}), " +
+                    $"{report.Total} total" + (maxTotal >= 0 ? $" (max {maxTotal})" : "") + ".";
+                return (true, reason);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CheckWarningGate: {ex.Message}");
+                return (true, "Warning gate check failed — proceeding by default.");
+            }
+        }
+
+        // ── Phase 47: WARNING REGRESSION COMPARISON ──
+
+        /// <summary>Phase 47: Compare current warnings against last revision snapshot.
+        /// Returns delta with categorized changes.</summary>
+        internal static (int added, int removed, int unchanged, List<string> newWarningTypes)
+            CompareWithRevisionBaseline(Document doc)
+        {
+            var newWarningTypes = new List<string>();
+            try
+            {
+                // Load baseline warning types from sidecar
+                string baselinePath = GetBaselinePath(doc);
+                if (baselinePath == null || !File.Exists(baselinePath))
+                    return (0, 0, 0, newWarningTypes);
+
+                // Load baseline warning type set from extended baseline format
+                var baselineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    string baselineJson = File.ReadAllText(baselinePath);
+                    // Parse warning_types array if present: "warning_types":["desc1","desc2",...]
+                    int typesIdx = baselineJson.IndexOf("\"warning_types\":");
+                    if (typesIdx >= 0)
+                    {
+                        int arrStart = baselineJson.IndexOf('[', typesIdx);
+                        int arrEnd = baselineJson.IndexOf(']', arrStart);
+                        if (arrStart >= 0 && arrEnd > arrStart)
+                        {
+                            string arrContent = baselineJson.Substring(arrStart + 1, arrEnd - arrStart - 1);
+                            foreach (string part in arrContent.Split(','))
+                            {
+                                string trimmed = part.Trim().Trim('"');
+                                if (trimmed.Length > 0) baselineTypes.Add(trimmed);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CompareWithRevisionBaseline parse: {ex.Message}"); }
+
+                if (baselineTypes.Count == 0)
+                {
+                    // No typed baseline — fall back to count-only comparison
+                    int? baselineTotal = LoadBaseline(doc);
+                    int currentTotal = doc.GetWarnings()?.Count ?? 0;
+                    int delta = baselineTotal.HasValue ? currentTotal - baselineTotal.Value : 0;
+                    return (Math.Max(0, delta), Math.Max(0, -delta), Math.Min(currentTotal, baselineTotal ?? currentTotal), newWarningTypes);
+                }
+
+                // Build current warning type set
+                var currentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    var rawWarnings = doc.GetWarnings();
+                    if (rawWarnings != null)
+                    {
+                        foreach (var fm in rawWarnings)
+                        {
+                            string desc = fm.GetDescriptionText() ?? "";
+                            if (desc.Length > 0) currentTypes.Add(desc);
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CompareWithRevisionBaseline scan: {ex.Message}"); }
+
+                int added = 0, removed = 0, unchanged = 0;
+
+                // Find new warning types (in current but not in baseline)
+                foreach (string t in currentTypes)
+                {
+                    if (baselineTypes.Contains(t))
+                        unchanged++;
+                    else
+                    {
+                        added++;
+                        newWarningTypes.Add(t);
+                    }
+                }
+
+                // Find removed warning types (in baseline but not in current)
+                foreach (string t in baselineTypes)
+                {
+                    if (!currentTypes.Contains(t))
+                        removed++;
+                }
+
+                return (added, removed, unchanged, newWarningTypes);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CompareWithRevisionBaseline: {ex.Message}");
+                return (0, 0, 0, newWarningTypes);
+            }
+        }
+
+        // ── Phase 47: WARNING HEALTH SCORE ──
+
+        /// <summary>Phase 47: Calculate overall warning health score 0-100.
+        /// Weighted: Critical=-20, High=-5, Medium=-2, Low=-1, Info=0. Base=100.</summary>
+        internal static int CalculateWarningHealthScore(WarningReport report)
+        {
+            if (report == null) return 100;
+
+            int score = 100;
+            score -= report.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0) * 20;
+            score -= report.BySeverity.GetValueOrDefault(WarningSeverity.High, 0) * 5;
+            score -= report.BySeverity.GetValueOrDefault(WarningSeverity.Medium, 0) * 2;
+            score -= report.BySeverity.GetValueOrDefault(WarningSeverity.Low, 0) * 1;
+            // Info = 0 weight (no penalty)
+
+            return Math.Max(0, Math.Min(100, score));
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -1114,6 +1412,243 @@ namespace StingTools.Core
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Phase 47: BIM COORDINATION CENTER — Unified dashboard command
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class BIMCoordinationCenterCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var uidoc = commandData.Application.ActiveUIDocument;
+                Document doc = uidoc?.Document;
+                if (doc == null) { message = "No document open."; return Result.Failed; }
+
+                // 1. Run compliance scan
+                ComplianceScan.InvalidateCache();
+                var compliance = ComplianceScan.Scan(doc);
+
+                // 2. Scan warnings
+                var warningReport = WarningsEngine.ScanWarnings(doc);
+                int healthScore = WarningsEngine.CalculateWarningHealthScore(warningReport);
+
+                // 3. Load issues from issues.json
+                int openIssues = 0, criticalIssues = 0;
+                try
+                {
+                    string docPath = doc.PathName;
+                    if (!string.IsNullOrEmpty(docPath))
+                    {
+                        string issuesPath = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager", "issues.json");
+                        if (File.Exists(issuesPath))
+                        {
+                            string raw = File.ReadAllText(issuesPath);
+                            // Count OPEN issues
+                            int idx = 0;
+                            while ((idx = raw.IndexOf("\"status\":\"OPEN\"", idx, StringComparison.OrdinalIgnoreCase)) >= 0)
+                            { openIssues++; idx++; }
+                            idx = 0;
+                            while ((idx = raw.IndexOf("\"priority\":\"CRITICAL\"", idx, StringComparison.OrdinalIgnoreCase)) >= 0)
+                            { criticalIssues++; idx++; }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter issues load: {ex.Message}"); }
+
+                // 4. Load workflow history summary
+                int workflowRuns = 0;
+                string lastWorkflow = "none";
+                try
+                {
+                    string docPath = doc.PathName;
+                    if (!string.IsNullOrEmpty(docPath))
+                    {
+                        string logPath = Path.Combine(Path.GetDirectoryName(docPath), "STING_WORKFLOW_LOG.json");
+                        if (File.Exists(logPath))
+                        {
+                            string[] lines = File.ReadAllLines(logPath);
+                            workflowRuns = lines.Length;
+                            if (lines.Length > 0)
+                            {
+                                string lastLine = lines[lines.Length - 1];
+                                int presetIdx = lastLine.IndexOf("\"preset\":\"");
+                                if (presetIdx >= 0)
+                                {
+                                    int valStart = presetIdx + 10;
+                                    int valEnd = lastLine.IndexOf('"', valStart);
+                                    if (valEnd > valStart) lastWorkflow = lastLine.Substring(valStart, valEnd - valStart);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow load: {ex.Message}"); }
+
+                // 5. Warning regression delta
+                var (warnAdded, warnRemoved, warnUnchanged, newTypes) = WarningsEngine.CompareWithRevisionBaseline(doc);
+
+                // 6. Warning gate check
+                var (gatePass, gateReason) = WarningsEngine.CheckWarningGate(doc);
+
+                // Build model health checks
+                var healthChecks = new List<(string, int, int, string)>();
+                var recommendations = new List<string>();
+                int modelHealthScore = healthScore; // Use warning-based health as starting point
+                string modelHealthRating = modelHealthScore >= 80 ? "GOOD" : modelHealthScore >= 50 ? "FAIR" : "POOR";
+
+                // Assemble CoordData for unified WPF dialog
+                string ragStatus = compliance != null ? compliance.RAGStatus : "UNKNOWN";
+                double tagPct = compliance?.CompliancePercent ?? 0;
+                double strictPct = compliance?.StrictPercent ?? 0;
+                int staleCount = compliance?.StaleCount ?? 0;
+
+                // Derive model health score from multiple signals
+                int mhWarningScore = Math.Max(0, 10 - warningReport.Total / 10);
+                int mhTagScore = (int)(tagPct / 10);
+                int mhStaleScore = staleCount == 0 ? 10 : Math.Max(0, 10 - staleCount / 5);
+                modelHealthScore = Math.Min(100, (mhWarningScore + mhTagScore + mhStaleScore) * 100 / 30);
+                modelHealthRating = modelHealthScore >= 80 ? "GOOD" : modelHealthScore >= 50 ? "FAIR" : "POOR";
+
+                healthChecks.Add(("Warnings", mhWarningScore, 10, $"{warningReport.Total} warnings in model"));
+                healthChecks.Add(("Tag Completeness", mhTagScore, 10, $"{tagPct:F0}% complete"));
+                healthChecks.Add(("Stale Elements", mhStaleScore, 10, staleCount == 0 ? "No stale elements" : $"{staleCount} stale elements"));
+
+                if (warningReport.Total > 10) recommendations.Add("Resolve Revit warnings (currently " + warningReport.Total + ")");
+                if (tagPct < 80) recommendations.Add("Run 'Batch Tag' or 'Tag & Combine' to improve tag coverage");
+                if (staleCount > 0) recommendations.Add($"Re-tag {staleCount} stale elements");
+
+                // Load revision data
+                int revisionCount = 0, revisionClouds = 0;
+                try
+                {
+                    var revisions = new FilteredElementCollector(doc).OfClass(typeof(Revision)).ToElements();
+                    revisionCount = revisions.Count;
+                    foreach (var rev in revisions.Cast<Revision>())
+                    {
+                        var clouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                            .WhereElementIsNotElementType().ToElements()
+                            .Where(c => c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id);
+                        revisionClouds += clouds.Count();
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter revision load: {ex.Message}"); }
+
+                // Platform sync info
+                string lastSyncTime = "";
+                int syncChanges = 0;
+                try
+                {
+                    string docPath2 = doc.PathName;
+                    if (!string.IsNullOrEmpty(docPath2))
+                    {
+                        string syncPath = Path.Combine(Path.GetDirectoryName(docPath2), "_bim_manager", "platform_sync.json");
+                        if (File.Exists(syncPath))
+                        {
+                            string syncRaw = File.ReadAllText(syncPath);
+                            int tsIdx = syncRaw.IndexOf("\"last_sync\":\"");
+                            if (tsIdx >= 0) { int s = tsIdx + 13; int e = syncRaw.IndexOf('"', s); if (e > s) lastSyncTime = syncRaw.Substring(s, e - s); }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter sync load: {ex.Message}"); }
+
+                var coordData = new UI.BIMCoordinationCenter.CoordData
+                {
+                    ProjectName = doc.Title ?? "Untitled",
+                    FilePath = doc.PathName ?? "",
+                    TagPct = tagPct,
+                    StrictPct = strictPct,
+                    RAGStatus = ragStatus,
+                    TotalElements = compliance?.TotalElements ?? 0,
+                    TaggedComplete = compliance?.TaggedComplete ?? 0,
+                    Untagged = compliance?.Untagged ?? 0,
+                    StaleCount = staleCount,
+                    SheetsTagged = compliance?.SheetsTagged ?? 0,
+                    SheetsTotal = compliance?.TotalSheets ?? 0,
+                    ByDisc = compliance?.ByDisc ?? new Dictionary<string, ComplianceScan.DiscComplianceData>(),
+                    EmptyTokenCounts = compliance?.EmptyTokenCounts?.ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, int>(),
+                    WarningTotal = warningReport.Total,
+                    WarningCritical = warningReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0),
+                    WarningHigh = warningReport.BySeverity.GetValueOrDefault(WarningSeverity.High, 0),
+                    WarningAutoFixable = warningReport.AutoFixable,
+                    WarningHealthScore = healthScore,
+                    WarningTrend = warningReport.TrendSymbol,
+                    WarningGatePass = gatePass,
+                    WarningGateReason = gateReason,
+                    WarningAdded = warnAdded,
+                    WarningRemoved = warnRemoved,
+                    WarningByCategory = warningReport.ByCategory,
+                    WarningBySeverity = warningReport.BySeverity,
+                    WarningByLevel = warningReport.ByLevel,
+                    WarningByDiscipline = warningReport.ByDiscipline,
+                    WarningHotspots = warningReport.Hotspots.Select(h => (h.Name, h.Count)).ToList(),
+                    IssuesOpen = openIssues,
+                    IssuesCritical = criticalIssues,
+                    IssuesTotal = openIssues + criticalIssues,
+                    RevisionCount = revisionCount,
+                    RevisionClouds = revisionClouds,
+                    LastSyncTime = lastSyncTime,
+                    SyncChanges = syncChanges,
+                    WorkflowRuns = workflowRuns,
+                    LastWorkflow = lastWorkflow,
+                    ModelHealthScore = modelHealthScore,
+                    ModelHealthRating = modelHealthRating,
+                    HealthChecks = healthChecks,
+                    Recommendations = recommendations
+                };
+
+                // Show unified WPF dialog
+                string action = UI.BIMCoordinationCenter.Show(coordData);
+
+                // Process returned action tag
+                if (!string.IsNullOrEmpty(action))
+                {
+                    switch (action)
+                    {
+                        case "AutoFixWarnings":
+                            var fixReport = WarningsEngine.BatchAutoFix(doc, warningReport.Warnings);
+                            TaskDialog.Show("STING Auto-Fix", $"Fixed: {fixReport.Fixed}\nSkipped: {fixReport.Skipped}\nFailed: {fixReport.Failed}");
+                            break;
+                        case "CreateIssuesFromWarnings":
+                            var created = WarningsEngine.CreateIssuesFromWarnings(doc, warningReport.Warnings);
+                            TaskDialog.Show("STING", created.Count > 0
+                                ? $"Created {created.Count} issue(s):\n" + string.Join("\n", created.Select(c => $"  {c.issueId}: {c.title}"))
+                                : "No critical/high warnings found.");
+                            break;
+                        case "ExportWarnings":
+                        case "ExportReport":
+                            string csvPath = WarningsEngine.ExportToCSV(doc, warningReport);
+                            TaskDialog.Show("STING Export", $"Exported to:\n{csvPath}");
+                            break;
+                        case "SaveBaseline":
+                            WarningsEngine.SaveBaseline(doc);
+                            TaskDialog.Show("STING", "Warning baseline saved.");
+                            break;
+                        default:
+                            // Dispatch other actions via StingCommandHandler ExtraParam
+                            UI.StingCommandHandler.SetExtraParam("CoordAction", action);
+                            break;
+                    }
+                }
+
+                StingLog.Info($"BIMCoordinationCenter: health={healthScore}, warnings={warningReport.Total}, " +
+                    $"compliance={tagPct:F1}%, issues={openIssues}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BIMCoordinationCenter failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
         }
     }
 }
