@@ -199,6 +199,11 @@ namespace StingTools.UI
             splitter.Children.Add(rightPanel);
 
             root.Children.Add(splitter);
+
+            // Wire context menu to ListView (needs doc and win references)
+            if (_listView != null)
+                _listView.ContextMenu = BuildContextMenu(doc, win);
+
             win.Content = root;
 
             bool? dialogResult = win.ShowDialog();
@@ -992,6 +997,9 @@ namespace StingTools.UI
             _listView.View = gridView;
             _listView.MouseDoubleClick += ListView_DoubleClick;
 
+            // Right-click context menu — will be set when window context is available
+            _listView.Tag = "NEEDS_CONTEXT_MENU";
+
             // UI-02: Column sorting
             _listView.AddHandler(GridViewColumnHeader.ClickEvent,
                 new RoutedEventHandler(ColumnHeader_Click));
@@ -1246,7 +1254,8 @@ namespace StingTools.UI
                 Content = label, Padding = new Thickness(7, 3, 7, 3),
                 Margin = new Thickness(2), FontSize = 10, FontWeight = FontWeights.SemiBold,
                 Background = Brushes.White, Foreground = fg,
-                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
+                ToolTip = GetButtonTooltip(label)
             };
             btn.Click += handler;
             return btn;
@@ -1259,10 +1268,98 @@ namespace StingTools.UI
                 Content = label, Padding = new Thickness(7, 3, 7, 3),
                 Margin = new Thickness(2), FontSize = 10,
                 Background = Brushes.White, Foreground = fg,
-                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
+                ToolTip = GetButtonTooltip(label, op)
             };
             btn.Click += (s, e) => { _selectedOperation = op; win.DialogResult = true; win.Close(); };
             return btn;
+        }
+
+        /// <summary>Rich tooltips for all action buttons — context-aware descriptions.</summary>
+        private static string GetButtonTooltip(string label, string op = "")
+        {
+            return label switch
+            {
+                // File ops
+                "Open" => "Open selected file in default application (double-click also works)",
+                "Open Folder" => "Open containing folder in Windows Explorer",
+                "Rename" => "Rename the selected file (validates ISO 19650 naming)",
+                "Delete" => "Move selected file to _RECYCLE folder (recoverable)",
+                "Move To" => "Move selected file to a different project folder",
+                // Bulk ops
+                "Bulk Move" => "Move all selected files to a chosen folder (multi-select with Ctrl/Shift)",
+                "Bulk Delete" => "Delete all selected files to recycle bin (Ctrl+Shift+click to multi-select)",
+                "Close Issues" => "Set status to CLOSED for all selected issues with audit trail",
+                "Delete Notes" => "Remove all selected sticky notes from the project",
+                "Update CDE" => "Change CDE status (WIP/SHARED/PUBLISHED/ARCHIVE) for selected docs. Auto-creates transmittal on SHARED/PUBLISHED",
+                "Update Trans Status" => "Transition transmittal status (DRAFT→SENT→RECEIVED→ACKNOWLEDGED→SIGNED)",
+                // Docs
+                "Doc Register" => "View and filter all registered project documents with ISO 19650 metadata (10+ columns, export to CSV)",
+                "Add Doc" => "Register a new document: select direction (IN/OUT), type code, and suitability. Auto-generates ISO 19650 Document ID",
+                "Tag Register" => "Export comprehensive 40+ column asset register (tags, identity, spatial, MEP, cost, validation) to CSV",
+                "Naming Check" => "Audit all sheet names against ISO 19650 naming convention with auto-correction suggestions",
+                "Transmittal" => "Create ISO 19650 transmittal record with document list, recipient, and delivery tracking",
+                "Publish CDE" => "Create ISO 19650 CDE folder package with discipline sub-folders and deliverable manifest",
+                "CDE Status" => "View/update Common Data Environment suitability codes (S0-S7) for project containers",
+                "Review Tracker" => "Track model review cycles, approval workflows, and information exchanges",
+                "MIDP Tracker" => "Master Information Delivery Plan — track deliverable progress per discipline and RIBA stage",
+                // Issues
+                "Raise Issue" => "Create new issue (RFI, TQ, NCR, EWN, SI, VO, AI, CVI, CE, PMI, CLASH, DESIGN, SNAGGING, RISK, ACTION, COMMENT). Links to BCF",
+                "Issue Dash" => "Full issue dashboard with statistics, trend analysis, priority breakdown, and overdue tracking",
+                "Update Issue" => "Update an existing issue: change status, priority, assignee, or add comments",
+                "Issue Filter" => "Advanced issue filtering by type, priority, status, assignee, discipline, and date range",
+                "Timeline" => "View issue timeline showing creation, updates, and resolution dates on a visual timeline",
+                "Statistics" => "Issue statistics: open vs closed, resolution time averages, SLA compliance, overdue rate",
+                "Batch Update" => "Bulk update multiple issues at once: change priority, status, or assignee for selected items",
+                "Export CSV" => "Export all issues to CSV file with full metadata (ID, type, priority, status, assignee, dates, elements)",
+                "Select Elements" => "Select Revit elements linked to the selected issue in the model view",
+                // Revisions
+                "Rev Dash" => "Revision dashboard showing all revisions, issue status, and cloud counts",
+                "Create Rev" => "Create a new revision with ISO 19650 naming (P01, C01 format)",
+                "Rev Compare" => "Compare tag snapshots between two revisions — shows changed elements and parameter deltas",
+                "Track Elements" => "Track which elements changed between revisions with parameter diff",
+                "Rev Schedule" => "View revision schedule with sequence numbers, dates, and sheet assignments",
+                "Rev Export" => "Export revision data to CSV with element counts and cloud statistics",
+                "Bulk Stamp" => "Apply revision stamp to multiple sheets at once",
+                "Auto Cloud" => "Automatically create revision clouds around changed elements",
+                "Naming Enforce" => "Enforce ISO 19650 revision naming conventions (P01 preliminary, C01 construction)",
+                // Clashes
+                "Run Clashes" => "Run clash detection between discipline models with grouping by category",
+                "BCF Export" => "Export issues and clashes as BCF 2.1 XML with camera viewpoints for external tools (Navisworks, Solibri, BIMcollab)",
+                "BCF Import" => "Import BCF file and create issues from external clash detection tools",
+                // Handover
+                "COBie Export" => "Full COBie V2.4 spreadsheet export (19 worksheets) with project type presets",
+                "Streaming COBie" => "Memory-efficient streaming COBie export for large models (5000+ elements)",
+                "FM Handover" => "Generate FM handover manual: asset register, spatial summary, system descriptions, compliance report",
+                "Maintenance" => "PPM and reactive maintenance schedule per ASTM E2018 / SFG20 standards",
+                "Asset Health" => "Asset condition scoring (0-100) with ISO 15686 lifecycle assessment and replacement forecasting",
+                "Space Handover" => "Room-by-room handover report with area, finishes, and services breakdown",
+                // Compliance
+                "Model Health" => "Model health dashboard: element counts, parameter completeness, quality metrics with RAG status",
+                "Export Health" => "Export model health data to JSON/CSV for trend tracking",
+                "Full Compliance" => "Comprehensive compliance dashboard: tag completeness, naming, COBie readiness, BEP compliance",
+                "Stage Gate" => "RIBA stage compliance gate: checks DD1-DD4 data drop readiness with pass/fail criteria",
+                // Exchange
+                "Excel Export" => "Export element data to Excel (30+ columns: tags, identity, spatial, MEP) with column selection",
+                "Excel Import" => "Import data from Excel with validation, change preview, and audit trail",
+                "Excel Round-Trip" => "One-click export → edit → import cycle with change tracking",
+                "ACC Publish" => "Package deliverables for Autodesk Construction Cloud (ACC/BIM 360)",
+                "Platform Sync" => "Bidirectional sync with CDE platform — detect and merge changes",
+                "SharePoint" => "Export deliverables to SharePoint/Microsoft Teams document library",
+                // Notes & Briefcase
+                "Quick Note" => "Create a text note directly in the Document Manager (no element selection needed)",
+                "Add Note" => "Create a sticky note linked to selected Revit elements (requires element selection in model)",
+                "Note Dash" => "Sticky note dashboard showing all notes by category, element, and date",
+                "Note Search" => "Search sticky notes by text content, category, or linked element",
+                "Export Notes" => "Export all sticky notes to CSV or JSON",
+                "Briefcase" => "Full briefcase manager: 8-file package (project info, tag register, compliance, stats, sheets)",
+                "View Briefcase" => "Browse reference documents in the project briefcase (BEP, standards, specifications)",
+                // BEP
+                "Create BEP" => "Create BIM Execution Plan from 22 project type presets with 23 ISO 19650-2 §5.3 sections",
+                "Export BEP" => "Export BEP to JSON with compliance scan enrichment and deliverable manifest",
+                "ISO 19650 Ref" => "Quick reference guide for ISO 19650 codes, suitability statuses, and BIM terminology",
+                _ => op
+            };
         }
 
         private static Border MakeSep()
@@ -2268,6 +2365,271 @@ namespace StingTools.UI
         // ══════════════════════════════════════════════════════════════════
         //  UI-03: Tree search helpers
         // ══════════════════════════════════════════════════════════════════
+
+        // ══════════════════════════════════════════════════════════════════
+        //  RIGHT-CLICK CONTEXT MENU (copy, file ops, status transitions)
+        // ══════════════════════════════════════════════════════════════════
+
+        private static ContextMenu BuildContextMenu(Document doc, Window win)
+        {
+            var menu = new ContextMenu();
+
+            // ── Clipboard ──
+            menu.Items.Add(MakeMenuItem("Copy Title", "Copy document title to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                    Clipboard.SetText(item.Title ?? "");
+            }));
+            menu.Items.Add(MakeMenuItem("Copy ID", "Copy document ID to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                    Clipboard.SetText(item.Id ?? "");
+            }));
+            menu.Items.Add(MakeMenuItem("Copy File Path", "Copy full file path to clipboard", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                    Clipboard.SetText(item.FilePath);
+            }));
+            menu.Items.Add(MakeMenuItem("Copy Row as CSV", "Copy all columns as comma-separated text", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                {
+                    string csv = $"{item.Type},{item.Id},{item.Title},{item.Status},{item.CDE}," +
+                        $"{item.Revision},{item.Discipline},{item.Folder},{item.FileFormat}," +
+                        $"{item.Size},{item.Date},{item.Priority},{item.AssignedTo}";
+                    Clipboard.SetText(csv);
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Copy All Visible as CSV", "Export all visible rows to clipboard as CSV", (s, e) =>
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Type,ID,Title,Status,CDE,Rev,Disc,Folder,Format,Size,Date,Priority,Age,Elements,Assigned,SLA");
+                foreach (var obj in _view)
+                {
+                    if (obj is DocItemVM it)
+                        sb.AppendLine($"\"{it.Type}\",\"{it.Id}\",\"{it.Title}\",\"{it.Status}\",\"{it.CDE}\"," +
+                            $"\"{it.Revision}\",\"{it.Discipline}\",\"{it.Folder}\",\"{it.FileFormat}\"," +
+                            $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
+                            $"\"{it.AssignedTo}\",\"{it.SLADeadline}\"");
+                }
+                Clipboard.SetText(sb.ToString());
+                MessageBox.Show($"Copied {_view.Count} rows to clipboard.", "STING", MessageBoxButton.OK, MessageBoxImage.Information);
+            }));
+
+            menu.Items.Add(new Separator());
+
+            // ── File operations ──
+            menu.Items.Add(MakeMenuItem("Open File", "Open in default application", (s, e) => OpenSelected()));
+            menu.Items.Add(MakeMenuItem("Open Containing Folder", "Show in Windows Explorer", (s, e) => OpenFolder(doc)));
+            menu.Items.Add(MakeMenuItem("Copy File to...", "Copy file to another location", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+                if (!File.Exists(item.FilePath)) return;
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = "Copy file to...",
+                    FileName = Path.GetFileName(item.FilePath),
+                    Filter = "All files|*.*"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    File.Copy(item.FilePath, dlg.FileName, true);
+                    ProjectFolderEngine.LogActivity(doc, "COPY_FILE", Path.GetFileName(item.FilePath), dlg.FileName);
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Rename...", "Rename this file", (s, e) => RenameSelected()));
+            menu.Items.Add(MakeMenuItem("Move To Folder...", "Move to different project folder", (s, e) => MoveSelected(doc)));
+            menu.Items.Add(MakeMenuItem("Delete (Recycle)", "Move to recycle bin", (s, e) => DeleteSelected()));
+
+            menu.Items.Add(new Separator());
+
+            // ── CDE / Status ──
+            var cdeMenu = new MenuItem { Header = "Set CDE Status" };
+            foreach (string cde in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+            {
+                string c = cde;
+                cdeMenu.Items.Add(MakeMenuItem(c, $"Move to {c} folder and update register", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                    {
+                        ProjectFolderEngine.MoveFile(doc, item.FilePath, c);
+                        RefreshData();
+                    }
+                }));
+            }
+            menu.Items.Add(cdeMenu);
+
+            var statusMenu = new MenuItem { Header = "Set Document Status" };
+            foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
+            {
+                string code = kv.Key;
+                statusMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", $"Set status to {code}", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item)
+                    {
+                        UpdateDocRegisterField(doc, item.Id, "status_code", code);
+                        item.Status = code;
+                        item.StatusDesc = kv.Value;
+                        _view?.Refresh();
+                    }
+                }));
+            }
+            menu.Items.Add(statusMenu);
+
+            var suitMenu = new MenuItem { Header = "Set Suitability Code" };
+            foreach (var kv in BIMManager.BIMManagerEngine.SuitabilityCodes)
+            {
+                string code = kv.Key;
+                suitMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", "", (s, e) =>
+                {
+                    if (_listView?.SelectedItem is DocItemVM item)
+                    {
+                        UpdateDocRegisterField(doc, item.Id, "suitability", code);
+                        item.Suitability = code;
+                        _view?.Refresh();
+                    }
+                }));
+            }
+            menu.Items.Add(suitMenu);
+
+            menu.Items.Add(new Separator());
+
+            // ── Issue operations ──
+            menu.Items.Add(MakeMenuItem("Link to Revision...", "Associate this issue with a revision", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var revItems = _allItems.Where(i => i.Category == "REVISION")
+                    .Select(i => $"{i.Id}: {i.Title}").ToList();
+                if (revItems.Count == 0) { MessageBox.Show("No revisions found."); return; }
+                string pick = StingListPicker.Show("Link to Revision", "Select revision:", revItems);
+                if (string.IsNullOrEmpty(pick)) return;
+                string revId = pick.Split(':')[0].Trim();
+                item.LinkedRevision = revId;
+                UpdateIssueField(doc, item.Id, "revision", revId);
+                _view?.Refresh();
+            }));
+            menu.Items.Add(MakeMenuItem("Change Priority...", "Update issue priority", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+                string pick = StingListPicker.Show("Change Priority", "Select new priority:", priorities);
+                if (string.IsNullOrEmpty(pick)) return;
+                item.Priority = pick;
+                UpdateIssueField(doc, item.Id, "priority", pick);
+                _view?.Refresh();
+            }));
+            menu.Items.Add(MakeMenuItem("Assign To...", "Assign issue to team member", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                string name = PromptForText("Assign To", "Enter assignee name:", item.AssignedTo ?? "");
+                if (!string.IsNullOrEmpty(name))
+                {
+                    item.AssignedTo = name;
+                    UpdateIssueField(doc, item.Id, "assigned_to", name);
+                    _view?.Refresh();
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Close Issue", "Set status to CLOSED", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                UpdateIssueField(doc, item.Id, "status", "CLOSED");
+                item.Status = "CLOSED";
+                _view?.Refresh();
+            }));
+
+            menu.Items.Add(new Separator());
+
+            // ── Edit/View ──
+            menu.Items.Add(MakeMenuItem("Edit Note...", "Edit sticky note text", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item && item.Category == "STICKY")
+                    EditStickyNote(item);
+            }));
+            menu.Items.Add(MakeMenuItem("View Details", "Show full item details", (s, e) =>
+            {
+                if (_listView?.SelectedItem is DocItemVM item)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"ID:          {item.Id}");
+                    sb.AppendLine($"Title:       {item.Title}");
+                    sb.AppendLine($"Type:        {item.Type} ({item.TypeDesc})");
+                    sb.AppendLine($"Status:      {item.Status} ({item.StatusDesc})");
+                    sb.AppendLine($"CDE:         {item.CDE}");
+                    sb.AppendLine($"Suitability: {item.Suitability}");
+                    sb.AppendLine($"Revision:    {item.Revision}");
+                    sb.AppendLine($"Date:        {item.Date}");
+                    sb.AppendLine($"Discipline:  {item.Discipline}");
+                    sb.AppendLine($"Priority:    {item.Priority}");
+                    sb.AppendLine($"Assigned To: {item.AssignedTo}");
+                    sb.AppendLine($"Created By:  {item.CreatedBy}");
+                    sb.AppendLine($"Folder:      {item.Folder}");
+                    sb.AppendLine($"File:        {item.FilePath}");
+                    sb.AppendLine($"Format:      {item.FileFormat}");
+                    sb.AppendLine($"Size:        {item.Size}");
+                    sb.AppendLine($"Age:         {item.Aging} ({item.DaysOpen} days)");
+                    sb.AppendLine($"SLA:         {item.SLADeadline} {(item.IsOverdue ? "OVERDUE" : "")}");
+                    sb.AppendLine($"Elements:    {item.ElementCount}");
+                    sb.AppendLine($"Linked Rev:  {item.LinkedRevision}");
+                    sb.AppendLine($"Linked Issues: {item.LinkedIssues}");
+                    if (!string.IsNullOrEmpty(item.StatusHistory))
+                        sb.AppendLine($"\nStatus History:\n{item.StatusHistory.Replace("|", "\n")}");
+                    MessageBox.Show(sb.ToString(), "STING Document Details", MessageBoxButton.OK);
+                }
+            }));
+
+            return menu;
+        }
+
+        private static MenuItem MakeMenuItem(string header, string tooltip, RoutedEventHandler handler)
+        {
+            var item = new MenuItem { Header = header };
+            if (!string.IsNullOrEmpty(tooltip)) item.ToolTip = tooltip;
+            item.Click += handler;
+            return item;
+        }
+
+        // ── JSON field update helpers for right-click operations ──
+
+        private static void UpdateDocRegisterField(Document doc, string docId, string field, string value)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string regPath = Path.Combine(bimDir, "document_register.json");
+                if (!File.Exists(regPath)) return;
+                var arr = JArray.Parse(File.ReadAllText(regPath));
+                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                if (entry != null)
+                {
+                    entry[field] = value;
+                    File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateDocRegister: {ex.Message}"); }
+        }
+
+        private static void UpdateIssueField(Document doc, string issueId, string field, string value)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string issuePath = Path.Combine(bimDir, "issues.json");
+                if (!File.Exists(issuePath)) return;
+                var arr = JArray.Parse(File.ReadAllText(issuePath));
+                var entry = arr.FirstOrDefault(i => i["issue_id"]?.ToString() == issueId);
+                if (entry != null)
+                {
+                    string old = entry[field]?.ToString() ?? "";
+                    entry[field] = value;
+                    entry["status_history"] = (entry["status_history"]?.ToString() ?? "")
+                        + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {field}: {old}->{value}";
+                    File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateIssue: {ex.Message}"); }
+        }
 
         // DM-03: Valid transmittal statuses
         private static readonly HashSet<string> ValidTransmittalStatuses = new(StringComparer.OrdinalIgnoreCase)
