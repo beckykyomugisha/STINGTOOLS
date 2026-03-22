@@ -643,7 +643,7 @@ namespace StingTools.Core
         /// <summary>Export all warnings to CSV for external tracking (BIM360, Aconex, etc.).</summary>
         internal static string ExportToCSV(Document doc, WarningReport report)
         {
-            string exportDir = OutputLocationHelper.GetExportDirectory(doc, "Warnings");
+            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
             string fileName = $"STING_Warnings_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
             string fullPath = Path.Combine(exportDir, fileName);
 
@@ -744,7 +744,7 @@ namespace StingTools.Core
                 // Determine next issue ID
                 int nextId = existingEntries.Count + 1;
                 string revision = "";
-                try { revision = Tags.PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
+                try { revision = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings revision: {ex.Message}"); }
 
                 foreach (var group in groups)
@@ -963,7 +963,7 @@ namespace StingTools.Core
         /// Examines compliance, warnings, issues, stale elements, and workflow history
         /// to recommend the most impactful next actions for BIM coordinators.
         /// </summary>
-        private static List<(string Text, string Action, string Priority)> GenerateSmartSuggestions(
+        internal static List<(string Text, string Action, string Priority)> GenerateSmartSuggestions(
             UI.BIMCoordinationCenter.CoordData data, WarningReport warningReport)
         {
             var suggestions = new List<(string Text, string Action, string Priority)>();
@@ -1589,7 +1589,7 @@ namespace StingTools.Core
                     .GroupBy(w => w.Description)
                     .OrderByDescending(g => g.Count())
                     .Take(30)
-                    .Select(g => new UI.StingListPicker.ListItem
+                    .Select(g => new StingTools.UI.StingListPicker.ListItem
                     {
                         Label = $"({g.Count()}) {g.Key}",
                         Detail = $"{g.First().Category} | {g.First().Severity}",
@@ -1597,7 +1597,7 @@ namespace StingTools.Core
                     })
                     .ToList();
 
-                var picked = UI.StingListPicker.Show("Select Warning Type",
+                var picked = StingTools.UI.StingListPicker.Show("Select Warning Type",
                     "Pick a warning type to select its elements:", groups, allowMultiSelect: false);
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
@@ -1640,7 +1640,7 @@ namespace StingTools.Core
                     .GroupBy(w => w.Description)
                     .OrderByDescending(g => g.Count())
                     .Take(30)
-                    .Select(g => new UI.StingListPicker.ListItem
+                    .Select(g => new StingTools.UI.StingListPicker.ListItem
                     {
                         Label = $"({g.Count()}) {g.Key}",
                         Detail = $"{g.First().Category} | Suppress this warning type",
@@ -1648,7 +1648,7 @@ namespace StingTools.Core
                     })
                     .ToList();
 
-                var picked = UI.StingListPicker.Show("Suppress Warning Types",
+                var picked = StingTools.UI.StingListPicker.Show("Suppress Warning Types",
                     "Select warnings to suppress from dashboard:", groups, allowMultiSelect: true);
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
@@ -1992,7 +1992,7 @@ namespace StingTools.Core
                     StaleCount = staleCount,
                     SheetsTagged = compliance?.SheetsTagged ?? 0,
                     SheetsTotal = compliance?.TotalSheets ?? 0,
-                    ByDisc = compliance?.ByDisc ?? new Dictionary<string, ComplianceScan.DiscComplianceData>(),
+                    ByDisc = compliance?.ByDisc ?? new Dictionary<string, DiscComplianceData>(),
                     EmptyTokenCounts = compliance?.EmptyTokenCounts?.ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, int>(),
                     ContainerCompletePct = compliance?.ContainerCompletePct ?? 0,
                     ByPhase = compliance?.ByPhase?.ToDictionary(
@@ -2036,7 +2036,7 @@ namespace StingTools.Core
                 };
 
                 // Phase 49: Generate smart suggestions based on model state analysis
-                coordData.SmartSuggestions = GenerateSmartSuggestions(coordData, warningReport);
+                coordData.SmartSuggestions = WarningsEngine.GenerateSmartSuggestions(coordData, warningReport);
 
                 // Phase 49: Load compliance trend from workflow log
                 try

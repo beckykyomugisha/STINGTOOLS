@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
 using StingTools.Core;
 
@@ -969,7 +970,7 @@ namespace StingTools.UI
             var catGroups = _data.WarningByCategory.OrderByDescending(x => x.Value);
             foreach (var catKv in catGroups)
             {
-                var catColor = catKv.Key == WarningCategory.Critical || catKv.Key == WarningCategory.Spatial ? CRed :
+                var catColor = catKv.Key == WarningCategory.Structural || catKv.Key == WarningCategory.Spatial ? CRed :
                     catKv.Key == WarningCategory.MEP ? CAmber : Color.FromRgb(0x37, 0x47, 0x4F);
                 var catNode = new TreeViewItem
                 {

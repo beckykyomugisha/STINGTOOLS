@@ -1293,7 +1293,7 @@ namespace StingTools.UI
                     }
                     case "SaveExtendedBaseline":
                     {
-                        var d = SafeDoc(app);
+                        var d = app.ActiveUIDocument?.Document;
                         if (d != null) { Core.WarningsEngine.SaveExtendedBaseline(d); TaskDialog.Show("STING", "Extended warning baseline saved."); }
                         break;
                     }
@@ -1303,7 +1303,7 @@ namespace StingTools.UI
                     {
                         string disc = s.Substring("SelectByDisc_".Length);
                         SetExtraParam("DiscFilter", disc);
-                        RunCommand<Select.SelectByDisciplineCommand>(app);
+                        RunCommand<Organise.SelectByDisciplineCommand>(app);
                         break;
                     }
                     case string s when s.StartsWith("SelectWarning_"):
@@ -1323,7 +1323,7 @@ namespace StingTools.UI
                     // Phase 49: Coordination log and deliverables actions
                     case "ExportCoordLog":
                     {
-                        var d = SafeDoc(app);
+                        var d = app.ActiveUIDocument?.Document;
                         if (d != null)
                         {
                             try
@@ -1355,7 +1355,7 @@ namespace StingTools.UI
                     }
                     case "ClearCoordLog":
                     {
-                        var d = SafeDoc(app);
+                        var d = app.ActiveUIDocument?.Document;
                         if (d != null)
                         {
                             var confirm = new TaskDialog("Clear Coordination Log");

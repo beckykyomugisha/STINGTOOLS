@@ -1771,12 +1771,16 @@ render();
 
         private static void AddSectionLabel(System.Windows.Controls.StackPanel stack, string text)
         {
-            stack.Children.Add(new System.Windows.Controls.TextBlock
+            stack.Children.Add(new System.Windows.Controls.Border
             {
-                Text = text, FontSize = 12, FontWeight = System.Windows.FontWeights.Bold,
-                Foreground = BrHeader, Margin = new System.Windows.Thickness(0, 12, 0, 6),
+                BorderBrush = BrAccent, BorderThickness = new System.Windows.Thickness(0, 0, 0, 1),
+                Margin = new System.Windows.Thickness(0, 12, 0, 6),
                 Padding = new System.Windows.Thickness(0, 0, 0, 2),
-                BorderBrush = BrAccent, BorderThickness = new System.Windows.Thickness(0, 0, 0, 1)
+                Child = new System.Windows.Controls.TextBlock
+                {
+                    Text = text, FontSize = 12, FontWeight = System.Windows.FontWeights.Bold,
+                    Foreground = BrHeader
+                }
             });
         }
 

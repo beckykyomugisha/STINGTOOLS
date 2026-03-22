@@ -1779,7 +1779,7 @@ namespace StingTools.Core
                 foreach (var e in coll)
                 {
                     if (e?.Category == null) continue;
-                    string tag1 = GetString(e, ParamRegistry.TAG1);
+                    string tag1 = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue; // Only include already-tagged
                     XYZ center = null;
                     var loc = e.Location;

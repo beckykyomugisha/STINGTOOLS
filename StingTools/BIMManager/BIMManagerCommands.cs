@@ -2191,8 +2191,7 @@ namespace StingTools.BIMManager
                 NotificationDeliveryEngine.SendNotification(doc,
                     "COBie Export Complete",
                     $"COBie V2.4 data exported by {createdBy}.\n" +
-                    $"Revision: {sourceRev}\nCompliance: {cobieCompPct:F0}%\n" +
-                    $"Components: {components.Count}\nSystems: {systems.Count}",
+                    $"Revision: {sourceRev}\nCompliance: {cobieCompPct:F0}%",
                     "MEDIUM", "COBIE_EXPORT");
             }
             catch (Exception ex) { StingLog.Warn($"COBie export notification: {ex.Message}"); }

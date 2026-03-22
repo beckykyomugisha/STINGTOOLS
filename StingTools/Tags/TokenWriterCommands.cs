@@ -187,17 +187,18 @@ namespace StingTools.Tags
             // GAP-TW-01: Offer to update SYS/FUNC when DISC changes
             try
             {
-                var ctx = ParameterHelpers.CommandExecutionContext.Build(commandData);
-                if (ctx?.Doc == null || ctx?.UIDoc == null) return result;
+                var uidoc = commandData.Application.ActiveUIDocument;
+                Document ctxDoc = uidoc?.Document;
+                if (ctxDoc == null || uidoc == null) return result;
 
-                var selectedIds = ctx.UIDoc.Selection.GetElementIds();
+                var selectedIds = uidoc.Selection.GetElementIds();
                 if (selectedIds == null || selectedIds.Count == 0) return result;
 
                 // Check if any elements have mismatched SYS for their new DISC
                 int mismatchCount = 0;
                 foreach (ElementId id in selectedIds)
                 {
-                    Element el = ctx.Doc.GetElement(id);
+                    Element el = ctxDoc.GetElement(id);
                     if (el == null) continue;
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
@@ -218,13 +219,13 @@ namespace StingTools.Tags
                     dlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
                     if (dlg.Show() == TaskDialogResult.Yes)
                     {
-                        using (Transaction tx = new Transaction(ctx.Doc, "STING Update SYS/FUNC from DISC"))
+                        using (Transaction tx = new Transaction(ctxDoc, "STING Update SYS/FUNC from DISC"))
                         {
                             tx.Start();
                             int updated = 0;
                             foreach (ElementId id in selectedIds)
                             {
-                                Element el = ctx.Doc.GetElement(id);
+                                Element el = ctxDoc.GetElement(id);
                                 if (el == null) continue;
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string newSys = TagConfig.GetMepSystemAwareSysCode(el, catName);

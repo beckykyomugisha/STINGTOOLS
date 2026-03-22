@@ -518,7 +518,8 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                string issuesPath = BIMManager.BIMManagerEngine.GetBimManagerPath(doc, "issues.json");
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
                                 if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
                                 string raw = File.ReadAllText(issuesPath);
                                 int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
