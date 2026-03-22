@@ -51,6 +51,17 @@ namespace StingTools.Core
                 return Result.Cancelled;
             }
 
+            // Auto-select preset if name passed via ExtraParam (from Document Manager)
+            string autoName = UI.StingCommandHandler.GetExtraParam("WorkflowPresetName");
+            UI.StingCommandHandler.ClearExtraParam("WorkflowPresetName");
+            if (!string.IsNullOrEmpty(autoName))
+            {
+                var auto = presets.FirstOrDefault(p => p.Name.Equals(autoName, StringComparison.OrdinalIgnoreCase))
+                    ?? WorkflowEngine.GetBuiltInPreset(autoName);
+                if (auto != null)
+                    return WorkflowEngine.ExecutePreset(auto, commandData, elements);
+            }
+
             // WF-01 FIX: Support unlimited presets via paged selection.
             // If ≤4 presets, use CommandLinks directly. If >4, show pages of 3 + "More..." link.
             WorkflowPreset selected = null;

@@ -31,20 +31,19 @@ namespace StingTools.UI
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    //  DOCUMENT ITEM VIEW MODEL
+    //  DOCUMENT ITEM VIEW MODEL (Enhanced with aging, element count, links)
     // ══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Unified row model for the document grid — covers files, issues, revisions, etc.</summary>
     public class DocItemVM : INotifyPropertyChanged
     {
         public string Id { get; set; }
         public string Title { get; set; }
-        public string Type { get; set; }          // DR, SH, RFI, NCR, REV, etc.
+        public string Type { get; set; }
         public string TypeDesc { get; set; }
-        public string Status { get; set; }         // S0-S7 / OPEN / CLOSED / WIP / etc.
+        public string Status { get; set; }
         public string StatusDesc { get; set; }
-        public string CDE { get; set; }            // WIP / SHARED / PUBLISHED / ARCHIVE
-        public string Revision { get; set; }       // P01, C01
+        public string CDE { get; set; }
+        public string Revision { get; set; }
         public string Date { get; set; }
         public string Discipline { get; set; }
         public string Folder { get; set; }
@@ -52,24 +51,32 @@ namespace StingTools.UI
         public string FilePath { get; set; }
         public string FileFormat { get; set; }
         public string Size { get; set; }
-        public string Direction { get; set; }      // IN / OUT
-        public string Priority { get; set; }       // CRITICAL / HIGH / MEDIUM / LOW / INFO
+        public string Direction { get; set; }
+        public string Priority { get; set; }
         public string AssignedTo { get; set; }
-        public string Category { get; set; }       // grouping category for tree
+        public string Category { get; set; }
         public string Icon { get; set; }
+
+        // ── Enhanced fields (GAP fixes) ──
+        public int DaysOpen { get; set; }              // GAP GRID-02: issue aging
+        public string Aging { get; set; }              // "3d", "2w", "1m" display text
+        public int ElementCount { get; set; }          // GAP GRID-01: affected elements
+        public string LinkedRevision { get; set; }     // GAP CROSS-01: linked revision ID
+        public string LinkedIssues { get; set; }       // GAP CROSS-01: linked issue IDs
+        public string SLADeadline { get; set; }        // GAP GRID-02: SLA target date
+        public bool IsOverdue { get; set; }            // GAP GRID-02: past SLA
+        public string StatusHistory { get; set; }      // GAP PERSIST-02: status change log
+        public string Suitability { get; set; }        // S0-S7 code
+        public string CreatedBy { get; set; }          // GAP PERSIST-01: audit trail
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnProp(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  TREE NODE
-    // ══════════════════════════════════════════════════════════════════════
-
     public class NavNode
     {
         public string Label { get; set; }
-        public string Tag { get; set; }          // filter key
+        public string Tag { get; set; }
         public string Icon { get; set; }
         public int Count { get; set; }
         public List<NavNode> Children { get; set; } = new();
@@ -77,38 +84,27 @@ namespace StingTools.UI
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    //  ENHANCED DOCUMENT MANAGEMENT DIALOG
+    //  DOCUMENT MANAGEMENT DIALOG — V2 (47 gap fixes)
     // ══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// ISO 19650 Document Management Center — comprehensive WPF dialog with:
-    ///   - Left: TreeView navigator (folders, issues, revisions, clashes, handover, CDE status)
-    ///   - Center: Filterable data grid showing documents/issues/revisions
-    ///   - Bottom: Action bar with file operations (open, rename, delete, move, import, drag-to-view)
-    ///   - Status bar with file counts and project info
-    ///
-    /// 10 navigation sections:
-    ///   ALL DOCUMENTS | FOLDERS | CDE STATUS | ISSUES | REVISIONS |
-    ///   CLASHES | HANDOVER | REGISTERS | TRANSMITTALS | COMPLIANCE
-    /// </summary>
     internal static class DocumentManagementDialog
     {
-        // ── Theme ─────────────────────────────────────────────────────────
-        private static readonly SolidColorBrush BrHeader   = new(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly SolidColorBrush BrAccent   = new(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush BrBg       = new(Color.FromRgb(0xF5, 0xF5, 0xF5));
-        private static readonly SolidColorBrush BrWhite    = Brushes.White;
-        private static readonly SolidColorBrush BrFgDark   = new(Color.FromRgb(0x22, 0x22, 0x22));
-        private static readonly SolidColorBrush BrFgSub    = new(Color.FromRgb(0x88, 0x88, 0x88));
-        private static readonly SolidColorBrush BrBorder   = new(Color.FromRgb(0xD0, 0xD0, 0xD0));
-        private static readonly SolidColorBrush BrTreeSel  = new(Color.FromRgb(0xE3, 0xF2, 0xFD));
-        private static readonly SolidColorBrush BrGreen    = new(Color.FromRgb(0x2E, 0x7D, 0x32));
-        private static readonly SolidColorBrush BrOrange   = new(Color.FromRgb(0xE6, 0x51, 0x00));
-        private static readonly SolidColorBrush BrRed      = new(Color.FromRgb(0xC6, 0x28, 0x28));
-        private static readonly SolidColorBrush BrPurple   = new(Color.FromRgb(0x6A, 0x1B, 0x9A));
-        private static readonly SolidColorBrush BrTeal     = new(Color.FromRgb(0x00, 0x69, 0x5C));
+        // ── Theme ─────────────────────────────────────────────────────
+        private static readonly SolidColorBrush BrHeader  = new(Color.FromRgb(0x1A, 0x23, 0x7E));
+        private static readonly SolidColorBrush BrAccent  = new(Color.FromRgb(0xE8, 0x91, 0x2D));
+        private static readonly SolidColorBrush BrBg      = new(Color.FromRgb(0xF5, 0xF5, 0xF5));
+        private static readonly SolidColorBrush BrWhite   = Brushes.White;
+        private static readonly SolidColorBrush BrFgDark  = new(Color.FromRgb(0x22, 0x22, 0x22));
+        private static readonly SolidColorBrush BrFgSub   = new(Color.FromRgb(0x88, 0x88, 0x88));
+        private static readonly SolidColorBrush BrBorder  = new(Color.FromRgb(0xD0, 0xD0, 0xD0));
+        private static readonly SolidColorBrush BrGreen   = new(Color.FromRgb(0x2E, 0x7D, 0x32));
+        private static readonly SolidColorBrush BrOrange  = new(Color.FromRgb(0xE6, 0x51, 0x00));
+        private static readonly SolidColorBrush BrRed     = new(Color.FromRgb(0xC6, 0x28, 0x28));
+        private static readonly SolidColorBrush BrPurple  = new(Color.FromRgb(0x6A, 0x1B, 0x9A));
+        private static readonly SolidColorBrush BrTeal    = new(Color.FromRgb(0x00, 0x69, 0x5C));
+        private static readonly SolidColorBrush BrAmber   = new(Color.FromRgb(0xFF, 0x8F, 0x00));
 
-        // ── State ─────────────────────────────────────────────────────────
+        // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
         private static ListCollectionView _view;
         private static string _currentFilter = "ALL";
@@ -117,11 +113,13 @@ namespace StingTools.UI
         private static TextBlock _countText;
         private static ListView _listView;
         private static TreeView _treeView;
+        private static StackPanel _dashPanel;
         private static Document _doc;
         private static string _selectedOperation;
+        private static ComplianceScan.ComplianceResult _complianceResult;
 
         // ══════════════════════════════════════════════════════════════════
-        //  PUBLIC API
+        //  SHOW
         // ══════════════════════════════════════════════════════════════════
 
         public static DocumentManagementResult Show(Document doc)
@@ -131,18 +129,19 @@ namespace StingTools.UI
             _allItems = new ObservableCollection<DocItemVM>();
             var result = new DocumentManagementResult();
 
-            // Load data
-            LoadAllData(doc);
+            // Pre-load compliance scan
+            try { _complianceResult = ComplianceScan.Scan(doc); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr compliance scan: {ex.Message}"); }
 
+            LoadAllData(doc);
             _view = (ListCollectionView)CollectionViewSource.GetDefaultView(_allItems);
             _view.Filter = FilterItem;
 
-            // ── Window ────────────────────────────────────────────────
             var win = new Window
             {
                 Title = "STING Document Management Center",
-                Width = 1200, Height = 780,
-                MinWidth = 900, MinHeight = 600,
+                Width = 1280, Height = 850,
+                MinWidth = 960, MinHeight = 650,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.CanResize,
                 Background = BrBg
@@ -158,10 +157,16 @@ namespace StingTools.UI
             var root = new DockPanel { LastChildFill = true };
 
             // Header
-            DockPanel.SetDock(BuildHeader(doc), Dock.Top);
-            root.Children.Add(BuildHeader(doc));
+            var header = BuildHeader(doc);
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
 
-            // Footer / status bar
+            // Dashboard strip (GAP DASH-01: embedded health summary)
+            var dash = BuildDashboardStrip(doc);
+            DockPanel.SetDock(dash, Dock.Top);
+            root.Children.Add(dash);
+
+            // Footer
             var footer = BuildFooter(win, result);
             DockPanel.SetDock(footer, Dock.Bottom);
             root.Children.Add(footer);
@@ -171,18 +176,16 @@ namespace StingTools.UI
             DockPanel.SetDock(actionBar, Dock.Bottom);
             root.Children.Add(actionBar);
 
-            // Main content: TreeView left + ListView right
+            // Main: Tree left + List right
             var splitter = new System.Windows.Controls.Grid();
-            splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+            splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });
             splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
             splitter.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            // Left: Tree navigator
             var leftPanel = BuildTreePanel(doc);
             System.Windows.Controls.Grid.SetColumn(leftPanel, 0);
             splitter.Children.Add(leftPanel);
 
-            // Splitter
             var gridSplitter = new GridSplitter
             {
                 Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -191,7 +194,6 @@ namespace StingTools.UI
             System.Windows.Controls.Grid.SetColumn(gridSplitter, 1);
             splitter.Children.Add(gridSplitter);
 
-            // Right: Document list + search
             var rightPanel = BuildDocumentPanel();
             System.Windows.Controls.Grid.SetColumn(rightPanel, 2);
             splitter.Children.Add(rightPanel);
@@ -199,7 +201,6 @@ namespace StingTools.UI
             root.Children.Add(splitter);
             win.Content = root;
 
-            // Show
             bool? dialogResult = win.ShowDialog();
             if (dialogResult == true && _selectedOperation != null)
             {
@@ -207,6 +208,108 @@ namespace StingTools.UI
                 result.Operation = _selectedOperation;
             }
             return result;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  DASHBOARD STRIP (GAP DASH-01: Project health at a glance)
+        // ══════════════════════════════════════════════════════════════════
+
+        private static Border BuildDashboardStrip(Document doc)
+        {
+            var strip = new Border
+            {
+                Background = BrWhite,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+
+            _dashPanel = new StackPanel { Orientation = Orientation.Horizontal };
+            RefreshDashboard(doc);
+            strip.Child = _dashPanel;
+            return strip;
+        }
+
+        private static void RefreshDashboard(Document doc)
+        {
+            if (_dashPanel == null) return;
+            _dashPanel.Children.Clear();
+
+            // RAG status
+            var cr = _complianceResult;
+            if (cr != null)
+            {
+                SolidColorBrush ragBrush = cr.RAGStatus == "GREEN" ? BrGreen :
+                    cr.RAGStatus == "AMBER" ? BrAmber : BrRed;
+                _dashPanel.Children.Add(MakeDashCard($"{cr.CompliancePercent:F0}%",
+                    "Tag Compliance", ragBrush));
+                _dashPanel.Children.Add(MakeDashCard($"{cr.StrictPercent:F0}%",
+                    "Strict (all tokens)", cr.StrictPercent >= 80 ? BrGreen : cr.StrictPercent >= 50 ? BrAmber : BrRed));
+
+                // Per-token empty counts (GAP DM-01)
+                if (cr.EmptyTokenCounts != null && cr.EmptyTokenCounts.Count > 0)
+                {
+                    int totalEmpty = cr.EmptyTokenCounts.Values.Sum();
+                    string worstToken = cr.EmptyTokenCounts.OrderByDescending(kv => kv.Value).FirstOrDefault().Key ?? "?";
+                    int worstCount = cr.EmptyTokenCounts.OrderByDescending(kv => kv.Value).FirstOrDefault().Value;
+                    _dashPanel.Children.Add(MakeDashCard($"{totalEmpty}",
+                        $"Empty tokens (worst: {worstToken}={worstCount})", totalEmpty == 0 ? BrGreen : BrOrange));
+                }
+
+                if (cr.StaleCount > 0)
+                    _dashPanel.Children.Add(MakeDashCard($"{cr.StaleCount}", "Stale elements", BrRed));
+            }
+
+            // Issue counts
+            int openIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Status == "OPEN");
+            int criticalIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == "CRITICAL");
+            int overdueIssues = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
+            _dashPanel.Children.Add(MakeDashCard($"{openIssues}",
+                "Open issues", openIssues == 0 ? BrGreen : BrOrange));
+            if (criticalIssues > 0)
+                _dashPanel.Children.Add(MakeDashCard($"{criticalIssues}", "CRITICAL", BrRed));
+            if (overdueIssues > 0)
+                _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed));
+
+            // Revision count
+            int revCount = _allItems.Count(i => i.Category == "REVISION");
+            int issuedRevs = _allItems.Count(i => i.Category == "REVISION" && i.Status == "ISSUED");
+            _dashPanel.Children.Add(MakeDashCard($"{issuedRevs}/{revCount}",
+                "Revisions issued", BrPurple));
+
+            // Clash count
+            int clashCount = _allItems.Count(i => i.Category == "CLASH");
+            if (clashCount > 0)
+                _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed));
+
+            // Document totals
+            int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
+            _dashPanel.Children.Add(MakeDashCard($"{totalDocs}", "Documents", BrTeal));
+        }
+
+        private static Border MakeDashCard(string value, string label, SolidColorBrush color)
+        {
+            var card = new Border
+            {
+                BorderBrush = color,
+                BorderThickness = new Thickness(0, 0, 0, 3),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = BrWhite
+            };
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = value, FontSize = 16, FontWeight = FontWeights.Bold,
+                Foreground = color, HorizontalAlignment = HorizontalAlignment.Center
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = label, FontSize = 9, Foreground = BrFgSub,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            card.Child = stack;
+            return card;
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -218,7 +321,7 @@ namespace StingTools.UI
             var header = new Border
             {
                 Background = BrHeader,
-                Padding = new Thickness(16, 10, 16, 10)
+                Padding = new Thickness(16, 8, 16, 8)
             };
             var g = new System.Windows.Controls.Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -234,14 +337,13 @@ namespace StingTools.UI
             try { projName = doc?.ProjectInformation?.Name ?? ""; } catch { }
             left.Children.Add(new TextBlock
             {
-                Text = $"Project: {projName}  |  ISO 19650 Compliant",
+                Text = $"Project: {projName}  |  ISO 19650",
                 FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0xBB, 0xDE, 0xFB)),
                 Margin = new Thickness(0, 2, 0, 0)
             });
             System.Windows.Controls.Grid.SetColumn(left, 0);
             g.Children.Add(left);
 
-            // Quick action buttons in header
             var rightBtns = new StackPanel { Orientation = Orientation.Horizontal };
             rightBtns.Children.Add(MakeHeaderBtn("Create Folders", "CreateFolders"));
             rightBtns.Children.Add(MakeHeaderBtn("Import File", "ImportFile"));
@@ -258,15 +360,12 @@ namespace StingTools.UI
         {
             var btn = new Button
             {
-                Content = label,
-                Tag = tag,
+                Content = label, Tag = tag,
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(4, 0, 0, 0),
-                Background = BrAccent,
-                Foreground = Brushes.White,
+                Background = BrAccent, Foreground = Brushes.White,
                 FontSize = 10, FontWeight = FontWeights.SemiBold,
-                BorderThickness = new Thickness(0),
-                Cursor = Cursors.Hand
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand
             };
             btn.Click += HeaderBtn_Click;
             return btn;
@@ -288,16 +387,15 @@ namespace StingTools.UI
                     var dlg = new Microsoft.Win32.OpenFileDialog
                     {
                         Title = "Import file into STING project",
-                        Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg",
+                        Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg|BCF|*.bcfzip;*.bcf",
                         Multiselect = true
                     };
                     if (dlg.ShowDialog() == true)
                     {
-                        string targetFolder = "BRIEFCASE";
-                        // Attempt to auto-route by extension
                         foreach (string file in dlg.FileNames)
                         {
                             string ext = Path.GetExtension(file).ToUpperInvariant().TrimStart('.');
+                            string targetFolder = "BRIEFCASE";
                             if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
                                 targetFolder = fid;
                             ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
@@ -315,7 +413,7 @@ namespace StingTools.UI
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  TREE NAVIGATOR (Left Panel)
+        //  TREE NAVIGATOR (Enhanced: GAP NAV-01/02/03/04)
         // ══════════════════════════════════════════════════════════════════
 
         private static Border BuildTreePanel(Document doc)
@@ -324,23 +422,46 @@ namespace StingTools.UI
             {
                 Background = BrWhite,
                 BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 0, 1, 0),
-                Margin = new Thickness(0)
+                BorderThickness = new Thickness(0, 0, 1, 0)
             };
 
             var stack = new DockPanel { LastChildFill = true };
+
+            // Workflow buttons at top of tree (GAP WF-01)
+            var wfPanel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                Padding = new Thickness(6, 4, 6, 4),
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+            var wfStack = new StackPanel();
+            wfStack.Children.Add(new TextBlock
+            {
+                Text = "QUICK WORKFLOWS", FontSize = 9,
+                FontWeight = FontWeights.Bold, Foreground = BrGreen,
+                Margin = new Thickness(0, 0, 0, 3)
+            });
+            var wfWrap = new WrapPanel();
+            wfWrap.Children.Add(MakeWfBtn("Daily QA", "WorkflowPreset:DailyQA", BrGreen));
+            wfWrap.Children.Add(MakeWfBtn("Doc Package", "WorkflowPreset:DocumentPackage", BrTeal));
+            wfWrap.Children.Add(MakeWfBtn("Fix Compliance", "ResolveAllIssues", BrOrange));
+            wfWrap.Children.Add(MakeWfBtn("Full Setup", "WorkflowPreset:ProjectKickoff", BrPurple));
+            wfStack.Children.Add(wfWrap);
+            wfPanel.Child = wfStack;
+            DockPanel.SetDock(wfPanel, Dock.Top);
+            stack.Children.Add(wfPanel);
 
             // Tree header
             var treeHeader = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                Padding = new Thickness(10, 6, 10, 6)
+                Padding = new Thickness(10, 5, 10, 5)
             };
             treeHeader.Child = new TextBlock
             {
-                Text = "NAVIGATOR",
-                FontSize = 11, FontWeight = FontWeights.Bold,
-                Foreground = BrFgDark
+                Text = "NAVIGATOR", FontSize = 11,
+                FontWeight = FontWeights.Bold, Foreground = BrFgDark
             };
             DockPanel.SetDock(treeHeader, Dock.Top);
             stack.Children.Add(treeHeader);
@@ -348,12 +469,9 @@ namespace StingTools.UI
             _treeView = new TreeView
             {
                 BorderThickness = new Thickness(0),
-                Background = BrWhite,
-                Padding = new Thickness(4)
+                Background = BrWhite, Padding = new Thickness(4)
             };
-
             PopulateTree();
-
             _treeView.SelectedItemChanged += (s, e) =>
             {
                 if (_treeView.SelectedItem is TreeViewItem item && item.Tag is string filter)
@@ -363,83 +481,149 @@ namespace StingTools.UI
                     UpdateCounts();
                 }
             };
-
             stack.Children.Add(_treeView);
             border.Child = stack;
             return border;
+        }
+
+        private static Button MakeWfBtn(string label, string tag, SolidColorBrush fg)
+        {
+            var btn = new Button
+            {
+                Content = label, Tag = tag,
+                Padding = new Thickness(6, 2, 6, 2),
+                Margin = new Thickness(2), FontSize = 9,
+                Background = BrWhite, Foreground = fg,
+                BorderBrush = fg, BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand
+            };
+            btn.Click += (s, e) =>
+            {
+                string t = (s as Button)?.Tag?.ToString() ?? "";
+                if (t.StartsWith("WorkflowPreset:"))
+                {
+                    // Close dialog and dispatch workflow
+                    _selectedOperation = t.Replace("WorkflowPreset:", "WorkflowPreset_");
+                    var w = Window.GetWindow(s as DependencyObject);
+                    if (w != null) { w.DialogResult = true; w.Close(); }
+                }
+                else
+                {
+                    _selectedOperation = t;
+                    var w = Window.GetWindow(s as DependencyObject);
+                    if (w != null) { w.DialogResult = true; w.Close(); }
+                }
+            };
+            return btn;
         }
 
         private static void PopulateTree()
         {
             _treeView.Items.Clear();
 
-            // ── ALL DOCUMENTS ──
+            // ── ALL ──
             var allNode = MakeTreeItem("ALL DOCUMENTS", "ALL", true);
             _treeView.Items.Add(allNode);
+
+            // ── BY TIME (GAP NAV-02) ──
+            var timeNode = MakeTreeItem("BY DATE", "TIME_ROOT", false);
+            int today = _allItems.Count(i => IsToday(i.Date));
+            int thisWeek = _allItems.Count(i => IsThisWeek(i.Date));
+            int thisMonth = _allItems.Count(i => IsThisMonth(i.Date));
+            timeNode.Items.Add(MakeTreeItem($"Today ({today})", "TIME:TODAY", false));
+            timeNode.Items.Add(MakeTreeItem($"This Week ({thisWeek})", "TIME:WEEK", false));
+            timeNode.Items.Add(MakeTreeItem($"This Month ({thisMonth})", "TIME:MONTH", false));
+            timeNode.Items.Add(MakeTreeItem("Older", "TIME:OLDER", false));
+            _treeView.Items.Add(timeNode);
+
+            // ── BY DISCIPLINE (GAP NAV-01) ──
+            var discNode = MakeTreeItem("BY DISCIPLINE", "DISC_ROOT", false);
+            foreach (string disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "Z" })
+            {
+                int count = _allItems.Count(i => (i.Discipline ?? "").Equals(disc, StringComparison.OrdinalIgnoreCase));
+                if (count > 0)
+                    discNode.Items.Add(MakeTreeItem($"{disc} ({count})", $"DISC:{disc}", false));
+            }
+            if (discNode.Items.Count > 0) _treeView.Items.Add(discNode);
 
             // ── FOLDERS ──
             var foldersNode = MakeTreeItem("FOLDERS", "FOLDER_ROOT", false);
             var stats = ProjectFolderEngine.GetFolderStats(_doc);
             foreach (var fs in stats.Where(s => s.FileCount > 0 || s.Exists))
             {
-                string label = $"{fs.FolderName.Substring(3)} ({fs.FileCount})";
+                string label = $"{fs.FolderName.Substring(3)} ({fs.FileCount}) [{fs.TotalSizeDisplay}]";
                 foldersNode.Items.Add(MakeTreeItem(label, $"FOLDER:{fs.FolderId}", false));
             }
             if (foldersNode.Items.Count == 0)
-                foldersNode.Items.Add(MakeTreeItem("(no folders — click Create Folders)", "", false));
+                foldersNode.Items.Add(MakeTreeItem("(click Create Folders)", "", false));
             _treeView.Items.Add(foldersNode);
 
             // ── CDE STATUS ──
             var cdeNode = MakeTreeItem("CDE STATUS", "CDE_ROOT", false);
-            foreach (var cde in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
-                                         ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
+            foreach (var (code, label) in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
+                ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
             {
-                int count = _allItems.Count(i => i.CDE == cde.Item1);
-                cdeNode.Items.Add(MakeTreeItem($"{cde.Item1} — {cde.Item2} ({count})", $"CDE:{cde.Item1}", false));
+                int count = _allItems.Count(i => i.CDE == code);
+                cdeNode.Items.Add(MakeTreeItem($"{code} ({count})", $"CDE:{code}", false));
             }
             _treeView.Items.Add(cdeNode);
 
-            // ── DOCUMENT STATUS ──
-            var statusNode = MakeTreeItem("DOCUMENT STATUS", "STATUS_ROOT", false);
-            foreach (var kv in BIMManager.DocStatusCodes.All.Take(15))
+            // ── DOCUMENT STATUS (IFI, AFD, IFR, IFC, IFD etc.) ──
+            var statusNode = MakeTreeItem("DOC STATUS CODES", "STATUS_ROOT", false);
+            var usedStatuses = _allItems.Where(i => !string.IsNullOrEmpty(i.Status) && i.Category == "DOCUMENT")
+                .GroupBy(i => i.Status).OrderByDescending(g => g.Count());
+            foreach (var g in usedStatuses)
             {
-                int count = _allItems.Count(i => i.Status == kv.Key);
-                if (count > 0)
-                    statusNode.Items.Add(MakeTreeItem($"{kv.Key} — {kv.Value} ({count})", $"STATUS:{kv.Key}", false));
-            }
-            // Add IFI, AFD etc. explicitly
-            foreach (string code in new[] { "IFI", "AFD", "IFR", "IFC", "IFD", "IFT", "IFM", "IFA",
-                                             "IFB", "IFP", "IFQ", "IFO", "IFS", "IFW" })
-            {
-                int count = _allItems.Count(i => i.Status == code);
-                if (count > 0 || BIMManager.DocStatusCodes.All.ContainsKey(code))
-                {
-                    string desc = BIMManager.DocStatusCodes.All.TryGetValue(code, out string d) ? d : code;
-                    statusNode.Items.Add(MakeTreeItem($"{code} — {desc} ({count})", $"STATUS:{code}", false));
-                }
+                string desc = BIMManager.DocStatusCodes.All.TryGetValue(g.Key, out string d) ? d : g.Key;
+                statusNode.Items.Add(MakeTreeItem($"{g.Key} — {desc} ({g.Count()})", $"STATUS:{g.Key}", false));
             }
             _treeView.Items.Add(statusNode);
 
-            // ── ISSUES ──
+            // ── ISSUES (GAP NAV-03: with priority breakdown) ──
             var issuesNode = MakeTreeItem("ISSUES & RFIs", "CAT:ISSUE", false);
-            foreach (var kv in BIMManager.BIMManagerEngine.IssueTypes.Take(12))
+            // By priority first
+            var priNode = MakeTreeItem("By Priority", "ISSUE_PRI", false);
+            foreach (string pri in new[] { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" })
+            {
+                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == pri);
+                if (count > 0)
+                    priNode.Items.Add(MakeTreeItem($"{pri} ({count})", $"PRIORITY:{pri}", false));
+            }
+            issuesNode.Items.Add(priNode);
+            // By type
+            var typeNode = MakeTreeItem("By Type", "ISSUE_TYPE", false);
+            foreach (var kv in BIMManager.BIMManagerEngine.IssueTypes)
             {
                 int count = _allItems.Count(i => i.Category == "ISSUE" && i.Type == kv.Key);
-                issuesNode.Items.Add(MakeTreeItem($"{kv.Key} — {kv.Value} ({count})", $"ISSUE:{kv.Key}", false));
+                if (count > 0)
+                    typeNode.Items.Add(MakeTreeItem($"{kv.Key} ({count})", $"ISSUE:{kv.Key}", false));
             }
+            issuesNode.Items.Add(typeNode);
+            // By status
+            var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
+            foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "CLOSED" })
+            {
+                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Status == st);
+                if (count > 0)
+                    issStatNode.Items.Add(MakeTreeItem($"{st} ({count})", $"ISSUESTATUS:{st}", false));
+            }
+            issuesNode.Items.Add(issStatNode);
+            // Overdue (GAP NAV-02/03)
+            int overdue = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
+            if (overdue > 0)
+                issuesNode.Items.Add(MakeTreeItem($"OVERDUE ({overdue})", "OVERDUE", false));
             _treeView.Items.Add(issuesNode);
 
             // ── REVISIONS ──
             var revNode = MakeTreeItem("REVISIONS", "CAT:REVISION", false);
-            var revItems = _allItems.Where(i => i.Category == "REVISION").GroupBy(i => i.Revision ?? "?");
-            foreach (var g in revItems.OrderBy(x => x.Key))
+            var revGroups = _allItems.Where(i => i.Category == "REVISION").GroupBy(i => i.Revision ?? "?");
+            foreach (var g in revGroups.OrderBy(x => x.Key))
                 revNode.Items.Add(MakeTreeItem($"Rev {g.Key} ({g.Count()})", $"REV:{g.Key}", false));
             _treeView.Items.Add(revNode);
 
             // ── CLASHES ──
-            var clashNode = MakeTreeItem("CLASHES", "CAT:CLASH", false);
             int clashCount = _allItems.Count(i => i.Category == "CLASH");
-            clashNode.Items.Add(MakeTreeItem($"All Clashes ({clashCount})", "CAT:CLASH", false));
+            var clashNode = MakeTreeItem($"CLASHES ({clashCount})", "CAT:CLASH", false);
             clashNode.Items.Add(MakeTreeItem("BCF Files", "FOLDER:CLASHES", false));
             _treeView.Items.Add(clashNode);
 
@@ -452,51 +636,64 @@ namespace StingTools.UI
 
             // ── TRANSMITTALS ──
             var transNode = MakeTreeItem("TRANSMITTALS", "CAT:TRANSMITTAL", false);
-            transNode.Items.Add(MakeTreeItem("All Transmittals", "CAT:TRANSMITTAL", false));
-            transNode.Items.Add(MakeTreeItem("CDE Packages", "FOLDER:TRANSMITTALS", false));
             _treeView.Items.Add(transNode);
 
-            // ── COMPLIANCE ──
+            // ── COMPLIANCE (GAP NAV-04) ──
             var compNode = MakeTreeItem("COMPLIANCE", "CAT:COMPLIANCE", false);
-            compNode.Items.Add(MakeTreeItem("Validation Reports", "FOLDER:COMPLIANCE", false));
-            compNode.Items.Add(MakeTreeItem("Model Health", "CAT:MODELHEALTH", false));
+            if (_complianceResult != null)
+            {
+                compNode.Items.Add(MakeTreeItem(
+                    $"Overall: {_complianceResult.RAGStatus} {_complianceResult.CompliancePercent:F0}%",
+                    "CAT:COMPLIANCE", false));
+                if (_complianceResult.ByDisc != null)
+                {
+                    foreach (var kv in _complianceResult.ByDisc.OrderBy(x => x.Key))
+                    {
+                        string rag = kv.Value.CompliancePct >= 80 ? "G" : kv.Value.CompliancePct >= 50 ? "A" : "R";
+                        compNode.Items.Add(MakeTreeItem(
+                            $"{kv.Key}: {kv.Value.CompliancePct:F0}% [{rag}]",
+                            $"DISC:{kv.Key}", false));
+                    }
+                }
+            }
             _treeView.Items.Add(compNode);
 
             // ── BEP ──
-            var bepNode = MakeTreeItem("BEP", "FOLDER:BEP", false);
-            _treeView.Items.Add(bepNode);
+            _treeView.Items.Add(MakeTreeItem("BEP", "FOLDER:BEP", false));
 
-            // Expand first node
+            // ── STICKY NOTES (GAP DM-05) ──
+            int stickyCount = _allItems.Count(i => i.Category == "STICKY");
+            if (stickyCount > 0)
+                _treeView.Items.Add(MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false));
+
             allNode.IsExpanded = true;
             allNode.IsSelected = true;
         }
 
         private static TreeViewItem MakeTreeItem(string label, string filter, bool expanded)
         {
-            var item = new TreeViewItem
+            return new TreeViewItem
             {
-                Header = label,
-                Tag = filter,
+                Header = label, Tag = filter,
                 IsExpanded = expanded,
-                Padding = new Thickness(2, 3, 2, 3),
+                Padding = new Thickness(2, 2, 2, 2),
                 FontSize = 11
             };
-            return item;
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  DOCUMENT LIST PANEL (Right)
+        //  DOCUMENT LIST (Enhanced: GAP GRID-01/02/03)
         // ══════════════════════════════════════════════════════════════════
 
         private static DockPanel BuildDocumentPanel()
         {
             var panel = new DockPanel { LastChildFill = true, Background = BrWhite };
 
-            // ── Search bar ──
+            // Search bar
             var searchBar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xF8)),
-                Padding = new Thickness(8, 6, 8, 6),
+                Padding = new Thickness(8, 5, 8, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
             };
@@ -507,17 +704,15 @@ namespace StingTools.UI
 
             searchGrid.Children.Add(new TextBlock
             {
-                Text = "Search: ",
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11, Foreground = BrFgDark,
-                Margin = new Thickness(0, 0, 4, 0)
+                Text = "Search: ", VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11, Foreground = BrFgDark, Margin = new Thickness(0, 0, 4, 0)
             });
 
             var searchBox = new System.Windows.Controls.TextBox
             {
                 FontSize = 11, Padding = new Thickness(4, 3, 4, 3),
                 BorderBrush = BrBorder, BorderThickness = new Thickness(1),
-                ToolTip = "Search by name, ID, type, status..."
+                ToolTip = "Search by name, ID, type, status, assignee, priority..."
             };
             searchBox.TextChanged += (s, e) =>
             {
@@ -536,44 +731,41 @@ namespace StingTools.UI
             };
             System.Windows.Controls.Grid.SetColumn(_countText, 2);
             searchGrid.Children.Add(_countText);
-
             searchBar.Child = searchGrid;
             DockPanel.SetDock(searchBar, Dock.Top);
             panel.Children.Add(searchBar);
 
-            // ── Quick filter bar ──
+            // Quick filter buttons
             var filterBar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF4, 0xF8)),
-                Padding = new Thickness(8, 4, 8, 4),
+                Padding = new Thickness(8, 3, 8, 3),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
             };
             var filterWrap = new WrapPanel();
             foreach (var (label, filter, brush) in new (string, string, SolidColorBrush)[]
             {
-                ("All",          "ALL",           BrFgDark),
-                ("Documents",    "CAT:DOCUMENT",  BrAccent),
-                ("Issues",       "CAT:ISSUE",     BrOrange),
-                ("Revisions",    "CAT:REVISION",  BrPurple),
-                ("Clashes",      "CAT:CLASH",     BrRed),
-                ("Handover",     "CAT:HANDOVER",  BrTeal),
-                ("WIP",          "CDE:WIP",       BrFgSub),
-                ("Shared",       "CDE:SHARED",    BrGreen),
-                ("Published",    "CDE:PUBLISHED", BrGreen),
+                ("All",       "ALL",           BrFgDark),
+                ("Docs",      "CAT:DOCUMENT",  BrAccent),
+                ("Issues",    "CAT:ISSUE",     BrOrange),
+                ("Revisions", "CAT:REVISION",  BrPurple),
+                ("Clashes",   "CAT:CLASH",     BrRed),
+                ("Handover",  "CAT:HANDOVER",  BrTeal),
+                ("WIP",       "CDE:WIP",       BrFgSub),
+                ("Shared",    "CDE:SHARED",    BrGreen),
+                ("Published", "CDE:PUBLISHED", BrGreen),
+                ("Overdue",   "OVERDUE",       BrRed),
+                ("Critical",  "PRIORITY:CRITICAL", BrRed),
             })
             {
                 var btn = new Button
                 {
-                    Content = label,
-                    Tag = filter,
-                    Padding = new Thickness(8, 3, 8, 3),
-                    Margin = new Thickness(2),
-                    FontSize = 10,
-                    Background = Brushes.White,
-                    Foreground = brush,
-                    BorderBrush = brush,
-                    BorderThickness = new Thickness(1),
+                    Content = label, Tag = filter,
+                    Padding = new Thickness(7, 2, 7, 2),
+                    Margin = new Thickness(2), FontSize = 10,
+                    Background = Brushes.White, Foreground = brush,
+                    BorderBrush = brush, BorderThickness = new Thickness(1),
                     Cursor = Cursors.Hand
                 };
                 btn.Click += (s, e) =>
@@ -588,29 +780,32 @@ namespace StingTools.UI
             DockPanel.SetDock(filterBar, Dock.Top);
             panel.Children.Add(filterBar);
 
-            // ── ListView (main grid) ──
+            // ListView with enhanced columns
             _listView = new ListView
             {
                 BorderThickness = new Thickness(0),
                 FontSize = 11,
-                ItemsSource = _view
+                ItemsSource = _view,
+                SelectionMode = SelectionMode.Extended  // GAP OP-04: multi-select
             };
 
             var gridView = new GridView();
-            gridView.Columns.Add(MakeCol("Type", "Type", 45));
-            gridView.Columns.Add(MakeCol("ID / Name", "Title", 240));
-            gridView.Columns.Add(MakeCol("Status", "Status", 55));
-            gridView.Columns.Add(MakeCol("CDE", "CDE", 65));
-            gridView.Columns.Add(MakeCol("Rev", "Revision", 40));
-            gridView.Columns.Add(MakeCol("Disc", "Discipline", 35));
-            gridView.Columns.Add(MakeCol("Folder", "Folder", 110));
-            gridView.Columns.Add(MakeCol("Format", "FileFormat", 45));
-            gridView.Columns.Add(MakeCol("Size", "Size", 55));
-            gridView.Columns.Add(MakeCol("Date", "Date", 80));
-            gridView.Columns.Add(MakeCol("Priority", "Priority", 55));
-            gridView.Columns.Add(MakeCol("Assigned", "AssignedTo", 80));
+            gridView.Columns.Add(MakeCol("Type", "Type", 42));
+            gridView.Columns.Add(MakeCol("ID / Name", "Title", 210));
+            gridView.Columns.Add(MakeCol("Status", "Status", 52));
+            gridView.Columns.Add(MakeCol("CDE", "CDE", 62));
+            gridView.Columns.Add(MakeCol("Rev", "Revision", 36));
+            gridView.Columns.Add(MakeCol("Disc", "Discipline", 32));
+            gridView.Columns.Add(MakeCol("Folder", "Folder", 90));
+            gridView.Columns.Add(MakeCol("Fmt", "FileFormat", 35));
+            gridView.Columns.Add(MakeCol("Size", "Size", 50));
+            gridView.Columns.Add(MakeCol("Date", "Date", 78));
+            gridView.Columns.Add(MakeCol("Priority", "Priority", 52));
+            gridView.Columns.Add(MakeCol("Age", "Aging", 36));       // GAP GRID-02
+            gridView.Columns.Add(MakeCol("Elements", "ElementCount", 48));  // GAP GRID-01
+            gridView.Columns.Add(MakeCol("Assigned", "AssignedTo", 75));
+            gridView.Columns.Add(MakeCol("SLA", "SLADeadline", 70));  // GAP GRID-02
             _listView.View = gridView;
-
             _listView.MouseDoubleClick += ListView_DoubleClick;
 
             panel.Children.Add(_listView);
@@ -636,15 +831,13 @@ namespace StingTools.UI
                 {
                     if (File.Exists(item.FilePath))
                         Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
-                    else
-                        MessageBox.Show($"File not found:\n{item.FilePath}", "STING", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
-                catch (Exception ex) { StingLog.Warn($"DocMgr open file: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
             }
         }
 
         // ══════════════════════════════════════════════════════════════════
-        //  ACTION BAR (Bottom)
+        //  ACTION BAR (Enhanced: GAP OP-04 bulk ops, OP-06 publish)
         // ══════════════════════════════════════════════════════════════════
 
         private static Border BuildActionBar(Document doc, Window win)
@@ -652,180 +845,235 @@ namespace StingTools.UI
             var bar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                Padding = new Thickness(8, 6, 8, 6),
+                Padding = new Thickness(6, 4, 6, 4),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
             };
-
             var wrap = new WrapPanel();
 
             // ── File operations ──
-            wrap.Children.Add(MakeActionBtn("Open", "Open selected file in default application", BrAccent, (s, e) =>
-            {
-                if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
-                    Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
-            }));
+            wrap.Children.Add(MakeActBtn("Open", BrAccent, (s, e) => OpenSelected()));
+            wrap.Children.Add(MakeActBtn("Open Folder", BrAccent, (s, e) => OpenFolder(doc)));
+            wrap.Children.Add(MakeActBtn("Rename", BrFgDark, (s, e) => RenameSelected()));
+            wrap.Children.Add(MakeActBtn("Delete", BrRed, (s, e) => DeleteSelected()));
+            wrap.Children.Add(MakeActBtn("Move To...", BrPurple, (s, e) => MoveSelected(doc)));
 
-            wrap.Children.Add(MakeActionBtn("Open Folder", "Open containing folder in Explorer", BrAccent, (s, e) =>
-            {
-                if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
-                {
-                    string dir = Path.GetDirectoryName(item.FilePath);
-                    if (Directory.Exists(dir))
-                        Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
-                }
-                else
-                {
-                    string root = ProjectFolderEngine.GetRootPath(doc);
-                    if (Directory.Exists(root))
-                        Process.Start(new ProcessStartInfo("explorer.exe", root) { UseShellExecute = true });
-                }
-            }));
+            wrap.Children.Add(MakeSep());
 
-            wrap.Children.Add(MakeActionBtn("Rename", "Rename selected file", BrFgDark, (s, e) =>
-            {
-                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
-                string currentName = Path.GetFileName(item.FilePath);
-                string newName = PromptForText("Rename File", "Enter new filename:", currentName);
-                if (!string.IsNullOrEmpty(newName) && newName != currentName)
-                {
-                    if (ProjectFolderEngine.RenameFile(item.FilePath, newName))
-                    {
-                        item.Title = newName;
-                        RefreshData();
-                    }
-                }
-            }));
+            // ── Bulk operations (GAP OP-04) ──
+            wrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
+            wrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
+            wrap.Children.Add(MakeActBtn("Close Selected Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
+            wrap.Children.Add(MakeActBtn("Update CDE Status", BrTeal, (s, e) => BulkUpdateCDE(doc)));
 
-            wrap.Children.Add(MakeActionBtn("Delete", "Delete selected file", BrRed, (s, e) =>
-            {
-                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
-                var confirm = MessageBox.Show($"Delete file?\n\n{item.Title}\n\nThis cannot be undone.",
-                    "STING — Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (confirm == MessageBoxResult.Yes)
-                {
-                    ProjectFolderEngine.DeleteFile(item.FilePath);
-                    _allItems.Remove(item);
-                    UpdateCounts();
-                }
-            }));
+            wrap.Children.Add(MakeSep());
 
-            wrap.Children.Add(MakeActionBtn("Move To...", "Move file to different folder", BrPurple, (s, e) =>
-            {
-                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
-                var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name} — {f.Description}").ToList();
-                string pick = StingListPicker.Show("Move To Folder", "Select destination folder:", folders);
-                if (string.IsNullOrEmpty(pick)) return;
-                string folderId = pick.Split(':')[0].Trim();
-                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId))
-                    RefreshData();
-            }));
+            // ── Dispatch commands ──
+            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
+            wrap.Children.Add(MakeDispatchBtn("Add Doc", "AddDocument", BrGreen, win));
 
-            // Separator
-            wrap.Children.Add(new Border { Width = 2, Height = 24, Background = BrBorder, Margin = new Thickness(6, 0, 6, 0) });
+            wrap.Children.Add(MakeSep());
 
-            // ── Command operations ──
-            wrap.Children.Add(MakeActionBtn("Raise Issue", "Create new RFI/TQ/NCR/EWN", BrOrange, (s, e) =>
-            {
-                _selectedOperation = "RaiseIssue";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("COBie Export", "Export COBie V2.4 spreadsheet", BrTeal, (s, e) =>
-            {
-                _selectedOperation = "COBieExport";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Create Transmittal", "Generate ISO 19650 transmittal", BrGreen, (s, e) =>
-            {
-                _selectedOperation = "CreateTransmittal";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Tag Register", "Export tag register CSV", BrPurple, (s, e) =>
-            {
-                _selectedOperation = "TagRegisterExport";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Doc Register", "View document register", BrAccent, (s, e) =>
-            {
-                _selectedOperation = "DocumentRegister";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Add Document", "Register new document", BrGreen, (s, e) =>
-            {
-                _selectedOperation = "AddDocument";
-                win.DialogResult = true; win.Close();
-            }));
-
-            // Separator
-            wrap.Children.Add(new Border { Width = 2, Height = 24, Background = BrBorder, Margin = new Thickness(6, 0, 6, 0) });
-
-            // ── Handover & compliance ──
-            wrap.Children.Add(MakeActionBtn("FM Handover", "Generate FM handover manual", BrTeal, (s, e) =>
-            {
-                _selectedOperation = "HandoverManual";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Revision Dash", "Open revision dashboard", BrPurple, (s, e) =>
-            {
-                _selectedOperation = "RevisionDashboard";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Issue Dash", "Open issue dashboard", BrOrange, (s, e) =>
-            {
-                _selectedOperation = "IssueDashboard";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Clash Report", "Run clash detection", BrRed, (s, e) =>
-            {
-                _selectedOperation = "ClashDetection";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Validate Naming", "Check ISO 19650 naming", BrFgDark, (s, e) =>
-            {
-                _selectedOperation = "ValidateDocNaming";
-                win.DialogResult = true; win.Close();
-            }));
-
-            wrap.Children.Add(MakeActionBtn("Model Health", "Run model health dashboard", BrGreen, (s, e) =>
-            {
-                _selectedOperation = "ModelHealthDashboard";
-                win.DialogResult = true; win.Close();
-            }));
+            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Dash", "IssueDashboard", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Clashes", "ClashDetection", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win)); // GAP OP-06
 
             bar.Child = wrap;
             return bar;
         }
 
-        private static Button MakeActionBtn(string label, string tooltip, SolidColorBrush fg, RoutedEventHandler handler)
+        private static Button MakeActBtn(string label, SolidColorBrush fg, RoutedEventHandler handler)
         {
             var btn = new Button
             {
-                Content = label,
-                ToolTip = tooltip,
-                Padding = new Thickness(8, 4, 8, 4),
-                Margin = new Thickness(2),
-                FontSize = 10, FontWeight = FontWeights.SemiBold,
-                Background = Brushes.White,
-                Foreground = fg,
-                BorderBrush = fg,
-                BorderThickness = new Thickness(1),
-                Cursor = Cursors.Hand
+                Content = label, Padding = new Thickness(7, 3, 7, 3),
+                Margin = new Thickness(2), FontSize = 10, FontWeight = FontWeights.SemiBold,
+                Background = Brushes.White, Foreground = fg,
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
             };
             btn.Click += handler;
             return btn;
         }
 
+        private static Button MakeDispatchBtn(string label, string op, SolidColorBrush fg, Window win)
+        {
+            var btn = new Button
+            {
+                Content = label, Padding = new Thickness(7, 3, 7, 3),
+                Margin = new Thickness(2), FontSize = 10,
+                Background = Brushes.White, Foreground = fg,
+                BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+            };
+            btn.Click += (s, e) => { _selectedOperation = op; win.DialogResult = true; win.Close(); };
+            return btn;
+        }
+
+        private static Border MakeSep()
+        {
+            return new Border { Width = 2, Height = 22, Background = BrBorder, Margin = new Thickness(4, 0, 4, 0) };
+        }
+
+        // ── File operation implementations ──
+
+        private static void OpenSelected()
+        {
+            if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
+                Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+        }
+
+        private static void OpenFolder(Document doc)
+        {
+            string dir = null;
+            if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                dir = Path.GetDirectoryName(item.FilePath);
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                dir = ProjectFolderEngine.GetRootPath(doc);
+            if (Directory.Exists(dir))
+                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+        }
+
+        private static void RenameSelected()
+        {
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            string currentName = Path.GetFileName(item.FilePath);
+            string newName = PromptForText("Rename File", "Enter new filename:", currentName);
+            if (!string.IsNullOrEmpty(newName) && newName != currentName)
+            {
+                if (ProjectFolderEngine.RenameFile(item.FilePath, newName))
+                    RefreshData();
+            }
+        }
+
+        private static void DeleteSelected()
+        {
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                ProjectFolderEngine.DeleteFile(item.FilePath);
+                _allItems.Remove(item);
+                UpdateCounts();
+            }
+        }
+
+        private static void MoveSelected(Document doc)
+        {
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name} — {f.Description}").ToList();
+            string pick = StingListPicker.Show("Move To Folder", "Select destination:", folders);
+            if (string.IsNullOrEmpty(pick)) return;
+            string folderId = pick.Split(':')[0].Trim();
+            if (ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId))
+                RefreshData();
+        }
+
+        // ── Bulk operations (GAP OP-04) ──
+
+        private static void BulkMove(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => !string.IsNullOrEmpty(i.FilePath)).ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select files to move."); return; }
+            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            string pick = StingListPicker.Show("Bulk Move", $"Move {selected.Count} files to:", folders);
+            if (string.IsNullOrEmpty(pick)) return;
+            string folderId = pick.Split(':')[0].Trim();
+            int moved = 0;
+            foreach (var item in selected)
+            {
+                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId)) moved++;
+            }
+            MessageBox.Show($"Moved {moved} of {selected.Count} files.");
+            RefreshData();
+        }
+
+        private static void BulkDelete()
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => !string.IsNullOrEmpty(i.FilePath)).ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select files to delete."); return; }
+            if (MessageBox.Show($"Delete {selected.Count} files?\n\nThis cannot be undone.",
+                "Bulk Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            int deleted = 0;
+            foreach (var item in selected)
+            {
+                if (ProjectFolderEngine.DeleteFile(item.FilePath)) { _allItems.Remove(item); deleted++; }
+            }
+            MessageBox.Show($"Deleted {deleted} files.");
+            UpdateCounts();
+        }
+
+        private static void BulkCloseIssues(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "ISSUE" && i.Status != "CLOSED").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select open issues to close."); return; }
+            if (MessageBox.Show($"Close {selected.Count} issues?",
+                "Bulk Close", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+
+            // Update issues.json
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string path = Path.Combine(bimDir, "issues.json");
+                if (File.Exists(path))
+                {
+                    var arr = JArray.Parse(File.ReadAllText(path));
+                    int closed = 0;
+                    foreach (var item in selected)
+                    {
+                        var issue = arr.FirstOrDefault(i => i["issue_id"]?.ToString() == item.Id);
+                        if (issue != null)
+                        {
+                            issue["status"] = "CLOSED";
+                            issue["closed_date"] = DateTime.Now.ToString("yyyy-MM-dd");
+                            issue["status_history"] = (issue["status_history"]?.ToString() ?? "")
+                                + $"|{DateTime.Now:yyyy-MM-dd HH:mm} CLOSED (bulk)";
+                            closed++;
+                        }
+                    }
+                    File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    MessageBox.Show($"Closed {closed} issues.");
+                    RefreshData();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BulkClose: {ex.Message}"); }
+        }
+
+        private static void BulkUpdateCDE(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => !string.IsNullOrEmpty(i.FilePath) && i.Category == "DOCUMENT").ToList();
+            if (selected == null || selected.Count == 0) { MessageBox.Show("Select documents to update."); return; }
+            var cdeOptions = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            string newCDE = StingListPicker.Show("Update CDE Status", $"Set CDE status for {selected.Count} docs:", cdeOptions);
+            if (string.IsNullOrEmpty(newCDE)) return;
+
+            // Move files to corresponding CDE folder
+            string targetFolder = newCDE.ToUpperInvariant() switch
+            {
+                "WIP" => "WIP", "SHARED" => "SHARED",
+                "PUBLISHED" => "PUBLISHED", "ARCHIVE" => "ARCHIVE",
+                _ => "WIP"
+            };
+            int moved = 0;
+            foreach (var item in selected)
+            {
+                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, targetFolder)) moved++;
+            }
+            MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}.");
+            RefreshData();
+        }
+
         // ══════════════════════════════════════════════════════════════════
-        //  FOOTER / STATUS BAR
+        //  FOOTER
         // ══════════════════════════════════════════════════════════════════
 
         private static Border BuildFooter(Window win, DocumentManagementResult result)
@@ -833,7 +1081,7 @@ namespace StingTools.UI
             var footer = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xE8)),
-                Padding = new Thickness(12, 6, 12, 6),
+                Padding = new Thickness(12, 5, 12, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
             };
@@ -850,57 +1098,52 @@ namespace StingTools.UI
             System.Windows.Controls.Grid.SetColumn(_statusText, 0);
             grid.Children.Add(_statusText);
 
-            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal };
             var btnClose = new Button
             {
-                Content = "Close", Width = 80, Height = 28,
+                Content = "Close", Width = 80, Height = 26,
                 Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)),
                 Foreground = BrFgDark, BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand, FontSize = 11
             };
             btnClose.Click += (s, e) => { result.Confirmed = false; win.DialogResult = false; win.Close(); };
-            btnPanel.Children.Add(btnClose);
-
-            System.Windows.Controls.Grid.SetColumn(btnPanel, 1);
-            grid.Children.Add(btnPanel);
+            System.Windows.Controls.Grid.SetColumn(btnClose, 1);
+            grid.Children.Add(btnClose);
 
             footer.Child = grid;
-
-            // Update status text
-            string root = ProjectFolderEngine.RootPath ?? "(not set)";
-            _statusText.Text = $"Root: {root}  |  {_allItems.Count} items loaded";
-
+            UpdateStatusText();
             return footer;
         }
 
+        private static void UpdateStatusText()
+        {
+            if (_statusText == null) return;
+            string root = ProjectFolderEngine.RootPath ?? "(not set)";
+            int docs = _allItems.Count(i => i.Category == "DOCUMENT");
+            int issues = _allItems.Count(i => i.Category == "ISSUE");
+            int open = _allItems.Count(i => i.Category == "ISSUE" && i.Status == "OPEN");
+            int overdue = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
+            int revs = _allItems.Count(i => i.Category == "REVISION");
+            int clashes = _allItems.Count(i => i.Category == "CLASH");
+            string overdueStr = overdue > 0 ? $"  OVERDUE: {overdue}" : "";
+            _statusText.Text = $"Root: {root}  |  {docs} docs  {issues} issues (open: {open}){overdueStr}  {revs} revisions  {clashes} clashes  |  Total: {_allItems.Count}";
+        }
+
         // ══════════════════════════════════════════════════════════════════
-        //  DATA LOADING
+        //  DATA LOADING (Enhanced: aging, SLA, sticky notes, model health)
         // ══════════════════════════════════════════════════════════════════
 
         private static void LoadAllData(Document doc)
         {
             _allItems.Clear();
-
-            // 1. Load files from project folder structure
             LoadProjectFiles(doc);
-
-            // 2. Load document register entries
             LoadDocumentRegister(doc);
-
-            // 3. Load issues
-            LoadIssues(doc);
-
-            // 4. Load revisions from Revit model
+            LoadIssues(doc);          // Enhanced with aging/SLA
             LoadRevisions(doc);
-
-            // 5. Load clash data
             LoadClashData(doc);
-
-            // 6. Load transmittals
             LoadTransmittals(doc);
-
-            // 7. Load compliance/model health
             LoadComplianceData(doc);
+            LoadStickyNotes(doc);     // GAP DM-05
+            LoadModelHealthTrend(doc); // GAP DM-06
         }
 
         private static void LoadProjectFiles(Document doc)
@@ -914,22 +1157,17 @@ namespace StingTools.UI
                     {
                         Id = Path.GetFileNameWithoutExtension(f.FileName),
                         Title = f.FileName,
-                        Type = f.Extension,
-                        TypeDesc = f.Extension,
-                        Status = "",
+                        Type = f.Extension, TypeDesc = f.Extension,
                         CDE = f.CDEStatus,
-                        Folder = f.FolderName,
-                        FolderId = f.FolderId,
-                        FilePath = f.FilePath,
-                        FileFormat = f.Extension,
+                        Folder = f.FolderName, FolderId = f.FolderId,
+                        FilePath = f.FilePath, FileFormat = f.Extension,
                         Size = f.SizeDisplay,
                         Date = f.Modified.ToString("yyyy-MM-dd HH:mm"),
-                        Category = "DOCUMENT",
-                        Direction = "OUT"
+                        Category = "DOCUMENT", Direction = "OUT"
                     });
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadProjectFiles: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadFiles: {ex.Message}"); }
         }
 
         private static void LoadDocumentRegister(Document doc)
@@ -944,7 +1182,6 @@ namespace StingTools.UI
                 foreach (JToken d in arr)
                 {
                     string docId = d["doc_id"]?.ToString() ?? "";
-                    // Skip if already loaded as a project file
                     if (_allItems.Any(i => i.Id == docId)) continue;
 
                     string statusCode = d["status_code"]?.ToString() ?? "";
@@ -954,24 +1191,22 @@ namespace StingTools.UI
 
                     _allItems.Add(new DocItemVM
                     {
-                        Id = docId,
-                        Title = d["title"]?.ToString() ?? docId,
-                        Type = docType,
-                        TypeDesc = typeDesc,
-                        Status = statusCode,
-                        StatusDesc = statusDesc,
+                        Id = docId, Title = d["title"]?.ToString() ?? docId,
+                        Type = docType, TypeDesc = typeDesc,
+                        Status = statusCode, StatusDesc = statusDesc,
                         CDE = d["cde_status"]?.ToString() ?? "WIP",
                         Revision = d["revision"]?.ToString() ?? "",
                         Date = d["date"]?.ToString() ?? "",
                         Direction = d["direction"]?.ToString() ?? "OUT",
                         FilePath = d["file_path"]?.ToString() ?? "",
                         FileFormat = d["file_format"]?.ToString() ?? "",
-                        Category = "DOCUMENT",
-                        Folder = "15_REGISTERS"
+                        Suitability = d["suitability"]?.ToString() ?? "",
+                        CreatedBy = d["created_by"]?.ToString() ?? "",
+                        Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDocRegister: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDocReg: {ex.Message}"); }
         }
 
         private static void LoadIssues(Document doc)
@@ -989,23 +1224,56 @@ namespace StingTools.UI
                     string typeDesc = BIMManager.BIMManagerEngine.IssueTypes.TryGetValue(issueType, out string td) ? td : issueType;
                     string status = issue["status"]?.ToString() ?? "OPEN";
                     string statusDesc = BIMManager.BIMManagerEngine.IssueStatuses.TryGetValue(status, out string sd) ? sd : status;
+                    string dateStr = issue["date"]?.ToString() ?? "";
+                    string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+
+                    // GAP GRID-02: Compute issue aging & SLA
+                    int daysOpen = 0;
+                    string aging = "";
+                    bool isOverdue = false;
+                    string slaDeadline = "";
+                    if (DateTime.TryParse(dateStr, out DateTime issueDate) && status != "CLOSED" && status != "VOID")
+                    {
+                        daysOpen = (int)(DateTime.Now - issueDate).TotalDays;
+                        aging = daysOpen < 7 ? $"{daysOpen}d" : daysOpen < 30 ? $"{daysOpen / 7}w" : $"{daysOpen / 30}m";
+
+                        // SLA: CRITICAL=2d, HIGH=5d, MEDIUM=14d, LOW=30d
+                        int slaDays = priority switch
+                        {
+                            "CRITICAL" => 2, "HIGH" => 5, "MEDIUM" => 14, "LOW" => 30, _ => 30
+                        };
+                        DateTime deadline = issueDate.AddDays(slaDays);
+                        slaDeadline = deadline.ToString("yyyy-MM-dd");
+                        isOverdue = DateTime.Now > deadline;
+                    }
+
+                    // GAP GRID-01: Element count from linked elements
+                    int elementCount = 0;
+                    if (issue["linked_elements"] is JArray elems) elementCount = elems.Count;
+
+                    // GAP PERSIST-02: Status history
+                    string statusHistory = issue["status_history"]?.ToString() ?? "";
+
+                    // GAP CROSS-01: Linked revision
+                    string linkedRev = issue["revision"]?.ToString() ?? "";
 
                     _allItems.Add(new DocItemVM
                     {
                         Id = issue["issue_id"]?.ToString() ?? "",
-                        Title = issue["title"]?.ToString() ?? "(untitled issue)",
-                        Type = issueType,
-                        TypeDesc = typeDesc,
-                        Status = status,
-                        StatusDesc = statusDesc,
-                        CDE = "",
-                        Revision = issue["revision"]?.ToString() ?? "",
-                        Date = issue["date"]?.ToString() ?? "",
-                        Priority = issue["priority"]?.ToString() ?? "MEDIUM",
+                        Title = issue["title"]?.ToString() ?? "(untitled)",
+                        Type = issueType, TypeDesc = typeDesc,
+                        Status = status, StatusDesc = statusDesc,
+                        Revision = linkedRev,
+                        Date = dateStr,
+                        Priority = priority,
                         AssignedTo = issue["assigned_to"]?.ToString() ?? "",
                         Discipline = issue["discipline"]?.ToString() ?? "",
-                        Category = "ISSUE",
-                        Folder = "11_ISSUES"
+                        Category = "ISSUE", Folder = "11_ISSUES",
+                        DaysOpen = daysOpen, Aging = aging,
+                        IsOverdue = isOverdue, SLADeadline = slaDeadline,
+                        ElementCount = elementCount,
+                        StatusHistory = statusHistory,
+                        LinkedRevision = linkedRev
                     });
                 }
             }
@@ -1035,19 +1303,28 @@ namespace StingTools.UI
                     string issuedTo = "";
                     try { issuedTo = rev.IssuedTo; } catch { }
 
+                    // GAP GRID-07: Count revision clouds
+                    int cloudCount = 0;
+                    try
+                    {
+                        cloudCount = new FilteredElementCollector(doc)
+                            .OfClass(typeof(RevisionCloud))
+                            .Cast<RevisionCloud>()
+                            .Count(c => c.RevisionId == rev.Id);
+                    }
+                    catch { }
+
                     _allItems.Add(new DocItemVM
                     {
                         Id = $"REV-{rev.SequenceNumber:D3}",
                         Title = $"Rev {revNum}: {desc}",
-                        Type = "REV",
-                        TypeDesc = "Revision",
+                        Type = "REV", TypeDesc = "Revision",
                         Status = rev.Issued ? "ISSUED" : "DRAFT",
                         CDE = rev.Issued ? "PUBLISHED" : "WIP",
-                        Revision = revNum,
-                        Date = date,
+                        Revision = revNum, Date = date,
                         AssignedTo = $"{issuedBy} -> {issuedTo}",
-                        Category = "REVISION",
-                        Folder = "14_REVISIONS"
+                        ElementCount = cloudCount, // GAP GRID-07: cloud count
+                        Category = "REVISION", Folder = "14_REVISIONS"
                     });
                 }
             }
@@ -1058,33 +1335,29 @@ namespace StingTools.UI
         {
             try
             {
-                // Load BCF files from clash folder
                 string clashDir = ProjectFolderEngine.GetFolderPath(doc, "CLASHES");
-                if (!Directory.Exists(clashDir)) return;
-
-                foreach (string file in Directory.GetFiles(clashDir, "*.*", SearchOption.AllDirectories))
+                if (Directory.Exists(clashDir))
                 {
-                    var fi = new FileInfo(file);
-                    if (fi.Name.StartsWith(".")) continue;
-
-                    _allItems.Add(new DocItemVM
+                    foreach (string file in Directory.GetFiles(clashDir, "*.*", SearchOption.AllDirectories))
                     {
-                        Id = Path.GetFileNameWithoutExtension(fi.Name),
-                        Title = fi.Name,
-                        Type = fi.Extension.TrimStart('.').ToUpperInvariant(),
-                        TypeDesc = "Clash Report",
-                        Status = "ACTIVE",
-                        CDE = "",
-                        Date = fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"),
-                        FilePath = fi.FullName,
-                        FileFormat = fi.Extension.TrimStart('.').ToUpperInvariant(),
-                        Size = FormatSize(fi.Length),
-                        Category = "CLASH",
-                        Folder = "12_CLASHES"
-                    });
+                        var fi = new FileInfo(file);
+                        if (fi.Name.StartsWith(".")) continue;
+                        _allItems.Add(new DocItemVM
+                        {
+                            Id = Path.GetFileNameWithoutExtension(fi.Name),
+                            Title = fi.Name,
+                            Type = fi.Extension.TrimStart('.').ToUpperInvariant(),
+                            TypeDesc = "Clash Report",
+                            Status = "ACTIVE", Date = fi.LastWriteTime.ToString("yyyy-MM-dd HH:mm"),
+                            FilePath = fi.FullName,
+                            FileFormat = fi.Extension.TrimStart('.').ToUpperInvariant(),
+                            Size = FormatSize(fi.Length),
+                            Category = "CLASH", Folder = "12_CLASHES"
+                        });
+                    }
                 }
 
-                // Load clash entries from issues.json (CLASH type)
+                // Also load CLASH-type issues
                 string bimDir = GetBimManagerDir(doc);
                 string issuePath = Path.Combine(bimDir, "issues.json");
                 if (File.Exists(issuePath))
@@ -1097,18 +1370,16 @@ namespace StingTools.UI
                         {
                             Id = issue["issue_id"]?.ToString() ?? "",
                             Title = issue["title"]?.ToString() ?? "(clash)",
-                            Type = "CLASH",
-                            TypeDesc = "Coordination Clash",
+                            Type = "CLASH", TypeDesc = "Coordination Clash",
                             Status = issue["status"]?.ToString() ?? "OPEN",
                             Priority = issue["priority"]?.ToString() ?? "HIGH",
                             Date = issue["date"]?.ToString() ?? "",
-                            Category = "CLASH",
-                            Folder = "12_CLASHES"
+                            Category = "CLASH", Folder = "12_CLASHES"
                         });
                     }
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadClashData: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadClash: {ex.Message}"); }
         }
 
         private static void LoadTransmittals(Document doc)
@@ -1122,47 +1393,43 @@ namespace StingTools.UI
                 var arr = JArray.Parse(File.ReadAllText(transPath));
                 foreach (JToken t in arr)
                 {
+                    // GAP GRID-04: transmittal contents count
+                    int docCount = 0;
+                    if (t["documents"] is JArray docs) docCount = docs.Count;
+
                     _allItems.Add(new DocItemVM
                     {
                         Id = t["transmittal_id"]?.ToString() ?? "",
                         Title = t["title"]?.ToString() ?? t["transmittal_id"]?.ToString() ?? "",
-                        Type = "TR",
-                        TypeDesc = "Transmittal",
+                        Type = "TR", TypeDesc = "Transmittal",
                         Status = t["status"]?.ToString() ?? "SENT",
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = t["date"]?.ToString() ?? "",
                         AssignedTo = t["recipient"]?.ToString() ?? "",
-                        Category = "TRANSMITTAL",
-                        Folder = "10_TRANSMITTALS"
+                        ElementCount = docCount, // GAP GRID-04: doc count
+                        Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
                     });
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadTransmittals: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadTrans: {ex.Message}"); }
         }
 
         private static void LoadComplianceData(Document doc)
         {
-            if (doc == null) return;
+            if (doc == null || _complianceResult == null) return;
             try
             {
-                var scan = ComplianceScan.Scan(doc);
-                if (scan == null) return;
-
+                var scan = _complianceResult;
                 _allItems.Add(new DocItemVM
                 {
                     Id = "COMPLIANCE-LIVE",
-                    Title = $"Live Compliance: {scan.CompliancePercent:F0}% ({scan.RAGStatus})",
-                    Type = "RPT",
-                    TypeDesc = "Compliance Report",
-                    Status = scan.RAGStatus,
-                    CDE = "",
-                    Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    Category = "COMPLIANCE",
-                    Folder = "16_COMPLIANCE"
+                    Title = $"Live: {scan.CompliancePercent:F0}% ({scan.RAGStatus}) Strict: {scan.StrictPercent:F0}%",
+                    Type = "RPT", TypeDesc = "Compliance Report",
+                    Status = scan.RAGStatus, Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    Category = "COMPLIANCE", Folder = "16_COMPLIANCE"
                 });
 
-                // Per-discipline breakdown
                 if (scan.ByDisc != null)
                 {
                     foreach (var kv in scan.ByDisc.OrderBy(x => x.Key))
@@ -1170,14 +1437,11 @@ namespace StingTools.UI
                         _allItems.Add(new DocItemVM
                         {
                             Id = $"COMP-{kv.Key}",
-                            Title = $"{kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Tagged}/{kv.Value.Total})",
-                            Type = "RPT",
-                            TypeDesc = "Discipline Compliance",
+                            Title = $"{kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Tagged}/{kv.Value.Total}) Missing: LOC={kv.Value.MissingLoc} SYS={kv.Value.MissingSys} PROD={kv.Value.MissingProd}",
+                            Type = "RPT", TypeDesc = "Discipline Compliance",
                             Status = kv.Value.CompliancePct >= 80 ? "GREEN" : kv.Value.CompliancePct >= 50 ? "AMBER" : "RED",
-                            Discipline = kv.Key,
-                            Date = DateTime.Now.ToString("yyyy-MM-dd"),
-                            Category = "COMPLIANCE",
-                            Folder = "16_COMPLIANCE"
+                            Discipline = kv.Key, Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                            Category = "COMPLIANCE", Folder = "16_COMPLIANCE"
                         });
                     }
                 }
@@ -1185,8 +1449,63 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadCompliance: {ex.Message}"); }
         }
 
+        // GAP DM-05: Load sticky notes
+        private static void LoadStickyNotes(Document doc)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                if (!File.Exists(stickyPath)) return;
+
+                var arr = JArray.Parse(File.ReadAllText(stickyPath));
+                foreach (JToken note in arr)
+                {
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = note["note_id"]?.ToString() ?? "",
+                        Title = note["text"]?.ToString() ?? "(note)",
+                        Type = "NOTE", TypeDesc = "Sticky Note",
+                        Status = note["category"]?.ToString() ?? "GENERAL",
+                        Date = note["date"]?.ToString() ?? "",
+                        Category = "STICKY", Folder = "20_MISC"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadSticky: {ex.Message}"); }
+        }
+
+        // GAP DM-06: Load model health trend
+        private static void LoadModelHealthTrend(Document doc)
+        {
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string healthPath = Path.Combine(bimDir, "model_health.json");
+                if (!File.Exists(healthPath)) return;
+
+                var obj = JObject.Parse(File.ReadAllText(healthPath));
+                if (obj["trend"] is JArray trend)
+                {
+                    foreach (JToken entry in trend.Reverse().Take(5)) // Last 5 entries
+                    {
+                        _allItems.Add(new DocItemVM
+                        {
+                            Id = $"HEALTH-{entry["date"]}",
+                            Title = $"Health: {entry["score"]}% ({entry["status"]})",
+                            Type = "RPT", TypeDesc = "Model Health",
+                            Status = entry["status"]?.ToString() ?? "",
+                            Date = entry["date"]?.ToString() ?? "",
+                            Category = "COMPLIANCE", Folder = "16_COMPLIANCE"
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadHealth: {ex.Message}"); }
+        }
+
         // ══════════════════════════════════════════════════════════════════
-        //  FILTERING
+        //  FILTERING (Enhanced with time/discipline/priority/overdue)
         // ══════════════════════════════════════════════════════════════════
 
         private static bool FilterItem(object obj)
@@ -1196,53 +1515,45 @@ namespace StingTools.UI
             // Text search
             if (!string.IsNullOrEmpty(_searchText))
             {
-                string search = _searchText;
-                bool match = (item.Title ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Id ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Type ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.TypeDesc ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Status ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.StatusDesc ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Folder ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.AssignedTo ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Priority ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
-                    || (item.Discipline ?? "").IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+                string s = _searchText;
+                bool match = Contains(item.Title, s) || Contains(item.Id, s)
+                    || Contains(item.Type, s) || Contains(item.TypeDesc, s)
+                    || Contains(item.Status, s) || Contains(item.StatusDesc, s)
+                    || Contains(item.Folder, s) || Contains(item.AssignedTo, s)
+                    || Contains(item.Priority, s) || Contains(item.Discipline, s)
+                    || Contains(item.Revision, s) || Contains(item.SLADeadline, s);
                 if (!match) return false;
             }
 
-            // Tree / button filter
             if (_currentFilter == "ALL") return true;
 
             if (_currentFilter.StartsWith("CAT:"))
-            {
-                string cat = _currentFilter.Substring(4);
-                return (item.Category ?? "").Equals(cat, StringComparison.OrdinalIgnoreCase);
-            }
+                return Eq(item.Category, _currentFilter.Substring(4));
             if (_currentFilter.StartsWith("CDE:"))
-            {
-                string cde = _currentFilter.Substring(4);
-                return (item.CDE ?? "").Equals(cde, StringComparison.OrdinalIgnoreCase);
-            }
+                return Eq(item.CDE, _currentFilter.Substring(4));
             if (_currentFilter.StartsWith("STATUS:"))
-            {
-                string status = _currentFilter.Substring(7);
-                return (item.Status ?? "").Equals(status, StringComparison.OrdinalIgnoreCase);
-            }
+                return Eq(item.Status, _currentFilter.Substring(7));
             if (_currentFilter.StartsWith("FOLDER:"))
-            {
-                string folderId = _currentFilter.Substring(7);
-                return (item.FolderId ?? "").Equals(folderId, StringComparison.OrdinalIgnoreCase);
-            }
+                return Eq(item.FolderId, _currentFilter.Substring(7));
             if (_currentFilter.StartsWith("ISSUE:"))
-            {
-                string issueType = _currentFilter.Substring(6);
-                return item.Category == "ISSUE" && (item.Type ?? "").Equals(issueType, StringComparison.OrdinalIgnoreCase);
-            }
+                return item.Category == "ISSUE" && Eq(item.Type, _currentFilter.Substring(6));
             if (_currentFilter.StartsWith("REV:"))
-            {
-                string rev = _currentFilter.Substring(4);
-                return item.Category == "REVISION" && (item.Revision ?? "").Equals(rev, StringComparison.OrdinalIgnoreCase);
-            }
+                return item.Category == "REVISION" && Eq(item.Revision, _currentFilter.Substring(4));
+            if (_currentFilter.StartsWith("DISC:"))
+                return Eq(item.Discipline, _currentFilter.Substring(5));
+            if (_currentFilter.StartsWith("PRIORITY:"))
+                return item.Category == "ISSUE" && Eq(item.Priority, _currentFilter.Substring(9));
+            if (_currentFilter.StartsWith("ISSUESTATUS:"))
+                return item.Category == "ISSUE" && Eq(item.Status, _currentFilter.Substring(12));
+            if (_currentFilter == "OVERDUE")
+                return item.IsOverdue;
+
+            // Time-based filters (GAP NAV-02)
+            if (_currentFilter == "TIME:TODAY") return IsToday(item.Date);
+            if (_currentFilter == "TIME:WEEK") return IsThisWeek(item.Date);
+            if (_currentFilter == "TIME:MONTH") return IsThisMonth(item.Date);
+            if (_currentFilter == "TIME:OLDER")
+                return !string.IsNullOrEmpty(item.Date) && !IsThisMonth(item.Date);
 
             return true;
         }
@@ -1254,29 +1565,25 @@ namespace StingTools.UI
         private static void RefreshData()
         {
             if (_doc == null) return;
+            try { _complianceResult = ComplianceScan.Scan(_doc); }
+            catch (Exception ex) { StingLog.Warn($"DocMgr refresh scan: {ex.Message}"); }
             _allItems.Clear();
             LoadAllData(_doc);
             _view = (ListCollectionView)CollectionViewSource.GetDefaultView(_allItems);
             _view.Filter = FilterItem;
             if (_listView != null) _listView.ItemsSource = _view;
             PopulateTree();
+            RefreshDashboard(_doc);
             UpdateCounts();
+            UpdateStatusText();
         }
 
         private static void UpdateCounts()
         {
             int total = _allItems.Count;
             int visible = _view?.Cast<object>().Count() ?? 0;
-            int docs = _allItems.Count(i => i.Category == "DOCUMENT");
-            int issues = _allItems.Count(i => i.Category == "ISSUE");
-            int revs = _allItems.Count(i => i.Category == "REVISION");
-            int clashes = _allItems.Count(i => i.Category == "CLASH");
-
-            if (_countText != null)
-                _countText.Text = $"{visible} of {total}";
-            if (_statusText != null)
-                _statusText.Text = $"Root: {ProjectFolderEngine.RootPath ?? "(not set)"}  |  " +
-                    $"{docs} docs  {issues} issues  {revs} revisions  {clashes} clashes  |  Total: {total}";
+            if (_countText != null) _countText.Text = $"{visible} of {total}";
+            UpdateStatusText();
         }
 
         private static string GetBimManagerDir(Document doc)
@@ -1288,7 +1595,7 @@ namespace StingTools.UI
             if (!Directory.Exists(bimDir))
             {
                 try { Directory.CreateDirectory(bimDir); }
-                catch (Exception ex) { StingLog.Warn($"DocMgr: Cannot create BIM_MANAGER dir: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"DocMgr dir: {ex.Message}"); }
             }
             return bimDir;
         }
@@ -1301,12 +1608,39 @@ namespace StingTools.UI
             return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
         }
 
+        private static bool Contains(string val, string search)
+        {
+            return !string.IsNullOrEmpty(val) && val.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool Eq(string val, string target)
+        {
+            return (val ?? "").Equals(target, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsToday(string dateStr)
+        {
+            return DateTime.TryParse(dateStr, out DateTime d) && d.Date == DateTime.Today;
+        }
+
+        private static bool IsThisWeek(string dateStr)
+        {
+            if (!DateTime.TryParse(dateStr, out DateTime d)) return false;
+            var diff = (DateTime.Today - d.Date).TotalDays;
+            return diff >= 0 && diff < 7;
+        }
+
+        private static bool IsThisMonth(string dateStr)
+        {
+            if (!DateTime.TryParse(dateStr, out DateTime d)) return false;
+            return d.Year == DateTime.Today.Year && d.Month == DateTime.Today.Month;
+        }
+
         private static string PromptForText(string title, string prompt, string defaultValue)
         {
             var win = new Window
             {
-                Title = title,
-                Width = 420, Height = 150,
+                Title = title, Width = 420, Height = 150,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.NoResize
             };
@@ -1314,8 +1648,7 @@ namespace StingTools.UI
             stack.Children.Add(new TextBlock { Text = prompt, FontSize = 11, Margin = new Thickness(0, 0, 0, 6) });
             var tb = new System.Windows.Controls.TextBox
             {
-                Text = defaultValue, FontSize = 11,
-                Padding = new Thickness(4, 3, 4, 3)
+                Text = defaultValue, FontSize = 11, Padding = new Thickness(4, 3, 4, 3)
             };
             stack.Children.Add(tb);
             var btnPanel = new StackPanel
@@ -1334,17 +1667,14 @@ namespace StingTools.UI
             var btnCancel = new Button
             {
                 Content = "Cancel", Width = 70, Height = 26,
-                Margin = new Thickness(0, 0, 8, 0),
-                Cursor = Cursors.Hand
+                Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand
             };
             btnCancel.Click += (s, e) => { win.DialogResult = false; win.Close(); };
             btnPanel.Children.Add(btnCancel);
             btnPanel.Children.Add(btnOk);
             stack.Children.Add(btnPanel);
             win.Content = stack;
-            tb.SelectAll();
-            tb.Focus();
-
+            tb.SelectAll(); tb.Focus();
             return win.ShowDialog() == true ? tb.Text : null;
         }
     }
