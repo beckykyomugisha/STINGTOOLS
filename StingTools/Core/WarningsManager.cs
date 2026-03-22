@@ -2583,7 +2583,7 @@ namespace StingTools.Core
                 { "DocumentBriefcase", "DocumentBriefcase" },
                 { "StageComplianceGate", "StageComplianceGate" },
 
-                // Meeting Manager actions
+                // Meeting Manager actions — route through Document Manager's MEETINGS tab
                 { "NewMeeting", "DocumentManager" },
                 { "AutoAgenda", "DocumentManager" },
                 { "MeetingTemplates", "DocumentManager" },
@@ -2593,6 +2593,18 @@ namespace StingTools.Core
                 { "OpenActions", "DocumentManager" },
                 { "ExportMinutes", "DocumentManager" },
                 { "SendReminder", "DocumentManager" },
+
+                // Coord Log actions
+                { "ExportCoordLog", "ExportModelHealth" },
+                { "ClearCoordLog", "ConfigEditor" },
+
+                // Team actions
+                { "IssueBatchUpdate", "UpdateIssue" },
+                { "AssignIssues", "UpdateIssue" },
+                { "TeamReport", "ExportModelHealth" },
+
+                // Sheet naming
+                { "SheetNamingCheck", "SheetNamingCheck" },
 
                 // Handover
                 { "HandoverManual", "HandoverManual" },

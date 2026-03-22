@@ -671,7 +671,8 @@ namespace StingTools.UI
                 {
                     var arRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
                     arRow.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = color, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
-                    var arText = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
+                    var arText = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = $"Click to execute: {action}\n{GetActionTooltip(action) ?? "Run this action to resolve the issue"}" };
                     arText.MouseLeftButtonDown += (s, e) => { ResultAction = action; DialogResult = true; Close(); };
                     arText.MouseEnter += (s, e) => arText.TextDecorations = TextDecorations.Underline;
                     arText.MouseLeave += (s, e) => arText.TextDecorations = null;
