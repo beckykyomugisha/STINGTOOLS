@@ -504,6 +504,39 @@ namespace StingTools.UI
             DockPanel.SetDock(treeHeader, Dock.Top);
             stack.Children.Add(treeHeader);
 
+            // UI-03: Tree search box
+            var treeSearchBox = new System.Windows.Controls.TextBox
+            {
+                FontSize = 10, Padding = new Thickness(4, 2, 4, 2),
+                Margin = new Thickness(6, 3, 6, 3),
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1)
+            };
+            // Placeholder text via GotFocus/LostFocus
+            treeSearchBox.Text = "Search tree...";
+            treeSearchBox.Foreground = BrFgSub;
+            treeSearchBox.GotFocus += (s, e) =>
+            {
+                if (treeSearchBox.Text == "Search tree...")
+                { treeSearchBox.Text = ""; treeSearchBox.Foreground = BrFgDark; }
+            };
+            treeSearchBox.LostFocus += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(treeSearchBox.Text))
+                { treeSearchBox.Text = "Search tree..."; treeSearchBox.Foreground = BrFgSub; }
+            };
+            treeSearchBox.TextChanged += (s, e) =>
+            {
+                string search = treeSearchBox.Text;
+                if (search == "Search tree..." || string.IsNullOrEmpty(search))
+                {
+                    SetAllTreeItemsVisible(_treeView, true);
+                    return;
+                }
+                FilterTreeItems(_treeView, search);
+            };
+            DockPanel.SetDock(treeSearchBox, Dock.Top);
+            stack.Children.Add(treeSearchBox);
+
             _treeView = new TreeView
             {
                 BorderThickness = new Thickness(0),
@@ -699,10 +732,17 @@ namespace StingTools.UI
             // ── BEP ──
             _treeView.Items.Add(MakeTreeItem("BEP", "FOLDER:BEP", false));
 
-            // ── STICKY NOTES (GAP DM-05) ──
+            // ── STICKY NOTES (DM-02: with category breakdown) ──
             int stickyCount = _allItems.Count(i => i.Category == "STICKY");
             if (stickyCount > 0)
-                _treeView.Items.Add(MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false));
+            {
+                var stickyNode = MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false);
+                var stickyCats = _allItems.Where(i => i.Category == "STICKY")
+                    .GroupBy(i => i.Status ?? "GENERAL");
+                foreach (var sg in stickyCats.OrderByDescending(g => g.Count()))
+                    stickyNode.Items.Add(MakeTreeItem($"{sg.Key} ({sg.Count()})", $"STICKYCAT:{sg.Key}", false));
+                _treeView.Items.Add(stickyNode);
+            }
 
             // ── DATA DROPS (milestone tracking) ──
             var ddNode = MakeTreeItem("DATA DROPS", "DD_ROOT", false);
@@ -1259,7 +1299,9 @@ namespace StingTools.UI
             _statusText = new TextBlock
             {
                 FontSize = 10, Foreground = BrFgSub,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis, // UI-04: prevent overflow
+                MaxWidth = 900
             };
             System.Windows.Controls.Grid.SetColumn(_statusText, 0);
             grid.Children.Add(_statusText);
@@ -1312,6 +1354,7 @@ namespace StingTools.UI
             LoadModelHealthTrend(doc); // GAP DM-06
             LoadActivityLog(doc);      // Activity feed
             LoadDataDropStatus(doc);   // Data drop milestones
+            LinkIssuesAndRevisions();  // CROSS-01: Issue ↔ Revision join
         }
 
         private static void LoadProjectFiles(Document doc)
@@ -1565,6 +1608,16 @@ namespace StingTools.UI
                     int docCount = 0;
                     if (t["documents"] is JArray docs) docCount = docs.Count;
 
+                    // GRID-02: Compute age for transmittals too
+                    string tDateStr = t["date"]?.ToString() ?? "";
+                    int tDaysOpen = 0;
+                    string tAging = "";
+                    if (DateTime.TryParse(tDateStr, out DateTime tDate))
+                    {
+                        tDaysOpen = (int)(DateTime.Now - tDate).TotalDays;
+                        tAging = tDaysOpen < 7 ? $"{tDaysOpen}d" : tDaysOpen < 30 ? $"{tDaysOpen / 7}w" : $"{tDaysOpen / 30}m";
+                    }
+
                     _allItems.Add(new DocItemVM
                     {
                         Id = t["transmittal_id"]?.ToString() ?? "",
@@ -1573,9 +1626,11 @@ namespace StingTools.UI
                         Status = t["status"]?.ToString() ?? "SENT",
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
-                        Date = t["date"]?.ToString() ?? "",
+                        Date = tDateStr,
                         AssignedTo = t["recipient"]?.ToString() ?? "",
-                        ElementCount = docCount, // GAP GRID-04: doc count
+                        CreatedBy = t["created_by"]?.ToString() ?? "", // PERSIST-01
+                        ElementCount = docCount,
+                        DaysOpen = tDaysOpen, Aging = tAging, // GRID-02
                         Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
                     });
                 }
@@ -1769,6 +1824,8 @@ namespace StingTools.UI
                 return item.Category == "DATADROP" && Eq(item.Id, _currentFilter.Substring(3));
             if (_currentFilter.StartsWith("CLASHDISC:"))
                 return item.Category == "CLASH" && Eq(item.Discipline, _currentFilter.Substring(10));
+            if (_currentFilter.StartsWith("STICKYCAT:"))
+                return item.Category == "STICKY" && Eq(item.Status, _currentFilter.Substring(10));
 
             // Time-based filters (GAP NAV-02)
             if (_currentFilter == "TIME:TODAY") return IsToday(item.Date);
@@ -1892,6 +1949,89 @@ namespace StingTools.UI
             win.Content = stack;
             tb.SelectAll(); tb.Focus();
             return win.ShowDialog() == true ? tb.Text : null;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  UI-03: Tree search helpers
+        // ══════════════════════════════════════════════════════════════════
+
+        private static void SetAllTreeItemsVisible(ItemsControl parent, bool visible)
+        {
+            foreach (var item in parent.Items)
+            {
+                if (item is TreeViewItem tvi)
+                {
+                    tvi.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    SetAllTreeItemsVisible(tvi, visible);
+                }
+            }
+        }
+
+        private static bool FilterTreeItems(ItemsControl parent, string search)
+        {
+            bool anyVisible = false;
+            foreach (var item in parent.Items)
+            {
+                if (item is TreeViewItem tvi)
+                {
+                    string header = tvi.Header?.ToString() ?? "";
+                    bool childVisible = FilterTreeItems(tvi, search);
+                    bool selfMatch = header.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool show = selfMatch || childVisible;
+                    tvi.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                    if (show)
+                    {
+                        anyVisible = true;
+                        if (childVisible) tvi.IsExpanded = true;
+                    }
+                }
+            }
+            return anyVisible;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  CROSS-01: Issue ↔ Revision join (post-load)
+        // ══════════════════════════════════════════════════════════════════
+
+        private static void LinkIssuesAndRevisions()
+        {
+            // Build revision lookup
+            var revItems = _allItems.Where(i => i.Category == "REVISION").ToList();
+            var issueItems = _allItems.Where(i => i.Category == "ISSUE").ToList();
+            if (revItems.Count == 0 || issueItems.Count == 0) return;
+
+            foreach (var issue in issueItems)
+            {
+                // Link by revision field
+                if (!string.IsNullOrEmpty(issue.Revision))
+                {
+                    var matchingRev = revItems.FirstOrDefault(r =>
+                        (r.Revision ?? "").Equals(issue.Revision, StringComparison.OrdinalIgnoreCase));
+                    if (matchingRev != null)
+                    {
+                        issue.LinkedRevision = matchingRev.Id;
+                        // Append issue to revision's linked list
+                        string existing = matchingRev.LinkedIssues ?? "";
+                        matchingRev.LinkedIssues = string.IsNullOrEmpty(existing)
+                            ? issue.Id : $"{existing}, {issue.Id}";
+                    }
+                }
+
+                // Also link by date proximity (issues within 2 days of revision date)
+                if (string.IsNullOrEmpty(issue.LinkedRevision) && DateTime.TryParse(issue.Date, out DateTime issDate))
+                {
+                    var closest = revItems
+                        .Where(r => DateTime.TryParse(r.Date, out DateTime rd) && Math.Abs((rd - issDate).TotalDays) <= 2)
+                        .OrderBy(r => DateTime.TryParse(r.Date, out DateTime rd2) ? Math.Abs((rd2 - issDate).TotalDays) : 999)
+                        .FirstOrDefault();
+                    if (closest != null)
+                    {
+                        issue.LinkedRevision = closest.Id;
+                        string ex2 = closest.LinkedIssues ?? "";
+                        closest.LinkedIssues = string.IsNullOrEmpty(ex2) ? issue.Id : $"{ex2}, {issue.Id}";
+                    }
+                }
+            }
         }
     }
 }

@@ -101,6 +101,36 @@ namespace StingTools.Core
 
         private static string _rootPath;
 
+        // PERF-02: Folder stats cache
+        private static List<FolderStats> _folderStatsCache;
+        private static DateTime _folderStatsCacheTime = DateTime.MinValue;
+        private static readonly TimeSpan FolderStatsCacheDuration = TimeSpan.FromSeconds(10);
+
+        /// <summary>Invalidate the folder stats cache (call after file operations).</summary>
+        public static void InvalidateFolderStatsCache() { _folderStatsCacheTime = DateTime.MinValue; }
+
+        // CONFIG-02: Configurable discipline list
+        private static string[] _disciplineFolders = new[]
+        {
+            "A_Architectural", "M_Mechanical", "E_Electrical",
+            "P_Plumbing", "S_Structural", "FP_Fire", "Z_General"
+        };
+
+        /// <summary>Set custom discipline folder names from config.</summary>
+        public static void SetDisciplineFolders(string[] folders)
+        {
+            if (folders != null && folders.Length > 0) _disciplineFolders = folders;
+        }
+
+        // ── Allowed file extensions for import validation (OP-002) ──
+        private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "PDF", "XLSX", "XLS", "CSV", "JSON", "TXT", "XML", "DWG", "DXF", "DGN",
+            "RVT", "RFA", "RTE", "RFT", "IFC", "NWC", "NWD", "NWF", "BCF", "BCFZIP",
+            "DOC", "DOCX", "PPT", "PPTX", "JPG", "JPEG", "PNG", "BMP", "TIFF", "TIF",
+            "MP4", "AVI", "MOV", "ZIP", "7Z", "RAR"
+        };
+
         // ── Root path ─────────────────────────────────────────────────────
 
         /// <summary>Get or set the project folder root. Persisted to project_config.json.</summary>
@@ -155,11 +185,11 @@ namespace StingTools.Core
                     catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine: Cannot create {name}: {ex.Message}"); }
                 }
             }
-            // Create sub-folders for CDE folders
+            // Create sub-folders for CDE folders (CONFIG-02: configurable)
             foreach (string cdeFolder in new[] { "01_WIP", "02_SHARED", "03_PUBLISHED" })
             {
                 string cdePath = Path.Combine(root, cdeFolder);
-                foreach (string disc in new[] { "A_Architectural", "M_Mechanical", "E_Electrical", "P_Plumbing", "S_Structural", "FP_Fire", "Z_General" })
+                foreach (string disc in _disciplineFolders)
                 {
                     string discPath = Path.Combine(cdePath, disc);
                     if (!Directory.Exists(discPath))
@@ -288,9 +318,12 @@ namespace StingTools.Core
             return GetAllFiles(doc).Where(f => f.FolderId.Equals(folderId, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
-        /// <summary>Get folder statistics.</summary>
+        /// <summary>Get folder statistics (cached for 10 seconds — PERF-02).</summary>
         public static List<FolderStats> GetFolderStats(Document doc)
         {
+            if (_folderStatsCache != null && (DateTime.Now - _folderStatsCacheTime) < FolderStatsCacheDuration)
+                return _folderStatsCache;
+
             var stats = new List<FolderStats>();
             string root = GetRootPath(doc);
             if (!Directory.Exists(root)) return stats;
@@ -329,26 +362,68 @@ namespace StingTools.Core
                     Exists = Directory.Exists(folderPath)
                 });
             }
+            _folderStatsCache = stats;
+            _folderStatsCacheTime = DateTime.Now;
             return stats;
         }
 
         // ── File operations ───────────────────────────────────────────────
 
-        /// <summary>Delete a file and log the activity.</summary>
+        /// <summary>Soft-delete: move file to _RECYCLE subfolder (OP-005). Hard-delete if recycle fails.</summary>
         public static bool DeleteFile(string filePath)
         {
             try
             {
-                if (File.Exists(filePath))
+                if (!File.Exists(filePath)) return false;
+                string name = Path.GetFileName(filePath);
+                string dir = Path.GetDirectoryName(filePath) ?? "";
+
+                // Try soft-delete to _RECYCLE
+                string recycleDir = Path.Combine(dir, "_RECYCLE");
+                try
                 {
-                    string name = Path.GetFileName(filePath);
+                    if (!Directory.Exists(recycleDir)) Directory.CreateDirectory(recycleDir);
+                    string recyclePath = Path.Combine(recycleDir, $"{DateTime.Now:yyyyMMdd_HHmmss}_{name}");
+                    File.Move(filePath, recyclePath);
+                    StingLog.Info($"ProjectFolderEngine: Recycled {name} → _RECYCLE");
+                    LogActivity(null, "RECYCLE", name, filePath);
+                    InvalidateFolderStatsCache();
+                    return true;
+                }
+                catch
+                {
+                    // Fall back to hard delete
                     File.Delete(filePath);
-                    StingLog.Info($"ProjectFolderEngine: Deleted {filePath}");
+                    StingLog.Info($"ProjectFolderEngine: Hard-deleted {name}");
                     LogActivity(null, "DELETE", name, filePath);
+                    InvalidateFolderStatsCache();
                     return true;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.DeleteFile: {ex.Message}"); }
+            return false;
+        }
+
+        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        public static bool RestoreFile(string recyclePath, string originalDir = null)
+        {
+            try
+            {
+                if (!File.Exists(recyclePath)) return false;
+                string name = Path.GetFileName(recyclePath);
+                // Strip timestamp prefix (yyyyMMdd_HHmmss_)
+                if (name.Length > 16 && name[15] == '_')
+                    name = name.Substring(16);
+                string targetDir = originalDir ?? Path.GetDirectoryName(Path.GetDirectoryName(recyclePath)) ?? "";
+                string targetPath = Path.Combine(targetDir, name);
+                if (File.Exists(targetPath)) targetPath = GetUniqueFileName(targetPath);
+                File.Move(recyclePath, targetPath);
+                StingLog.Info($"ProjectFolderEngine: Restored {name}");
+                LogActivity(null, "RESTORE", name, targetPath);
+                InvalidateFolderStatsCache();
+                return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RestoreFile: {ex.Message}"); }
             return false;
         }
 
@@ -365,6 +440,7 @@ namespace StingTools.Core
                 File.Move(filePath, newPath);
                 StingLog.Info($"ProjectFolderEngine: Renamed {oldName} → {newName}");
                 LogActivity(null, "RENAME", newName, $"{oldName} -> {newName}");
+                InvalidateFolderStatsCache();
                 return true;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.RenameFile: {ex.Message}"); }
@@ -384,6 +460,7 @@ namespace StingTools.Core
                 File.Move(filePath, newPath);
                 StingLog.Info($"ProjectFolderEngine: Moved {fileName} → {targetFolderId}");
                 LogActivity(doc, "MOVE", fileName, $"→ {targetFolderId}");
+                InvalidateFolderStatsCache();
 
                 // AUTO-001: Auto-log transmittal when moving to CDE folders
                 if (targetFolderId == "SHARED" || targetFolderId == "PUBLISHED")
@@ -395,23 +472,39 @@ namespace StingTools.Core
             return false;
         }
 
-        /// <summary>Copy external file into the project folder structure with activity logging.</summary>
+        /// <summary>Copy external file into the project folder structure with validation and activity logging.</summary>
         public static string ImportFile(Document doc, string sourcePath, string targetFolderId)
         {
             try
             {
                 if (!File.Exists(sourcePath)) return null;
-                string targetDir = GetFolderPath(doc, targetFolderId);
                 string fileName = Path.GetFileName(sourcePath);
+
+                // OP-002: Validate file extension
+                string ext = Path.GetExtension(sourcePath).TrimStart('.').ToUpperInvariant();
+                if (!string.IsNullOrEmpty(ext) && !AllowedExtensions.Contains(ext))
+                {
+                    StingLog.Warn($"ProjectFolderEngine: Blocked import of unsupported file type .{ext}: {fileName}");
+                    return null;
+                }
+
+                string targetDir = GetFolderPath(doc, targetFolderId);
                 string targetPath = Path.Combine(targetDir, fileName);
                 if (File.Exists(targetPath)) targetPath = GetUniqueFileName(targetPath);
                 File.Copy(sourcePath, targetPath);
                 StingLog.Info($"ProjectFolderEngine: Imported {fileName} → {targetFolderId}");
                 LogActivity(doc, "IMPORT", fileName, $"→ {targetFolderId}");
+                InvalidateFolderStatsCache();
                 return targetPath;
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.ImportFile: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Check if a file extension is allowed for import (OP-002).</summary>
+        public static bool IsAllowedExtension(string extension)
+        {
+            return AllowedExtensions.Contains(extension?.TrimStart('.').ToUpperInvariant() ?? "");
         }
 
         // ── Index / config ────────────────────────────────────────────────
@@ -450,6 +543,13 @@ namespace StingTools.Core
                 string root = config["PROJECT_FOLDER_ROOT"]?.ToString();
                 if (!string.IsNullOrEmpty(root) && Directory.Exists(root))
                     _rootPath = root;
+
+                // CONFIG-02: Load custom discipline folders
+                if (config["DISCIPLINE_FOLDERS"] is JArray discArr && discArr.Count > 0)
+                {
+                    var customDiscs = discArr.Select(d => d.ToString()).Where(s => !string.IsNullOrEmpty(s)).ToArray();
+                    if (customDiscs.Length > 0) _disciplineFolders = customDiscs;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine.LoadRootFromConfig: {ex.Message}"); }
         }
@@ -494,6 +594,57 @@ namespace StingTools.Core
                 counter++;
             } while (File.Exists(newPath) && counter < 999);
             return newPath;
+        }
+
+        /// <summary>PERF-03: Read only the last N lines of a file without loading entire file.</summary>
+        private static List<string> TailReadLines(string filePath, int lineCount)
+        {
+            var lines = new List<string>();
+            try
+            {
+                var fi = new FileInfo(filePath);
+                if (fi.Length == 0) return lines;
+
+                // For small files (< 64KB), just read all
+                if (fi.Length < 65536)
+                {
+                    lines.AddRange(File.ReadAllLines(filePath));
+                    return lines;
+                }
+
+                // For larger files, seek from end
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                long pos = stream.Length;
+                int found = 0;
+                int bufSize = Math.Min(8192, (int)stream.Length);
+                byte[] buf = new byte[bufSize];
+
+                while (pos > 0 && found < lineCount + 1)
+                {
+                    int toRead = (int)Math.Min(bufSize, pos);
+                    pos -= toRead;
+                    stream.Seek(pos, SeekOrigin.Begin);
+                    stream.Read(buf, 0, toRead);
+                    for (int i = toRead - 1; i >= 0; i--)
+                    {
+                        if (buf[i] == (byte)'\n') found++;
+                        if (found > lineCount) { pos += i + 1; break; }
+                    }
+                }
+
+                stream.Seek(Math.Max(0, pos), SeekOrigin.Begin);
+                using var reader = new StreamReader(stream);
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                    lines.Add(line);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TailReadLines: {ex.Message}");
+                // Fallback: read all
+                try { lines = File.ReadAllLines(filePath).ToList(); } catch { }
+            }
+            return lines;
         }
 
         // ── Data models ───────────────────────────────────────────────────
@@ -573,6 +724,11 @@ namespace StingTools.Core
             if (!BIMManager.BIMManagerEngine.RoleCodes.ContainsKey(role.ToUpperInvariant()))
                 errors.Add($"Role code '{role}' not in ISO 19650 (valid: A, E, M, S, etc.)");
 
+            // VALIDATION-01: Check file extension
+            string extClean = ext.TrimStart('.').ToUpperInvariant();
+            if (!string.IsNullOrEmpty(extClean) && !AllowedExtensions.Contains(extClean))
+                errors.Add($"File extension '.{extClean}' not in approved list");
+
             bool valid = errors.Count == 0;
             return (valid, valid ? fileName : null, errors);
         }
@@ -597,6 +753,23 @@ namespace StingTools.Core
             string level = "XX";
             string role = discipline.Length == 1 ? discipline : "Z";
             string number = DateTime.Now.ToString("HHmmss");
+
+            // VALIDATION-02: Auto-detect docType from extension if not specified
+            if (docType == "DR" && !string.IsNullOrEmpty(ext))
+            {
+                string extUp = ext.TrimStart('.').ToUpperInvariant();
+                docType = extUp switch
+                {
+                    "RVT" or "IFC" or "NWC" => "M3",
+                    "PDF" => "DR",
+                    "XLSX" or "CSV" => "SH",
+                    "DOCX" or "DOC" => "RP",
+                    "PPTX" or "PPT" => "PP",
+                    "BCF" or "BCFZIP" => "RI",
+                    "JPG" or "PNG" or "TIFF" => "VS",
+                    _ => "DR"
+                };
+            }
 
             return $"{projCode}-{originator}-{volume}-{level}-{docType}-{role}-{suitability}_{number}{ext}";
         }
@@ -636,6 +809,7 @@ namespace StingTools.Core
         /// <summary>
         /// Get recent activity log entries.
         /// </summary>
+        /// <summary>Get recent activity (PERF-03: tail-read, not full file load).</summary>
         public static List<ActivityEntry> GetRecentActivity(Document doc, int maxEntries = 50)
         {
             var entries = new List<ActivityEntry>();
@@ -645,7 +819,8 @@ namespace StingTools.Core
                 string logPath = Path.Combine(root, "ACTIVITY_LOG.jsonl");
                 if (!File.Exists(logPath)) return entries;
 
-                var lines = File.ReadAllLines(logPath);
+                // PERF-03: Read only the tail of the file
+                var lines = TailReadLines(logPath, maxEntries * 2); // over-read to account for blanks
                 foreach (string line in lines.Reverse().Take(maxEntries))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
