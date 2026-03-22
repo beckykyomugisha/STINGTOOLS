@@ -112,11 +112,58 @@ namespace StingTools.Temp
                 StingLog.Warn($"Validation CSV export: {ex.Message}");
             }
 
-            TaskDialog td = new TaskDialog("Validate Template");
-            td.MainInstruction = $"Validation: {passed}/{results.Count} checks passed" +
-                (critical > 0 ? $" ({critical} CRITICAL)" : "");
-            td.MainContent = report.ToString();
-            td.Show();
+            // Build rich result panel
+            string csvExportPath = null;
+            try
+            {
+                // Already exported CSV above — find it
+                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+                if (Directory.Exists(exportDir))
+                {
+                    var csvFiles = Directory.GetFiles(exportDir, "STING_Validation*.csv")
+                        .OrderByDescending(f => File.GetLastWriteTime(f)).ToArray();
+                    if (csvFiles.Length > 0) csvExportPath = csvFiles[0];
+                }
+            }
+            catch (Exception ex2) { StingLog.Warn($"FindCSV: {ex2.Message}"); }
+
+            double passPct = results.Count > 0 ? passed * 100.0 / results.Count : 0;
+            var panel = UI.StingResultPanel.Create("Validate Template")
+                .SetSubtitle($"Validation: {passed}/{results.Count} checks passed" +
+                    (critical > 0 ? $" ({critical} CRITICAL)" : ""))
+                .SetOverallPct(passPct)
+                .SetRawText(report.ToString());
+            if (!string.IsNullOrEmpty(csvExportPath)) panel.SetCsvPath(csvExportPath);
+
+            // Summary section
+            panel.AddSection("SUMMARY")
+                .RAGBar(passPct, $"{passPct:F0}% passed")
+                .Metric("Checks run", results.Count.ToString())
+                .MetricHighlight("Passed", passed.ToString())
+                .MetricError("Failed", failed.ToString());
+            if (critical > 0) panel.MetricError("CRITICAL", critical.ToString());
+            if (moderate > 0) panel.MetricWarn("MODERATE", moderate.ToString());
+            panel.Metric("Duration", $"{sw.Elapsed.TotalSeconds:F1}s");
+
+            // Failures section
+            if (failed > 0)
+            {
+                panel.AddSection("FAILURES", new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+                foreach (var r in results.Where(r => !r.Passed)
+                    .OrderByDescending(r => r.Severity == "CRITICAL")
+                    .ThenByDescending(r => r.Severity == "MODERATE"))
+                {
+                    panel.PassFail($"[{r.Severity}] {r.CheckName}", false, r.Detail);
+                }
+            }
+
+            // All checks section
+            panel.AddSection("ALL CHECKS");
+            foreach (var r in results)
+                panel.PassFail(r.CheckName, r.Passed, r.Detail);
+
+            panel.Show();
 
             StingLog.Info($"ValidateTemplate: {passed}/{results.Count} passed, " +
                 $"critical={critical}, time={sw.Elapsed.TotalSeconds:F1}s");

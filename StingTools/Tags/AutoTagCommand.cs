@@ -116,9 +116,21 @@ namespace StingTools.Tags
 
             int untagged = taggable - alreadyTagged;
 
-            // Collision mode dialog with pre-flight counts
+            // Collision mode — auto-select via ExtraParam or show dialog
             TagCollisionMode collisionMode = TagCollisionMode.Skip;
-            if (alreadyTagged > 0)
+            string presetMode = UI.StingCommandHandler.GetExtraParam("AutoTagMode");
+            if (!string.IsNullOrEmpty(presetMode))
+            {
+                // Auto-select without dialog when mode pre-set by dockable panel or workflow
+                collisionMode = presetMode.ToLowerInvariant() switch
+                {
+                    "overwrite" => TagCollisionMode.Overwrite,
+                    "increment" => TagCollisionMode.AutoIncrement,
+                    _ => TagCollisionMode.Skip,
+                };
+                StingLog.Info($"AutoTag: collision mode auto-selected from ExtraParam: {collisionMode}");
+            }
+            else if (alreadyTagged > 0)
             {
                 string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
                 var modeOptions = new List<UI.StingModePicker.ModeOption>
@@ -286,22 +298,43 @@ namespace StingTools.Tags
 
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            // FIX-08: Scope selection — active view or entire project
-            var scopeDlg = new TaskDialog("Tag New Only — Scope");
-            scopeDlg.MainInstruction = "Select scope for tagging new elements";
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Active view only",
-                "Tag untagged elements visible in the current view");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Entire project",
-                "Tag all untagged elements across the entire model");
-            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
-            var scopeResult = scopeDlg.Show();
-            if (scopeResult == TaskDialogResult.Cancel)
-                return Result.Cancelled;
-            bool viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);
-            string scopeLabel = viewScopeOnly ? "Active View" : "Entire Project";
+            // FIX-08: Scope selection — auto-select via ExtraParam or show dialog
+            string presetScope = UI.StingCommandHandler.GetExtraParam("TagNewScope");
+            bool viewScopeOnly;
+            string scopeLabel;
+            if (!string.IsNullOrEmpty(presetScope))
+            {
+                // Auto-select without dialog when scope pre-set by workflow or dockable panel
+                viewScopeOnly = !presetScope.Equals("project", StringComparison.OrdinalIgnoreCase);
+                scopeLabel = viewScopeOnly ? "Active View (auto)" : "Entire Project (auto)";
+                StingLog.Info($"TagNewOnly: scope auto-selected from ExtraParam: {scopeLabel}");
+            }
+            else
+            {
+                // Use scope auto-detection with session memory
+                string autoScope = TagConfig.AutoDetectScope(ctx.UIDoc);
+                if (autoScope == "selection" || autoScope == "active_view")
+                {
+                    viewScopeOnly = true;
+                    scopeLabel = "Active View";
+                }
+                else
+                {
+                    var scopeDlg = new TaskDialog("Tag New Only — Scope");
+                    scopeDlg.MainInstruction = "Select scope for tagging new elements";
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Active view only", "Tag untagged elements visible in the current view");
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Entire project", "Tag all untagged elements across the entire model");
+                    scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    scopeDlg.DefaultButton = TaskDialogResult.CommandLink1;
+                    var scopeResult = scopeDlg.Show();
+                    if (scopeResult == TaskDialogResult.Cancel) return Result.Cancelled;
+                    viewScopeOnly = (scopeResult == TaskDialogResult.CommandLink1);
+                    scopeLabel = viewScopeOnly ? "Active View" : "Entire Project";
+                    TagConfig.LastScope = viewScopeOnly ? "active_view" : "project";
+                }
+            }
 
             // Pre-filter: only elements with empty ASS_TAG_1_TXT
             // Performance: use ElementMulticategoryFilter to skip non-taggable elements at API level

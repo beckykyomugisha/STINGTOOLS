@@ -240,6 +240,7 @@ namespace StingTools.Tags
             StingAutoTagger.InvalidateContext();
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); } // TAG-06: Persist SEQ counters
             catch (Exception ssEx) { StingLog.Warn($"CombineParams SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "CombineParameters");
             // Build report
             var report = new StringBuilder();
             report.AppendLine("Combine Parameters Complete");

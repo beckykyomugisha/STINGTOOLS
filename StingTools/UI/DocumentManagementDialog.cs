@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -120,6 +121,7 @@ namespace StingTools.UI
         private static Document _doc;
         private static string _selectedOperation;
         private static ComplianceScan.ComplianceResult _complianceResult;
+        private static System.Windows.Controls.TextBox _searchBox;
 
         // ══════════════════════════════════════════════════════════════════
         //  SHOW
@@ -208,6 +210,21 @@ namespace StingTools.UI
                 _listView.ContextMenu = BuildContextMenu(doc, win);
 
             win.Content = root;
+
+            // ── Keyboard shortcuts ──
+            win.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.F5) { RefreshData(); e.Handled = true; }
+                else if (e.Key == Key.Delete && _listView?.SelectedItem is DocItemVM) { DeleteSelected(); e.Handled = true; }
+                else if (e.Key == Key.F2 && _listView?.SelectedItem is DocItemVM) { RenameSelected(); e.Handled = true; }
+                else if (e.Key == Key.Escape) { win.DialogResult = false; win.Close(); e.Handled = true; }
+                else if (Keyboard.Modifiers == ModifierKeys.Control)
+                {
+                    if (e.Key == Key.E) { ExportVisibleToCSV(); e.Handled = true; }
+                    else if (e.Key == Key.L) { ShowCodeLegend(); e.Handled = true; }
+                    else if (e.Key == Key.F) { _searchBox?.Focus(); _searchBox?.SelectAll(); e.Handled = true; }
+                }
+            };
 
             bool? dialogResult = win.ShowDialog();
             if (dialogResult == true && _selectedOperation != null)
@@ -862,20 +879,20 @@ namespace StingTools.UI
                 FontSize = 11, Foreground = BrFgDark, Margin = new Thickness(0, 0, 4, 0)
             });
 
-            var searchBox = new System.Windows.Controls.TextBox
+            _searchBox = new System.Windows.Controls.TextBox
             {
                 FontSize = 11, Padding = new Thickness(4, 3, 4, 3),
                 BorderBrush = BrBorder, BorderThickness = new Thickness(1),
-                ToolTip = "Search by name, ID, type, status, assignee, priority..."
+                ToolTip = "Search by name, ID, type, status, assignee, priority... (Ctrl+F to focus)"
             };
-            searchBox.TextChanged += (s, e) =>
+            _searchBox.TextChanged += (s, e) =>
             {
-                _searchText = searchBox.Text ?? "";
+                _searchText = _searchBox.Text ?? "";
                 _view?.Refresh();
                 UpdateCounts();
             };
-            System.Windows.Controls.Grid.SetColumn(searchBox, 1);
-            searchGrid.Children.Add(searchBox);
+            System.Windows.Controls.Grid.SetColumn(_searchBox, 1);
+            searchGrid.Children.Add(_searchBox);
 
             _countText = new TextBlock
             {
@@ -943,6 +960,11 @@ namespace StingTools.UI
                 SelectionMode = SelectionMode.Extended,  // GAP OP-04: multi-select
                 AllowDrop = true  // DM-04: enable drag-drop
             };
+            // Performance: virtualise list for large datasets (1000+ items)
+            VirtualizingStackPanel.SetIsVirtualizing(_listView, true);
+            VirtualizingStackPanel.SetVirtualizationMode(_listView, VirtualizationMode.Recycling);
+            ScrollViewer.SetIsDeferredScrollingEnabled(_listView, true);
+            _listView.AlternationCount = 2; // For alternating row colors
 
             // DM-04: Drag-drop — drag files from Explorer into the list to import
             _listView.DragEnter += (s, e) =>
@@ -999,6 +1021,9 @@ namespace StingTools.UI
             gridView.Columns.Add(MakeCol("SLA", "SLADeadline", 70));  // GAP GRID-02
             _listView.View = gridView;
             _listView.MouseDoubleClick += ListView_DoubleClick;
+
+            // UX-05: Row coloring by status (overdue=red, critical=orange, alternating rows)
+            _listView.ItemContainerStyle = BuildRowStyle();
 
             // Right-click context menu — will be set when window context is available
             _listView.Tag = "NEEDS_CONTEXT_MENU";
@@ -1111,134 +1136,1091 @@ namespace StingTools.UI
             var bar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                Padding = new Thickness(4, 2, 4, 2),
+                Padding = new Thickness(0),
                 BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                MaxHeight = 120
+                BorderThickness = new Thickness(0, 1, 0, 0)
             };
 
-            var scroll = new ScrollViewer
+            var tabs = new TabControl
             {
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                TabStripPlacement = Dock.Top,
+                FontSize = 10,
+                Padding = new Thickness(0),
+                BorderThickness = new Thickness(0)
             };
 
-            var wrap = new WrapPanel();
+            // ── TAB 1: FILE & BULK ──
+            var fileWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            fileWrap.Children.Add(MakeSectionLabel("FILE"));
+            fileWrap.Children.Add(MakeActBtn("Open", BrAccent, (s, e) => OpenSelected()));
+            fileWrap.Children.Add(MakeActBtn("Open Folder", BrAccent, (s, e) => OpenFolder(doc)));
+            fileWrap.Children.Add(MakeActBtn("Rename", BrFgDark, (s, e) => RenameSelected()));
+            fileWrap.Children.Add(MakeActBtn("Delete", BrRed, (s, e) => DeleteSelected()));
+            fileWrap.Children.Add(MakeActBtn("Move To", BrPurple, (s, e) => MoveSelected(doc)));
+            fileWrap.Children.Add(MakeSep());
+            fileWrap.Children.Add(MakeSectionLabel("BULK"));
+            fileWrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
+            fileWrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
+            fileWrap.Children.Add(MakeActBtn("Close Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
+            fileWrap.Children.Add(MakeActBtn("Delete Notes", BrRed, (s, e) => BulkDeleteStickyNotes(doc)));
+            fileWrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
+            fileWrap.Children.Add(MakeActBtn("Update Trans", BrTeal, (s, e) => BulkUpdateTransmittalStatus(doc)));
+            fileWrap.Children.Add(MakeSep());
+            fileWrap.Children.Add(MakeSectionLabel("RECOVER"));
+            fileWrap.Children.Add(MakeActBtn("Restore", BrGreen, (s, e) => RestoreFromRecycle(doc)));
+            fileWrap.Children.Add(MakeSep());
+            fileWrap.Children.Add(MakeSectionLabel("EXPORT"));
+            fileWrap.Children.Add(MakeActBtn("Export Visible CSV", BrGreen, (s, e) => ExportVisibleToCSV()));
+            fileWrap.Children.Add(MakeActBtn("Code Legend", BrPurple, (s, e) => ShowCodeLegend()));
+            tabs.Items.Add(new TabItem { Header = "FILE / BULK", Content = fileWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── FILE OPS ──
-            wrap.Children.Add(MakeSectionLabel("FILE"));
-            wrap.Children.Add(MakeActBtn("Open", BrAccent, (s, e) => OpenSelected()));
-            wrap.Children.Add(MakeActBtn("Open Folder", BrAccent, (s, e) => OpenFolder(doc)));
-            wrap.Children.Add(MakeActBtn("Rename", BrFgDark, (s, e) => RenameSelected()));
-            wrap.Children.Add(MakeActBtn("Delete", BrRed, (s, e) => DeleteSelected()));
-            wrap.Children.Add(MakeActBtn("Move To", BrPurple, (s, e) => MoveSelected(doc)));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 2: DOCS & CDE ──
+            var docsWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            docsWrap.Children.Add(MakeSectionLabel("REGISTER"));
+            docsWrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
+            docsWrap.Children.Add(MakeDispatchBtn("Add Doc", "AddDocument", BrGreen, win));
+            docsWrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
+            docsWrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
+            docsWrap.Children.Add(MakeSep());
+            docsWrap.Children.Add(MakeSectionLabel("CDE"));
+            docsWrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win));
+            docsWrap.Children.Add(MakeDispatchBtn("CDE Status", "CDEStatus", BrTeal, win));
+            docsWrap.Children.Add(MakeDispatchBtn("MIDP Tracker", "MidpTracker", BrTeal, win));
+            docsWrap.Children.Add(MakeDispatchBtn("Review Tracker", "ReviewTracker", BrTeal, win));
+            docsWrap.Children.Add(MakeSep());
+            docsWrap.Children.Add(MakeSectionLabel("TRANSMITTAL"));
+            docsWrap.Children.Add(MakeDispatchBtn("Create", "CreateTransmittal", BrGreen, win));
+            docsWrap.Children.Add(MakeActBtn("Quick Transmittal", BrGreen, (s, e) => QuickTransmittal(doc)));
+            docsWrap.Children.Add(MakeDispatchBtn("Distribution", "RevisionDistribution", BrTeal, win));
+            tabs.Items.Add(new TabItem { Header = "DOCS / CDE", Content = docsWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── BULK ──
-            wrap.Children.Add(MakeSectionLabel("BULK"));
-            wrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
-            wrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
-            wrap.Children.Add(MakeActBtn("Close Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
-            wrap.Children.Add(MakeActBtn("Delete Notes", BrRed, (s, e) => BulkDeleteStickyNotes(doc)));
-            wrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
-            wrap.Children.Add(MakeActBtn("Update Trans Status", BrTeal, (s, e) => BulkUpdateTransmittalStatus(doc)));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 3: ISSUES ──
+            var issueWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            issueWrap.Children.Add(MakeSectionLabel("CREATE"));
+            issueWrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
+            issueWrap.Children.Add(MakeActBtn("Quick RFI", BrOrange, (s, e) => QuickIssue(doc, "RFI")));
+            issueWrap.Children.Add(MakeActBtn("Quick NCR", BrRed, (s, e) => QuickIssue(doc, "NCR")));
+            issueWrap.Children.Add(MakeActBtn("Quick SI", BrOrange, (s, e) => QuickIssue(doc, "SI")));
+            issueWrap.Children.Add(MakeSep());
+            issueWrap.Children.Add(MakeSectionLabel("MANAGE"));
+            issueWrap.Children.Add(MakeDispatchBtn("Dashboard", "IssueDashboard", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Update", "UpdateIssue", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Filter", "IssueFilter", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Batch Update", "IssueBatchUpdate", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Select Elements", "SelectIssueElements", BrOrange, win));
+            issueWrap.Children.Add(MakeSep());
+            issueWrap.Children.Add(MakeSectionLabel("REPORT"));
+            issueWrap.Children.Add(MakeDispatchBtn("Timeline", "IssueTimeline", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
+            issueWrap.Children.Add(MakeDispatchBtn("Export CSV", "IssueExport", BrOrange, win));
+            issueWrap.Children.Add(MakeActBtn("Overdue Report", BrRed, (s, e) => { _currentFilter = "OVERDUE"; _view?.Refresh(); UpdateCounts(); }));
+            tabs.Items.Add(new TabItem { Header = "ISSUES", Content = issueWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── DOCUMENTS ──
-            wrap.Children.Add(MakeSectionLabel("DOCS"));
-            wrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
-            wrap.Children.Add(MakeDispatchBtn("Add Doc", "AddDocument", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("CDE Status", "CDEStatus", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Review Tracker", "ReviewTracker", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("MIDP Tracker", "MidpTracker", BrTeal, win));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 4: REVISIONS ──
+            var revWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            revWrap.Children.Add(MakeSectionLabel("CREATE"));
+            revWrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Bulk Stamp", "BulkRevisionStamp", BrPurple, win));
+            revWrap.Children.Add(MakeSep());
+            revWrap.Children.Add(MakeSectionLabel("TRACK"));
+            revWrap.Children.Add(MakeDispatchBtn("Dashboard", "RevisionDashboard", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Compare", "RevisionCompare", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Track Elements", "TrackElementRevisions", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Schedule", "RevisionSchedule", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Naming Enforce", "RevisionNamingEnforce", BrPurple, win));
+            revWrap.Children.Add(MakeSep());
+            revWrap.Children.Add(MakeSectionLabel("DISTRIBUTE"));
+            revWrap.Children.Add(MakeDispatchBtn("Issue Sheets", "IssueSheetsForRevision", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Export", "RevisionExport", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Tag Integration", "RevisionTagIntegration", BrPurple, win));
+            revWrap.Children.Add(MakeDispatchBtn("Auto on Tag Change", "AutoRevisionOnTagChange", BrPurple, win));
+            tabs.Items.Add(new TabItem { Header = "REVISIONS", Content = revWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── ISSUES ──
-            wrap.Children.Add(MakeSectionLabel("ISSUES"));
-            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Issue Dash", "IssueDashboard", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Update Issue", "UpdateIssue", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Issue Filter", "IssueFilter", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Timeline", "IssueTimeline", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Batch Update", "IssueBatchUpdate", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Export CSV", "IssueExport", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Select Elements", "SelectIssueElements", BrOrange, win));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 5: COORDINATION ──
+            var coordWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            coordWrap.Children.Add(MakeSectionLabel("CLASHES"));
+            coordWrap.Children.Add(MakeDispatchBtn("Run Clashes", "ClashDetection", BrRed, win));
+            coordWrap.Children.Add(MakeDispatchBtn("BCF Export", "BCFExport", BrRed, win));
+            coordWrap.Children.Add(MakeDispatchBtn("BCF Import", "BCFImport", BrRed, win));
+            coordWrap.Children.Add(MakeSep());
+            coordWrap.Children.Add(MakeSectionLabel("REVIEW"));
+            coordWrap.Children.Add(MakeDispatchBtn("Review Tracker", "ReviewTracker", BrTeal, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Full Compliance", "FullComplianceDashboard", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Stage Gate", "StageComplianceGate", BrGreen, win));
+            coordWrap.Children.Add(MakeSep());
+            coordWrap.Children.Add(MakeSectionLabel("EXCHANGE"));
+            coordWrap.Children.Add(MakeDispatchBtn("Excel Export", "ExportToExcel", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Round-Trip", "ExcelRoundTrip", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Platform Sync", "PlatformSync", BrAccent, win));
+            coordWrap.Children.Add(MakeSep());
+            coordWrap.Children.Add(MakeSectionLabel("BIM"));
+            coordWrap.Children.Add(MakeDispatchBtn("Project Dash", "ProjectDashboard", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Bulk Export", "BulkBIMExport", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Quantities", "MeasuredQuantities", BrTeal, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Element Summary", "ElementCountSummary", BrTeal, win));
+            tabs.Items.Add(new TabItem { Header = "COORDINATION", Content = coordWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── REVISIONS ──
-            wrap.Children.Add(MakeSectionLabel("REVISIONS"));
-            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Rev Compare", "RevisionCompare", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Track Elements", "TrackElementRevisions", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Rev Schedule", "RevisionSchedule", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Rev Export", "RevisionExport", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Bulk Stamp", "BulkRevisionStamp", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Naming Enforce", "RevisionNamingEnforce", BrPurple, win));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 6: HANDOVER ──
+            var handWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            handWrap.Children.Add(MakeSectionLabel("COBie"));
+            handWrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
+            handWrap.Children.Add(MakeDispatchBtn("Streaming", "StreamingCOBieExport", BrTeal, win));
+            handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("FM / O&M"));
+            handWrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
+            handWrap.Children.Add(MakeDispatchBtn("Maintenance", "MaintenanceSchedule", BrTeal, win));
+            handWrap.Children.Add(MakeDispatchBtn("Asset Health", "AssetHealthReport", BrTeal, win));
+            handWrap.Children.Add(MakeDispatchBtn("Space Handover", "SpaceHandover", BrTeal, win));
+            handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("PUBLISH"));
+            handWrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
+            handWrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
+            handWrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
+            handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("4D / 5D"));
+            handWrap.Children.Add(MakeDispatchBtn("4D Timeline", "Export4DTimeline", BrPurple, win));
+            handWrap.Children.Add(MakeDispatchBtn("5D Cost Data", "Export5DCostData", BrPurple, win));
+            tabs.Items.Add(new TabItem { Header = "HANDOVER", Content = handWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── CLASHES ──
-            wrap.Children.Add(MakeSectionLabel("CLASHES"));
-            wrap.Children.Add(MakeDispatchBtn("Run Clashes", "ClashDetection", BrRed, win));
-            wrap.Children.Add(MakeDispatchBtn("BCF Export", "BCFExport", BrRed, win));
-            wrap.Children.Add(MakeDispatchBtn("BCF Import", "BCFImport", BrRed, win));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 7: NOTES & BEP ──
+            var notesWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            notesWrap.Children.Add(MakeSectionLabel("NOTES"));
+            notesWrap.Children.Add(MakeActBtn("Quick Note", BrFgDark, (s, e) => CreateInlineStickyNote(doc)));
+            notesWrap.Children.Add(MakeDispatchBtn("Add Note", "StickyNote", BrFgDark, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Dashboard", "StickyDashboard", BrFgDark, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Search", "StickySearch", BrFgDark, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Export", "ExportStickyNotes", BrFgDark, win));
+            notesWrap.Children.Add(MakeSep());
+            notesWrap.Children.Add(MakeSectionLabel("BRIEFCASE"));
+            notesWrap.Children.Add(MakeDispatchBtn("Briefcase", "DocumentBriefcase", BrTeal, win));
+            notesWrap.Children.Add(MakeDispatchBtn("View", "BriefcaseView", BrTeal, win));
+            notesWrap.Children.Add(MakeSep());
+            notesWrap.Children.Add(MakeSectionLabel("BEP"));
+            notesWrap.Children.Add(MakeDispatchBtn("Create BEP", "CreateBEP", BrGreen, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Generate BEP", "GenerateBEP", BrGreen, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Update BEP", "UpdateBEP", BrTeal, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
+            notesWrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
+            tabs.Items.Add(new TabItem { Header = "NOTES / BEP", Content = notesWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── HANDOVER ──
-            wrap.Children.Add(MakeSectionLabel("HANDOVER"));
-            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Streaming COBie", "StreamingCOBieExport", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Maintenance", "MaintenanceSchedule", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Asset Health", "AssetHealthReport", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Space Handover", "SpaceHandover", BrTeal, win));
-            wrap.Children.Add(MakeSep());
+            // ── TAB 8: MEETINGS ──
+            var meetWrap = new WrapPanel { Margin = new Thickness(4) };
+            meetWrap.Children.Add(MakeSectionLabel("PREPARE"));
+            meetWrap.Children.Add(MakeActBtn("New Meeting", BrAccent, (s, e) => CreateMeeting(doc)));
+            meetWrap.Children.Add(MakeActBtn("Auto Agenda", BrGreen, (s, e) => GenerateAutoAgenda(doc)));
+            meetWrap.Children.Add(MakeActBtn("Meeting Templates", BrTeal, (s, e) => ShowMeetingTemplates(doc)));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("DURING"));
+            meetWrap.Children.Add(MakeActBtn("Log Minutes", BrAccent, (s, e) => LogMeetingMinutes(doc)));
+            meetWrap.Children.Add(MakeActBtn("Add Action", BrGreen, (s, e) => AddActionItem(doc)));
+            meetWrap.Children.Add(MakeActBtn("Quick Issue", BrRed, (s, e) => QuickIssue(doc, "ACTION")));
+            meetWrap.Children.Add(MakeSep());
+            meetWrap.Children.Add(MakeSectionLabel("REVIEW"));
+            meetWrap.Children.Add(MakeActBtn("Meeting History", BrTeal, (s, e) => ShowMeetingHistory(doc)));
+            meetWrap.Children.Add(MakeActBtn("Open Actions", BrRed, (s, e) => ShowOpenActions(doc)));
+            meetWrap.Children.Add(MakeActBtn("Export Minutes", BrGreen, (s, e) => ExportMeetingMinutes(doc)));
+            tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
-            // ── COMPLIANCE ──
-            wrap.Children.Add(MakeSectionLabel("COMPLIANCE"));
-            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Full Compliance", "FullComplianceDashboard", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Stage Gate", "StageComplianceGate", BrGreen, win));
-            wrap.Children.Add(MakeSep());
-
-            // ── DATA EXCHANGE ──
-            wrap.Children.Add(MakeSectionLabel("EXCHANGE"));
-            wrap.Children.Add(MakeDispatchBtn("Excel Export", "ExportToExcel", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Excel Round-Trip", "ExcelRoundTrip", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
-            wrap.Children.Add(MakeDispatchBtn("Platform Sync", "PlatformSync", BrAccent, win));
-            wrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
-            wrap.Children.Add(MakeSep());
-
-            // ── NOTES & BRIEFCASE ──
-            wrap.Children.Add(MakeSectionLabel("NOTES"));
-            wrap.Children.Add(MakeActBtn("Quick Note", BrFgDark, (s, e) => CreateInlineStickyNote(doc)));
-            wrap.Children.Add(MakeDispatchBtn("Add Note", "StickyNote", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Note Dash", "StickyDashboard", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Note Search", "StickySearch", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Export Notes", "ExportStickyNotes", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Briefcase", "DocumentBriefcase", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("View Briefcase", "BriefcaseView", BrTeal, win));
-
-            // ── BEP ──
-            wrap.Children.Add(MakeSep());
-            wrap.Children.Add(MakeSectionLabel("BEP"));
-            wrap.Children.Add(MakeDispatchBtn("Create BEP", "CreateBEP", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
-
-            scroll.Content = wrap;
-            bar.Child = scroll;
+            bar.Child = tabs;
             return bar;
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  CODE LEGEND — all ISO 19650 codes in a compact reference dialog
+        // ══════════════════════════════════════════════════════════════════
+
+        private static void ShowCodeLegend()
+        {
+            var win = new Window
+            {
+                Title = "STING Code Legend — ISO 19650 Quick Reference",
+                Width = 780, Height = 720,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.CanResize, Background = BrBg
+            };
+            try
+            {
+                var hwnd = Process.GetCurrentProcess().MainWindowHandle;
+                if (hwnd != IntPtr.Zero) new System.Windows.Interop.WindowInteropHelper(win).Owner = hwnd;
+            }
+            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
+
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(16) };
+            var root = new StackPanel();
+
+            root.Children.Add(MakeLegendHeader("CDE STATUS (ISO 19650-1 §12)"));
+            root.Children.Add(MakeLegendRow("WIP", "Work In Progress — being developed by originator", BrFgSub));
+            root.Children.Add(MakeLegendRow("SHARED", "Shared — issued for coordination/review", BrTeal));
+            root.Children.Add(MakeLegendRow("PUBLISHED", "Published — approved for use", BrGreen));
+            root.Children.Add(MakeLegendRow("ARCHIVE", "Archive — retained for reference only", BrFgSub));
+
+            root.Children.Add(MakeLegendHeader("SUITABILITY CODES (ISO 19650 Table 9)"));
+            root.Children.Add(MakeLegendRow("S0", "Work In Progress — preliminary, not for sharing", BrFgSub));
+            root.Children.Add(MakeLegendRow("S1", "Fit for Coordination — internal team collaboration", BrTeal));
+            root.Children.Add(MakeLegendRow("S2", "Fit for Information — shared with external parties", BrGreen));
+            root.Children.Add(MakeLegendRow("S3", "Fit for Review & Comment — client/stakeholder input", BrOrange));
+            root.Children.Add(MakeLegendRow("S4", "Fit for Stage Approval — RIBA stage gate sign-off", BrGreen));
+            root.Children.Add(MakeLegendRow("S5", "Fit for Manufacturing / Procurement", BrPurple));
+            root.Children.Add(MakeLegendRow("S6", "Fit for PIM Authorisation — production model", BrPurple));
+            root.Children.Add(MakeLegendRow("S7", "Fit for AIM Authorisation — asset handover", BrPurple));
+            root.Children.Add(MakeLegendRow("CR", "As-Constructed Record Document", BrFgDark));
+            root.Children.Add(MakeLegendRow("AB", "Abandoned / Superseded — obsolete version", BrRed));
+
+            root.Children.Add(MakeLegendHeader("DOCUMENT STATUS CODES (ISO 19650-2 §5.6)"));
+            foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value, BrFgDark));
+
+            root.Children.Add(MakeLegendHeader("DOCUMENT TYPE CODES (UK BIM Framework)"));
+            foreach (var kv in BIMManager.BIMManagerEngine.DocumentTypes.Take(20))
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value, BrAccent));
+
+            root.Children.Add(MakeLegendHeader("ISSUE TYPES (BCF 2.1 + NEC/JCT)"));
+            foreach (var kv in BIMManager.BIMManagerEngine.IssueTypes)
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value, BrOrange));
+
+            root.Children.Add(MakeLegendHeader("ISSUE STATUS"));
+            foreach (var kv in BIMManager.BIMManagerEngine.IssueStatuses)
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value, BrFgDark));
+
+            root.Children.Add(MakeLegendHeader("ISSUE PRIORITY & SLA"));
+            root.Children.Add(MakeLegendRow("CRITICAL", "Immediate action — 2 day SLA", BrRed));
+            root.Children.Add(MakeLegendRow("HIGH", "Urgent — 5 day SLA", BrOrange));
+            root.Children.Add(MakeLegendRow("MEDIUM", "Standard — 14 day SLA", BrAccent));
+            root.Children.Add(MakeLegendRow("LOW", "Minor — 30 day SLA", BrGreen));
+            root.Children.Add(MakeLegendRow("INFO", "For information only — no SLA", BrFgSub));
+
+            root.Children.Add(MakeLegendHeader("TRANSMITTAL STATUS"));
+            root.Children.Add(MakeLegendRow("DRAFT", "Being prepared, not yet sent", BrFgSub));
+            root.Children.Add(MakeLegendRow("SENT", "Transmitted to recipient", BrTeal));
+            root.Children.Add(MakeLegendRow("RECEIVED", "Receipt acknowledged by recipient", BrGreen));
+            root.Children.Add(MakeLegendRow("ACKNOWLEDGED", "Content acknowledged and reviewed", BrGreen));
+            root.Children.Add(MakeLegendRow("SIGNED", "Formally signed off", BrPurple));
+            root.Children.Add(MakeLegendRow("REJECTED", "Returned with comments", BrRed));
+            root.Children.Add(MakeLegendRow("SUPERSEDED", "Replaced by newer transmittal", BrFgSub));
+
+            root.Children.Add(MakeLegendHeader("DISCIPLINE CODES (STING)"));
+            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", new SolidColorBrush(Colors.Blue)));
+            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", new SolidColorBrush(Colors.Goldenrod)));
+            root.Children.Add(MakeLegendRow("P", "Plumbing — DHW, DCW, sanitary, drainage", BrGreen));
+            root.Children.Add(MakeLegendRow("A", "Architectural — walls, doors, windows, floors", BrFgSub));
+            root.Children.Add(MakeLegendRow("S", "Structural — columns, beams, foundations", BrRed));
+            root.Children.Add(MakeLegendRow("FP", "Fire Protection — alarms, sprinklers, suppression", BrOrange));
+            root.Children.Add(MakeLegendRow("LV", "Low Voltage — data, CCTV, access control", BrPurple));
+            root.Children.Add(MakeLegendRow("G", "General — multi-discipline / unclassified", BrFgDark));
+
+            root.Children.Add(MakeLegendHeader("DATA DROP MILESTONES (ISO 19650-2 §5.3)"));
+            root.Children.Add(MakeLegendRow("DD1", "Stage 2 — Concept Design (BEP, tag structure, COBie schema)", BrTeal));
+            root.Children.Add(MakeLegendRow("DD2", "Stage 3 — Developed Design (tagged elements, spatial data, schedules)", BrTeal));
+            root.Children.Add(MakeLegendRow("DD3", "Stage 4 — Technical Design (full tagging, BEP compliance, COBie draft)", BrTeal));
+            root.Children.Add(MakeLegendRow("DD4", "Stage 5-6 — Construction/Handover (COBie final, O&M, FM handover)", BrTeal));
+
+            root.Children.Add(MakeLegendHeader("ISO 19650 FILE NAMING CONVENTION"));
+            root.Children.Add(new TextBlock
+            {
+                Text = "Format: Project-Originator-Volume-Level-Type-Role-Classification-Number\n" +
+                    "Example: PRJ-ARC-ZZ-L01-DR-A-0001\n" +
+                    "  PRJ = Project code  |  ARC = Originator  |  ZZ = All volumes\n" +
+                    "  L01 = Level 01  |  DR = Drawing  |  A = Architecture  |  0001 = Sequential",
+                FontSize = 10, Foreground = BrFgSub, Margin = new Thickness(8, 2, 0, 8),
+                TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas")
+            });
+
+            root.Children.Add(MakeLegendHeader("RAG COMPLIANCE STATUS"));
+            root.Children.Add(MakeLegendRow("GREEN", "≥80% tag compliance — model is well-tagged", BrGreen));
+            root.Children.Add(MakeLegendRow("AMBER", "50-79% tag compliance — needs attention", BrAmber));
+            root.Children.Add(MakeLegendRow("RED", "<50% tag compliance — critical gaps", BrRed));
+
+            // Close button
+            var btnClose = new Button
+            {
+                Content = "Close", Width = 80, Height = 28,
+                Background = BrAccent, Foreground = Brushes.White,
+                FontSize = 11, BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand, Margin = new Thickness(0, 12, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            btnClose.Click += (s, e) => win.Close();
+            root.Children.Add(btnClose);
+
+            scroll.Content = root;
+            win.Content = scroll;
+            win.ShowDialog();
+        }
+
+        private static TextBlock MakeLegendHeader(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 11, FontWeight = FontWeights.Bold,
+                Foreground = BrHeader, Margin = new Thickness(0, 10, 0, 4),
+                Padding = new Thickness(4, 2, 0, 2),
+                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xEE, 0xF5))
+            };
+        }
+
+        private static DockPanel MakeLegendRow(string code, string desc, SolidColorBrush color)
+        {
+            var row = new DockPanel { Margin = new Thickness(8, 1, 0, 1) };
+            row.Children.Add(new TextBlock
+            {
+                Text = code, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = color, Width = 65, VerticalAlignment = VerticalAlignment.Center,
+                FontFamily = new FontFamily("Consolas")
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = desc, FontSize = 10, Foreground = BrFgDark,
+                VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            return row;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  QUICK INLINE OPERATIONS — no dialog dispatch needed
+        // ══════════════════════════════════════════════════════════════════
+
+        private static void ExportVisibleToCSV()
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export Visible Items to CSV",
+                Filter = "CSV files|*.csv",
+                FileName = $"STING_DocMgr_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            };
+            if (dlg.ShowDialog() != true) return;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Type,ID,Title,Status,CDE,Suitability,Rev,Disc,Folder,Format,Size,Date,Priority,Age,Elements,Assigned,SLA,Overdue,CreatedBy");
+            foreach (var obj in _view)
+            {
+                if (obj is DocItemVM it)
+                    sb.AppendLine($"\"{it.Type}\",\"{it.Id}\",\"{it.Title?.Replace("\"", "\"\"")}\",\"{it.Status}\",\"{it.CDE}\"," +
+                        $"\"{it.Suitability}\",\"{it.Revision}\",\"{it.Discipline}\",\"{it.Folder}\",\"{it.FileFormat}\"," +
+                        $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
+                        $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"");
+            }
+            File.WriteAllText(dlg.FileName, sb.ToString());
+            if (_doc != null) ProjectFolderEngine.LogActivity(_doc, "EXPORT_CSV", Path.GetFileName(dlg.FileName), $"{_view.Count} rows");
+            MessageBox.Show($"Exported {_view.Count} rows to:\n{dlg.FileName}", "STING Export", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>Quick transmittal creation from selected document items.</summary>
+        private static void QuickTransmittal(Document doc)
+        {
+            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
+                .Where(i => i.Category == "DOCUMENT" && !string.IsNullOrEmpty(i.FilePath)).ToList();
+            if (selected == null || selected.Count == 0)
+            {
+                MessageBox.Show("Select document files in the list to create a quick transmittal.", "STING Transmittal");
+                return;
+            }
+
+            string recipient = PromptForText("Quick Transmittal", $"Recipient for {selected.Count} document(s):", "");
+            if (string.IsNullOrEmpty(recipient)) return;
+
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string transPath = Path.Combine(bimDir, "transmittals.json");
+                JArray arr;
+                try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
+                catch { arr = new JArray(); }
+
+                string transId = $"TX-{arr.Count + 1:D4}";
+                var docList = new JArray(selected.Select(s => s.Title).ToArray());
+                var trans = new JObject
+                {
+                    ["transmittal_id"] = transId,
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                    ["recipient"] = recipient,
+                    ["status"] = "DRAFT",
+                    ["revision"] = selected.FirstOrDefault()?.Revision ?? "",
+                    ["documents"] = docList,
+                    ["created_by"] = Environment.UserName,
+                    ["title"] = transId,
+                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} CREATED by {Environment.UserName}"
+                };
+                arr.Add(trans);
+                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId, $"{selected.Count} docs to {recipient}");
+                MessageBox.Show($"Transmittal {transId} created:\n{selected.Count} documents → {recipient}\n\nStatus: DRAFT",
+                    "STING Transmittal", MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshData();
+            }
+            catch (Exception ex2) { StingLog.Warn($"QuickTransmittal: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+        }
+
+        /// <summary>Quick issue creation with type pre-set (RFI/NCR/SI/TQ).</summary>
+        private static void QuickIssue(Document doc, string issueType)
+        {
+            string title = PromptForText($"Quick {issueType}", $"Enter {issueType} title/description:", "");
+            if (string.IsNullOrEmpty(title)) return;
+
+            // Priority selection
+            var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+            string priority = StingListPicker.Show($"{issueType} Priority", "Select priority:", priorities);
+            if (string.IsNullOrEmpty(priority)) priority = "MEDIUM";
+
+            // Discipline (optional — based on current filter context)
+            string disc = "";
+            if (_currentFilter.StartsWith("DISC:")) disc = _currentFilter.Substring(5);
+
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string issuePath = Path.Combine(bimDir, "issues.json");
+                JArray arr;
+                try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
+                catch { arr = new JArray(); }
+
+                string issueId = $"{issueType}-{arr.Count(i => i["type"]?.ToString() == issueType) + 1:D4}";
+                var issue = new JObject
+                {
+                    ["issue_id"] = issueId,
+                    ["type"] = issueType,
+                    ["title"] = title,
+                    ["status"] = "OPEN",
+                    ["priority"] = priority,
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                    ["assigned_to"] = "",
+                    ["discipline"] = disc,
+                    ["description"] = title,
+                    ["created_by"] = Environment.UserName,
+                    ["linked_elements"] = new JArray(),
+                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}"
+                };
+
+                // Auto-detect revision
+                try
+                {
+                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                    if (!string.IsNullOrEmpty(rev)) issue["revision"] = rev;
+                }
+                catch (Exception ex2) { StingLog.Warn($"QuickIssue rev detect: {ex2.Message}"); }
+
+                arr.Add(issue);
+                File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title}");
+                MessageBox.Show($"Issue {issueId} created:\n\nType: {issueType}\nPriority: {priority}\nTitle: {title}",
+                    "STING Issues", MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshData();
+            }
+            catch (Exception ex2) { StingLog.Warn($"QuickIssue: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  MEETING MANAGER — Agenda, Minutes, Action Items
+        // ══════════════════════════════════════════════════════════════════
+
+        private static string GetMeetingsPath(Document doc) =>
+            Path.Combine(GetBimManagerDir(doc), "meetings.json");
+
+        /// <summary>Create a new meeting with attendees, series support, and follow-up from previous.</summary>
+        private static void CreateMeeting(Document doc)
+        {
+            var types = new List<string>
+            {
+                "BIM Coordination Meeting", "Design Review", "Client Review",
+                "Handover Review", "Clash Resolution", "Ad-hoc / Other"
+            };
+            string meetingType = StingListPicker.Show("New Meeting", "Select meeting type:", types);
+            if (string.IsNullOrEmpty(meetingType)) return;
+
+            string bimDir = GetBimManagerDir(doc);
+            if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
+            string path = GetMeetingsPath(doc);
+            var meetings = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
+
+            // Calculate series number (sequential within same type)
+            int seriesNum = meetings.Count(m => m["type"]?.ToString() == meetingType) + 1;
+            int nextId = meetings.Count + 1;
+
+            // Find previous meeting of same type to carry forward open actions
+            var prevMeeting = meetings.LastOrDefault(m => m["type"]?.ToString() == meetingType);
+            int carryForwardActions = 0;
+            if (prevMeeting?["actions"] is JArray prevActs)
+                carryForwardActions = prevActs.Count(a => a["status"]?.ToString() != "CLOSED");
+
+            // Attendee input dialog
+            var attendeeWin = new Window
+            {
+                Title = $"Meeting Attendees — {meetingType} #{seriesNum}",
+                Width = 500, Height = 380,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            var attStack = new StackPanel { Margin = new Thickness(12) };
+            attStack.Children.Add(new TextBlock
+            {
+                Text = $"Meeting: {meetingType} #{seriesNum}\nDate: {DateTime.Now:yyyy-MM-dd}",
+                FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8)
+            });
+            if (carryForwardActions > 0)
+            {
+                attStack.Children.Add(new TextBlock
+                {
+                    Text = $"\u2139 {carryForwardActions} open action(s) will carry forward from previous meeting",
+                    Foreground = BrTeal, Margin = new Thickness(0, 0, 0, 8), FontStyle = FontStyles.Italic
+                });
+            }
+            attStack.Children.Add(new TextBlock { Text = "Chair:", Margin = new Thickness(0, 4, 0, 2) });
+            var chairBox = new System.Windows.Controls.TextBox { Text = Environment.UserName };
+            attStack.Children.Add(chairBox);
+            attStack.Children.Add(new TextBlock
+            {
+                Text = "Attendees (one per line — Name, Role, Discipline):",
+                Margin = new Thickness(0, 8, 0, 2)
+            });
+            var attBox = new System.Windows.Controls.TextBox
+            {
+                AcceptsReturn = true, Height = 140, TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Text = $"{Environment.UserName}, BIM Coordinator, M\n"
+            };
+            attStack.Children.Add(attBox);
+            var createBtn = new Button
+            {
+                Content = "Create Meeting", Margin = new Thickness(0, 10, 0, 0),
+                Padding = new Thickness(16, 6, 16, 6)
+            };
+            bool created = false;
+            createBtn.Click += (s, e) => { created = true; attendeeWin.DialogResult = true; attendeeWin.Close(); };
+            attStack.Children.Add(createBtn);
+            attendeeWin.Content = attStack;
+            attendeeWin.ShowDialog();
+            if (!created) return;
+
+            // Parse attendees
+            var attendees = new JArray();
+            foreach (string line in attBox.Text.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
+            {
+                var parts = line.Split(',').Select(p => p.Trim()).ToArray();
+                attendees.Add(new JObject
+                {
+                    ["name"] = parts.Length > 0 ? parts[0] : "",
+                    ["role"] = parts.Length > 1 ? parts[1] : "",
+                    ["discipline"] = parts.Length > 2 ? parts[2] : "",
+                    ["present"] = true
+                });
+            }
+
+            var meeting = new JObject
+            {
+                ["id"] = $"MTG-{nextId:D4}",
+                ["type"] = meetingType,
+                ["series_num"] = seriesNum,
+                ["date"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                ["time"] = DateTime.Now.ToString("HH:mm"),
+                ["status"] = "PLANNED",
+                ["chair"] = chairBox.Text,
+                ["created_by"] = Environment.UserName,
+                ["previous_meeting"] = prevMeeting?["id"]?.ToString() ?? "",
+                ["attendees"] = attendees,
+                ["agenda"] = new JArray(),
+                ["minutes"] = "",
+                ["actions"] = new JArray()
+            };
+
+            // Carry forward open actions from previous meeting
+            if (prevMeeting?["actions"] is JArray prevActions)
+            {
+                foreach (var a in prevActions.Where(a => a["status"]?.ToString() != "CLOSED"))
+                {
+                    var carried = a.DeepClone();
+                    carried["carried_from"] = prevMeeting["id"]?.ToString();
+                    (meeting["actions"] as JArray)?.Add(carried);
+                }
+            }
+
+            meetings.Add(meeting);
+            File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(),
+                $"{meetingType} #{seriesNum}, {attendees.Count} attendees" +
+                (carryForwardActions > 0 ? $", {carryForwardActions} actions carried forward" : ""));
+
+            // Show confirmation in result panel
+            var panel = StingResultPanel.Create("Meeting Created")
+                .SetSubtitle($"{meetingType} #{seriesNum}")
+                .AddSection("DETAILS")
+                .Metric("Meeting ID", meeting["id"].ToString())
+                .Metric("Type", meetingType)
+                .Metric("Series #", seriesNum.ToString())
+                .Metric("Date", DateTime.Now.ToString("yyyy-MM-dd"))
+                .Metric("Chair", chairBox.Text)
+                .Metric("Attendees", attendees.Count.ToString());
+            if (carryForwardActions > 0)
+                panel.AddSection("CARRIED FORWARD")
+                    .Info($"{carryForwardActions} open action items carried from {prevMeeting["id"]}");
+
+            panel.AddSection("NEXT STEPS")
+                .Text("Use 'Auto Agenda' to populate agenda from issues, transmittals, and revisions")
+                .Text("Use 'Log Minutes' during the meeting to record notes")
+                .Text("Use 'Add Action' to assign action items");
+            panel.Show();
+            RefreshData();
+        }
+
+        /// <summary>Auto-generate meeting agenda from open issues, pending transmittals, and recent revisions.</summary>
+        private static void GenerateAutoAgenda(Document doc)
+        {
+            string bimDir = GetBimManagerDir(doc);
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found. Create a meeting first."); return; }
+
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var planned = meetings.Where(m => m["status"]?.ToString() == "PLANNED").ToList();
+            if (planned.Count == 0) { MessageBox.Show("No planned meetings. Create a meeting first."); return; }
+
+            // Select meeting
+            var meetList = planned.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Select Meeting", "Generate agenda for:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            var agenda = new JArray();
+            int itemNum = 1;
+
+            // 1. Review previous action items
+            var allActions = new JArray();
+            foreach (var m in meetings)
+            {
+                if (m["actions"] is JArray acts)
+                    foreach (var a in acts)
+                        if (a["status"]?.ToString() != "CLOSED")
+                            allActions.Add(a);
+            }
+            if (allActions.Count > 0)
+                agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Review open action items ({allActions.Count} outstanding)", ["source"] = "ACTIONS", ["duration_min"] = 10 });
+
+            // 2. Open issues
+            string issuesPath = Path.Combine(bimDir, "issues.json");
+            int openIssues = 0;
+            if (File.Exists(issuesPath))
+            {
+                try
+                {
+                    var issues = JArray.Parse(File.ReadAllText(issuesPath));
+                    openIssues = issues.Count(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED");
+                    if (openIssues > 0)
+                    {
+                        // Group by type
+                        var byType = issues.Where(i => i["status"]?.ToString() != "CLOSED" && i["status"]?.ToString() != "RESOLVED")
+                            .GroupBy(i => i["type"]?.ToString() ?? "OTHER");
+                        foreach (var g in byType.OrderByDescending(g => g.Count()))
+                            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Review {g.Key} issues ({g.Count()} open)", ["source"] = "ISSUES", ["duration_min"] = 5 });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda issues: {ex.Message}"); }
+            }
+
+            // 3. Pending transmittals
+            string txPath = Path.Combine(bimDir, "transmittals.json");
+            if (File.Exists(txPath))
+            {
+                try
+                {
+                    var txs = JArray.Parse(File.ReadAllText(txPath));
+                    var pending = txs.Where(t => t["status"]?.ToString() == "DRAFT" || t["status"]?.ToString() == "SENT").ToList();
+                    if (pending.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Transmittal status update ({pending.Count} pending)", ["source"] = "TRANSMITTALS", ["duration_min"] = 5 });
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda transmittals: {ex.Message}"); }
+            }
+
+            // 4. Recent revisions
+            string revPath = Path.Combine(bimDir, "revisions.json");
+            if (File.Exists(revPath))
+            {
+                try
+                {
+                    var revs = JArray.Parse(File.ReadAllText(revPath));
+                    var recent = revs.Where(r =>
+                    {
+                        if (DateTime.TryParse(r["date"]?.ToString(), out DateTime dt))
+                            return (DateTime.Now - dt).TotalDays <= 14;
+                        return false;
+                    }).ToList();
+                    if (recent.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Recent revisions ({recent.Count} in last 14 days)", ["source"] = "REVISIONS", ["duration_min"] = 5 });
+                }
+                catch (Exception ex) { StingLog.Warn($"AutoAgenda revisions: {ex.Message}"); }
+            }
+
+            // 5. Compliance status
+            try
+            {
+                var scan = ComplianceScan.Scan(doc);
+                string ragEmoji = scan.RAGStatus == "GREEN" ? "\u2705" : scan.RAGStatus == "AMBER" ? "\u26A0" : "\u274C";
+                agenda.Add(new JObject { ["num"] = itemNum++,
+                    ["topic"] = $"{ragEmoji} Model compliance: {scan.CompliancePercent:F0}% — {scan.Untagged} untagged, {scan.StaleCount} stale",
+                    ["source"] = "COMPLIANCE", ["duration_min"] = 5, ["section"] = "Compliance & Quality" });
+
+                // Per-discipline breakdown if available
+                if (scan.ByDisc != null && scan.ByDisc.Count > 0)
+                {
+                    var lowDisc = scan.ByDisc.Where(d => d.Value.CompliancePct < 50).OrderBy(d => d.Value.CompliancePct).ToList();
+                    if (lowDisc.Count > 0)
+                        agenda.Add(new JObject { ["num"] = itemNum++,
+                            ["topic"] = $"Low compliance disciplines: {string.Join(", ", lowDisc.Select(d => $"{d.Key}={d.Value.CompliancePct:F0}%"))}",
+                            ["source"] = "COMPLIANCE", ["duration_min"] = 3, ["section"] = "Compliance & Quality" });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoAgenda compliance: {ex.Message}"); }
+
+            // 6. Model upload / submission status (check linked models)
+            try
+            {
+                var links = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance)).Cast<RevitLinkInstance>().ToList();
+                if (links.Count > 0)
+                    agenda.Add(new JObject { ["num"] = itemNum++,
+                        ["topic"] = $"Linked model status: {links.Count} models linked",
+                        ["source"] = "MODELS", ["duration_min"] = 3, ["section"] = "Model Status" });
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoAgenda links: {ex.Message}"); }
+
+            // 7. Upcoming milestones / next meeting
+            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Upcoming milestones and MIDP deadlines", ["source"] = "STANDARD", ["duration_min"] = 5, ["section"] = "Planning" });
+
+            // 8. AOB
+            agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = "Any other business", ["source"] = "STANDARD", ["duration_min"] = 5, ["section"] = "AOB" });
+
+            target["agenda"] = agenda;
+            int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
+            File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+
+            // Show agenda in result panel, grouped by section
+            var panel = StingResultPanel.Create("Meeting Agenda")
+                .SetSubtitle($"{target["type"]} — {target["date"]} | Est. {totalMin} minutes | {agenda.Count} items");
+
+            // Group agenda items by section
+            var sections = agenda.GroupBy(a => a["section"]?.ToString() ?? a["source"]?.ToString() ?? "General");
+            foreach (var section in sections)
+            {
+                panel.AddSection(section.Key.ToUpperInvariant());
+                foreach (var item in section)
+                    panel.Metric($"{item["num"]}.", item["topic"]?.ToString(), $"{item["duration_min"]}min");
+            }
+
+            panel.AddSection("MEETING SUMMARY")
+                .Metric("Meeting ID", meetId)
+                .Metric("Total agenda items", agenda.Count.ToString())
+                .Metric("Estimated duration", $"{totalMin} minutes")
+                .Metric("Open action items", allActions.Count.ToString())
+                .Metric("Open issues", openIssues.ToString());
+
+            panel.Show();
+            RefreshData();
+        }
+
+        private static void ShowMeetingTemplates(Document doc)
+        {
+            var templates = new List<string>
+            {
+                "Weekly BIM Coordination — Review clashes, actions, model health, transmittals",
+                "Design Review — Present design intent, review comments, agree next steps",
+                "Client Stage Review — RIBA stage deliverables, compliance, sign-off",
+                "Handover Review — COBie readiness, O&M data, asset register completeness",
+                "Clash Resolution — Discipline-pair clash walkthrough with assignments"
+            };
+            string pick = StingListPicker.Show("Meeting Templates", "Select template to apply:", templates);
+            if (!string.IsNullOrEmpty(pick))
+                MessageBox.Show($"Template selected: {pick.Split('—')[0].Trim()}\n\nCreate a meeting and use 'Auto Agenda' to generate agenda items based on current project data.",
+                    "STING Meeting Templates");
+        }
+
+        private static void LogMeetingMinutes(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var active = meetings.Where(m => m["status"]?.ToString() != "CLOSED").ToList();
+            if (active.Count == 0) { MessageBox.Show("No active meetings."); return; }
+
+            var meetList = active.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Log Minutes", "Select meeting:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            // Simple input for minutes text
+            var inputWin = new Window
+            {
+                Title = $"Meeting Minutes — {meetId}", Width = 520, Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen, ResizeMode = ResizeMode.CanResize
+            };
+            var stack = new StackPanel { Margin = new Thickness(12) };
+            stack.Children.Add(new TextBlock { Text = "Enter meeting minutes:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8) });
+            var tb = new System.Windows.Controls.TextBox
+            {
+                AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+                Height = 200, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Text = target["minutes"]?.ToString() ?? ""
+            };
+            stack.Children.Add(tb);
+            var saveBtn = new Button { Content = "Save Minutes", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(16, 6, 16, 6) };
+            saveBtn.Click += (s, e) =>
+            {
+                target["minutes"] = tb.Text;
+                target["status"] = "IN_PROGRESS";
+                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "MINUTES_LOGGED", meetId, $"{tb.Text.Length} chars");
+                inputWin.DialogResult = true;
+                inputWin.Close();
+            };
+            stack.Children.Add(saveBtn);
+            inputWin.Content = stack;
+            inputWin.ShowDialog();
+            RefreshData();
+        }
+
+        private static void AddActionItem(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            var active = meetings.Where(m => m["status"]?.ToString() != "CLOSED").ToList();
+            if (active.Count == 0) { MessageBox.Show("No active meetings."); return; }
+
+            var meetList = active.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Add Action Item", "Add action to which meeting:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            // Quick input dialog
+            var inputWin = new Window
+            {
+                Title = $"New Action Item — {meetId}", Width = 450, Height = 280,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            var grid = new System.Windows.Controls.Grid { Margin = new Thickness(12) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            void AddRow(int row, string label, out System.Windows.Controls.TextBox box)
+            {
+                var lbl = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
+                System.Windows.Controls.Grid.SetRow(lbl, row);
+                System.Windows.Controls.Grid.SetColumn(lbl, 0);
+                grid.Children.Add(lbl);
+                box = new System.Windows.Controls.TextBox { Margin = new Thickness(0, 2, 0, 2) };
+                System.Windows.Controls.Grid.SetRow(box, row);
+                System.Windows.Controls.Grid.SetColumn(box, 1);
+                grid.Children.Add(box);
+            }
+
+            AddRow(0, "Description:", out var descBox);
+            AddRow(1, "Assigned To:", out var assignBox);
+            assignBox.Text = Environment.UserName;
+            AddRow(2, "Due Date:", out var dueBox);
+            dueBox.Text = DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
+
+            var saveBtn = new Button
+            {
+                Content = "Add Action", Margin = new Thickness(100, 8, 0, 0),
+                Padding = new Thickness(16, 6, 16, 6)
+            };
+            System.Windows.Controls.Grid.SetRow(saveBtn, 3);
+            System.Windows.Controls.Grid.SetColumnSpan(saveBtn, 2);
+            grid.Children.Add(saveBtn);
+            saveBtn.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(descBox.Text)) { MessageBox.Show("Description required."); return; }
+                var actions = target["actions"] as JArray ?? new JArray();
+                actions.Add(new JObject
+                {
+                    ["id"] = $"ACT-{meetId.Replace("MTG-", "")}-{actions.Count + 1:D2}",
+                    ["description"] = descBox.Text,
+                    ["assigned_to"] = assignBox.Text,
+                    ["due_date"] = dueBox.Text,
+                    ["status"] = "OPEN",
+                    ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                });
+                target["actions"] = actions;
+                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "ACTION_ADDED", meetId, descBox.Text);
+                inputWin.DialogResult = true;
+                inputWin.Close();
+            };
+
+            inputWin.Content = grid;
+            inputWin.ShowDialog();
+            RefreshData();
+        }
+
+        private static void ShowMeetingHistory(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            if (meetings.Count == 0) { MessageBox.Show("No meetings recorded."); return; }
+
+            var panel = StingResultPanel.Create("Meeting History")
+                .SetSubtitle($"{meetings.Count} meetings recorded");
+
+            foreach (var m in meetings.Reverse())
+            {
+                string status = m["status"]?.ToString() ?? "PLANNED";
+                var brush = status == "CLOSED"
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x75, 0x75, 0x75))
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1A, 0x23, 0x7E));
+                panel.AddSection($"{m["id"]} — {m["type"]} ({m["date"]})", brush)
+                    .Metric("Status", status)
+                    .Metric("Created by", m["created_by"]?.ToString() ?? "")
+                    .Metric("Agenda items", (m["agenda"] as JArray)?.Count.ToString() ?? "0")
+                    .Metric("Action items", (m["actions"] as JArray)?.Count.ToString() ?? "0");
+
+                // Show open actions
+                if (m["actions"] is JArray acts)
+                {
+                    foreach (var a in acts.Where(a => a["status"]?.ToString() != "CLOSED"))
+                        panel.Alert($"[{a["status"]}] {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+                }
+            }
+
+            panel.Show();
+        }
+
+        private static void ShowOpenActions(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+
+            var openActions = new List<(string MeetId, JToken Action)>();
+            foreach (var m in meetings)
+            {
+                if (m["actions"] is JArray acts)
+                    foreach (var a in acts.Where(a => a["status"]?.ToString() != "CLOSED"))
+                        openActions.Add((m["id"]?.ToString() ?? "", a));
+            }
+
+            if (openActions.Count == 0) { MessageBox.Show("No open action items."); return; }
+
+            var panel = StingResultPanel.Create("Open Action Items")
+                .SetSubtitle($"{openActions.Count} actions outstanding");
+
+            // Group by due date
+            var overdue = openActions.Where(a =>
+                DateTime.TryParse(a.Action["due_date"]?.ToString(), out var dt) && dt < DateTime.Now).ToList();
+            var upcoming = openActions.Except(overdue).ToList();
+
+            if (overdue.Count > 0)
+            {
+                panel.AddSection($"OVERDUE ({overdue.Count})", new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+                foreach (var (meetId, a) in overdue)
+                    panel.Alert($"[{meetId}] {a["description"]} → {a["assigned_to"]} (due {a["due_date"]})");
+            }
+
+            panel.AddSection($"UPCOMING ({upcoming.Count})");
+            foreach (var (meetId, a) in upcoming)
+                panel.Metric($"[{meetId}] {a["assigned_to"]}", a["description"]?.ToString(), $"due {a["due_date"]}");
+
+            panel.Show();
+        }
+
+        private static void ExportMeetingMinutes(Document doc)
+        {
+            string meetPath = GetMeetingsPath(doc);
+            if (!File.Exists(meetPath)) { MessageBox.Show("No meetings recorded."); return; }
+            var meetings = JArray.Parse(File.ReadAllText(meetPath));
+            if (meetings.Count == 0) { MessageBox.Show("No meetings recorded."); return; }
+
+            var meetList = meetings.Select(m => $"{m["id"]} — {m["type"]} ({m["date"]})").ToList();
+            string pick = StingListPicker.Show("Export Minutes", "Export minutes for:", meetList);
+            if (string.IsNullOrEmpty(pick)) return;
+            string meetId = pick.Split(' ')[0];
+            var target = meetings.FirstOrDefault(m => m["id"]?.ToString() == meetId);
+            if (target == null) return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"╔══════════════════════════════════════════════════════════╗");
+            sb.AppendLine($"║  MEETING MINUTES — {target["id"],-38} ║");
+            sb.AppendLine($"╚══════════════════════════════════════════════════════════╝");
+            sb.AppendLine();
+            sb.AppendLine($"  Type:       {target["type"]}");
+            sb.AppendLine($"  Series #:   {target["series_num"]}");
+            sb.AppendLine($"  Date:       {target["date"]} {target["time"]}");
+            sb.AppendLine($"  Chair:      {target["chair"]}");
+            sb.AppendLine($"  Status:     {target["status"]}");
+            sb.AppendLine($"  Created by: {target["created_by"]}");
+            if (!string.IsNullOrEmpty(target["previous_meeting"]?.ToString()))
+                sb.AppendLine($"  Previous:   {target["previous_meeting"]}");
+            sb.AppendLine();
+
+            // Attendees
+            sb.AppendLine("── ATTENDEES ──");
+            if (target["attendees"] is JArray attArr)
+            {
+                sb.AppendLine($"  {"Name",-25} {"Role",-20} {"Disc",-5} {"Present",-8}");
+                sb.AppendLine($"  {new string('─', 60)}");
+                foreach (var att in attArr)
+                    sb.AppendLine($"  {att["name"]?.ToString() ?? "",-25} {att["role"]?.ToString() ?? "",-20} " +
+                        $"{att["discipline"]?.ToString() ?? "",-5} {(att["present"]?.Value<bool>() ?? true ? "Yes" : "No"),-8}");
+            }
+            sb.AppendLine();
+
+            // Agenda
+            sb.AppendLine("── AGENDA ──");
+            if (target["agenda"] is JArray agendaArr)
+            {
+                foreach (var item in agendaArr)
+                    sb.AppendLine($"  {item["num"]}. [{item["source"]}] {item["topic"]} ({item["duration_min"]}min)");
+            }
+            sb.AppendLine();
+
+            // Minutes
+            sb.AppendLine("── MINUTES ──");
+            sb.AppendLine(target["minutes"]?.ToString() ?? "(no minutes recorded)");
+            sb.AppendLine();
+
+            // Action items
+            sb.AppendLine("── ACTION ITEMS ──");
+            if (target["actions"] is JArray actsArr && actsArr.Count > 0)
+            {
+                sb.AppendLine($"  {"ID",-16} {"Status",-12} {"Assignee",-15} {"Due",-12} Description");
+                sb.AppendLine($"  {new string('─', 80)}");
+                foreach (var a in actsArr)
+                {
+                    sb.AppendLine($"  {a["id"]?.ToString() ?? "",-16} {a["status"]?.ToString() ?? "",-12} " +
+                        $"{a["assigned_to"]?.ToString() ?? "",-15} {a["due_date"]?.ToString() ?? "",-12} {a["description"]}");
+                    if (!string.IsNullOrEmpty(a["carried_from"]?.ToString()))
+                        sb.AppendLine($"                 (carried from {a["carried_from"]})");
+                }
+            }
+            else
+                sb.AppendLine("  (no action items)");
+
+            try
+            {
+                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
+                File.WriteAllText(exportPath, sb.ToString());
+                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true });
+                ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ExportMinutes: {ex.Message}");
+                // Fallback: copy to clipboard
+                try { Clipboard.SetText(sb.ToString()); MessageBox.Show("Minutes copied to clipboard."); }
+                catch (Exception ex2) { StingLog.Warn($"Clipboard: {ex2.Message}"); }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  ACTION BAR HELPERS
+        // ══════════════════════════════════════════════════════════════════
 
         private static TextBlock MakeSectionLabel(string text)
         {
@@ -1368,6 +2350,107 @@ namespace StingTools.UI
         private static Border MakeSep()
         {
             return new Border { Width = 2, Height = 22, Background = BrBorder, Margin = new Thickness(4, 0, 4, 0) };
+        }
+
+        /// <summary>Build row style with conditional coloring by status.</summary>
+        private static Style BuildRowStyle()
+        {
+            var style = new Style(typeof(ListViewItem));
+            style.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(2, 1, 2, 1)));
+            style.Setters.Add(new Setter(ListViewItem.FontSizeProperty, 11.0));
+
+            // Alternating row colors
+            var altTrigger = new Trigger { Property = ItemsControl.AlternationIndexProperty, Value = 1 };
+            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xFA))));
+            style.Triggers.Add(altTrigger);
+
+            // Overdue items: light red background
+            var overdueTrigger = new DataTrigger
+            {
+                Binding = new Binding("IsOverdue"), Value = true
+            };
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrRed));
+            style.Triggers.Add(overdueTrigger);
+
+            // Critical priority: light orange background
+            var critTrigger = new DataTrigger
+            {
+                Binding = new Binding("Priority"), Value = "CRITICAL"
+            };
+            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xE0))));
+            critTrigger.Setters.Add(new Setter(ListViewItem.FontWeightProperty, FontWeights.Bold));
+            style.Triggers.Add(critTrigger);
+
+            // RED compliance: light red tint
+            var redTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "RED"
+            };
+            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            style.Triggers.Add(redTrigger);
+
+            // GREEN compliance: light green tint
+            var greenTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "GREEN"
+            };
+            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9))));
+            style.Triggers.Add(greenTrigger);
+
+            // CLOSED issues: grey italic
+            var closedTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "CLOSED"
+            };
+            closedTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrFgSub));
+            closedTrigger.Setters.Add(new Setter(ListViewItem.FontStyleProperty, FontStyles.Italic));
+            style.Triggers.Add(closedTrigger);
+
+            return style;
+        }
+
+        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        private static void RestoreFromRecycle(Document doc)
+        {
+            string rootPath = ProjectFolderEngine.GetRootPath(doc);
+            string recyclePath = string.IsNullOrEmpty(rootPath) ? "" : Path.Combine(rootPath, "_RECYCLE");
+            if (!Directory.Exists(recyclePath) || Directory.GetFiles(recyclePath).Length == 0)
+            {
+                MessageBox.Show("Recycle bin is empty.", "STING Restore");
+                return;
+            }
+            var files = Directory.GetFiles(recyclePath)
+                .Select(f => Path.GetFileName(f)).OrderByDescending(f => f).ToList();
+            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
+            if (string.IsNullOrEmpty(pick)) return;
+
+            string srcPath = Path.Combine(recyclePath, pick);
+            // Let user choose destination folder
+            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            string destPick = StingListPicker.Show("Restore To", "Restore to which folder?", folders);
+            if (string.IsNullOrEmpty(destPick)) return;
+
+            string folderId = destPick.Split(':')[0].Trim();
+            string destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
+            if (!string.IsNullOrEmpty(destDir))
+            {
+                try
+                {
+                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+                    string destPath = Path.Combine(destDir, pick);
+                    File.Move(srcPath, destPath);
+                    ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {folderId}");
+                    MessageBox.Show($"Restored: {pick}\nTo: {folderId}", "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
+                    RefreshData();
+                }
+                catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+            }
         }
 
         // ── File operation implementations ──
@@ -1508,14 +2591,59 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"BulkClose: {ex.Message}"); }
         }
 
+        // ── CDE state machine — ISO 19650 valid transitions ──
+        private static readonly Dictionary<string, string[]> CDETransitions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [""] = new[] { "WIP" },
+            ["WIP"] = new[] { "SHARED" },
+            ["SHARED"] = new[] { "WIP", "PUBLISHED" },  // Can return to WIP for rework
+            ["PUBLISHED"] = new[] { "ARCHIVE" },
+            ["ARCHIVE"] = Array.Empty<string>()  // Terminal state
+        };
+
         private static void BulkUpdateCDE(Document doc)
         {
             var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
                 .Where(i => !string.IsNullOrEmpty(i.FilePath) && i.Category == "DOCUMENT").ToList();
             if (selected == null || selected.Count == 0) { MessageBox.Show("Select documents to update."); return; }
-            var cdeOptions = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
-            string newCDE = StingListPicker.Show("Update CDE Status", $"Set CDE status for {selected.Count} docs:", cdeOptions);
-            if (string.IsNullOrEmpty(newCDE)) return;
+
+            // Determine valid transitions based on current state of first selected doc
+            string currentCDE = selected.FirstOrDefault()?.CDE ?? "WIP";
+            var validTargets = CDETransitions.TryGetValue(currentCDE, out string[] targets) ? targets : new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+
+            // Check for mixed CDE states in selection
+            var distinctStates = selected.Select(s => s.CDE ?? "WIP").Distinct().ToList();
+            if (distinctStates.Count > 1)
+            {
+                // Mixed states — show all options but warn
+                validTargets = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                var mixedMsg = $"Selected documents have mixed CDE states: {string.Join(", ", distinctStates)}.\n\n" +
+                    "ISO 19650 recommends transitioning documents with the same CDE state together.\nProceed anyway?";
+                if (MessageBox.Show(mixedMsg, "Mixed CDE States", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            }
+            else if (validTargets.Length == 0)
+            {
+                MessageBox.Show($"Documents in '{currentCDE}' state cannot transition further (terminal state).", "CDE Transition");
+                return;
+            }
+
+            var cdeOptions = validTargets.Select(t =>
+            {
+                string desc = t switch
+                {
+                    "WIP" => "WIP — Return to Work In Progress for rework",
+                    "SHARED" => "SHARED — Issue for coordination/review (S1-S4)",
+                    "PUBLISHED" => "PUBLISHED — Approve and publish (A-codes, contractual)",
+                    "ARCHIVE" => "ARCHIVE — Superseded, retained for audit",
+                    _ => t
+                };
+                return desc;
+            }).ToList();
+
+            string pick = StingListPicker.Show("Update CDE Status",
+                $"Current state: {currentCDE}\nTransition {selected.Count} document(s) to:", cdeOptions);
+            if (string.IsNullOrEmpty(pick)) return;
+            string newCDE = pick.Split(' ')[0].Trim();
 
             // Move files to corresponding CDE folder
             string targetFolder = newCDE.ToUpperInvariant() switch
@@ -1555,17 +2683,31 @@ namespace StingTools.UI
                         var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
                         if (entry != null)
                         {
+                            string oldCDE = entry["cde_status"]?.ToString() ?? "WIP";
+                            string oldSuit = entry["suitability"]?.ToString() ?? "S0";
                             entry["cde_status"] = newCDE.ToUpperInvariant();
                             entry["date"] = DateTime.Now.ToString("yyyy-MM-dd");
-                            // Map CDE to suitability
+                            // Map CDE to default suitability per ISO 19650
                             string suit = newCDE.ToUpperInvariant() switch
                             {
-                                "WIP" => "S0", "SHARED" => "S3",
-                                "PUBLISHED" => "S6", "ARCHIVE" => "AB",
+                                "WIP" => "S0",
+                                "SHARED" => "S3",       // Fit for review & comment
+                                "PUBLISHED" => "S4",    // Fit for stage approval (2021 UK NA)
+                                "ARCHIVE" => "AB",      // Abandoned/superseded
                                 _ => "S0"
                             };
                             entry["suitability"] = suit;
-                            entry["status_code"] = newCDE == "PUBLISHED" ? "IFA" : "IFI";
+                            entry["status_code"] = newCDE.ToUpperInvariant() switch
+                            {
+                                "PUBLISHED" => "IFA",   // Issued for Approval
+                                "SHARED" => "IFC",      // Issued for Coordination
+                                "ARCHIVE" => "IFR",     // Issued for Record
+                                _ => "IFI"              // Issued for Information
+                            };
+                            // CDE-03: Log suitability transition with audit trail
+                            string history = entry["status_history"]?.ToString() ?? "";
+                            entry["status_history"] = history +
+                                $"|{DateTime.Now:yyyy-MM-dd HH:mm} CDE: {oldCDE}->{newCDE} Suit: {oldSuit}->{suit} by {Environment.UserName}";
                             synced++;
                         }
                     }
@@ -2533,6 +3675,23 @@ namespace StingTools.UI
             menu.Items.Add(MakeMenuItem("Rename...", "Rename this file", (s, e) => RenameSelected()));
             menu.Items.Add(MakeMenuItem("Move To Folder...", "Move to different project folder", (s, e) => MoveSelected(doc)));
             menu.Items.Add(MakeMenuItem("Delete (Recycle)", "Move to recycle bin", (s, e) => DeleteSelected()));
+            menu.Items.Add(MakeMenuItem("Auto-correct Name", "Auto-rename to ISO 19650 compliant format", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+                string currentName = Path.GetFileName(item.FilePath);
+                string corrected = ProjectFolderEngine.AutoCorrectFileName(doc, currentName);
+                if (corrected == currentName) { MessageBox.Show("Filename is already ISO 19650 compliant.", "STING"); return; }
+                if (MessageBox.Show($"Auto-correct filename?\n\nBefore: {currentName}\nAfter:  {corrected}",
+                    "Auto-correct", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                {
+                    if (ProjectFolderEngine.RenameFile(item.FilePath, corrected))
+                    {
+                        ProjectFolderEngine.LogActivity(doc, "AUTO_RENAME", item.Id ?? "", $"{currentName} -> {corrected}");
+                        RefreshData();
+                    }
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Restore from Recycle", "Recover deleted files", (s, e) => RestoreFromRecycle(doc)));
 
             menu.Items.Add(new Separator());
 

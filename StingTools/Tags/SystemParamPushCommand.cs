@@ -902,6 +902,7 @@ namespace StingTools.Tags
             catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "BatchSystemPush");
 
             TaskDialog.Show("Batch System Push",
                 $"Batch System Push Complete\n\n" +

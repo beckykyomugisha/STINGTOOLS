@@ -1150,12 +1150,17 @@ namespace StingTools.UI
                         var dmDoc = app.ActiveUIDocument?.Document;
                         if (dmDoc != null)
                         {
-                            var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
-                            if (dmResult != null && dmResult.Confirmed && !string.IsNullOrEmpty(dmResult.Operation))
+                            // Keep-dialog-open loop: re-open after each dispatched command
+                            while (true)
                             {
-                                // Re-dispatch to the selected sub-operation
+                                var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
+                                if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
+                                    break; // User closed — exit loop
+
+                                // Execute the dispatched sub-operation
                                 SetCommand(dmResult.Operation);
                                 Execute(app);
+                                // Loop re-opens the dialog automatically
                             }
                         }
                         break;

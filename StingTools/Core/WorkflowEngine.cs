@@ -916,6 +916,7 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("DailyQA"));
             presets.Add(GetBuiltInPreset("DocumentPackage"));
             presets.Add(GetBuiltInPreset("BEPPackage"));
+            presets.Add(GetBuiltInPreset("PostTaggingQA"));
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -1045,6 +1046,22 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ExportBEP", Label = "Export BEP to XLSX" },
                             new WorkflowStep { CommandTag = "COBieExport", Label = "COBie V2.4 Export" },
                             new WorkflowStep { CommandTag = "DocumentBriefcase", Label = "Document Briefcase" },
+                        }
+                    };
+
+                case "PostTaggingQA":
+                    return new WorkflowPreset
+                    {
+                        Name = "Post-Tagging QA",
+                        Description = "Validate tagging results: ISO compliance, token completeness, containers, register export",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "PreTagAudit", Label = "Pre-Tag Audit (dry run)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "Validate Tags (ISO 19650)" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "Completeness Dashboard" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "Export Tag Register (CSV)" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "Validate BIM Template (45 checks)" },
                         }
                     };
 
