@@ -963,6 +963,7 @@ namespace StingTools.UI
             VirtualizingStackPanel.SetIsVirtualizing(_listView, true);
             VirtualizingStackPanel.SetVirtualizationMode(_listView, VirtualizationMode.Recycling);
             ScrollViewer.SetIsDeferredScrollingEnabled(_listView, true);
+            _listView.AlternationCount = 2; // For alternating row colors
 
             // DM-04: Drag-drop — drag files from Explorer into the list to import
             _listView.DragEnter += (s, e) =>
@@ -1019,6 +1020,9 @@ namespace StingTools.UI
             gridView.Columns.Add(MakeCol("SLA", "SLADeadline", 70));  // GAP GRID-02
             _listView.View = gridView;
             _listView.MouseDoubleClick += ListView_DoubleClick;
+
+            // UX-05: Row coloring by status (overdue=red, critical=orange, alternating rows)
+            _listView.ItemContainerStyle = BuildRowStyle();
 
             // Right-click context menu — will be set when window context is available
             _listView.Tag = "NEEDS_CONTEXT_MENU";
@@ -1161,6 +1165,9 @@ namespace StingTools.UI
             fileWrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
             fileWrap.Children.Add(MakeActBtn("Update Trans", BrTeal, (s, e) => BulkUpdateTransmittalStatus(doc)));
             fileWrap.Children.Add(MakeSep());
+            fileWrap.Children.Add(MakeSectionLabel("RECOVER"));
+            fileWrap.Children.Add(MakeActBtn("Restore", BrGreen, (s, e) => RestoreFromRecycle(doc)));
+            fileWrap.Children.Add(MakeSep());
             fileWrap.Children.Add(MakeSectionLabel("EXPORT"));
             fileWrap.Children.Add(MakeActBtn("Export Visible CSV", BrGreen, (s, e) => ExportVisibleToCSV()));
             fileWrap.Children.Add(MakeActBtn("Code Legend", BrPurple, (s, e) => ShowCodeLegend()));
@@ -1247,6 +1254,12 @@ namespace StingTools.UI
             coordWrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Round-Trip", "ExcelRoundTrip", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Platform Sync", "PlatformSync", BrAccent, win));
+            coordWrap.Children.Add(MakeSep());
+            coordWrap.Children.Add(MakeSectionLabel("BIM"));
+            coordWrap.Children.Add(MakeDispatchBtn("Project Dash", "ProjectDashboard", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Bulk Export", "BulkBIMExport", BrGreen, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Quantities", "MeasuredQuantities", BrTeal, win));
+            coordWrap.Children.Add(MakeDispatchBtn("Element Summary", "ElementCountSummary", BrTeal, win));
             tabs.Items.Add(new TabItem { Header = "COORDINATION", Content = coordWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 6: HANDOVER ──
@@ -1265,6 +1278,10 @@ namespace StingTools.UI
             handWrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
             handWrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
             handWrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
+            handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("4D / 5D"));
+            handWrap.Children.Add(MakeDispatchBtn("4D Timeline", "Export4DTimeline", BrPurple, win));
+            handWrap.Children.Add(MakeDispatchBtn("5D Cost Data", "Export5DCostData", BrPurple, win));
             tabs.Items.Add(new TabItem { Header = "HANDOVER", Content = handWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 7: NOTES & BEP ──
@@ -1282,6 +1299,8 @@ namespace StingTools.UI
             notesWrap.Children.Add(MakeSep());
             notesWrap.Children.Add(MakeSectionLabel("BEP"));
             notesWrap.Children.Add(MakeDispatchBtn("Create BEP", "CreateBEP", BrGreen, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Generate BEP", "GenerateBEP", BrGreen, win));
+            notesWrap.Children.Add(MakeDispatchBtn("Update BEP", "UpdateBEP", BrTeal, win));
             notesWrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
             notesWrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
             tabs.Items.Add(new TabItem { Header = "NOTES / BEP", Content = notesWrap, Padding = new Thickness(8, 2, 8, 2) });
@@ -1706,6 +1725,107 @@ namespace StingTools.UI
             return new Border { Width = 2, Height = 22, Background = BrBorder, Margin = new Thickness(4, 0, 4, 0) };
         }
 
+        /// <summary>Build row style with conditional coloring by status.</summary>
+        private static Style BuildRowStyle()
+        {
+            var style = new Style(typeof(ListViewItem));
+            style.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(2, 1, 2, 1)));
+            style.Setters.Add(new Setter(ListViewItem.FontSizeProperty, 11.0));
+
+            // Alternating row colors
+            var altTrigger = new Trigger { Property = ItemsControl.AlternationIndexProperty, Value = 1 };
+            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xFA))));
+            style.Triggers.Add(altTrigger);
+
+            // Overdue items: light red background
+            var overdueTrigger = new DataTrigger
+            {
+                Binding = new Binding("IsOverdue"), Value = true
+            };
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrRed));
+            style.Triggers.Add(overdueTrigger);
+
+            // Critical priority: light orange background
+            var critTrigger = new DataTrigger
+            {
+                Binding = new Binding("Priority"), Value = "CRITICAL"
+            };
+            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xE0))));
+            critTrigger.Setters.Add(new Setter(ListViewItem.FontWeightProperty, FontWeights.Bold));
+            style.Triggers.Add(critTrigger);
+
+            // RED compliance: light red tint
+            var redTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "RED"
+            };
+            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            style.Triggers.Add(redTrigger);
+
+            // GREEN compliance: light green tint
+            var greenTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "GREEN"
+            };
+            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
+                new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9))));
+            style.Triggers.Add(greenTrigger);
+
+            // CLOSED issues: grey italic
+            var closedTrigger = new DataTrigger
+            {
+                Binding = new Binding("Status"), Value = "CLOSED"
+            };
+            closedTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrFgSub));
+            closedTrigger.Setters.Add(new Setter(ListViewItem.FontStyleProperty, FontStyles.Italic));
+            style.Triggers.Add(closedTrigger);
+
+            return style;
+        }
+
+        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        private static void RestoreFromRecycle(Document doc)
+        {
+            string rootPath = ProjectFolderEngine.GetRootPath(doc);
+            string recyclePath = string.IsNullOrEmpty(rootPath) ? "" : Path.Combine(rootPath, "_RECYCLE");
+            if (!Directory.Exists(recyclePath) || Directory.GetFiles(recyclePath).Length == 0)
+            {
+                MessageBox.Show("Recycle bin is empty.", "STING Restore");
+                return;
+            }
+            var files = Directory.GetFiles(recyclePath)
+                .Select(f => Path.GetFileName(f)).OrderByDescending(f => f).ToList();
+            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
+            if (string.IsNullOrEmpty(pick)) return;
+
+            string srcPath = Path.Combine(recyclePath, pick);
+            // Let user choose destination folder
+            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            string destPick = StingListPicker.Show("Restore To", "Restore to which folder?", folders);
+            if (string.IsNullOrEmpty(destPick)) return;
+
+            string folderId = destPick.Split(':')[0].Trim();
+            string destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
+            if (!string.IsNullOrEmpty(destDir))
+            {
+                try
+                {
+                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+                    string destPath = Path.Combine(destDir, pick);
+                    File.Move(srcPath, destPath);
+                    ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {folderId}");
+                    MessageBox.Show($"Restored: {pick}\nTo: {folderId}", "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
+                    RefreshData();
+                }
+                catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+            }
+        }
+
         // ── File operation implementations ──
 
         private static void OpenSelected()
@@ -1844,14 +1964,59 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"BulkClose: {ex.Message}"); }
         }
 
+        // ── CDE state machine — ISO 19650 valid transitions ──
+        private static readonly Dictionary<string, string[]> CDETransitions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [""] = new[] { "WIP" },
+            ["WIP"] = new[] { "SHARED" },
+            ["SHARED"] = new[] { "WIP", "PUBLISHED" },  // Can return to WIP for rework
+            ["PUBLISHED"] = new[] { "ARCHIVE" },
+            ["ARCHIVE"] = Array.Empty<string>()  // Terminal state
+        };
+
         private static void BulkUpdateCDE(Document doc)
         {
             var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
                 .Where(i => !string.IsNullOrEmpty(i.FilePath) && i.Category == "DOCUMENT").ToList();
             if (selected == null || selected.Count == 0) { MessageBox.Show("Select documents to update."); return; }
-            var cdeOptions = new List<string> { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
-            string newCDE = StingListPicker.Show("Update CDE Status", $"Set CDE status for {selected.Count} docs:", cdeOptions);
-            if (string.IsNullOrEmpty(newCDE)) return;
+
+            // Determine valid transitions based on current state of first selected doc
+            string currentCDE = selected.FirstOrDefault()?.CDE ?? "WIP";
+            var validTargets = CDETransitions.TryGetValue(currentCDE, out string[] targets) ? targets : new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+
+            // Check for mixed CDE states in selection
+            var distinctStates = selected.Select(s => s.CDE ?? "WIP").Distinct().ToList();
+            if (distinctStates.Count > 1)
+            {
+                // Mixed states — show all options but warn
+                validTargets = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                var mixedMsg = $"Selected documents have mixed CDE states: {string.Join(", ", distinctStates)}.\n\n" +
+                    "ISO 19650 recommends transitioning documents with the same CDE state together.\nProceed anyway?";
+                if (MessageBox.Show(mixedMsg, "Mixed CDE States", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            }
+            else if (validTargets.Length == 0)
+            {
+                MessageBox.Show($"Documents in '{currentCDE}' state cannot transition further (terminal state).", "CDE Transition");
+                return;
+            }
+
+            var cdeOptions = validTargets.Select(t =>
+            {
+                string desc = t switch
+                {
+                    "WIP" => "WIP — Return to Work In Progress for rework",
+                    "SHARED" => "SHARED — Issue for coordination/review (S1-S4)",
+                    "PUBLISHED" => "PUBLISHED — Approve and publish (A-codes, contractual)",
+                    "ARCHIVE" => "ARCHIVE — Superseded, retained for audit",
+                    _ => t
+                };
+                return desc;
+            }).ToList();
+
+            string pick = StingListPicker.Show("Update CDE Status",
+                $"Current state: {currentCDE}\nTransition {selected.Count} document(s) to:", cdeOptions);
+            if (string.IsNullOrEmpty(pick)) return;
+            string newCDE = pick.Split(' ')[0].Trim();
 
             // Move files to corresponding CDE folder
             string targetFolder = newCDE.ToUpperInvariant() switch
@@ -1891,17 +2056,31 @@ namespace StingTools.UI
                         var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
                         if (entry != null)
                         {
+                            string oldCDE = entry["cde_status"]?.ToString() ?? "WIP";
+                            string oldSuit = entry["suitability"]?.ToString() ?? "S0";
                             entry["cde_status"] = newCDE.ToUpperInvariant();
                             entry["date"] = DateTime.Now.ToString("yyyy-MM-dd");
-                            // Map CDE to suitability
+                            // Map CDE to default suitability per ISO 19650
                             string suit = newCDE.ToUpperInvariant() switch
                             {
-                                "WIP" => "S0", "SHARED" => "S3",
-                                "PUBLISHED" => "S6", "ARCHIVE" => "AB",
+                                "WIP" => "S0",
+                                "SHARED" => "S3",       // Fit for review & comment
+                                "PUBLISHED" => "S4",    // Fit for stage approval (2021 UK NA)
+                                "ARCHIVE" => "AB",      // Abandoned/superseded
                                 _ => "S0"
                             };
                             entry["suitability"] = suit;
-                            entry["status_code"] = newCDE == "PUBLISHED" ? "IFA" : "IFI";
+                            entry["status_code"] = newCDE.ToUpperInvariant() switch
+                            {
+                                "PUBLISHED" => "IFA",   // Issued for Approval
+                                "SHARED" => "IFC",      // Issued for Coordination
+                                "ARCHIVE" => "IFR",     // Issued for Record
+                                _ => "IFI"              // Issued for Information
+                            };
+                            // CDE-03: Log suitability transition with audit trail
+                            string history = entry["status_history"]?.ToString() ?? "";
+                            entry["status_history"] = history +
+                                $"|{DateTime.Now:yyyy-MM-dd HH:mm} CDE: {oldCDE}->{newCDE} Suit: {oldSuit}->{suit} by {Environment.UserName}";
                             synced++;
                         }
                     }
@@ -2869,6 +3048,23 @@ namespace StingTools.UI
             menu.Items.Add(MakeMenuItem("Rename...", "Rename this file", (s, e) => RenameSelected()));
             menu.Items.Add(MakeMenuItem("Move To Folder...", "Move to different project folder", (s, e) => MoveSelected(doc)));
             menu.Items.Add(MakeMenuItem("Delete (Recycle)", "Move to recycle bin", (s, e) => DeleteSelected()));
+            menu.Items.Add(MakeMenuItem("Auto-correct Name", "Auto-rename to ISO 19650 compliant format", (s, e) =>
+            {
+                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+                string currentName = Path.GetFileName(item.FilePath);
+                string corrected = ProjectFolderEngine.AutoCorrectFileName(doc, currentName);
+                if (corrected == currentName) { MessageBox.Show("Filename is already ISO 19650 compliant.", "STING"); return; }
+                if (MessageBox.Show($"Auto-correct filename?\n\nBefore: {currentName}\nAfter:  {corrected}",
+                    "Auto-correct", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                {
+                    if (ProjectFolderEngine.RenameFile(item.FilePath, corrected))
+                    {
+                        ProjectFolderEngine.LogActivity(doc, "AUTO_RENAME", item.Id ?? "", $"{currentName} -> {corrected}");
+                        RefreshData();
+                    }
+                }
+            }));
+            menu.Items.Add(MakeMenuItem("Restore from Recycle", "Recover deleted files", (s, e) => RestoreFromRecycle(doc)));
 
             menu.Items.Add(new Separator());
 

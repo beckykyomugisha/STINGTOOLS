@@ -2019,6 +2019,16 @@ Critical review of the tagging workflow identified the following logic, automati
 399. **Enhanced revision tab** — Added Issue Sheets, Tag Integration, and Auto on Tag Change buttons for full revision lifecycle management.
 400. **Search box promoted to field** — `_searchBox` field enables Ctrl+F keyboard shortcut access from any context within the dialog.
 
+#### Completed (Phase 39b — Document Management: CDE State Machine, Row Coloring, Restore, BIM Commands)
+
+401. **CDE state machine enforcement (CDE-01)** — `BulkUpdateCDE` now enforces ISO 19650 one-way transitions: WIP→SHARED→PUBLISHED→ARCHIVE (with SHARED→WIP rework path). Mixed CDE state warning for multi-select. Terminal state blocking for ARCHIVE. Valid transitions shown as descriptive options.
+402. **Suitability transition logging (CDE-03)** — All CDE state changes now logged in `status_history` with timestamp, old/new CDE state, old/new suitability code, and username. Status codes properly mapped: SHARED→IFC (Issued for Coordination), PUBLISHED→IFA (Issued for Approval), ARCHIVE→IFR (Issued for Record). Suitability mapped per 2021 UK NA: SHARED→S3, PUBLISHED→S4.
+403. **Row coloring by status (UX-05)** — `BuildRowStyle()` applies conditional background colors: overdue items (light red + red text), CRITICAL priority (light orange + bold), RED compliance (light red tint), GREEN compliance (light green tint), CLOSED issues (grey italic), alternating row colors for readability. Uses `DataTrigger` bindings.
+404. **Restore from recycle (PFE-01)** — `RestoreFromRecycle()` method lists files in `_RECYCLE` folder, lets user pick file and destination folder. Context menu item added. Activity logged.
+405. **Auto-correct filename (PFE-03)** — Context menu item "Auto-correct Name" calls `ProjectFolderEngine.AutoCorrectFileName()` with before/after preview and confirmation. Activity logged.
+406. **Missing BIM commands wired** — Added to COORDINATION tab: ProjectDashboard, BulkBIMExport, MeasuredQuantities, ElementCountSummary. Added to HANDOVER tab: Export4DTimeline, Export5DCostData. Added to NOTES/BEP tab: GenerateBEP, UpdateBEP.
+407. **ListView alternation** — `AlternationCount = 2` for alternating row background colors.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
