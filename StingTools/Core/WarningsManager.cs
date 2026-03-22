@@ -682,9 +682,13 @@ namespace StingTools.Core
                 string desc = fma.GetDescriptionText() ?? "";
                 _encountered.Add(desc);
 
+                // DocumentCorruption — always rollback
+                if (severity == FailureSeverity.DocumentCorruption)
+                    return FailureProcessingResult.ProceedWithRollBack;
+
                 if (severity == FailureSeverity.Error)
                 {
-                    // Errors cannot be dismissed — try resolution
+                    // Errors cannot be dismissed — try resolution via BuiltInFailures IDs first
                     if (fma.HasResolutions())
                     {
                         fma.SetCurrentResolutionType(FailureResolutionType.Default);
