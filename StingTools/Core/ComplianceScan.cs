@@ -62,8 +62,16 @@ namespace StingTools.Core
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
                 ["DISC"]=0, ["LOC"]=0, ["ZONE"]=0, ["LVL"]=0,
-                ["SYS"]=0, ["FUNC"]=0, ["PROD"]=0, ["SEQ"]=0
+                ["SYS"]=0, ["FUNC"]=0, ["PROD"]=0, ["SEQ"]=0,
+                ["STATUS"]=0, ["REV"]=0
             };
+
+            /// <summary>Phase 48: Per-phase compliance breakdown for BIM coordinators tracking stage progress.</summary>
+            public Dictionary<string, PhaseComplianceData> ByPhase { get; set; } = new Dictionary<string, PhaseComplianceData>();
+
+            /// <summary>Phase 48: Count of elements with placeholder tokens (GEN/XX/ZZ/0000) —
+            /// "complete" but not production-ready.</summary>
+            public int PlaceholderCount { get; set; }
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
 
@@ -213,6 +221,8 @@ namespace StingTools.Core
                                 dd.Tagged++;
                                 if (!hasPlaceholders)
                                     result.FullyResolved++;
+                                else
+                                    result.PlaceholderCount++;
 
                                 // Drill into specific token issues regardless of placeholder status
                                 if (parts[po + 1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
@@ -248,6 +258,7 @@ namespace StingTools.Core
                         else
                         {
                             result.RevisionMissing++;
+                            result.EmptyTokenCounts["REV"]++;
                             AddIssue(result, "Missing REV");
                         }
 
@@ -256,6 +267,7 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(status))
                         {
                             result.StatusMissing++;
+                            result.EmptyTokenCounts["STATUS"]++;
                             AddIssue(result, "Missing STATUS");
                         }
                         else
@@ -264,6 +276,28 @@ namespace StingTools.Core
                                 result.StatusDistribution[status] = 0;
                             result.StatusDistribution[status]++;
                         }
+
+                        // Phase 48: Phase-based compliance breakdown
+                        try
+                        {
+                            string phaseName = "";
+                            var phaseParam = elem.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                            if (phaseParam != null)
+                            {
+                                var phaseEl = doc.GetElement(phaseParam.AsElementId());
+                                if (phaseEl != null) phaseName = phaseEl.Name;
+                            }
+                            if (string.IsNullOrEmpty(phaseName)) phaseName = "Unknown";
+                            if (!result.ByPhase.TryGetValue(phaseName, out var pd))
+                            {
+                                pd = new PhaseComplianceData();
+                                result.ByPhase[phaseName] = pd;
+                            }
+                            pd.Total++;
+                            if (!string.IsNullOrEmpty(tag)) pd.Tagged++;
+                            else pd.Untagged++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Phase compliance: {ex.Message}"); }
 
                         // A5: Container check with per-container tracking
                         // PERF-05: Skip expensive container check when TAG1 is empty — if the
@@ -436,6 +470,15 @@ namespace StingTools.Core
         public int MissingLoc { get; set; }
         public int MissingSys { get; set; }
         public int MissingProd { get; set; }
+        public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
+    }
+
+    /// <summary>Phase 48: Per-phase compliance data for stage tracking.</summary>
+    public class PhaseComplianceData
+    {
+        public int Total { get; set; }
+        public int Tagged { get; set; }
+        public int Untagged { get; set; }
         public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
     }
 }

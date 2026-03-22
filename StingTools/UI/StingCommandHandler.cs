@@ -1250,6 +1250,44 @@ namespace StingTools.UI
                         break;
                     }
 
+                    // Phase 48: Enhanced workflow dispatch
+                    case "RepeatLastWorkflow":
+                    {
+                        string last = Core.WorkflowEngine.LastWorkflowName;
+                        if (!string.IsNullOrEmpty(last))
+                        {
+                            SetExtraParam("WorkflowPresetName", last);
+                            RunCommand<Core.WorkflowPresetCommand>(app);
+                        }
+                        else
+                        {
+                            TaskDialog.Show("STING", "No previous workflow to repeat.\nRun a workflow first, then use 'Repeat Last'.");
+                        }
+                        break;
+                    }
+                    case "RunWorkflow_MorningHealthCheck":
+                    case "RunWorkflow_DailyQASync":
+                    case "RunWorkflow_HandoverReadiness":
+                    case "RunWorkflow_WeeklyDataDrop":
+                    case "RunWorkflow_ProjectKickoff":
+                    case "RunWorkflow_PostTaggingQA":
+                    case "RunWorkflow_DocumentPackage":
+                    case "RunWorkflow_BEPPackage":
+                    {
+                        string wfName = _commandTag.Replace("RunWorkflow_", "").Replace("Sync", " Sync").Replace("Health", " Health")
+                            .Replace("Data", " Data").Replace("Readiness", " Readiness").Replace("Tagging", " Tagging")
+                            .Replace("Kickoff", " Kickoff").Replace("Package", " Package");
+                        SetExtraParam("WorkflowPresetName", wfName.Trim());
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "SaveExtendedBaseline":
+                    {
+                        var d = SafeDoc(app);
+                        if (d != null) { Core.WarningsEngine.SaveExtendedBaseline(d); TaskDialog.Show("STING", "Extended warning baseline saved."); }
+                        break;
+                    }
+
                     // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
                     case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
                     case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;

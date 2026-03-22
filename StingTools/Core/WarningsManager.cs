@@ -79,6 +79,14 @@ namespace StingTools.Core
         public int? BaselineTotal { get; set; }
         public int TrendDelta => BaselineTotal.HasValue ? Total - BaselineTotal.Value : 0;
         public string TrendSymbol => TrendDelta > 0 ? $"↑{TrendDelta}" : TrendDelta < 0 ? $"↓{Math.Abs(TrendDelta)}" : "→0";
+
+        // Phase 48: SLA metrics
+        /// <summary>Warnings older than SLA threshold (Critical=4h, High=24h, Medium=168h, Low=336h).</summary>
+        public int SLAViolations { get; set; }
+        /// <summary>Average age of unresolved critical/high warnings in hours.</summary>
+        public double AvgCriticalAgeHours { get; set; }
+        /// <summary>Phase 48: Warning type groups for top-N display per category.</summary>
+        public Dictionary<WarningCategory, List<(string Desc, int Count)>> TopWarningsByCategory { get; set; } = new();
     }
 
     /// <summary>Result of a batch auto-fix operation.</summary>
@@ -410,6 +418,13 @@ namespace StingTools.Core
                 report.BaselineTotal = LoadBaseline(doc);
             }
             catch (Exception ex) { StingLog.Warn($"Warning baseline load: {ex.Message}"); }
+
+            // Phase 48: Build top warnings by category for tooltip drill-down
+            BuildTopWarningsByCategory(report);
+
+            // Phase 48: SLA violation check
+            try { CheckWarningSLAViolations(doc, report); }
+            catch (Exception ex) { StingLog.Warn($"SLA check: {ex.Message}"); }
 
             return report;
         }
@@ -939,6 +954,123 @@ namespace StingTools.Core
             // Info = 0 weight (no penalty)
 
             return Math.Max(0, Math.Min(100, score));
+        }
+
+        // ── Phase 48: SLA ENFORCEMENT ──
+
+        /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).</summary>
+        internal static readonly Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
+        {
+            { WarningSeverity.Critical, 4 },     // 4 hours
+            { WarningSeverity.High, 24 },         // 1 day
+            { WarningSeverity.Medium, 168 },      // 1 week
+            { WarningSeverity.Low, 336 },         // 2 weeks
+            { WarningSeverity.Info, double.MaxValue }  // No SLA
+        };
+
+        /// <summary>Phase 48: Check for SLA violations against warning baseline timestamps.
+        /// Returns count of warnings exceeding their severity-specific SLA.</summary>
+        internal static int CheckWarningSLAViolations(Document doc, WarningReport report)
+        {
+            int violations = 0;
+            try
+            {
+                // Load baseline timestamp to calculate warning age
+                string baselinePath = GetBaselinePath(doc);
+                DateTime baselineTime = DateTime.Now.AddHours(-48); // Default: assume 48h old if no baseline
+                if (baselinePath != null && File.Exists(baselinePath))
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(baselinePath);
+                        int dateIdx = json.IndexOf("\"date\":\"");
+                        if (dateIdx >= 0)
+                        {
+                            int s = dateIdx + 8;
+                            int e = json.IndexOf('"', s);
+                            if (e > s && DateTime.TryParse(json.Substring(s, e - s), out DateTime dt))
+                                baselineTime = dt;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"SLA baseline parse: {ex.Message}"); }
+                }
+
+                double hoursOld = (DateTime.Now - baselineTime).TotalHours;
+                foreach (var sev in new[] { WarningSeverity.Critical, WarningSeverity.High, WarningSeverity.Medium, WarningSeverity.Low })
+                {
+                    if (report.BySeverity.TryGetValue(sev, out int count) && count > 0)
+                    {
+                        if (hoursOld > SLAThresholdsHours[sev])
+                            violations += count;
+                    }
+                }
+                report.SLAViolations = violations;
+            }
+            catch (Exception ex) { StingLog.Warn($"CheckWarningSLAViolations: {ex.Message}"); }
+            return violations;
+        }
+
+        /// <summary>Phase 48: Save extended baseline with warning type tracking for regression analysis.</summary>
+        internal static void SaveExtendedBaseline(Document doc)
+        {
+            try
+            {
+                string path = GetBaselinePath(doc);
+                if (path == null) return;
+
+                var warnings = doc.GetWarnings();
+                int count = warnings?.Count ?? 0;
+
+                // Build warning type array
+                var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (warnings != null)
+                {
+                    foreach (var fm in warnings)
+                    {
+                        string desc = fm.GetDescriptionText();
+                        if (!string.IsNullOrEmpty(desc)) types.Add(desc);
+                    }
+                }
+
+                var sb = new StringBuilder();
+                sb.Append("{");
+                sb.Append($"\"total\":{count},");
+                sb.Append($"\"date\":\"{DateTime.Now:o}\",");
+                sb.Append($"\"user\":\"{Environment.UserName ?? "unknown"}\",");
+                sb.Append("\"warning_types\":[");
+                bool first = true;
+                foreach (string t in types)
+                {
+                    if (!first) sb.Append(",");
+                    sb.Append($"\"{t.Replace("\"", "\\\"")}\"");
+                    first = false;
+                }
+                sb.Append("]");
+                sb.Append("}");
+
+                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+                StingLog.Info($"Extended warning baseline saved: {count} warnings, {types.Count} types");
+            }
+            catch (Exception ex) { StingLog.Warn($"SaveExtendedBaseline: {ex.Message}"); }
+        }
+
+        /// <summary>Phase 48: Build top-N warnings per category for drill-down tooltips.</summary>
+        internal static void BuildTopWarningsByCategory(WarningReport report)
+        {
+            if (report?.Warnings == null) return;
+            report.TopWarningsByCategory.Clear();
+
+            var groups = report.Warnings.GroupBy(w => w.Category);
+            foreach (var group in groups)
+            {
+                var topDescs = group
+                    .GroupBy(w => w.Description)
+                    .OrderByDescending(g => g.Count())
+                    .Take(3)
+                    .Select(g => (g.Key.Length > 80 ? g.Key.Substring(0, 77) + "..." : g.Key, g.Count()))
+                    .ToList();
+                report.TopWarningsByCategory[group.Key] = topDescs;
+            }
         }
     }
 
@@ -1560,6 +1692,75 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter sync load: {ex.Message}"); }
 
+                // Phase 48: Load overdue issue count and issue rows for DataGrid
+                int issuesOverdue = 0;
+                int issuesTotal2 = 0;
+                var issueRows = new List<UI.BIMCoordinationCenter.IssueRow>();
+                try
+                {
+                    string docPath3 = doc.PathName;
+                    if (!string.IsNullOrEmpty(docPath3))
+                    {
+                        string issuesPath2 = Path.Combine(Path.GetDirectoryName(docPath3), "_bim_manager", "issues.json");
+                        if (File.Exists(issuesPath2))
+                        {
+                            var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath2));
+                            issuesTotal2 = arr.Count;
+                            foreach (var item in arr)
+                            {
+                                string st = item.Value<string>("status") ?? "";
+                                bool overdue = false;
+                                string created = item.Value<string>("created_date") ?? "";
+                                string daysOpen = "";
+                                if (DateTime.TryParse(created, out DateTime cDate))
+                                {
+                                    int d = (int)(DateTime.Now - cDate).TotalDays;
+                                    daysOpen = d < 1 ? "<1d" : d < 7 ? $"{d}d" : d < 30 ? $"{d/7}w" : $"{d/30}mo";
+                                    string pri = item.Value<string>("priority") ?? "";
+                                    double slaHours = pri == "CRITICAL" ? 4 : pri == "HIGH" ? 24 : pri == "MEDIUM" ? 168 : 336;
+                                    if (st == "OPEN" && (DateTime.Now - cDate).TotalHours > slaHours) { overdue = true; issuesOverdue++; }
+                                }
+                                issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
+                                {
+                                    Id = item.Value<string>("id") ?? "",
+                                    Title = item.Value<string>("title") ?? "",
+                                    Type = item.Value<string>("type") ?? "",
+                                    Priority = item.Value<string>("priority") ?? "",
+                                    Status = st,
+                                    Assignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "",
+                                    Created = created.Length > 10 ? created.Substring(0, 10) : created,
+                                    IsOverdue = overdue,
+                                    DaysOpen = daysOpen
+                                });
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter issue rows: {ex.Message}"); }
+
+                // Phase 48: Load revision rows for DataGrid
+                var revisionRows = new List<UI.BIMCoordinationCenter.RevisionRow>();
+                try
+                {
+                    var revisions2 = new FilteredElementCollector(doc).OfClass(typeof(Revision)).Cast<Revision>().ToList();
+                    foreach (var rev in revisions2)
+                    {
+                        int clouds2 = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                            .WhereElementIsNotElementType().ToElements()
+                            .Count(c => { try { return c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id; } catch { return false; } });
+                        revisionRows.Add(new UI.BIMCoordinationCenter.RevisionRow
+                        {
+                            Id = rev.Id.Value.ToString(),
+                            Name = rev.Name ?? "",
+                            Date = rev.RevisionDate ?? "",
+                            Description = rev.Description ?? "",
+                            Clouds = clouds2,
+                            Status = rev.Issued ? "ISSUED" : "DRAFT"
+                        });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter revision rows: {ex.Message}"); }
+
                 var coordData = new UI.BIMCoordinationCenter.CoordData
                 {
                     ProjectName = doc.Title ?? "Untitled",
@@ -1575,6 +1776,11 @@ namespace StingTools.Core
                     SheetsTotal = compliance?.TotalSheets ?? 0,
                     ByDisc = compliance?.ByDisc ?? new Dictionary<string, ComplianceScan.DiscComplianceData>(),
                     EmptyTokenCounts = compliance?.EmptyTokenCounts?.ToDictionary(x => x.Key, x => x.Value) ?? new Dictionary<string, int>(),
+                    ContainerCompletePct = compliance?.ContainerCompletePct ?? 0,
+                    ByPhase = compliance?.ByPhase?.ToDictionary(
+                        x => x.Key,
+                        x => (x.Value.Total, x.Value.Tagged, x.Value.CompliancePct)) ?? new Dictionary<string, (int, int, double)>(),
+                    PlaceholderCount = compliance?.PlaceholderCount ?? 0,
                     WarningTotal = warningReport.Total,
                     WarningCritical = warningReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0),
                     WarningHigh = warningReport.BySeverity.GetValueOrDefault(WarningSeverity.High, 0),
@@ -1590,11 +1796,17 @@ namespace StingTools.Core
                     WarningByLevel = warningReport.ByLevel,
                     WarningByDiscipline = warningReport.ByDiscipline,
                     WarningHotspots = warningReport.Hotspots.Select(h => (h.Name, h.Count)).ToList(),
+                    WarningSLAViolations = warningReport.SLAViolations,
+                    WarningTopByCategory = warningReport.TopWarningsByCategory
+                        .ToDictionary(x => x.Key, x => x.Value.Select(v => (v.Desc, v.Count)).ToList()),
                     IssuesOpen = openIssues,
                     IssuesCritical = criticalIssues,
-                    IssuesTotal = openIssues + criticalIssues,
+                    IssuesOverdue = issuesOverdue,
+                    IssuesTotal = issuesTotal2,
+                    Issues = issueRows,
                     RevisionCount = revisionCount,
                     RevisionClouds = revisionClouds,
+                    Revisions = revisionRows,
                     LastSyncTime = lastSyncTime,
                     SyncChanges = syncChanges,
                     WorkflowRuns = workflowRuns,

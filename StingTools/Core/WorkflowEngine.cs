@@ -290,10 +290,68 @@ namespace StingTools.Core
         /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
         [JsonProperty("timeoutSeconds")]
         public int TimeoutSeconds { get; set; } = 300;
+
+        /// <summary>Phase 48: Skip step if the previous step was skipped.</summary>
+        [JsonProperty("skipIfPreviousSkipped")]
+        public bool SkipIfPreviousSkipped { get; set; }
+
+        /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
+        [JsonProperty("minWarningHealthScore")]
+        public int? MinWarningHealthScore { get; set; }
     }
 
     internal static class WorkflowEngine
     {
+        // Phase 48: Last workflow memory for "Repeat Last" feature
+        private static string _lastWorkflowName;
+        private static string _lastWorkflowResult;
+        private static DateTime _lastWorkflowTime;
+
+        /// <summary>Phase 48: Name of the last successfully executed workflow preset.</summary>
+        public static string LastWorkflowName => _lastWorkflowName;
+
+        /// <summary>Phase 48: Result summary of last workflow execution.</summary>
+        public static string LastWorkflowResult => _lastWorkflowResult;
+
+        /// <summary>Phase 48: Timestamp of last workflow execution.</summary>
+        public static DateTime LastWorkflowTime => _lastWorkflowTime;
+
+        /// <summary>Phase 48: Pre-flight model check — verifies model is suitable for workflow execution.
+        /// Returns (canProceed, issues) where issues lists any blocking conditions.</summary>
+        public static (bool canProceed, List<string> issues) PreFlightCheck(Document doc, WorkflowPreset preset)
+        {
+            var issues = new List<string>();
+            if (doc == null) { issues.Add("No document is open."); return (false, issues); }
+
+            // Check element count thresholds
+            try
+            {
+                int elementCount = new FilteredElementCollector(doc).WhereElementIsNotElementType().GetElementCount();
+                foreach (var step in preset.Steps)
+                {
+                    if (step.MinElementCount.HasValue && elementCount < step.MinElementCount.Value)
+                        issues.Add($"Step '{step.Label}' requires min {step.MinElementCount} elements (model has {elementCount})");
+                    if (step.MaxElementCount.HasValue && elementCount > step.MaxElementCount.Value)
+                        issues.Add($"Step '{step.Label}' limited to {step.MaxElementCount} elements (model has {elementCount})");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PreFlight element count: {ex.Message}"); }
+
+            // Check worksharing requirements
+            bool isWorkshared = doc.IsWorkshared;
+            foreach (var step in preset.Steps)
+            {
+                if (step.RequiresWorksharedModel && !isWorkshared && !step.Optional)
+                    issues.Add($"Step '{step.Label}' requires workshared model");
+            }
+
+            // Check data file availability
+            if (string.IsNullOrEmpty(StingToolsApp.DataPath) || !Directory.Exists(StingToolsApp.DataPath))
+                issues.Add("STING data directory not found — template/schedule/material commands will fail");
+
+            return (issues.Count == 0, issues);
+        }
+
         /// <summary>
         /// Execute a workflow preset with progress reporting and cancellation.
         /// </summary>
@@ -370,6 +428,8 @@ namespace StingTools.Core
                 tg.Start();
             }
 
+            bool previousStepSkipped = false;  // Phase 48: Track if previous step was skipped
+
             try
             {
                 foreach (var step in preset.Steps)
@@ -384,6 +444,14 @@ namespace StingTools.Core
                         break;
                     }
 
+                    // Phase 48: skipIfPreviousSkipped condition
+                    if (step.SkipIfPreviousSkipped && previousStepSkipped)
+                    {
+                        skipped++;
+                        previousStepSkipped = true;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (previous step was skipped)");
+                        continue;
+                    }
 
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
@@ -702,6 +770,13 @@ namespace StingTools.Core
 
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
+
+            // Phase 48: Persist last-workflow memory for "Repeat Last" feature
+            _lastWorkflowName = preset.Name;
+            _lastWorkflowResult = $"{passed}/{preset.Steps.Count} OK, {failed} failed";
+            _lastWorkflowTime = DateTime.Now;
+            try { TagConfig.SetConfigValue("LAST_WORKFLOW_NAME", preset.Name); }
+            catch (Exception ex) { StingLog.Warn($"Last workflow persistence: {ex.Message}"); }
 
             // LOG-13: Persist run record as JSONL (one JSON object per line)
             try
