@@ -2017,6 +2017,38 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- BIM COORDINATION CENTER — PRIMARY ENTRY POINT -->
+                        <Border BorderBrush="#1A237E" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
+                                Background="#E8EAF6">
+                            <StackPanel>
+                                <TextBlock Text="★ BIM COORDINATION CENTER" FontWeight="Bold" FontSize="12" Foreground="#1A237E" Margin="0,0,0,4"/>
+                                <TextBlock Text="Unified dashboard: Model Health • Warnings • Issues • Revisions • Workflows • QA • 4D/5D" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <Button Tag="BIMCoordinationCenter" Click="Cmd_Click"
+                                        FontWeight="Bold" FontSize="12"
+                                        Background="#1A237E" Foreground="White" BorderBrush="#0D1642" BorderThickness="1"
+                                        ToolTip="Unified BIM Coordination Center: 9-tab dashboard with KPIs, compliance tracking, issues, revisions, warnings, workflows, QA and 4D/5D scheduling"
+                                        Cursor="Hand" HorizontalAlignment="Stretch">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#1A237E" BorderBrush="#0D1642" BorderThickness="1"
+                                                    CornerRadius="4" Padding="14,10">
+                                                <TextBlock Text="★  OPEN COORDINATION CENTER" FontWeight="Bold" FontSize="12"
+                                                           Foreground="White" HorizontalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#283593"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#0D1642"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
                         <!-- PROJECT OVERVIEW -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT OVERVIEW"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
@@ -2310,13 +2342,7 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
-                                <!-- BIM COORDINATION CENTER (Phase 47) -->
-                                <TextBlock Text="COORDINATION CENTER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
-                                           Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
-                                <WrapPanel Margin="2,0,2,2">
-                                    <Button Style="{StaticResource BlueBtn}" Content="Coordination Center" Tag="BIMCoordinationCenter" Click="Cmd_Click"
-                                            ToolTip="Unified BIM Coordination Center: Model Health + Warnings + Issues + Revisions + Platform + Workflows" FontWeight="Bold"/>
-                                </WrapPanel>
+                                <!-- BIM COORDINATION CENTER (see prominent button at top of BIM tab) -->
                                 <!-- WARNINGS MANAGER (Phase 46) -->
                                 <TextBlock Text="WARNINGS MANAGER" FontWeight="Bold" FontSize="9" Margin="4,6,0,2"
                                            Foreground="{DynamicResource PanelFg}" Opacity="0.6"/>
