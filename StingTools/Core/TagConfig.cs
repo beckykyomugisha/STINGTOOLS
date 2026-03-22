@@ -513,20 +513,19 @@ namespace StingTools.Core
             }
 
             // Cross-validate: FUNC should be consistent with SYS
+            // Phase 39: Expanded FUNC-SYS cross-validation with discipline-aware mapping.
+            // Each SYS code has a set of valid FUNC codes (primary + smart sub-functions).
+            // FUNC codes from unrelated disciplines are flagged as cross-validation errors.
             string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
             if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(sys))
             {
-                string expectedFunc = TagConfig.GetFuncCode(sys);
-                // Allow smart FUNC codes (EXH, RTN, FRA, DHW) as valid overrides
-                if (!string.IsNullOrEmpty(expectedFunc) && expectedFunc != func)
+                var validFuncsForSys = GetValidFuncsForSys(sys);
+                if (validFuncsForSys.Count > 0 && !validFuncsForSys.Contains(func))
                 {
-                    // Only flag if FUNC doesn't belong to any related system
-                    bool isSmartFunc = (sys == "HVAC" && (func == "SUP" || func == "RTN" || func == "EXH" || func == "FRA")) ||
-                                       (sys == "HWS" && (func == "HTG" || func == "DHW"));
-                    if (!isSmartFunc)
-                        errors.Add(new ValidationError(
-                            $"FUNC '{func}' unexpected for SYS '{sys}' (expected '{expectedFunc}')",
-                            ValidationErrorType.CrossValidation));
+                    string expectedList = string.Join("/", validFuncsForSys);
+                    errors.Add(new ValidationError(
+                        $"FUNC '{func}' not valid for SYS '{sys}' (expected one of: {expectedList})",
+                        ValidationErrorType.CrossValidation));
                 }
             }
 
@@ -580,6 +579,48 @@ namespace StingTools.Core
 
             return null; // valid
         }
+
+        /// <summary>
+        /// Phase 39: Get valid FUNC codes for a given SYS code.
+        /// Each system has primary FUNC + allowed sub-function variants (e.g., HVAC allows SUP/RTN/EXH/FRA).
+        /// Returns empty set if SYS is unknown (no validation applied).
+        /// Cross-references CIBSE TM40, Uniclass 2015 Ss tables, and ISO 19650 annex.
+        /// </summary>
+        internal static HashSet<string> GetValidFuncsForSys(string sys)
+        {
+            if (_validFuncsForSys.TryGetValue(sys, out var funcs)) return funcs;
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Phase 39: Comprehensive SYS→FUNC mapping for cross-validation.
+        /// Covers all 17 system codes with primary + variant functions per CIBSE/Uniclass.</summary>
+        private static readonly Dictionary<string, HashSet<string>> _validFuncsForSys =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Mechanical systems
+                { "HVAC", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SUP", "RTN", "EXH", "FRA", "HTG", "CLG", "VNT", "GEN" } },
+                { "HWS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "HTG", "DHW", "GEN" } },
+                { "DHW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DHW", "GEN" } },
+                // Plumbing systems
+                { "DCW",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DCW", "GEN" } },
+                { "SAN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SAN", "GEN" } },
+                { "RWD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RWD", "GEN" } },
+                { "GAS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "GEN" } },
+                // Fire protection
+                { "FP",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FP", "FLS", "GEN" } },
+                // Electrical systems
+                { "LV",   new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PWR", "LTG", "GEN" } },
+                { "FLS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FLS", "GEN" } },
+                // Communications / low voltage
+                { "COM",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "COM", "GEN" } },
+                { "ICT",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ICT", "COM", "GEN" } },
+                { "NCL",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "NCL", "GEN" } },
+                { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SEC", "GEN" } },
+                // Architectural / structural / general
+                { "ARC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "FIT", "GEN" } },
+                { "STR",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "STR", "GEN" } },
+                { "GEN",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GEN" } },
+            };
 
         /// <summary>Known PROD codes by discipline group for cross-validation.</summary>
         private static readonly Dictionary<string, HashSet<string>> ProdCodesByDisc =

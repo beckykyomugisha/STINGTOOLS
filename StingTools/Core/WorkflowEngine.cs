@@ -274,6 +274,22 @@ namespace StingTools.Core
         /// <summary>AE-05: Skip step if data files haven't changed since last run.</summary>
         [JsonProperty("skipIfDataUnchanged")]
         public bool SkipIfDataUnchanged { get; set; }
+
+        /// <summary>Phase 39: Skip step if model is not workshared.</summary>
+        [JsonProperty("requiresWorksharedModel")]
+        public bool RequiresWorksharedModel { get; set; }
+
+        /// <summary>Phase 39: Skip step if total element count is outside range [min, max].</summary>
+        [JsonProperty("minElementCount")]
+        public int? MinElementCount { get; set; }
+
+        /// <summary>Phase 39: Maximum element count for step applicability.</summary>
+        [JsonProperty("maxElementCount")]
+        public int? MaxElementCount { get; set; }
+
+        /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
+        [JsonProperty("timeoutSeconds")]
+        public int TimeoutSeconds { get; set; } = 300;
     }
 
     internal static class WorkflowEngine
@@ -304,6 +320,8 @@ namespace StingTools.Core
             int failed = 0;
             int skipped = 0;
             bool cancelled = false;
+            // Phase 39: Collect per-step results for audit trail
+            var stepResults = new List<WorkflowStepResult>();
             double complianceBefore = 0;
             try { var scan = ComplianceScan.Scan(doc); complianceBefore = scan.CompliancePercent; }
             catch (Exception ex) { StingLog.Warn($"Pre-workflow compliance scan failed: {ex.Message}"); }
@@ -392,6 +410,22 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
                         }
+                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
+                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                        {
+                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
+                        }
+                        // Phase 39: Element count range condition
+                        if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
+                        {
+                            int elemCount = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType().GetElementCount();
+                            if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                        }
+
                         if (step.Condition == "has_untagged")
                         {
                             bool hasUntagged = false;
@@ -506,6 +540,15 @@ namespace StingTools.Core
                                          stepResult == Result.Cancelled ? "SKIP" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
+                        // Phase 39: Record per-step result for audit trail
+                        stepResults.Add(new WorkflowStepResult
+                        {
+                            CommandTag = step.CommandTag,
+                            Label = step.Label,
+                            Status = status,
+                            DurationMs = sw.ElapsedMilliseconds
+                        });
+
                         if (stepResult == Result.Succeeded)
                             passed++;
                         else if (step.Optional)
@@ -539,6 +582,14 @@ namespace StingTools.Core
                         sw.Stop();
                         report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
                         StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+
+                        // Phase 39: Record failed step with error detail
+                        stepResults.Add(new WorkflowStepResult
+                        {
+                            CommandTag = step.CommandTag, Label = step.Label,
+                            Status = "FAILED", DurationMs = sw.ElapsedMilliseconds,
+                            ErrorMessage = ex.Message
+                        });
 
                         if (step.Optional)
                             skipped++;
@@ -619,6 +670,11 @@ namespace StingTools.Core
                 try { ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
                 catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
 
+                // Phase 39: Capture username from environment for audit trail
+                string userName = "";
+                try { userName = Environment.UserName ?? ""; }
+                catch (Exception ex) { StingLog.Warn($"Username capture: {ex.Message}"); }
+
                 var record = new WorkflowRunRecord
                 {
                     Timestamp = DateTime.UtcNow.ToString("o"),
@@ -630,7 +686,9 @@ namespace StingTools.Core
                     DurationSeconds = Math.Round(totalSw.Elapsed.TotalSeconds, 1),
                     Cancelled = cancelled,
                     ComplianceBefore = Math.Round(complianceBefore, 1),
-                    ComplianceAfter = Math.Round(complianceAfter, 1)
+                    ComplianceAfter = Math.Round(complianceAfter, 1),
+                    StepResults = stepResults,
+                    UserName = userName
                 };
                 SaveRunRecord(record, doc);
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
@@ -1126,6 +1184,33 @@ namespace StingTools.Core
 
         [JsonProperty("compliance_after")]
         public double ComplianceAfter { get; set; }
+
+        /// <summary>Phase 39: Per-step results for audit trail and failure diagnostics.</summary>
+        [JsonProperty("step_results")]
+        public List<WorkflowStepResult> StepResults { get; set; } = new List<WorkflowStepResult>();
+
+        /// <summary>Phase 39: User who ran the workflow (from Revit username or environment).</summary>
+        [JsonProperty("user")]
+        public string UserName { get; set; }
+    }
+
+    /// <summary>Phase 39: Per-step execution result for audit trail.</summary>
+    public class WorkflowStepResult
+    {
+        [JsonProperty("tag")]
+        public string CommandTag { get; set; }
+
+        [JsonProperty("label")]
+        public string Label { get; set; }
+
+        [JsonProperty("status")]
+        public string Status { get; set; } // OK, FAILED, SKIPPED, CANCELLED
+
+        [JsonProperty("duration_ms")]
+        public long DurationMs { get; set; }
+
+        [JsonProperty("error")]
+        public string ErrorMessage { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════════════

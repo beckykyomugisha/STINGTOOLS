@@ -1217,6 +1217,26 @@ namespace StingTools.Core
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
 
+            /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
+            /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
+            /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
+            public bool IsValid()
+            {
+                // RoomIndex can be empty (no rooms placed yet) but must not be null
+                if (RoomIndex == null) return false;
+                if (KnownCategories == null || KnownCategories.Count == 0) return false;
+                if (CachedPhases == null) return false;
+                // ProjectLoc may be null/empty (no Project Info set) — acceptable
+                // ProjectRev may be null/empty (no revisions defined) — acceptable
+                return true;
+            }
+
+            /// <summary>Phase 39: Summary of context health for diagnostics.</summary>
+            public string DiagnosticSummary =>
+                $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
+                $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
+                $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
+
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
             /// Caches all project-level lookups: room index, LOC, REV, phases.
@@ -3362,9 +3382,16 @@ namespace StingTools.Core
                 // and TAG7 reflect formula-computed values (Gap G003 fix)
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // GAP-A3 fix: Removed redundant WriteContainers retry call.
-                // BuildAndWriteTag (above) already writes all 53 containers.
-                // The duplicate write caused ~20% overhead on batch operations.
+                // Phase 39: Verify container write succeeded. BuildAndWriteTag writes containers
+                // internally, but may return success even if containers partially failed (read-only params).
+                // Re-check TAG2 as a sentinel — if TAG1 is populated but TAG2 is empty, retry containers.
+                string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                string tag2Check = ParameterHelpers.GetString(el, ParamRegistry.TAG2);
+                if (!string.IsNullOrEmpty(tag1Check) && string.IsNullOrEmpty(tag2Check))
+                {
+                    ParamRegistry.WriteContainers(el, tokenVals);
+                    StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, TAG2 was empty)");
+                }
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 

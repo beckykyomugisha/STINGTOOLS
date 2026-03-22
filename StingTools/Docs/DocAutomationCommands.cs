@@ -359,7 +359,33 @@ namespace StingTools.Docs
             if (!hasRole && parts.Length < 4)
                 return $"No recognised role code in '{num}' — expected A/S/M/E/P/C prefix";
 
-            return null; // compliant enough
+            // Phase 39: ISO 19650 strict mode — validate full 7-segment format
+            // Format: Project-Originator-Volume-Level-Type-Role-Number
+            // Enabled via project_config.json SHEET_NAMING_STRICT_MODE = true
+            string strictMode = Core.TagConfig.GetConfigValue("SHEET_NAMING_STRICT_MODE");
+            if (!string.IsNullOrEmpty(strictMode) && (strictMode == "true" || strictMode == "1"))
+            {
+                if (parts.Length < 5)
+                    return $"ISO 19650 strict: '{num}' has {parts.Length} segments (need 5+ for Project-Originator-Volume-Level-Type-Role-Number)";
+                // Validate type code segment (usually DR, SH, SP, etc.)
+                bool hasTypeCode = false;
+                foreach (string part in parts)
+                {
+                    if (ValidTypeCodes.Contains(part)) { hasTypeCode = true; break; }
+                }
+                if (!hasTypeCode)
+                    return $"ISO 19650 strict: '{num}' missing document type code (DR/SH/SP/RP/MO)";
+                // Validate role code is a known discipline
+                bool hasStrictRole = false;
+                foreach (string part in parts)
+                {
+                    if (ValidRoleCodes.Contains(part)) { hasStrictRole = true; break; }
+                }
+                if (!hasStrictRole)
+                    return $"ISO 19650 strict: '{num}' missing recognised role code (A/S/M/E/P/C)";
+            }
+
+            return null; // compliant
         }
 
         private static string SuggestCompliantNumber(string num, string name, string projectNum, string originator)

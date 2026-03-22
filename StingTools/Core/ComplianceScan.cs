@@ -138,10 +138,14 @@ namespace StingTools.Core
                     return _cached;
             }
 
-            // LOGIC-01: Atomic compare-exchange prevents concurrent scan race condition
+            // LOGIC-01 + Phase 39: Atomic compare-exchange prevents concurrent scan race.
+            // Return stale cached result (never null) during scan to prevent dashboard flicker.
             if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
-                lock (_cacheLock) { return _cached; } // return stale rather than deadlock
+                lock (_cacheLock)
+                {
+                    return _cached ?? new ComplianceResult { ScanTime = DateTime.Now };
+                }
             }
 
             try

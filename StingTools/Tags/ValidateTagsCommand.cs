@@ -125,13 +125,15 @@ namespace StingTools.Tags
                     tag1Valid++;
                     fullyResolved++;
                     bucketFully++;
-                    tag1Status = "VALID";
+                    tag1Status = "RESOLVED";
                 }
                 else if (TagConfig.TagIsComplete(tag1ForValidation))
                 {
+                    // Phase 39: Distinguish COMPLETE (8 segments but has placeholders)
+                    // from RESOLVED (no placeholders). Previously both were "VALID".
                     tag1Valid++;
                     bucketPartial++;
-                    tag1Status = "VALID";
+                    tag1Status = "COMPLETE_PLACEHOLDERS";
                 }
                 else
                 {
@@ -272,19 +274,24 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 55));
             report.AppendLine();
 
-            // Three-bucket compliance summary
-            report.AppendLine("── Three-Bucket Compliance ──");
-            report.AppendLine($"  Fully tagged:     {bucketFully,6:N0}  (complete + resolved, no placeholders)");
-            report.AppendLine($"  Partially tagged: {bucketPartial,6:N0}  (has tag data but incomplete or unresolved)");
-            report.AppendLine($"  Untagged:         {bucketUntagged,6:N0}  (no tag at all)");
-            report.AppendLine($"  Compliance score: {compliancePct:F1}%  (fully=1.0, partial=0.5, untagged=0.0)");
+            // Phase 39: Four-bucket compliance summary — separates "complete with placeholders"
+            // from "partially tagged" for clearer BIM coordinator action items.
+            int completePlaceholder = bucketPartial; // elements with 8 segments but GEN/XX/ZZ/0000
+            int incomplete = tag1Incomplete; // elements with <8 segments
+            report.AppendLine("── Four-Bucket Compliance ──");
+            report.AppendLine($"  Fully resolved:       {bucketFully,6:N0}  (8 segments, no placeholders, ISO valid)");
+            report.AppendLine($"  Complete+placeholders: {completePlaceholder,6:N0}  (8 segments but contains GEN/XX/ZZ/0000)");
+            report.AppendLine($"  Incomplete tags:      {incomplete,6:N0}  (<8 segments or missing data)");
+            report.AppendLine($"  Untagged:             {bucketUntagged,6:N0}  (no tag at all)");
+            report.AppendLine($"  Compliance score:     {compliancePct:F1}%  (resolved=1.0, partial=0.5, rest=0.0)");
             report.AppendLine();
 
             // Tag completeness narrative paragraph
             report.AppendLine("── Tag Completeness ──");
             report.Append($"Of the {total:N0} taggable elements in this project, ");
-            report.Append($"{bucketFully:N0} are fully tagged with complete resolved tags, ");
-            report.Append($"{bucketPartial:N0} are partially tagged (incomplete or containing placeholders), ");
+            report.Append($"{bucketFully:N0} are fully resolved with production-ready tags, ");
+            report.Append($"{completePlaceholder:N0} have complete 8-segment tags but contain placeholder values (GEN/XX/ZZ/0000) that require attention, ");
+            report.Append($"{incomplete:N0} have partially populated tags, ");
             report.Append($"and {bucketUntagged:N0} have no tag at all. ");
             report.Append($"The weighted compliance score is {compliancePct:F1}%. ");
             report.AppendLine();
