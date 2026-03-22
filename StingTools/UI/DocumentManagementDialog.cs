@@ -1045,66 +1045,141 @@ namespace StingTools.UI
             var bar = new Border
             {
                 Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                Padding = new Thickness(6, 4, 6, 4),
+                Padding = new Thickness(4, 2, 4, 2),
                 BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 1, 0, 0)
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                MaxHeight = 120
             };
+
+            var scroll = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
             var wrap = new WrapPanel();
 
-            // ── File operations ──
+            // ── FILE OPS ──
+            wrap.Children.Add(MakeSectionLabel("FILE"));
             wrap.Children.Add(MakeActBtn("Open", BrAccent, (s, e) => OpenSelected()));
             wrap.Children.Add(MakeActBtn("Open Folder", BrAccent, (s, e) => OpenFolder(doc)));
             wrap.Children.Add(MakeActBtn("Rename", BrFgDark, (s, e) => RenameSelected()));
             wrap.Children.Add(MakeActBtn("Delete", BrRed, (s, e) => DeleteSelected()));
-            wrap.Children.Add(MakeActBtn("Move To...", BrPurple, (s, e) => MoveSelected(doc)));
-
+            wrap.Children.Add(MakeActBtn("Move To", BrPurple, (s, e) => MoveSelected(doc)));
             wrap.Children.Add(MakeSep());
 
-            // ── Bulk operations (GAP OP-04) ──
+            // ── BULK ──
+            wrap.Children.Add(MakeSectionLabel("BULK"));
             wrap.Children.Add(MakeActBtn("Bulk Move", BrPurple, (s, e) => BulkMove(doc)));
             wrap.Children.Add(MakeActBtn("Bulk Delete", BrRed, (s, e) => BulkDelete()));
-            wrap.Children.Add(MakeActBtn("Close Selected Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
-            wrap.Children.Add(MakeActBtn("Update CDE Status", BrTeal, (s, e) => BulkUpdateCDE(doc)));
-
+            wrap.Children.Add(MakeActBtn("Close Issues", BrGreen, (s, e) => BulkCloseIssues(doc)));
+            wrap.Children.Add(MakeActBtn("Update CDE", BrTeal, (s, e) => BulkUpdateCDE(doc)));
             wrap.Children.Add(MakeSep());
 
-            // ── Dispatch commands ──
-            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
-            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
+            // ── DOCUMENTS ──
+            wrap.Children.Add(MakeSectionLabel("DOCS"));
             wrap.Children.Add(MakeDispatchBtn("Doc Register", "DocumentRegister", BrAccent, win));
             wrap.Children.Add(MakeDispatchBtn("Add Doc", "AddDocument", BrGreen, win));
-
-            wrap.Children.Add(MakeSep());
-
-            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
-            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Issue Dash", "IssueDashboard", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Clashes", "ClashDetection", BrRed, win));
+            wrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrPurple, win));
             wrap.Children.Add(MakeDispatchBtn("Naming Check", "ValidateDocNaming", BrFgDark, win));
-            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Transmittal", "CreateTransmittal", BrGreen, win));
             wrap.Children.Add(MakeDispatchBtn("Publish CDE", "CDEPackage", BrTeal, win));
-
+            wrap.Children.Add(MakeDispatchBtn("CDE Status", "CDEStatus", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Review Tracker", "ReviewTracker", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("MIDP Tracker", "MidpTracker", BrTeal, win));
             wrap.Children.Add(MakeSep());
 
-            // DM-05: Sticky note + additional operations
-            wrap.Children.Add(MakeDispatchBtn("Add Note", "ElementStickyNote", BrFgDark, win));
+            // ── ISSUES ──
+            wrap.Children.Add(MakeSectionLabel("ISSUES"));
+            wrap.Children.Add(MakeDispatchBtn("Raise Issue", "RaiseIssue", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Issue Dash", "IssueDashboard", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Update Issue", "UpdateIssue", BrOrange, win));
             wrap.Children.Add(MakeDispatchBtn("Issue Filter", "IssueFilter", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Issue Timeline", "IssueTimeline", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Issue Stats", "IssueStatistics", BrOrange, win));
-            wrap.Children.Add(MakeDispatchBtn("Export Issues", "ExportIssues", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Timeline", "IssueTimeline", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Batch Update", "IssueBatchUpdate", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Export CSV", "ExportIssues", BrOrange, win));
+            wrap.Children.Add(MakeDispatchBtn("Select Elements", "SelectIssueElements", BrOrange, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── REVISIONS ──
+            wrap.Children.Add(MakeSectionLabel("REVISIONS"));
+            wrap.Children.Add(MakeDispatchBtn("Rev Dash", "RevisionDashboard", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
             wrap.Children.Add(MakeDispatchBtn("Rev Compare", "RevisionCompare", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Track Elements", "TrackElementRevisions", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Rev Schedule", "RevisionSchedule", BrPurple, win));
             wrap.Children.Add(MakeDispatchBtn("Rev Export", "RevisionExport", BrPurple, win));
-            wrap.Children.Add(MakeDispatchBtn("Track Rev Elements", "TrackElementRevisions", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Bulk Stamp", "BulkRevisionStamp", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
+            wrap.Children.Add(MakeDispatchBtn("Naming Enforce", "RevisionNamingEnforce", BrPurple, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── CLASHES ──
+            wrap.Children.Add(MakeSectionLabel("CLASHES"));
+            wrap.Children.Add(MakeDispatchBtn("Run Clashes", "ClashDetection", BrRed, win));
             wrap.Children.Add(MakeDispatchBtn("BCF Export", "BCFExport", BrRed, win));
             wrap.Children.Add(MakeDispatchBtn("BCF Import", "BCFImport", BrRed, win));
-            wrap.Children.Add(MakeDispatchBtn("Full Briefcase", "DocumentBriefcase", BrTeal, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── HANDOVER ──
+            wrap.Children.Add(MakeSectionLabel("HANDOVER"));
+            wrap.Children.Add(MakeDispatchBtn("COBie Export", "COBieExport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Streaming COBie", "StreamingCOBieExport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("FM Handover", "HandoverManual", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Maintenance", "MaintenanceSchedule", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Asset Health", "AssetHealthReport", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("Space Handover", "SpaceHandover", BrTeal, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── COMPLIANCE ──
+            wrap.Children.Add(MakeSectionLabel("COMPLIANCE"));
+            wrap.Children.Add(MakeDispatchBtn("Model Health", "ModelHealthDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Full Compliance", "FullComplianceDashboard", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Stage Gate", "StageComplianceGate", BrGreen, win));
+            wrap.Children.Add(MakeSep());
+
+            // ── DATA EXCHANGE ──
+            wrap.Children.Add(MakeSectionLabel("EXCHANGE"));
             wrap.Children.Add(MakeDispatchBtn("Excel Export", "ExportToExcel", BrGreen, win));
             wrap.Children.Add(MakeDispatchBtn("Excel Import", "ImportFromExcel", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Excel Round-Trip", "ExcelRoundTrip", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
+            wrap.Children.Add(MakeDispatchBtn("Platform Sync", "PlatformSync", BrAccent, win));
+            wrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
+            wrap.Children.Add(MakeSep());
 
-            bar.Child = wrap;
+            // ── NOTES & BRIEFCASE ──
+            wrap.Children.Add(MakeSectionLabel("NOTES"));
+            wrap.Children.Add(MakeActBtn("Quick Note", BrFgDark, (s, e) => CreateInlineStickyNote(doc)));
+            wrap.Children.Add(MakeDispatchBtn("Add Note", "ElementStickyNote", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Dash", "StickyNoteDashboard", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Note Search", "StickyNoteSearch", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Export Notes", "ExportStickyNotes", BrFgDark, win));
+            wrap.Children.Add(MakeDispatchBtn("Briefcase", "DocumentBriefcase", BrTeal, win));
+            wrap.Children.Add(MakeDispatchBtn("View Briefcase", "BriefcaseView", BrTeal, win));
+
+            // ── BEP ──
+            wrap.Children.Add(MakeSep());
+            wrap.Children.Add(MakeSectionLabel("BEP"));
+            wrap.Children.Add(MakeDispatchBtn("Create BEP", "CreateBEP", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
+            wrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
+
+            scroll.Content = wrap;
+            bar.Child = scroll;
             return bar;
+        }
+
+        private static TextBlock MakeSectionLabel(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 8, FontWeight = FontWeights.Bold,
+                Foreground = BrFgSub, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 0, 2, 0)
+            };
         }
 
         private static Button MakeActBtn(string label, SolidColorBrush fg, RoutedEventHandler handler)
@@ -1346,6 +1421,46 @@ namespace StingTools.UI
             MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
                 (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
             RefreshData();
+        }
+
+        // ── DM-05: Inline sticky note creation ──
+        private static void CreateInlineStickyNote(Document doc)
+        {
+            string text = PromptForText("Create Sticky Note", "Enter note text:", "");
+            if (string.IsNullOrEmpty(text)) return;
+
+            var categories = new List<string> { "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA" };
+            string category = StingListPicker.Show("Note Category", "Select category:", categories);
+            if (string.IsNullOrEmpty(category)) category = "GENERAL";
+
+            try
+            {
+                string bimDir = GetBimManagerDir(doc);
+                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                JArray arr;
+                if (File.Exists(stickyPath))
+                    arr = JArray.Parse(File.ReadAllText(stickyPath));
+                else
+                    arr = new JArray();
+
+                string user = "";
+                try { user = doc?.Application?.Username ?? Environment.UserName; } catch { user = Environment.UserName; }
+
+                string noteId = $"NOTE-{DateTime.Now:yyyyMMdd-HHmmss}";
+                arr.Add(new JObject
+                {
+                    ["note_id"] = noteId,
+                    ["text"] = text,
+                    ["category"] = category,
+                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                    ["user"] = user,
+                    ["element_ids"] = new JArray()
+                });
+                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(doc, "CREATE_NOTE", noteId, $"{category}: {text.Substring(0, Math.Min(50, text.Length))}");
+                RefreshData();
+            }
+            catch (Exception ex) { StingLog.Warn($"CreateInlineStickyNote: {ex.Message}"); }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -1754,6 +1869,10 @@ namespace StingTools.UI
                 var arr = JArray.Parse(File.ReadAllText(stickyPath));
                 foreach (JToken note in arr)
                 {
+                    // GRID-01: element count for sticky notes
+                    int noteElemCount = 0;
+                    if (note["element_ids"] is JArray noteElems) noteElemCount = noteElems.Count;
+
                     _allItems.Add(new DocItemVM
                     {
                         Id = note["note_id"]?.ToString() ?? "",
@@ -1761,6 +1880,8 @@ namespace StingTools.UI
                         Type = "NOTE", TypeDesc = "Sticky Note",
                         Status = note["category"]?.ToString() ?? "GENERAL",
                         Date = note["date"]?.ToString() ?? "",
+                        ElementCount = noteElemCount,
+                        CreatedBy = note["user"]?.ToString() ?? "",
                         Category = "STICKY", Folder = "20_MISC"
                     });
                 }
