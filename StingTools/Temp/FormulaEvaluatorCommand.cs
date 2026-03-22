@@ -337,7 +337,7 @@ namespace StingTools.Temp
                         if (writeTime == _cachedCsvWriteTime)
                             return _cachedFormulas;
                     }
-                    catch { /* file access error — reload */ }
+                    catch (Exception ex) { StingLog.Warn($"file access error — reload: {ex.Message}"); }
                 }
             }
 
@@ -463,7 +463,7 @@ namespace StingTools.Temp
                 _cachedFormulas = formulas;
                 _cachedCsvPath = csvPath;
                 try { _cachedCsvWriteTime = File.GetLastWriteTimeUtc(csvPath); }
-                catch { _cachedCsvWriteTime = DateTime.MinValue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _cachedCsvWriteTime = DateTime.MinValue; }
             }
 
             return formulas;
@@ -652,10 +652,7 @@ namespace StingTools.Temp
                 string result = sb.ToString();
                 return string.IsNullOrEmpty(result) ? null : result;
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>Split text expression on + operator, respecting quoted strings.</summary>
@@ -704,10 +701,7 @@ namespace StingTools.Temp
                 double result = parser.Parse();
                 return result;
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>

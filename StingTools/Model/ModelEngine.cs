@@ -406,7 +406,7 @@ namespace StingTools.Model
                     catch (Exception ex) { StingLog.Warn($"WorksetAssign: {ex.Message}"); }
                 }
             }
-            catch { /* Non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical: {ex.Message}"); }
         }
     }
 
@@ -595,7 +595,7 @@ namespace StingTools.Model
                                     walls[i], walls[(i + 1) % walls.Count]);
                             tx.Commit();
                         }
-                        catch { tx.RollBack(); /* Non-critical */ }
+                        catch (Exception ex) { StingLog.Warn($"Rollback: {ex.Message}"); tx.RollBack(); }
                     }
 
                     // Transaction 3: Place room element
@@ -614,7 +614,7 @@ namespace StingTools.Model
                                     createdRoom.Name = roomName;
                                 tx.Commit();
                             }
-                            catch { tx.RollBack(); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tx.RollBack(); }
                         }
                     }
 

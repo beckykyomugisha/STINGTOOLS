@@ -93,7 +93,7 @@ namespace StingTools.Docs
                     if (vpData.TryGetValue(vp.ViewId, out var typeId) && typeId != ElementId.InvalidElementId)
                     {
                         try { vp.ChangeTypeId(typeId); }
-                        catch (Exception) { /* type may not exist */ }
+                        catch (Exception ex) { StingLog.Warn($"Type missing: {ex.Message}"); }
                     }
                 }
 
@@ -441,7 +441,7 @@ namespace StingTools.Docs
                 if (td.Show() == TaskDialogResult.CommandLink1)
                 {
                     try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(outputPath) { UseShellExecute = true }); }
-                    catch (Exception) { /* file may not have an associated app */ }
+                    catch (Exception ex) { StingLog.Warn($"File open: {ex.Message}"); }
                 }
             }
             catch (Exception ex)

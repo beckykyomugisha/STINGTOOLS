@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -353,7 +354,7 @@ namespace StingTools.UI
                 var helper = new System.Windows.Interop.WindowInteropHelper(dlg);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { /* Non-critical: dialog still works without owner */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical: dialog still works without owner: {ex.Message}"); }
 
             dlg.ShowDialog();
             return dlg._result;

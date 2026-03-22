@@ -1046,7 +1046,7 @@ namespace StingTools.Docs
                     ? p.AsString() ?? ""
                     : p.AsValueString() ?? "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>CSV-escape a field value.</summary>
@@ -1072,7 +1072,7 @@ namespace StingTools.Docs
                 }
                 return "";
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         /// <summary>Get the current phase name from the document.</summary>
@@ -1086,7 +1086,7 @@ namespace StingTools.Docs
                     .ToList();
                 return phases.LastOrDefault()?.Name ?? "New Construction";
             }
-            catch { return "New Construction"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "New Construction"; }
         }
 
         /// <summary>Get discipline full name from code.</summary>

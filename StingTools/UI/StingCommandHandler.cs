@@ -1014,6 +1014,27 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
+                    // Project Folder Structure
+                    case "CreateFolders":
+                    {
+                        var cfDoc = app.ActiveUIDocument?.Document;
+                        if (cfDoc != null)
+                        {
+                            int created = Core.ProjectFolderEngine.CreateFolderStructure(cfDoc);
+                            Autodesk.Revit.UI.TaskDialog.Show("STING Folder Structure",
+                                $"Created {created} folders at:\n{Core.ProjectFolderEngine.GetRootPath(cfDoc)}");
+                        }
+                        break;
+                    }
+                    case "OpenProjectFolder":
+                    {
+                        var opDoc = app.ActiveUIDocument?.Document;
+                        string root = Core.ProjectFolderEngine.GetRootPath(opDoc);
+                        if (System.IO.Directory.Exists(root))
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true });
+                        break;
+                    }
+
                     // Operations Commands (OperationsCommands.cs, StingTools.Temp)
                     case "PDFExport": RunCommand<Temp.PDFExportCommand>(app); break;
                     case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
@@ -1022,6 +1043,17 @@ namespace StingTools.UI
                     case "ProjectDashboard": RunCommand<Temp.ProjectDashboardEnhancedCommand>(app); break;
                     case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
                     case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
+
+                    // Workflow presets dispatched from Document Manager
+                    case "WorkflowPreset_DailyQA":
+                    case "WorkflowPreset_DocumentPackage":
+                    case "WorkflowPreset_ProjectKickoff":
+                    {
+                        string presetName = _commandTag.Replace("WorkflowPreset_", "");
+                        SetExtraParam("WorkflowPresetName", presetName);
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
 
                     // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
                     case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
@@ -1389,6 +1421,7 @@ namespace StingTools.UI
                     case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
 
                     // ── Temp: Data Validation ──
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
@@ -1543,7 +1576,7 @@ namespace StingTools.UI
                 // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
                 // was never called after execution.
                 try { StingDockPanel.NotifyCommandComplete(); }
-                catch { /* Non-critical — panel may not be open */ }
+                catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.

@@ -190,7 +190,7 @@ namespace StingTools.Docs
 
             string projectCode = doc.ProjectInformation?.Number ?? "";
             string revision = "";
-            try { revision = Core.ParameterHelpers.GetString(doc.ProjectInformation, "ASS_REV_TXT"); } catch { }
+            try { revision = Core.ParameterHelpers.GetString(doc.ProjectInformation, "ASS_REV_TXT"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             var progress = StingProgressDialog.Show("PDF Export", sheetsToExport.Count);
             PrintResult result;

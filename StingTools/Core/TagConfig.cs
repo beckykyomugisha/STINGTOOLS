@@ -2299,7 +2299,7 @@ namespace StingTools.Core
                 {
                     ParameterHelpers.SetString(el, "ASS_DISPLAY_TXT", display, overwrite: true);
                 }
-                catch { /* ASS_DISPLAY_TXT param may not be bound */ }
+                catch (Exception ex) { StingLog.Warn($"ASS_DISPLAY_TXT param may not be bound: {ex.Message}"); }
             }
             return display;
         }
@@ -2779,7 +2779,7 @@ namespace StingTools.Core
                         templateName = (template.Name ?? "").ToUpperInvariant();
                 }
             }
-            catch { /* template lookup failed — proceed with view name */ }
+            catch (Exception ex) { StingLog.Warn($"template lookup failed — proceed with view name: {ex.Message}"); }
 
             string combined = $"{viewName} {templateName}";
 
@@ -2842,7 +2842,7 @@ namespace StingTools.Core
                         IsCategoryVisible(view, BuiltInCategory.OST_FireAlarmDevices))
                         detected.Add("FP");
                 }
-                catch { /* Visibility check failed — return all */ }
+                catch (Exception ex) { StingLog.Warn($"Visibility check failed — return all: {ex.Message}"); }
             }
 
             // If still no disciplines detected, tag everything
@@ -2858,7 +2858,7 @@ namespace StingTools.Core
                 if (cat == null) return false;
                 return view.GetCategoryHidden(cat.Id) == false;
             }
-            catch { return true; } // Assume visible if check fails
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return true; } // Assume visible if check fails
         }
 
         /// <summary>

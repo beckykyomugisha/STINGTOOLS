@@ -276,7 +276,7 @@ namespace StingTools.UI
                 var chkIncludeLinks = FindName("chkIncludeLinks") as System.Windows.Controls.CheckBox;
                 StingCommandHandler.SetExtraParam("IncludeLinks", chkIncludeLinks?.IsChecked == true ? "1" : "0");
             }
-            catch { /* Scope controls may not exist in all layouts */ }
+            catch (Exception ex) { StingLog.Warn($"Scope controls may not exist in all layouts: {ex.Message}"); }
         }
 
         /// <summary>UI-06: Read direction override radio state.</summary>
@@ -677,7 +677,7 @@ namespace StingTools.UI
                     _instance.UpdateStatus(statusText);
                 }
             }
-            catch { /* Non-critical UI update */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
         }
 
         /// <summary>
@@ -728,7 +728,7 @@ namespace StingTools.UI
                     _instance.txtStatus.Foreground = brush;
                 }
             }
-            catch { /* Non-critical UI update */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
         }
 
         // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────

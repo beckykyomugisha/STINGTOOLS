@@ -555,7 +555,7 @@ namespace StingTools.Tags
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return TagFamilyConfig.GetFamilyName(bic);
             }
-            catch { return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
         }
 
         // ── View crop box helper ─────────────────────────────────────
@@ -569,7 +569,7 @@ namespace StingTools.Tags
                 if (crop == null) return null;
                 return Box2D.FromBoundingBox(crop);
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         // ── Performance: suppress annotation regen ───────────────────
@@ -951,10 +951,7 @@ namespace StingTools.Tags
                             if (tag != null) placed++;
                             else skipped++;
                         }
-                        catch
-                        {
-                            skipped++;
-                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
                     }
                 }
                 catch (Exception ex)
@@ -1160,7 +1157,7 @@ namespace StingTools.Tags
                         useLeader, orient, tagPos);
                     if (tag != null) placed++;
                 }
-                catch { skipped++; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
             }
 
             return (placed, skipped);
@@ -1211,7 +1208,7 @@ namespace StingTools.Tags
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
-                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
                 .ToList();
 
             if (tags.Count < 2) return 0;
@@ -1221,8 +1218,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch { prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch { thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1237,7 +1234,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -1737,7 +1734,7 @@ namespace StingTools.Tags
             // active selection, Revit's deferred graphics update can crash
             // accessing disposed element references.
             try { uidoc.Selection.SetElementIds(new List<ElementId>()); }
-            catch { /* best effort */ }
+            catch (Exception ex) { StingLog.Warn($"best effort: {ex.Message}"); }
 
             int removed = 0;
             using (Transaction tx = new Transaction(doc, "STING Remove Annotation Tags"))
@@ -2178,7 +2175,7 @@ namespace StingTools.Tags
                 .Where(f =>
                 {
                     try { return f.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 })
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -2517,7 +2514,7 @@ namespace StingTools.Tags
             }
 
             var typeIds = new HashSet<ElementId>(
-                scope.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
+                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; } })
                     .Where(id => id != ElementId.InvalidElementId));
 
             int updated = 0;
@@ -2933,10 +2930,7 @@ namespace StingTools.Tags
                                 {
                                     elbowPos = tag.GetLeaderEnd(hostRef);
                                 }
-                                catch
-                                {
-                                    elbowPos = elemCenter;
-                                }
+                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elbowPos = elemCenter; }
                                 break;
                         }
 

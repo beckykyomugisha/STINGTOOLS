@@ -361,7 +361,7 @@ namespace StingTools.Model
                             blockName = gs?.Name;
                         }
                     }
-                    catch { blockName = null; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); blockName = null; }
                     var nestedTransform = nestedInstance.Transform;
                     var insertionPoint = nestedTransform.Origin;
 
@@ -456,7 +456,7 @@ namespace StingTools.Model
                 var style = _doc.GetElement(obj.GraphicsStyleId) as GraphicsStyle;
                 return style?.GraphicsStyleCategory?.Name;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         // ── Parallel Line Detection (Wall Detection) ──────────────────
@@ -790,14 +790,11 @@ namespace StingTools.Model
                                     count++;
                                 }
                             }
-                            catch { /* Some circuits may not be valid rooms */ }
+                            catch (Exception ex) { StingLog.Warn($"Some circuits may not be valid rooms: {ex.Message}"); }
                         }
                         tx.Commit();
                     }
-                    catch
-                    {
-                        tx.RollBack();
-                    }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tx.RollBack(); }
                 }
             }
             catch (Exception ex)

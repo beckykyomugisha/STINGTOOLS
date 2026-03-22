@@ -242,7 +242,7 @@ namespace StingTools.UI
         {
             if (_window != null && _window.IsVisible)
             {
-                try { _window.Close(); } catch (Exception) { }
+                try { _window.Close(); } catch (Exception ex) { StingLog.Warn($"Window close: {ex.Message}"); }
             }
             _window = null;
         }
@@ -278,7 +278,7 @@ namespace StingTools.UI
                 var helper = new System.Windows.Interop.WindowInteropHelper(_window);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch (Exception) { /* non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"Window owner: {ex.Message}"); }
 
             var root = new DockPanel { LastChildFill = true };
 
@@ -830,7 +830,7 @@ namespace StingTools.UI
             {
                 // Modeless: close button on right
                 var closeBtn = CreateSmallButton("\u2715 Close", BrFgSubtle);
-                closeBtn.Click += (s, e) => { try { _window.Close(); } catch { } };
+                closeBtn.Click += (s, e) => { try { _window.Close(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } };
                 DockPanel.SetDock(closeBtn, Dock.Right);
                 outerStack.Children.Add(closeBtn);
             }

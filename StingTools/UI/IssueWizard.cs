@@ -69,14 +69,23 @@ namespace StingTools.UI
                 var types = new (string key, string label, string desc, string icon)[]
                 {
                     ("RFI", "RFI — Request for Information", "Query requiring clarification from design team", "?"),
+                    ("RFA", "RFA — Request for Approval", "Submittal or proposal requiring formal approval", "V"),
+                    ("TQ", "TQ — Technical Query", "Technical question requiring specialist response", "T"),
                     ("CLASH", "CLASH — Coordination Clash", "Spatial conflict between building elements/disciplines", "X"),
                     ("DESIGN", "DESIGN — Design Issue/Query", "Design intent question or proposed change", "D"),
+                    ("SI", "SI — Site Instruction", "Formal instruction issued to contractor on site", "I"),
                     ("NCR", "NCR — Non-Conformance Report", "Element/work not meeting specification requirements", "!"),
                     ("SNAGGING", "SNAGGING — Snagging/Defect", "Construction defect or incomplete work item", "S"),
                     ("CHANGE", "CHANGE — Change Request", "Formal request to modify design or scope", "C"),
+                    ("VO", "VO — Variation Order", "Authorised change to contract scope, cost, or programme", "$"),
+                    ("AI", "AI — Architect's Instruction", "Formal instruction from architect to contractor", "A"),
+                    ("CVI", "CVI — Confirmation of Verbal Instruction", "Written confirmation of verbal instruction given on site", "W"),
+                    ("EWN", "EWN — Early Warning Notice (NEC)", "NEC early warning of event that could affect cost/programme", "E"),
+                    ("CE", "CE — Compensation Event (NEC)", "NEC event entitling contractor to time/cost compensation", "£"),
+                    ("PMI", "PMI — Proposed Material Instruction", "Proposed material or product substitution for approval", "M"),
                     ("RISK", "RISK — Risk Item", "Identified risk requiring mitigation strategy", "R"),
                     ("SITE", "SITE — Site Observation", "On-site observation requiring documentation", "O"),
-                    ("ACTION", "ACTION — Action Item", "Task or action requiring follow-up", "A"),
+                    ("ACTION", "ACTION — Action Item", "Task or action requiring follow-up", "+"),
                     ("COMMENT", "COMMENT — General Comment", "General comment or note for record", "N")
                 };
 

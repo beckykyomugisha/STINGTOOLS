@@ -1,3 +1,4 @@
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
@@ -39,7 +40,7 @@ namespace StingTools.Core
             if (commandData != null)
             {
                 try { return commandData.Application; }
-                catch { /* corrupted ExternalCommandData — fall through to CurrentApp */ }
+                catch (Exception ex) { StingLog.Warn($"corrupted ExternalCommandData — fall through to CurrentApp: {ex.Message}"); }
             }
             return UI.StingCommandHandler.CurrentApp;
         }

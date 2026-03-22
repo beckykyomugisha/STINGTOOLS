@@ -1027,7 +1027,7 @@ namespace StingTools.UI
                     if (!string.IsNullOrEmpty(current))
                         txtPath.Text = Path.ChangeExtension(current, ext);
                 }
-                catch { /* path parse failure is non-fatal */ }
+                catch (Exception ex) { StingLog.Warn($"path parse failure is non-fatal: {ex.Message}"); }
             }
             rbCSV.Checked += (s, e) => UpdateExtension();
             rbExcel.Checked += (s, e) => UpdateExtension();
@@ -1580,7 +1580,7 @@ namespace StingTools.UI
                     default: return "";
                 }
             }
-            catch { return ""; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
 
         private static void WriteCsv(string path, List<string> headers, List<string[]> rows)

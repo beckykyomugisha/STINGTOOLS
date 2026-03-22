@@ -137,7 +137,7 @@ namespace StingTools.UI
                     helper.Owner = revitProcess.MainWindowHandle;
                 }
             }
-            catch { /* Non-critical — dialog still works without owner */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical — dialog still works without owner: {ex.Message}"); }
         }
 
         /// <summary>
@@ -193,10 +193,10 @@ namespace StingTools.UI
                                     _etaText.Text = $"~{etaSeconds / 60:F1}min remaining ({rate:F0} elem/s)";
                             }
                         }
-                        catch { /* Window may have been closed */ }
+                        catch (Exception ex) { StingLog.Warn($"Window may have been closed: {ex.Message}"); }
                     }));
                 }
-                catch { /* Dispatcher may be shut down */ }
+                catch (Exception ex) { StingLog.Warn($"Dispatcher may be shut down: {ex.Message}"); }
             }
         }
 

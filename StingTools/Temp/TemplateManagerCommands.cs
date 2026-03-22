@@ -147,7 +147,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* level lookup not available */ }
+            catch (Exception ex) { StingLog.Warn($"level lookup not available: {ex.Message}"); }
 
             // Layer 3: Phase-aware inference
             try
@@ -167,7 +167,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* phase lookup not available */ }
+            catch (Exception ex) { StingLog.Warn($"phase lookup not available: {ex.Message}"); }
 
             // Layer 4: Scope box inference
             try
@@ -192,7 +192,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* scope box not available */ }
+            catch (Exception ex) { StingLog.Warn($"scope box not available: {ex.Message}"); }
 
             // Layer 5: View type default
             return DefaultTemplates.TryGetValue(vt, out string def) ? def : null;
@@ -411,7 +411,7 @@ namespace StingTools.Temp
                                 earned = (s >= 20 && s <= 500) ? weight : weight * 0.3;
                             }
                         }
-                        catch { earned = weight * 0.5; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); earned = weight * 0.5; }
                         break;
                 }
 
@@ -1850,7 +1850,7 @@ namespace StingTools.Temp
 
             Category linesCat;
             try { linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines); }
-            catch { TaskDialog.Show("Line Styles", "Cannot access Lines category."); return Result.Failed; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); TaskDialog.Show("Line Styles", "Cannot access Lines category."); return Result.Failed; }
 
             var patternLookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
             foreach (LinePatternElement lpe in new FilteredElementCollector(doc)
@@ -2038,7 +2038,7 @@ namespace StingTools.Temp
             DimensionType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>()
                 .FirstOrDefault(dt =>
-                { try { return dt.Name.Contains("Linear"); } catch { return false; } })
+                { try { return dt.Name.Contains("Linear"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(DimensionType)).Cast<DimensionType>().FirstOrDefault();
 
@@ -2342,7 +2342,7 @@ namespace StingTools.Temp
                                 }
                             }
                         }
-                        catch { /* worksharing not available */ }
+                        catch (Exception ex) { StingLog.Warn($"worksharing not available: {ex.Message}"); }
 
                         // Layer 6: CSV-driven VG schemes (106 VG_SCHEME rows)
                         // Match template name to a VG scheme and apply category-level overrides
@@ -3062,11 +3062,8 @@ namespace StingTools.Temp
                                 familyFormulas++;
                                 formulasApplied++;
                             }
-                            catch
-                            {
-                                // Formula may reference params not in this family — expected
-                                failedFormulas++;
-                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // Formula may reference params not in this family — expected
+                                failedFormulas++; }
                         }
 
                         tx.Commit();

@@ -166,11 +166,8 @@ namespace StingTools.Temp
                                 AppearanceAssetElement newAsset = baseAsset.Duplicate(assetName);
                                 newMat.AppearanceAssetId = newAsset.Id;
                             }
-                            catch
-                            {
-                                // If duplicate name exists, share the base asset
-                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
-                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // If duplicate name exists, share the base asset
+                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId; }
                         }
                     }
 
@@ -405,7 +402,7 @@ namespace StingTools.Temp
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                     p.Set(value);
             }
-            catch { /* param not available on this material */ }
+            catch (Exception ex) { StingLog.Warn($"param not available on this material: {ex.Message}"); }
         }
 
         /// <summary>Set a double BuiltInParameter on the material.</summary>
@@ -417,7 +414,7 @@ namespace StingTools.Temp
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
                     p.Set(value);
             }
-            catch { /* param not available on this material */ }
+            catch (Exception ex) { StingLog.Warn($"param not available on this material: {ex.Message}"); }
         }
 
         /// <summary>
@@ -700,12 +697,9 @@ namespace StingTools.Temp
                                     newMat.AppearanceAssetId = newAsset.Id;
                                     assetCache[baseMatName] = newAsset.Id;
                                 }
-                                catch
-                                {
-                                    // Name collision — share the base asset directly
+                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // Name collision — share the base asset directly
                                     newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
-                                    assetCache[baseMatName] = baseMat.AppearanceAssetId;
-                                }
+                                    assetCache[baseMatName] = baseMat.AppearanceAssetId; }
                             }
                         }
                     }

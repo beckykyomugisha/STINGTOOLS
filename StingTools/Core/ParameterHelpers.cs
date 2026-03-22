@@ -173,14 +173,14 @@ namespace StingTools.Core
             {
                 if (!overwrite && p.AsInteger() != 0) return false;
                 try { p.Set(value); return true; }
-                catch { return false; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }
             if (p.StorageType == StorageType.String)
             {
                 string existing = p.AsString() ?? string.Empty;
                 if (!overwrite && existing.Length > 0) return false;
                 try { p.Set(value.ToString()); return true; }
-                catch { return false; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }
             return false;
         }
@@ -458,7 +458,7 @@ namespace StingTools.Core
                     .OrderBy(p => p.Id.Value)
                     .LastOrDefault();
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -1525,7 +1525,7 @@ namespace StingTools.Core
                 if (sysLayerParam != null && !sysLayerParam.IsReadOnly)
                     sysLayerParam.Set(sysLayer);
             }
-            catch { /* advisory — parameter may not be bound yet */ }
+            catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
@@ -1894,7 +1894,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch { /* Phase detection is advisory */ }
+            catch (Exception ex) { StingLog.Warn($"Phase detection is advisory: {ex.Message}"); }
 
             // Type Name (from the family symbol name)
             string typeName = ParameterHelpers.GetFamilySymbolName(el);
@@ -2124,7 +2124,7 @@ namespace StingTools.Core
 
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map a named lookup parameter with unit conversion.</summary>
@@ -2143,7 +2143,7 @@ namespace StingTools.Core
                     System.Globalization.CultureInfo.InvariantCulture);
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map a named parameter string value (e.g., Fire Rating).</summary>
@@ -2161,7 +2161,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
@@ -2195,7 +2195,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map door/window function (Interior/Exterior) from built-in parameter.</summary>
@@ -2210,7 +2210,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Get floor thickness from compound structure or parameter.</summary>
@@ -2231,7 +2231,7 @@ namespace StingTools.Core
                 // Fallback: try "Thickness" named parameter
                 return MapLookup(el, "Thickness", targetParam, 304.8);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Get roof slope in degrees.</summary>
@@ -2596,10 +2596,7 @@ namespace StingTools.Core
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
             }
-            catch
-            {
-                return 0;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>

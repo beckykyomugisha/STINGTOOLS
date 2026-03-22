@@ -260,7 +260,7 @@ namespace StingTools.Temp
                                     if (CADElementCreator.CreateRevitElement(doc, el) != null)
                                         created++;
                                 }
-                                catch { /* logged inside */ }
+                                catch (Exception ex) { StingLog.Warn($"logged inside: {ex.Message}"); }
                             }
                             t.Commit();
 
@@ -1461,10 +1461,7 @@ namespace StingTools.Temp
                 var sketchPlane = SketchPlane.Create(doc, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, XYZ.Zero));
                 return doc.Create.NewModelCurve(line, sketchPlane);
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static Level GetActiveLevel(Document doc)
