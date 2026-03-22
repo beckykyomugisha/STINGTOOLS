@@ -115,6 +115,10 @@ namespace StingTools.Core
             // CACHE-01: Also clear solid fill pattern cache to prevent stale entries
             // when switching between documents with different fill patterns.
             lock (_solidFillCache) { _solidFillCache.Clear(); }
+            // PERF-03: Clear BIP availability cache on document switch
+            NativeParamMapper.InvalidateBipCache();
+            // PERF-CRIT-01: Clear spatial candidate cache
+            TokenAutoPopulator.InvalidateSpatialCache();
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -2233,14 +2237,46 @@ namespace StingTools.Core
             return written;
         }
 
+        // PERF-03: BIP availability cache per category — avoids calling el.get_Parameter(bip)
+        // for BuiltInParameters that don't exist on that category. Each category is checked once;
+        // subsequent elements of the same category skip the Revit API call entirely.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<BuiltInParameter>>
+            _bipMissingByCategory = new();
+
+        private static bool IsBipKnownMissing(Element el, BuiltInParameter bip)
+        {
+            string catKey = el.Category?.Name ?? "";
+            if (string.IsNullOrEmpty(catKey)) return false;
+            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.Contains(bip);
+        }
+
+        private static void MarkBipMissing(Element el, BuiltInParameter bip)
+        {
+            string catKey = el.Category?.Name ?? "";
+            if (string.IsNullOrEmpty(catKey)) return;
+            _bipMissingByCategory.AddOrUpdate(catKey,
+                _ => new HashSet<BuiltInParameter> { bip },
+                (_, existing) => { existing.Add(bip); return existing; });
+        }
+
+        /// <summary>Invalidate BIP availability cache (call on document switch).</summary>
+        internal static void InvalidateBipCache() => _bipMissingByCategory.Clear();
+
         /// <summary>Map a built-in dimension parameter with unit conversion.</summary>
         private static int MapDimension(Element el, BuiltInParameter bip,
             string targetParam, double conversionFactor)
         {
             try
             {
+                // PERF-03: Skip BIPs known to be missing for this category
+                if (IsBipKnownMissing(el, bip)) return 0;
+
                 Parameter p = el.get_Parameter(bip);
-                if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Double)
+                {
+                    if (p == null) MarkBipMissing(el, bip);
+                    return 0;
+                }
 
                 double val = p.AsDouble() * conversionFactor;
                 if (val <= 0.001) return 0;

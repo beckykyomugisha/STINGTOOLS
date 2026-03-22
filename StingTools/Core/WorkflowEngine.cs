@@ -531,6 +531,9 @@ namespace StingTools.Core
                             }
                             catch (Exception retryEx)
                             {
+                                // LOGIC-02: Mark stepResult as Failed on exception so it's never
+                                // left at its previous value if exception is caught and retried.
+                                stepResult = Result.Failed;
                                 StingLog.Warn($"Workflow step {stepNum} attempt {attempt}: {retryEx.Message}");
                                 if (attempt == maxRetries) throw;
                             }
