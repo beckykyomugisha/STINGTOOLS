@@ -827,7 +827,7 @@ namespace StingTools.Core
 
                 // PERF-03: Read only the tail of the file
                 var lines = TailReadLines(logPath, maxEntries * 2); // over-read to account for blanks
-                foreach (string line in lines.Reverse().Take(maxEntries))
+                foreach (string line in Enumerable.Reverse(lines).Take(maxEntries))
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     try

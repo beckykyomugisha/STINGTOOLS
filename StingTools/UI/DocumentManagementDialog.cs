@@ -7,13 +7,14 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using Color = System.Windows.Media.Color;
+using Binding = System.Windows.Data.Binding;
+using Visibility = System.Windows.Visibility;
 
 namespace StingTools.UI
 {

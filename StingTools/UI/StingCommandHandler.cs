@@ -1049,7 +1049,7 @@ namespace StingTools.UI
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
                     {
-                        string presetName = _currentCommand.Replace("WorkflowPreset_", "");
+                        string presetName = _commandTag.Replace("WorkflowPreset_", "");
                         SetExtraParam("WorkflowPresetName", presetName);
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
