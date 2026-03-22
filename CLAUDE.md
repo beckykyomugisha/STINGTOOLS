@@ -2233,3 +2233,14 @@ Critical review of the tagging workflow identified the following logic, automati
 511. **Cross-System Links visualization** — Shows data flow connections: Meetings→Issues, Issues→Transmittals, Transmittals→Compliance, Compliance→Warnings, Warnings→Stale. Displays live counts for each link.
 512. **MakeAutomationRule helper** — Reusable WPF component with title, status text, colored left border (orange=actionable, grey=resolved), inline "Run" button for actionable rules, green checkmark for resolved rules, and descriptive tooltips.
 513. **Issue↔Meeting↔Transmittal buttons** — Added "Add to Meeting" and "Create Transmittal" automation buttons to Issues tab, linking issue resolution to meeting coordination and document exchange workflows.
+
+#### Completed (Phase 54 — Coordination Center Action Fixes & UI Enhancement)
+
+514. **Meeting actions wired inline** — 9 `DocumentManagementDialog` meeting methods changed from `private` to `internal`. `ProcessAction` now handles NewMeeting, AddActionItem, AutoAgenda, LogMinutes, MeetingTemplates, MeetingHistory, OpenActions, ExportMinutes, SendReminder directly instead of routing generically to DocumentManager.
+515. **EditUserRoleInline** — WPF role selection dialog with 14 ISO 19650 roles (A/M/E/S/H/P/C/I/K/Q/F/W/L/Z). Shows CDE permission preview (folder access, approval rights, notification routing). Saves `USER_ROLE` to `project_config.json`.
+516. **TakeModelSnapshot** — Captures model compliance state: tag %, container %, warnings, stale count, per-discipline breakdown, warning health score. Saves to `snapshots.json` sidecar for meeting record and trend tracking.
+517. **EscalateOverdueActions** — Scans `meetings.json` for overdue OPEN action items. Auto-creates NCR issues with HIGH priority, cross-references to original action. Marks original actions as ESCALATED with issue ID link.
+518. **Meeting action items interactive** — Grid layout with description/assignee/due columns. Hover highlight, rich tooltips with instructions, context menus (Mark Complete, Escalate to NCR, Reassign, Add to Agenda). Overdue items highlighted red with border. Shows top 8 with "+N more" link.
+519. **Meeting rows interactive** — Upcoming meeting rows clickable with hover highlight. Context menus: Log Minutes, Add Action Item, Export Minutes, Send Reminder. Rich tooltips with meeting details.
+520. **Overview quick actions expanded** — Added New Meeting, Take Snapshot, Validate Tags buttons to quick actions panel.
+521. **20+ action tooltips added** — All meeting, permission, workflow, and snapshot actions documented in `GetActionTooltip()` for hover help.
