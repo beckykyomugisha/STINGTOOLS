@@ -1589,7 +1589,7 @@ namespace StingTools.Core
                     .GroupBy(w => w.Description)
                     .OrderByDescending(g => g.Count())
                     .Take(30)
-                    .Select(g => new StingTools.UI.StingListPicker.ListItem
+                    .Select(g => new StingTools.Select.StingListPicker.ListItem
                     {
                         Label = $"({g.Count()}) {g.Key}",
                         Detail = $"{g.First().Category} | {g.First().Severity}",
@@ -1597,7 +1597,7 @@ namespace StingTools.Core
                     })
                     .ToList();
 
-                var picked = StingTools.UI.StingListPicker.Show("Select Warning Type",
+                var picked = StingTools.Select.StingListPicker.Show("Select Warning Type",
                     "Pick a warning type to select its elements:", groups, allowMultiSelect: false);
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
@@ -1640,7 +1640,7 @@ namespace StingTools.Core
                     .GroupBy(w => w.Description)
                     .OrderByDescending(g => g.Count())
                     .Take(30)
-                    .Select(g => new StingTools.UI.StingListPicker.ListItem
+                    .Select(g => new StingTools.Select.StingListPicker.ListItem
                     {
                         Label = $"({g.Count()}) {g.Key}",
                         Detail = $"{g.First().Category} | Suppress this warning type",
@@ -1648,7 +1648,7 @@ namespace StingTools.Core
                     })
                     .ToList();
 
-                var picked = StingTools.UI.StingListPicker.Show("Suppress Warning Types",
+                var picked = StingTools.Select.StingListPicker.Show("Suppress Warning Types",
                     "Select warnings to suppress from dashboard:", groups, allowMultiSelect: true);
                 if (picked == null || picked.Count == 0) return Result.Cancelled;
 
