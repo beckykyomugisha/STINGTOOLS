@@ -2177,10 +2177,14 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
-                                <TextBlock Text="ISO 19650 compliant document control, CDE workflow, transmittals &amp; handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="ISO 19650 project document control — folders, issues, revisions, clashes, CDE, handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
-                                            ToolTip="Open ISO 19650 Document Management Center — 6-tab comprehensive document control" FontWeight="Bold"/>
+                                            ToolTip="Open Document Management Center — browse all project documents, issues, revisions, clashes and CDE status with tree navigator" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Folders" Tag="CreateFolders" Click="Cmd_Click"
+                                            ToolTip="Create ISO 19650 project folder structure (20 folders: WIP, Shared, Published, Models, Drawings, COBie, Issues, Clashes, Handover, etc.)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Open Project Folder" Tag="OpenProjectFolder" Click="Cmd_Click"
+                                            ToolTip="Open the STING project folder root in Windows Explorer"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
                                             ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
                                 </WrapPanel>
