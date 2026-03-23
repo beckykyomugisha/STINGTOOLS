@@ -2663,7 +2663,7 @@ docker compose up -d
 ### 5-Agent Deep Review Findings Summary (Phase 77)
 
 **Agent 1 (Tagging Pipeline):** [awaiting completion]
-**Agent 2 (BIM/Coordination):** [awaiting completion]
+**Agent 2 (BIM/Coordination):** 47 findings — 8 CRITICAL, 10 HIGH, 10 MEDIUM, 10 LOW + 5 architecture + 4 performance. Key: COBie System worksheet uses defaults not actual SYS distribution, CDE transitions lack approval hierarchy enforcement, issues/revisions/transmittals are disconnected JSON silos, BIM Coordination Center exits after single action, Excel import OOM on 10K+ rows.
 **Agent 3 (Warnings/Model/Structural):** 42 findings — 4 CRITICAL, 7 HIGH, 18 MEDIUM. Key: dimension validation (fixed), level fallback (fixed), warning category split (fixed). Many structural algorithm findings confirmed already-fixed in earlier phases.
 **Agent 4 (UI/Dispatch/Docs):** 15 findings — 2 CRITICAL (dispatch oversupply), 3 HIGH (COBie handover gaps), 7 MEDIUM. Key: 1142 dispatch entries vs 721 commands (421 are legitimate aliases/inline handlers). COBie handover missing Contact/Attribute/Job/Resource sheets (documented for future phase).
 **Agent 5 (DWG/Phase75):** 42 findings — 12 CRITICAL, 10 HIGH, 12 MEDIUM. Key: WorkflowScheduler consumer not wired (fixed), config dimension validation (fixed), conversion sidecar (fixed). Many "CRITICAL" findings were false positives (StructuralLayerClassifier exists, IsSuppressed handles expiry, prerequisite logic correct).
@@ -2684,3 +2684,19 @@ docker compose up -d
 | STRUCT-REBAR-01 | Rebar spacing validation | Medium | No pre-check that rebar spacing exceeds bar diameter before design output |
 | PERF-WARN-01 | Warning regex compilation | Medium | 150+ regex patterns evaluated linearly per warning; pre-compile into Regex[] array |
 | ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus | Medium | Double-leaf acoustic calculation uses static 10dB cavity bonus instead of frequency-dependent lookup |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Critical | System worksheet uses TagConfig.SysMap defaults, not actual element SYS token distribution |
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement | Critical | CDE transitions allowed without required ISO 19650-2 §5.6 role-based approval hierarchy |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal cross-linking | Critical | Issues, revisions, transmittals stored as independent JSON silos with no foreign key references |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Critical | Dialog exits after single action instead of staying open for iterative BIM coordinator workflow |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | Excel import reads entire .xlsx into memory causing OOM on large models |
+| BIM-COBIE-SHEETS-01 | Missing COBie Contact/Facility/Floor/Space worksheets | High | Only 7 of 11 required COBie V2.4 worksheets generated |
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | High | No deliverables tracker for DD1-DD4 milestones in coordination center |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | High | Revision creation does not auto-update REV parameter on all tagged elements |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | High | Import allows invalid FUNC/SYS combinations (e.g., FUNC=PWR on SYS=HVAC) |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | High | Dashboard cannot project when compliance target will be reached |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | High | Users must manually create WIP/SHARED/PUBLISHED/ARCHIVE folders per project |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | BCF export works but no import mechanism for changes from ACC/Procore |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | Schedule shows "complete" on construction finish; ISO 19650 DD4 handover not tracked |
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | No version field in sidecar JSON files; future field additions break older files |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | Transmittals never validated for minimum CDE state before sending |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
