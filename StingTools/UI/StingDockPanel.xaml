@@ -1949,6 +1949,9 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Opening" Tag="ArchCreateOpening" Click="Cmd_Click" ToolTip="Create wall/floor opening (900×2100mm)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Curtain Wall" Tag="ArchCurtainWall" Click="Cmd_Click" ToolTip="Create curtain wall facade — pick 2 points"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stair Design" Tag="ArchStairDesign" Click="Cmd_Click" ToolTip="BS 5395 stair design: rise, going, 2R+G, pitch, compliance"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2099,8 +2102,18 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="CoveringCoverageCalc" Click="Cmd_Click" ToolTip="Element-agnostic coverage: area, bags/litres, cost, carbon"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="QA Checklist" Tag="CoveringQualityCheck" Click="Cmd_Click" ToolTip="Plaster QA (BS EN 13914) or Paint QA (BS 6150)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="CoveringScheduleExport" Click="Cmd_Click" ToolTip="Export covering schedule for all walls + beams + columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="CoveringFireRating" Click="Cmd_Click" ToolTip="Hp/A fire protection calc for steel — intumescent DFT or board thickness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Moisture Risk" Tag="CoveringMoistureRisk" Click="Cmd_Click" ToolTip="Interstitial condensation check (BS EN ISO 13788 Glaser method)"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
+
+                        <!-- FULL AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FULL AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1B5E20">
+                            <WrapPanel>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★★★ Full Model Auto" Tag="FullModelAuto" Click="Cmd_Click" ToolTip="ONE-CLICK: Verify → Grid → Elements → Materials → Coverings → Room Finishes → Tags → Diagnostics" FontWeight="Bold"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- MEP -->

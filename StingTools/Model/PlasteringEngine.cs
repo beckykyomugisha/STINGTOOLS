@@ -1279,7 +1279,7 @@ namespace StingTools.Model
             return report;
         }
 
-        /// <summary>Converts CoveringBuildUp to legacy PlasterBuildUp for layer builder.</summary>
+        /// <summary>Converts CoveringBuildUp to PlasterBuildUp for layer builder.</summary>
         private static PlasterBuildUp ConvertToBuildUp(CoveringBuildUp src) => new PlasterBuildUp
         {
             Coats = src.Coats.Select(c => new PlasterCoat
@@ -1291,5 +1291,146 @@ namespace StingTools.Model
             IsExternal = src.IsExternal,
             Substrate = src.Substrate,
         };
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // LEGACY ADAPTER CLASSES — Required by PlasterLayerBuilder
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>Multi-coat plaster build-up specification (used by layer builder).</summary>
+    public class PlasterBuildUp
+    {
+        public List<PlasterCoat> Coats { get; set; } = new();
+        public double TotalThicknessMm { get; set; }
+        public double TotalDryingDays { get; set; }
+        public bool IsExternal { get; set; }
+        public SubstrateType Substrate { get; set; }
+    }
+
+    /// <summary>Individual plaster coat (used by layer builder).</summary>
+    public class PlasterCoat
+    {
+        public CoatType Type { get; set; }
+        public double ThicknessMm { get; set; }
+        public string MixRatio { get; set; }
+        public int CuringHours { get; set; }
+        public string Material { get; set; }
+        public int Sequence { get; set; }
+    }
+
+    /// <summary>
+    /// Injects plaster finish layers into existing wall compound structures.
+    /// Uses existing BLE material families and CompoundTypeCreator patterns.
+    /// </summary>
+    internal static class PlasterLayerBuilder
+    {
+        public class LayerResult
+        {
+            public bool Success { get; set; }
+            public ElementId NewTypeId { get; set; }
+            public string NewTypeName { get; set; }
+            public int LayersAdded { get; set; }
+            public double TotalPlasterThicknessMm { get; set; }
+            public string Summary { get; set; }
+        }
+
+        /// <summary>Adds plaster layers to a wall type, creating a new type.</summary>
+        public static LayerResult AddPlasterLayers(
+            Document doc, WallType sourceType,
+            PlasterBuildUp buildUp, bool applyToInterior = true)
+        {
+            var result = new LayerResult();
+            try
+            {
+                string suffix = applyToInterior ? "Int Plaster" : "Ext Render";
+                string newName = $"{sourceType.Name} + {suffix}";
+
+                // Check if already exists
+                var existing = new FilteredElementCollector(doc)
+                    .OfClass(typeof(WallType)).Cast<WallType>()
+                    .FirstOrDefault(wt => wt.Name == newName);
+                if (existing != null)
+                {
+                    result.Success = true;
+                    result.NewTypeId = existing.Id;
+                    result.NewTypeName = newName;
+                    result.Summary = $"Type '{newName}' already exists";
+                    return result;
+                }
+
+                var newType = sourceType.Duplicate(newName) as WallType;
+                if (newType == null) { result.Summary = "Duplicate failed"; return result; }
+
+                var cs = newType.GetCompoundStructure();
+                if (cs == null) { result.Summary = "No compound structure"; return result; }
+
+                var layers = cs.GetLayers().ToList();
+
+                // Find or create plaster material
+                var plasterMatId = FindPlasterMaterial(doc, buildUp.IsExternal);
+
+                foreach (var coat in buildUp.Coats.OrderBy(c => c.Sequence))
+                {
+                    var newLayer = new CompoundStructureLayer(
+                        coat.ThicknessMm * Units.MmToFeet,
+                        MaterialFunctionAssignment.Finish,
+                        plasterMatId);
+
+                    if (applyToInterior)
+                        layers.Add(newLayer);
+                    else
+                        layers.Insert(0, newLayer);
+
+                    result.LayersAdded++;
+                    result.TotalPlasterThicknessMm += coat.ThicknessMm;
+                }
+
+                cs.SetLayers(layers);
+                cs.SetNumberOfShellLayers(ShellLayerType.Interior,
+                    applyToInterior ? result.LayersAdded : cs.GetNumberOfShellLayers(ShellLayerType.Interior));
+                cs.SetNumberOfShellLayers(ShellLayerType.Exterior,
+                    applyToInterior ? cs.GetNumberOfShellLayers(ShellLayerType.Exterior) : result.LayersAdded);
+                newType.SetCompoundStructure(cs);
+
+                result.Success = true;
+                result.NewTypeId = newType.Id;
+                result.NewTypeName = newName;
+                result.Summary = $"Created '{newName}': {result.LayersAdded} layers, {result.TotalPlasterThicknessMm:F0}mm";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PlasterLayerBuilder", ex);
+                result.Summary = $"Error: {ex.Message}";
+            }
+            return result;
+        }
+
+        private static ElementId FindPlasterMaterial(Document doc, bool isExternal)
+        {
+            string searchTerm = isExternal ? "render" : "plaster";
+            var mat = new FilteredElementCollector(doc)
+                .OfClass(typeof(Material)).Cast<Material>()
+                .FirstOrDefault(m => m.Name.ToLowerInvariant().Contains(searchTerm));
+            if (mat != null) return mat.Id;
+
+            // Try to create
+            string matName = isExternal ? "STING_External_Render" : "STING_Internal_Plaster";
+            try
+            {
+                var id = Material.Create(doc, matName);
+                var m = doc.GetElement(id) as Material;
+                if (m != null) m.Color = isExternal ?
+                    new Autodesk.Revit.DB.Color(210, 200, 180) :
+                    new Autodesk.Revit.DB.Color(240, 240, 235);
+                return id;
+            }
+            catch
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Material)).Cast<Material>()
+                    .FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
+            }
+        }
     }
 }

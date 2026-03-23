@@ -1175,6 +1175,14 @@ namespace StingTools.UI
                     case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
                     case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
                     case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
+                    case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
+                    case "CoveringMoistureRisk": RunCommand<Model.CoveringMoistureRiskCommand>(app); break;
+
+                    // ── Architectural Creation ──
+                    case "ArchStairDesign": RunCommand<Model.ArchStairDesignCommand>(app); break;
+                    case "ArchCurtainWall": RunCommand<Model.ArchCurtainWallCommand>(app); break;
+                    case "ArchCreateOpening": RunCommand<Model.ArchCreateOpeningCommand>(app); break;
+                    case "FullModelAuto": RunCommand<Model.FullModelAutoCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
