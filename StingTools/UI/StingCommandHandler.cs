@@ -1155,6 +1155,14 @@ namespace StingTools.UI
                     case "StrSmartColumnFactory": RunCommand<Model.StrSmartColumnFactoryCommand>(app); break;
                     case "StrSmartBeamFactory": RunCommand<Model.StrSmartBeamFactoryCommand>(app); break;
                     case "StrDiagnostics": RunCommand<Model.StrDiagnosticsCommand>(app); break;
+                    case "StrFatigueAssess": RunCommand<Model.StrFatigueAssessCommand>(app); break;
+                    case "StrTorsionDesign": RunCommand<Model.StrTorsionDesignCommand>(app); break;
+                    case "StrRobustness": RunCommand<Model.StrRobustnessCommand>(app); break;
+                    case "StrCompositeSlab": RunCommand<Model.StrCompositeSlabCommand>(app); break;
+                    case "StrPartialFactors": RunCommand<Model.StrPartialFactorsCommand>(app); break;
+                    case "StrSmartWallFactory": RunCommand<Model.StrSmartWallFactoryCommand>(app); break;
+                    case "StrSmartFoundation": RunCommand<Model.StrSmartFoundationCommand>(app); break;
+                    case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
                     case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
 
                     // ── MEP elements ──

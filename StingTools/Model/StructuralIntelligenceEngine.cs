@@ -395,6 +395,39 @@ namespace StingTools.Model
 
             return result;
         }
+
+        /// <summary>
+        /// Assigns an appropriate structural material to a single element.
+        /// Uses DetermineSpec to infer material from category/context, then FindOrCreateMaterial.
+        /// Called by SmartElementFactory for per-element intelligent material assignment.
+        /// </summary>
+        public static void AssignMaterial(Document doc, Element element,
+            ConcreteGrade concreteGrade = ConcreteGrade.C30_37,
+            SteelGrade steelGrade = SteelGrade.S355,
+            ExposureClass exposure = ExposureClass.XC1,
+            int fireRatingMinutes = 60)
+        {
+            var spec = DetermineSpec(element, doc, concreteGrade, steelGrade, exposure, fireRatingMinutes);
+            if (string.IsNullOrEmpty(spec.PrimaryMaterial)) return;
+
+            var matId = FindOrCreateMaterial(doc, spec);
+            if (matId == ElementId.InvalidElementId) return;
+
+            // Try structural material parameter first, then instance material
+            var matParam = element.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+            if (matParam != null && !matParam.IsReadOnly)
+            {
+                matParam.Set(matId);
+            }
+            else
+            {
+                var altParam = element.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                if (altParam != null && !altParam.IsReadOnly)
+                    altParam.Set(matId);
+            }
+
+            StingLog.Info($"AssignMaterial: {element.Id.Value} → {spec.PrimaryMaterial} {spec.Grade}");
+        }
     }
 
 
