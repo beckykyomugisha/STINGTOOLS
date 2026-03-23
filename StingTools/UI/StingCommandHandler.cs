@@ -1113,6 +1113,8 @@ namespace StingTools.UI
                     case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
                     case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
                     case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
+                    case "StructuralDWGWizard": RunCommand<Model.StructuralDWGWizardCommand>(app); break;
+                    case "QuickStructuralDWG": RunCommand<Model.QuickStructuralDWGCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
