@@ -17,9 +17,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using WpfColor = System.Windows.Media.Color;
+using WpfGrid = System.Windows.Controls.Grid;
+using SolidColorBrush = System.Windows.Media.SolidColorBrush;
+using Brushes = System.Windows.Media.Brushes;
+using FontWeights = System.Windows.FontWeights;
+using FontWeight = System.Windows.FontWeight;
+using Thickness = System.Windows.Thickness;
+using HorizontalAlignment = System.Windows.HorizontalAlignment;
+using VerticalAlignment = System.Windows.VerticalAlignment;
 
 namespace StingTools.Model
 {
@@ -83,7 +91,7 @@ namespace StingTools.Model
             Height = 620;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
-            Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5));
+            Background = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF5, 0xF5));
 
             BuildLayout();
             BuildPages();
@@ -94,7 +102,7 @@ namespace StingTools.Model
 
         private void BuildLayout()
         {
-            var root = new Grid();
+            var root = new WpfGrid();
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(60) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(50) });
@@ -102,7 +110,7 @@ namespace StingTools.Model
             // ── Header with step indicator ──
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28)),
                 Padding = new Thickness(16, 8, 16, 8),
             };
             var headerStack = new StackPanel();
@@ -115,35 +123,35 @@ namespace StingTools.Model
             headerStack.Children.Add(_pageTitle);
             headerStack.Children.Add(_stepIndicator);
             header.Child = headerStack;
-            Grid.SetRow(header, 0);
+            WpfGrid.SetRow(header, 0);
             root.Children.Add(header);
 
             // ── Page host ──
             _pageHost = new ContentControl { Margin = new Thickness(16) };
-            Grid.SetRow(_pageHost, 1);
+            WpfGrid.SetRow(_pageHost, 1);
             root.Children.Add(_pageHost);
 
             // ── Footer with navigation ──
             var footer = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0xEE, 0xEE, 0xEE)),
+                BorderBrush = new SolidColorBrush(WpfColor.FromRgb(0xCC, 0xCC, 0xCC)),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(16, 8, 16, 8),
             };
-            var footerGrid = new Grid();
+            var footerGrid = new WpfGrid();
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _statusText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gray };
-            Grid.SetColumn(_statusText, 0);
+            WpfGrid.SetColumn(_statusText, 0);
             footerGrid.Children.Add(_statusText);
 
             var btnPanel = new StackPanel { Orientation = Orientation.Horizontal };
             _btnBack = MakeButton("← Back", OnBack);
             _btnNext = MakeButton("Next →", OnNext);
             _btnFinish = MakeButton("★ Execute", OnFinish);
-            _btnFinish.Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+            _btnFinish.Background = new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28));
             _btnFinish.Foreground = Brushes.White;
 
             var btnCancel = MakeButton("Cancel", (s, e) => { Confirmed = false; Close(); });
@@ -151,11 +159,11 @@ namespace StingTools.Model
             btnPanel.Children.Add(_btnNext);
             btnPanel.Children.Add(_btnFinish);
             btnPanel.Children.Add(btnCancel);
-            Grid.SetColumn(btnPanel, 1);
+            WpfGrid.SetColumn(btnPanel, 1);
             footerGrid.Children.Add(btnPanel);
 
             footer.Child = footerGrid;
-            Grid.SetRow(footer, 2);
+            WpfGrid.SetRow(footer, 2);
             root.Children.Add(footer);
 
             Content = root;
@@ -212,8 +220,8 @@ namespace StingTools.Model
                 IsReadOnly = true,
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E)),
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(0xD4, 0xD4, 0xD4)),
                 Padding = new Thickness(12),
                 TextWrapping = TextWrapping.NoWrap,
                 AcceptsReturn = true,
@@ -231,8 +239,8 @@ namespace StingTools.Model
                 IsReadOnly = true,
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 10,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xDC, 0xFE)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E)),
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(0x9C, 0xDC, 0xFE)),
                 Padding = new Thickness(12),
                 Margin = new Thickness(0, 8, 0, 0),
                 TextWrapping = TextWrapping.NoWrap,
@@ -294,7 +302,7 @@ namespace StingTools.Model
                 var layerPanel = new StackPanel();
                 var layerBorder = new Border
                 {
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                    BorderBrush = new SolidColorBrush(WpfColor.FromRgb(0xCC, 0xCC, 0xCC)),
                     BorderThickness = new Thickness(1),
                     Padding = new Thickness(8),
                     Margin = new Thickness(0, 4, 0, 8),
@@ -328,7 +336,7 @@ namespace StingTools.Model
                         kvp.Value.IsChecked = StructuralLayerClassifier.IsStructuralLayer(kvp.Key);
                 });
                 selectStructBtn.Height = 22; selectStructBtn.MinWidth = 90; selectStructBtn.FontSize = 10;
-                selectStructBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
+                selectStructBtn.Background = new SolidColorBrush(WpfColor.FromRgb(0xE8, 0x91, 0x2D));
                 selectStructBtn.Foreground = Brushes.White;
                 layerHeader.Children.Add(selectAllBtn);
                 layerHeader.Children.Add(selectNoneBtn);
@@ -360,7 +368,7 @@ namespace StingTools.Model
                             FontSize = 11,
                             FontWeight = isStruct ? FontWeights.SemiBold : FontWeights.Normal,
                             Foreground = isStruct
-                                ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))
+                                ? new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28))
                                 : Brushes.Gray,
                         };
                         _layerCheckboxes[kvp.Key] = cb;
@@ -378,7 +386,7 @@ namespace StingTools.Model
                     scaleText.Foreground = Math.Abs(scale - 1.0) < 0.001 ? Brushes.Green : Brushes.Orange;
                 });
 
-                analyzeBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
+                analyzeBtn.Background = new SolidColorBrush(WpfColor.FromRgb(0xE8, 0x91, 0x2D));
                 analyzeBtn.Foreground = Brushes.White;
                 analyzeBtn.FontWeight = FontWeights.Bold;
                 stack.Children.Add(analyzeBtn);
@@ -471,7 +479,7 @@ namespace StingTools.Model
                 }
                 else
                 {
-                    tb.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0xCC));
+                    tb.Background = new SolidColorBrush(WpfColor.FromRgb(0xFF, 0xCC, 0xCC));
                 }
             };
             row.Children.Add(tb);
@@ -495,8 +503,8 @@ namespace StingTools.Model
                 IsReadOnly = true,
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 10,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E)),
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(0xD4, 0xD4, 0xD4)),
                 Padding = new Thickness(12),
                 TextWrapping = TextWrapping.NoWrap,
                 AcceptsReturn = true,
@@ -592,8 +600,8 @@ namespace StingTools.Model
                 IsReadOnly = true,
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x99, 0x55)),
+                Background = new SolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E)),
+                Foreground = new SolidColorBrush(WpfColor.FromRgb(0x6A, 0x99, 0x55)),
                 Padding = new Thickness(12),
                 TextWrapping = TextWrapping.Wrap,
                 AcceptsReturn = true,
@@ -649,8 +657,8 @@ namespace StingTools.Model
             _pageTitle.Text = $"Step {_currentPage + 1} of {_pages.Count}: {PageTitles[_currentPage]}";
 
             _btnBack.IsEnabled = _currentPage > 0;
-            _btnNext.Visibility = _currentPage < _pages.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
-            _btnFinish.Visibility = _currentPage == _pages.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
+            _btnNext.Visibility = _currentPage < _pages.Count - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            _btnFinish.Visibility = _currentPage == _pages.Count - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             _statusText.Text = _currentPage < _pages.Count - 1
                 ? "Configure settings, then click Next →"
@@ -675,8 +683,8 @@ namespace StingTools.Model
                     Background = i == _currentPage
                         ? Brushes.White
                         : i < _currentPage
-                            ? new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0xCC))
-                            : new SolidColorBrush(Color.FromRgb(0x88, 0x44, 0x44)),
+                            ? new SolidColorBrush(WpfColor.FromRgb(0xFF, 0xCC, 0xCC))
+                            : new SolidColorBrush(WpfColor.FromRgb(0x88, 0x44, 0x44)),
                     Margin = new Thickness(3, 0, 3, 0),
                     Child = new TextBlock
                     {
@@ -685,7 +693,7 @@ namespace StingTools.Model
                         VerticalAlignment = VerticalAlignment.Center,
                         FontSize = 10,
                         Foreground = i == _currentPage
-                            ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))
+                            ? new SolidColorBrush(WpfColor.FromRgb(0xC6, 0x28, 0x28))
                             : Brushes.White,
                     }
                 };

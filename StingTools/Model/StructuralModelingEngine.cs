@@ -2191,8 +2191,8 @@ namespace StingTools.Model
 
                 if (colResult.Success)
                 {
-                    totalResult.ColumnsCreated = colResult.CreatedIds.Count;
-                    totalResult.CreatedIds.AddRange(colResult.CreatedIds);
+                    totalResult.ColumnsCreated = colResult.CreatedElementIds.Count;
+                    totalResult.CreatedIds.AddRange(colResult.CreatedElementIds);
                 }
                 else
                 {
