@@ -286,6 +286,12 @@ namespace StingTools.Core
             return false;
         }
 
+        // ── HELPERS ──
+
+        /// <summary>Phase 56b LOGIC-WARN-01: Centralized null-safe FailureMessage description getter.</summary>
+        private static string GetWarningDesc(FailureMessage fm)
+            => fm?.GetDescriptionText()?.Trim() ?? "";
+
         // ── CLASSIFICATION ──
 
         /// <summary>Classify a single Revit FailureMessage into STING category/severity/fix strategy.</summary>
@@ -882,7 +888,8 @@ namespace StingTools.Core
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
-        /// <summary>Save current warning count as baseline for trend tracking.</summary>
+        /// <summary>Save current warning count as baseline for trend tracking.
+        /// Phase 56b DATA-WARN-01: Uses atomic write pattern (temp + rename) to prevent corruption.</summary>
         internal static void SaveBaseline(Document doc)
         {
             try
@@ -890,11 +897,23 @@ namespace StingTools.Core
                 string path = GetBaselinePath(doc);
                 if (path == null) return;
                 int count = doc.GetWarnings()?.Count ?? 0;
-                string json = $"{{\"total\":{count},\"date\":\"{DateTime.Now:o}\"}}";
-                File.WriteAllText(path, json, Encoding.UTF8);
+                string json = $"{{\"version\":2,\"total\":{count},\"date\":\"{DateTime.Now:o}\",\"user\":\"{Environment.UserName}\"}}";
+
+                // Atomic write: temp file then rename to prevent mid-write corruption
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, json, Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
                 StingLog.Info($"Warning baseline saved: {count} warnings");
             }
-            catch (Exception ex) { StingLog.Warn($"SaveBaseline: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveBaseline: {ex.Message}");
+                // Clean up temp file on failure
+                try { string tp = GetBaselinePath(doc) + ".tmp"; if (File.Exists(tp)) File.Delete(tp); }
+                catch { /* best effort cleanup */ }
+            }
         }
 
         /// <summary>Load previous baseline count. Returns null if no baseline exists.</summary>
