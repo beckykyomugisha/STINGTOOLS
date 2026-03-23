@@ -300,6 +300,28 @@ namespace StingTools.Core
             ("borrowed", WarningCategory.Data, WarningSeverity.Low, "Element borrowed by another user", false),
             ("checked out", WarningCategory.Data, WarningSeverity.Info, "Element checked out for editing", false),
             ("workset", WarningCategory.Performance, WarningSeverity.Low, "Review workset assignment", false),
+
+            // Phase 67: Additional MEP coordination rules
+            ("flow direction", WarningCategory.MEP, WarningSeverity.High, "Check flow direction — reverse may cause system imbalance", false),
+            ("air terminal", WarningCategory.MEP, WarningSeverity.Medium, "Review air terminal connection and airflow", false),
+            ("pipe slope", WarningCategory.MEP, WarningSeverity.High, "Ensure gravity drain has adequate slope per BS EN 12056", false),
+            ("cable tray", WarningCategory.MEP, WarningSeverity.Medium, "Check cable tray fill ratio per IEC 61537", false),
+            ("conduit", WarningCategory.MEP, WarningSeverity.Medium, "Check conduit fill ratio per BS 7671", false),
+
+            // Phase 67: Additional architectural quality rules
+            ("wall join", WarningCategory.Geometric, WarningSeverity.Medium, "Review wall join configuration", false),
+            ("room not enclosed", WarningCategory.Spatial, WarningSeverity.High, "Ensure room is bounded — affects area calculations", true),
+            ("room not placed", WarningCategory.Spatial, WarningSeverity.Medium, "Place room in model or delete room object", false),
+            ("area not enclosed", WarningCategory.Spatial, WarningSeverity.High, "Ensure area boundary is closed", false),
+            ("opening", WarningCategory.Geometric, WarningSeverity.Low, "Review opening cut in host element", false),
+            ("beam", WarningCategory.Structural, WarningSeverity.Medium, "Review structural framing connection", false),
+            ("analytical model", WarningCategory.Structural, WarningSeverity.High, "Fix analytical model alignment for structural analysis", false),
+
+            // Phase 67: Performance and model health
+            ("in-place", WarningCategory.Performance, WarningSeverity.Medium, "Convert in-place family to loadable family for performance", false),
+            ("import", WarningCategory.Performance, WarningSeverity.Low, "Review imported CAD — consider exploding or linking", false),
+            ("raster image", WarningCategory.Performance, WarningSeverity.Low, "Raster images increase file size — consider linking", false),
+            ("array", WarningCategory.Performance, WarningSeverity.Low, "Large arrays may impact performance — consider grouping", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -824,6 +846,74 @@ namespace StingTools.Core
                             }
                         }
                         catch (Exception ex2) { StingLog.Warn($"Duplicate mark fix: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 67: Strategy 11: Fix room tags outside room boundary
+                if (lower.Contains("room tag") && lower.Contains("outside"))
+                {
+                    foreach (var id in cw.FailingElements)
+                    {
+                        try
+                        {
+                            var roomTag = doc.GetElement(id) as Autodesk.Revit.DB.Architecture.RoomTag;
+                            if (roomTag?.Room != null)
+                            {
+                                XYZ roomCenter = roomTag.Room.get_BoundingBox(null)?.Min;
+                                if (roomCenter != null)
+                                {
+                                    var roomBB = roomTag.Room.get_BoundingBox(null);
+                                    var center = new XYZ(
+                                        (roomBB.Min.X + roomBB.Max.X) / 2,
+                                        (roomBB.Min.Y + roomBB.Max.Y) / 2,
+                                        roomBB.Min.Z);
+                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint).Point);
+                                    return true;
+                                }
+                            }
+                        }
+                        catch (Exception exRT) { StingLog.Warn($"Room tag fix: {exRT.Message}"); }
+                    }
+                }
+
+                // Phase 67: Strategy 12: Fix unconnected pipe/duct by adding cap
+                // (Note: actual cap placement requires system type — log for manual review)
+                if (lower.Contains("unconnected") && (lower.Contains("pipe") || lower.Contains("duct")))
+                {
+                    StingLog.Info($"AutoFix: Unconnected MEP element detected — flagging for manual review. IDs: {string.Join(",", cw.FailingElements.Select(i => i.IntegerValue))}");
+                    // Mark elements as needing attention via StingLog — can't auto-cap without system context
+                    return false;
+                }
+
+                // Phase 67: Strategy 13: Fix elements off-level by snapping to nearest level
+                if (lower.Contains("offset from level"))
+                {
+                    foreach (var id in cw.FailingElements)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(id);
+                            if (el == null) continue;
+                            var bbx = el.get_BoundingBox(null);
+                            if (bbx == null) continue;
+                            double elZ = bbx.Min.Z;
+                            // Find nearest level
+                            var levels = new FilteredElementCollector(doc)
+                                .OfClass(typeof(Level)).Cast<Level>()
+                                .OrderBy(l => Math.Abs(l.Elevation - elZ))
+                                .ToList();
+                            if (levels.Count > 0 && el.LevelId != levels[0].Id)
+                            {
+                                var lvlParam = el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM)
+                                    ?? el.get_Parameter(BuiltInParameter.SCHEDULE_LEVEL_PARAM);
+                                if (lvlParam != null && !lvlParam.IsReadOnly)
+                                {
+                                    lvlParam.Set(levels[0].Id);
+                                    return true;
+                                }
+                            }
+                        }
+                        catch (Exception exOff) { StingLog.Warn($"Off-level fix: {exOff.Message}"); }
                     }
                 }
             }

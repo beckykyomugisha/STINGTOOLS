@@ -1515,6 +1515,37 @@ namespace StingTools.Core
                 {
                     string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
                     bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
+
+                    // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
+                    if (string.IsNullOrEmpty(loc) && doc.IsWorkshared)
+                    {
+                        try
+                        {
+                            var wsParam = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                            if (wsParam != null)
+                            {
+                                int wsId = wsParam.AsInteger();
+                                if (wsId > 0)
+                                {
+                                    string wsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
+                                    // Extract LOC code from workset name (e.g., "BLD2_Mechanical" → "BLD2")
+                                    foreach (string locCode in TagConfig.LocCodes ?? new List<string>())
+                                    {
+                                        if (wsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            wsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            wsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            loc = locCode;
+                                            locFromSpatial = true; // workset-derived counts as detected
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception wsEx) { StingLog.Warn($"LOC workset fallback: {wsEx.Message}"); }
+                    }
+
                     if (string.IsNullOrEmpty(loc)) loc = "BLD1";
                     if (overwrite)
                     {
@@ -1526,9 +1557,25 @@ namespace StingTools.Core
                     }
                     result.LocDetected = locFromSpatial;
 
-                    // LOG-01: Track LOC detection source
-                    string locSource = locFromSpatial ? "Room" :
-                        (!string.IsNullOrEmpty(ctx.ProjectLoc) ? "ProjectInfo" : "Default");
+                    // LOG-01: Track LOC detection source (Phase 67: added Workset layer)
+                    string locSource = locFromSpatial
+                        ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
+                        : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
+                    // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
+                    if (locFromSpatial && doc.IsWorkshared)
+                    {
+                        try
+                        {
+                            var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                            if (wsCheck != null && wsCheck.AsInteger() > 0)
+                            {
+                                string wsN = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
+                                if (wsN.Contains(loc, StringComparison.OrdinalIgnoreCase))
+                                    locSource = "Workset";
+                            }
+                        }
+                        catch { /* keep existing source */ }
+                    }
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, locSource);
                 }
             }
