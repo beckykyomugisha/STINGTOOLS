@@ -184,13 +184,12 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Generic Tag.rft" },
 
             // ── Additional (align with LABEL_DEFINITIONS v5.5) ───────────────
-            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
-            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Generic Tag.rft" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Generic Tag.rft" },
             { BuiltInCategory.OST_ToposolidLink, "Generic Tag.rft" },
             { BuiltInCategory.OST_StructConnectionWelds, "Generic Tag.rft" },
             { BuiltInCategory.OST_Wire, "Electrical Equipment Tag.rft" },
+
         };
 
         /// <summary>
@@ -331,14 +330,38 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_SiteProperty, "Property Lines" },
 
             // Additional (align with LABEL_DEFINITIONS v5.5)
-            // Note: OST_AnalyticalDuctSegments, OST_AnalyticalPipeSegments, OST_AreaBasedLoads,
-            // OST_MEPAncillaries, OST_TemporaryStructures, OST_Wash are Revit 2026+ only
             { BuiltInCategory.OST_StructConnectionBolts, "Bolt" },
             { BuiltInCategory.OST_SitePropertyLineSegment, "Property Line Segments" },
             { BuiltInCategory.OST_ToposolidLink, "Toposolid Links" },
             { BuiltInCategory.OST_StructConnectionWelds, "Weld" },
             { BuiltInCategory.OST_Wire, "Wire" },
+
         };
+
+        /// <summary>
+        /// Tie-in point tag families (ISO 19650-3 interface management).
+        /// These create ADDITIONAL tag families for existing BuiltInCategories,
+        /// so they cannot go in the CategoryTemplateMap dictionary (duplicate keys).
+        /// Each tuple: (BuiltInCategory, templateName, displayName, familySuffix)
+        /// </summary>
+        public static readonly (BuiltInCategory bic, string template, string display, string suffix)[] TieInPointFamilies =
+        {
+            (BuiltInCategory.OST_PipeCurves,     "Pipe Tag.rft",                "Tie-In Point (Pipe)",            "Tie-In Pipe"),
+            (BuiltInCategory.OST_DuctCurves,     "Duct Tag.rft",                "Tie-In Point (Duct)",            "Tie-In Duct"),
+            (BuiltInCategory.OST_Conduit,        "Conduit Tag.rft",             "Tie-In Point (Conduit)",         "Tie-In Conduit"),
+            (BuiltInCategory.OST_CableTray,      "Cable Tray Tag.rft",          "Tie-In Point (Cable Tray)",      "Tie-In Cable Tray"),
+            (BuiltInCategory.OST_Sprinklers,     "Sprinkler Tag.rft",           "Tie-In Point (Fire Protection)", "Tie-In Fire Protection"),
+            (BuiltInCategory.OST_GenericModel,    "Generic Tag.rft",             "Tie-In Point (Gas)",             "Tie-In Gas"),
+        };
+
+        /// <summary>Total tag family count including both standard categories and tie-in points.</summary>
+        public static int TotalFamilyCount => CategoryTemplateMap.Count + TieInPointFamilies.Length;
+
+        /// <summary>Generate tie-in family name from suffix.</summary>
+        public static string GetTieInFamilyName(string suffix) => $"{FamilyPrefix} - {suffix} Tag";
+
+        /// <summary>Generate tie-in family filename from suffix.</summary>
+        public static string GetTieInFamilyFileName(string suffix) => GetTieInFamilyName(suffix) + ".rfa";
 
         /// <summary>
         /// STING shared parameters to add to each tag family.
@@ -456,7 +479,7 @@ namespace StingTools.Tags
                             return dir;
                     }
                 }
-                catch { /* permission issues */ }
+                catch (Exception ex) { StingLog.Warn($"permission issues: {ex.Message}"); }
 
                 // PRIORITY 3: Directories containing any .rft (may have Generic Annotation.rft
                 // which can be used as fallback for all categories).
@@ -514,7 +537,7 @@ namespace StingTools.Tags
                             return dir;
                     }
                 }
-                catch { /* permission issues */ }
+                catch (Exception ex) { StingLog.Warn($"permission issues: {ex.Message}"); }
             }
 
             return null;
@@ -649,11 +672,11 @@ namespace StingTools.Tags
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Create Tag Families — create all 50 tag families from templates
+    //  Create Tag Families — create all 132 tag families from templates
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Creates STING tag families (.rfa) for all 50 taggable categories.
+    /// Creates STING tag families (.rfa) for all 132 taggable categories (126 standard + 6 tie-in point).
     /// Each family is created from the appropriate Revit annotation template,
     /// configured with STING shared parameters, saved, and loaded into the project.
     ///
@@ -679,6 +702,15 @@ namespace StingTools.Tags
             UIDocument uidoc = uiApp.ActiveUIDocument;
             Document doc = uidoc.Document;
             var app = uiApp.Application;
+
+            // ── Pre-check: Auto-fix any numeric label params to TEXT ──
+            var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
+            if (typeMismatches.Count > 0)
+            {
+                int autoFixed = LabelParamTypeValidator.AutoFixSourceFile();
+                if (autoFixed > 0)
+                    StingLog.Info($"Auto-fixed {autoFixed} label params to TEXT before family creation");
+            }
 
             // ── Step 1: Locate annotation templates ──
             string templateDir = TagFamilyConfig.FindTemplateDirectory(app);
@@ -718,7 +750,7 @@ namespace StingTools.Tags
 
             // ── Step 4: Determine categories to process ──
             var categories = TagFamilyConfig.CategoryTemplateMap.Keys.ToList();
-            int total = categories.Count;
+            int total = TagFamilyConfig.TotalFamilyCount;
             int alreadyLoaded = 0;
             int created = 0;
             int loaded = 0;
@@ -731,6 +763,13 @@ namespace StingTools.Tags
             foreach (var bic in categories)
             {
                 string famName = TagFamilyConfig.GetFamilyName(bic);
+                if (loadedFamilies.Contains(famName))
+                    alreadyLoaded++;
+            }
+            // Also count tie-in point families
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
@@ -817,20 +856,35 @@ namespace StingTools.Tags
                     }
 
                     // Check if .rfa already exists on disk (from previous run)
+                    // Verify it has parameters — if empty, delete and recreate
                     if (File.Exists(outputPath))
                     {
-                        if (LoadFamilyIntoProject(doc, outputPath, famName))
+                        bool hasParams = VerifyFamilyHasParams(app, outputPath);
+                        if (hasParams)
                         {
-                            report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
-                            loaded++;
+                            if (LoadFamilyIntoProject(doc, outputPath, famName))
+                            {
+                                report.AppendLine($"  [LOAD] {catDisplay} — loaded from existing .rfa");
+                                loaded++;
+                            }
+                            else
+                            {
+                                report.AppendLine($"  [FAIL] {catDisplay} — load failed");
+                                failed++;
+                                failures.Add($"{catDisplay}: family load failed");
+                            }
+                            continue;
                         }
                         else
                         {
-                            report.AppendLine($"  [FAIL] {catDisplay} — load failed");
-                            failed++;
-                            failures.Add($"{catDisplay}: family load failed");
+                            // Empty family from previous failed run — delete and recreate
+                            StingLog.Info($"Deleting empty .rfa for {catDisplay} — will recreate with params");
+                            try { File.Delete(outputPath); }
+                            catch (Exception delEx)
+                            {
+                                StingLog.Warn($"Cannot delete {outputPath}: {delEx.Message}");
+                            }
                         }
-                        continue;
                     }
 
                     // Create family from template (Strategy 1 + 2 fallback)
@@ -846,6 +900,15 @@ namespace StingTools.Tags
                     // Add shared parameters: tag containers + visibility + category-specific
                     var allParams = TagFamilyConfig.GetAllFamilyParams(catDisplay);
                     bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, allParams);
+
+                    // If no params were added, log detailed diagnostics
+                    if (!paramsAdded)
+                    {
+                        StingLog.Warn($"No params added to {catDisplay}. " +
+                            $"Param list count: {allParams.Count}, " +
+                            $"SharedParamFile: {sharedParamFile}, " +
+                            $"File exists: {File.Exists(sharedParamFile)}");
+                    }
 
                     // Attempt to rebind the existing Label to ASS_TAG_1_TXT
                     bool labelBound = TryRebindLabel(famDoc);
@@ -877,6 +940,140 @@ namespace StingTools.Tags
                     failures.Add($"{catDisplay}: {ex.Message}");
                     report.AppendLine($"  [FAIL] {catDisplay} — {ex.Message}");
                     StingLog.Error($"Tag family creation failed for {catDisplay}", ex);
+                }
+            }
+
+            // ── Step 5b: Create tie-in point tag families ──
+            report.AppendLine();
+            report.AppendLine("── Tie-In Point Families ──");
+            foreach (var tiein in TagFamilyConfig.TieInPointFamilies)
+            {
+                string famName = TagFamilyConfig.GetTieInFamilyName(tiein.suffix);
+                string fileName = TagFamilyConfig.GetTieInFamilyFileName(tiein.suffix);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {tiein.display} — already loaded");
+                    continue;
+                }
+
+                // Check for existing .rfa on disk
+                string existingRfa = Path.Combine(outputDir, fileName);
+                if (File.Exists(existingRfa))
+                {
+                    try
+                    {
+                        using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
+                        {
+                            t.Start();
+                            doc.LoadFamily(existingRfa);
+                            t.Commit();
+                        }
+                        loaded++;
+                        report.AppendLine($"  [LOAD] {tiein.display} — loaded from existing .rfa");
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.AppendLine($"  [FAIL] {tiein.display} — load failed: {ex.Message}");
+                    }
+                }
+
+                // Find template and create family
+                string tpl = null;
+                foreach (string dir in new[] { templateDir })
+                {
+                    string specific = Path.Combine(dir, tiein.template);
+                    if (File.Exists(specific)) { tpl = specific; break; }
+                    string metric = Path.Combine(dir, "Metric " + tiein.template);
+                    if (File.Exists(metric)) { tpl = metric; break; }
+                }
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    // Fallback to Generic Tag.rft
+                    string generic = Path.Combine(templateDir, "Generic Tag.rft");
+                    if (File.Exists(generic)) tpl = generic;
+                    else
+                    {
+                        string metricGeneric = Path.Combine(templateDir, "Metric Generic Tag.rft");
+                        if (File.Exists(metricGeneric)) tpl = metricGeneric;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    report.AppendLine($"  [MISS] {tiein.display} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    Document famDoc = app.NewFamilyDocument(tpl);
+                    if (famDoc == null)
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {tiein.display} — NewFamilyDocument returned null");
+                        continue;
+                    }
+
+                    // Add shared parameters (same as standard families)
+                    int paramCount = 0;
+                    using (Transaction t = new Transaction(famDoc, "STING Add Params"))
+                    {
+                        t.Start();
+                        app.SharedParametersFilename = sharedParamFile;
+                        var defFile = app.OpenSharedParameterFile();
+                        if (defFile != null)
+                        {
+                            foreach (string pName in TagFamilyConfig.TagParams
+                                .Concat(TagFamilyConfig.VisibilityParams)
+                                .Append("ASS_DESCRIPTION_TXT"))
+                            {
+                                foreach (DefinitionGroup grp in defFile.Groups)
+                                {
+                                    var def = grp.Definitions.get_Item(pName);
+                                    if (def != null)
+                                    {
+                                        try
+                                        {
+                                            famDoc.FamilyManager.AddParameter(
+                                                def as ExternalDefinition,
+                                                new ForgeTypeId("autodesk.spec.aec:identityData-2.0.0"),
+                                                false);
+                                            paramCount++;
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"Add parameter to family: {ex.Message}"); }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        t.Commit();
+                    }
+
+                    // Save and load
+                    string savePath = Path.Combine(outputDir, fileName);
+                    var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                    famDoc.SaveAs(savePath, saveOpts);
+                    famDoc.Close(false);
+                    created++;
+
+                    using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
+                    {
+                        t.Start();
+                        doc.LoadFamily(savePath);
+                        t.Commit();
+                    }
+                    loaded++;
+                    report.AppendLine($"  [OK]   {tiein.display} — created and loaded ({paramCount} params)");
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{tiein.display}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {tiein.display} — {ex.Message}");
+                    StingLog.Error($"Tie-in tag family creation failed for {tiein.display}", ex);
                 }
             }
 
@@ -937,9 +1134,22 @@ namespace StingTools.Tags
                 DefinitionFile defFile = app.OpenSharedParameterFile();
                 if (defFile == null)
                 {
-                    StingLog.Warn("Cannot open shared parameter file for tag family");
+                    StingLog.Warn($"Cannot open shared parameter file: {sharedParamFile}");
+                    StingLog.Warn($"File exists: {File.Exists(sharedParamFile)}, " +
+                        $"App.SharedParametersFilename: {app.SharedParametersFilename}");
                     return false;
                 }
+
+                // Log group count for diagnostics
+                int groupCount = 0;
+                int defCount = 0;
+                foreach (DefinitionGroup grp in defFile.Groups)
+                {
+                    groupCount++;
+                    foreach (Definition d in grp.Definitions)
+                        defCount++;
+                }
+                StingLog.Info($"Shared parameter file opened: {groupCount} groups, {defCount} definitions");
 
                 FamilyManager famMan = famDoc.FamilyManager;
                 int added = 0;
@@ -1006,7 +1216,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(originalFile))
                         app.SharedParametersFilename = originalFile;
                 }
-                catch { /* best effort */ }
+                catch (Exception ex) { StingLog.Warn($"best effort: {ex.Message}"); }
             }
         }
 
@@ -1095,7 +1305,7 @@ namespace StingTools.Tags
                                 labelParam.Set(ParamRegistry.TAG1);
                             }
                         }
-                        catch { /* Not supported — expected */ }
+                        catch (Exception ex) { StingLog.Warn($"Not supported — expected: {ex.Message}"); }
                     }
 
                     tx.Commit();
@@ -1108,6 +1318,49 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Info($"Label rebind attempt (expected to fail): {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verify that a .rfa file on disk contains STING shared parameters.
+        /// Opens the family document, checks FamilyManager.Parameters count,
+        /// and closes without saving. Returns false if the family is empty
+        /// (from a previous failed creation run).
+        /// </summary>
+        private bool VerifyFamilyHasParams(
+            Autodesk.Revit.ApplicationServices.Application app,
+            string rfaPath)
+        {
+            try
+            {
+                Document famDoc = app.OpenDocumentFile(rfaPath);
+                if (famDoc == null) return false;
+
+                int paramCount = 0;
+                FamilyManager famMan = famDoc.FamilyManager;
+                foreach (FamilyParameter fp in famMan.Parameters)
+                {
+                    // Count STING params (ASS_, TAG_, HVC_, etc.) — not built-in
+                    string name = fp.Definition?.Name ?? "";
+                    if (name.Contains("_"))
+                        paramCount++;
+                }
+
+                famDoc.Close(false);
+
+                if (paramCount < 5)
+                {
+                    StingLog.Info($"VerifyFamilyHasParams: {rfaPath} has only {paramCount} " +
+                        "STING params — treating as empty, will recreate");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"VerifyFamilyHasParams failed for {rfaPath}: {ex.Message}");
                 return false;
             }
         }
@@ -1342,6 +1595,26 @@ namespace StingTools.Tags
             var paramText = LabelDefinitionHelper.LoadParameterText();
             bool hasLabelDefs = catLabels.Count > 0;
 
+            // Validate label param types BEFORE configuration
+            var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
+            if (typeMismatches.Count > 0)
+            {
+                int autoFixed = LabelParamTypeValidator.AutoFixSourceFile();
+                if (autoFixed > 0)
+                {
+                    StingLog.Info($"Auto-fixed {autoFixed} label params to TEXT in MR_PARAMETERS.txt");
+                    TaskDialog.Show("STING Tools - Parameter Fix",
+                        $"Fixed {autoFixed} parameters from numeric to TEXT type in MR_PARAMETERS.txt.\n\n" +
+                        "IMPORTANT: Existing tag families (.rfa) still have the old parameter types.\n" +
+                        "You must DELETE and RE-CREATE tag families for the fix to take effect:\n\n" +
+                        "  1. Run 'Create Tag Families' (will overwrite existing .rfa files)\n" +
+                        "  2. Then run 'Configure Tag Labels' again\n\n" +
+                        "Parameters fixed:\n" +
+                        string.Join(", ", typeMismatches.Take(10).Select(m => m.name)) +
+                        (typeMismatches.Count > 10 ? $"\n... and {typeMismatches.Count - 10} more" : ""));
+                }
+            }
+
             // Introduction dialog
             TaskDialog intro = new TaskDialog("Configure Tag Labels");
             intro.MainInstruction = $"Configure Labels for {stingFamilies.Count} STING tag families";
@@ -1512,8 +1785,10 @@ namespace StingTools.Tags
                 {
                     sb.AppendLine();
                     sb.AppendLine("── TIER 2 (Standard+) ──");
-                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
+                    sb.AppendLine("  Numeric params (NUMBER/LENGTH/AREA) cause 'Inconsistent Units'.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier2, paramText);
                 }
@@ -1524,8 +1799,9 @@ namespace StingTools.Tags
                 {
                     sb.AppendLine();
                     sb.AppendLine("── TIER 3 (Comprehensive) ──");
-                    sb.AppendLine("Use CALCULATED VALUES for each parameter:");
+                    sb.AppendLine("Use CALCULATED VALUES (Type: Text) for each parameter:");
                     sb.AppendLine("  Formula: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+                    sb.AppendLine("  NOTE: All parameters MUST be TEXT type in MR_PARAMETERS.txt.");
                     sb.AppendLine();
                     FormatTierTable(sb, tier3, paramText);
                 }
@@ -1741,6 +2017,32 @@ namespace StingTools.Tags
                 report.AppendLine("Run 'Load Tag Families' to load them.");
             }
 
+            // Check label param types
+            var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
+            if (typeMismatches.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"⚠ WARNING: {typeMismatches.Count} label params have non-TEXT types");
+                report.AppendLine("These cause 'Inconsistent Units' in tag family formulas.");
+                report.AppendLine("Run 'Configure Tag Labels' to auto-fix, then re-create families.");
+                foreach (var (pname, ptype) in typeMismatches.Take(20))
+                    report.AppendLine($"  {pname}: {ptype} (should be TEXT)");
+                if (typeMismatches.Count > 20)
+                    report.AppendLine($"  ... and {typeMismatches.Count - 20} more");
+            }
+
+            // Check bound param types in project
+            var boundMismatches = LabelParamTypeValidator.ValidateBoundParams(doc);
+            if (boundMismatches.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine($"⚠ PROJECT: {boundMismatches.Count} label params bound as non-Text");
+                report.AppendLine("These need re-binding: delete old params, reload MR_PARAMETERS.txt,");
+                report.AppendLine("then re-create tag families.");
+                foreach (var (pname, stype) in boundMismatches.Take(20))
+                    report.AppendLine($"  {pname}: {stype}");
+            }
+
             TaskDialog td = new TaskDialog("Tag Family Audit");
             td.MainInstruction = $"Tag coverage: {stingLoaded + otherTag}/{TagFamilyConfig.CategoryTemplateMap.Count} categories";
             td.MainContent = report.ToString();
@@ -1748,6 +2050,173 @@ namespace StingTools.Tags
 
             StingLog.Info($"TagFamilyAudit: sting={stingLoaded}, other={otherTag}, missing={missing}");
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Validates that all shared parameters used in tag family label tiers (tier_2, tier_3, warnings)
+    /// are TEXT type. Numeric parameters (NUMBER, LENGTH, AREA, etc.) cause Revit "Inconsistent Units"
+    /// errors when used in calculated value formulas like if(BOOL, PARAM, "").
+    ///
+    /// This validation checks:
+    /// 1. MR_PARAMETERS.txt definitions (source file)
+    /// 2. Bound parameters in the current project (runtime)
+    /// 3. Reports any mismatches with fix instructions
+    /// </summary>
+    internal static class LabelParamTypeValidator
+    {
+        /// <summary>
+        /// Validate that all label tier parameters are TEXT type in MR_PARAMETERS.txt.
+        /// Returns list of (paramName, currentType) for non-TEXT params.
+        /// </summary>
+        public static List<(string name, string type)> ValidateSourceFile()
+        {
+            var mismatches = new List<(string name, string type)>();
+
+            // Load label definitions
+            var catLabels = LabelDefinitionHelper.LoadCategoryLabels();
+            if (catLabels.Count == 0) return mismatches;
+
+            // Collect all params in tier_2/tier_3/warnings
+            var labelParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var catData in catLabels.Values)
+            {
+                foreach (string tierName in new[] { "tier_2", "tier_3", "warnings" })
+                {
+                    var tier = catData[tierName] as JArray;
+                    if (tier == null) continue;
+                    foreach (JObject row in tier)
+                    {
+                        string param = row["parameter"]?.ToString() ?? row["param"]?.ToString() ?? "";
+                        if (!string.IsNullOrEmpty(param))
+                            labelParams.Add(param);
+                    }
+                }
+            }
+
+            // Read MR_PARAMETERS.txt types
+            string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(mrFile)) return mismatches;
+
+            try
+            {
+                foreach (string line in File.ReadLines(mrFile))
+                {
+                    if (!line.StartsWith("PARAM")) continue;
+                    string[] parts = line.Split('\t');
+                    if (parts.Length < 4) continue;
+
+                    string pname = parts[2];
+                    string ptype = parts[3];
+
+                    if (labelParams.Contains(pname) && !string.Equals(ptype, "TEXT", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(ptype, "YESNO", StringComparison.OrdinalIgnoreCase))
+                    {
+                        mismatches.Add((pname, ptype));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LabelParamTypeValidator: {ex.Message}");
+            }
+
+            return mismatches;
+        }
+
+        /// <summary>
+        /// Validate bound parameters in a Revit project/family document.
+        /// Returns list of (paramName, storageType) for params bound as non-String.
+        /// </summary>
+        public static List<(string name, string storageType)> ValidateBoundParams(Document doc)
+        {
+            var mismatches = new List<(string name, string storageType)>();
+
+            var catLabels = LabelDefinitionHelper.LoadCategoryLabels();
+            if (catLabels.Count == 0) return mismatches;
+
+            var labelParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var catData in catLabels.Values)
+            {
+                foreach (string tierName in new[] { "tier_2", "tier_3", "warnings" })
+                {
+                    var tier = catData[tierName] as JArray;
+                    if (tier == null) continue;
+                    foreach (JObject row in tier)
+                    {
+                        string param = row["parameter"]?.ToString() ?? row["param"]?.ToString() ?? "";
+                        if (!string.IsNullOrEmpty(param))
+                            labelParams.Add(param);
+                    }
+                }
+            }
+
+            // Check a sample element for each problematic param
+            // Use BindingMap to check parameter definitions
+            var bindingMap = doc.ParameterBindings;
+            var iter = bindingMap.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                var def = iter.Key as InternalDefinition;
+                if (def == null) continue;
+                if (!labelParams.Contains(def.Name)) continue;
+
+                // Check if the spec says non-text
+                try
+                {
+                    var spec = def.GetDataType();
+                    if (spec != null && spec != SpecTypeId.String.Text)
+                    {
+                        mismatches.Add((def.Name, spec.TypeId));
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"older Revit API: {ex.Message}"); }
+            }
+
+            return mismatches;
+        }
+
+        /// <summary>
+        /// Auto-fix MR_PARAMETERS.txt by changing all label tier numeric params to TEXT.
+        /// Returns number of params fixed.
+        /// </summary>
+        public static int AutoFixSourceFile()
+        {
+            var mismatches = ValidateSourceFile();
+            if (mismatches.Count == 0) return 0;
+
+            string mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(mrFile)) return 0;
+
+            var namesToFix = new HashSet<string>(mismatches.Select(m => m.name),
+                StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                var lines = File.ReadAllLines(mrFile);
+                int fixed_ = 0;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (!lines[i].StartsWith("PARAM")) continue;
+                    string[] parts = lines[i].Split('\t');
+                    if (parts.Length < 4) continue;
+                    if (namesToFix.Contains(parts[2]))
+                    {
+                        parts[3] = "TEXT";
+                        lines[i] = string.Join("\t", parts);
+                        fixed_++;
+                    }
+                }
+
+                File.WriteAllLines(mrFile, lines);
+                StingLog.Info($"LabelParamTypeValidator: Fixed {fixed_} params to TEXT in MR_PARAMETERS.txt");
+                return fixed_;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("LabelParamTypeValidator.AutoFix failed", ex);
+                return 0;
+            }
         }
     }
 }

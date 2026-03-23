@@ -52,6 +52,9 @@ namespace StingTools.Temp
 
             // LoadFormulas now returns topologically sorted list with cycle detection
 
+            // ENH-P3: Validate formulas against parameter registry (warn on orphans)
+            FormulaEngine.ValidateAgainstRegistry(formulas);
+
             // DAT-005: Validate dependency DAG — check that formulas only depend on
             // parameters written at equal or lower dependency levels
             ValidateFormulaDag(formulas);
@@ -334,7 +337,7 @@ namespace StingTools.Temp
                         if (writeTime == _cachedCsvWriteTime)
                             return _cachedFormulas;
                     }
-                    catch { /* file access error — reload */ }
+                    catch (Exception ex) { StingLog.Warn($"file access error — reload: {ex.Message}"); }
                 }
             }
 
@@ -364,8 +367,14 @@ namespace StingTools.Temp
                         Unit = cols[6].Trim(),
                     };
 
-                    // Parse dependency level (column 9)
-                    int.TryParse(cols[9].Trim(), out int depLevel);
+                    // Parse dependency level (column 9) — default to 0 if missing/invalid
+                    string depStr = cols[9].Trim();
+                    if (!int.TryParse(depStr, out int depLevel))
+                    {
+                        depLevel = 0;
+                        if (!string.IsNullOrEmpty(depStr))
+                            StingLog.Warn($"Formula '{formula.ParameterName}': invalid Dependency_Level '{depStr}', defaulting to 0");
+                    }
                     formula.DependencyLevel = depLevel;
 
                     // Parse uses builtin geometry (column 10)
@@ -382,6 +391,9 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(formula.ParameterName)
                         && !string.IsNullOrEmpty(formula.Expression))
                     {
+                        // Warn on corrupt discipline values (unescaped CSV commas)
+                        if (formula.Discipline.Contains("(") || formula.Discipline.Contains("="))
+                            StingLog.Warn($"Formula '{formula.ParameterName}': suspect Discipline value '{formula.Discipline}' — check CSV quoting");
                         formulas.Add(formula);
                     }
                 }
@@ -451,10 +463,51 @@ namespace StingTools.Temp
                 _cachedFormulas = formulas;
                 _cachedCsvPath = csvPath;
                 try { _cachedCsvWriteTime = File.GetLastWriteTimeUtc(csvPath); }
-                catch { _cachedCsvWriteTime = DateTime.MinValue; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); _cachedCsvWriteTime = DateTime.MinValue; }
             }
 
             return formulas;
+        }
+
+        /// <summary>
+        /// ENH-P3: Validate loaded formulas against ParamRegistry.
+        /// Logs warnings for orphaned formulas (no matching GUID in registry) and
+        /// formulas referencing input parameters not in the registry.
+        /// </summary>
+        public static void ValidateAgainstRegistry(List<FormulaDefinition> formulas)
+        {
+            if (formulas == null || formulas.Count == 0) return;
+            int orphaned = 0;
+            int missingInputs = 0;
+
+            var knownParams = ParamRegistry.AllParamGuids;
+
+            foreach (var f in formulas)
+            {
+                // Check target parameter exists in registry
+                if (!knownParams.ContainsKey(f.ParameterName))
+                {
+                    orphaned++;
+                    if (orphaned <= 10) // Limit log spam
+                        StingLog.Warn($"Formula orphan: '{f.ParameterName}' has no GUID in ParamRegistry — values will be lost");
+                }
+
+                // Check input parameters exist
+                foreach (string input in f.InputParameters)
+                {
+                    if (!knownParams.ContainsKey(input) &&
+                        !input.StartsWith("BIP_") && // Built-in parameter refs
+                        !input.Equals("Element_Id", StringComparison.OrdinalIgnoreCase))
+                    {
+                        missingInputs++;
+                    }
+                }
+            }
+
+            if (orphaned > 0)
+                StingLog.Warn($"FormulaEngine: {orphaned} of {formulas.Count} formulas have no matching GUID in ParamRegistry — computed values will be lost for these");
+            if (missingInputs > 0)
+                StingLog.Info($"FormulaEngine: {missingInputs} input parameter references not found in ParamRegistry (may use built-in or type parameters)");
         }
 
         /// <summary>
@@ -564,7 +617,7 @@ namespace StingTools.Temp
                 if (p != null && p.StorageType == StorageType.Double)
                     return p.AsDouble() * ftToMm;
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read dimension '{name}' from element: {ex.Message}"); }
 
             return null;
         }
@@ -599,10 +652,7 @@ namespace StingTools.Temp
                 string result = sb.ToString();
                 return string.IsNullOrEmpty(result) ? null : result;
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>Split text expression on + operator, respecting quoted strings.</summary>
@@ -651,10 +701,7 @@ namespace StingTools.Temp
                 double result = parser.Parse();
                 return result;
             }
-            catch
-            {
-                return null;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -786,32 +833,9 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Write formula result to parameter: {ex.Message}"); }
 
             return false;
-        }
-
-        /// <summary>DATA-03: Convert a value from the given unit to Revit internal units (feet-based).</summary>
-        private static double ConvertToInternalUnits(double value, string unit)
-        {
-            if (string.IsNullOrEmpty(unit)) return value;
-            switch (unit.ToUpperInvariant())
-            {
-                case "MM":     return value / 304.8;                    // mm → feet
-                case "CM":     return value / 30.48;                    // cm → feet
-                case "M":      return value / 0.3048;                   // m → feet
-                case "M2":
-                case "SQM":    return value / (0.3048 * 0.3048);        // m² → sq feet
-                case "M3":
-                case "CUM":    return value / (0.3048 * 0.3048 * 0.3048); // m³ → cu feet
-                case "KG":     return value;                            // mass — no conversion
-                case "KW":     return value;                            // power — no conversion
-                case "L/S":    return value;                            // flow — no conversion
-                case "PA":     return value;                            // pressure — no conversion
-                case "DEG":
-                case "DEGREES": return value * Math.PI / 180.0;         // degrees → radians
-                default:       return value;                            // unknown unit — pass through
-            }
         }
 
         /// <summary>

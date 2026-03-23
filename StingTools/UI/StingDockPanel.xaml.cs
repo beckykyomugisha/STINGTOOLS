@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Autodesk.Revit.UI;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -41,6 +42,9 @@ namespace StingTools.UI
         public StingDockPanel()
         {
             InitializeComponent();
+            // Register this panel as the theme target before seeding resources
+            ThemeManager.RegisterTarget(this);
+            ThemeManager.InitialiseResources();
 
             // CRASH FIX: Immediately after XAML parsing, detach content from all
             // non-active tabs BEFORE the first WPF layout pass (Measure/Arrange).
@@ -101,6 +105,18 @@ namespace StingTools.UI
             _externalEvent = ExternalEvent.Create(_handler);
         }
 
+        /// <summary>
+        /// Public dispatch method for modeless dialogs (e.g. Sheet Manager).
+        /// Sets the command tag and raises the external event so the operation
+        /// executes on the Revit API thread.
+        /// </summary>
+        public static bool DispatchCommand(string tag, string param1 = "", string param2 = "")
+        {
+            if (_handler == null || _externalEvent == null) return false;
+            _handler.SetCommand(tag, param1, param2);
+            return _externalEvent.Raise() == ExternalEventRequest.Accepted;
+        }
+
         // ── Unified button click dispatcher ──────────────────────────────
 
         /// <summary>
@@ -147,6 +163,31 @@ namespace StingTools.UI
                     SetPreferredPositionParam();
                 }
 
+                // FIX-4.2: Pass Leader & Elbow slider values to elbow/arrow commands
+                if (cmdTag == "TagStudio_AdjustElbows" || cmdTag == "TagStudio_SetArrows"
+                    || cmdTag == "SnapElbow90" || cmdTag == "SnapElbow45"
+                    || cmdTag == "SnapElbowStraight" || cmdTag == "SnapElbowFree")
+                {
+                    SetLeaderElbowParams();
+                }
+                // FIX-4.2: Pass Style & Color slider values to style commands
+                if (cmdTag == "TagStudio_ApplyStyle" || cmdTag == "ApplyTagStyle"
+                    || cmdTag == "BatchTagTextSize")
+                {
+                    SetTagStyleParams();
+                }
+
+                // Handle theme cycling directly in WPF thread (no Revit API needed)
+                if (cmdTag == "CycleTheme")
+                {
+                    string next = ThemeManager.CycleTheme();
+                    // Force WPF to re-evaluate DynamicResource bindings in Revit's hosted pane
+                    InvalidateVisual();
+                    UpdateLayout();
+                    UpdateStatus($"Theme: {next}");
+                    return;
+                }
+
                 _handler?.SetCommand(cmdTag);
                 var result = _externalEvent?.Raise() ?? ExternalEventRequest.Denied;
                 if (result == ExternalEventRequest.Accepted)
@@ -164,6 +205,55 @@ namespace StingTools.UI
                     UpdateStatus("Busy — try again...");
                 }
             }
+        }
+
+        /// <summary>FIX-4.1: Read Leader &amp; Elbow sliders and pass as ExtraParams.</summary>
+        private void SetLeaderElbowParams()
+        {
+            try
+            {
+                string em = "0";
+                if (rbElbow90?.IsChecked == true)    em = "1";
+                else if (rbElbow45?.IsChecked == true)   em = "2";
+                else if (rbElbowFree?.IsChecked == true)  em = "3";
+                StingCommandHandler.SetExtraParam("ElbowMode", em);
+                StingCommandHandler.SetExtraParam("ElbowX",    (sldElbowX?.Value    ?? 0   ).ToString("F1"));
+                StingCommandHandler.SetExtraParam("ElbowY",    (sldElbowY?.Value    ?? -16 ).ToString("F1"));
+                StingCommandHandler.SetExtraParam("ElbowDist", (sldElbowDist?.Value ?? 8   ).ToString("F1"));
+                string lm = "Auto";
+                if (rbLeaderAlways?.IsChecked == true) lm = "Always";
+                else if (rbLeaderNever?.IsChecked == true) lm = "Never";
+                else if (rbLeaderSmart?.IsChecked == true) lm = "Smart";
+                StingCommandHandler.SetExtraParam("LeaderMode", lm);
+                StingCommandHandler.SetExtraParam("LeaderLen",       (sldLeaderLen?.Value       ?? 14).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderMin",       (sldLeaderMin?.Value       ?? 5 ).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderMax",       (sldLeaderMax?.Value       ?? 43).ToString("F0"));
+                StingCommandHandler.SetExtraParam("LeaderThreshold", (sldLeaderThreshold?.Value ?? 20).ToString("F0"));
+                StingCommandHandler.SetExtraParam("ArrowStyle",
+                    (cmbArrowStyle?.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "None");
+                StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
+            }
+            catch (Exception ex) { StingLog.Warn($"Read leader/elbow params failed: {ex.Message}"); }
+        }
+
+        /// <summary>FIX-4.1: Read Style &amp; Color sliders for style commands.</summary>
+        private void SetTagStyleParams()
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("TagTextSize",     (sldTextSize?.Value     ?? 2.5).ToString("F2"));
+                StingCommandHandler.SetExtraParam("TagLetterSpacing",(sldLetterSpacing?.Value ?? 0  ).ToString("F0"));
+                string w = "Normal";
+                if (rbWeightBold?.IsChecked == true)   w = "Bold";
+                else if (rbWeightItalic?.IsChecked == true) w = "Italic";
+                StingCommandHandler.SetExtraParam("TagTextWeight", w);
+                string c = "Black";
+                if (rbColorRed?.IsChecked == true)   c = "Red";
+                else if (rbColorBlue?.IsChecked == true)  c = "Blue";
+                else if (rbColorWhite?.IsChecked == true) c = "White";
+                StingCommandHandler.SetExtraParam("TagTextColor", c);
+            }
+            catch (Exception ex) { StingLog.Warn($"Read tag style params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-05: Read scope radio state and pass to commands.</summary>
@@ -186,7 +276,7 @@ namespace StingTools.UI
                 var chkIncludeLinks = FindName("chkIncludeLinks") as System.Windows.Controls.CheckBox;
                 StingCommandHandler.SetExtraParam("IncludeLinks", chkIncludeLinks?.IsChecked == true ? "1" : "0");
             }
-            catch { /* Scope controls may not exist in all layouts */ }
+            catch (Exception ex) { StingLog.Warn($"Scope controls may not exist in all layouts: {ex.Message}"); }
         }
 
         /// <summary>UI-06: Read direction override radio state.</summary>
@@ -211,7 +301,7 @@ namespace StingTools.UI
                 // No direction override selected — clear
                 StingCommandHandler.ClearExtraParam("DirOverride");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read direction override params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-07: Read batch warning suppression checkbox.</summary>
@@ -225,7 +315,7 @@ namespace StingTools.UI
                 else
                     StingCommandHandler.ClearExtraParam("SuppressWarningsDuringBatch");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read batch warning params failed: {ex.Message}"); }
         }
 
         /// <summary>UI-08: Read 16-position compass preferred position.</summary>
@@ -245,7 +335,7 @@ namespace StingTools.UI
                 // Default to position 1 (above/north)
                 StingCommandHandler.SetExtraParam("PreferredTagPos", "1");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read preferred position param failed: {ex.Message}"); }
         }
 
         private void BtnPin_Click(object sender, RoutedEventArgs e)
@@ -564,6 +654,33 @@ namespace StingTools.UI
         }
 
         /// <summary>
+        /// FIX-UI03: Called by StingCommandHandler.Execute() after every command
+        /// completes. Triggers UnfreezeTagSubTabs() via UpdateStatus() so the
+        /// Leader &amp; Elbow sub-tab (and all others) are re-enabled automatically.
+        /// Must be called on any thread — uses BeginInvoke for safety.
+        /// </summary>
+        public static void NotifyCommandComplete(string statusText = "Ready")
+        {
+            if (_instance == null) return;
+            try
+            {
+                if (!_instance.Dispatcher.CheckAccess())
+                {
+                    _instance.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        try { _instance.UpdateStatus(statusText); }
+                        catch (Exception ex) { StingLog.Warn($"Status bar update failed: {ex.Message}"); }
+                    }));
+                }
+                else
+                {
+                    _instance.UpdateStatus(statusText);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
+        }
+
+        /// <summary>
         /// UI-03: Static method to update the Tags tab status strip from any thread.
         /// </summary>
         public static void UpdateTagsStatus(string text, string rag)
@@ -611,7 +728,7 @@ namespace StingTools.UI
                     _instance.txtStatus.Foreground = brush;
                 }
             }
-            catch { /* Non-critical UI update */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
         }
 
         // ── Warning level radio → ToggleWarningVisibilityCommand ─────────────

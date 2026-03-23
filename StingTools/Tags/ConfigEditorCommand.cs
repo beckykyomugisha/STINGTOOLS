@@ -225,10 +225,20 @@ namespace StingTools.Tags
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);
                 File.WriteAllText(path, json);
 
-                TaskDialog.Show("Config Saved",
-                    $"Configuration saved to:\n{path}\n\n" +
-                    "Edit this JSON file to customise lookup tables for this project. " +
-                    "Use 'Reload' to apply changes.");
+                // GAP-6B: Reload config immediately after save so changes take effect
+                try
+                {
+                    TagConfig.LoadFromFile(path);
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                    ParameterHelpers.InvalidateSessionCaches();
+                    StingLog.Info("Config auto-reloaded after save");
+                }
+                catch (Exception reloadEx) { StingLog.Warn($"Config auto-reload: {reloadEx.Message}"); }
+
+                TaskDialog.Show("Config Saved & Applied",
+                    $"Configuration saved and reloaded:\n{path}\n\n" +
+                    "Changes are now active. Edit this JSON file to customise lookup tables.");
                 StingLog.Info($"Config saved to {path}");
             }
             catch (Exception ex)
@@ -305,6 +315,116 @@ namespace StingTools.Tags
 
             StingLog.Info("ConfigEditor: SEQ setting change accepted by user");
             return true;
+        }
+    }
+
+    /// <summary>FIX-11.1: Guided editor for all STING data files with format hints and sync.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class GuidedDataEditorCommand : IExternalCommand
+    {
+        private static readonly (string key, string file, string desc)[] Files =
+        {
+            ("config",    "project_config.json",              "DISC/SYS maps, SEQ, separator, compliance gate"),
+            ("params",    "MR_PARAMETERS.txt",                "Shared parameter definitions (Revit format)"),
+            ("registry",  "PARAMETER_REGISTRY.json",          "Parameter GUIDs, groups, container definitions"),
+            ("materials", "MATERIAL_SCHEMA.json",             "Material properties and cost schema"),
+            ("labels",    "LABEL_DEFINITIONS.json",           "Tag label display definitions"),
+            ("placement", "TAG_PLACEMENT_PRESETS_DEFAULT.json","Tag placement preset coordinates"),
+            ("workflow",  "WORKFLOW_DailyQA_Enhanced.json",   "Workflow step sequences"),
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string msg, ElementSet el)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var td = new TaskDialog("STING — Data File Editor");
+            td.MainInstruction = "Edit a STING data file";
+            td.MainContent = "Opens the file in your system editor.\nClick Sync after saving to reload STING.";
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "project_config.json — Tag Configuration", "DISC map, SYS map, codes, SEQ, compliance gate");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "MR_PARAMETERS.txt — Shared Parameters", "Add/edit parameter definitions (Revit format)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                "MATERIAL_SCHEMA.json — Materials", "Material properties and unit costs");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                "Other files (Registry, Labels, Presets, Workflow)", "Browse other data files");
+            td.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+            var choice = td.Show();
+            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+
+            string fileKey = choice switch
+            {
+                TaskDialogResult.CommandLink1 => "config",
+                TaskDialogResult.CommandLink2 => "params",
+                TaskDialogResult.CommandLink3 => "materials",
+                TaskDialogResult.CommandLink4 => PickOther(),
+                _ => null
+            };
+            if (fileKey == null) return Result.Cancelled;
+
+            var def = Array.Find(Files, f => f.key == fileKey);
+            if (def.file == null) return Result.Cancelled;
+
+            string path = StingToolsApp.FindDataFile(def.file);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                string pd = Path.GetDirectoryName(doc.PathName ?? "");
+                if (!string.IsNullOrEmpty(pd)) path = Path.Combine(pd, def.file);
+            }
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                TaskDialog.Show("Not Found", $"{def.file} not found.\nRun setup first to create it.");
+                return Result.Succeeded;
+            }
+
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
+            catch (Exception ex) { TaskDialog.Show("Error", ex.Message); return Result.Failed; }
+
+            var wait = new TaskDialog($"Editing: {def.file}");
+            wait.MainInstruction = "Edit, save, then click Sync";
+            wait.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Sync Changes", "Reload with updated file");
+            wait.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Skip", "Don't reload now");
+            wait.CommonButtons = TaskDialogCommonButtons.Cancel;
+            if (wait.Show() != TaskDialogResult.CommandLink1) return Result.Succeeded;
+
+            try
+            {
+                if (fileKey == "config")
+                {
+                    TagConfig.LoadFromFile(path);
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                    TaskDialog.Show("Synced", "project_config.json reloaded. TagConfig updated.");
+                }
+                else
+                {
+                    TaskDialog.Show("Saved", $"{def.file} saved. Restart may be needed for full effect.");
+                }
+            }
+            catch (Exception ex) { TaskDialog.Show("Sync Error", ex.Message); }
+            return Result.Succeeded;
+        }
+
+        private static string PickOther()
+        {
+            var td2 = new TaskDialog("Other Files");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "PARAMETER_REGISTRY.json", "");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "LABEL_DEFINITIONS.json", "");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "TAG_PLACEMENT_PRESETS_DEFAULT.json", "");
+            td2.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "WORKFLOW_DailyQA_Enhanced.json", "");
+            td2.CommonButtons = TaskDialogCommonButtons.Cancel;
+            return td2.Show() switch
+            {
+                TaskDialogResult.CommandLink1 => "registry",
+                TaskDialogResult.CommandLink2 => "labels",
+                TaskDialogResult.CommandLink3 => "placement",
+                TaskDialogResult.CommandLink4 => "workflow",
+                _ => null
+            };
         }
     }
 }

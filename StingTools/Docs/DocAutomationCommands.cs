@@ -43,8 +43,25 @@ namespace StingTools.Docs
             // Get the active view to protect it
             ElementId activeViewId = ctx.ActiveView.Id;
 
+            // Phase 40: Build multi-sheet placement map for safety reporting
+            var viewToSheets = new Dictionary<ElementId, List<string>>();
+            foreach (var sheet in new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+            {
+                foreach (var vId in sheet.GetAllPlacedViews())
+                {
+                    if (!viewToSheets.ContainsKey(vId))
+                        viewToSheets[vId] = new List<string>();
+                    viewToSheets[vId].Add(sheet.SheetNumber);
+                }
+            }
+
+            // Phase 40: Filter out dependent views (deleting a dependent can crash Revit
+            // or orphan the parent view's crop region and annotation references).
+            // Also protect views placed on multiple sheets (viewToSheets count > 1).
             var unplaced = allViews
-                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId)
+                .Where(v => !placedViewIds.Contains(v.Id) && v.Id != activeViewId
+                    && v.GetPrimaryViewId() == ElementId.InvalidElementId) // exclude dependent views
                 .ToList();
 
             if (unplaced.Count == 0)
@@ -137,6 +154,16 @@ namespace StingTools.Docs
             StingLog.Info($"DeleteUnusedViews: deleted={deleted}, failed={failedDel}");
             return Result.Succeeded;
         }
+    }
+
+    /// <summary>
+    internal class SheetNamingRow
+    {
+        public string SheetNumber { get; set; }
+        public string SheetName { get; set; }
+        public string Status { get; set; }
+        public string Issue { get; set; }
+        public string Suggestion { get; set; }
     }
 
     /// <summary>
@@ -242,55 +269,75 @@ namespace StingTools.Docs
                 }
             }
 
-            // Build report
-            var report = new StringBuilder();
-            report.AppendLine("ISO 19650 Sheet Naming Compliance");
-            report.AppendLine(new string('═', 50));
-            report.AppendLine($"  Project:    {doc.ProjectInformation?.Name}");
-            report.AppendLine($"  Number:     {projectNumber}");
-            report.AppendLine($"  Originator: {originator}");
-            report.AppendLine();
-
             double pct = sheets.Count > 0 ? compliant * 100.0 / sheets.Count : 0;
-            report.AppendLine($"  Total sheets: {sheets.Count}");
-            report.AppendLine($"  Compliant:    {compliant} ({pct:F1}%)");
-            report.AppendLine($"  Non-compliant: {nonCompliant}");
-            report.AppendLine();
 
-            report.AppendLine("  ISO 19650 naming: {Project}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{Number}");
-            report.AppendLine();
-
-            if (issues.Count > 0)
+            // Build interactive DataGrid dialog
+            var rows = sheets.Select(sheet =>
             {
-                report.AppendLine("── NON-COMPLIANT SHEETS ──");
-                foreach (var (sheetNum, name, iss) in issues.Take(20))
+                string num = sheet.SheetNumber;
+                string name = sheet.Name;
+                string issue = ValidateSheetNumber(num, projectNumber, originator);
+                string suggestion = issue != null ? SuggestCompliantNumber(num, name, projectNumber, originator) : "";
+                return new SheetNamingRow
                 {
-                    report.AppendLine($"  {sheetNum,-12} {name}");
-                    report.AppendLine($"               Issue: {iss}");
+                    SheetNumber = num,
+                    SheetName = name,
+                    Status = issue == null ? "OK" : "FAIL",
+                    Issue = issue ?? "",
+                    Suggestion = suggestion
+                };
+            }).ToList();
+
+            var dlg = new UI.StingDataGridDialog("Sheet Naming Check (ISO 19650)",
+                $"Compliance: {pct:F1}% ({compliant}/{sheets.Count}) | Format: Project-Originator-Volume-Level-Type-Role-Number",
+                1050, 600);
+
+            dlg.AddTextColumn("Sheet #", "SheetNumber", 100);
+            dlg.AddTextColumn("Sheet Name", "SheetName");
+            dlg.AddTextColumn("Status", "Status", 55,
+                foreground: System.Windows.Media.Color.FromRgb(40, 40, 50));
+            dlg.AddTextColumn("Issue", "Issue", 220);
+            dlg.AddTextColumn("Suggested Fix", "Suggestion", 200,
+                foreground: System.Windows.Media.Color.FromRgb(30, 120, 30));
+
+            // Status filter
+            string filterStatus = "All";
+            void ApplyFilters()
+            {
+                var filtered = rows.AsEnumerable();
+                if (filterStatus == "FAIL") filtered = filtered.Where(r => r.Status == "FAIL");
+                else if (filterStatus == "OK") filtered = filtered.Where(r => r.Status == "OK");
+                string search = dlg.SearchText;
+                if (!string.IsNullOrEmpty(search))
+                    filtered = filtered.Where(r => r.SheetNumber.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0
+                        || r.SheetName.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+                var list = filtered.ToList();
+                dlg.RefreshItems(list);
+                dlg.SetStatus($"{list.Count} of {rows.Count} sheets | {list.Count(r => r.Status == "FAIL")} non-compliant");
+            }
+
+            dlg.AddFilter("Status", new[] { "All", "FAIL", "OK" }, s => { filterStatus = s; ApplyFilters(); });
+            dlg.SearchChanged += _ => ApplyFilters();
+
+            dlg.AddActionButton("Export CSV", "ExportCSV");
+            dlg.AddActionButton("Close", "Cancel");
+
+            dlg.ActionClicked += tag =>
+            {
+                if (tag == "ExportCSV")
+                {
+                    try
+                    {
+                        string csvPath = Core.OutputLocationHelper.GetTimestampedPath(doc, "SheetNamingCheck", ".csv");
+                        File.WriteAllText(csvPath, string.Join("\n", csvRows));
+                        dlg.SetStatus($"Exported to: {csvPath}");
+                    }
+                    catch (Exception ex) { Core.StingLog.Warn($"SheetNamingCheck CSV: {ex.Message}"); }
                 }
-                if (issues.Count > 20)
-                    report.AppendLine($"  ... and {issues.Count - 20} more");
-            }
+            };
 
-            // Export CSV
-            try
-            {
-                string dir = Path.GetDirectoryName(doc.PathName);
-                if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
-                string csvPath = Path.Combine(dir, $"STING_SheetNamingCheck_{DateTime.Now:yyyyMMdd}.csv");
-                File.WriteAllText(csvPath, string.Join("\n", csvRows));
-                report.AppendLine();
-                report.AppendLine($"  CSV exported: {csvPath}");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"SheetNamingCheck CSV: {ex.Message}");
-            }
-
-            TaskDialog td = new TaskDialog("Sheet Naming Check (ISO 19650)");
-            td.MainInstruction = $"Compliance: {pct:F1}% ({compliant}/{sheets.Count} sheets)";
-            td.MainContent = report.ToString();
-            td.Show();
+            dlg.SetItems(rows);
+            dlg.ShowDialog();
 
             return Result.Succeeded;
         }
@@ -329,7 +376,33 @@ namespace StingTools.Docs
             if (!hasRole && parts.Length < 4)
                 return $"No recognised role code in '{num}' — expected A/S/M/E/P/C prefix";
 
-            return null; // compliant enough
+            // Phase 39: ISO 19650 strict mode — validate full 7-segment format
+            // Format: Project-Originator-Volume-Level-Type-Role-Number
+            // Enabled via project_config.json SHEET_NAMING_STRICT_MODE = true
+            string strictMode = Core.TagConfig.GetConfigValue("SHEET_NAMING_STRICT_MODE");
+            if (!string.IsNullOrEmpty(strictMode) && (strictMode == "true" || strictMode == "1"))
+            {
+                if (parts.Length < 5)
+                    return $"ISO 19650 strict: '{num}' has {parts.Length} segments (need 5+ for Project-Originator-Volume-Level-Type-Role-Number)";
+                // Validate type code segment (usually DR, SH, SP, etc.)
+                bool hasTypeCode = false;
+                foreach (string part in parts)
+                {
+                    if (ValidTypeCodes.Contains(part)) { hasTypeCode = true; break; }
+                }
+                if (!hasTypeCode)
+                    return $"ISO 19650 strict: '{num}' missing document type code (DR/SH/SP/RP/MO)";
+                // Validate role code is a known discipline
+                bool hasStrictRole = false;
+                foreach (string part in parts)
+                {
+                    if (ValidRoleCodes.Contains(part)) { hasStrictRole = true; break; }
+                }
+                if (!hasStrictRole)
+                    return $"ISO 19650 strict: '{num}' missing recognised role code (A/S/M/E/P/C)";
+            }
+
+            return null; // compliant
         }
 
         private static string SuggestCompliantNumber(string num, string name, string projectNum, string originator)

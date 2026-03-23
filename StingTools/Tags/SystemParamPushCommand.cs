@@ -608,15 +608,20 @@ namespace StingTools.Tags
 
             // Execute push
             SystemParamPush.PushResult result;
+            HashSet<string> existingTags = null;
+            Dictionary<string, int> seqCounters = null;
             using (Transaction tx = new Transaction(doc, "STING System Parameter Push"))
             {
                 tx.Start();
                 result = SystemParamPush.ExecutePush(doc, systemElementList, mode, parentTokens);
 
-                // If FullAutoTag mode, also build tags
+                // If FullAutoTag mode, run full canonical pipeline on untagged elements
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
-                    var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var formulas = TagPipelineHelper.LoadFormulas();
+                    var gridLines = TagPipelineHelper.LoadGridLines(doc);
                     var stats = new TaggingStats();
 
                     foreach (var el in systemElementList)
@@ -625,28 +630,31 @@ namespace StingTools.Tags
                         if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                             continue;
 
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            skipComplete: true, existingTags,
-                            TagCollisionMode.AutoIncrement, stats);
-
-                        // Write TAG7 + containers
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                            // NP7: Write containers after system param push
-                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
-                                skipParam: ParamRegistry.TAG1);
+                            // Use unified pipeline for all 11 canonical steps
+                            TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, existingTags, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false, skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
                         }
-                        catch (Exception tag7Ex)
+                        catch (Exception pipeEx)
                         {
-                            StingLog.Warn($"SystemParamPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                            StingLog.Warn($"SystemParamPush pipeline for {el.Id}: {pipeEx.Message}");
                         }
                     }
                 }
 
                 tx.Commit();
+            }
+            // Centralized post-tag cleanup (SEQ sidecar + cache invalidation + compliance gate)
+            if (seqCounters != null)
+                TagPipelineHelper.PostTagCleanup(doc, seqCounters, "SystemParamPush");
+            else
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
             }
 
             result.SystemName = string.Join(", ", systemNames);
@@ -777,16 +785,20 @@ namespace StingTools.Tags
 
             int totalPushed = 0;
             int totalSkipped = 0;
+            Dictionary<string, int> seqCounters = null;
+            HashSet<string> existingTags = null;
+            // FIX-R05: Load formulas and grid lines for FullAutoTag pipeline
+            List<Temp.FormulaEngine.FormulaDefinition> spFormulas = null;
+            List<Grid> spGridLines = null;
 
             using (Transaction tx = new Transaction(doc, "STING Batch System Push"))
             {
                 tx.Start();
-
-                Dictionary<string, int> seqCounters = null;
-                HashSet<string> existingTags = null;
                 if (mode == SystemParamPush.PushMode.FullAutoTag)
                 {
                     (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    spFormulas = TagPipelineHelper.LoadFormulas();
+                    spGridLines = TagPipelineHelper.LoadGridLines(doc);
                 }
 
                 foreach (var sys in allSystems)
@@ -798,7 +810,7 @@ namespace StingTools.Tags
                     var result = SystemParamPush.ExecutePush(
                         doc, sysElements, mode, parentTokens);
 
-                    // Build tags in FullAutoTag mode
+                    // Build tags in FullAutoTag mode — enriched pipeline
                     if (mode == SystemParamPush.PushMode.FullAutoTag)
                     {
                         var stats = new TaggingStats();
@@ -808,15 +820,53 @@ namespace StingTools.Tags
                             if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                                 continue;
 
+                            // Inherit type-level token defaults before building tag
+                            try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                            catch (Exception tiEx) { StingLog.Warn($"BatchSystemPush TypeTokenInherit for {el.Id}: {tiEx.Message}"); }
+
+                            // Bridge Revit native params before tag assembly
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"BatchSystemPush NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                            // Evaluate formulas before tag build
+                            if (spFormulas != null && spFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in spFormulas)
+                                    {
+                                        Parameter fp = el.LookupParameter(formula.ParameterName);
+                                        if (fp == null || fp.IsReadOnly) continue;
+                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        if (formula.DataType == "TEXT")
+                                        {
+                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (fResult != null && fp.StorageType == StorageType.String)
+                                                fp.Set(fResult);
+                                        }
+                                        else
+                                        {
+                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                        }
+                                    }
+                                }
+                                catch (Exception fEx) { StingLog.Warn($"BatchSystemPush formula eval for {el.Id}: {fEx.Message}"); }
+                            }
+
                             TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                                 skipComplete: true, existingTags,
                                 TagCollisionMode.AutoIncrement, stats);
 
-                            // Write TAG7 + containers
+                            // Write containers + TAG7 sub-sections
                             try
                             {
                                 string catName = ParameterHelpers.GetCategoryName(el);
                                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                ParamRegistry.WriteContainers(el, tokenVals, catName,
+                                    overwrite: false, skipParam: ParamRegistry.TAG1);
                                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
                                 // NP7: Write containers after batch system param push
                                 ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: false,
@@ -824,7 +874,19 @@ namespace StingTools.Tags
                             }
                             catch (Exception tag7Ex)
                             {
-                                StingLog.Warn($"BatchSystemPush TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                                StingLog.Warn($"BatchSystemPush TAG7/containers for {el.Id}: {tag7Ex.Message}");
+                            }
+
+                            // Write GridRef per element
+                            if (spGridLines != null && spGridLines.Count > 0)
+                            {
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, spGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
+                                catch (Exception grEx) { StingLog.Warn($"BatchSystemPush GridRef for {el.Id}: {grEx.Message}"); }
                             }
                         }
                     }
@@ -835,15 +897,12 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
-
-            // FIX-03A: Save SEQ sidecar + invalidate caches after batch system push
-            if (mode == SystemParamPush.PushMode.FullAutoTag)
-            {
-                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
-                catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
-            }
+            // Save SEQ sidecar + invalidate caches after batch system push
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ssEx) { StingLog.Warn($"BatchSystemPush SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "BatchSystemPush");
 
             TaskDialog.Show("Batch System Push",
                 $"Batch System Push Complete\n\n" +
@@ -915,6 +974,7 @@ namespace StingTools.Tags
             foreach (var id in allSystemElements)
             {
                 Element el = doc.GetElement(id);
+                if (el == null) continue;
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag) && TagConfig.TagIsComplete(tag))
                     tagged++;

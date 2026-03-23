@@ -17,3 +17,6 @@ packages/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build logs
+build_output.txt

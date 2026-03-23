@@ -1,0 +1,32 @@
+SystemCode,SystemName,Category,Description,UniclassSsCode,CIBSECode,Discipline,StingSysCode,StingFuncCode,ComponentTypes,DesignCapacity,Redundancy
+HVAC-SUP,Supply Air System,HVAC,Primary supply air distribution,Ss_55_30_36,CIBSE-HV01,M,HVAC,SUP,"AHU,Ductwork,VAV,Diffuser,Filter,Damper",Varies per zone,N+1 AHU
+HVAC-EXT,Extract Air System,HVAC,General extract air system,Ss_55_30_27,CIBSE-HV02,M,HVAC,EXT,"Extract Fan,Ductwork,Grille,Filter,Damper",Varies per zone,Duty/Standby
+HVAC-FRS,Fresh Air System,HVAC,Outdoor air intake and treatment,Ss_55_30_36,CIBSE-HV03,M,HVAC,SUP,"AHU Intake,Filter,Heating Coil,Damper",Varies,None
+HVAC-SMK,Smoke Extract,HVAC,Smoke ventilation and pressurisation,Ss_55_30_70,CIBSE-HV04,M,HVAC,EXT,"Smoke Fan,Fire Damper,Smoke Damper,AOV",BS 9999 calc,Duty/Standby
+LTHW,Low Temperature Hot Water,Heating,LTHW heating circuit,Ss_55_30_10,CIBSE-HT01,M,HVAC,HTG,"Boiler,Pump,Pipework,Valve,Expansion Vessel",Peak heat load,N+1 Boiler
+MTHW,Medium Temperature Hot Water,Heating,MTHW primary heating circuit,Ss_55_30_10,CIBSE-HT02,M,HVAC,HTG,"Boiler,Pump,Pipework,Plate HX,Pressurisation",Peak heat load,Duty/Standby
+CHW,Chilled Water,Cooling,Chilled water cooling circuit,Ss_55_30_15,CIBSE-CL01,M,HVAC,CLG,"Chiller,Pump,Pipework,Buffer Vessel,Valve",Peak cooling load,N+1 Chiller
+CW,Condenser Water,Cooling,Condenser water rejection circuit,Ss_55_30_15,CIBSE-CL02,M,HVAC,CLG,"Cooling Tower,Pump,Pipework,Valve,Chemical Dosing",Chiller rejection,Duty/Standby
+VRF,Variable Refrigerant Flow,HVAC,VRF/VRV heat pump system,Ss_55_30_93,CIBSE-HV05,M,HVAC,SUP,"Outdoor Unit,Indoor Unit,Refrigerant Pipe,Controller",Zone loads,Varied
+DCW,Domestic Cold Water,Plumbing,Mains-fed cold water storage and distribution,Ss_55_70_21,CIBSE-PH01,P,DCW,DCW,"Break Tank,Booster Set,Pipework,Valve,RPZ",Demand calc,Duty/Assist/Standby
+DHW,Domestic Hot Water,Plumbing,Hot water generation and distribution,Ss_55_40_25,CIBSE-PH02,P,DHW,DHW,"Calorifier,Pump,Pipework,TMV,Expansion Vessel",Storage + recovery,Duty/Standby
+SAN-SW,Soil and Waste,Drainage,Above ground soil and waste drainage,Ss_55_70_80,CIBSE-PH03,P,SAN,SAN,"Soil Stack,Waste Pipe,Trap,AAV,Rodding Point",Discharge units,None
+SAN-RW,Rainwater,Drainage,Rainwater collection and disposal,Ss_55_70_65,CIBSE-PH04,P,RWD,RWD,"Gutter,Downpipe,Carrier Pipe,Attenuation Tank",Rainfall intensity,Gravity
+GAS,Natural Gas,Gas,Natural gas supply and distribution,Ss_55_70_33,CIBSE-GS01,M,GAS,GAS,"Meter,Pipework,ECV,Solenoid Valve,Regulator",Total connected load,None
+LV-MAIN,LV Main Distribution,Electrical,LV power from transformer to MSB,Ss_60_40_36,CIBSE-EL01,E,LV,PWR,"Transformer,Switchboard,Bus Bar,Cable",Total demand kVA,Main + Emergency
+LV-DB,LV Sub-Distribution,Electrical,LV sub-distribution from MSB to DBs,Ss_60_40_23,CIBSE-EL02,E,LV,PWR,"Distribution Board,Cable,Containment,Isolator",Per-DB demand,None
+LV-UPS,UPS System,Electrical,Uninterruptible power supply system,Ss_60_40_89,CIBSE-EL03,E,LV,PWR,"UPS,Battery,STS,Distribution Board",Critical load kVA,Redundant
+LV-GEN,Standby Generation,Electrical,Diesel standby generator system,Ss_60_40_36,CIBSE-EL04,E,LV,PWR,"Generator,ATS,Day Tank,Exhaust,Fuel Store",Essential load kVA,None
+LTG-GEN,General Lighting,Lighting,General area lighting installation,Ss_60_30_42,CIBSE-LG01,E,LV,LTG,"Luminaire,Switch,Dimmer,Sensor,Emergency Pack",Lux per zone,None
+LTG-EM,Emergency Lighting,Lighting,Emergency escape lighting,Ss_60_30_42,CIBSE-LG02,E,LV,LTG,"Emergency Luminaire,Central Battery,Test Switch",BS 5266 calc,Central battery
+FLS-FA,Fire Detection and Alarm,Fire,Addressable fire alarm system,Ss_60_10_33,CIBSE-FP01,FP,FLS,FLS,"Fire Panel,Detector,Sounder,MCP,Interface Module",Loop capacity,Redundant loop
+FLS-SPR,Sprinkler System,Fire,Wet sprinkler installation,Ss_60_10_84,CIBSE-FP02,FP,FP,FLS,"Sprinkler Head,Pipework,Valve Set,Pump,Tank",Hazard class,Duty/Jockey
+FLS-SUP,Fire Suppression,Fire,Gas/water mist suppression system,Ss_60_10_84,CIBSE-FP03,FP,FP,FLS,"Suppression Panel,Nozzle,Cylinder,Pipework",Protected volume,None
+COM-BMS,Building Management System,Controls,DDC building management system,Ss_60_40_14,CIBSE-BM01,LV,COM,COM,"Controller,Sensor,Actuator,Network Switch,Server",I/O points,Redundant server
+SEC-ACC,Access Control,Security,Card-based access control system,Ss_60_10_03,CIBSE-SE01,LV,SEC,SEC,"Controller,Card Reader,Maglock,Door Contact,PSU",Doors controlled,Failsafe
+SEC-CCTV,CCTV Surveillance,Security,IP CCTV camera system,Ss_60_10_13,CIBSE-SE02,LV,SEC,SEC,"Camera,NVR,Switch,Monitor,UPS",Storage days,Redundant NVR
+SEC-IDS,Intruder Detection,Security,Intruder alarm system,Ss_60_10_40,CIBSE-SE03,LV,SEC,SEC,"Panel,PIR,Contact,Sounder,Communicator",Zones,Monitored
+ICT-DATA,Structured Cabling,ICT,Cat6A structured cabling system,Ss_60_10_20,CIBSE-IT01,LV,ICT,ICT,"Patch Panel,Outlet,Cable,Cabinet,Switch",Data points,Dual path
+ICT-WIFI,Wireless Network,ICT,Wi-Fi access point system,Ss_60_10_20,CIBSE-IT02,LV,ICT,ICT,"Access Point,Controller,Switch,PoE Injector",Coverage area,Controller failover
+VT-LIFT,Passenger Lift,Transport,Passenger lift installation,Ss_70_80_47,CIBSE-VT01,M,GEN,GEN,"Lift Car,Motor,Controller,Doors,Safety Gear",Persons/speed,None
+VT-ESC,Escalator,Transport,Escalator installation,Ss_70_80_27,CIBSE-VT02,M,GEN,GEN,"Escalator Unit,Motor,Controller,Safety Switch",Width/speed,None

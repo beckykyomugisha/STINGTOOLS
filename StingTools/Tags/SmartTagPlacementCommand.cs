@@ -259,7 +259,7 @@ namespace StingTools.Tags
         // ── Collision detection (AABB 2D) ──────────────────────────────
 
         /// <summary>2D bounding box for collision detection in plan view.</summary>
-        public struct Box2D
+        public struct Box2D : IEquatable<Box2D>
         {
             public double MinX, MinY, MaxX, MaxY;
 
@@ -272,6 +272,27 @@ namespace StingTools.Tags
             {
                 return MinX < other.MaxX && MaxX > other.MinX
                     && MinY < other.MaxY && MaxY > other.MinY;
+            }
+
+            public bool Equals(Box2D other)
+            {
+                return MinX == other.MinX && MinY == other.MinY
+                    && MaxX == other.MaxX && MaxY == other.MaxY;
+            }
+
+            public override bool Equals(object obj) => obj is Box2D b && Equals(b);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = 17;
+                    hash = hash * 31 + MinX.GetHashCode();
+                    hash = hash * 31 + MinY.GetHashCode();
+                    hash = hash * 31 + MaxX.GetHashCode();
+                    hash = hash * 31 + MaxY.GetHashCode();
+                    return hash;
+                }
             }
 
             public static Box2D FromBoundingBox(BoundingBoxXYZ bb)
@@ -464,7 +485,7 @@ namespace StingTools.Tags
                     return (categoryDefault == 1 || categoryDefault == 3) ? categoryDefault : 1;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Get element bounding box for preferred side: {ex.Message}"); }
 
             return categoryDefault;
         }
@@ -496,7 +517,7 @@ namespace StingTools.Tags
                     if (tt.Family?.Name?.Equals(stingName, StringComparison.OrdinalIgnoreCase) == true)
                         return tt;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Check STING tag family match: {ex.Message}"); }
             }
 
             // Pass 2: category name match
@@ -509,7 +530,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(catUpper) && famUpper.Contains(catUpper))
                         return tt;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Check category name tag match: {ex.Message}"); }
             }
 
             // Pass 3: generic/multi-category
@@ -534,7 +555,7 @@ namespace StingTools.Tags
                 var bic = (BuiltInCategory)cat.Id.Value;
                 return TagFamilyConfig.GetFamilyName(bic);
             }
-            catch { return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return $"{TagFamilyConfig.FamilyPrefix} - {cat.Name} Tag"; }
         }
 
         // ── View crop box helper ─────────────────────────────────────
@@ -548,7 +569,7 @@ namespace StingTools.Tags
                 if (crop == null) return null;
                 return Box2D.FromBoundingBox(crop);
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         // ── Performance: suppress annotation regen ───────────────────
@@ -575,7 +596,7 @@ namespace StingTools.Tags
                             hidden.Add(cat.Id);
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Hide annotation category {cat.Id}: {ex.Message}"); }
                 }
                 if (hidden.Count > 0)
                 {
@@ -597,10 +618,10 @@ namespace StingTools.Tags
                 foreach (var catId in hiddenCats)
                 {
                     try { view.SetCategoryHidden(catId, false); }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Restore annotation category {catId}: {ex.Message}"); }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"RestoreAnnotations: {ex.Message}"); }
         }
 
         // ── Enhanced batch placement ─────────────────────────────────
@@ -627,7 +648,7 @@ namespace StingTools.Tags
                     foreach (ElementId id in tag.GetTaggedLocalElementIds())
                         taggedIds.Add(id);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get tagged element IDs: {ex.Message}"); }
             }
 
             var elements = new FilteredElementCollector(doc, view.Id)
@@ -641,6 +662,39 @@ namespace StingTools.Tags
                 elements = elements.Where(e => !taggedIds.Contains(e.Id)).ToList();
 
             if (elements.Count == 0) return (0, 0, 0);
+
+            // SmartTagPlacement data-tag prerequisite: run RunFullPipeline on untagged
+            // elements before placing visual annotations. This ensures TAG1 + containers
+            // are populated so the visual tags display meaningful data.
+            int pipelineRan = 0;
+            try
+            {
+                var untaggedForPipeline = elements.Where(e =>
+                    string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1))).ToList();
+                if (untaggedForPipeline.Count > 0)
+                {
+                    var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                    var formulas = TagPipelineHelper.LoadFormulas();
+                    var grids = TagPipelineHelper.LoadGridLines(doc);
+                    foreach (var el in untaggedForPipeline)
+                    {
+                        if (TagPipelineHelper.RunFullPipeline(doc, el, popCtx, tagIdx, seqCtrs,
+                            formulas, grids, overwrite: false, skipComplete: true,
+                            collisionMode: TagCollisionMode.AutoIncrement))
+                            pipelineRan++;
+                    }
+                    if (pipelineRan > 0)
+                    {
+                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
+                        StingLog.Info($"SmartTagPlacement: auto-tagged {pipelineRan} untagged elements before visual placement");
+                    }
+                }
+            }
+            catch (Exception pipeEx)
+            {
+                StingLog.Warn($"SmartTagPlacement data-tag prerequisite: {pipeEx.Message}");
+            }
 
             double offset = GetModelOffset(view);
             double tagWidth = offset * 3.0;
@@ -691,7 +745,7 @@ namespace StingTools.Tags
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Load tag placement presets: {ex.Message}"); }
 
             foreach (Element elem in elements)
             {
@@ -783,7 +837,7 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(segMask))
                         StingLog.Info($"PlaceTagsInView: element {elem.Id} has TAG_SEG_MASK_TXT={segMask}");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read TAG_SEG_MASK_TXT for element {elem.Id}: {ex.Message}"); }
 
                 var finalBox = Box2D.EstimateTag(bestPos, tagWidth, tagHeight);
                 if (grid.HasOverlap(finalBox)) collisions++;
@@ -851,7 +905,7 @@ namespace StingTools.Tags
                     foreach (var r in refs)
                         existingTagRefs.Add(r.ConvertToStableRepresentation(doc));
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get tagged references for linked model check: {ex.Message}"); }
             }
 
             foreach (RevitLinkInstance linkInst in linkInstances)
@@ -897,10 +951,7 @@ namespace StingTools.Tags
                             if (tag != null) placed++;
                             else skipped++;
                         }
-                        catch
-                        {
-                            skipped++;
-                        }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
                     }
                 }
                 catch (Exception ex)
@@ -998,7 +1049,7 @@ namespace StingTools.Tags
                     }
                     list.Add((dx, dy, tag.HasLeader, orient));
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Learn tag placement for tag {tag.Id}: {ex.Message}"); }
             }
 
             // Average the offsets per category
@@ -1048,7 +1099,7 @@ namespace StingTools.Tags
             foreach (var tag in existingTags)
             {
                 try { foreach (var id in tag.GetTaggedLocalElementIds()) taggedIds.Add(id); }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Get tagged IDs for preset apply: {ex.Message}"); }
             }
 
             var elements = new FilteredElementCollector(doc, view.Id)
@@ -1106,7 +1157,7 @@ namespace StingTools.Tags
                         useLeader, orient, tagPos);
                     if (tag != null) placed++;
                 }
-                catch { skipped++; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; }
             }
 
             return (placed, skipped);
@@ -1157,7 +1208,7 @@ namespace StingTools.Tags
             var tags = new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(IndependentTag))
                 .Cast<IndependentTag>()
-                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                .OrderBy(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
                 .ToList();
 
             if (tags.Count < 2) return 0;
@@ -1167,8 +1218,8 @@ namespace StingTools.Tags
             for (int i = 1; i < tags.Count; i++)
             {
                 double prevY, thisY;
-                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch { prevY = 0; }
-                try { thisY = tags[i].TagHeadPosition.Y; } catch { thisY = 0; }
+                try { prevY = tags[i - 1].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); prevY = 0; }
+                try { thisY = tags[i].TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); thisY = 0; }
 
                 if (Math.Abs(thisY - prevY) <= tagHeightEstimate * 1.2)
                     current.Add(tags[i]);
@@ -1183,7 +1234,7 @@ namespace StingTools.Tags
             int moved = 0;
             foreach (var group in groups)
             {
-                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch { return 0.0; } })
+                var ys = group.Select(t => { try { return t.TagHeadPosition.Y; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0.0; } })
                     .OrderBy(y => y).ToList();
                 double medianY = ys[ys.Count / 2];
                 foreach (var tag in group)
@@ -1197,7 +1248,7 @@ namespace StingTools.Tags
                             moved++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Align tag band position for tag {tag.Id}: {ex.Message}"); }
                 }
             }
             return moved;
@@ -1216,7 +1267,7 @@ namespace StingTools.Tags
                 XYZ headPos = tag.TagHeadPosition;
                 XYZ leaderEnd;
                 try { leaderEnd = tag.GetLeaderEnd(tagRef); }
-                catch { return; }
+                catch (Exception ex) { StingLog.Warn($"Get leader end point: {ex.Message}"); return; }
                 if (headPos == null || leaderEnd == null) return;
 
                 XYZ leaderVec = headPos - leaderEnd;
@@ -1248,7 +1299,7 @@ namespace StingTools.Tags
                             tag.LeaderEndCondition = LeaderEndCondition.Free;
                             tag.SetLeaderElbow(tagRef, elbowCandidate);
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Set leader elbow position: {ex.Message}"); }
                         return;
                     }
                 }
@@ -1283,47 +1334,13 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            TaskDialog optDlg = new TaskDialog("Smart Place Tags");
-            optDlg.MainInstruction = "Place annotation tags in active view";
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Tag untagged elements only",
-                "Skip elements that already have an annotation tag in this view");
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Tag ALL elements",
-                "Place tags on every taggable element (may create duplicates)");
-            optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Tag selected elements only",
-                $"Tag {uidoc.Selection.GetElementIds().Count} selected elements");
-            optDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Launch Smart Placement Wizard for interactive configuration
+            var wizSettings = UI.SmartPlacementWizard.Show();
+            if (wizSettings == null) return Result.Cancelled;
 
-            bool tagUntaggedOnly;
-            bool selectedOnly = false;
-            switch (optDlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: tagUntaggedOnly = true; break;
-                case TaskDialogResult.CommandLink2: tagUntaggedOnly = false; break;
-                case TaskDialogResult.CommandLink3: tagUntaggedOnly = false; selectedOnly = true; break;
-                default: return Result.Cancelled;
-            }
-
-            TaskDialog leaderDlg = new TaskDialog("Smart Place Tags — Leaders");
-            leaderDlg.MainInstruction = "Leader line mode";
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Auto (recommended)", "Add leaders only when tag must be placed far from element");
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Always show leaders", "Add leader lines to all placed tags");
-            leaderDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "No leaders", "Never add leader lines");
-            leaderDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            bool addLeaders;
-            switch (leaderDlg.Show())
-            {
-                case TaskDialogResult.CommandLink1: addLeaders = false; break;
-                case TaskDialogResult.CommandLink2: addLeaders = true; break;
-                case TaskDialogResult.CommandLink3: addLeaders = false; break;
-                default: return Result.Cancelled;
-            }
+            bool tagUntaggedOnly = wizSettings.Scope == "Untagged";
+            bool selectedOnly = wizSettings.Scope == "Selected";
+            bool addLeaders = wizSettings.LeaderMode == "Always";
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int placed, skipped, collisions;
@@ -1352,6 +1369,32 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc, "STING Smart Place Tags (Selected)"))
                 {
                     tx.Start();
+
+                    // Gap fix: Run data tagging pipeline on untagged elements before
+                    // creating visual annotations, so tags display meaningful content.
+                    var pipelineCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    var (tagIdx, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                    foreach (ElementId pid in selectedIds)
+                    {
+                        Element pEl = doc.GetElement(pid);
+                        if (pEl?.Category == null) continue;
+                        string existingTag = ParameterHelpers.GetString(pEl, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(existingTag))
+                        {
+                            try
+                            {
+                                TagPipelineHelper.RunFullPipeline(doc, pEl, pipelineCtx,
+                                    tagIdx, seqCtrs, null, null,
+                                    overwrite: false, skipComplete: true,
+                                    collisionMode: TagCollisionMode.AutoIncrement);
+                            }
+                            catch (Exception pipeEx)
+                            {
+                                StingLog.Warn($"SmartPlace pipeline for {pEl.Id}: {pipeEx.Message}");
+                            }
+                        }
+                    }
+
                     var tagTypeCache = new Dictionary<ElementId, ElementId>();
 
                     foreach (ElementId id in selectedIds)
@@ -1423,11 +1466,45 @@ namespace StingTools.Tags
                 using (Transaction tx = new Transaction(doc, "STING Smart Place Tags"))
                 {
                     tx.Start();
+
+                    // Gap fix: Pre-tag untagged elements before visual placement
+                    if (tagUntaggedOnly)
+                    {
+                        var pipeCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                        var (tIdx, sCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                        foreach (Element vEl in new FilteredElementCollector(doc, view.Id)
+                            .WhereElementIsNotElementType())
+                        {
+                            if (vEl?.Category == null) continue;
+                            string et = ParameterHelpers.GetString(vEl, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(et))
+                            {
+                                try
+                                {
+                                    TagPipelineHelper.RunFullPipeline(doc, vEl, pipeCtx,
+                                        tIdx, sCtrs, null, null,
+                                        overwrite: false, skipComplete: true,
+                                        collisionMode: TagCollisionMode.AutoIncrement);
+                                }
+                                catch (Exception pEx)
+                                {
+                                    StingLog.Warn($"SmartPlace pipeline (view) {vEl.Id}: {pEx.Message}");
+                                }
+                            }
+                        }
+                    }
+
                     (placed, skipped, collisions) =
                         TagPlacementEngine.PlaceTagsInView(doc, view, addLeaders, tagUntaggedOnly);
                     tx.Commit();
                 }
             }
+
+            // Persist SEQ counters and invalidate caches
+            try { var (_, spSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, spSeq); }
+            catch (Exception ex) { StingLog.Warn($"SmartPlace SEQ sidecar: {ex.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             sw.Stop();
             var report = new StringBuilder();
@@ -1524,7 +1601,7 @@ namespace StingTools.Tags
                                 hostCenter = TagPlacementEngine.GetElementCenter(host, view);
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Get host center for arrange: {ex.Message}"); }
 
                     if (hostCenter == null || hostCenter.IsAlmostEqualTo(XYZ.Zero))
                     {
@@ -1545,7 +1622,7 @@ namespace StingTools.Tags
                             catName = hostElem?.Category?.Name ?? "";
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Get host element for arrange: {ex.Message}"); }
 
                     // Use smart preferred side with element orientation awareness
                     int preferred = hostElem != null
@@ -1657,7 +1734,7 @@ namespace StingTools.Tags
             // active selection, Revit's deferred graphics update can crash
             // accessing disposed element references.
             try { uidoc.Selection.SetElementIds(new List<ElementId>()); }
-            catch { /* best effort */ }
+            catch (Exception ex) { StingLog.Warn($"best effort: {ex.Message}"); }
 
             int removed = 0;
             using (Transaction tx = new Transaction(doc, "STING Remove Annotation Tags"))
@@ -1978,13 +2055,13 @@ namespace StingTools.Tags
                             var hi = boxes[i].tag.GetTaggedLocalElementIds();
                             if (hi.Count > 0) catI = doc.GetElement(hi.First())?.Category?.Name ?? "";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Get overlap tag category i: {ex.Message}"); }
                         try
                         {
                             var hj = boxes[j].tag.GetTaggedLocalElementIds();
                             if (hj.Count > 0) catJ = doc.GetElement(hj.First())?.Category?.Name ?? "";
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Get overlap tag category j: {ex.Message}"); }
 
                         string key = string.Compare(catI, catJ, StringComparison.Ordinal) <= 0
                             ? $"{catI} / {catJ}" : $"{catJ} / {catI}";
@@ -2004,7 +2081,7 @@ namespace StingTools.Tags
                     viewArea = (crop.Max.X - crop.Min.X) * (crop.Max.Y - crop.Min.Y);
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Calculate view crop area: {ex.Message}"); }
 
             double totalTagArea = boxes.Sum(b => b.box.Width * b.box.Height);
 
@@ -2098,7 +2175,7 @@ namespace StingTools.Tags
                 .Where(f =>
                 {
                     try { return f.FamilyCategory?.CategoryType == CategoryType.Annotation; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
                 })
                 .OrderBy(f => f.Name)
                 .ToList();
@@ -2194,7 +2271,7 @@ namespace StingTools.Tags
                                     changed = true;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Set text size on TextType: {ex.Message}"); }
                         }
 
                         // Also try AnnotationSymbolType parameters
@@ -2213,7 +2290,7 @@ namespace StingTools.Tags
                                     changed = true;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Set text size on AnnotationType: {ex.Message}"); }
                         }
 
                         ft.Commit();
@@ -2335,7 +2412,7 @@ namespace StingTools.Tags
                             changed++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set line weight on category {bic}: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2437,7 +2514,7 @@ namespace StingTools.Tags
             }
 
             var typeIds = new HashSet<ElementId>(
-                scope.Select(e => { try { return e.GetTypeId(); } catch { return ElementId.InvalidElementId; } })
+                scope.Select(e => { try { return e.GetTypeId(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; } })
                     .Where(id => id != ElementId.InvalidElementId));
 
             int updated = 0;
@@ -2452,7 +2529,7 @@ namespace StingTools.Tags
                         Parameter p = typeEl?.LookupParameter(ParamRegistry.TAG_POS);
                         if (p != null && !p.IsReadOnly) { p.Set(posValue); updated++; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set TAG_POS on type {typeId}: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -2509,7 +2586,7 @@ namespace StingTools.Tags
 
                     XYZ tagPos;
                     try { tagPos = tag.TagHeadPosition; }
-                    catch { continue; }
+                    catch (Exception ex) { StingLog.Warn($"Get tag head position: {ex.Message}"); continue; }
 
                     XYZ hostCenter = TagPlacementEngine.GetElementCenter(host, view);
                     double offsetX = (tagPos.X - hostCenter.X) * mmPerFt;
@@ -2517,14 +2594,14 @@ namespace StingTools.Tags
 
                     string stingTag = ParameterHelpers.GetString(host, ParamRegistry.TAG1);
                     bool hasLeader = false;
-                    try { hasLeader = tag.HasLeader; } catch { }
+                    try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Check tag leader: {ex.Message}"); }
 
                     csv.AppendLine($"\"{view.Name}\",{view.ViewType},{view.Scale}," +
                         $"{host.Id.Value},\"{host.Category?.Name ?? ""}\",\"{tag.TagText}\"," +
                         $"\"\",{tagPos.X * mmPerFt:F1},{tagPos.Y * mmPerFt:F1}," +
                         $"{offsetX:F1},{offsetY:F1},{hasLeader},\"{stingTag}\"");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Export tag position for tag {tag.Id}: {ex.Message}"); }
             }
 
             string dir = !string.IsNullOrEmpty(doc.PathName)
@@ -2765,28 +2842,38 @@ namespace StingTools.Tags
             Document doc = ctx.Doc;
             View view = ctx.ActiveView;
 
-            // Choose elbow style
-            TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
-            dlg.MainInstruction = "Select leader elbow style";
-            dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Straight", "Elbow at midpoint of element-to-tag vector");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "45 degrees", "Angled: elbow offset to create 45-degree bend");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Free", "No elbow adjustment — set elbow at leader end");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            int mode;
-            switch (dlg.Show())
+            // FIX-4.3: Read ElbowMode from ExtraParams (set by Tag Studio sliders)
+            int mode = -1;
+            string epMode = UI.StingCommandHandler.GetExtraParam("ElbowMode");
+            if (!string.IsNullOrEmpty(epMode) && int.TryParse(epMode, out int parsed) && parsed >= 0 && parsed <= 3)
             {
-                case TaskDialogResult.CommandLink1: mode = 0; break;
-                case TaskDialogResult.CommandLink2: mode = 1; break;
-                case TaskDialogResult.CommandLink3: mode = 2; break;
-                case TaskDialogResult.CommandLink4: mode = 3; break;
-                default: return Result.Cancelled;
+                mode = parsed;
+            }
+
+            if (mode < 0)
+            {
+                // Fallback: show dialog if not set by Tag Studio
+                TaskDialog dlg = new TaskDialog("STING — Adjust Elbows");
+                dlg.MainInstruction = "Select leader elbow style";
+                dlg.MainContent = "Adjusts elbows on all tags with leaders in the active view.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Straight", "Elbow at midpoint of element-to-tag vector");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "90 degrees", "Horizontal-first: elbow at (tagX, elemY)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "45 degrees", "Angled: elbow offset to create 45-degree bend");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "Free", "No elbow adjustment — set elbow at leader end");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                switch (dlg.Show())
+                {
+                    case TaskDialogResult.CommandLink1: mode = 0; break;
+                    case TaskDialogResult.CommandLink2: mode = 1; break;
+                    case TaskDialogResult.CommandLink3: mode = 2; break;
+                    case TaskDialogResult.CommandLink4: mode = 3; break;
+                    default: return Result.Cancelled;
+                }
             }
 
             var tags = new FilteredElementCollector(doc, view.Id)
@@ -2843,10 +2930,7 @@ namespace StingTools.Tags
                                 {
                                     elbowPos = tag.GetLeaderEnd(hostRef);
                                 }
-                                catch
-                                {
-                                    elbowPos = elemCenter;
-                                }
+                                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); elbowPos = elemCenter; }
                                 break;
                         }
 
@@ -2940,7 +3024,7 @@ namespace StingTools.Tags
                         cat.SetLineWeight(pen, GraphicsStyleType.Projection);
                         changed++;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Set arrowhead line weight on category: {ex.Message}"); }
                 }
                 tx.Commit();
             }
@@ -3135,7 +3219,7 @@ namespace StingTools.Tags
                                     }
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Write TAG_SEG_MASK_TXT: {ex.Message}"); }
                         }
 
                         // Write TAG style BOOL params if text settings differ from default
@@ -3159,7 +3243,7 @@ namespace StingTools.Tags
                                     }
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Write tag style BOOL param: {ex.Message}"); }
                         }
 
                         // Write paragraph depth
@@ -3183,7 +3267,7 @@ namespace StingTools.Tags
                                     }
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Write paragraph depth params: {ex.Message}"); }
                         }
 
                         applied++;

@@ -618,7 +618,7 @@ namespace StingTools.Tags
                         scheme = overrideScheme;
                 }
             }
-            catch { /* STING_VIEW_TAG_STYLE param may not exist on this view — continue */ }
+            catch (Exception ex) { StingLog.Warn($"STING_VIEW_TAG_STYLE param may not exist on this view — continue: {ex.Message}"); }
 
             int colored = 0;
             var solidFill = FindSolidFill(doc);
@@ -1055,7 +1055,7 @@ namespace StingTools.Tags
 
                 return found;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
 }

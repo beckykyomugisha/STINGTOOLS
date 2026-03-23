@@ -274,7 +274,21 @@ namespace StingTools.UI
 
                     // ── Align & distribute ──
                     case "AlignTagsH":
+                        SetExtraParam("AlignDirection", "Horizontal");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignTagsV":
+                        SetExtraParam("AlignDirection", "Vertical");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
+                    case "ArrangeStack":
+                    case "ArrangeStackH":
+                        SetExtraParam("AlignDirection", "Row");
+                        RunCommand<Organise.AlignTagsCommand>(app);
+                        ClearExtraParam("AlignDirection");
+                        break;
                     case "AlignLeft":
                     case "AlignRight":
                     case "AlignTop":
@@ -285,8 +299,6 @@ namespace StingTools.UI
                     case "DistributeV":
                     case "ArrangeGrid":
                     case "ArrangeCircle":
-                    case "ArrangeStack":
-                    case "ArrangeStackH":
                     case "ArrangeMirror":
                     case "ArrangeRadial": RunCommand<Organise.AlignTagsCommand>(app); break;
                     case "ResetTagPositions": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
@@ -301,10 +313,11 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
-                    case "LeaderLength025":
-                    case "LeaderLength05":
-                    case "LeaderLength1":
-                    case "LeaderEqualSpacing":
+                    case "EqualizeLeaderLengths": RunCommand<Organise.EqualizeLeaderLengthsCommand>(app); break;
+                    case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
+                    case "LeaderEqualSpacing": SetExtraParam("LeaderLength", "equal"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderEqualise": RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
 
                     // ── Appearance (annotation colors) ──
@@ -343,6 +356,19 @@ namespace StingTools.UI
                     case "ViewLabelSpec": RunCommand<Tags.ViewLabelSpecCommand>(app); break;
                     case "ExportLabelGuide": RunCommand<Tags.ExportLabelGuideCommand>(app); break;
                     case "SetTag7HeadingStyle": RunCommand<Tags.SetTag7HeadingStyleCommand>(app); break;
+
+                    // ── Tag Style Engine commands ──
+                    case "ApplyTagStyles": RunCommand<Tags.ApplyTagStylesCommand>(app); break;
+                    case "PreviewTagStyles": RunCommand<Tags.PreviewTagStylesCommand>(app); break;
+                    case "SetTagStyleRule": RunCommand<Tags.SetTagStyleRuleCommand>(app); break;
+                    case "SaveTagStylePreset": RunCommand<Tags.SaveTagStylePresetCommand>(app); break;
+                    case "LoadTagStylePreset": RunCommand<Tags.LoadTagStylePresetCommand>(app); break;
+
+                    // ── Parameter-driven styles (no type switching) ──
+                    case "ApplyParamStyles": RunCommand<Tags.ApplyParamDrivenStylesCommand>(app); break;
+                    case "PreviewParamStyles": RunCommand<Tags.PreviewParamDrivenStylesCommand>(app); break;
+                    case "ClearParamStyles": RunCommand<Tags.ClearParamDrivenStylesCommand>(app); break;
+                    case "BatchParamStyles": RunCommand<Tags.BatchApplyParamDrivenStylesCommand>(app); break;
 
                     // ── Color By Parameter commands ──
                     case "ColorByParameter": RunCommand<Select.ColorByParameterCommand>(app); break;
@@ -387,6 +413,241 @@ namespace StingTools.UI
                     case "AutoPlaceViewports": RunCommand<Docs.AutoPlaceViewportsCommand>(app); break;
                     case "CropToContent": RunCommand<Docs.CropToContentCommand>(app); break;
                     case "BatchAlignViewports": RunCommand<Docs.BatchAlignViewportsCommand>(app); break;
+                    case "Rename":
+                    case "MagicRename": RunCommand<Docs.MagicRenameCommand>(app); break;
+                    case "ViewTabColour": RunCommand<Docs.ViewTabColourCommand>(app); break;
+                    case "RibbonStyler": RunCommand<Docs.RibbonPanelStylerCommand>(app); break;
+
+                    // ── Sheet Manager ──
+                    case "SheetManager": RunCommand<Docs.SheetManagerCommand>(app); break;
+                    case "AutoLayout": RunCommand<Docs.AutoLayoutCommand>(app); break;
+                    case "CloneSheet": RunCommand<Docs.CloneSheetCommand>(app); break;
+                    case "PlaceUnplacedViews": RunCommand<Docs.PlaceUnplacedViewsCommand>(app); break;
+                    case "OptimalScale": RunCommand<Docs.OptimalScaleCommand>(app); break;
+                    case "SheetAudit": RunCommand<Docs.SheetAuditCommand>(app); break;
+                    case "BatchArrange": RunCommand<Docs.BatchArrangeCommand>(app); break;
+                    case "MoveViewport": RunCommand<Docs.MoveViewportCommand>(app); break;
+
+                    // ── Sheet Manager Phase 2 ──
+                    case "MaxRectsLayout": RunCommand<Docs.MaxRectsLayoutCommand>(app); break;
+                    case "SaveLayoutPreset": RunCommand<Docs.SaveLayoutPresetCommand>(app); break;
+                    case "ApplyLayoutPreset": RunCommand<Docs.ApplyLayoutPresetCommand>(app); break;
+                    case "BatchCloneSheets": RunCommand<Docs.BatchCloneSheetsCommand>(app); break;
+                    case "BatchRenumberSheets": RunCommand<Docs.BatchRenumberSheetsCommand>(app); break;
+                    case "AutoAssignVPTypes": RunCommand<Docs.AutoAssignVPTypesCommand>(app); break;
+                    case "ExportSheetSet": RunCommand<Docs.ExportSheetSetCommand>(app); break;
+                    case "PlaceWithOverflow": RunCommand<Docs.PlaceWithOverflowCommand>(app); break;
+
+                    // ── Sheet Templates & Compliance (Phase 3) ──
+                    case "CreateFromTemplate": RunCommand<Docs.CreateFromTemplateCommand>(app); break;
+                    case "SaveSheetTemplate": RunCommand<Docs.SaveSheetTemplateCommand>(app); break;
+                    case "SheetComplianceCheck": RunCommand<Docs.SheetComplianceCheckCommand>(app); break;
+                    case "GridAlignViewports": RunCommand<Docs.GridAlignViewportsCommand>(app); break;
+                    case "AlignViewportEdges": RunCommand<Docs.AlignViewportEdgesCommand>(app); break;
+                    case "DistributeViewports": RunCommand<Docs.DistributeViewportsCommand>(app); break;
+                    case "BatchPrintSheets": RunCommand<Docs.BatchPrintSheetsCommand>(app); break;
+                    case "ExportSheetRegister": RunCommand<Docs.ExportSheetRegisterCommand>(app); break;
+
+                    // ── Sheet Manager Live Operations (modeless dialog dispatch) ──
+                    case "SM_PlaceViewOnSheet":
+                    case "SM_PlaceOnNewSheet":
+                    case "SM_MoveViewportToSheet":
+                    case "SM_RemoveViewport":
+                    case "SM_CreateSheet":
+                    case "SM_CloneSheet":
+                    case "SM_ArrangeOnSheet":
+                    case "SM_AutoScaleSheet":
+                    case "SM_AutoLayoutMode":
+                    case "SM_AutoPlaceUnplaced":
+                    case "SM_DuplicateView":
+                    case "SM_DeleteView":
+                    case "SM_BatchArrange":
+                    case "SM_RenumberDisc":
+                    case "SM_SwapTitleBlock":
+                    case "SM_EnforceISONaming":
+                    case "SM_RevertISONaming":
+                    // Non-prefixed aliases for context menu dispatch
+                    case "PlaceViewOnSheet":
+                    case "PlaceOnNewSheet":
+                    case "MoveViewportToSheet":
+                    case "RemoveViewport":
+                    case "ArrangeOnSheet":
+                    case "AutoScaleSheet":
+                    case "AutoLayoutMode":
+                    case "DeleteView":
+                    case "RenumberDisc":
+                    case "SwapTitleBlock":
+                    case "EnforceISONaming":
+                    case "RevertISONaming":
+                        RunSheetManagerOp(app, tag);
+                        break;
+
+                    case "ActivateView":
+                    {
+                        var uidoc = app.ActiveUIDocument;
+                        if (uidoc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_ViewTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = uidoc.Document.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                    uidoc.ActiveView = view;
+                            }
+                        }
+                        break;
+                    }
+
+                    // ── Sheet Manager template & selection operations ──
+                    case "SM_GetViewTemplates":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                            SheetManagerDialog._cachedTemplateNames = templates.Keys.OrderBy(k => k).ToList();
+                        }
+                        break;
+                    }
+                    case "SM_AssignSpecificTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string tplName = GetExtraParam("SM_TemplateName");
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(tplName) && !string.IsNullOrEmpty(viewIdStr))
+                            {
+                                var templates = Temp.TemplateManager.GetAllViewTemplates(doc);
+                                if (templates.TryGetValue(tplName, out View tpl) && long.TryParse(viewIdStr, out long vid))
+                                {
+                                    var view = doc.GetElement(new ElementId(vid)) as View;
+                                    if (view != null)
+                                    {
+                                        using (var tx = new Transaction(doc, "STING Assign View Template"))
+                                        {
+                                            tx.Start();
+                                            view.ViewTemplateId = tpl.Id;
+                                            tx.Commit();
+                                        }
+                                        TaskDialog.Show("STING", $"Assigned template '{tplName}' to '{view.Name}'.");
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_RemoveViewTemplate":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Remove View Template"))
+                                    {
+                                        tx.Start();
+                                        view.ViewTemplateId = ElementId.InvalidElementId;
+                                        tx.Commit();
+                                    }
+                                    TaskDialog.Show("STING", $"Removed template from '{view.Name}'.");
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_SelectElementIds":
+                    {
+                        var uidoc = app.ActiveUIDocument;
+                        if (uidoc != null)
+                        {
+                            string idsStr = GetExtraParam("SM_ElementIds");
+                            if (!string.IsNullOrEmpty(idsStr))
+                            {
+                                var ids = idsStr.Split(',')
+                                    .Where(s => long.TryParse(s.Trim(), out _))
+                                    .Select(s => new ElementId(long.Parse(s.Trim())))
+                                    .ToList();
+                                if (ids.Count > 0)
+                                    uidoc.Selection.SetElementIds(ids);
+                            }
+                        }
+                        break;
+                    }
+
+                    // ── Sheet Manager scope box operations ──
+                    case "SM_GetScopeBoxes":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var scopeBoxes = Docs.DocAutomationHelper.GetScopeBoxes(doc);
+                            SheetManagerDialog._cachedScopeBoxes = scopeBoxes
+                                .Select(sb => new KeyValuePair<long, string>(sb.Id.Value, sb.Name))
+                                .OrderBy(kv => kv.Value)
+                                .ToList();
+                        }
+                        break;
+                    }
+                    case "SM_AssignScopeBox":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            string scopeBoxIdStr = GetExtraParam("SM_ScopeBoxId");
+                            string scopeBoxName = GetExtraParam("SM_ScopeBoxName");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid)
+                                && !string.IsNullOrEmpty(scopeBoxIdStr) && long.TryParse(scopeBoxIdStr, out long sbId))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Assign Scope Box"))
+                                    {
+                                        tx.Start();
+                                        bool ok = Docs.DocAutomationHelper.AssignScopeBox(view, new ElementId(sbId));
+                                        tx.Commit();
+                                        if (ok)
+                                            StingLog.Info($"Assigned scope box '{scopeBoxName}' to '{view.Name}'.");
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "SM_RemoveScopeBox":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            string viewIdStr = GetExtraParam("SM_SelectedTag");
+                            if (!string.IsNullOrEmpty(viewIdStr) && long.TryParse(viewIdStr, out long vid))
+                            {
+                                var view = doc.GetElement(new ElementId(vid)) as View;
+                                if (view != null)
+                                {
+                                    using (var tx = new Transaction(doc, "STING Remove Scope Box"))
+                                    {
+                                        tx.Start();
+                                        try
+                                        {
+                                            Parameter p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                                            if (p != null && !p.IsReadOnly)
+                                                p.Set(ElementId.InvalidElementId);
+                                        }
+                                        catch (Exception ex) { StingLog.Warn($"RemoveScopeBox: {ex.Message}"); }
+                                        tx.Commit();
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
 
                     // ── Documentation Automation (Phase 6) ──
                     case "BatchCreateViews": RunCommand<Docs.BatchCreateViewsCommand>(app); break;
@@ -413,6 +674,7 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
+                    case "MaterialManager": RunCommand<Temp.StingMaterialManagerCommand>(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;
@@ -434,7 +696,7 @@ namespace StingTools.UI
 
                     // ── Corporate Schedules ──
                     case "CorporateTitleBlock": RunCommand<Temp.CorporateTitleBlockScheduleCommand>(app); break;
-                    case "DrawingRegister": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
+                    case "DrawingRegisterSchedule": RunCommand<Temp.DrawingRegisterScheduleCommand>(app); break;
 
                     // ── Schedule Enhancements ──
                     case "ScheduleAudit": RunCommand<Temp.ScheduleAuditCommand>(app); break;
@@ -503,6 +765,7 @@ namespace StingTools.UI
                     case "ExcelToDraftingView": RunCommand<Temp.ExcelToDraftingViewCommand>(app); break;
                     case "ScheduleToExcel": RunCommand<Temp.ScheduleToExcelCommand>(app); break;
                     case "BatchStickyImport": RunCommand<Temp.BatchStickyImportCommand>(app); break;
+                    case "ExcelLinkExport": RunCommand<Temp.ExcelLinkExportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
                     // ── Theme ──
@@ -517,11 +780,14 @@ namespace StingTools.UI
 
                     // ── Setup ──
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+                    case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
+                    case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
                     case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
                     case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
                     case "AuditParamSchema": RunCommand<Tags.AuditParameterSchemaCommand>(app); break;
+                    case "ParamManager": RunCommand<Tags.StingParamManagerCommand>(app); break;
 
                     // ── Tag Families ──
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
@@ -551,6 +817,9 @@ namespace StingTools.UI
                     case "SetProj": WriteTokenToSelected(app, ParamRegistry.PROJECT, "Project Code (PROJ)"); break;
                     case "SetRev": WriteTokenToSelected(app, ParamRegistry.REV, "Revision Code (REV)"); break;
                     case "SetVol": WriteTokenToSelected(app, ParamRegistry.VOLUME, "Volume Code (VOL)"); break;
+                    case "SetSeqScheme": RunCommand<Tags.SetSeqSchemeCommand>(app); break;
+                    case "MapSheets": RunCommand<Tags.MapSheetsCommand>(app); break;
+                    case "TagSheets": RunCommand<Tags.TagSheetsCommand>(app); break;
 
                     // ── Scope / toggles (inline) ──
                     case "ScopeView": ToggleScopeMode(app); break;
@@ -579,23 +848,24 @@ namespace StingTools.UI
 
                     case "BulkBrain": BulkBrainSuggest(app); break;
                     case "ParamLookupRefresh":
-                    case "RefreshParamList": RefreshParamList(app); break;
-                    case "CondAdd": ConditionAdd(app, p1, p2); break;
-                    case "CondRemove": ConditionRemove(app); break;
-                    case "CondClear": ConditionClear(app); break;
-                    case "CondPreview": ConditionPreview(app); break;
-                    case "CondApply": ConditionApply(app); break;
+                    case "RefreshParamList":
+                    case "CondAdd":
+                    case "CondRemove":
+                    case "CondClear":
+                    case "CondPreview":
+                    case "CondApply":
+                    case "ParamLookupDialog":
+                        OpenParameterLookupDialog(app); break;
                     case "ShowHelp": TaskDialog.Show("StingTools", "StingTools V2.1\nISO 19650 BIM Asset Tagging & Management\nhttps://stingbim.com"); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — ORGANISE TAB (AI Engine, Nudge, Leaders ext, etc.)
                     // ════════════════════════════════════════════════════════
 
-                    case "SmartOrganise":
-                    case "OrgQuick":
-                    case "OrgDeep":
-                    case "OrgAnneal":
-                        RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "SmartOrganise": RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgQuick": SetExtraParam("ArrangeMode", "Quick"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgDeep": SetExtraParam("ArrangeMode", "Deep"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
+                    case "OrgAnneal": SetExtraParam("ArrangeMode", "Anneal"); RunCommand<Tags.ArrangeTagsCommand>(app); break;
                     case "OrgReset": RunCommand<Organise.ResetTagPositionsCommand>(app); break;
                     case "OrgBrainSp": RunCommand<Tags.SmartPlaceTagsCommand>(app); break;
                     case "OrgUndo":
@@ -666,15 +936,19 @@ namespace StingTools.UI
                     case "AuditLinks": AuditLinkedModels(app); break;
 
                     case "PdfSelectedSheets":
+                        SetExtraParam("PdfScope", "Selected");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
                     case "PdfActiveView":
-                        TaskDialog.Show("PDF Export",
-                            "PDF export requires Revit's Print/Export API.\n" +
-                            "Use File → Export → PDF in Revit for direct PDF output,\n" +
-                            "or File → Print with a PDF printer driver.");
+                        SetExtraParam("PdfScope", "Active");
+                        RunCommand<Temp.PrintSheetsCommand>(app);
+                        break;
+                    case "PrintSheets":
+                        RunCommand<Temp.PrintSheetsCommand>(app);
                         break;
 
                     case "GenSheetIndex": RunCommand<Docs.SheetIndexCommand>(app); break;
-                    case "ExportSheetCSV": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
+                    case "ExportSheetCSV": ExportSheetCSV(app); break;
 
                     // ════════════════════════════════════════════════════════
                     // NEW — DOCS TAB (StingDocs organizer features)
@@ -772,6 +1046,8 @@ namespace StingTools.UI
                     case "HealthReport": RunCommand<Organise.TagStatsCommand>(app); break;
                     case "HealthFixAll": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
 
+                    case "RetagStale": RunCommand<Organise.RetagStaleCommand>(app); break;
+                    case "ComplianceScan": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "AnomalyRefresh": AnomalyRefreshScan(app); break;
                     case "AnomalyScan": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "AnomalyExport": RunCommand<Organise.AuditTagsCSVCommand>(app); break;
@@ -812,11 +1088,123 @@ namespace StingTools.UI
                     case "ModelPlaceDoor": RunCommand<Model.ModelPlaceDoorCommand>(app); break;
                     case "ModelPlaceWindow": RunCommand<Model.ModelPlaceWindowCommand>(app); break;
                     case "ModelBuildingShell": RunCommand<Model.ModelBuildingShellCommand>(app); break;
+                    case "ModelCreateRamp": RunCommand<Model.ModelCreateRampCommand>(app); break;
+                    case "ModelCreateCanopy": RunCommand<Model.ModelCreateCanopyCommand>(app); break;
+                    case "MEPRouteAnalysis": RunCommand<Model.MEPRouteAnalysisCommand>(app); break;
 
                     // ── Structural elements ──
                     case "ModelPlaceColumn": RunCommand<Model.ModelPlaceColumnCommand>(app); break;
                     case "ModelColumnGrid": RunCommand<Model.ModelColumnGridCommand>(app); break;
                     case "ModelCreateBeam": RunCommand<Model.ModelCreateBeamCommand>(app); break;
+
+                    // ── Structural Modeling Automation ──
+                    case "StrCreatePadFooting": RunCommand<Model.StrCreatePadFootingCommand>(app); break;
+                    case "StrCreateStripFooting": RunCommand<Model.StrCreateStripFootingCommand>(app); break;
+                    case "StrCreateStructuralSlab": RunCommand<Model.StrCreateStructuralSlabCommand>(app); break;
+                    case "StrCreateStructuralWall": RunCommand<Model.StrCreateStructuralWallCommand>(app); break;
+                    case "StrCreateBeamSystem": RunCommand<Model.StrCreateBeamSystemCommand>(app); break;
+                    case "StrCreateBracing": RunCommand<Model.StrCreateBracingCommand>(app); break;
+                    case "StrCreateTruss": RunCommand<Model.StrCreateTrussCommand>(app); break;
+                    case "StrCreateFullBayFrame": RunCommand<Model.StrCreateFullBayFrameCommand>(app); break;
+                    case "StrCreateGridFrame": RunCommand<Model.StrCreateGridFrameCommand>(app); break;
+                    case "StrAnalyzeLoadPaths": RunCommand<Model.StrAnalyzeLoadPathsCommand>(app); break;
+                    case "StrDetectBays": RunCommand<Model.StrDetectBaysCommand>(app); break;
+                    case "StrCADToStructural": RunCommand<Model.StrCADToStructuralCommand>(app); break;
+                    case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
+                    case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
+                    case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
+                    case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
+                    case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
+                    case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
+                    case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
+                    case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
+                    case "StrClassifySystem": RunCommand<Model.StrClassifySystemCommand>(app); break;
+                    case "StrDeflectionCheck": RunCommand<Model.StrDeflectionCheckCommand>(app); break;
+                    case "StrPunchingShearCheck": RunCommand<Model.StrPunchingShearCheckCommand>(app); break;
+                    case "StrWindLoad": RunCommand<Model.StrWindLoadCommand>(app); break;
+                    case "StrConstructionSequence": RunCommand<Model.StrConstructionSequenceCommand>(app); break;
+                    case "StrFullReport": RunCommand<Model.StrFullReportCommand>(app); break;
+                    case "StrVoronoiAreas": RunCommand<Model.StrVoronoiAreasCommand>(app); break;
+                    case "StrClashPreCheck": RunCommand<Model.StrClashPreCheckCommand>(app); break;
+                    case "StrFrameAnalysis": RunCommand<Model.StrFrameAnalysisCommand>(app); break;
+                    case "StrSeismicAnalysis": RunCommand<Model.StrSeismicAnalysisCommand>(app); break;
+                    case "StrOptimizeGrid": RunCommand<Model.StrOptimizeGridCommand>(app); break;
+                    case "StrProgressiveCollapse": RunCommand<Model.StrProgressiveCollapseCommand>(app); break;
+                    case "StrAutoSize": RunCommand<Model.StrAutoSizeCommand>(app); break;
+                    case "StrFireResistance": RunCommand<Model.StrFireResistanceCommand>(app); break;
+                    case "StrAutoMaterials": RunCommand<Model.StrAutoMaterialsCommand>(app); break;
+                    case "StrSmartColumn": RunCommand<Model.StrSmartColumnCommand>(app); break;
+                    case "StrSmartBeam": RunCommand<Model.StrSmartBeamCommand>(app); break;
+                    case "StrBuildComplete": RunCommand<Model.StrBuildCompleteCommand>(app); break;
+                    case "StrModelScore": RunCommand<Model.StrModelScoreCommand>(app); break;
+                    case "StrCarbonAssessment": RunCommand<Model.StrCarbonAssessmentCommand>(app); break;
+                    case "StrRebarEstimate": RunCommand<Model.StrRebarEstimateCommand>(app); break;
+                    case "StrStabilityCheck": RunCommand<Model.StrStabilityCheckCommand>(app); break;
+                    case "StrBIMValidation": RunCommand<Model.StrBIMValidationCommand>(app); break;
+                    case "StrCompositeBeam": RunCommand<Model.StrCompositeBeamCommand>(app); break;
+                    case "StrTraceLoadPaths": RunCommand<Model.StrTraceLoadPathsCommand>(app); break;
+                    case "StrTopologyOptimize": RunCommand<Model.StrTopologyOptimizeCommand>(app); break;
+                    case "StrSSIAnalysis": RunCommand<Model.StrSSIAnalysisCommand>(app); break;
+                    case "StrRetainingWall": RunCommand<Model.StrRetainingWallCommand>(app); break;
+                    case "StrRebarDetail": RunCommand<Model.StrRebarDetailCommand>(app); break;
+                    case "StrBracingOptimize": RunCommand<Model.StrBracingOptimizeCommand>(app); break;
+                    case "StrConstraintCheck": RunCommand<Model.StrConstraintCheckCommand>(app); break;
+                    case "StrContinuityCheck": RunCommand<Model.StrContinuityCheckCommand>(app); break;
+                    case "StrAdaptiveSize": RunCommand<Model.StrAdaptiveSizeCommand>(app); break;
+                    case "StrConnectionDesign": RunCommand<Model.StrConnectionDesignCommand>(app); break;
+                    case "StrVibrationCheck": RunCommand<Model.StrVibrationCheckCommand>(app); break;
+                    case "StrCrackWidth": RunCommand<Model.StrCrackWidthCommand>(app); break;
+                    case "StrThermalMovement": RunCommand<Model.StrThermalMovementCommand>(app); break;
+                    case "StrDeepBeamSTM": RunCommand<Model.StrDeepBeamSTMCommand>(app); break;
+                    case "StrSmartColumnFactory": RunCommand<Model.StrSmartColumnFactoryCommand>(app); break;
+                    case "StrSmartBeamFactory": RunCommand<Model.StrSmartBeamFactoryCommand>(app); break;
+                    case "StrDiagnostics": RunCommand<Model.StrDiagnosticsCommand>(app); break;
+                    case "StrFatigueAssess": RunCommand<Model.StrFatigueAssessCommand>(app); break;
+                    case "StrTorsionDesign": RunCommand<Model.StrTorsionDesignCommand>(app); break;
+                    case "StrRobustness": RunCommand<Model.StrRobustnessCommand>(app); break;
+                    case "StrCompositeSlab": RunCommand<Model.StrCompositeSlabCommand>(app); break;
+                    case "StrPartialFactors": RunCommand<Model.StrPartialFactorsCommand>(app); break;
+                    case "StrSmartWallFactory": RunCommand<Model.StrSmartWallFactoryCommand>(app); break;
+                    case "StrSmartFoundation": RunCommand<Model.StrSmartFoundationCommand>(app); break;
+                    case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
+                    case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
+
+                    // ── Coverings (Plaster + Paint) ──
+                    case "CoveringMaterialBrowser": RunCommand<Model.CoveringMaterialBrowserCommand>(app); break;
+                    case "CoveringSubstrateAnalyze": RunCommand<Model.CoveringSubstrateAnalyzeCommand>(app); break;
+                    case "CoveringPaintSystem": RunCommand<Model.CoveringPaintSystemCommand>(app); break;
+                    case "CoveringCoverageCalc": RunCommand<Model.CoveringCoverageCalcCommand>(app); break;
+                    case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
+                    case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
+                    case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
+                    case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
+                    case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
+                    case "CoveringMoistureRisk": RunCommand<Model.CoveringMoistureRiskCommand>(app); break;
+
+                    // ── Architectural Creation ──
+                    case "ArchStairDesign": RunCommand<Model.ArchStairDesignCommand>(app); break;
+                    case "ArchCurtainWall": RunCommand<Model.ArchCurtainWallCommand>(app); break;
+                    case "ArchCreateOpening": RunCommand<Model.ArchCreateOpeningCommand>(app); break;
+                    case "FullModelAuto": RunCommand<Model.FullModelAutoCommand>(app); break;
+
+                    // ── Excel → Structural Import ──
+                    case "StrExcelImport": RunCommand<Model.StrExcelImportCommand>(app); break;
+                    case "StrExcelImportColumns": RunCommand<Model.StrExcelImportColumnsCommand>(app); break;
+                    case "StrExcelImportBeams": RunCommand<Model.StrExcelImportBeamsCommand>(app); break;
+                    case "StrExcelExportSchedule": RunCommand<Model.StrExcelExportScheduleCommand>(app); break;
+                    case "StrExcelTemplate": RunCommand<Model.StrExcelTemplateCommand>(app); break;
+                    case "StrAutoRebar": RunCommand<Model.StrAutoRebarCommand>(app); break;
+
+                    // ── Enhanced Structural Algorithms ──
+                    case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
+                    case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
+                    case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
+                    case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;
+                    case "StrDesignReport": RunCommand<Model.StrStructuralReportCommand>(app); break;
+                    case "StrLoadPathVisualizer": RunCommand<Model.StrLoadPathVisualizerCommand>(app); break;
+                    case "StrDesignCheck": RunCommand<Model.StrDesignCheckCommand>(app); break;
+                    case "StrEnhancedCADImport": RunCommand<Model.StrEnhancedCADImportCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
@@ -833,6 +1221,17 @@ namespace StingTools.UI
 
                     // Project Overview
                     case "BIMDashboard": RunCommand<BIMManager.ProjectDashboardCommand>(app); break;
+
+                    // ── Gap Fix: Cross-System Automation ──
+                    case "CDEApprovalWorkflow": RunCommand<BIMManager.CDEApprovalWorkflowCommand>(app); break;
+                    case "CrossSystemLink": RunCommand<BIMManager.CrossSystemLinkCommand>(app); break;
+                    case "RefreshCoordinationData": RunCommand<BIMManager.RefreshCoordinationDataCommand>(app); break;
+                    case "StreamingCOBieImportValidated": RunCommand<BIMManager.StreamingCOBieImportCommand>(app); break;
+                    case "Schedule4DHandover": RunCommand<BIMManager.Schedule4DHandoverCommand>(app); break;
+                    case "COBieSystemGroupFix": RunCommand<BIMManager.COBieSystemGroupFixCommand>(app); break;
+                    case "DataDropTracker": RunCommand<BIMManager.DataDropTrackerCommand>(app); break;
+                    case "CDEFolderStructure": RunCommand<BIMManager.CDEFolderStructureCommand>(app); break;
+                    case "ComplianceForecast": RunCommand<BIMManager.ComplianceForecastCommand>(app); break;
                     case "ISO19650Reference": RunCommand<BIMManager.ISO19650ReferenceCommand>(app); break;
 
                     // BEP (template-driven pre-contract + model enrichment)
@@ -855,9 +1254,13 @@ namespace StingTools.UI
                     case "IssueDashboard": RunCommand<BIMManager.IssueDashboardCommand>(app); break;
                     case "UpdateIssue": RunCommand<BIMManager.UpdateIssueCommand>(app); break;
                     case "SelectIssueElements": RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
+                    case "IssuesBulkClose": RunCommand<BIMManager.BulkCloseIssuesCommand>(app); break;
 
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
+                    case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;
+                    case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
+                    case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
 
@@ -883,9 +1286,51 @@ namespace StingTools.UI
                     case "ExportStickyNotes": RunCommand<BIMManager.ExportStickyNotesCommand>(app); break;
                     case "SelectStickyElements": RunCommand<BIMManager.SelectStickyElementsCommand>(app); break;
 
+                    // Sticky Notes — Enhanced
+                    case "StickyCategories": RunCommand<BIMManager.StickyNoteCategoriesCommand>(app); break;
+                    case "StickyDashboard": RunCommand<BIMManager.StickyNoteDashboardCommand>(app); break;
+                    case "StickySearch": RunCommand<BIMManager.StickyNoteSearchCommand>(app); break;
+
+                    // Issue Tracker — Enhanced
+                    case "IssueFilter": RunCommand<BIMManager.IssueFilterCommand>(app); break;
+                    case "IssueTimeline": RunCommand<BIMManager.IssueTimelineCommand>(app); break;
+                    case "IssueStatistics": RunCommand<BIMManager.IssueStatisticsCommand>(app); break;
+                    case "IssueBatchUpdate": RunCommand<BIMManager.IssueBatchUpdateCommand>(app); break;
+                    case "IssueExport": RunCommand<BIMManager.IssueExportCommand>(app); break;
+
                     // Model Health
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
+                    case "ModelHealthScore": RunCommand<Core.ModelHealthScoreCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
+
+                    // Warnings Manager (Phase 46)
+                    case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
+                    case "WarningsAutoFix": RunCommand<Core.WarningsAutoFixCommand>(app); break;
+                    case "WarningsExport": RunCommand<Core.WarningsExportCommand>(app); break;
+                    case "WarningsBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
+                    case "WarningsSelect": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
+                    case "WarningsSuppress": RunCommand<Core.WarningsSuppressCommand>(app); break;
+                    case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
+                    case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
+
+                    // Phase 47: BIM Coordination Center (unified dashboard)
+                    // Keep-dialog-open loop: re-open after each dispatched command
+                    case "BIMCoordinationCenter":
+                    {
+                        var ccDoc = app.ActiveUIDocument?.Document;
+                        if (ccDoc != null)
+                        {
+                            while (true)
+                            {
+                                var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
+                                if (ccData == null) break;
+                                string ccAction = UI.BIMCoordinationCenter.Show(ccData);
+                                if (string.IsNullOrEmpty(ccAction)) break; // User closed
+                                Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                            }
+                        }
+                        break;
+                    }
 
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
@@ -908,6 +1353,217 @@ namespace StingTools.UI
                     case "SetOutputDirectory": RunCommand<BIMManager.SetOutputDirectoryCommand>(app); break;
                     case "StageComplianceGate": RunCommand<BIMManager.StageComplianceGateCommand>(app); break;
 
+                    // Project Folder Structure
+                    case "CreateFolders":
+                    {
+                        var cfDoc = app.ActiveUIDocument?.Document;
+                        if (cfDoc != null)
+                        {
+                            int created = Core.ProjectFolderEngine.CreateFolderStructure(cfDoc);
+                            Autodesk.Revit.UI.TaskDialog.Show("STING Folder Structure",
+                                $"Created {created} folders at:\n{Core.ProjectFolderEngine.GetRootPath(cfDoc)}");
+                        }
+                        break;
+                    }
+                    case "OpenProjectFolder":
+                    {
+                        var opDoc = app.ActiveUIDocument?.Document;
+                        string root = Core.ProjectFolderEngine.GetRootPath(opDoc);
+                        if (System.IO.Directory.Exists(root))
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true });
+                        break;
+                    }
+
+                    // Operations Commands (OperationsCommands.cs, StingTools.Temp)
+                    case "PDFExport": RunCommand<Temp.PDFExportCommand>(app); break;
+                    case "QuantityTakeoff": RunCommand<Temp.QuantityTakeoffCommand>(app); break;
+                    case "ModelHealthCheck": RunCommand<Temp.ModelHealthCheckCommand>(app); break;
+                    case "BatchParameterExport": RunCommand<Temp.BatchParameterExportCommand>(app); break;
+                    case "ProjectDashboard": RunCommand<Temp.ProjectDashboardEnhancedCommand>(app); break;
+                    case "WorkflowPreset": RunCommand<Temp.WorkflowPresetRunnerCommand>(app); break;
+                    case "CancellableOperation": RunCommand<Temp.CancellableOperationCommand>(app); break;
+
+                    // Workflow presets dispatched from Document Manager
+                    case "WorkflowPreset_DailyQA":
+                    case "WorkflowPreset_DocumentPackage":
+                    case "WorkflowPreset_ProjectKickoff":
+                    {
+                        string presetName = _commandTag.Replace("WorkflowPreset_", "");
+                        SetExtraParam("WorkflowPresetName", presetName);
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+
+                    // Phase 48: Enhanced workflow dispatch
+                    case "RepeatLastWorkflow":
+                    {
+                        string last = Core.WorkflowEngine.LastWorkflowName;
+                        if (!string.IsNullOrEmpty(last))
+                        {
+                            SetExtraParam("WorkflowPresetName", last);
+                            RunCommand<Core.WorkflowPresetCommand>(app);
+                        }
+                        else
+                        {
+                            TaskDialog.Show("STING", "No previous workflow to repeat.\nRun a workflow first, then use 'Repeat Last'.");
+                        }
+                        break;
+                    }
+                    case "RunWorkflow_MorningHealthCheck":
+                    case "RunWorkflow_DailyQASync":
+                    case "RunWorkflow_HandoverReadiness":
+                    case "RunWorkflow_WeeklyDataDrop":
+                    case "RunWorkflow_ProjectKickoff":
+                    case "RunWorkflow_PostTaggingQA":
+                    case "RunWorkflow_DocumentPackage":
+                    case "RunWorkflow_BEPPackage":
+                    case "RunWorkflow_CoordinationMeetingPrep":
+                    case "RunWorkflow_ClashCoordination":
+                    case "RunWorkflow_EndOfStageGate":
+                    case "RunWorkflow_QuickFixCycle":
+                    case "RunWorkflow_EndOfDaySync":
+                    case "RunWorkflow_FederatedModelAudit":
+                    case "RunWorkflow_PreMeetingPrep":
+                    {
+                        string wfName = _commandTag.Replace("RunWorkflow_", "")
+                            .Replace("Sync", " Sync").Replace("Health", " Health")
+                            .Replace("Data", " Data").Replace("Readiness", " Readiness")
+                            .Replace("Tagging", " Tagging").Replace("Kickoff", " Kickoff")
+                            .Replace("Package", " Package").Replace("Meeting", " Meeting")
+                            .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
+                            .Replace("Stage", " Stage").Replace("Gate", " Gate")
+                            .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
+                            .Replace("Clash", " Clash").Replace("Federated", " Federated")
+                            .Replace("Model", " Model").Replace("Audit", " Audit")
+                            .Replace("Day", " Day").Replace("End Of", "End of");
+                        SetExtraParam("WorkflowPresetName", wfName.Trim());
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "SaveExtendedBaseline":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null) { Core.WarningsEngine.SaveExtendedBaseline(d); TaskDialog.Show("STING", "Extended warning baseline saved."); }
+                        break;
+                    }
+
+                    // Phase 48b: Coordination Center drill-down actions
+                    case string s when s.StartsWith("SelectByDisc_"):
+                    {
+                        string disc = s.Substring("SelectByDisc_".Length);
+                        SetExtraParam("DiscFilter", disc);
+                        RunCommand<Organise.SelectByDisciplineCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectWarning_"):
+                    {
+                        // Format: SelectWarning_Category_Description
+                        RunCommand<Core.WarningsSelectElementsCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectIssue_"):
+                    {
+                        string issueId = s.Substring("SelectIssue_".Length);
+                        SetExtraParam("IssueId", issueId);
+                        RunCommand<BIMManager.SelectIssueElementsCommand>(app);
+                        break;
+                    }
+
+                    // Phase 49: Coordination log and deliverables actions
+                    case "ExportCoordLog":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null)
+                        {
+                            try
+                            {
+                                string logPath = System.IO.Path.Combine(
+                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                    ".sting_coord_log.json");
+                                if (System.IO.File.Exists(logPath))
+                                {
+                                    string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                                    var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BIMCoordinationCenter.CoordLogEntry>>(
+                                        System.IO.File.ReadAllText(logPath));
+                                    if (entries != null && entries.Count > 0)
+                                    {
+                                        var sb = new System.Text.StringBuilder();
+                                        sb.AppendLine("Timestamp,User,Category,Action,Detail,Impact");
+                                        foreach (var e in entries)
+                                            sb.AppendLine($"\"{e.Timestamp}\",\"{e.User}\",\"{e.Category}\",\"{e.Action}\",\"{e.Detail?.Replace("\"", "'")}\",\"{e.Impact}\"");
+                                        System.IO.File.WriteAllText(csvPath, sb.ToString());
+                                        TaskDialog.Show("STING", $"Coordination log exported:\n{csvPath}\n{entries.Count} entries");
+                                    }
+                                    else TaskDialog.Show("STING", "Coordination log is empty.");
+                                }
+                                else TaskDialog.Show("STING", "No coordination log found.");
+                            }
+                            catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
+                        }
+                        break;
+                    }
+                    case "ClearCoordLog":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null)
+                        {
+                            var confirm = new TaskDialog("Clear Coordination Log");
+                            confirm.MainInstruction = "Clear the coordination log?";
+                            confirm.MainContent = "This will delete all coordination log entries. This action cannot be undone.";
+                            confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                            if (confirm.Show() == TaskDialogResult.Yes)
+                            {
+                                string logPath = System.IO.Path.Combine(
+                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                    ".sting_coord_log.json");
+                                if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
+                                TaskDialog.Show("STING", "Coordination log cleared.");
+                            }
+                        }
+                        break;
+                    }
+                    case string s when s.StartsWith("RunMorningCheck"):
+                    {
+                        SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "RunDailyQA":
+                    {
+                        SetExtraParam("WorkflowPresetName", "DailyQA");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "RunQuickFix":
+                    {
+                        SetExtraParam("WorkflowPresetName", "QuickFixCycle");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "ExportCOBie":
+                        RunCommand<BIMManager.COBieExportCommand>(app); break;
+
+                    // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
+                    case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "IoTDashboard": RunCommand<Temp.MaintenanceScheduleCommand>(app); break;
+                    case "IoTAlertConfig": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "IoTHistoryExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+
+                    // Standards / Compliance (wired to StandardsEngine.cs commands)
+                    case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "COBieValidator": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
+                    case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+
+                    // MEP Schedule shortcuts (wired to MEPScheduleCommands.cs)
+                    case "MEPScheduleHVAC": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "MEPScheduleElec": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MEPSchedulePlumb": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "MEPScheduleFire": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "MEPScheduleAll": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+
                     // Excel Link — Bidirectional (6 commands)
                     case "ExportToExcel": RunCommand<BIMManager.ExportToExcelCommand>(app); break;
                     case "ImportFromExcel": RunCommand<BIMManager.ImportFromExcelCommand>(app); break;
@@ -915,22 +1571,61 @@ namespace StingTools.UI
                     case "ExportSchedulesToExcel": RunCommand<BIMManager.ExportSchedulesToExcelCommand>(app); break;
                     case "ImportSchedulesFromExcel": RunCommand<BIMManager.ImportSchedulesFromExcelCommand>(app); break;
                     case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
+                    case "ExcelExchangeWizard": RunCommand<BIMManager.ExcelExchangeWizardCommand>(app); break;
+
+                    // BIMLink-style Data Export (unified export dialog)
+                    case "StingDataExport":
+                    case "DataExport":
+                    case "UnifiedExport":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING", "No document open."); break; }
+                        var exportSettings = StingExportDialog.Show(doc);
+                        if (exportSettings == null) break;
+                        try
+                        {
+                            DataExportEngine.Execute(doc, app.ActiveUIDocument, exportSettings);
+                            TaskDialog.Show("STING Export", $"Exported successfully to:\n{exportSettings.OutputPath}");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Error($"Data export failed: {ex.Message}", ex);
+                            TaskDialog.Show("STING Export", $"Export failed: {ex.Message}");
+                        }
+                        break;
+                    }
 
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "ValidateCDEHandover":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var (pass, issues) = BIMCoordinationCenterCommand.ValidateCDEHandoverReadiness(doc);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(pass ? "CDE HANDOVER VALIDATION: PASS\n" : "CDE HANDOVER VALIDATION: FAIL\n");
+                            if (issues.Count > 0)
+                                foreach (string issue in issues) sb.AppendLine($"  ✘ {issue}");
+                            else sb.AppendLine("  All checks passed. Model is ready for CDE handover.");
+                            TaskDialog.Show("STING CDE Validation", sb.ToString());
+                        }
+                        break;
+                    }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
+                    // Third-party platform integrations — route to CDE Package which
+                    // generates ISO 19650 folder structure compatible with any CDE platform
                     case "ProcorePackage":
                     case "TrimbleExport":
                     case "AconexPackage":
                     case "ProjectWiseExport":
-                    case "PlatformDashboard":
-                    case "WebhookPayload":
-                        TaskDialog.Show("StingTools", $"'{tag}' platform integration is planned for a future release.");
-                        break;
+                        RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "PlatformDashboard": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "WebhookPayload": RunCommand<BIMManager.BCFExportCommand>(app); break;
 
                     // Revision Management (12 commands)
                     case "CreateRevision": RunCommand<BIMManager.CreateRevisionCommand>(app); break;
@@ -946,6 +1641,44 @@ namespace StingTools.UI
                     case "BulkRevisionStamp": RunCommand<BIMManager.BulkRevisionStampCommand>(app); break;
                     case "AutoRevisionOnTagChange": RunCommand<BIMManager.AutoRevisionOnTagChangeCommand>(app); break;
 
+                    // Revision Management — Enhanced
+                    case "RevisionApprovalWorkflow": RunCommand<BIMManager.RevisionApprovalWorkflowCommand>(app); break;
+                    case "RevisionDistribution": RunCommand<BIMManager.RevisionDistributionCommand>(app); break;
+                    case "RevisionComparisonReport": RunCommand<BIMManager.RevisionComparisonReportCommand>(app); break;
+
+                    // Document Management Center
+                    case "DocumentManager":
+                    {
+                        var dmDoc = app.ActiveUIDocument?.Document;
+                        if (dmDoc != null)
+                        {
+                            // Keep-dialog-open loop: re-open after each dispatched command
+                            while (true)
+                            {
+                                var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
+                                if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
+                                    break; // User closed — exit loop
+
+                                // Execute the dispatched sub-operation
+                                SetCommand(dmResult.Operation);
+                                Execute(app);
+                                // Loop re-opens the dialog automatically
+                            }
+                        }
+                        break;
+                    }
+                    case "DataExchange":
+                    {
+                        var deDoc = app.ActiveUIDocument?.Document;
+                        if (deDoc != null)
+                        {
+                            var deResult = UI.StingDataExchangeDialog.Show(deDoc);
+                            if (deResult != null)
+                                UI.DataExchangeEngine.Execute(deDoc, app.ActiveUIDocument, deResult);
+                        }
+                        break;
+                    }
+
                     // ════════════════════════════════════════════════════════
                     // TAG STUDIO — Smart Placement Wire-ups (UI-01)
                     // ════════════════════════════════════════════════════════
@@ -957,6 +1690,13 @@ namespace StingTools.UI
                     case "TagStudio_AdjustElbows": RunCommand<Tags.AdjustElbowsCommand>(app); break;
                     case "TagStudio_SetArrows": RunCommand<Tags.SetArrowheadStyleCommand>(app); break;
 
+                    // Tag Studio analysis — wired to real commands
+                    case "TagStudio_APIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudio_Explain": RunCommand<Tags.ValidateTagsCommand>(app); break;
+                    case "TagStudio_Pipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudio_Generate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudio_GapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
+
                     // UI-03: Tag position switching
                     case "SwitchTagPos1": SwitchTagPositionInline(app, 1); break;
                     case "SwitchTagPos2": SwitchTagPositionInline(app, 2); break;
@@ -964,6 +1704,10 @@ namespace StingTools.UI
                     case "SwitchTagPos4": SwitchTagPositionInline(app, 4); break;
                     case "SwitchTagPos": RunCommand<Tags.SwitchTagPositionCommand>(app); break;
                     case "ExportTagPositions": RunCommand<Tags.ExportTagPositionsCommand>(app); break;
+
+                    // D1: Tag map export/import between projects
+                    case "ExportTagMap": RunCommand<BIMManager.ExportTagMapCommand>(app); break;
+                    case "ImportTagMap": RunCommand<BIMManager.ImportTagMapCommand>(app); break;
 
                     // TI-02: Tie-In status commands
                     case "SetTieInOpen": SetTieInStatus(app, "OPEN", 0); break;
@@ -996,11 +1740,339 @@ namespace StingTools.UI
                     case "PlaceTieInTagElec": PlaceTieInTag(app, "Elec"); break;
                     case "ExportTieInRegister": ExportTieInRegister(app); break;
 
-                    // ── Unmapped / placeholder ──
+                    // ── FIX-UI01: Missing dispatch entries (buttons were wired to
+                    //    command classes that were never added to this switch) ──
+
+                    // Tag clustering (TagOperationCommands.cs, StingTools.Organise)
+                    case "ClusterTags": RunCommand<Organise.ClusterTagsCommand>(app); break;
+                    case "DeclusterTags": RunCommand<Organise.DeclusterTagsCommand>(app); break;
+
+                    // Display / style controls (TagOperationCommands.cs, StingTools.Organise)
+                    case "SetDisplayMode": RunCommand<Organise.SetDisplayModeCommand>(app); break;
+
+                    // Style (TagStyleCommands.cs, StingTools.Tags)
+                    case "SetViewTagStyle": RunCommand<Tags.SetViewTagStyleCommand>(app); break;
+
+                    // Linked model tags (SmartTagPlacementCommand.cs, StingTools.Tags)
+                    case "AlignTagBands": RunCommand<Tags.AlignTagBandsCommand>(app); break;
+                    case "BatchPlaceLinkedTags": RunCommand<Tags.BatchPlaceLinkedTagsCommand>(app); break;
+                    case "ExportLinkedManifest": RunCommand<Tags.ExportLinkedModelManifestCommand>(app); break;
+
+                    // Family tooling (FamilyParamCreatorCommand.cs, StingTools.Tags)
+                    case "FamilyParamCreator": RunCommand<Tags.FamilyParamCreatorCommand>(app); break;
+
+                    // Compliance reporting (TokenWriterCommands.cs, StingTools.Tags)
+                    case "DiscComplianceReport": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+
+                    // Auto-tagger controls (StingAutoTagger.cs, StingTools.Core)
+                    case "AutoTagVisual": RunCommand<Core.AutoTaggerToggleVisualCommand>(app); break;
+                    case "AutoTaggerConfig": RunCommand<Core.AutoTaggerConfigCommand>(app); break;
+
+                    // Workflow presets — XAML button uses "ListWorkflowPresets", dispatch
+                    // already has "ListWorkflows". Add alias so both tags work.
+                    case "ListWorkflowPresets": RunCommand<Core.ListWorkflowPresetsCommand>(app); break;
+
+                    // ── Tag Studio informational stubs → routed to real commands ──
+                    case "TagStudioAPIGaps": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagStudioExplain": RunCommand<Tags.ValidateTagsCommand>(app);
+                        break;
+                    case "TagStudioPipeline": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
+                    case "TagStudioGenerate": RunCommand<Tags.FamilyStagePopulateCommand>(app); break;
+                    case "TagStudioGapReview": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
+
+                    // ── COBie Reference Data (COBieDataCommands.cs, StingTools.Temp) ──
+                    case "COBieTypeMap": RunCommand<Temp.COBieTypeMapCommand>(app); break;
+                    case "COBieSystemMap": RunCommand<Temp.COBieSystemMapCommand>(app); break;
+                    case "COBiePickLists": RunCommand<Temp.COBiePickListsCommand>(app); break;
+                    case "COBieAttributes": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieJobTemplates": RunCommand<Temp.COBieJobTemplatesCommand>(app); break;
+                    case "COBieSpareParts": RunCommand<Temp.COBieSparePartsCommand>(app); break;
+                    case "COBieDocTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieZoneTypes": RunCommand<Temp.COBieZoneTypesCommand>(app); break;
+                    case "COBieAutoMatch": RunCommand<Temp.COBieAutoMatchCommand>(app); break;
+                    case "COBieDataSummary": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+
+                    // ── MEP Schedules (MEPScheduleCommands.cs, StingTools.Temp) ──
+                    case "PanelSchedule": RunCommand<Temp.PanelScheduleCommand>(app); break;
+                    case "LightingFixtureSchedule": RunCommand<Temp.LightingFixtureScheduleCommand>(app); break;
+                    case "ElectricalDeviceSchedule": RunCommand<Temp.ElectricalDeviceScheduleCommand>(app); break;
+                    case "MechEquipSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+                    case "PlumbingFixtureSchedule": RunCommand<Temp.PlumbingFixtureScheduleCommand>(app); break;
+                    case "FireDeviceSchedule": RunCommand<Temp.FireDeviceScheduleCommand>(app); break;
+                    case "BatchMEPSchedules": RunCommand<Temp.BatchMEPSchedulesCommand>(app); break;
+
+                    // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
+                    case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "SpatialConnectivityAudit": RunCommand<Temp.SpatialConnectivityAuditCommand>(app); break;
+                    case "DataDropReadiness": RunCommand<BIMManager.DataDropReadinessCommand>(app); break;
+                    case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
+                    case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
+                    case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
+
+                    // ── FM Handover Export (HandoverExportCommands.cs, StingTools.Docs) ──
+                    case "MaintenanceSchedule": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OMManual": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "AssetHealth": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "SpaceHandover": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Tag Selector (TagSelectorCommands.cs, StingTools.Select) ──
+                    case "TagSelector": RunCommand<Select.TagSelectorCommand>(app); break;
+                    case "SelectTagsByText": RunCommand<Select.SelectTagsByTextCommand>(app); break;
+                    case "SelectTagsByTextSize": RunCommand<Select.SelectTagsByTextSizeCommand>(app); break;
+                    case "SelectTagsByArrowhead": RunCommand<Select.SelectTagsByArrowheadCommand>(app); break;
+                    case "SelectTagsByLeaderState": RunCommand<Select.SelectTagsByLeaderStateCommand>(app); break;
+                    case "SelectTagsByFamily": RunCommand<Select.SelectTagsByFamilyCommand>(app); break;
+                    case "SelectTagsByHostCategory": RunCommand<Select.SelectTagsByHostCategoryCommand>(app); break;
+                    case "SelectTagsByOrientation": RunCommand<Select.SelectTagsByOrientationCommand>(app); break;
+                    case "SelectTagsByDiscipline": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+                    case "SelectTagsByLineWeight": RunCommand<Select.SelectTagsByLineWeightCommand>(app); break;
+                    case "SelectTagsByElbowAngle": RunCommand<Select.SelectTagsByElbowAngleCommand>(app); break;
+                    case "SelectTagsByToken": RunCommand<Select.SelectTagsByTokenCommand>(app); break;
+                    case "SelectOverlappingTags": RunCommand<Select.SelectOverlappingTagsCommand>(app); break;
+
+                    // ── Docs: Drawing Register + Journal Parser ──
+                    case "DrawingRegister": RunCommand<Docs.DrawingRegisterCommand>(app); break;
+                    case "JournalParser": RunCommand<Docs.JournalParserCommand>(app); break;
+
+                    // ── Tags: Configure Tag Format (alias for ConfigEditor) ──
+                    case "ConfigureTagFormat": RunCommand<Tags.ConfigEditorCommand>(app); break;
+
+                    // ── Clone & Export commands ──
+                    case "ApplyClonedTags": RunCommand<Organise.ApplyClonedTagsCommand>(app); break;
+                    case "JSONExport": RunCommand<Organise.JSONExportCommand>(app); break;
+
+                    // ── Docs: Handover & Journal (alternate tag names) ──
+                    case "AssetHealthReport": RunCommand<Docs.AssetHealthReportCommand>(app); break;
+                    case "MaintenanceScheduleExport": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
+                    case "OAndMManualExport": RunCommand<Docs.OAndMManualExportCommand>(app); break;
+                    case "SpaceHandoverReport": RunCommand<Docs.SpaceHandoverReportCommand>(app); break;
+
+                    // ── Select: Tag Selectors (alternate tag names) ──
+                    case "SelectTagsByDisciplineCode": RunCommand<Select.SelectTagsByDisciplineCodeCommand>(app); break;
+
+                    // ── Tags: Intelligence & NLP ──
+                    case "BimKnowledgeBase": RunCommand<Tags.BimKnowledgeBaseCommand>(app); break;
+                    case "CommandSuggestion": RunCommand<Tags.CommandSuggestionCommand>(app); break;
+                    case "ConfigurableTagFormat": RunCommand<Tags.ConfigurableTagFormatCommand>(app); break;
+                    case "NLPCommandProcessor": RunCommand<Tags.NLPCommandProcessorCommand>(app); break;
+                    case "SmartTagSuggest": RunCommand<Tags.SmartTagSuggestCommand>(app); break;
+                    case "TagAnalyticsDashboard": RunCommand<Tags.TagAnalyticsDashboardCommand>(app); break;
+                    case "TagBatchChain": RunCommand<Tags.TagBatchChainCommand>(app); break;
+                    case "TagPropagation": RunCommand<Tags.TagPropagationCommand>(app); break;
+                    case "TagQualityAnalyzer": RunCommand<Tags.TagQualityAnalyzerCommand>(app); break;
+                    case "TagRuleEngine": RunCommand<Tags.TagRuleEngineCommand>(app); break;
+                    case "TagVersionControl": RunCommand<Tags.TagVersionControlCommand>(app); break;
+
+                    // ── Organise: Extended ──
+                    case "DisciplineComplianceReport": RunCommand<Organise.DisciplineComplianceReportCommand>(app); break;
+                    case "NudgeTags": RunCommand<Organise.NudgeTagsCommand>(app); break;
+
+                    // ── Temp: COBie Reference Data (alternate tag names) ──
+                    case "COBieAttributeTemplates": RunCommand<Temp.COBieAttributeTemplatesCommand>(app); break;
+                    case "COBieDocumentTypes": RunCommand<Temp.COBieDocumentTypesCommand>(app); break;
+                    case "COBieExportEnhanced": RunCommand<Temp.COBieExportEnhancedCommand>(app); break;
+
+                    // ── Temp: DWG/CAD Import ──
+                    case "AuditLinkedCAD": RunCommand<Temp.AuditLinkedCADCommand>(app); break;
+                    case "AutoModel": RunCommand<Temp.AutoModelCommand>(app); break;
+                    case "BatchImportDWG": RunCommand<Temp.BatchImportDWGCommand>(app); break;
+                    case "CADInventory": RunCommand<Temp.CADInventoryCommand>(app); break;
+                    case "DWGConversionPlan": RunCommand<Temp.DWGConversionPlanCommand>(app); break;
+                    case "ExportLayerMapping": RunCommand<Temp.ExportLayerMappingCommand>(app); break;
+                    case "ExtractRoomsFromCAD": RunCommand<Temp.ExtractRoomsFromCADCommand>(app); break;
+                    case "ImportDWG": RunCommand<Temp.ImportDWGCommand>(app); break;
+                    case "ImportDWGWithMapping": RunCommand<Temp.ImportDWGWithMappingCommand>(app); break;
+                    case "LayerMapping": RunCommand<Temp.LayerMappingCommand>(app); break;
+                    case "LinkDWG": RunCommand<Temp.LinkDWGCommand>(app); break;
+                    case "LinkDWGAdvanced": RunCommand<Temp.LinkDWGAdvancedCommand>(app); break;
+                    case "PlaceFamiliesFromCAD": RunCommand<Temp.PlaceFamiliesFromCADCommand>(app); break;
+                    case "PreviewDWGLayers": RunCommand<Temp.PreviewDWGLayersCommand>(app); break;
+                    case "RemoveLinkedCAD": RunCommand<Temp.RemoveLinkedCADCommand>(app); break;
+                    case "TraceWallsFromCAD": RunCommand<Temp.TraceWallsFromCADCommand>(app); break;
+
+                    // ── Temp: Model Creation ──
+                    case "AutoCreateRooms": RunCommand<Temp.AutoCreateRoomsCommand>(app); break;
+                    case "CreateCeilingsInteractive": RunCommand<Temp.CreateCeilingsInteractiveCommand>(app); break;
+                    case "CreateColumnsAtGrids": RunCommand<Temp.CreateColumnsAtGridsCommand>(app); break;
+                    case "CreateFloorsInteractive": RunCommand<Temp.CreateFloorsInteractiveCommand>(app); break;
+                    case "CreateGridsFromCSV": RunCommand<Temp.CreateGridsFromCSVCommand>(app); break;
+                    case "CreateLevelsFromCSV": RunCommand<Temp.CreateLevelsFromCSVCommand>(app); break;
+                    case "CreateWallsInteractive": RunCommand<Temp.CreateWallsInteractiveCommand>(app); break;
+                    case "PlaceDoors": RunCommand<Temp.PlaceDoorsCommand>(app); break;
+                    case "PlaceMEPEquipment": RunCommand<Temp.PlaceMEPEquipmentCommand>(app); break;
+                    case "PlaceWindows": RunCommand<Temp.PlaceWindowsCommand>(app); break;
+
+                    // ── Temp: MEP Schedules (alternate tag names) ──
+                    case "MechanicalEquipmentSchedule": RunCommand<Temp.MechanicalEquipmentScheduleCommand>(app); break;
+
+                    // ── Temp: MEP Audits ──
+                    case "MEPConnectionAudit": RunCommand<Temp.MEPConnectionAuditCommand>(app); break;
+                    case "MEPSizingCheck": RunCommand<Temp.MEPSizingCheckCommand>(app); break;
+                    case "MEPSpaceAnalysis": RunCommand<Temp.MEPSpaceAnalysisCommand>(app); break;
+                    case "MEPSystemAudit": RunCommand<Temp.MEPSystemAuditCommand>(app); break;
+
+                    // ── Temp: Standards & Compliance (alternate tag names) ──
+                    case "Bs7671Compliance": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
+                    case "Bs8300Accessibility": RunCommand<Temp.Bs8300AccessibilityCommand>(app); break;
+                    case "CibseVelocityCheck": RunCommand<Temp.CibseVelocityCheckCommand>(app); break;
+                    case "Iso19650DeepCompliance": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
+                    case "PartLCompliance": RunCommand<Temp.PartLComplianceCommand>(app); break;
+                    case "StandardsDashboard": RunCommand<Temp.StandardsDashboardCommand>(app); break;
+                    case "UniclassClassify": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+
+                    // ── Temp: IoT & Maintenance (extended) ──
+                    case "AssetCondition": RunCommand<Temp.AssetConditionCommand>(app); break;
+                    case "CommissioningChecklist": RunCommand<Temp.CommissioningChecklistCommand>(app); break;
+                    case "DigitalTwinExport": RunCommand<Temp.DigitalTwinExportCommand>(app); break;
+                    case "EnergyAnalysis": RunCommand<Temp.EnergyAnalysisCommand>(app); break;
+                    case "LifecycleCost": RunCommand<Temp.LifecycleCostCommand>(app); break;
+                    case "SensorPointMapper": RunCommand<Temp.SensorPointMapperCommand>(app); break;
+                    case "WarrantyTracker": RunCommand<Temp.WarrantyTrackerCommand>(app); break;
+
+                    // ── Temp: Room & Space (alternate tag names) ──
+                    case "RoomBasedParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
+                    case "SpaceManagement": RunCommand<Temp.SpaceManagementCommand>(app); break;
+
+                    // ── Temp: Data Validation ──
+                    case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "CrossModelClash": RunCommand<Temp.CrossModelClashCommand>(app); break;
+                    case "NamingAudit": RunCommand<Temp.NamingConventionAuditCommand>(app); break;
+                    case "MEPClearance": RunCommand<Temp.MEPClearanceValidationCommand>(app); break;
+                    case "IFCPropertyValidation": RunCommand<Temp.IFCPropertyValidationCommand>(app); break;
+                    case "UserProductivity": RunCommand<BIMManager.UserProductivityReportCommand>(app); break;
+                    case "NotificationPrefs": RunCommand<BIMManager.NotificationPreferencesCommand>(app); break;
+                    case "TaskAssignment": RunCommand<BIMManager.TaskAssignmentCommand>(app); break;
+                    case "GbXMLEnrichment": RunCommand<BIMManager.GbXMLEnrichmentCommand>(app); break;
+                    case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
+                    case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
+                    case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;
+                    case "DataReport": RunCommand<Temp.DataReportCommand>(app); break;
+                    case "ExportUnifiedRegistry": RunCommand<Temp.ExportUnifiedRegistryCommand>(app); break;
+                    case "IFCExportEnhanced": RunCommand<Temp.IFCExportEnhancedCommand>(app); break;
+                    case "ModelElementAudit": RunCommand<Temp.ModelElementAuditCommand>(app); break;
+                    case "ValidateBindingMatrix": RunCommand<Temp.ValidateBindingMatrixCommand>(app); break;
+                    case "ValidateFamilyBindings": RunCommand<Temp.ValidateFamilyBindingsCommand>(app); break;
+                    case "ViewParameterMetadata": RunCommand<Temp.ViewParameterMetadataCommand>(app); break;
+
+                    // ── Temp: Handover & Export ──
+                    case "HandoverPackage": RunCommand<Temp.HandoverPackageCommand>(app); break;
+
+                    // ── Streaming COBie / 4D-5D Exports (Phase 35) ──
+                    case "StreamingCOBieExport": RunCommand<Docs.StreamingCOBieExportCommand>(app); break;
+                    case "NavisworksTimeLiner": RunCommand<BIMManager.NavisworksTimeLinerExportCommand>(app); break;
+                    case "ElementCostTrace": RunCommand<BIMManager.ElementCostTraceCommand>(app); break;
+
+                    // ── Unified WPF Dialog Wizards (Phase 36) ──
+                    case "DocWizard":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) { TaskDialog.Show("STING", "No document open."); break; }
+                        var dlgResult = UI.DocAutomationDialog.Show(doc);
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            // Dispatch to the selected operation command
+                            SetCommand(dlgResult.Operation);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "ModelWizard":
+                    {
+                        var dlgResult = UI.ModelCreationDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.ElementType))
+                        {
+                            // Store dimensions/options as ExtraParams then dispatch
+                            foreach (var kv in dlgResult.Dimensions)
+                                SetExtraParam(kv.Key, kv.Value.ToString("F1"));
+                            foreach (var kv in dlgResult.Options)
+                                SetExtraParam(kv.Key, kv.Value);
+                            SetCommand(dlgResult.ElementType);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "ScheduleWizard":
+                    {
+                        var dlgResult = UI.ScheduleWizardDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            Execute(app);
+                        }
+                        break;
+                    }
+
+                    // ── Phase 37: Quality Assurance Commands ──
+                    case "WarningReview": RunCommand<BIMManager.WarningReviewCommand>(app); break;
+                    case "WarningExport": RunCommand<BIMManager.WarningExportCommand>(app); break;
+                    case "RunCustomRules": RunCommand<BIMManager.RunCustomRulesCommand>(app); break;
+                    case "ModelHealthScan": RunCommand<BIMManager.ModelHealthScanCommand>(app); break;
+                    case "ModelHealthExportJson": RunCommand<BIMManager.ModelHealthExportJsonCommand>(app); break;
+                    case "QAReport": RunCommand<BIMManager.QAReportCommand>(app); break;
+                    case "SetupValidation": RunCommand<BIMManager.SetupValidationCommand>(app); break;
+
+                    // ── Phase 37: Workset Audit Commands ──
+                    case "WorksetAudit": RunCommand<BIMManager.WorksetAuditCommand>(app); break;
+                    case "WorksetAuditExport": RunCommand<BIMManager.WorksetAuditExportCommand>(app); break;
+                    case "CreateStandardWorksets": RunCommand<BIMManager.CreateStandardWorksetsCommand>(app); break;
+
+                    // ── Phase 37: Link Manager Commands ──
+                    case "LinkAudit": RunCommand<BIMManager.LinkAuditCommand>(app); break;
+                    case "LinkAuditExport": RunCommand<BIMManager.LinkAuditExportCommand>(app); break;
+                    case "LinkStats": RunCommand<BIMManager.LinkStatsCommand>(app); break;
+
+                    // ── Phase 37: Spatial Validation Commands ──
+                    case "SpatialValidation": RunCommand<Docs.SpatialValidationCommand>(app); break;
+                    case "SpatialValidationExport": RunCommand<Docs.SpatialValidationExportCommand>(app); break;
+                    case "GridAudit": RunCommand<Docs.GridAuditCommand>(app); break;
+                    case "LevelAudit": RunCommand<Docs.LevelAuditCommand>(app); break;
+
+                    // ── Phase 37: Family Audit Commands ──
+                    case "FamilyAudit": RunCommand<Docs.FamilyAuditCommand>(app); break;
+                    case "FamilyAuditExport": RunCommand<Docs.FamilyAuditExportCommand>(app); break;
+                    case "ViewSheetCompleteness": RunCommand<Docs.ViewSheetCompletenessCommand>(app); break;
+
+                    // ── Phase 37: Carbon Tracking Commands ──
+                    case "CarbonCalculator": RunCommand<BIMManager.CarbonCalculatorCommand>(app); break;
+                    case "CarbonExport": RunCommand<BIMManager.CarbonExportCommand>(app); break;
+
+                    // ── Phase 37: Parameter Diff Commands ──
+                    case "TakeSnapshot": RunCommand<BIMManager.TakeSnapshotCommand>(app); break;
+                    case "CompareSnapshot": RunCommand<BIMManager.CompareSnapshotCommand>(app); break;
+                    case "SnapshotDiffExport": RunCommand<BIMManager.SnapshotDiffExportCommand>(app); break;
+
+                    // ── Phase 37: Print Manager Commands ──
+                    case "BatchPDFExport": RunCommand<Docs.BatchPDFExportCommand>(app); break;
+                    case "SheetSetSummary": RunCommand<Docs.SheetSetSummaryCommand>(app); break;
+
+                    // ── Phase 37: Selection Set Commands ──
+                    case "SaveSelectionSet": RunCommand<Select.SaveSelectionSetCommand>(app); break;
+                    case "RecallSelectionSet": RunCommand<Select.RecallSelectionSetCommand>(app); break;
+                    case "ManageSelectionSets": RunCommand<Select.ManageSelectionSetsCommand>(app); break;
+
+                    // ── Phase 37: LAN Collaboration Commands ──
+                    case "LANEnableWorksharing": RunCommand<BIMManager.LANEnableWorksharingCommand>(app); break;
+                    case "LANSyncToCentral": RunCommand<BIMManager.LANSyncToCentralCommand>(app); break;
+                    case "LANBackup": RunCommand<BIMManager.LANBackupCommand>(app); break;
+                    case "LANTeamDashboard": RunCommand<BIMManager.LANTeamDashboardCommand>(app); break;
+                    case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
+                    case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
+
+                    // ── Phase 42: Coordination Center Commands ──
+                    case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
+                    case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "ToggleFileMonitor": RunCommand<BIMManager.ToggleFileMonitorCommand>(app); break;
+                    case "BroadcastNotification": RunCommand<BIMManager.BroadcastNotificationCommand>(app); break;
+                    case "AccessControl": RunCommand<BIMManager.AccessControlCommand>(app); break;
+
+                    // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
-                        TaskDialog.Show("StingTools",
-                            $"Command '{tag}' is not yet available.\nCheck for plugin updates.");
+                        TaskDialog.Show("STING — Unknown Command",
+                            $"Command '{tag}' could not be matched to a handler.\n\n" +
+                            "This may be a button from a newer version of the panel.\n" +
+                            "Try updating the plugin or check the TAGS/BIM/TEMP tabs for the equivalent command.");
                         break;
                 }
             }
@@ -1023,6 +2095,17 @@ namespace StingTools.UI
                     _param1 = "";
                     _param2 = "";
                 }
+
+                // Clear ExtraParams to prevent cross-command state pollution
+                // (e.g., ElbowMode from tag command bleeding into next selection command)
+                ClearAllExtraParams();
+
+                // FIX-UI03: Notify panel that command completed so Tag Studio
+                // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
+                // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
+                // was never called after execution.
+                try { StingDockPanel.NotifyCommandComplete(); }
+                catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
@@ -1042,6 +2125,99 @@ namespace StingTools.UI
         /// Commands can use this as a fallback when ExternalCommandData is null.
         /// </summary>
         public static UIApplication CurrentApp { get; private set; }
+
+        // ── Sheet Manager live operation runner ──────────────────────
+
+        /// <summary>
+        /// Handles SM_* dispatch tags from the modeless SheetManagerDialog.
+        /// Reconstructs SheetManagerResult from ExtraParams and calls DispatchOperation.
+        /// Refreshes the dialog tree after each operation completes.
+        /// </summary>
+        private static void RunSheetManagerOp(UIApplication app, string tag)
+        {
+            try
+            {
+                var uidoc = app.ActiveUIDocument;
+                if (uidoc == null) return;
+                var doc = uidoc.Document;
+
+                // Strip SM_ prefix to get the operation name
+                string operation = tag.StartsWith("SM_") ? tag.Substring(3) : tag;
+
+                // Reconstruct SheetManagerResult from ExtraParams
+                var result = new SheetManagerResult
+                {
+                    Confirmed = true,
+                    Operation = operation,
+                    Options = new Dictionary<string, object>()
+                };
+
+                // Map ExtraParams back to Options dictionary with proper types
+                // ViewTag, SheetTag, SelectedTag → ElementId
+                string viewTag = GetExtraParam("SM_ViewTag");
+                if (!string.IsNullOrEmpty(viewTag) && long.TryParse(viewTag, out long vid))
+                    result.Options["ViewTag"] = new ElementId(vid);
+
+                string sheetTag = GetExtraParam("SM_SheetTag");
+                if (!string.IsNullOrEmpty(sheetTag) && long.TryParse(sheetTag, out long sid))
+                    result.Options["SheetTag"] = new ElementId(sid);
+
+                string selectedTag = GetExtraParam("SM_SelectedTag");
+                if (!string.IsNullOrEmpty(selectedTag) && long.TryParse(selectedTag, out long selId))
+                    result.Options["SelectedTag"] = new ElementId(selId);
+
+                string viewportTag = GetExtraParam("SM_ViewportTag");
+                if (!string.IsNullOrEmpty(viewportTag) && long.TryParse(viewportTag, out long vpId))
+                    result.Options["ViewportTag"] = new ElementId(vpId);
+
+                string targetSheetTag = GetExtraParam("SM_TargetSheetTag");
+                if (!string.IsNullOrEmpty(targetSheetTag) && long.TryParse(targetSheetTag, out long tsId))
+                    result.Options["TargetSheetTag"] = new ElementId(tsId);
+
+                string targetSheetNum = GetExtraParam("SM_TargetSheetNumber");
+                if (!string.IsNullOrEmpty(targetSheetNum))
+                    result.Options["TargetSheetNumber"] = targetSheetNum;
+
+                string layoutMode = GetExtraParam("SM_LayoutMode");
+                if (!string.IsNullOrEmpty(layoutMode))
+                    result.Options["LayoutMode"] = layoutMode;
+
+                // Build context for operations that need it
+                var ctx = new StingCommandContext
+                {
+                    App = app,
+                    UIDoc = uidoc,
+                    Doc = doc,
+                    ActiveView = doc.ActiveView
+                };
+
+                // Execute the operation
+                var cmd = new Docs.SheetManagerCommand();
+                cmd.DispatchOperation(doc, ctx, result);
+
+                StingLog.Info($"Sheet Manager live op '{operation}' completed.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Sheet Manager live op '{tag}' failed: {ex.Message}");
+            }
+            finally
+            {
+                // Refresh the modeless dialog tree so it reflects the changes
+                try
+                {
+                    if (SheetManagerDialog.IsOpen)
+                    {
+                        System.Windows.Application.Current?.Dispatcher?.InvokeAsync(() =>
+                        {
+                            try { SheetManagerDialog.RefreshData(); }
+                            catch (Exception ex) { StingLog.Warn($"SM refresh failed: {ex.Message}"); }
+                        });
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SM refresh dispatch failed: {ex.Message}"); }
+            }
+        }
 
         // ── Generic command runner ────────────────────────────────────
 
@@ -1350,68 +2526,165 @@ namespace StingTools.UI
 
         private static void RefreshParamList(UIApplication app)
         {
+            // Legacy method — redirects to the enhanced dialog
+            OpenParameterLookupDialog(app);
+        }
+
+        /// <summary>
+        /// Open the enhanced Parameter Lookup dialog with category picker,
+        /// searchable parameter list, value display, and condition filtering.
+        /// Replaces the old RefreshParamList + Condition* methods.
+        /// </summary>
+        private static void OpenParameterLookupDialog(UIApplication app)
+        {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
             var view = doc.ActiveView;
             if (view == null)
             {
-                TaskDialog.Show("Parameter List", "No active view — switch to a model view first.");
+                TaskDialog.Show("Parameter Lookup", "No active view — switch to a model view first.");
                 return;
             }
 
-            // Collect parameter names from selected element (or first taggable in view)
-            var ids = uidoc.Selection.GetElementIds();
-            Element target = null;
-            if (ids.Count > 0)
-                target = doc.GetElement(ids.First());
-            if (target == null)
-            {
-                target = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType()
-                    .FirstOrDefault(e => e.Category != null);
-            }
+            // Collect elements from the active view
+            var viewElements = new FilteredElementCollector(doc, view.Id)
+                .WhereElementIsNotElementType()
+                .Where(e => e.Category != null)
+                .ToList();
 
-            if (target == null)
+            if (viewElements.Count == 0)
             {
-                TaskDialog.Show("Parameter List", "No elements found in current view.");
+                TaskDialog.Show("Parameter Lookup", "No elements found in current view.");
                 return;
             }
 
-            // Build param list: registry params + element instance params
-            var paramNames = new SortedSet<string>(StringComparer.Ordinal);
+            // Build parameter list from elements + registry
+            var paramNames = Select.ColorHelper.GetAvailableParameters(doc, viewElements);
             foreach (string p in ParamRegistry.AllParamGuids.Keys)
-                paramNames.Add(p);
-
-            foreach (Parameter p in target.Parameters)
             {
-                if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
-                    paramNames.Add(p.Definition.Name);
+                if (!paramNames.Contains(p))
+                    paramNames.Add(p);
             }
+            paramNames.Sort(StringComparer.OrdinalIgnoreCase);
 
-            // Populate all three parameter dropdowns in the dockable panel
-            StingDockPanel.PopulateParamDropdowns(paramNames);
+            // Build category list
+            var categories = viewElements
+                .Select(e => e.Category?.Name)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
 
-            var msg = new StringBuilder();
-            msg.AppendLine($"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total):\n");
-            int shown = 0;
-            foreach (string name in paramNames)
+            // Also populate the dockable panel dropdowns
+            StingDockPanel.PopulateParamDropdowns(new SortedSet<string>(paramNames));
+
+            // Query function: get values for a parameter across elements
+            Func<string, string, List<ParameterLookupDialog.ParamValueEntry>> queryFunc =
+                (paramName, category) =>
+                {
+                    var filtered = category != null
+                        ? viewElements.Where(e => e.Category?.Name == category)
+                        : viewElements;
+
+                    var groups = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+                    var storageTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var el in filtered)
+                    {
+                        string val = Select.ColorHelper.GetParameterValue(el, paramName) ?? "";
+                        if (!groups.TryGetValue(val, out var ids))
+                        {
+                            ids = new List<long>();
+                            groups[val] = ids;
+                        }
+                        ids.Add(el.Id.Value);
+
+                        if (!storageTypes.ContainsKey(val))
+                        {
+                            var p = el.LookupParameter(paramName);
+                            if (p != null) storageTypes[val] = p.StorageType.ToString();
+                        }
+                    }
+
+                    return groups.Select(g => new ParameterLookupDialog.ParamValueEntry
+                    {
+                        ParameterName = paramName,
+                        Value = g.Key,
+                        ElementCount = g.Value.Count,
+                        ElementIds = g.Value,
+                        StorageType = storageTypes.TryGetValue(g.Key, out var st) ? st : ""
+                    }).ToList();
+                };
+
+            // Filter function: evaluate conditions and return matching element IDs
+            Func<List<ParameterLookupDialog.Condition>, string, List<long>> filterFunc =
+                (conditions, category) =>
+                {
+                    var filtered = category != null
+                        ? viewElements.Where(e => e.Category?.Name == category)
+                        : viewElements;
+
+                    var matchIds = new List<long>();
+                    foreach (var el in filtered)
+                    {
+                        bool allMatch = true;
+                        foreach (var cond in conditions)
+                        {
+                            string actual = Select.ColorHelper.GetParameterValue(el, cond.Parameter) ?? "";
+                            bool match = cond.Operator switch
+                            {
+                                "contains" => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0,
+                                "equals" => string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "not equals" => !string.Equals(actual, cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "starts with" => actual.StartsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                "ends with" => actual.EndsWith(cond.Value ?? "", StringComparison.OrdinalIgnoreCase),
+                                ">" => double.TryParse(actual, out var av) && double.TryParse(cond.Value, out var cv) && av > cv,
+                                "<" => double.TryParse(actual, out var av2) && double.TryParse(cond.Value, out var cv2) && av2 < cv2,
+                                ">=" => double.TryParse(actual, out var av3) && double.TryParse(cond.Value, out var cv3) && av3 >= cv3,
+                                "<=" => double.TryParse(actual, out var av4) && double.TryParse(cond.Value, out var cv4) && av4 <= cv4,
+                                "is empty" => string.IsNullOrEmpty(actual),
+                                "is not empty" => !string.IsNullOrEmpty(actual),
+                                _ => actual.IndexOf(cond.Value ?? "", StringComparison.OrdinalIgnoreCase) >= 0
+                            };
+                            if (!match) { allMatch = false; break; }
+                        }
+                        if (allMatch) matchIds.Add(el.Id.Value);
+                    }
+                    return matchIds;
+                };
+
+            // Show the dialog
+            var result = ParameterLookupDialog.Show(paramNames, categories, queryFunc, filterFunc);
+            if (result == null) return;
+
+            // Handle the result action
+            if (result.Action == "Select" && result.MatchedElementIds.Count > 0)
             {
-                if (shown++ > 80) { msg.AppendLine($"  ... and {paramNames.Count - 80} more"); break; }
-                string val = ParameterHelpers.GetString(target, name);
-                if (!string.IsNullOrEmpty(val))
-                    msg.AppendLine($"  {name} = {val}");
-                else
-                    msg.AppendLine($"  {name}");
+                var elementIds = result.MatchedElementIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(elementIds);
+                TaskDialog.Show("Parameter Lookup",
+                    $"Selected {elementIds.Count} matching elements.");
+                StingLog.Info($"ParamLookup Select: {elementIds.Count} elements");
             }
-
-            var td = new TaskDialog("STING Tools - Parameter List");
-            td.MainInstruction = $"Parameters for {ParameterHelpers.GetCategoryName(target)} ({paramNames.Count} total)";
-            td.MainContent = msg.ToString();
-            td.CommonButtons = TaskDialogCommonButtons.Ok;
-            td.DefaultButton = TaskDialogResult.Ok;
-            td.Show();
-            StingLog.Info($"RefreshParamList: {paramNames.Count} params for {ParameterHelpers.GetCategoryName(target)}");
+            else if (result.Action == "Color" && !string.IsNullOrEmpty(result.SelectedParameter))
+            {
+                // Delegate to ColorByParameter with the selected parameter
+                SetExtraParam("ColorParam", result.SelectedParameter);
+                RunCommand<Select.ColorByParameterCommand>(app);
+            }
+            else if (result.Action == "Apply" && result.MatchedElementIds.Count > 0)
+            {
+                var elementIds = result.MatchedElementIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(elementIds);
+                TaskDialog.Show("Parameter Lookup",
+                    $"Applied filter: {elementIds.Count} elements selected from {result.Conditions.Count} condition(s).");
+                StingLog.Info($"ParamLookup Apply: {elementIds.Count} elements, {result.Conditions.Count} conditions");
+            }
+            else if (result.MatchedElementIds.Count == 0 && result.Conditions.Count > 0)
+            {
+                TaskDialog.Show("Parameter Lookup", "No elements matched the specified conditions.");
+            }
         }
 
         private static void QuickParamFilter(UIApplication app, string paramName)
@@ -1470,9 +2743,11 @@ namespace StingTools.UI
                     var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
                     var formulas = Core.TagPipelineHelper.LoadFormulas();
                     var grids = Core.TagPipelineHelper.LoadGridLines(doc);
-                    Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
+                    bool previewOk = Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
                         formulas, grids, overwrite: true, skipComplete: false,
                         collisionMode: Core.TagCollisionMode.AutoIncrement);
+                    if (!previewOk)
+                        Core.StingLog.Warn($"PreviewTag: pipeline returned false for element {el?.Id}");
                     predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
                     string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);
                     string loc   = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.LOC);
@@ -1754,65 +3029,69 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            var doc = uidoc.Document;
             var view = uidoc.ActiveView;
             if (view == null) { TaskDialog.Show("Color By Parameter", "No active view."); return; }
+            // View capability check — must be a model view, not a schedule/sheet/browser
+            if (view is ViewSchedule || view.ViewType == ViewType.DrawingSheet ||
+                view.ViewType == ViewType.ProjectBrowser || view.ViewType == ViewType.SystemBrowser)
+            {
+                TaskDialog.Show("Color By Parameter", "This feature requires a model view (plan, section, elevation, or 3D).");
+                return;
+            }
             if (string.IsNullOrEmpty(paramName))
             {
                 TaskDialog.Show("Color By Parameter", "Select a parameter name first.");
                 return;
             }
 
-            // If elements are selected, color only the selection; otherwise color entire view
+            // Honour selected elements before full view scan
             var selIds = uidoc.Selection.GetElementIds();
             List<Element> elements;
             string scope;
             if (selIds.Count > 0)
             {
-                elements = selIds.Select(id => uidoc.Document.GetElement(id))
-                    .Where(e => e != null && e.IsValidObject)
+                elements = selIds.Select(id => doc.GetElement(id))
+                    .Where(e => e != null && e.IsValidObject && e.Category != null
+                             && e.Category.CategoryType == CategoryType.Model)
                     .ToList();
                 scope = $"{elements.Count} selected elements";
             }
             else
             {
-                elements = new FilteredElementCollector(uidoc.Document, view.Id)
+                elements = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
                     .ToList();
                 scope = $"{elements.Count} elements in view";
             }
 
+            // Group elements by parameter value with HasValue check
             var groups = new Dictionary<string, List<ElementId>>();
             foreach (var el in elements)
             {
-                string val = ParameterHelpers.GetString(el, paramName);
-                if (string.IsNullOrEmpty(val))
+                string val = null;
+                var p = el.LookupParameter(paramName);
+                if (p != null && p.HasValue)
                 {
-                    var p = el.LookupParameter(paramName);
-                    val = p?.AsValueString() ?? "<No Value>";
+                    val = p.StorageType == StorageType.String ? p.AsString()
+                        : p.AsValueString();
                 }
+                if (string.IsNullOrEmpty(val))
+                    val = "<No Value>";
                 if (!groups.ContainsKey(val))
                     groups[val] = new List<ElementId>();
                 groups[val].Add(el.Id);
             }
 
             Color[] palette = GetColorPalette(paletteName, groups.Count);
+            if (groups.Count > palette.Length)
+                StingLog.Warn($"ColorByParameter: {groups.Count} unique values exceeds palette size ({palette.Length}) — colors will cycle.");
 
-            FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try
-                {
-                    if (fpe.GetFillPattern().IsSolidFill)
-                    {
-                        solidFill = fpe;
-                        break;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
+            // Use cached solid fill pattern from ColorHelper
+            var solidFill = Select.ColorHelper.FindSolidFill(doc);
 
-            using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Parameter"))
+            using (Transaction tx = new Transaction(doc, "STING Color By Parameter"))
             {
                 tx.Start();
                 int colorIdx = 0;
@@ -1825,6 +3104,8 @@ namespace StingTools.UI
                     {
                         ogs.SetSurfaceForegroundPatternId(solidFill.Id);
                         ogs.SetSurfaceForegroundPatternColor(color);
+                        ogs.SetCutForegroundPatternId(solidFill.Id);
+                        ogs.SetCutForegroundPatternColor(color);
                     }
                     foreach (ElementId id in kvp.Value)
                         view.SetElementOverrides(id, ogs);
@@ -2130,44 +3411,8 @@ namespace StingTools.UI
 
         private static void ScheduleEqualiseColumns(UIApplication app)
         {
-            var doc = app.ActiveUIDocument?.Document;
-            if (doc == null) return;
-            if (!(doc.ActiveView is ViewSchedule sched))
-            { TaskDialog.Show("Schedule", "Active view must be a schedule."); return; }
-
-            var def = sched.Definition;
-            int fieldCount = def.GetFieldCount();
-            if (fieldCount == 0) return;
-
-            // Find max width
-            double maxWidth = 0;
-            for (int i = 0; i < fieldCount; i++)
-            {
-                try
-                {
-                    double w = def.GetField(i).GridColumnWidth;
-                    if (w > maxWidth) maxWidth = w;
-                }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
-
-            int updated = 0;
-            using (Transaction tx = new Transaction(doc, "STING Equalise Columns"))
-            {
-                tx.Start();
-                for (int i = 0; i < fieldCount; i++)
-                {
-                    try
-                    {
-                        def.GetField(i).GridColumnWidth = maxWidth;
-                        updated++;
-                    }
-                    catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-                }
-                tx.Commit();
-            }
-            TaskDialog.Show("Equalise Columns",
-                $"Set {updated} columns to width {maxWidth * 304.8:F1}mm.");
+            // Delegates to ScheduleMatchWidest — identical operation
+            ScheduleMatchWidest(app);
         }
 
         private static void ScheduleAutoFit(UIApplication app)
@@ -2213,7 +3458,7 @@ namespace StingTools.UI
                                 if (val != null && val.Length > maxLen)
                                     maxLen = val.Length;
                             }
-                            catch { break; }
+                            catch (Exception ex) { StingLog.Warn($"AutoFit cell read: {ex.Message}"); break; }
                         }
 
                         // Convert character count to approximate width
@@ -2655,10 +3900,8 @@ namespace StingTools.UI
             foreach (string zone in Core.TagConfig.ZoneCodes)
                 report.AppendLine($"  {zone}");
 
-            // Export to text file alongside data
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "TAG_DICTIONARY.txt");
+            // Export to user-preferred output directory
+            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -2800,21 +4043,69 @@ namespace StingTools.UI
                 report.AppendLine($"[{kvp.Key}]  {paramValue,-20} {kvp.Value.elems.Count,-8} {string.Join(", ", catCounts.Take(3))}");
             }
 
-            // Export
-            string exportPath = System.IO.Path.Combine(
-                StingToolsApp.DataPath ?? System.IO.Path.GetTempPath(),
-                "COLOR_LEGEND.txt");
+            // Export to project file location (fallback to data path)
+            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
             }
-            catch { exportPath = null; }
+            catch (Exception ex) { StingLog.Warn($"Color legend export: {ex.Message}"); exportPath = null; }
 
             var msg = report.ToString();
             if (exportPath != null)
                 msg += $"\n\nExported to: {exportPath}";
 
             TaskDialog.Show("Color Legend", msg);
+        }
+
+        // ── Sheet CSV export ─────────────────────────────────────────
+
+        private static void ExportSheetCSV(UIApplication app)
+        {
+            var doc = app.ActiveUIDocument?.Document;
+            if (doc == null) return;
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .OrderBy(s => s.SheetNumber)
+                .ToList();
+
+            if (sheets.Count == 0)
+            { TaskDialog.Show("Export Sheets", "No sheets in project."); return; }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Sheet_Number,Sheet_Name,Revision,Issue_Date,Discipline,Drawn_By,Checked_By,Approved_By,Views_Placed");
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    string num = (sheet.SheetNumber ?? "").Replace(",", ";");
+                    string name = (sheet.Name ?? "").Replace(",", ";");
+                    string rev = (sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "").Replace(",", ";");
+                    string issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION_DATE)?.AsString() ?? "";
+                    string disc = ParameterHelpers.GetString(sheet, "SHEET_DISCIPLINE") ?? "";
+                    string drawn = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
+                    string check = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
+                    string approved = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+                    int viewCount = sheet.GetAllPlacedViews()?.Count ?? 0;
+                    sb.AppendLine($"{num},{name},{rev},{issueDate},{disc},{drawn},{check},{approved},{viewCount}");
+                }
+                catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
+            }
+
+            string exportPath = OutputLocationHelper.GetTimestampedPath(
+                app.ActiveUIDocument?.Document, "SHEET_REGISTER", ".csv");
+            try
+            {
+                System.IO.File.WriteAllText(exportPath, sb.ToString());
+                TaskDialog.Show("Export Sheets", $"Exported {sheets.Count} sheets to:\n{exportPath}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"Sheet CSV export: {ex.Message}", ex);
+                TaskDialog.Show("Export Sheets", $"Export failed: {ex.Message}\n\n{sb}");
+            }
         }
 
         // ── TitleBlock operations ───────────────────────────────────
@@ -3179,7 +4470,7 @@ namespace StingTools.UI
                     }
                     if (!anyValid) orphaned.Add(tag.Id);
                 }
-                catch { orphaned.Add(tag.Id); }
+                catch (Exception ex) { StingLog.Warn($"Orphan check {tag.Id}: {ex.Message}"); orphaned.Add(tag.Id); }
             }
 
             if (orphaned.Count == 0)
@@ -3213,12 +4504,37 @@ namespace StingTools.UI
             }
         }
 
+        // Persisted tag layout for clone/apply across views
+        private static Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)> _clonedTagLayout;
+        private static string _clonedSourceViewName;
+
         private static void CloneTagLayout(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             var doc = uidoc.Document;
             var sourceView = doc.ActiveView;
+
+            // If layout already cloned, offer to apply it
+            if (_clonedTagLayout != null && _clonedTagLayout.Count > 0)
+            {
+                TaskDialog dlg = new TaskDialog("Clone Tag Layout");
+                dlg.MainInstruction = $"Layout from '{_clonedSourceViewName}' ({_clonedTagLayout.Count} tags) is stored.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Apply to Current View", "Move existing tags to cloned positions");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Capture New Layout", "Replace stored layout with current view's tags");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var result = dlg.Show();
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    ApplyClonedLayout(app);
+                    return;
+                }
+                else if (result != TaskDialogResult.CommandLink2)
+                    return;
+            }
 
             // Get tag positions from source view
             var sourceTags = new FilteredElementCollector(doc, sourceView.Id)
@@ -3233,7 +4549,8 @@ namespace StingTools.UI
             }
 
             // Build mapping: host element ID → tag head position + orientation
-            var tagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedTagLayout = new Dictionary<ElementId, (XYZ headPos, bool hasLeader, TagOrientation orient)>();
+            _clonedSourceViewName = sourceView.Name;
             foreach (var tag in sourceTags)
             {
                 try
@@ -3241,19 +4558,63 @@ namespace StingTools.UI
                     var hostIds = tag.GetTaggedLocalElementIds();
                     if (hostIds.Count > 0)
                     {
-                        tagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
+                        _clonedTagLayout[hostIds.First()] = (tag.TagHeadPosition, tag.HasLeader, tag.TagOrientation);
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"CloneTagLayout: {ex.Message}"); }
             }
 
             TaskDialog.Show("Clone Tag Layout",
-                $"Captured layout for {tagLayout.Count} tags in '{sourceView.Name}'.\n" +
-                "Navigate to target view and use 'Apply Cloned Layout' to apply.\n\n" +
-                "(Tag positions are stored relative to host elements. " +
-                "Matching is by element ID — same elements must exist in target view.)");
+                $"Captured layout for {_clonedTagLayout.Count} tags in '{sourceView.Name}'.\n" +
+                "Navigate to target view and click Clone again to apply.");
 
-            StingLog.Info($"CloneTagLayout: captured {tagLayout.Count} positions from '{sourceView.Name}'");
+            StingLog.Info($"CloneTagLayout: captured {_clonedTagLayout.Count} positions from '{sourceView.Name}'");
+        }
+
+        private static void ApplyClonedLayout(UIApplication app)
+        {
+            if (_clonedTagLayout == null || _clonedTagLayout.Count == 0)
+            {
+                TaskDialog.Show("Apply Layout", "No cloned layout stored. Clone a view first.");
+                return;
+            }
+
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var targetView = doc.ActiveView;
+
+            var targetTags = new FilteredElementCollector(doc, targetView.Id)
+                .OfClass(typeof(IndependentTag))
+                .Cast<IndependentTag>()
+                .ToList();
+
+            int applied = 0;
+            using (Transaction tx = new Transaction(doc, "STING Apply Cloned Tag Layout"))
+            {
+                tx.Start();
+                foreach (var tag in targetTags)
+                {
+                    try
+                    {
+                        var hostIds = tag.GetTaggedLocalElementIds();
+                        if (hostIds.Count == 0) continue;
+                        ElementId hostId = hostIds.First();
+                        if (!_clonedTagLayout.ContainsKey(hostId)) continue;
+
+                        var layout = _clonedTagLayout[hostId];
+                        tag.TagHeadPosition = layout.headPos;
+                        tag.TagOrientation = layout.orient;
+                        applied++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"ApplyLayout {tag.Id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            TaskDialog.Show("Apply Layout",
+                $"Applied cloned positions to {applied}/{targetTags.Count} tags in '{targetView.Name}'.");
+            StingLog.Info($"ApplyClonedLayout: {applied} tags repositioned in '{targetView.Name}'");
         }
 
         // ── Room tag placement ──────────────────────────────────────
@@ -4259,7 +5620,7 @@ namespace StingTools.UI
                 .Where(fs =>
                 {
                     try { return fs.Family?.FamilyCategory?.Name?.Contains("Tag") == true; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"Tag family filter: {ex.Message}"); return false; }
                 })
                 .ToList();
 
@@ -4354,7 +5715,7 @@ namespace StingTools.UI
                             // Straight: elbow on line near tag head
                             XYZ dir = delta.Normalize();
                             double len = delta.GetLength();
-                            elbowPos = hostCenter + dir * (len * 0.95);
+                            elbowPos = hostCenter + dir * (len * 0.85);
                         }
                         else if (effectiveMode == "45")
                         {
@@ -4423,116 +5784,21 @@ namespace StingTools.UI
                 // Otherwise assume 45° or unknown → cycle to 0 (straight)
                 return "0"; // Cycle: 45 → 0
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"ElbowAngle detect: {ex.Message}");
                 return "90";
             }
         }
 
-        // ── Conditional selection builder ─────────────────────────────
+        // ── Conditional selection builder (legacy — kept for ClearStaticState) ──
 
         private static readonly List<(string param, string op, string value)> _conditions
             = new List<(string, string, string)>();
 
-        private static void ConditionAdd(UIApplication app, string paramName, string value)
-        {
-            if (string.IsNullOrEmpty(paramName))
-            {
-                TaskDialog.Show("Condition", "Specify parameter name.");
-                return;
-            }
-            _conditions.Add((paramName, "=", value ?? ""));
-            TaskDialog.Show("Condition Builder",
-                $"Added: {paramName} = {value}\nConditions: {_conditions.Count}");
-        }
-
-        private static void ConditionRemove(UIApplication app)
-        {
-            if (_conditions.Count > 0)
-            {
-                var last = _conditions[_conditions.Count - 1];
-                _conditions.RemoveAt(_conditions.Count - 1);
-                TaskDialog.Show("Condition Builder",
-                    $"Removed: {last.param} {last.op} {last.value}\nRemaining: {_conditions.Count}");
-            }
-            else
-                TaskDialog.Show("Condition Builder", "No conditions to remove.");
-        }
-
-        private static void ConditionClear(UIApplication app)
-        {
-            int count = _conditions.Count;
-            _conditions.Clear();
-            TaskDialog.Show("Condition Builder", $"Cleared {count} conditions.");
-        }
-
-        private static void ConditionPreview(UIApplication app)
-        {
-            if (_conditions.Count == 0)
-            {
-                TaskDialog.Show("Condition Preview", "No conditions defined.\nUse '+ Add' to build conditions.");
-                return;
-            }
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-            var doc = uidoc.Document;
-
-            int matchCount = CountConditionMatches(doc, doc.ActiveView.Id);
-            var sb = new StringBuilder();
-            sb.AppendLine("Conditions:");
-            foreach (var c in _conditions)
-                sb.AppendLine($"  {c.param} {c.op} \"{c.value}\"");
-            sb.AppendLine($"\nMatching elements: {matchCount}");
-            TaskDialog.Show("Condition Preview", sb.ToString());
-        }
-
-        private static void ConditionApply(UIApplication app)
-        {
-            if (_conditions.Count == 0)
-            {
-                TaskDialog.Show("Condition Apply", "No conditions defined.");
-                return;
-            }
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc == null) return;
-            var doc = uidoc.Document;
-
-            var matches = GetConditionMatches(doc, doc.ActiveView.Id);
-            uidoc.Selection.SetElementIds(matches);
-            TaskDialog.Show("Condition Apply",
-                $"Selected {matches.Count} elements matching {_conditions.Count} condition(s).");
-            StingLog.Info($"ConditionApply: {matches.Count} matches for {_conditions.Count} conditions");
-        }
-
-        private static int CountConditionMatches(Document doc, ElementId viewId)
-        {
-            return GetConditionMatches(doc, viewId).Count;
-        }
-
-        private static List<ElementId> GetConditionMatches(Document doc, ElementId viewId)
-        {
-            var results = new List<ElementId>();
-            foreach (Element el in new FilteredElementCollector(doc, viewId).WhereElementIsNotElementType())
-            {
-                bool allMatch = true;
-                foreach (var (param, op, value) in _conditions)
-                {
-                    string actual = ParameterHelpers.GetString(el, param);
-                    if (string.IsNullOrEmpty(actual))
-                    {
-                        var p = el.LookupParameter(param);
-                        actual = p?.AsValueString() ?? "";
-                    }
-                    if (!string.Equals(actual, value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        allMatch = false;
-                        break;
-                    }
-                }
-                if (allMatch) results.Add(el.Id);
-            }
-            return results;
-        }
+        // Legacy condition methods removed — replaced by OpenParameterLookupDialog()
+        // which provides a unified WPF dialog with full condition builder, 11 operators,
+        // live match count, and Select/Color/Apply actions.
 
         // ── Remaining stub implementations ────────────────────────────
 
@@ -4986,8 +6252,9 @@ namespace StingTools.UI
                     string status = linkDoc != null ? "Loaded" : "Unloaded";
                     report.AppendLine($"  [{status}] {name}");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StingLog.Warn($"Link read {link.Id}: {ex.Message}");
                     report.AppendLine($"  [Error] {link.Id}");
                 }
             }
@@ -5023,7 +6290,7 @@ namespace StingTools.UI
                     else
                         unloaded++;
                 }
-                catch { unloaded++; }
+                catch (Exception ex) { StingLog.Warn($"Link type check: {ex.Message}"); unloaded++; }
             }
 
             TaskDialog.Show("Audit Links",
@@ -5086,7 +6353,7 @@ namespace StingTools.UI
                                 moved++;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Tag position switch failed: {ex.Message}"); }
                     }
                 }
                 tx.Commit();

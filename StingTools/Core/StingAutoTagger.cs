@@ -46,6 +46,10 @@ namespace StingTools.Core
         private static HashSet<string> _cachedExistingTags;
         private static Dictionary<string, int> _cachedSeqCounters;
         private static bool _contextInvalid = true;
+        // PERF-07: TTL-based context rebuild to avoid redundant rebuilds in multi-command workflows.
+        // Instead of rebuilding immediately on every InvalidateContext(), use a 5-second TTL.
+        private static DateTime _contextCacheTime = DateTime.MinValue;
+        private const int ContextCacheTtlMs = 5000;
         // G2.3: Cached formulas and grid lines for pipeline helper
         private static List<Temp.FormulaEngine.FormulaDefinition> _formulas;
         private static List<Grid> _gridLines;
@@ -59,12 +63,56 @@ namespace StingTools.Core
         private static ExternalEvent _autoTagEvent;
         private static AutoTagQueueHandler _autoTagHandler;
 
+        // R-02: Deferred queue for elements skipped due to workset ownership
+        // Drained on DocumentSynchronizedWithCentral to retry after sync
+        private static readonly ConcurrentQueue<ElementId> _deferredElements = new ConcurrentQueue<ElementId>();
+
+        // AT-01: Cap deferred queue to prevent unbounded memory growth if sync never happens
+        private const int MaxDeferredQueueSize = 5000;
+
+        /// <summary>R-02: Enqueue an element ID for retry after sync-to-central.</summary>
+        // M-06 FIX: Track dropped elements for diagnostic purposes
+        private static int _droppedElementCount = 0;
+
+        public static void EnqueueDeferred(ElementId id)
+        {
+            if (_deferredElements.Count >= MaxDeferredQueueSize)
+            {
+                _droppedElementCount++;
+                // M-06 FIX: Throttle logging — only log every 100th drop to avoid log spam
+                // but use Error level (not Warn) so it's visible in diagnostics
+                if (_droppedElementCount <= 5 || _droppedElementCount % 100 == 0)
+                    StingLog.Error($"AutoTagger: deferred queue at capacity ({MaxDeferredQueueSize}), " +
+                        $"dropped {_droppedElementCount} elements total. Sync to central to drain queue.");
+                return;
+            }
+            _deferredElements.Enqueue(id);
+        }
+
+        /// <summary>R-02: Drain and discard the deferred queue (call on DocumentClosed).</summary>
+        public static void ClearDeferredQueue()
+        {
+            while (_deferredElements.TryDequeue(out _)) { }
+        }
+
+        /// <summary>R-02: Get deferred elements for retry processing.</summary>
+        public static List<ElementId> DrainDeferredQueue()
+        {
+            var result = new List<ElementId>();
+            while (_deferredElements.TryDequeue(out ElementId id))
+                result.Add(id);
+            return result;
+        }
+
         /// <summary>Invalidate cached context (call after external tagging operations).</summary>
         public static void InvalidateContext()
         {
             _contextInvalid = true;
             _tag7HashCache.Clear();
             _elementVersionHash.Clear();
+            // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
+            _consecutiveFailures = 0;
+            WasAutoDisabled = false;
             // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
             lock (_recentlyProcessed)
             {
@@ -140,7 +188,7 @@ namespace StingTools.Core
                     UpdaterRegistry.UnregisterUpdater(_updaterId);
                 StingLog.Info("StingAutoTagger: unregistered");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"StingAutoTagger unregister failed: {ex.Message}"); }
         }
 
         /// <summary>Toggle the auto-tagger on/off.</summary>
@@ -184,17 +232,50 @@ namespace StingTools.Core
             return _enabled;
         }
 
-        /// <summary>Enable or disable visual tag placement during auto-tagging.</summary>
-        public static void SetVisualTagging(bool enabled) { _visualTaggingEnabled = enabled; }
+        /// <summary>Enable or disable visual tag placement during auto-tagging.
+        /// FIX-10.1: Persists the setting to project_config.json.</summary>
+        public static void SetVisualTagging(bool enabled)
+        {
+            _visualTaggingEnabled = enabled;
+            try { TagConfig.SetConfigValue("AUTO_TAGGER_VISUAL", enabled); }
+            catch (Exception ex) { StingLog.Warn($"SetVisualTagging persist: {ex.Message}"); }
+        }
+        /// <summary>FIX-10.2: Set visual tagging state without persisting (used during config load to avoid re-save loop).</summary>
+        public static void SetVisualTaggingQuiet(bool enabled) { _visualTaggingEnabled = enabled; }
         /// <summary>Get current visual tagging state.</summary>
         public static bool IsVisualTaggingEnabled => _visualTaggingEnabled;
 
-        /// <summary>Set the allowed discipline filter. Empty set = all disciplines.</summary>
+        /// <summary>Set the allowed discipline filter. Empty set = all disciplines.
+        /// GAP-AT-03: Also persists to project_config.json for restoration on document open.</summary>
         public static void SetDisciplineFilter(IEnumerable<string> discs)
         {
             _allowedDiscs = discs != null
                 ? new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase)
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Persist filter to config so it survives document close/reopen
+            try
+            {
+                TagConfig.SetConfigValue("AUTO_TAGGER_DISC_FILTER",
+                    _allowedDiscs.Count > 0 ? string.Join(",", _allowedDiscs) : "");
+            }
+            catch (Exception ex) { StingLog.Warn($"Persist disc filter: {ex.Message}"); }
+        }
+
+        /// <summary>GAP-AT-03: Restore discipline filter from config (called on DocumentOpened).</summary>
+        public static void RestoreDisciplineFilter()
+        {
+            try
+            {
+                string filterStr = TagConfig.GetConfigValue("AUTO_TAGGER_DISC_FILTER");
+                if (!string.IsNullOrEmpty(filterStr))
+                {
+                    var discs = filterStr.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    _allowedDiscs = new HashSet<string>(discs, StringComparer.OrdinalIgnoreCase);
+                    if (discs.Count > 0)
+                        StingLog.Info($"AutoTagger: discipline filter restored ({string.Join(",", discs)})");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Restore disc filter: {ex.Message}"); }
         }
 
         /// <summary>
@@ -231,26 +312,44 @@ namespace StingTools.Core
                 if (addedIds == null || addedIds.Count == 0) return;
 
                 // Guard: limit elements per trigger to prevent performance issues
+                // GAP-AT-01: For bulk paste (>50 elements), queue for deferred processing
+                // instead of silently skipping. Elements will be tagged on next command or sync.
                 if (addedIds.Count > MaxElementsPerTrigger)
                 {
-                    StingLog.Info($"StingAutoTagger: skipping batch of {addedIds.Count} elements " +
-                        $"(exceeds limit of {MaxElementsPerTrigger})");
+                    foreach (ElementId id in addedIds)
+                        EnqueueDeferred(id);
+                    StingLog.Info($"StingAutoTagger: bulk paste of {addedIds.Count} elements queued for deferred processing " +
+                        $"(exceeds per-trigger limit of {MaxElementsPerTrigger})");
                     return;
                 }
 
                 // D1: Use cached context; rebuild only when invalidated
-                if (_contextInvalid || _cachedCtx == null)
+                // PERF-07: TTL-based context rebuild — avoids redundant rebuilds when
+                // multiple commands invalidate context in rapid succession (e.g., AutoTag → Combine → AutoTag)
+                bool ttlExpired = (DateTime.UtcNow - _contextCacheTime).TotalMilliseconds > ContextCacheTtlMs;
+                if (_contextInvalid || _cachedCtx == null || ttlExpired)
                 {
                     _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    // H-03 FIX: Validate context was actually built. Build() can return null
+                    // on corrupted documents. Without this check, we'd NullReferenceException
+                    // downstream and permanently disable the auto-tagger.
+                    if (_cachedCtx == null)
+                    {
+                        StingLog.Error("AutoTagger: PopulationContext.Build returned null — skipping auto-tag cycle");
+                        return;
+                    }
                     var built = TagConfig.BuildTagIndexAndCounters(doc);
                     _cachedExistingTags = built.Item1;
                     _cachedSeqCounters = built.Item2;
                     _formulas = TagPipelineHelper.LoadFormulas();
                     _gridLines = TagPipelineHelper.LoadGridLines(doc);
                     _contextInvalid = false;
+                    _contextCacheTime = DateTime.UtcNow;
                     StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas, {_gridLines.Count} grids)");
                 }
                 var ctx = _cachedCtx;
+                // H-03 FIX: Secondary null guard in case context was invalidated between rebuild and use
+                if (ctx == null) return;
                 var existingTags = _cachedExistingTags;
                 var seqCounters = _cachedSeqCounters;
 
@@ -275,7 +374,7 @@ namespace StingTools.Core
                         if (!_allowedDiscs.Contains(elemDisc)) continue;
                     }
 
-                    // Workset filter
+                    // Workset filter — R-02: defer elements on unowned worksets instead of dropping
                     if (doc.IsWorkshared)
                     {
                         try
@@ -287,10 +386,14 @@ namespace StingTools.Core
                                 if (!string.IsNullOrEmpty(wsInfo.Owner)
                                     && wsInfo.Owner != doc.Application.Username
                                     && wsInfo.Owner != "")
+                                {
+                                    _deferredElements.Enqueue(id);
+                                    StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
                                     continue;
+                                }
                             }
                         }
-                        catch { /* advisory */ }
+                        catch (Exception wsEx) { StingLog.Warn($"AutoTagger workset check: {wsEx.Message}"); }
                     }
 
                     _pendingQueue.Enqueue(id);
@@ -332,6 +435,12 @@ namespace StingTools.Core
                     if (_contextInvalid || _cachedCtx == null)
                     {
                         _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                        // H-03 FIX: Validate context in queue handler too
+                        if (_cachedCtx == null)
+                        {
+                            StingLog.Error("AutoTagQueueHandler: PopulationContext.Build returned null — skipping batch");
+                            return;
+                        }
                         var built = TagConfig.BuildTagIndexAndCounters(doc);
                         _cachedExistingTags = built.Item1;
                         _cachedSeqCounters = built.Item2;
@@ -342,6 +451,7 @@ namespace StingTools.Core
                         StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas)");
                     }
                     var ctx = _cachedCtx;
+                    if (ctx == null) return; // H-03 secondary guard
                     var existingTags = _cachedExistingTags;
                     var seqCounters = _cachedSeqCounters;
 
@@ -371,83 +481,18 @@ namespace StingTools.Core
 
                             try
                             {
-                                // Inherit tokens from family type
-                                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                // GAP-AQ: Use unified RunFullPipeline for all 11 canonical steps
+                                // (replaces inline pipeline that was missing CategorySkipList,
+                                //  CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail,
+                                //  and had NativeMapper in wrong order)
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                                    doc, el, ctx, existingTags, seqCounters,
+                                    _formulas, _gridLines,
+                                    overwrite: false,
+                                    skipComplete: true,
+                                    collisionMode: TagCollisionMode.AutoIncrement);
 
-                                // Populate all tokens
-                                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: false);
-
-                                // Build and write the tag
-                                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                                    skipComplete: true, existingTags: existingTags,
-                                    collisionMode: TagCollisionMode.AutoIncrement,
-                                    cachedRev: ctx.ProjectRev);
-
-                                // Track newly created tag
-                                string newTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                if (!string.IsNullOrEmpty(newTag)) existingTags.Add(newTag);
-
-                                // LOG-04: Only rebuild TAG7 when tokens actually changed.
-                                // Compare token hash before/after to skip expensive narrative rebuild.
-                                try
-                                {
-                                    string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                    string existingTag7 = ParameterHelpers.GetString(el, ParamRegistry.TAG7);
-                                    if (string.IsNullOrEmpty(existingTag7))
-                                    {
-                                        TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: false);
-                                    }
-                                    // else: TAG7 already populated and tokens were set by PopulateAll
-                                    // with overwrite:false, so existing TAG7 is still valid
-                                }
-                                catch (Exception tag7Ex)
-                                {
-                                    StingLog.Warn($"AutoTagger TAG7 for {id}: {tag7Ex.Message}");
-                                }
-
-                                // FIX-02: Bridge native Revit params to STING shared params
-                                try { NativeParamMapper.MapAll(doc, el); }
-                                catch (Exception nmEx) { StingLog.Warn($"AutoTagger NativeMapper for {id.Value}: {nmEx.Message}"); }
-
-                                // FIX-02: Evaluate formulas after token population and native mapping
-                                if (_formulas != null && _formulas.Count > 0)
-                                {
-                                    try
-                                    {
-                                        foreach (var formula in _formulas)
-                                        {
-                                            Parameter fp = el.LookupParameter(formula.ParameterName);
-                                            if (fp == null || fp.IsReadOnly) continue;
-                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
-                                            if (fCtx == null) continue;
-                                            if (formula.DataType == "TEXT")
-                                            {
-                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
-                                                if (fResult != null && fp.StorageType == StorageType.String
-                                                    && string.IsNullOrEmpty(fp.AsString()))
-                                                    fp.Set(fResult);
-                                            }
-                                            else
-                                            {
-                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
-                                                if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
-                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
-                                            }
-                                        }
-                                    }
-                                    catch (Exception fEx) { StingLog.Warn($"AutoTagger formula eval for {id.Value}: {fEx.Message}"); }
-                                }
-
-                                // Write containers
-                                try
-                                {
-                                    string[] combineTokens = ParamRegistry.ReadTokenValues(el);
-                                    ParamRegistry.WriteContainers(el, combineTokens, catName);
-                                }
-                                catch (Exception ex)
-                                {
-                                    StingLog.Warn($"AutoTagger combine failed for {id.Value}: {ex.Message}");
-                                }
+                                if (!pipelineOk) continue;
 
                                 // Visual tag placement
                                 if (_visualTaggingEnabled && doc.ActiveView != null
@@ -532,14 +577,14 @@ namespace StingTools.Core
                         StingLog.Error($"StingAutoTagger: auto-disabling after {_consecutiveFailures} " +
                             "consecutive failures");
                         WasAutoDisabled = true;
-                        try { Toggle(); } catch { _enabled = false; }
+                        try { Toggle(); } catch (Exception tEx) { _enabled = false; StingLog.Warn($"AutoTagger toggle on restore: {tEx.Message}"); }
 
                         try
                         {
                             UI.StingDockPanel.UpdateComplianceStatus(
                                 "Auto-Tagger DISABLED (errors — re-enable via toggle)", "RED");
                         }
-                        catch { }
+                        catch (Exception uiEx) { StingLog.Warn($"Auto-tagger status bar update failed: {uiEx.Message}"); }
                     }
                 }
             }
@@ -549,7 +594,7 @@ namespace StingTools.Core
 
         /// <summary>LOG-09: Track element version hashes to avoid redundant stale-marks.
         /// Key = element ID, Value = hash of tag + location tokens. Only re-mark when hash changes.</summary>
-        private static readonly Dictionary<long, string> _elementVersionHash = new Dictionary<long, string>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<long, string> _elementVersionHash = new System.Collections.Concurrent.ConcurrentDictionary<long, string>();
 
         /// <summary>A2: Debounce — minimum interval (ms) between stale-mark transactions.
         /// Prevents thundering-herd on bulk operations (group moves, workset assigns, filter applies).</summary>
@@ -580,12 +625,18 @@ namespace StingTools.Core
                 var modifiedIds = args.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
 
-                // Limit batch size to prevent performance issues
-                if (modifiedIds.Count > 100) return;
+                // R4-C AL-GAP-01: Process first 100 instead of dropping entire batch silently.
+                // Previously, moving 200+ elements caused ZERO stale marking.
+                ICollection<ElementId> processIds = modifiedIds;
+                if (modifiedIds.Count > 100)
+                {
+                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing first 100, {modifiedIds.Count - 100} unchecked.");
+                    processIds = modifiedIds.Take(100).ToList();
+                }
 
                 var idsToMark = new List<ElementId>();
 
-                foreach (ElementId id in modifiedIds)
+                foreach (ElementId id in processIds)
                 {
                     Element el = doc.GetElement(id);
                     if (el == null || !el.IsValidObject) continue;
@@ -620,12 +671,37 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                // LOG-09: Store current version hash so we don't re-mark unchanged elements
+                                // LG-04: Record which tokens changed for targeted re-derivation
                                 string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                                 string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                                 string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                                 string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                _elementVersionHash[id.Value] = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
+                                string newHash = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
+
+                                // Determine which tokens changed
+                                if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash != newHash)
+                                {
+                                    var changedTokens = new List<string>();
+                                    string[] prevParts = prevHash.Split('|');
+                                    string[] curParts = newHash.Split('|');
+                                    string[] tokenNames = { "TAG1", "LOC", "ZONE", "LVL" };
+                                    for (int ti = 0; ti < tokenNames.Length && ti < prevParts.Length && ti < curParts.Length; ti++)
+                                    {
+                                        if (prevParts[ti] != curParts[ti])
+                                            changedTokens.Add(tokenNames[ti]);
+                                    }
+                                    if (changedTokens.Count > 0)
+                                    {
+                                        try
+                                        {
+                                            Parameter staleTokens = el.LookupParameter("ASS_STALE_TOKENS_TXT");
+                                            if (staleTokens != null && !staleTokens.IsReadOnly)
+                                                staleTokens.Set(string.Join(",", changedTokens));
+                                        }
+                                        catch (Exception stEx) { StingLog.Warn($"StaleTokens write for {id.Value}: {stEx.Message}"); }
+                                    }
+                                }
+                                _elementVersionHash[id.Value] = newHash;
                             }
                         }
                         catch (Exception ex)
@@ -639,9 +715,21 @@ namespace StingTools.Core
                 // A2: Update last stale-mark timestamp for debounce
                 _lastStaleMarkTime = DateTime.UtcNow;
 
-                // LOG-09: Prune version hash cache when it grows too large
+                // PERF-07: Partial 20% LRU eviction instead of clearing entire cache
                 if (_elementVersionHash.Count > 10000)
-                    _elementVersionHash.Clear();
+                {
+                    // M-09 FIX: Capture count BEFORE eviction for accurate log output
+                    int originalCount = _elementVersionHash.Count;
+                    int evictCount = originalCount / 5; // 20%
+                    int evicted = 0;
+                    foreach (var key in _elementVersionHash.Keys.ToList()) // ToList() prevents enumeration-during-modification
+                    {
+                        if (evicted >= evictCount) break;
+                        _elementVersionHash.TryRemove(key, out _);
+                        evicted++;
+                    }
+                    StingLog.Info($"StingStaleMarker: evicted {evicted} of {originalCount} cached hashes");
+                }
 
                 StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");
             }
@@ -723,8 +811,30 @@ namespace StingTools.Core
                 msg = "Real-time auto-tagging DISABLED.\n\n" +
                       $"Total elements auto-tagged this session: {StingAutoTagger.ProcessedCount}";
             }
+            // FIX-B10: Persist auto-tagger state to project_config.json
+            TagConfig.AutoTaggerEnabled = nowEnabled;
+            PersistAutoTaggerConfig(commandData);
+
             TaskDialog.Show("Auto-Tagger", msg);
             return Result.Succeeded;
+        }
+
+        /// <summary>FIX-B10: Save auto-tagger config keys to project_config.json adjacent to the .rvt file.</summary>
+        internal static void PersistAutoTaggerConfig(ExternalCommandData commandData)
+        {
+            try
+            {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
+                string dir = System.IO.Path.GetDirectoryName(doc.PathName);
+                if (string.IsNullOrEmpty(dir)) return;
+                string cfgPath = System.IO.Path.Combine(dir, "project_config.json");
+                TagConfig.SaveToFile(cfgPath);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoTagger config persist: {ex.Message}");
+            }
         }
     }
 
@@ -736,6 +846,11 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+
+            // FIX-B10: Persist visual tagging state
+            TagConfig.AutoTaggerVisual = StingAutoTagger.IsVisualTaggingEnabled;
+            AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+
             TaskDialog.Show("STING Auto-Tagger",
                 $"Visual tag placement: {(StingAutoTagger.IsVisualTaggingEnabled ? "ENABLED" : "DISABLED")}\n\n" +
                 "When enabled, the auto-tagger will also place visual annotation tags on newly placed elements.");
@@ -768,9 +883,17 @@ namespace StingTools.Core
             td.CommonButtons = TaskDialogCommonButtons.Close;
             var result = td.Show();
             if (result == TaskDialogResult.CommandLink1)
+            {
                 StingAutoTagger.SetVisualTagging(!StingAutoTagger.IsVisualTaggingEnabled);
+                TagConfig.AutoTaggerVisual = StingAutoTagger.IsVisualTaggingEnabled;
+                AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+            }
             else if (result == TaskDialogResult.CommandLink2)
+            {
                 StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled);
+                TagConfig.AutoTaggerStaleMarker = StingStaleMarker.IsEnabled;
+                AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
+            }
             return Result.Succeeded;
         }
     }
@@ -854,7 +977,7 @@ namespace StingTools.Core
                 if (_instance != null)
                     UpdaterRegistry.UnregisterUpdater(_updaterId);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"StingStaleMarker unregister failed: {ex.Message}"); }
         }
 
         private const int MaxElementsPerTrigger = 20;
@@ -870,7 +993,29 @@ namespace StingTools.Core
 
                 var modifiedIds = data.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
-                if (modifiedIds.Count > MaxElementsPerTrigger) return;
+                if (modifiedIds.Count > MaxElementsPerTrigger)
+                {
+                    // STALE-01: Log when dropping elements due to batch limit so users
+                    // know stale detection was skipped (previously silently returned)
+                    StingLog.Info($"StingStaleMarker: skipping batch of {modifiedIds.Count} " +
+                        $"elements (exceeds limit of {MaxElementsPerTrigger}). " +
+                        "Run 'Retag Stale' manually after bulk operations.");
+                    return;
+                }
+
+                // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
+                // and prevent per-element room collector rebuilds inside an IUpdater
+                Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
+                string projectLoc = null;
+                try
+                {
+                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+                    projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                }
+                catch (Exception riEx)
+                {
+                    StingLog.Warn($"StingStaleMarker room index build: {riEx.Message}");
+                }
 
                 foreach (ElementId id in modifiedIds)
                 {
@@ -891,15 +1036,15 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(storedLvl) && currentLvl != storedLvl)
                             isStale = true;
 
-                        // FIX-07: Also detect LOC/ZONE changes from spatial context
-                        if (!isStale)
+                        // FIX-07/FIX-N07: Detect LOC/ZONE changes using pre-built roomIndex
+                        if (!isStale && roomIndex != null)
                         {
                             try
                             {
                                 string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                                 if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
                                 {
-                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, null, null);
+                                    string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
                                     if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
                                         isStale = true;
                                 }
@@ -909,14 +1054,37 @@ namespace StingTools.Core
                                     string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                                     if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
                                     {
-                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, null);
+                                        string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
                                         if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
                                             && currentZone != "ZZ" && currentZone != storedZone)
                                             isStale = true;
                                     }
                                 }
                             }
-                            catch { /* spatial detection is best-effort */ }
+                            catch (Exception spEx) { StingLog.Warn($"StaleMarker spatial detection: {spEx.Message}"); }
+                        }
+
+                        // R-06: MEP system change detection — SYS/FUNC become stale on system reassignment
+                        if (!isStale)
+                        {
+                            try
+                            {
+                                string categoryName = ParameterHelpers.GetCategoryName(el);
+                                if (IsMepCategory(categoryName))
+                                {
+                                    string storedSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                    if (!string.IsNullOrEmpty(storedSys) && storedSys != "GEN" && storedSys != "XX")
+                                    {
+                                        string currentSys = TagConfig.GetMepSystemAwareSysCode(el, categoryName);
+                                        if (!string.IsNullOrEmpty(currentSys) && currentSys != storedSys)
+                                        {
+                                            isStale = true;
+                                            StingLog.Info($"StaleMarker: MEP system change on {id.Value} — stored SYS={storedSys}, current={currentSys}");
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception mepEx) { StingLog.Warn($"StaleMarker MEP detection: {mepEx.Message}"); }
                         }
 
                         if (isStale)
@@ -936,6 +1104,19 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"StingStaleMarker.Execute: {ex.Message}");
             }
+        }
+
+        /// <summary>R-06: Check if category is MEP-related for system change detection.</summary>
+        private static bool IsMepCategory(string categoryName)
+        {
+            return categoryName == "Ducts" || categoryName == "Duct Fittings" ||
+                   categoryName == "Duct Accessories" || categoryName == "Air Terminals" ||
+                   categoryName == "Mechanical Equipment" ||
+                   categoryName == "Pipes" || categoryName == "Pipe Fittings" ||
+                   categoryName == "Pipe Accessories" || categoryName == "Plumbing Fixtures" ||
+                   categoryName == "Cable Trays" || categoryName == "Conduits" ||
+                   categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures" ||
+                   categoryName == "Fire Protection";
         }
     }
 }

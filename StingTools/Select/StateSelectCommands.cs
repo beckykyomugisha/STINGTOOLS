@@ -7,6 +7,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Select
 {
@@ -81,7 +82,7 @@ namespace StingTools.Select
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e =>
                 {
@@ -93,7 +94,8 @@ namespace StingTools.Select
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Empty Mark", $"Selected {ids.Count} elements with empty Mark ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -106,13 +108,14 @@ namespace StingTools.Select
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Pinned)
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Pinned", $"Selected {ids.Count} pinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -126,13 +129,14 @@ namespace StingTools.Select
             if (ctx?.ActiveView == null) { TaskDialog.Show("Select", "No active view."); return Result.Failed; }
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
-            var ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
+            var ids = SelectionScopeHelper.GetCollector(ctx.Doc, ctx.ActiveView)
                 .WhereElementIsNotElementType()
                 .Where(e => !e.Pinned && e.Category != null && known.Contains(ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id).ToList();
 
             ctx.UIDoc.Selection.SetElementIds(ids);
-            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements.");
+            string scope = SelectionScopeHelper.IsProjectScope ? "project" : "view";
+            TaskDialog.Show("Select Unpinned", $"Selected {ids.Count} unpinned elements ({scope}).");
             return Result.Succeeded;
         }
     }
@@ -375,130 +379,49 @@ namespace StingTools.Select
                 return Result.Succeeded;
             }
 
-            // Page 1: Operation category
-            TaskDialog td = new TaskDialog("Bulk Param Write");
-            td.MainInstruction = $"Bulk operation on {selected.Count} selected elements";
-            td.MainContent = "Choose an operation category:";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Location / Zone / Status",
-                "Set LOC, ZONE, or STATUS tokens");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Auto-populate all tokens",
-                "Auto-derive DISC, PROD, SYS, FUNC, LVL, LOC, ZONE from category and spatial data");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Clear tags",
-                "Clear ASS_TAG_1 and all token values (with confirmation)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Re-tag with overwrite",
-                "Force re-derive all tokens and regenerate tags for selected elements");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var page1 = td.Show();
-
-            switch (page1)
+            // Build preview data for the first few elements
+            var previewData = new List<BulkOperationDialog.PreviewEntry>();
+            int previewMax = Math.Min(selected.Count, 10);
+            int previewIdx = 0;
+            foreach (ElementId id in selected)
             {
-                case TaskDialogResult.CommandLink1:
-                    return BulkSetToken(doc, selected);
-                case TaskDialogResult.CommandLink2:
+                if (previewIdx >= previewMax) break;
+                Element elem = doc.GetElement(id);
+                if (elem == null) continue;
+                previewData.Add(new BulkOperationDialog.PreviewEntry
+                {
+                    CategoryName = ParameterHelpers.GetCategoryName(elem),
+                    CurrentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1),
+                    CurrentLoc = ParameterHelpers.GetString(elem, ParamRegistry.LOC),
+                    CurrentZone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE),
+                    CurrentStatus = ParameterHelpers.GetString(elem, ParamRegistry.STATUS)
+                });
+                previewIdx++;
+            }
+
+            // Show unified WPF dialog
+            var result = BulkOperationDialog.Show(selected.Count, previewData);
+            if (result.Cancelled)
+                return Result.Cancelled;
+
+            switch (result.Operation)
+            {
+                case BulkOperation.SetToken:
+                    return BulkSetToken(doc, selected, result.TokenName, result.TokenValue, result.AutoDetectStatus);
+                case BulkOperation.AutoPopulate:
                     return BulkAutoPopulate(doc, selected);
-                case TaskDialogResult.CommandLink3:
+                case BulkOperation.ClearTags:
                     return BulkClearTags(doc, selected);
-                case TaskDialogResult.CommandLink4:
+                case BulkOperation.Retag:
                     return BulkRetag(doc, selected);
                 default:
                     return Result.Cancelled;
             }
         }
 
-        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected)
+        private static Result BulkSetToken(Document doc, ICollection<ElementId> selected,
+            string paramName, string paramValue, bool autoDetectStatus)
         {
-            // Page 1: Choose token category
-            TaskDialog catDlg = new TaskDialog("Set Token");
-            catDlg.MainInstruction = $"Set token on {selected.Count} elements";
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Set LOC (Location)");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Set ZONE");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Set STATUS");
-            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Auto-detect STATUS from phases");
-            catDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var catResult = catDlg.Show();
-
-            string paramName = null;
-            string paramValue = null;
-            bool autoDetectStatus = false;
-
-            switch (catResult)
-            {
-                case TaskDialogResult.CommandLink1:
-                {
-                    // LOC picker with all location codes
-                    TaskDialog locDlg = new TaskDialog("Set LOC");
-                    locDlg.MainInstruction = "Choose location code";
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "BLD1", "Building 1 (primary)");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "BLD2", "Building 2");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "BLD3", "Building 3");
-                    locDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "EXT", "External / Site");
-                    locDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.LOC;
-                    switch (locDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "BLD1"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "BLD2"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "BLD3"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "EXT"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink2:
-                {
-                    // ZONE picker
-                    TaskDialog zoneDlg = new TaskDialog("Set ZONE");
-                    zoneDlg.MainInstruction = "Choose zone code";
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Z01", "Zone 01");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Z02", "Zone 02");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Z03", "Zone 03");
-                    zoneDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Z04", "Zone 04");
-                    zoneDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.ZONE;
-                    switch (zoneDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "Z01"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "Z02"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "Z03"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "Z04"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink3:
-                {
-                    // All 4 valid ISO 19650 construction statuses
-                    TaskDialog stsDlg = new TaskDialog("Set STATUS");
-                    stsDlg.MainInstruction = "Choose construction status (ISO 19650)";
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "NEW", "New construction — element to be built");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "EXISTING", "Existing — element already in place");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DEMOLISHED", "Demolished — element to be removed");
-                    stsDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "TEMPORARY", "Temporary — temporary element (hoarding, propping)");
-                    stsDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-                    paramName = ParamRegistry.STATUS;
-                    switch (stsDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: paramValue = "NEW"; break;
-                        case TaskDialogResult.CommandLink2: paramValue = "EXISTING"; break;
-                        case TaskDialogResult.CommandLink3: paramValue = "DEMOLISHED"; break;
-                        case TaskDialogResult.CommandLink4: paramValue = "TEMPORARY"; break;
-                        default: return Result.Cancelled;
-                    }
-                    break;
-                }
-                case TaskDialogResult.CommandLink4:
-                    autoDetectStatus = true;
-                    break;
-                default:
-                    return Result.Cancelled;
-            }
-
             int written = 0;
             int skipped = 0;
             using (Transaction tx = new Transaction(doc, "STING Bulk Set Token"))
@@ -543,6 +466,8 @@ namespace StingTools.Select
         private static Result BulkAutoPopulate(Document doc, ICollection<ElementId> selected)
         {
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // GAP-BA: Load formulas for evaluation after token population
+            var baFormulas = TagPipelineHelper.LoadFormulas();
             int populated = 0;
             int statusDetected = 0, revSet = 0;
 
@@ -554,17 +479,54 @@ namespace StingTools.Select
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
+                    // GAP-BA: TypeTokenInherit before PopulateAll
+                    TokenAutoPopulator.TypeTokenInherit(doc, elem);
+
                     // Full 9-token auto-population via shared helper
                     var result = TokenAutoPopulator.PopulateAll(doc, elem, popCtx);
                     populated += result.TokensSet;
-                    // NG9: Bridge native params after token population
+                    // Bridge native params after token population
                     try { NativeParamMapper.MapAll(doc, elem); }
                     catch (Exception nmEx9) { StingLog.Warn($"BulkAutoPopulate NativeMapper for {id}: {nmEx9.Message}"); }
+
+                    // GAP-BA: Evaluate formulas after NativeMapper
+                    if (baFormulas != null && baFormulas.Count > 0)
+                    {
+                        try
+                        {
+                            foreach (var formula in baFormulas)
+                            {
+                                Parameter fp = elem.LookupParameter(formula.ParameterName);
+                                if (fp == null || fp.IsReadOnly) continue;
+                                var fCtx = Temp.FormulaEngine.BuildContext(elem, formula);
+                                if (fCtx == null) continue;
+                                if (formula.DataType == "TEXT")
+                                {
+                                    string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                    if (fResult != null && fp.StorageType == StorageType.String
+                                        && string.IsNullOrEmpty(fp.AsString()))
+                                        fp.Set(fResult);
+                                }
+                                else
+                                {
+                                    double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                    if (fResult.HasValue && !double.IsNaN(fResult.Value) && !double.IsInfinity(fResult.Value))
+                                        Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                }
+                            }
+                        }
+                        catch (Exception fEx) { StingLog.Warn($"BulkAutoPopulate formula eval for {id}: {fEx.Message}"); }
+                    }
+
                     if (result.StatusDetected) statusDetected++;
                     if (result.RevSet) revSet++;
                 }
                 tx.Commit();
             }
+
+            // GAP-BA: Invalidate caches after bulk populate
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Auto-populated {populated} token values on {selected.Count} elements.");
@@ -579,17 +541,18 @@ namespace StingTools.Select
 
         private static Result BulkClearTags(Document doc, ICollection<ElementId> selected)
         {
-            TaskDialog confirm = new TaskDialog("Clear Tags");
-            confirm.MainInstruction = $"Clear all tags from {selected.Count} elements?";
-            confirm.MainContent = "This will clear ASS_TAG_1_TXT and all 8 token parameters.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
-
+            // Confirmation already handled by BulkOperationDialog warning panel
+            // LOGIC-02: Include TAG7 sub-sections, STALE flag, display text, and audit trail
+            // so cleared elements don't retain stale narrative or stale markers
             string[] clearParams = ParamRegistry.AllTokenParams
                 .Concat(new[] {
                     ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
                     ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,
                     ParamRegistry.STATUS,
+                    "ASS_TAG_7_TXT", "ASS_TAG_7A_TXT", "ASS_TAG_7B_TXT",
+                    "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT",
+                    "ASS_TAG_7F_TXT", "ASS_DISPLAY_TXT",
+                    "ASS_TAG_PREV_TXT", "ASS_TAG_MODIFIED_DT",
                 }).Distinct().ToArray();
 
             int cleared = 0;
@@ -603,10 +566,18 @@ namespace StingTools.Select
                     bool any = false;
                     foreach (string p in clearParams)
                         if (ParameterHelpers.SetString(elem, p, "", overwrite: true)) any = true;
+                    // LOGIC-02: Clear STALE flag (integer parameter)
+                    try
+                    {
+                        ParameterHelpers.SetInt(elem, ParamRegistry.STALE, 0);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"BulkClear STALE flag: {ex.Message}"); }
                     if (any) cleared++;
                 }
                 tx.Commit();
             }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
             TaskDialog.Show("Clear Tags", $"Cleared tags from {cleared} elements.");
             return Result.Succeeded;
         }
@@ -616,6 +587,10 @@ namespace StingTools.Select
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             if (tagIndex == null) tagIndex = new HashSet<string>();
             if (seqCounters == null) seqCounters = new Dictionary<string, int>();
+            // GAP-04: Load pipeline context once for RunFullPipeline
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             int retagged = 0;
             int failed = 0;
 
@@ -628,32 +603,16 @@ namespace StingTools.Select
                     if (elem == null) continue;
                     try
                     {
-                        // Phase2: Bridge native params before tag rebuild
-                        try { NativeParamMapper.MapAll(doc, elem); }
-                        catch (Exception nmEx) { StingLog.Warn($"BulkRetag NativeMapper for {id}: {nmEx.Message}"); }
-
-                        if (TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                        // GAP-04: Use unified RunFullPipeline for all 11 canonical steps
+                        bool ok = TagPipelineHelper.RunFullPipeline(
+                            doc, elem, popCtx, tagIndex, seqCounters,
+                            formulas, gridLines,
+                            overwrite: true,
                             skipComplete: false,
-                            existingTags: tagIndex,
-                            collisionMode: TagCollisionMode.Overwrite))
-                        {
-                            retagged++;
-                            // NP6: Write TAG7 + containers after bulk retag
-                            try
-                            {
-                                string bulkCat = ParameterHelpers.GetCategoryName(elem);
-                                string[] bulkToks = ParamRegistry.ReadTokenValues(elem);
-                                TagConfig.WriteTag7All(doc, elem, bulkCat, bulkToks, overwrite: true);
-                                ParamRegistry.WriteContainers(elem, bulkToks, bulkCat, overwrite: true,
-                                    skipParam: ParamRegistry.TAG1);
-                            }
-                            catch (Exception bulkEx)
-                            {
-                                StingLog.Warn($"BulkRetag TAG7+containers for {id}: {bulkEx.Message}");
-                            }
-                        }
-                        else
-                            failed++;
+                            collisionMode: TagCollisionMode.Overwrite);
+
+                        if (ok) retagged++;
+                        else failed++;
                     }
                     catch (Exception ex)
                     {
@@ -663,8 +622,7 @@ namespace StingTools.Select
                 }
                 tx.Commit();
             }
-
-            // Phase2: Save SEQ sidecar + invalidate caches after bulk retag
+            // Save SEQ sidecar + invalidate caches after bulk re-tag
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"BulkRetag SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
@@ -785,6 +743,20 @@ namespace StingTools.Select
                     staleDetails["PROD"] = staleDetails.TryGetValue("PROD", out int c) ? c + 1 : 1;
                 }
 
+                // M-03 FIX: Check FUNC (was missing — FUNC can change when SYS changes)
+                string storedFunc = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string currentSysForFunc = !string.IsNullOrEmpty(currentSys) ? currentSys
+                    : ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string currentFunc = TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
+                if (string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(currentSysForFunc))
+                    currentFunc = TagConfig.FuncMap.TryGetValue(currentSysForFunc, out string fv) ? fv : null;
+                if (!string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(storedFunc)
+                    && !string.Equals(storedFunc, currentFunc, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["FUNC"] = staleDetails.TryGetValue("FUNC", out int c2) ? c2 + 1 : 1;
+                }
+
                 if (stale) staleIds.Add(elem.Id);
             }
 
@@ -846,6 +818,11 @@ namespace StingTools.Select
                 string[] tokens = ParamRegistry.ReadTokenValues(elem);
                 string currentTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 string predictedTag = string.Join(ParamRegistry.Separator, tokens);
+                // Apply PREFIX/SUFFIX for accurate display
+                if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                    predictedTag = TagConfig.TagPrefix + ParamRegistry.Separator + predictedTag;
+                if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                    predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                 // Check for empty tokens
                 int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");

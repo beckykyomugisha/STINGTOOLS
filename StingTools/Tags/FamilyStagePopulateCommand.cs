@@ -43,7 +43,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("FamilyStagePopulateCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Family Stage Populate failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Family Stage Populate failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -170,6 +170,9 @@ namespace StingTools.Tags
                     Element el = doc.GetElement(id);
                     if (el == null) continue;
 
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
@@ -178,6 +181,9 @@ namespace StingTools.Tags
 
                     try
                     {
+                        // GAP-FS: TypeTokenInherit before PopulateAll for type-level token inheritance
+                        TokenAutoPopulator.TypeTokenInherit(doc, el);
+
                         // Delegate to shared TokenAutoPopulator — single source of truth for
                         // all 9 token derivation logic (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV).
                         // Uses cached phases/rooms/project data — no per-element collectors.
@@ -214,6 +220,25 @@ namespace StingTools.Tags
                             }
                             catch (Exception fEx) { StingLog.Warn($"FamilyStagePopulate formula eval for {el?.Id}: {fEx.Message}"); }
                         }
+                        // TAG-05: Write containers + TAG7 so elements have populated containers
+                        // immediately after pre-population, not just after a separate Combine run.
+                        // This makes FamilyStagePopulate a more complete standalone operation.
+                        try
+                        {
+                            string[] tokens = ParamRegistry.ReadTokenValues(el);
+                            if (tokens != null && tokens.Length >= 8
+                                && !string.IsNullOrEmpty(tokens[0])) // at least DISC populated
+                            {
+                                string catNameForContainers = ParameterHelpers.GetCategoryName(el);
+                                ParamRegistry.WriteContainers(el, tokens, catNameForContainers);
+                                TagConfig.WriteTag7All(doc, el, catNameForContainers, tokens, overwrite: false);
+                            }
+                        }
+                        catch (Exception cwEx)
+                        {
+                            StingLog.Warn($"FamilyStagePopulate containers for {el?.Id}: {cwEx.Message}");
+                        }
+
                         if (result.LocDetected) locDetected++;
                         if (result.ZoneDetected) zoneDetected++;
                         if (result.StatusDetected) statusDetected++;
@@ -236,6 +261,10 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            // FIX-N09: Invalidate caches after successful token population
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "FamilyStagePopulate");
             sw.Stop();
             int totalPopulated = totalTokensSet;
 

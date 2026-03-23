@@ -63,6 +63,10 @@ namespace StingTools.Core
                 try { OutputLocationHelper.LoadFromConfig(); }
                 catch (Exception ex) { StingLog.Warn($"OutputLocationHelper config load: {ex.Message}"); }
 
+                // Load project folder root from project_config.json
+                try { ProjectFolderEngine.LoadRootFromConfig(); }
+                catch (Exception ex) { StingLog.Warn($"ProjectFolderEngine config load: {ex.Message}"); }
+
                 // CRASH FIX: Subscribe to DocumentClosing to clear stale static caches.
                 // ElementId-based caches and Definition caches become invalid when a
                 // document closes. Using them against a new document causes native crashes.
@@ -74,6 +78,9 @@ namespace StingTools.Core
 
                 // FIX-06: Invalidate auto-tagger cache when switching between open documents
                 application.ViewActivated += OnViewActivated;
+
+                // R-02: Retry deferred auto-tag elements after sync-to-central
+                application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
 
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;
@@ -98,14 +105,79 @@ namespace StingTools.Core
             try
             {
                 ParameterHelpers.ClearParamCache();
+                ParameterHelpers.InvalidateSessionCaches();
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, and selection caches");
+                // R-02: Clear deferred elements on document close
+                StingAutoTagger.ClearDeferredQueue();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentClosing cleanup: {ex.Message}");
+            }
+        }
+
+        /// <summary>R-02: Retry deferred auto-tag elements after sync-to-central completes.
+        /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
+        private static void OnDocumentSynchronizedWithCentral(object sender,
+            Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+        {
+            try
+            {
+                var deferredIds = StingAutoTagger.DrainDeferredQueue();
+                if (deferredIds.Count == 0) return;
+
+                Document doc = e.Document;
+                if (doc == null || !doc.IsValidObject) return;
+
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
+                var stats = new TaggingStats();
+                int processed = 0;
+
+                using (var tx = new Transaction(doc, "STING AutoTag deferred retry"))
+                {
+                    tx.Start();
+                    foreach (var id in deferredIds)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el == null || !el.IsValidObject) continue;
+                            string cat = ParameterHelpers.GetCategoryName(el);
+                            if (!known.Contains(cat)) continue;
+
+                            bool ok = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false,
+                                skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement,
+                                stats: stats);
+                            if (ok) processed++;
+                        }
+                        catch (Exception elEx) { StingLog.Warn($"AutoTagger deferred retry element {id.Value}: {elEx.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                if (processed > 0)
+                {
+                    try { TagConfig.SaveSeqSidecar(doc, seqCounters); } catch (Exception ex) { StingLog.Warn($"Deferred retry SEQ sidecar: {ex.Message}"); }
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
+
+                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after sync-to-central");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"OnDocumentSynchronizedWithCentral deferred retry: {ex.Message}");
             }
         }
 
@@ -119,6 +191,10 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // FIX-C01: Reset selection scope to view-only on document switch
+                // Prevents stale project-wide scope from carrying over between projects
+                Select.SelectionScopeHelper.SetScope(false);
 
                 // C4 / G1.3: Reload TagConfig on document open — prefer project-adjacent config
                 // to prevent config bleed between projects
@@ -153,7 +229,49 @@ namespace StingTools.Core
                 }
 
                 Temp.FormulaEngine.InvalidateFormulaCache();
-                StingLog.Info("DocumentOpened: cleared caches; reloaded TagConfig");
+                StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
+
+                // FUT-19: Background pre-warming — eagerly load formulas, grid lines,
+                // and compliance scan on a background thread so first tagging command is fast
+                try
+                {
+                    var docForPreWarm = e.Document;
+                    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        try
+                        {
+                            // Pre-load formulas into session cache
+                            TagPipelineHelper.LoadFormulas();
+                            // Pre-load grid lines
+                            if (docForPreWarm != null) TagPipelineHelper.LoadGridLines(docForPreWarm);
+                            // Pre-run compliance scan to populate cache
+                            if (docForPreWarm != null) ComplianceScan.Scan(docForPreWarm);
+                            StingLog.Info("FUT-19: Background pre-warming completed (formulas, grids, compliance)");
+                        }
+                        catch (Exception prEx) { StingLog.Warn($"FUT-19 pre-warm: {prEx.Message}"); }
+                    });
+                }
+                catch (Exception pwEx) { StingLog.Warn($"FUT-19 pre-warm launch: {pwEx.Message}"); }
+
+                // FIX-B10: Restore auto-tagger state from persisted config
+                try
+                {
+                    if (TagConfig.AutoTaggerEnabled.HasValue)
+                    {
+                        bool want = TagConfig.AutoTaggerEnabled.Value;
+                        if (want != StingAutoTagger.IsEnabled) StingAutoTagger.Toggle();
+                    }
+                    if (TagConfig.AutoTaggerVisual.HasValue)
+                        StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
+                    if (TagConfig.AutoTaggerStaleMarker.HasValue)
+                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                    // GAP-AT-03: Restore discipline filter from project config
+                    StingAutoTagger.RestoreDisciplineFilter();
+                }
+                catch (Exception atEx)
+                {
+                    StingLog.Warn($"AutoTagger state restore: {atEx.Message}");
+                }
 
                 // AL-07: Notify user of auto-run workflow on open
                 try
@@ -168,6 +286,90 @@ namespace StingTools.Core
                 catch (Exception arwEx)
                 {
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
+
+                // Phase 56: Morning Briefing — comprehensive model status on document open
+                // Shows compliance, stale elements, warnings, and SLA violations in one dialog
+                try
+                {
+                    var briefing = new System.Text.StringBuilder();
+                    bool hasAlerts = false;
+
+                    // 1. Compliance scan + trend tracking
+                    var comp = ComplianceScan.Scan(e.Document);
+                    if (comp != null)
+                    {
+                        // Record daily compliance snapshot for trend analysis
+                        ComplianceTrendTracker.RecordSnapshot(e.Document, comp);
+                        var (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(e.Document);
+
+                        briefing.AppendLine($"Tag Compliance: {comp.CompliancePercent:F0}% ({comp.RAGStatus})" +
+                            (trendDir != "unknown" && trendDir != "insufficient data" ?
+                            $"  [{trendDir} {trendDelta:+0.0;-0.0}% over 7 days]" : ""));
+                        briefing.AppendLine($"  Tagged: {comp.TaggedComplete}/{comp.TotalElements}  |  " +
+                            $"Untagged: {comp.Untagged}  |  Stale: {comp.StaleCount}");
+                        if (comp.PlaceholderCount > 0)
+                            briefing.AppendLine($"  Placeholders (GEN/XX/ZZ): {comp.PlaceholderCount}");
+                        if (comp.StaleCount > 0) hasAlerts = true;
+                        if (comp.CompliancePercent < 60) hasAlerts = true;
+                        if (trendDir == "declining") hasAlerts = true;
+                    }
+
+                    // 2. Warnings summary
+                    try
+                    {
+                        int warnCount = e.Document.GetWarnings()?.Count ?? 0;
+                        briefing.AppendLine($"\nModel Warnings: {warnCount}");
+                        if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                    }
+                    catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
+
+                    // 3. SLA violations
+                    try
+                    {
+                        var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(e.Document);
+                        if (overdue.Count > 0)
+                        {
+                            hasAlerts = true;
+                            int critCount = overdue.Count(o => o.priority == "CRITICAL");
+                            int highCount = overdue.Count(o => o.priority == "HIGH");
+                            briefing.AppendLine($"\nOverdue Issues: {overdue.Count}");
+                            if (critCount > 0) briefing.AppendLine($"  CRITICAL: {critCount} (SLA: 4 hrs)");
+                            if (highCount > 0) briefing.AppendLine($"  HIGH: {highCount} (SLA: 24 hrs)");
+                            briefing.AppendLine($"  Most overdue: {overdue[0].issueId} ({overdue[0].hoursOverdue:F0}h)");
+                        }
+                    }
+                    catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
+
+                    // 4. Show morning briefing dialog only if there are alerts
+                    if (hasAlerts)
+                    {
+                        briefing.AppendLine("\n────────────────────────────────────");
+                        briefing.AppendLine("Open BIM Coordination Center for full details.");
+                        var dlg = new Autodesk.Revit.UI.TaskDialog("STING Morning Briefing");
+                        dlg.MainInstruction = "Model Status Summary";
+                        dlg.MainContent = briefing.ToString();
+                        dlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
+                            "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                        dlg.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Close;
+                        var dlgResult = dlg.Show();
+
+                        // If user clicks "Run Morning Health Check", set ExtraParam for workflow dispatch
+                        if (dlgResult == Autodesk.Revit.UI.TaskDialogResult.CommandLink1)
+                        {
+                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                            StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info($"Morning briefing: model healthy — " +
+                            $"{comp?.CompliancePercent:F0}% compliance, no alerts");
+                    }
+                }
+                catch (Exception mbEx)
+                {
+                    StingLog.Warn($"Morning briefing: {mbEx.Message}");
                 }
             }
             catch (Exception ex)
@@ -193,6 +395,9 @@ namespace StingTools.Core
                     _lastActiveDoc = currentDoc;
                     StingAutoTagger.InvalidateContext();
                     ComplianceScan.InvalidateCache();
+                    // GAP-05: Clear parameter lookup cache on document switch to prevent
+                    // stale Definition objects from a different document being reused
+                    ParameterHelpers.ClearParamCache();
                     StingLog.Info("ViewActivated: document switch detected — caches invalidated");
                 }
             }
@@ -325,6 +530,23 @@ namespace StingTools.Core
                 StingLog.Info($"Data validation passed: all {criticalFiles.Length} critical files found in {DataPath}");
             }
 
+            // IG-04: Verify pyRevit manifest
+            string manifestPath = FindDataFile("PYREVIT_SCRIPT_MANIFEST.csv");
+            if (manifestPath != null)
+            {
+                try
+                {
+                    var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
+                    int missingScripts = mLines.Count(l => {
+                        var p = ParseCsvLine(l);
+                        return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());
+                    });
+                    if (missingScripts > 0)
+                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missingScripts} script path(s) not found on disk.");
+                }
+                catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
+            }
+
             // DATA-01: Validate schema version headers on TAG_CONFIG CSVs
             string[] versionedCsvs = new[]
             {
@@ -395,7 +617,7 @@ namespace StingTools.Core
                     string direct = Path.Combine(DataPath, fileName);
                     if (File.Exists(direct)) return direct;
                 }
-                catch { /* Path.Combine or File.Exists can fail on invalid paths */ }
+                catch (Exception ex) { StingLog.Warn($"Path.Combine or File.Exists can fail on invalid paths: {ex.Message}"); }
             }
 
             // 2. Search DataPath subdirectories (only if directory actually exists)
@@ -440,7 +662,7 @@ namespace StingTools.Core
                         return resolved;
                     }
                 }
-                catch { /* path resolution failed, skip */ }
+                catch (Exception ex) { StingLog.Warn($"path resolution failed, skip: {ex.Message}"); }
             }
 
             return null;
@@ -470,7 +692,7 @@ namespace StingTools.Core
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Schema version read failed for {filePath}: {ex.Message}"); }
             return null;
         }
 

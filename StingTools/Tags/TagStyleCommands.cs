@@ -25,8 +25,176 @@ namespace StingTools.Tags
     // 1. APPLY TAG STYLE — Pick size×style×color
     // ══════════════════════════════════════════════════════════════════
 
+    // ── Tag Style Grid Dialog — replaces 3-step TaskDialog with single visual grid ──
+
+    /// <summary>
+    /// WPF visual color grid dialog for tag style selection.
+    /// Shows a 4×3×8 matrix (sizes × styles × colors = 96 cells + 32 extended)
+    /// with colored preview cells. User clicks one cell to select the combination.
+    /// </summary>
+    internal static class TagStyleGridDialog
+    {
+        private static readonly string[] Sizes = { "2", "2.5", "3", "3.5" };
+        private static readonly string[] Styles = { "NOM", "BOLD", "ITALIC" };
+        private static readonly string[] Colors = { "BLACK", "BLUE", "GREEN", "RED", "YELLOW", "ORANGE", "PURPLE", "WHITE" };
+
+        private static readonly Dictionary<string, System.Windows.Media.Color> ColorMap =
+            new Dictionary<string, System.Windows.Media.Color>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["BLACK"]  = System.Windows.Media.Color.FromRgb(30, 30, 30),
+                ["BLUE"]   = System.Windows.Media.Color.FromRgb(40, 100, 200),
+                ["GREEN"]  = System.Windows.Media.Color.FromRgb(40, 160, 60),
+                ["RED"]    = System.Windows.Media.Color.FromRgb(200, 40, 40),
+                ["YELLOW"] = System.Windows.Media.Color.FromRgb(200, 180, 30),
+                ["ORANGE"] = System.Windows.Media.Color.FromRgb(220, 120, 30),
+                ["PURPLE"] = System.Windows.Media.Color.FromRgb(130, 50, 180),
+                ["WHITE"]  = System.Windows.Media.Color.FromRgb(240, 240, 240),
+            };
+
+        /// <summary>
+        /// Show the visual grid dialog. Returns (size, style, color) tuple, or null if cancelled.
+        /// </summary>
+        public static (string size, string style, string color)? Show()
+        {
+            (string size, string style, string color)? result = null;
+
+            var window = new System.Windows.Window
+            {
+                Title = "Tag Style — Visual Grid",
+                Width = 680, Height = 480,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
+            };
+
+            // Set Revit as owner for modality
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"TagStyleGrid owner: {ex.Message}"); }
+
+            var mainPanel = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(12) };
+
+            // Header
+            var header = new System.Windows.Controls.TextBlock
+            {
+                Text = "Select tag style: Size × Weight × Color",
+                FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 10)
+            };
+            mainPanel.Children.Add(header);
+
+            // Column headers (colors)
+            var colHeaderGrid = new System.Windows.Controls.Grid();
+            colHeaderGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
+            foreach (var color in Colors)
+            {
+                colHeaderGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(65) });
+                var colLabel = new System.Windows.Controls.TextBlock
+                {
+                    Text = color, FontSize = 10, FontWeight = System.Windows.FontWeights.SemiBold,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Foreground = new System.Windows.Media.SolidColorBrush(ColorMap.TryGetValue(color, out var c) ? c : System.Windows.Media.Colors.Black)
+                };
+                System.Windows.Controls.Grid.SetColumn(colLabel, Colors.ToList().IndexOf(color) + 1);
+                colHeaderGrid.Children.Add(colLabel);
+            }
+            mainPanel.Children.Add(colHeaderGrid);
+
+            // Grid cells: rows = Size×Style combos, cols = Colors
+            foreach (string size in Sizes)
+            {
+                foreach (string style in Styles)
+                {
+                    var rowGrid = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(0, 1, 0, 1) };
+                    rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
+
+                    // Row label
+                    string sizeLabel = $"{size}mm {style}";
+                    var rowLabel = new System.Windows.Controls.TextBlock
+                    {
+                        Text = sizeLabel, FontSize = 10, VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                        FontStyle = style == "ITALIC" ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
+                        FontWeight = style == "BOLD" ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
+                    };
+                    System.Windows.Controls.Grid.SetColumn(rowLabel, 0);
+                    rowGrid.Children.Add(rowLabel);
+
+                    for (int ci = 0; ci < Colors.Length; ci++)
+                    {
+                        string color = Colors[ci];
+                        rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(65) });
+
+                        var cellColor = ColorMap.TryGetValue(color, out var mc) ? mc : System.Windows.Media.Colors.Gray;
+                        var btn = new System.Windows.Controls.Button
+                        {
+                            Width = 58, Height = 22,
+                            Background = new System.Windows.Media.SolidColorBrush(cellColor),
+                            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkGray),
+                            BorderThickness = new System.Windows.Thickness(1),
+                            Content = new System.Windows.Controls.TextBlock
+                            {
+                                Text = "Aa", FontSize = double.Parse(size) * 3.5,
+                                Foreground = new System.Windows.Media.SolidColorBrush(
+                                    color == "WHITE" || color == "YELLOW" ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White),
+                                FontStyle = style == "ITALIC" ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
+                                FontWeight = style == "BOLD" ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
+                            },
+                            Cursor = System.Windows.Input.Cursors.Hand,
+                            ToolTip = $"TAG_{size.Replace(".", "")}{style}_{color}_BOOL"
+                        };
+
+                        string capturedSize = size, capturedStyle = style, capturedColor = color;
+                        btn.Click += (s, e) =>
+                        {
+                            result = (capturedSize, capturedStyle, capturedColor);
+                            window.DialogResult = true;
+                            window.Close();
+                        };
+
+                        System.Windows.Controls.Grid.SetColumn(btn, ci + 1);
+                        rowGrid.Children.Add(btn);
+                    }
+
+                    mainPanel.Children.Add(rowGrid);
+                }
+
+                // Separator between size groups
+                mainPanel.Children.Add(new System.Windows.Controls.Separator
+                {
+                    Margin = new System.Windows.Thickness(0, 4, 0, 4),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.LightGray)
+                });
+            }
+
+            // Cancel button
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "Cancel", Width = 100, Height = 30,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0)
+            };
+            cancelBtn.Click += (s, e) => { window.DialogResult = false; window.Close(); };
+            mainPanel.Children.Add(cancelBtn);
+
+            var scroll = new System.Windows.Controls.ScrollViewer
+            {
+                VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+                Content = mainPanel
+            };
+            window.Content = scroll;
+            window.ShowDialog();
+
+            return result;
+        }
+    }
+
     /// <summary>
     /// Applies a specific tag style (size, weight, color) to all element types.
+    /// Uses a visual color grid dialog instead of 3 sequential TaskDialogs.
     /// Sets exactly one TAG_{SIZE}{STYLE}_{COLOR}_BOOL to true, making that
     /// label row visible in tag families.
     /// </summary>
@@ -37,66 +205,16 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
-            // Step 1: Pick size
-            var sizeDlg = new TaskDialog("Tag Style — Size");
-            sizeDlg.MainInstruction = "Select tag text size (mm):";
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "2.0 mm", "Compact — minimal annotation");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2.5 mm", "Standard — everyday drawings");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "3.0 mm", "Large — presentation sheets");
-            sizeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "3.5 mm", "Extra-large — titles and emphasis");
-            sizeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var sizeChoice = sizeDlg.Show();
+            // Single-step visual grid dialog replaces 3-step TaskDialog flow
+            var selection = TagStyleGridDialog.Show();
+            if (selection == null) return Result.Cancelled;
 
-            string size;
-            switch (sizeChoice)
-            {
-                case TaskDialogResult.CommandLink1: size = "2"; break;
-                case TaskDialogResult.CommandLink2: size = "2.5"; break;
-                case TaskDialogResult.CommandLink3: size = "3"; break;
-                case TaskDialogResult.CommandLink4: size = "3.5"; break;
-                default: return Result.Cancelled;
-            }
-
-            // Step 2: Pick style
-            var styleDlg = new TaskDialog("Tag Style — Weight");
-            styleDlg.MainInstruction = "Select tag text style:";
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Normal (NOM)", "Standard weight text");
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Bold (BOLD)", "Heavy emphasis text");
-            styleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Italic (ITALIC)", "Slanted emphasis text");
-            styleDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var styleChoice = styleDlg.Show();
-
-            string style;
-            switch (styleChoice)
-            {
-                case TaskDialogResult.CommandLink1: style = "NOM"; break;
-                case TaskDialogResult.CommandLink2: style = "BOLD"; break;
-                case TaskDialogResult.CommandLink3: style = "ITALIC"; break;
-                default: return Result.Cancelled;
-            }
-
-            // Step 3: Pick color
-            var colorDlg = new TaskDialog("Tag Style — Color");
-            colorDlg.MainInstruction = "Select tag text color:";
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Black", "Standard print-ready");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Blue", "MEP / mechanical emphasis");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Green", "Plumbing / environmental");
-            colorDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Red", "Structural / fire / highlight");
-            colorDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var colorChoice = colorDlg.Show();
-
-            string color;
-            switch (colorChoice)
-            {
-                case TaskDialogResult.CommandLink1: color = "BLACK"; break;
-                case TaskDialogResult.CommandLink2: color = "BLUE"; break;
-                case TaskDialogResult.CommandLink3: color = "GREEN"; break;
-                case TaskDialogResult.CommandLink4: color = "RED"; break;
-                default: return Result.Cancelled;
-            }
+            string size = selection.Value.size;
+            string style = selection.Value.style;
+            string color = selection.Value.color;
 
             var preset = new StylePreset { Name = $"{size}{style}_{color}", Size = size, Style = style, Color = color };
 
@@ -131,7 +249,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -236,7 +354,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var view = doc.ActiveView;
@@ -264,79 +382,178 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class SetParagraphDepthExtCommand : IExternalCommand
     {
+        private static readonly string[] TierLabels =
+        {
+            "", // 0 unused
+            ".01 Minimal — Tag code only",
+            ".02 Compact — Code + type name",
+            ".03 Comprehensive — Standard engineering detail",
+            ".04 Extended — MEP specs added",
+            ".05 Moderate — Material properties",
+            ".06 Detailed — Classification codes",
+            ".07 Specification — BOQ data",
+            ".08 Full detail — Maintenance info",
+            ".09 Complete — Lifecycle data",
+            ".10 Maximum — All tiers visible",
+        };
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
-            var dlg = new TaskDialog("Paragraph Depth — Extended");
-            dlg.MainInstruction = "Select paragraph visibility depth (1-10 tiers):";
-            dlg.MainContent =
-                "Each tier adds more detail to tag labels.\n" +
-                "Tiers 1-3 = original compact/standard/comprehensive.\n" +
-                "Tiers 4-10 = extended detail for specifications and BOQ.";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Tier 1-3: Compact → Standard → Comprehensive",
-                "Original 3-tier system (quick, engineering, detailed)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Tier 4-6: Extended detail",
-                "MEP specs, material properties, classification codes");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Tier 7-10: Full specification",
-                "Complete BOQ data, maintenance info, lifecycle data");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Custom tier (pick 1-10)...",
-                "Set exact tier cutoff");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Unified WPF slider dialog replacing 2-3 step TaskDialog chain
+            var result = ShowParagraphDepthDialog();
+            if (result == null) return Result.Cancelled;
 
-            var choice = dlg.Show();
-            int maxTier;
-            bool warn;
+            int maxTier = result.Value.tier;
+            bool warn = result.Value.warnings;
 
-            switch (choice)
-            {
-                case TaskDialogResult.CommandLink1:
-                    maxTier = 3; warn = true; break;
-                case TaskDialogResult.CommandLink2:
-                    maxTier = 6; warn = true; break;
-                case TaskDialogResult.CommandLink3:
-                    maxTier = 10; warn = true; break;
-                case TaskDialogResult.CommandLink4:
-                    var tierDlg = new TaskDialog("Custom Tier");
-                    tierDlg.MainInstruction = "Select maximum visible tier:";
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Tier 1 (minimal)", "Tag code only");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Tier 2 (compact)", "Code + type name");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Tier 5 (moderate)", "Through extended properties");
-                    tierDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Tier 8 (detailed)", "Through maintenance data");
-                    tierDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                    switch (tierDlg.Show())
-                    {
-                        case TaskDialogResult.CommandLink1: maxTier = 1; break;
-                        case TaskDialogResult.CommandLink2: maxTier = 2; break;
-                        case TaskDialogResult.CommandLink3: maxTier = 5; break;
-                        case TaskDialogResult.CommandLink4: maxTier = 8; break;
-                        default: return Result.Cancelled;
-                    }
-                    warn = maxTier >= 2;
-                    break;
-                default: return Result.Cancelled;
-            }
-
-            using (Transaction tx = new Transaction(doc, $"STING Paragraph Depth: Tier {maxTier}"))
+            using (Transaction tx = new Transaction(doc, $"STING Paragraph Depth: Tier .{maxTier:D2}"))
             {
                 tx.Start();
                 int updated = TagStyleEngine.SetParagraphDepth(doc, maxTier, warn);
                 tx.Commit();
 
                 TaskDialog.Show("Paragraph Depth",
-                    $"Depth: Tier {maxTier} of 10\n" +
+                    $"Depth: Tier .{maxTier:D2} of .10\n" +
                     $"Warnings: {(warn ? "ON" : "OFF")}\n" +
                     $"Element types updated: {updated}");
             }
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Unified WPF dialog with slider + preset buttons replacing 2-3 sequential TaskDialogs.
+        /// </summary>
+        private static (int tier, bool warnings)? ShowParagraphDepthDialog()
+        {
+            (int tier, bool warnings)? result = null;
+
+            var window = new System.Windows.Window
+            {
+                Title = "Paragraph Depth — Extended",
+                Width = 480, Height = 380,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
+            };
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"ParagraphDepth dialog owner: {ex.Message}"); }
+
+            var panel = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+
+            // Header
+            panel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tag Label Visibility Depth",
+                FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4)
+            });
+            panel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Each tier adds more detail to tag labels. Higher = more information.",
+                FontSize = 11, Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+
+            // Tier label (updated by slider)
+            var tierLabel = new System.Windows.Controls.TextBlock
+            {
+                Text = TierLabels[3], FontSize = 13, FontWeight = System.Windows.FontWeights.SemiBold,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 145, 45)),
+                Margin = new System.Windows.Thickness(0, 0, 0, 8)
+            };
+            panel.Children.Add(tierLabel);
+
+            // Slider
+            var slider = new System.Windows.Controls.Slider
+            {
+                Minimum = 1, Maximum = 10, Value = 3,
+                TickFrequency = 1, IsSnapToTickEnabled = true,
+                TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4)
+            };
+            slider.ValueChanged += (s, e) =>
+            {
+                int v = (int)slider.Value;
+                if (v >= 1 && v <= 10) tierLabel.Text = TierLabels[v];
+            };
+            panel.Children.Add(slider);
+
+            // Scale labels
+            var scaleGrid = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(0, 0, 0, 12) };
+            scaleGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+            scaleGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+            scaleGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition());
+            var lMin = new System.Windows.Controls.TextBlock { Text = "Minimal", FontSize = 10, Foreground = System.Windows.Media.Brushes.Gray };
+            var lMid = new System.Windows.Controls.TextBlock { Text = "Standard", FontSize = 10, Foreground = System.Windows.Media.Brushes.Gray, HorizontalAlignment = System.Windows.HorizontalAlignment.Center };
+            var lMax = new System.Windows.Controls.TextBlock { Text = "Maximum", FontSize = 10, Foreground = System.Windows.Media.Brushes.Gray, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
+            System.Windows.Controls.Grid.SetColumn(lMin, 0);
+            System.Windows.Controls.Grid.SetColumn(lMid, 1);
+            System.Windows.Controls.Grid.SetColumn(lMax, 2);
+            scaleGrid.Children.Add(lMin); scaleGrid.Children.Add(lMid); scaleGrid.Children.Add(lMax);
+            panel.Children.Add(scaleGrid);
+
+            // Preset buttons
+            var presetPanel = new System.Windows.Controls.WrapPanel { Margin = new System.Windows.Thickness(0, 0, 0, 12) };
+            foreach (var (label, val) in new[] { ("Compact", 3), ("Extended", 6), ("Full", 10) })
+            {
+                var btn = new System.Windows.Controls.Button
+                {
+                    Content = $"{label} (.{val:D2})", Width = 120, Height = 28,
+                    Margin = new System.Windows.Thickness(0, 0, 8, 0)
+                };
+                int capturedVal = val;
+                btn.Click += (s, e) => slider.Value = capturedVal;
+                presetPanel.Children.Add(btn);
+            }
+            panel.Children.Add(presetPanel);
+
+            // Warnings checkbox
+            var chkWarn = new System.Windows.Controls.CheckBox
+            {
+                Content = "Show tag warnings (tiers .02+)", IsChecked = true,
+                Margin = new System.Windows.Thickness(0, 0, 0, 16), FontSize = 12
+            };
+            panel.Children.Add(chkWarn);
+
+            // Buttons
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            var applyBtn = new System.Windows.Controls.Button
+            {
+                Content = "Apply", Width = 100, Height = 32,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 145, 45)),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            applyBtn.Click += (s, e) =>
+            {
+                result = ((int)slider.Value, chkWarn.IsChecked == true);
+                window.DialogResult = true;
+                window.Close();
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 80, Height = 32 };
+            cancelBtn.Click += (s, e) => { window.DialogResult = false; window.Close(); };
+            btnPanel.Children.Add(applyBtn);
+            btnPanel.Children.Add(cancelBtn);
+            panel.Children.Add(btnPanel);
+
+            window.Content = panel;
+            window.ShowDialog();
+            return result;
         }
     }
 
@@ -354,7 +571,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             string report = TagStyleEngine.GenerateStyleReport(doc);
@@ -378,7 +595,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             if (!TagStyleEngine.BuiltInSchemes.TryGetValue("Discipline", out ColorScheme scheme))
@@ -421,7 +638,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) return Result.Failed;
 
             var dlg = new TaskDialog("Batch Color Scheme");
@@ -498,7 +715,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
@@ -509,71 +726,19 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
-            // Step 1: Pick the variable
-            var varDlg = new TaskDialog("Color By Variable");
-            varDlg.MainInstruction = "Which variable should drive the colors?";
-            varDlg.MainContent =
-                "Each variable value gets a unique color for elements, tag text, " +
-                "tag bounding boxes, and leader lines — all controlled separately.\n\n" +
-                "Colors are semantically connected: each value REPRESENTS something " +
-                "(e.g. HVAC=Blue, Fire=Red, NEW=Green, DEMOLISHED=Red).";
-            varDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "System Type (HVAC/DCW/SAN/FP/LV...)",
-                "Color by MEP system — 16 system types with distinct colors");
-            varDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Status (NEW/EXISTING/DEMOLISHED/TEMP)",
-                "Color by lifecycle status — 4 states");
-            varDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Zone / Level / Location...",
-                "Spatial variables — zones, levels, buildings");
-            varDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "Function Code (SUP/HTG/PWR/LTG...)",
-                "Color by CIBSE function — 12 function types");
-            varDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Unified single-dialog: variable + apply options
+            var result = ShowColorByVariableDialog();
+            if (result == null) return Result.Cancelled;
 
-            var varChoice = varDlg.Show();
-            string schemeName;
-            switch (varChoice)
-            {
-                case TaskDialogResult.CommandLink1: schemeName = "System"; break;
-                case TaskDialogResult.CommandLink2: schemeName = "Status"; break;
-                case TaskDialogResult.CommandLink3:
-                    schemeName = PickSpatialVariable();
-                    if (schemeName == null) return Result.Cancelled;
-                    break;
-                case TaskDialogResult.CommandLink4: schemeName = "Function"; break;
-                default: return Result.Cancelled;
-            }
+            string schemeName = result.Value.scheme;
+            bool doElements = result.Value.doElements;
+            bool doStyles = result.Value.doStyles;
+            bool doBoxes = result.Value.doBoxes;
 
             if (!TagStyleEngine.VariableSchemes.TryGetValue(schemeName, out VariableColorScheme scheme))
             {
                 TaskDialog.Show("Error", $"Scheme '{schemeName}' not found.");
                 return Result.Failed;
-            }
-
-            // Step 2: Pick what to apply
-            var applyDlg = new TaskDialog("Apply Options");
-            applyDlg.MainInstruction = $"Coloring by: {scheme.Name}";
-            applyDlg.MainContent = scheme.Description;
-            applyDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Elements + Tag Styles + Box Colors (Full)",
-                "Color elements, switch tag text styles, AND set box fill colors");
-            applyDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Elements Only",
-                "Color elements in view — no tag style or box changes");
-            applyDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Tag Styles + Box Colors Only",
-                "Switch tag text styles and box colors — no element coloring");
-            applyDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var applyChoice = applyDlg.Show();
-            bool doElements, doStyles, doBoxes;
-            switch (applyChoice)
-            {
-                case TaskDialogResult.CommandLink1: doElements = true; doStyles = true; doBoxes = true; break;
-                case TaskDialogResult.CommandLink2: doElements = true; doStyles = false; doBoxes = false; break;
-                case TaskDialogResult.CommandLink3: doElements = false; doStyles = true; doBoxes = true; break;
-                default: return Result.Cancelled;
             }
 
             using (Transaction tx = new Transaction(doc, $"STING Color By {scheme.Name}"))
@@ -612,22 +777,171 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private static string PickSpatialVariable()
+        /// <summary>
+        /// Unified WPF dialog replacing 3 sequential TaskDialogs.
+        /// Left column: variable selector (radio buttons with descriptions).
+        /// Right column: apply mode checkboxes (Elements, Tag Styles, Box Colors).
+        /// </summary>
+        private static (string scheme, bool doElements, bool doStyles, bool doBoxes)? ShowColorByVariableDialog()
         {
-            var dlg = new TaskDialog("Spatial Variable");
-            dlg.MainInstruction = "Select spatial variable:";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Zone (Z01/Z02/Z03/Z04)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Level (GF/L01/L02/B1/RF)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Location (BLD1/BLD2/BLD3/EXT)");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            (string scheme, bool doElements, bool doStyles, bool doBoxes)? result = null;
 
-            return dlg.Show() switch
+            var window = new System.Windows.Window
             {
-                TaskDialogResult.CommandLink1 => "Zone",
-                TaskDialogResult.CommandLink2 => "Level",
-                TaskDialogResult.CommandLink3 => "Location",
-                _ => null,
+                Title = "Color By Variable",
+                Width = 560, Height = 420,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
             };
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"ColorByVariable dialog owner: {ex.Message}"); }
+
+            var mainGrid = new System.Windows.Controls.Grid();
+            mainGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(200) });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(50) });
+            mainGrid.Margin = new System.Windows.Thickness(12);
+
+            // Left: Variable selector
+            var varPanel = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(0, 0, 8, 0) };
+            var varHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Color Variable", FontSize = 14, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 8)
+            };
+            varPanel.Children.Add(varHeader);
+
+            var variables = new[]
+            {
+                ("System", "System Type (HVAC/DCW/SAN/FP/LV...)", "16 MEP system types"),
+                ("Status", "Status (NEW/EXISTING/DEMOLISHED/TEMP)", "4 lifecycle states"),
+                ("Zone", "Zone (Z01/Z02/Z03/Z04)", "Spatial zones"),
+                ("Level", "Level (GF/L01/L02/B1/RF)", "Building levels"),
+                ("Location", "Location (BLD1/BLD2/BLD3/EXT)", "Building locations"),
+                ("Function", "Function (SUP/HTG/PWR/LTG...)", "12 CIBSE function types"),
+            };
+
+            System.Windows.Controls.RadioButton firstRadio = null;
+            var radioGroup = new System.Windows.Controls.StackPanel();
+            foreach (var (key, label, desc) in variables)
+            {
+                var radio = new System.Windows.Controls.RadioButton
+                {
+                    Content = new System.Windows.Controls.StackPanel
+                    {
+                        Children =
+                        {
+                            new System.Windows.Controls.TextBlock { Text = label, FontWeight = System.Windows.FontWeights.SemiBold, FontSize = 12 },
+                            new System.Windows.Controls.TextBlock { Text = desc, FontSize = 10, Foreground = System.Windows.Media.Brushes.Gray }
+                        }
+                    },
+                    Tag = key,
+                    Margin = new System.Windows.Thickness(0, 4, 0, 4),
+                    GroupName = "Variable"
+                };
+                if (firstRadio == null) { firstRadio = radio; radio.IsChecked = true; }
+                radioGroup.Children.Add(radio);
+            }
+            varPanel.Children.Add(radioGroup);
+            System.Windows.Controls.Grid.SetColumn(varPanel, 0);
+            mainGrid.Children.Add(varPanel);
+
+            // Right: Apply options
+            var optPanel = new System.Windows.Controls.StackPanel
+            {
+                Margin = new System.Windows.Thickness(8, 0, 0, 0)
+            };
+            var optHeader = new System.Windows.Controls.TextBlock
+            {
+                Text = "Apply To", FontSize = 14, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 8)
+            };
+            optPanel.Children.Add(optHeader);
+
+            var chkElements = new System.Windows.Controls.CheckBox
+            {
+                Content = "Element Colors", IsChecked = true,
+                Margin = new System.Windows.Thickness(0, 6, 0, 2), FontSize = 12
+            };
+            var chkStyles = new System.Windows.Controls.CheckBox
+            {
+                Content = "Tag Text Styles", IsChecked = true,
+                Margin = new System.Windows.Thickness(0, 2, 0, 2), FontSize = 12
+            };
+            var chkBoxes = new System.Windows.Controls.CheckBox
+            {
+                Content = "Box Colors", IsChecked = true,
+                Margin = new System.Windows.Thickness(0, 2, 0, 2), FontSize = 12
+            };
+            optPanel.Children.Add(chkElements);
+            optPanel.Children.Add(chkStyles);
+            optPanel.Children.Add(chkBoxes);
+
+            // Quick presets
+            optPanel.Children.Add(new System.Windows.Controls.Separator { Margin = new System.Windows.Thickness(0, 12, 0, 8) });
+            var presetLabel = new System.Windows.Controls.TextBlock
+            {
+                Text = "Quick Presets", FontSize = 12, FontWeight = System.Windows.FontWeights.SemiBold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4)
+            };
+            optPanel.Children.Add(presetLabel);
+
+            var btnFull = new System.Windows.Controls.Button { Content = "Full (all)", Margin = new System.Windows.Thickness(0, 2, 0, 2) };
+            btnFull.Click += (s, e) => { chkElements.IsChecked = true; chkStyles.IsChecked = true; chkBoxes.IsChecked = true; };
+            var btnElemOnly = new System.Windows.Controls.Button { Content = "Elements only", Margin = new System.Windows.Thickness(0, 2, 0, 2) };
+            btnElemOnly.Click += (s, e) => { chkElements.IsChecked = true; chkStyles.IsChecked = false; chkBoxes.IsChecked = false; };
+            var btnTagOnly = new System.Windows.Controls.Button { Content = "Tags only", Margin = new System.Windows.Thickness(0, 2, 0, 2) };
+            btnTagOnly.Click += (s, e) => { chkElements.IsChecked = false; chkStyles.IsChecked = true; chkBoxes.IsChecked = true; };
+            optPanel.Children.Add(btnFull);
+            optPanel.Children.Add(btnElemOnly);
+            optPanel.Children.Add(btnTagOnly);
+
+            System.Windows.Controls.Grid.SetColumn(optPanel, 1);
+            mainGrid.Children.Add(optPanel);
+
+            // Bottom: Apply + Cancel
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+            var applyBtn = new System.Windows.Controls.Button
+            {
+                Content = "Apply", Width = 100, Height = 32,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 145, 45)),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            applyBtn.Click += (s, e) =>
+            {
+                string selected = null;
+                foreach (System.Windows.Controls.RadioButton rb in radioGroup.Children)
+                    if (rb.IsChecked == true) { selected = rb.Tag as string; break; }
+                if (selected == null) return;
+                result = (selected, chkElements.IsChecked == true, chkStyles.IsChecked == true, chkBoxes.IsChecked == true);
+                window.DialogResult = true;
+                window.Close();
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 80, Height = 32 };
+            cancelBtn.Click += (s, e) => { window.DialogResult = false; window.Close(); };
+            btnPanel.Children.Add(applyBtn);
+            btnPanel.Children.Add(cancelBtn);
+            System.Windows.Controls.Grid.SetRow(btnPanel, 1);
+            System.Windows.Controls.Grid.SetColumnSpan(btnPanel, 2);
+            mainGrid.Children.Add(btnPanel);
+
+            window.Content = mainGrid;
+            window.ShowDialog();
+            return result;
         }
     }
 
@@ -644,82 +958,76 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class SetBoxColorCommand : IExternalCommand
     {
+        private static readonly (string name, byte r, byte g, byte b)[] BoxColors =
+        {
+            ("Blue (Mechanical)", 200, 220, 255),
+            ("Green (Plumbing)", 200, 255, 220),
+            ("Red (Structural/Fire)", 255, 200, 200),
+            ("Orange (Electrical/FP)", 255, 230, 200),
+            ("Purple (Low Voltage)", 220, 200, 255),
+            ("Grey (General)", 220, 220, 220),
+            ("Yellow (Comms)", 255, 255, 200),
+            ("Cyan (HVAC)", 200, 245, 255),
+        };
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var uidoc = commandData.Application.ActiveUIDocument;
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             var doc = uidoc?.Document;
             if (doc == null) return Result.Failed;
 
             var selection = uidoc.Selection.GetElementIds();
 
-            var dlg = new TaskDialog("Tag Box Color");
-            dlg.MainInstruction = "Select box fill color:";
-            dlg.MainContent =
-                "Colors match discipline meanings:\n" +
-                "  BLUE=Mechanical  GREEN=Plumbing  RED=Structural\n" +
-                "  ORANGE=Fire/Elec  PURPLE=LowVoltage  GREY=General";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Auto (by Discipline)", "Match box color to element's discipline");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Pick color (Blue/Green/Red/Orange)",
-                "Choose a fixed color for all selected");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Clear box colors",
-                "Remove box color overrides (transparent)");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // Unified WPF dialog: mode + color picker in one step
+            var result = ShowBoxColorDialog();
+            if (result == null) return Result.Cancelled;
 
-            var choice = dlg.Show();
+            string mode = result.Value.mode;
+            BoxColorPreset colorPreset = result.Value.preset;
 
             using (Transaction tx = new Transaction(doc, "STING Set Box Color"))
             {
                 tx.Start();
                 int updated = 0;
 
-                // Get target elements
                 var targets = selection.Count > 0
                     ? selection.Select(id => doc.GetElement(id)).Where(e => e != null).ToList()
                     : new FilteredElementCollector(doc, doc.ActiveView.Id)
                         .WhereElementIsNotElementType().ToList();
 
-                switch (choice)
+                if (mode == "Auto")
                 {
-                    case TaskDialogResult.CommandLink1: // Auto by discipline
-                        var discScheme = TagStyleEngine.BuiltInSchemes.TryGetValue("Discipline", out var ds) ? ds : null;
-                        foreach (var el in targets)
+                    var discScheme = TagStyleEngine.BuiltInSchemes.TryGetValue("Discipline", out var ds) ? ds : null;
+                    foreach (var el in targets)
+                    {
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (string.IsNullOrEmpty(disc)) continue;
+                        if (discScheme?.DisciplineColors.TryGetValue(disc, out Color dc) == true)
                         {
-                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                            if (string.IsNullOrEmpty(disc)) continue;
-                            if (discScheme?.DisciplineColors.TryGetValue(disc, out Color dc) == true)
-                            {
-                                var preset = new BoxColorPreset { Name = disc, R = dc.Red, G = dc.Green, B = dc.Blue };
-                                TagStyleEngine.SetBoxColor(el, preset);
-                                TagStyleEngine.SetLeaderColor(el, preset);
-                                updated++;
-                            }
-                        }
-                        break;
-
-                    case TaskDialogResult.CommandLink2: // Pick color
-                        var colorPreset = PickBoxColor();
-                        if (colorPreset == null) { tx.RollBack(); return Result.Cancelled; }
-                        foreach (var el in targets)
-                        {
-                            TagStyleEngine.SetBoxColor(el, colorPreset);
+                            var preset = new BoxColorPreset { Name = disc, R = dc.Red, G = dc.Green, B = dc.Blue };
+                            TagStyleEngine.SetBoxColor(el, preset);
+                            TagStyleEngine.SetLeaderColor(el, preset);
                             updated++;
                         }
-                        break;
-
-                    case TaskDialogResult.CommandLink3: // Clear
-                        var clear = new BoxColorPreset { R = 0, G = 0, B = 0, BoxVisible = false, BoxStyle = "NONE" };
-                        foreach (var el in targets)
-                        {
-                            TagStyleEngine.SetBoxColor(el, clear);
-                            updated++;
-                        }
-                        break;
-
-                    default: tx.RollBack(); return Result.Cancelled;
+                    }
+                }
+                else if (mode == "Pick" && colorPreset != null)
+                {
+                    foreach (var el in targets)
+                    {
+                        TagStyleEngine.SetBoxColor(el, colorPreset);
+                        updated++;
+                    }
+                }
+                else if (mode == "Clear")
+                {
+                    var clear = new BoxColorPreset { R = 0, G = 0, B = 0, BoxVisible = false, BoxStyle = "NONE" };
+                    foreach (var el in targets)
+                    {
+                        TagStyleEngine.SetBoxColor(el, clear);
+                        updated++;
+                    }
                 }
 
                 tx.Commit();
@@ -729,24 +1037,142 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private static BoxColorPreset PickBoxColor()
+        /// <summary>
+        /// Unified WPF dialog with mode selector + color swatch grid, replacing 2-step TaskDialog.
+        /// </summary>
+        private static (string mode, BoxColorPreset preset)? ShowBoxColorDialog()
         {
-            var dlg = new TaskDialog("Pick Box Color");
-            dlg.MainInstruction = "Select color:";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Blue (Mechanical)", "RGB(200,220,255)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Green (Plumbing)", "RGB(200,255,220)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Red (Structural/Fire)", "RGB(255,200,200)");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Orange (Electrical/FP)", "RGB(255,230,200)");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            (string mode, BoxColorPreset preset)? result = null;
 
-            return dlg.Show() switch
+            var window = new System.Windows.Window
             {
-                TaskDialogResult.CommandLink1 => new BoxColorPreset { Name = "Blue", R = 200, G = 220, B = 255 },
-                TaskDialogResult.CommandLink2 => new BoxColorPreset { Name = "Green", R = 200, G = 255, B = 220 },
-                TaskDialogResult.CommandLink3 => new BoxColorPreset { Name = "Red", R = 255, G = 200, B = 200 },
-                TaskDialogResult.CommandLink4 => new BoxColorPreset { Name = "Orange", R = 255, G = 230, B = 200 },
-                _ => null,
+                Title = "Tag Box Color",
+                Width = 420, Height = 340,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(245, 245, 245))
             };
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"BoxColor dialog owner: {ex.Message}"); }
+
+            var panel = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+
+            // Header
+            panel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Tag Box Color", FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            });
+
+            // Mode selector
+            var radioAuto = new System.Windows.Controls.RadioButton
+            {
+                Content = "Auto (by Discipline)", GroupName = "Mode", IsChecked = true,
+                Margin = new System.Windows.Thickness(0, 0, 0, 4), FontSize = 12
+            };
+            var radioPick = new System.Windows.Controls.RadioButton
+            {
+                Content = "Pick a color", GroupName = "Mode",
+                Margin = new System.Windows.Thickness(0, 0, 0, 4), FontSize = 12
+            };
+            var radioClear = new System.Windows.Controls.RadioButton
+            {
+                Content = "Clear box colors", GroupName = "Mode",
+                Margin = new System.Windows.Thickness(0, 0, 0, 8), FontSize = 12
+            };
+            panel.Children.Add(radioAuto);
+            panel.Children.Add(radioPick);
+            panel.Children.Add(radioClear);
+
+            // Color swatch grid (visible when Pick is selected)
+            var swatchGrid = new System.Windows.Controls.WrapPanel
+            {
+                Margin = new System.Windows.Thickness(20, 4, 0, 12),
+                Visibility = System.Windows.Visibility.Collapsed
+            };
+
+            BoxColorPreset selectedPreset = null;
+            System.Windows.Controls.Border selectedBorder = null;
+
+            foreach (var (name, r, g, b) in BoxColors)
+            {
+                var swatch = new System.Windows.Controls.Border
+                {
+                    Width = 70, Height = 40,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b)),
+                    BorderBrush = System.Windows.Media.Brushes.DarkGray,
+                    BorderThickness = new System.Windows.Thickness(1),
+                    Margin = new System.Windows.Thickness(2),
+                    CornerRadius = new System.Windows.CornerRadius(3),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Child = new System.Windows.Controls.TextBlock
+                    {
+                        Text = name.Split('(')[0].Trim(), FontSize = 9,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                        VerticalAlignment = System.Windows.VerticalAlignment.Center
+                    },
+                    ToolTip = $"{name} — RGB({r},{g},{b})"
+                };
+                var capturedName = name; byte cr = r, cg = g, cb = b;
+                swatch.MouseLeftButtonDown += (s, e) =>
+                {
+                    if (selectedBorder != null)
+                        selectedBorder.BorderBrush = System.Windows.Media.Brushes.DarkGray;
+                    selectedBorder = swatch;
+                    swatch.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 145, 45));
+                    swatch.BorderThickness = new System.Windows.Thickness(3);
+                    selectedPreset = new BoxColorPreset { Name = capturedName, R = cr, G = cg, B = cb };
+                };
+                swatchGrid.Children.Add(swatch);
+            }
+            panel.Children.Add(swatchGrid);
+
+            // Toggle swatch visibility based on radio selection
+            radioPick.Checked += (s, e) => swatchGrid.Visibility = System.Windows.Visibility.Visible;
+            radioAuto.Checked += (s, e) => swatchGrid.Visibility = System.Windows.Visibility.Collapsed;
+            radioClear.Checked += (s, e) => swatchGrid.Visibility = System.Windows.Visibility.Collapsed;
+
+            // Buttons
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0)
+            };
+            var applyBtn = new System.Windows.Controls.Button
+            {
+                Content = "Apply", Width = 100, Height = 32,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 145, 45)),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            applyBtn.Click += (s, e) =>
+            {
+                string mode = radioAuto.IsChecked == true ? "Auto" : radioPick.IsChecked == true ? "Pick" : "Clear";
+                if (mode == "Pick" && selectedPreset == null)
+                {
+                    System.Windows.MessageBox.Show("Please click a color swatch.", "Box Color");
+                    return;
+                }
+                result = (mode, selectedPreset);
+                window.DialogResult = true;
+                window.Close();
+            };
+            var cancelBtn = new System.Windows.Controls.Button { Content = "Cancel", Width = 80, Height = 32 };
+            cancelBtn.Click += (s, e) => { window.DialogResult = false; window.Close(); };
+            btnPanel.Children.Add(applyBtn);
+            btnPanel.Children.Add(cancelBtn);
+            panel.Children.Add(btnPanel);
+
+            window.Content = panel;
+            window.ShowDialog();
+            return result;
         }
     }
 
@@ -786,6 +1212,7 @@ namespace StingTools.Tags
                 default: return Result.Cancelled;
             }
 
+            string resultMsg = null;
             using (Transaction tx = new Transaction(doc, "STING Set View Tag Style"))
             {
                 tx.Start();
@@ -795,22 +1222,23 @@ namespace StingTools.Tags
                     if (p != null && !p.IsReadOnly)
                     {
                         p.Set(styleName);
-                        TaskDialog.Show("STING", $"View '{view.Name}' tag style set to: {styleName}");
+                        resultMsg = $"View '{view.Name}' tag style set to: {styleName}";
                     }
                     else
                     {
-                        TaskDialog.Show("STING",
-                            "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
-                            "Run 'Load Parameters' first to bind view parameters.");
+                        resultMsg = "STING_VIEW_TAG_STYLE parameter not found on this view.\n" +
+                            "Run 'Load Parameters' first to bind view parameters.";
                     }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Error("SetViewTagStyle", ex);
-                    TaskDialog.Show("STING", $"Failed: {ex.Message}");
+                    resultMsg = $"Failed: {ex.Message}";
                 }
                 tx.Commit();
             }
+            if (resultMsg != null)
+                TaskDialog.Show("STING", resultMsg);
             return Result.Succeeded;
         }
     }

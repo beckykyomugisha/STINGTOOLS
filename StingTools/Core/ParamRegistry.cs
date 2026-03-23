@@ -43,7 +43,19 @@ namespace StingTools.Core
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
-        public static string[] SegmentOrder => (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+        /// <summary>PERF-05: Cached read-only segment order — avoids Clone() on every access.</summary>
+        private static string[] _cachedSegmentOrder;
+        public static string[] SegmentOrder
+        {
+            get
+            {
+                var cached = _cachedSegmentOrder;
+                if (cached != null) return cached;
+                cached = (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
+                _cachedSegmentOrder = cached;
+                return cached;
+            }
+        }
 
         private static readonly HashSet<string> ValidSegmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
@@ -71,12 +83,14 @@ namespace StingTools.Core
                     {
                         StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
                         _overrideSegmentOrder = null;
+                        _cachedSegmentOrder = null; // PERF-05: Invalidate on rejection too
                         StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
                         return;
                     }
                 }
                 _overrideSegmentOrder = (string[])segmentOrder.Clone();
             }
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -88,6 +102,7 @@ namespace StingTools.Core
             _overrideSeparator = null;
             _overrideNumPad = null;
             _overrideSegmentOrder = null;
+            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
         }
 
         // ── Source token definitions ────────────────────────────────────
@@ -138,6 +153,8 @@ namespace StingTools.Core
         public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
         public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
         public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
+        /// <summary>FIX-B04: JSON array of cluster member bounding box centers for decluster restore.</summary>
+        public const string CLUSTER_MEMBER_POS = "STING_CLUSTER_MEMBER_POS_TXT";
         public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
         public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
         /// <summary>
@@ -217,6 +234,17 @@ namespace StingTools.Core
         // Phase 19: Host Type
         public const string HOST_TYPE = "ASS_HOST_TYPE_TXT";
         public const string HOST_TYPE_GUID = "CADBECFD-AECF-4D0B-7E8F-9AABBBCCDDEE";
+
+        // Phase 39: Sheet-Level Tagging Containers
+        public const string SHT_NUMBER = "SHT_NUMBER_TXT";
+        public const string SHT_NAME = "SHT_NAME_TXT";
+        public const string SHT_DISC = "SHT_DISC_TXT";
+        public const string SHT_ORIGINATOR = "SHT_ORIGINATOR_TXT";
+        public const string SHT_FORM = "SHT_FORM_TXT";
+        public const string SHT_LEVEL = "SHT_LEVEL_TXT";
+        public const string SHT_REV = "SHT_REV_TXT";
+        public const string SHT_TAG_1 = "SHT_TAG_1_TXT";
+        public const string SHT_TAG_7 = "SHT_TAG_7_TXT";
 
         // ── Extended parameter names (identity, spatial, dimensional, MEP) ──
         // Loaded from extended_params section. Keys map to param_name values.
@@ -340,6 +368,38 @@ namespace StingTools.Core
         public static string PLM_VELOCITY   => Ext("PLM_VELOCITY");
         public static string PLM_FLOW_RATE  => Ext("PLM_FLOW_RATE");
         public static string PLM_PIPE_LENGTH => Ext("PLM_PIPE_LENGTH");
+
+        // ── COBie / Warranty / Asset fields ──
+        public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
+        public static string WARR_DUR_PARTS   => Ext("WARR_DUR_PARTS");
+        public static string WARR_GUAR_LABOR  => Ext("WARR_GUAR_LABOR");
+        public static string WARR_DUR_LABOR   => Ext("WARR_DUR_LABOR");
+        public static string WARR_DUR_UNIT    => Ext("WARR_DUR_UNIT");
+        public static string REPLACE_COST     => Ext("REPLACE_COST");
+        public static string DUR_UNIT         => Ext("DUR_UNIT");
+        public static string NOM_LENGTH       => Ext("NOM_LENGTH");
+        public static string NOM_WIDTH        => Ext("NOM_WIDTH");
+        public static string NOM_HEIGHT       => Ext("NOM_HEIGHT");
+        public static string MODEL_REF        => Ext("MODEL_REF");
+        public static string SHAPE            => Ext("SHAPE");
+        public static string COLOR            => Ext("COLOR");
+        public static string FINISH           => Ext("FINISH");
+        public static string GRADE            => Ext("GRADE");
+        public static string MATERIAL         => Ext("MATERIAL");
+        public static string CONSTITUENTS     => Ext("CONSTITUENTS");
+        public static string FEATURES         => Ext("FEATURES");
+        public static string ACCESS_PERF      => Ext("ACCESS_PERF");
+        public static string CODE_PERF        => Ext("CODE_PERF");
+        public static string SUSTAIN_PERF     => Ext("SUSTAIN_PERF");
+        public static string WARRANTY_START   => Ext("WARRANTY_START");
+        public static string BARCODE          => Ext("BARCODE");
+        public static string ASSET_ID         => Ext("ASSET_ID");
+        public static string CONDITION        => Ext("CONDITION");
+        public static string SUPPLIER         => Ext("SUPPLIER");
+
+        // ── Tag style fields ──
+        public static string STYLE_SIZE       => Ext("STYLE_SIZE");
+        public static string STYLE_WEIGHT     => Ext("STYLE_WEIGHT");
 
         // ── Paragraph visibility controls (v4.2, expanded to 10 states) ──
         /// <summary>Compact paragraph depth (State 1 only).</summary>
@@ -862,6 +922,17 @@ namespace StingTools.Core
             return bindings;
         }
 
+        /// <summary>
+        /// Override tag format settings from project_config.json.
+        /// Called by TagConfig.LoadFromFile when the config has TAG_FORMAT section.
+        /// </summary>
+        internal static void OverrideTagFormat(string separator, int numPad, string[] segmentOrder)
+        {
+            if (!string.IsNullOrEmpty(separator)) _overrideSeparator = separator;
+            if (numPad > 0) _overrideNumPad = numPad;
+            if (segmentOrder != null && segmentOrder.Length > 0) _overrideSegmentOrder = segmentOrder;
+        }
+
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
         public static void Reload()
         {
@@ -1005,6 +1076,7 @@ namespace StingTools.Core
                     _baseSeparator = fmt["separator"]?.ToString() ?? "-";
                     _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
                     _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
+                    _cachedSegmentOrder = null; // PERF-05: Invalidate cache after loading base values
                 }
 
                 StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
@@ -1216,6 +1288,30 @@ namespace StingTools.Core
                 // which called EnsureLoaded() — but _loaded is still false at this point, causing
                 // INFINITE RECURSION (C# lock is reentrant on the same thread).
                 _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
+
+                // FIX-12.4: Supplement GUID map from MR_PARAMETERS.txt
+                try
+                {
+                    string _mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                    if (!string.IsNullOrEmpty(_mrFile) && File.Exists(_mrFile))
+                    {
+                        if (_guidByName == null)
+                            _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);
+                        int _sup = 0;
+                        foreach (string _ml in File.ReadAllLines(_mrFile))
+                        {
+                            if (!_ml.StartsWith("PARAM")) continue;
+                            var _mp = _ml.Split('\t');
+                            if (_mp.Length < 3) continue;
+                            string _mg = _mp[1]; string _mn = _mp[2];
+                            if (string.IsNullOrEmpty(_mn) || _guidByName.ContainsKey(_mn)) continue;
+                            if (Guid.TryParse(_mg, out Guid _gg))
+                            { _guidByName[_mn] = _gg; _sup++; }
+                        }
+                        StingLog.Info($"ParamRegistry: supplemented {_sup} GUIDs from MR_PARAMETERS.txt");
+                    }
+                }
+                catch (Exception _mrEx) { StingLog.Warn($"ParamRegistry MR supplement: {_mrEx.Message}"); }
 
                 StingLog.Info($"ParamRegistry loaded: {SourceTokens.Length} tokens, {ContainerGroups.Length} groups, {_allContainers.Length} containers, {_guidByName?.Count ?? 0} GUIDs");
             }
@@ -1481,6 +1577,7 @@ namespace StingTools.Core
             _baseSeparator = "-";
             _baseNumPad = 4;
             _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+            _cachedSegmentOrder = null; // PERF-05: Invalidate cache when defaults are reloaded
 
             AllTokenParams = new[]
             {
@@ -1535,7 +1632,7 @@ namespace StingTools.Core
             _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
             _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
             _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
-            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUMBER_TXT";
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUM_TXT";
             // Extended tokens
             _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
             _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";
@@ -1664,6 +1761,12 @@ namespace StingTools.Core
             _extendedParams["PRJ_PROJECT_COD"] = "PRJ_PROJECT_COD_TXT"; _extendedParams["PRJ_ORIGINATOR_COD"] = "PRJ_ORIGINATOR_COD_TXT";
             _extendedParams["PRJ_VOLUME_COD"] = "PRJ_VOLUME_COD_TXT"; _extendedParams["PRJ_STATUS_COD"] = "PRJ_STATUS_COD_TXT";
             _extendedParams["PRJ_REV_COD"] = "PRJ_REV_COD_TXT";
+            // COBie / warranty / commissioning / asset management
+            _extendedParams["BARCODE"] = "ASS_BARCODE_TXT"; _extendedParams["ASSET_ID"] = "ASS_ASSET_ID_TXT";
+            _extendedParams["CONDITION"] = "ASS_CONDITION_TXT"; _extendedParams["WARRANTY_START"] = "ASS_WARRANTY_START_TXT";
+            _extendedParams["WARR_GUAR_PARTS"] = "ASS_WARRANTY_PARTS_TXT"; _extendedParams["WARR_DUR_PARTS"] = "ASS_WARRANTY_DURATION_PARTS_YRS";
+            _extendedParams["WARR_GUAR_LABOR"] = "ASS_WARRANTY_LABOR_TXT"; _extendedParams["WARR_DUR_LABOR"] = "ASS_WARRANTY_DURATION_LABOR_YRS";
+            _extendedParams["WARR_DUR_UNIT"] = "ASS_WARRANTY_DUR_UNIT_TXT"; _extendedParams["MODEL_REF"] = "ASS_MODEL_REF_TXT";
 
             ContainerGroups = Array.Empty<ContainerGroupDef>();
             UniversalParams = new[]
@@ -1892,16 +1995,53 @@ namespace StingTools.Core
         /// TAG7 is always skipped here — it requires the narrative builder
         /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
         /// </summary>
+        // FUT-20: Discipline-to-container prefix mapping for selective writes.
+        // Elements with DISC=M skip ELC_*, PLM_*, FLS_*, COM_*, etc. containers.
+        private static readonly Dictionary<string, HashSet<string>> _discContainerPrefixes =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "HVC_", "MAT_" },
+                ["E"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "ELC_", "ELE_", "LTG_", "MAT_" },
+                ["P"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "PLM_", "MAT_" },
+                ["A"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+                ["S"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "STR_", "MAT_" },
+                ["FP"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "FLS_", "MAT_" },
+                ["LV"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "COM_", "SEC_", "NCL_", "ICT_", "MAT_" },
+                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+            };
+
+        /// <summary>FUT-20: Check if a container param is relevant for the given discipline.</summary>
+        private static bool IsContainerRelevantForDisc(string paramName, string disc)
+        {
+            if (string.IsNullOrEmpty(disc) || !_discContainerPrefixes.TryGetValue(disc, out var prefixes))
+                return true; // Unknown discipline — write all containers
+            foreach (string prefix in prefixes)
+            {
+                if (paramName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
+            if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
+
+            // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
+            string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
+
             var containers = ContainersForCategory(categoryName);
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
                 // TAG7 + sub-sections use the narrative builder, not token concatenation
                 if (IsTag7Param(c.ParamName)) continue;
+
+                // FUT-20: Skip containers not relevant for this element's discipline
+                if (!IsContainerRelevantForDisc(c.ParamName, disc)) continue;
+
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {

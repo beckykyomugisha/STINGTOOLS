@@ -7,6 +7,8 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Temp
 {
@@ -55,6 +57,52 @@ namespace StingTools.Temp
             if (remapCount > 0)
                 StingLog.Info($"Loaded {remapCount} field remaps from SCHEDULE_FIELD_REMAP.csv");
 
+            // Parse all schedule definitions to let user choose categories/disciplines
+            var allLines = File.ReadAllLines(csvPath)
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
+                .Skip(1)
+                .ToList();
+
+            // Extract unique disciplines and categories from CSV column 1 (Discipline) and 3 (Category)
+            var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
+            foreach (string rawLine in allLines)
+            {
+                string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
+                if (rawCols.Length < 4) continue;
+                string discCol = rawCols.Length > 1 ? rawCols[1].Trim() : "General";
+                string nameCol = rawCols[2].Trim();
+                string catCol = rawCols[3].Trim();
+                if (string.IsNullOrEmpty(nameCol)) continue;
+                scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
+            }
+
+            // Step: Let user pick which disciplines/categories to create
+            var discGroups = scheduleDefs
+                .GroupBy(s => s.discipline, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            var discItems = discGroups.Select(g => new StingListPicker.ListItem
+            {
+                Label = g.Key,
+                Detail = $"{g.Count()} schedules",
+                Tag = g.Key
+            }).ToList();
+
+            var discPick = StingListPicker.Show(
+                "Batch Create Schedules — Select Disciplines",
+                $"{scheduleDefs.Count} schedule definitions in CSV. Select disciplines to create.",
+                discItems, allowMultiSelect: true);
+
+            if (discPick == null || discPick.Count == 0) return Result.Cancelled;
+
+            var selectedDiscs = new HashSet<string>(
+                discPick.Select(d => d.Tag as string).Where(s => !string.IsNullOrEmpty(s)),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Filter lines to selected disciplines only
+            var filteredDefs = scheduleDefs.Where(s => selectedDiscs.Contains(s.discipline)).ToList();
+
             int created = 0;
             int skipped = 0;
             int remapped = 0;
@@ -78,9 +126,7 @@ namespace StingTools.Temp
             {
                 tx.Start();
 
-                var lines = File.ReadAllLines(csvPath)
-                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
-                    .Skip(1); // skip header row
+                var lines = filteredDefs.Select(d => d.line);
 
                 int lineNum = 0;
                 foreach (string line in lines)
@@ -286,7 +332,7 @@ namespace StingTools.Temp
                                         template.SetFilterVisibility(filter.Id, true);
                                         filtersLinked++;
                                     }
-                                    catch { /* Filter may already be on template */ }
+                                    catch (Exception ex) { StingLog.Warn($"Filter may already be on template: {ex.Message}"); }
                                 }
                             }
                         }
@@ -326,12 +372,12 @@ namespace StingTools.Temp
                     // Use first category from semicolon-separated multi-cat list
                     string firstCat = multiCats.Split(';')[0].Trim();
                     if (ScheduleHelper.TryGetCategory(firstCat, out BuiltInCategory bic))
-                        catId = new ElementId(bic);
+                        catId = new ElementId((long)bic);
                 }
                 else if (!string.IsNullOrEmpty(category) &&
                     ScheduleHelper.TryGetCategory(category, out BuiltInCategory singleBic))
                 {
-                    catId = new ElementId(singleBic);
+                    catId = new ElementId((long)singleBic);
                 }
 
                 return ViewSchedule.CreateMaterialTakeoff(doc, catId);
@@ -342,7 +388,7 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(category)) return null;
                 if (!ScheduleHelper.TryGetCategory(category, out BuiltInCategory bic))
                     return null;
-                return ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+                return ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
             }
         }
     }
@@ -859,10 +905,23 @@ namespace StingTools.Temp
             var formulas = TagPipelineHelper.LoadFormulas();
             var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            // Collect all elements
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // FIX-DEEP06: Apply ElementMulticategoryFilter to skip non-taggable elements at API level
+            // (previously iterated all elements and filtered in software — expensive on large models)
+            var allElements = new List<Element>();
+            var fapCatEnums = SharedParamGuids.AllCategoryEnums;
+            if (fapCatEnums != null && fapCatEnums.Length > 0)
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(fapCatEnums)))
+                    .ToList();
+            }
+            else
+            {
+                allElements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+            }
 
             int tagged = 0;
             int totalElements = 0;
@@ -874,6 +933,11 @@ namespace StingTools.Temp
                 tx.Start();
                 foreach (Element el in allElements)
                 {
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    // GAP-PH-01: Skip demolished elements
+                    if (TagPipelineHelper.IsDemolished(el)) continue;
+
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
@@ -914,18 +978,40 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
-            // NG6: Save SEQ sidecar for consistency with all other RunFullPipeline callers
+            sw.Stop();
+            // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"FullAutoPopulate SaveSeqSidecar: {ssEx.Message}"); }
-            sw.Stop();
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+
+            // Phase 40: Check compliance gate after full auto-populate (was missing — GAP-A01)
+            try { TagConfig.CheckComplianceGate(doc, "FullAutoPopulate"); }
+            catch (Exception cgEx) { StingLog.Warn($"FullAutoPopulate ComplianceGate: {cgEx.Message}"); }
+
+            // Phase 39: Tag sheets with ISO 19650 document codes after element pipeline
+            int sheetsTagged = 0, sheetTokens = 0;
+            try
+            {
+                using (Transaction stx = new Transaction(doc, "STING Tag Sheets (FullAutoPopulate)"))
+                {
+                    stx.Start();
+                    NativeParamMapper.MapSheets(doc);
+                    var (s, t) = NativeParamMapper.TagSheets(doc);
+                    sheetsTagged = s;
+                    sheetTokens = t;
+                    stx.Commit();
+                }
+            }
+            catch (Exception shEx) { StingLog.Warn($"FullAutoPopulate TagSheets: {shEx.Message}"); }
 
             var report = new StringBuilder();
             report.AppendLine("Full Schedule Auto-Populate Complete");
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Elements processed:    {totalElements}");
             report.AppendLine($"  Successfully pipelined: {tagged} (tag built + containers written + TAG7 updated)");
+            if (sheetsTagged > 0)
+                report.AppendLine($"  Sheets tagged:         {sheetsTagged} ({sheetTokens} tokens)");
             if (errors > 0)
                 report.AppendLine($"  Errors (skipped):      {errors}");
             report.AppendLine($"  Duration:              {sw.Elapsed.TotalSeconds:F1}s");
@@ -963,119 +1049,127 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // PERF-01: Pre-filter with ElementMulticategoryFilter instead of iterating all elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
             var collector = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
-            // Build spatial index for LOC/ZONE auto-detection
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+            var taggableElements = new List<Element>();
+            foreach (Element el in collector)
+            {
+                string catName = ParameterHelpers.GetCategoryName(el);
+                if (!string.IsNullOrEmpty(catName) && known.Contains(catName))
+                    taggableElements.Add(el);
+            }
+
+            if (taggableElements.Count == 0)
+            {
+                TaskDialog.Show("Auto-Populate", "No taggable elements found.");
+                return Result.Succeeded;
+            }
+
+            // GAP-01: Build canonical population context for TokenAutoPopulator
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            if (popCtx == null)
+            {
+                TaskDialog.Show("Auto-Populate", "Failed to build population context.");
+                return Result.Failed;
+            }
 
             int updated = 0;
-            int total = 0;
+            int total = taggableElements.Count;
             int locDetected = 0;
             int zoneDetected = 0;
             int sysAware = 0;
             int nativeMapped = 0;
+            int apErrors = 0;
+            bool cancelled = false;
 
-            using (Transaction tx = new Transaction(doc, "STING Auto-Populate Fields"))
+            // PERF-01: Chunked 200-element batches with progress dialog and cancellation
+            const int ChunkSize = 200;
+            var progress = StingProgressDialog.Show("Auto-Populate", total);
+
+            for (int batchStart = 0; batchStart < total; batchStart += ChunkSize)
             {
-                tx.Start();
+                if (cancelled) break;
 
-                int apErrors = 0;
-                foreach (Element el in collector)
+                int batchEnd = Math.Min(batchStart + ChunkSize, total);
+                int batchNum = (batchStart / ChunkSize) + 1;
+
+                using (Transaction tx = new Transaction(doc, $"STING Auto-Populate #{batchNum}"))
                 {
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !TagConfig.DiscMap.ContainsKey(catName))
-                        continue;
+                    tx.Start();
 
-                    total++;
-
-                    try
+                    for (int idx = batchStart; idx < batchEnd; idx++)
                     {
-                    // ── Layer 1: Tag token population (DISC/PROD/SYS/FUNC/LVL/LOC/ZONE) ──
-
-                    // Auto-populate DISC code from category
-                    if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC,
-                        TagConfig.DiscMap[catName]))
-                        updated++;
-
-                    // Auto-populate PROD code (family-aware: FCU, VAV, AHU, etc.)
-                    string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-                    if (!string.IsNullOrEmpty(prod))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod))
-                            updated++;
-                    }
-
-                    // Auto-populate SYS code — 6-layer detection
-                    // (connector → sys param → circuit → family → room → category)
-                    string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-                    if (!string.IsNullOrEmpty(sys))
-                    {
-                        string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys))
+                        if (progress.IsCancelled)
                         {
-                            updated++;
-                            if (string.IsNullOrEmpty(prevSys)) sysAware++;
+                            StingLog.Info($"AutoPopulate: cancelled by user at {idx}/{total}");
+                            cancelled = true;
+                            break;
                         }
-                    }
 
-                    // Auto-populate FUNC code — smart detection (HVAC: SUP/RTN/EXH, HWS: HTG/DHW)
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (!string.IsNullOrEmpty(func))
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func))
-                            updated++;
-                    }
+                        Element el = taggableElements[idx];
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName)) continue;
 
-                    // Auto-populate level code
-                    string lvl = ParameterHelpers.GetLevelCode(doc, el);
-                    if (lvl != "XX")
-                    {
-                        if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl))
-                            updated++;
-                    }
-
-                    // Auto-populate LOC from spatial data (room / project info)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
-                        if (!string.IsNullOrEmpty(loc) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc))
+                        try
                         {
-                            updated++;
-                            locDetected++;
-                        }
-                    }
+                            // GAP-01: Use canonical TokenAutoPopulator.PopulateAll instead of
+                            // inline SetIfEmpty calls. This ensures TypeTokenInherit, ConnectorInherit,
+                            // and CopyTokensFromNearest are all applied consistently.
+                            string prevLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                            string prevZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                            string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
 
-                    // Auto-populate ZONE from room data (department, name, number)
-                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
-                        if (!string.IsNullOrEmpty(zone) && ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone))
+                            TokenAutoPopulator.TypeTokenInherit(doc, el);
+                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                            updated += popResult.TokensSet;
+                            if (popResult.LocDetected) locDetected++;
+                            if (popResult.ZoneDetected) zoneDetected++;
+
+                            // Check if SYS was newly detected
+                            string newSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                            if (string.IsNullOrEmpty(prevSys) && !string.IsNullOrEmpty(newSys))
+                                sysAware++;
+
+                            // Layer 2: Native parameter mapping (Revit built-in → STING shared)
+                            int mapped = NativeParamMapper.MapAll(doc, el);
+                            nativeMapped += mapped;
+                            updated += mapped;
+                        }
+                        catch (Exception ex)
                         {
-                            updated++;
-                            zoneDetected++;
+                            StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                            apErrors++;
                         }
+
+                        progress.Increment($"Populating {idx + 1}/{total}");
                     }
 
-                    // ── Layer 2: Native parameter mapping (Revit built-in → STING shared) ──
-                    // Copies Mark, Comments, Description, Manufacturer, Model, Room data,
-                    // MEP parameters (flow, voltage, pressure), Type params as fallback
-                    int mapped = NativeParamMapper.MapAll(doc, el);
-                    nativeMapped += mapped;
-                    updated += mapped;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
-                        apErrors++;
-                    }
+                    if (cancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
                 }
-
-                tx.Commit();
             }
+
+            progress.Close();
+
+            // CACHE-02: Invalidate caches after population so compliance dashboard
+            // and auto-tagger reflect the updated token values immediately.
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             var report = new StringBuilder();
+            if (cancelled)
+                report.AppendLine($"Cancelled by user. Partial results committed.");
             report.AppendLine($"Auto-populated {updated} field values across {total} elements.");
+            if (apErrors > 0)
+                report.AppendLine($"Errors: {apErrors}");
             report.AppendLine();
             report.AppendLine("Tag tokens:");
             if (sysAware > 0) report.AppendLine($"  SYS detected from MEP systems: {sysAware}");
@@ -1092,7 +1186,7 @@ namespace StingTools.Temp
 
             TaskDialog.Show("Auto-Populate", report.ToString());
 
-            return Result.Succeeded;
+            return cancelled ? Result.Cancelled : Result.Succeeded;
         }
     }
 
@@ -1228,7 +1322,7 @@ namespace StingTools.Temp
                 projAddress = pi?.Address ?? "";
                 projStatus = pi?.Status ?? "";
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Read project information fields: {ex.Message}"); }
 
             // ── STING tag parameters from Project Information ──
             string projLoc = ParameterHelpers.GetString(pi, ParamRegistry.LOC);
@@ -1288,7 +1382,7 @@ namespace StingTools.Temp
                 // Remove old schedule if exists
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing title block schedule: {ex.Message}"); }
                 }
 
                 // Create drafting view
@@ -1429,7 +1523,7 @@ namespace StingTools.Temp
                     foreach (var rev in revisions.TakeLast(10))
                     {
                         string revDate = "";
-                        try { revDate = rev.RevisionDate; } catch { }
+                        try { revDate = rev.RevisionDate; } catch (Exception ex) { StingLog.Warn($"Read revision date: {ex.Message}"); }
                         PlaceText($"  Rev {rev.SequenceNumber}: {rev.Description}  [{revDate}]",
                             smallTypeId, lineSpacing);
                     }
@@ -1586,7 +1680,7 @@ namespace StingTools.Temp
                         }
                     }
                 }
-                catch { row.Scale = "NTS"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.Scale = "NTS"; }
 
                 // Paper size — from title block family instance dimensions
                 try
@@ -1605,7 +1699,7 @@ namespace StingTools.Temp
                         row.PaperSize = ClassifyPaperSize(widthMm, heightMm);
                     }
                 }
-                catch { row.PaperSize = "A1"; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); row.PaperSize = "A1"; }
 
                 // Revision
                 var revIds = sheet.GetAllRevisionIds();
@@ -1624,7 +1718,7 @@ namespace StingTools.Temp
                                     ? "FOR INFORMATION" : "PRELIMINARY";
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Read sheet revision data: {ex.Message}"); }
                 }
 
                 if (string.IsNullOrEmpty(row.Status)) row.Status = "PRELIMINARY";
@@ -1653,7 +1747,7 @@ namespace StingTools.Temp
                 // Remove existing if applicable
                 if (existing != null)
                 {
-                    try { doc.Delete(existing.Id); } catch { }
+                    try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Delete existing drawing register: {ex.Message}"); }
                 }
 
                 // Create drafting view

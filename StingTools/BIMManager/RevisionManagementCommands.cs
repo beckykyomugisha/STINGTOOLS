@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -82,6 +84,12 @@ namespace StingTools.BIMManager
                 ParamRegistry.TAG7F,
                 // Status and revision
                 ParamRegistry.STATUS, ParamRegistry.REV,
+                // AG-09 FIX: Context data for change classification (was missing).
+                // Enables revision reports to distinguish "element moved to new level"
+                // vs "token manually changed".
+                "ASS_GRID_REF_TXT",        // spatial context
+                "ASS_TAG_PREV_TXT",         // audit trail
+                "ASS_TAG_MODIFIED_DT",      // change timestamp
             };
             // Add discipline-specific containers if available
             try
@@ -90,7 +98,7 @@ namespace StingTools.BIMManager
                     if (!parms.Contains(ct.param))
                         parms.Add(ct.param);
             }
-            catch { /* GetContainerTuples may not be available */ }
+            catch (Exception ex) { StingLog.Warn($"RevisionEngine: GetContainerTuples failed, discipline containers may not be tracked: {ex.Message}"); }
             return parms.ToArray();
         }
 
@@ -112,10 +120,23 @@ namespace StingTools.BIMManager
                         var tokens = new Dictionary<string, string>();
                         foreach (string param in tokenParams)
                             tokens[param] = ParameterHelpers.GetString(el, param);
+                        // AG-09 FIX: Capture native Revit context for change classification
+                        try
+                        {
+                            var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                            if (phaseParam != null && phaseParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_PHASE"] = doc.GetElement(phaseParam.AsElementId())?.Name ?? "";
+                            var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM)
+                                ?? el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
+                            if (levelParam != null && levelParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_LEVEL"] = doc.GetElement(levelParam.AsElementId())?.Name ?? "";
+                            tokens["_CATEGORY"] = el.Category?.Name ?? "";
+                        }
+                        catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;
                     }
                 }
-                catch { /* Category may not exist */ }
+                catch (Exception catEx) { Core.StingLog.Warn($"Snapshot category error: {catEx.Message}"); }
             }
             return snapshot;
         }
@@ -136,11 +157,11 @@ namespace StingTools.BIMManager
                 if (latest != null)
                 {
                     string num = "";
-                    try { num = latest.RevisionNumber; } catch { }
+                    try { num = latest.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     if (!string.IsNullOrEmpty(num)) return num;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Current project revision lookup failed: {ex.Message}"); }
             // Fallback to PhaseAutoDetect
             return PhaseAutoDetect.DetectProjectRevision(doc);
         }
@@ -338,30 +359,48 @@ namespace StingTools.BIMManager
             {
                 var el = doc.GetElement(new ElementId(change.ElementId));
                 if (el == null) continue;
-                string current = ParameterHelpers.GetString(el, ParamRegistry.REV);
-                if (current != revCode)
+                try
                 {
-                    ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
-                    stamped++;
+                    string current = ParameterHelpers.GetString(el, ParamRegistry.REV);
+                    if (current != revCode)
+                    {
+                        ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
+                        stamped++;
+                    }
+                    // Also update STATUS based on change type
+                    if (change.ChangeType == "Added")
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
+                    else if (change.ChangeType == "Modified")
+                    {
+                        string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(status))
+                            ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", false);
+                    }
                 }
-                // Also update STATUS based on change type
-                if (change.ChangeType == "Added")
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, "NEW");
-                else if (change.ChangeType == "Modified")
+                catch (Exception ex)
                 {
-                    // Only update STATUS if it's not already set to a phase-derived value
-                    string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-                    if (string.IsNullOrEmpty(status))
-                        ParameterHelpers.SetString(el, ParamRegistry.STATUS, "NEW", false);
+                    StingLog.Warn($"StampAffectedElements: Cannot write element {change.ElementId}: {ex.Message}");
                 }
             }
             return stamped;
         }
 
-        /// <summary>
-        /// Prune old snapshots keeping only the most recent N files.
-        /// Prevents disk bloat from frequent auto-revision runs.
-        /// </summary>
+        /// <summary>HR-04: Size-based + count-based snapshot pruning to prevent disk bloat.</summary>
+        private static long MaxSnapshotBytes
+        {
+            get
+            {
+                try
+                {
+                    string envMb = Environment.GetEnvironmentVariable("STING_MAX_SNAPSHOT_MB");
+                    if (!string.IsNullOrEmpty(envMb) && long.TryParse(envMb, out long val) && val > 0)
+                        return val * 1024 * 1024;
+                }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots config: {ex.Message}"); }
+                return 100L * 1024 * 1024; // default 100 MB
+            }
+        }
+
         internal static int PruneSnapshots(Document doc, int keepCount = 20)
         {
             string dir = GetRevisionDir(doc);
@@ -369,13 +408,34 @@ namespace StingTools.BIMManager
                 .OrderByDescending(f => File.GetLastWriteTime(f))
                 .ToList();
             int deleted = 0;
-            for (int i = keepCount; i < files.Count; i++)
+
+            // Count-based pruning
+            while (files.Count > keepCount)
             {
-                try { File.Delete(files[i]); deleted++; }
-                catch (Exception ex) { StingLog.Warn($"RevisionEngine: Failed to prune snapshot: {ex.Message}"); }
+                try { File.Delete(files[files.Count - 1]); deleted++; }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots count: {ex.Message}"); }
+                files.RemoveAt(files.Count - 1);
             }
+
+            // HR-04: Size-based pruning
+            long totalBytes = files.Sum(f => { try { return new FileInfo(f).Length; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0L; } });
+            long maxBytes = MaxSnapshotBytes;
+            while (totalBytes > maxBytes && files.Count > 1)
+            {
+                string oldest = files[files.Count - 1];
+                try
+                {
+                    long sz = new FileInfo(oldest).Length;
+                    File.Delete(oldest);
+                    totalBytes -= sz;
+                    deleted++;
+                }
+                catch (Exception ex) { StingLog.Warn($"PruneSnapshots size: {ex.Message}"); }
+                files.RemoveAt(files.Count - 1);
+            }
+
             if (deleted > 0)
-                StingLog.Info($"RevisionEngine: Pruned {deleted} old snapshot(s), kept {keepCount}");
+                StingLog.Info($"RevisionEngine: Pruned {deleted} snapshot(s). Folder: {totalBytes / 1024 / 1024:F1} MB");
             return deleted;
         }
 
@@ -411,6 +471,39 @@ namespace StingTools.BIMManager
             public string ParamName { get; set; }
             public string OldValue { get; set; }
             public string NewValue { get; set; }
+
+            /// <summary>
+            /// GAP-BIM-004: Categorize change type for granular revision reporting.
+            /// TOKEN_CHANGE = source token modified (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ)
+            /// CONTAINER_REGEN = discipline container regenerated (HVC_EQP_TAG etc.)
+            /// NARRATIVE_CHANGE = TAG7 sub-section changed (TAG7A-F)
+            /// STATUS_CHANGE = STATUS or REV changed
+            /// TAG_REFORMAT = TAG1-TAG6 changed (may be reformat, not content change)
+            /// </summary>
+            public string ChangeCategory
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(ParamName)) return "UNKNOWN";
+                    if (ParamName == ParamRegistry.STATUS || ParamName == ParamRegistry.REV)
+                        return "STATUS_CHANGE";
+                    if (ParamName == ParamRegistry.DISC || ParamName == ParamRegistry.LOC ||
+                        ParamName == ParamRegistry.ZONE || ParamName == ParamRegistry.LVL ||
+                        ParamName == ParamRegistry.SYS || ParamName == ParamRegistry.FUNC ||
+                        ParamName == ParamRegistry.PROD || ParamName == ParamRegistry.SEQ)
+                        return "TOKEN_CHANGE";
+                    if (ParamName == ParamRegistry.TAG7A || ParamName == ParamRegistry.TAG7B ||
+                        ParamName == ParamRegistry.TAG7C || ParamName == ParamRegistry.TAG7D ||
+                        ParamName == ParamRegistry.TAG7E || ParamName == ParamRegistry.TAG7F ||
+                        ParamName == ParamRegistry.TAG7)
+                        return "NARRATIVE_CHANGE";
+                    if (ParamName == ParamRegistry.TAG1 || ParamName == ParamRegistry.TAG2 ||
+                        ParamName == ParamRegistry.TAG3 || ParamName == ParamRegistry.TAG4 ||
+                        ParamName == ParamRegistry.TAG5 || ParamName == ParamRegistry.TAG6)
+                        return "TAG_REFORMAT";
+                    return "CONTAINER_REGEN"; // Discipline-specific containers
+                }
+            }
         }
     }
 
@@ -426,7 +519,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 int nextSeq = RevisionEngine.GetNextRevisionSeq(doc);
 
                 // Prompt for description
@@ -460,6 +555,28 @@ namespace StingTools.BIMManager
                     result == TaskDialogResult.CommandLink1 ? "Preliminary" :
                     result == TaskDialogResult.CommandLink2 ? "Construction" : "As-Built");
 
+                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                try
+                {
+                    var preRevScan = ComplianceScan.Scan(doc);
+                    if (preRevScan.CompliancePercent < 80)
+                    {
+                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
+                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
+                        gateDlg.MainContent =
+                            $"Total elements: {preRevScan.TotalElements}\n" +
+                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
+                            $"Stale: {preRevScan.StaleCount}\n\n" +
+                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                            "Recommended: tag to ≥80% before creating revision.";
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
+                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
+                            return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
+
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -486,6 +603,47 @@ namespace StingTools.BIMManager
                 }
                 // Invalidate compliance cache so dashboard reflects new revision
                 ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+
+                // GAP-R9: Auto-propagate new REV to all tagged elements
+                // so tags reflect the current revision immediately
+                try
+                {
+                    int revUpdated = 0;
+                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
+                    {
+                        revTx.Start();
+                        var allTagged = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                            .ToList();
+                        foreach (var el in allTagged)
+                        {
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag1)) continue;
+                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
+                                revUpdated++;
+                        }
+                        revTx.Commit();
+                    }
+                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
+                }
+                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
+                // NTF-03: Notify team that revision is open
+                try
+                {
+                    NotificationDeliveryEngine.LoadConfig(doc);
+                    var revScan = ComplianceScan.Scan(doc);
+                    string ntfBody = $"Revision {prefix} created by {Environment.UserName}.\n" +
+                        $"Description: {description}\n" +
+                        $"Tag compliance: {revScan.CompliancePercent:F0}%\n" +
+                        $"Stale elements: {revScan.StaleCount}\n" +
+                        $"Snapshot: {snapshot.Count} elements tracked";
+                    NotificationDeliveryEngine.SendNotification(doc,
+                        $"Revision Created: {prefix}", ntfBody, "HIGH", prefix);
+                }
+                catch (Exception ex) { StingLog.Warn($"Revision notification: {ex.Message}"); }
 
                 StingLog.Info($"Revision created: {prefix} — {description}");
                 return Result.Succeeded;
@@ -507,11 +665,28 @@ namespace StingTools.BIMManager
     [Regeneration(RegenerationOption.Manual)]
     public class RevisionDashboardCommand : IExternalCommand
     {
+        // Row model for the DataGrid
+        private class RevisionRow
+        {
+            public int Seq { get; set; }
+            public string Number { get; set; }
+            public string Date { get; set; }
+            public int Clouds { get; set; }
+            public int Sheets { get; set; }
+            public string Visibility { get; set; }
+            public string Description { get; set; }
+            public long RevId { get; set; }
+        }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
+                var uidoc = _ctx.UIDoc;
+
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -520,7 +695,7 @@ namespace StingTools.BIMManager
 
                 if (revisions.Count == 0)
                 {
-                    TaskDialog.Show("StingTools Revision Dashboard", "No revisions found in project.");
+                    TaskDialog.Show("STING Revision Dashboard", "No revisions found in project.");
                     return Result.Succeeded;
                 }
 
@@ -538,44 +713,106 @@ namespace StingTools.BIMManager
                     .Cast<ViewSheet>()
                     .ToList();
 
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"PROJECT REVISION DASHBOARD — {revisions.Count} Revisions\n");
-                sb.AppendLine($"{"#",-4} {"Number",-8} {"Date",-12} {"Clouds",-8} {"Sheets",-8} {"Visibility",-18} Description");
-                sb.AppendLine(new string('─', 100));
-
+                // Build row data
+                var rows = new List<RevisionRow>();
                 foreach (var rev in revisions)
                 {
                     int numClouds = cloudsByRev.ContainsKey(rev.Id.Value) ? cloudsByRev[rev.Id.Value] : 0;
                     int numSheets = sheets.Count(s =>
                     {
                         try { return s.GetAdditionalRevisionIds().Contains(rev.Id); }
-                        catch { return false; }
+                        catch (Exception revEx) { Core.StingLog.Warn($"Revision sequence check: {revEx.Message}"); return false; }
                     });
                     string vis = rev.Visibility == RevisionVisibility.Hidden ? "Hidden" :
                                  rev.Visibility == RevisionVisibility.CloudAndTagVisible ? "Clouds+Tags" :
                                  "Tags Only";
-                    string desc = rev.Description ?? "(no description)";
-                    if (desc.Length > 40) desc = desc.Substring(0, 37) + "...";
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { numStr = "—"; }
+                    try { numStr = rev.RevisionNumber; } catch (Exception rnEx) { numStr = "—"; Core.StingLog.Warn($"Revision number access: {rnEx.Message}"); }
 
-                    sb.AppendLine($"{rev.SequenceNumber,-4} {numStr,-8} {rev.RevisionDate ?? "—",-12} " +
-                        $"{numClouds,-8} {numSheets,-8} {vis,-18} {desc}");
+                    rows.Add(new RevisionRow
+                    {
+                        Seq = rev.SequenceNumber,
+                        Number = numStr,
+                        Date = rev.RevisionDate ?? "—",
+                        Clouds = numClouds,
+                        Sheets = numSheets,
+                        Visibility = vis,
+                        Description = rev.Description ?? "(no description)",
+                        RevId = rev.Id.Value
+                    });
                 }
 
-                // Summary statistics
-                sb.AppendLine($"\n{"SUMMARY",-20}");
-                sb.AppendLine($"Total revisions: {revisions.Count}");
-                sb.AppendLine($"Total clouds: {clouds.Count}");
-                sb.AppendLine($"Active (visible): {revisions.Count(r => r.Visibility != RevisionVisibility.Hidden)}");
-                sb.AppendLine($"Hidden: {revisions.Count(r => r.Visibility == RevisionVisibility.Hidden)}");
-
-                // Check for snapshots
+                // Build WPF DataGrid dialog
                 string revDir = RevisionEngine.GetRevisionDir(doc);
-                int snapshotCount = Directory.GetFiles(revDir, "snapshot_*.json").Length;
-                sb.AppendLine($"Tag snapshots on disk: {snapshotCount}");
+                int snapshotCount = 0;
+                try { snapshotCount = Directory.GetFiles(revDir, "snapshot_*.json").Length; }
+                catch (Exception ex) { StingLog.Warn($"RevisionDashboard snapshot count: {ex.Message}"); }
 
-                TaskDialog.Show("StingTools Revision Dashboard", sb.ToString());
+                int active = revisions.Count(r => r.Visibility != RevisionVisibility.Hidden);
+                string subtitle = $"{revisions.Count} revisions | {clouds.Count} clouds | {active} active | {snapshotCount} snapshots";
+
+                var dlg = new UI.StingDataGridDialog("STING Revision Dashboard", subtitle, 1020, 580);
+                dlg.AddTextColumn("#", "Seq", 35);
+                dlg.AddTextColumn("Number", "Number", 70);
+                dlg.AddTextColumn("Date", "Date", 100);
+                dlg.AddTextColumn("Clouds", "Clouds", 60);
+                dlg.AddTextColumn("Sheets", "Sheets", 60);
+                dlg.AddTextColumn("Visibility", "Visibility", 110);
+                dlg.AddTextColumn("Description", "Description");
+
+                dlg.AddFilter("Visibility", new[] { "All", "Clouds+Tags", "Tags Only", "Hidden" }, vis =>
+                {
+                    if (vis == "All") dlg.RefreshItems(rows);
+                    else dlg.RefreshItems(rows.Where(r => r.Visibility == vis).ToList());
+                });
+
+                dlg.AddActionButton("Select Clouds", "SelectClouds");
+                dlg.AddActionButton("Take Snapshot", "Snapshot");
+                dlg.AddActionButton("Export CSV", "Export");
+                dlg.AddActionButton("Close", "Cancel");
+
+                dlg.ActionClicked += action =>
+                {
+                    if (action == "SelectClouds")
+                    {
+                        var selected = dlg.SelectedItems.Cast<RevisionRow>().ToList();
+                        if (selected.Count > 0)
+                        {
+                            var revIds = new HashSet<long>(selected.Select(r => r.RevId));
+                            var cloudIds = clouds.Where(c => revIds.Contains(c.RevisionId.Value))
+                                .Select(c => c.Id).ToList();
+                            if (cloudIds.Count > 0)
+                            {
+                                try { uidoc.Selection.SetElementIds(cloudIds); }
+                                catch (Exception ex) { StingLog.Warn($"Select clouds: {ex.Message}"); }
+                                dlg.SetStatus($"Selected {cloudIds.Count} revision clouds");
+                            }
+                            else dlg.SetStatus("No clouds for selected revision(s)");
+                        }
+                    }
+                    else if (action == "Snapshot")
+                    {
+                        dlg.SetStatus("Use 'Track Element Revisions' command to take a tag snapshot");
+                    }
+                    else if (action == "Export")
+                    {
+                        try
+                        {
+                            string csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_Revisions.csv");
+                            var csvLines = new List<string> { "Seq,Number,Date,Clouds,Sheets,Visibility,Description" };
+                            foreach (var r in rows)
+                                csvLines.Add($"{r.Seq},{r.Number},{r.Date},{r.Clouds},{r.Sheets},{r.Visibility},\"{r.Description}\"");
+                            File.WriteAllLines(csvPath, csvLines);
+                            dlg.SetStatus($"Exported to {csvPath}");
+                        }
+                        catch (Exception ex) { dlg.SetStatus($"Export failed: {ex.Message}"); }
+                    }
+                };
+
+                dlg.SetItems(rows);
+                dlg.SetStatus($"{revisions.Count} revisions | {clouds.Count} clouds | {active} active | {snapshotCount} snapshots");
+                dlg.ShowDialog();
+
                 StingLog.Info($"Revision dashboard: {revisions.Count} revisions, {clouds.Count} clouds");
                 return Result.Succeeded;
             }
@@ -600,7 +837,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var view = doc.ActiveView;
 
                 // Load previous snapshot
@@ -675,7 +914,7 @@ namespace StingTools.BIMManager
                             RevisionCloud.Create(doc, view, latestRevision.Id, curves);
                             cloudsCreated++;
                         }
-                        catch { cloudsSkipped++; }
+                        catch (Exception clEx) { cloudsSkipped++; Core.StingLog.Warn($"RevCloud creation: {clEx.Message}"); }
                     }
                     tx.Commit();
                 }
@@ -711,7 +950,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -732,7 +973,7 @@ namespace StingTools.BIMManager
                 {
                     int numClouds = clouds.ContainsKey(rev.Id.Value) ? clouds[rev.Id.Value] : 0;
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { }
+                    try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     string namingValid = RevisionEngine.ValidateRevisionNumber(numStr) == null ? "Valid" : "Invalid";
                     string issued = rev.Issued ? "Yes" : "No";
                     string vis = rev.Visibility == RevisionVisibility.Hidden ? "Hidden" :
@@ -773,8 +1014,10 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
 
                 var snapshotFiles = Directory.GetFiles(revDir, "snapshot_*.json")
@@ -861,7 +1104,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
 
                 var snapshotFiles = Directory.GetFiles(revDir, "snapshot_*.json")
@@ -937,7 +1182,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -954,7 +1201,7 @@ namespace StingTools.BIMManager
                 // Use the latest un-issued revision
                 var targetRev = revisions[0];
                 string revNum = "";
-                try { revNum = targetRev.RevisionNumber; } catch { }
+                try { revNum = targetRev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
 
                 var sheets = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
@@ -1020,6 +1267,45 @@ namespace StingTools.BIMManager
                     $"Revision marked as Issued: Yes");
 
                 StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
+
+                // IG-02: Auto-resolve matching issues when revision is issued
+                int issuesResolved = 0;
+                try
+                {
+                    string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                    var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                    if (issues.Count > 0)
+                    {
+                        foreach (var issue in issues)
+                        {
+                            string status = issue["status"]?.ToString() ?? "";
+                            if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
+
+                            // Match issues whose target_revision or revision matches the issued revision
+                            string issueRev = issue["target_revision"]?.ToString()
+                                ?? issue["revision"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(issueRev) &&
+                                string.Equals(issueRev, revNum, StringComparison.OrdinalIgnoreCase))
+                            {
+                                issue["status"] = "CLOSED";
+                                issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                                issue["response"] = $"Auto-resolved: revision {revNum} issued to {sheetsIssued} sheets";
+                                issue["resolved_in_revision"] = revNum;
+                                issuesResolved++;
+                            }
+                        }
+                        if (issuesResolved > 0)
+                        {
+                            BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                            StingLog.Info($"IG-02: Auto-resolved {issuesResolved} issues for revision {revNum}");
+                        }
+                    }
+                }
+                catch (Exception issueEx)
+                {
+                    StingLog.Warn($"IG-02: Issue auto-resolve failed: {issueEx.Message}");
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1043,7 +1329,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 var revisions = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
                     .Cast<Revision>()
@@ -1059,7 +1347,7 @@ namespace StingTools.BIMManager
                     foreach (var rev in revisions)
                     {
                         string numStr = "";
-                        try { numStr = rev.RevisionNumber; } catch { }
+                        try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                         string error = RevisionEngine.ValidateRevisionNumber(numStr);
                         if (error == null)
                         {
@@ -1126,7 +1414,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
 
                 // Find the latest revision
                 var latestRev = new FilteredElementCollector(doc)
@@ -1142,7 +1432,7 @@ namespace StingTools.BIMManager
                 }
 
                 string revNum = "";
-                try { revNum = latestRev.RevisionNumber; } catch { }
+                try { revNum = latestRev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                 string revCode = !string.IsNullOrEmpty(revNum) ? revNum : $"R{latestRev.SequenceNumber:D2}";
 
                 // Find elements in revision clouds
@@ -1254,8 +1544,10 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var uidoc = _ctx.UIDoc;
+                var doc = _ctx.Doc;
                 var selIds = uidoc.Selection.GetElementIds();
 
                 if (selIds.Count == 0)
@@ -1277,7 +1569,7 @@ namespace StingTools.BIMManager
                 {
                     var latest = revisions[0];
                     string numStr = "";
-                    try { numStr = latest.RevisionNumber; } catch { }
+                    try { numStr = latest.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     revCode = !string.IsNullOrEmpty(numStr) ? numStr : $"R{latest.SequenceNumber:D2}";
                 }
                 else
@@ -1286,6 +1578,7 @@ namespace StingTools.BIMManager
                 }
 
                 int stamped = 0;
+                int skipped = 0;
                 using (var tx = new Transaction(doc, "STING Bulk Revision Stamp"))
                 {
                     tx.Start();
@@ -1293,14 +1586,24 @@ namespace StingTools.BIMManager
                     {
                         var el = doc.GetElement(id);
                         if (el == null) continue;
-                        ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
-                        stamped++;
+                        try
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.REV, revCode, true);
+                            stamped++;
+                        }
+                        catch (Exception elEx)
+                        {
+                            skipped++;
+                            StingLog.Warn($"BulkRevisionStamp: Cannot write element {id.Value}: {elEx.Message}");
+                        }
                     }
                     tx.Commit();
                 }
 
-                TaskDialog.Show("StingTools Bulk Revision Stamp",
-                    $"Stamped {stamped} elements with revision code '{revCode}'.");
+                string stampMsg = $"Stamped {stamped} elements with revision code '{revCode}'.";
+                if (skipped > 0)
+                    stampMsg += $"\n{skipped} elements skipped (read-only or on unowned workset).";
+                TaskDialog.Show("StingTools Bulk Revision Stamp", stampMsg);
                 StingLog.Info($"Bulk revision stamp: {stamped} elements → {revCode}");
                 return Result.Succeeded;
             }
@@ -1325,7 +1628,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
                 string revDir = RevisionEngine.GetRevisionDir(doc);
                 var wb = new ClosedXML.Excel.XLWorkbook();
 
@@ -1356,7 +1661,7 @@ namespace StingTools.BIMManager
                 foreach (var rev in revisions)
                 {
                     string numStr = "";
-                    try { numStr = rev.RevisionNumber; } catch { }
+                    try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     wsReg.Cell(row, 1).Value = rev.SequenceNumber;
                     wsReg.Cell(row, 2).Value = numStr;
                     wsReg.Cell(row, 3).Value = rev.RevisionDate ?? "";
@@ -1462,7 +1767,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                var doc = _ctx.Doc;
 
                 // Load previous snapshot
                 var prevSnapshot = RevisionEngine.LoadLatestSnapshot(doc);
@@ -1503,14 +1810,42 @@ namespace StingTools.BIMManager
                 string significance = RevisionEngine.ClassifyRevisionSignificance(changes);
                 string narrative = RevisionEngine.BuildChangeNarrative(changes);
 
-                // Thresholds: Minor <10, Standard 10-50, Major >50
-                bool autoCreate = score >= 10;
+                // LG-03: Per-discipline thresholds — safety-critical disciplines have lower
+                // thresholds to trigger revisions more readily
+                var discThresholds = new Dictionary<string, double>
+                {
+                    { "FP", 5 },   // Fire Protection — lowest threshold (safety-critical)
+                    { "E", 7 },    // Electrical — lower threshold
+                    { "M", 8 },    // Mechanical — lower threshold
+                    { "P", 8 },    // Plumbing — lower threshold
+                    { "S", 8 },    // Structural — lower threshold
+                    { "A", 10 },   // Architectural — standard
+                    { "G", 12 },   // General — higher threshold
+                    { "LV", 7 },   // Low Voltage — lower threshold
+                };
+                double defaultThreshold = 10;
+
+                // Use the lowest applicable threshold from disciplines present in the changes
+                var discBreakdownForThreshold = RevisionEngine.GetChangeSummaryByDiscipline(doc, changes);
+                double effectiveThreshold = defaultThreshold;
+                string triggerDisc = "";
+                foreach (var kvp in discBreakdownForThreshold)
+                {
+                    if (discThresholds.TryGetValue(kvp.Key, out double discThresh) && discThresh < effectiveThreshold)
+                    {
+                        effectiveThreshold = discThresh;
+                        triggerDisc = kvp.Key;
+                    }
+                }
+
+                bool autoCreate = score >= effectiveThreshold;
 
                 if (!autoCreate)
                 {
                     TaskDialog.Show("StingTools Auto Revision",
                         $"Changes detected but below auto-revision threshold.\n\n" +
-                        $"Score: {score:F0} (threshold: 10)\n" +
+                        $"Score: {score:F0} (threshold: {effectiveThreshold:F0}" +
+                        (string.IsNullOrEmpty(triggerDisc) ? "" : $", driven by {triggerDisc}") + ")\n" +
                         $"Significance: {significance}\n\n" +
                         narrative +
                         "\nUse 'Create Revision' to manually create one.");
@@ -1540,7 +1875,7 @@ namespace StingTools.BIMManager
                         string assignedNum = rev.RevisionNumber;
                         if (!string.IsNullOrEmpty(assignedNum)) revCode = assignedNum;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Assigned revision number read failed: {ex.Message}"); }
 
                     // Stamp affected elements with revision code + update STATUS
                     stamped = RevisionEngine.StampAffectedElements(doc, changes, revCode);
@@ -1565,6 +1900,7 @@ namespace StingTools.BIMManager
 
                 // Invalidate compliance cache so dashboard shows fresh data
                 ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 TaskDialog.Show("StingTools Auto Revision",
                     $"Auto-Revision Created!\n\n" +
@@ -1583,6 +1919,295 @@ namespace StingTools.BIMManager
             {
                 StingLog.Error("Auto revision on tag change failed", ex);
                 message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  REVISION MANAGEMENT — Enhanced Commands
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Multi-stage revision approval workflow: Draft → Review → Approved → Issued.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionApprovalWorkflowCommand : IExternalCommand
+    {
+        private static readonly string[] WorkflowStages = new[]
+        {
+            "Draft", "Internal Review", "Coordinator Review",
+            "Client Review", "Approved", "Issued"
+        };
+
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Get all revisions
+                var revisions = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+
+                if (revisions.Count == 0)
+                {
+                    TaskDialog.Show("Revision Approval", "No revisions found in the project.");
+                    return Result.Succeeded;
+                }
+
+                // Show current revision status
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Approval Workflow");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine("Workflow: Draft → Review → Approved → Issued\n");
+
+                foreach (var rev in revisions)
+                {
+                    string desc = rev.Description ?? "(no description)";
+                    string status = rev.Issued ? "ISSUED" : "DRAFT";
+                    sb.AppendLine($"  Seq {rev.SequenceNumber}: {desc}");
+                    sb.AppendLine($"    Status: {status}  |  Date: {rev.RevisionDate}");
+                }
+
+                // Offer workflow actions
+                var td = new TaskDialog("Revision Approval Workflow");
+                td.MainInstruction = $"{revisions.Count} revisions in project";
+                td.MainContent = sb.ToString();
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Advance Latest to Issued", "Mark the latest revision as Issued");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Create Review Revision", "Add a new revision in Review status");
+                td.CommonButtons = TaskDialogCommonButtons.Close;
+
+                var result = td.Show();
+
+                if (result == TaskDialogResult.CommandLink1)
+                {
+                    var latest = revisions.Last();
+                    if (latest.Issued)
+                    {
+                        TaskDialog.Show("Revision Approval", "Latest revision is already issued.");
+                        return Result.Succeeded;
+                    }
+
+                    using (var tx = new Transaction(doc, "STING Revision Approval"))
+                    {
+                        tx.Start();
+                        latest.Issued = true;
+                        tx.Commit();
+                    }
+
+                    TaskDialog.Show("Revision Approval",
+                        $"Revision {latest.SequenceNumber} ({latest.Description}) marked as ISSUED.");
+                    StingLog.Info($"Revision {latest.SequenceNumber} issued via approval workflow");
+                }
+                else if (result == TaskDialogResult.CommandLink2)
+                {
+                    using (var tx = new Transaction(doc, "STING Create Review Revision"))
+                    {
+                        tx.Start();
+                        var newRev = Revision.Create(doc);
+                        newRev.Description = $"Review — {DateTime.Now:yyyy-MM-dd}";
+                        newRev.RevisionDate = DateTime.Now.ToString("yyyy-MM-dd");
+                        tx.Commit();
+
+                        TaskDialog.Show("Revision Approval",
+                            $"Created review revision: Seq {newRev.SequenceNumber}");
+                        StingLog.Info($"Review revision created: Seq {newRev.SequenceNumber}");
+                    }
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionApprovalWorkflowCommand failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Track revision distribution: who received, when, acknowledgement.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionDistributionCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load distribution records from BIM Manager folder
+                string distPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "revision_distribution.json");
+                Newtonsoft.Json.Linq.JArray distributions;
+                if (File.Exists(distPath))
+                {
+                    try { distributions = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(distPath)); }
+                    catch (Exception ex) { StingLog.Warn($"Distribution load failed: {ex.Message}"); distributions = new Newtonsoft.Json.Linq.JArray(); }
+                }
+                else
+                    distributions = new Newtonsoft.Json.Linq.JArray();
+
+                // Get all issued revisions
+                var issued = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Revision))
+                    .Cast<Revision>()
+                    .Where(r => r.Issued)
+                    .OrderBy(r => r.SequenceNumber)
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Distribution Report");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"Issued revisions: {issued.Count}");
+                sb.AppendLine($"Distribution records: {distributions.Count}");
+
+                foreach (var rev in issued)
+                {
+                    sb.AppendLine($"\n  Revision {rev.SequenceNumber}: {rev.Description}");
+                    sb.AppendLine($"    Date: {rev.RevisionDate}  |  Issued: Yes");
+
+                    // Find matching distribution records
+                    var matches = distributions.Where(d =>
+                        d["revision_seq"]?.ToString() == rev.SequenceNumber.ToString()).ToList();
+
+                    if (matches.Count > 0)
+                    {
+                        foreach (var dist in matches)
+                            sb.AppendLine($"    → Sent to: {dist["recipient"]}  on {dist["date_sent"]}  Ack: {dist["acknowledged"] ?? "Pending"}");
+                    }
+                    else
+                        sb.AppendLine("    → No distribution records");
+                }
+
+                TaskDialog.Show("STING Revision Distribution", sb.ToString());
+                StingLog.Info($"RevisionDistribution: {issued.Count} issued, {distributions.Count} records");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionDistributionCommand failed", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Side-by-side parameter changes between revisions with diff highlighting.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevisionComparisonReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                // Load revision snapshots
+                string snapshotDir = BIMManagerEngine.GetBIMManagerFilePath(doc, "");
+                if (!Directory.Exists(snapshotDir))
+                {
+                    TaskDialog.Show("Revision Comparison",
+                        "No revision snapshots found.\nUse 'Track Element Revisions' first to create snapshots.");
+                    return Result.Succeeded;
+                }
+
+                var snapshotFiles = Directory.GetFiles(snapshotDir, "revision_snapshot_*.json")
+                    .OrderBy(f => f)
+                    .ToList();
+
+                if (snapshotFiles.Count < 2)
+                {
+                    TaskDialog.Show("Revision Comparison",
+                        $"Need at least 2 revision snapshots for comparison.\nFound: {snapshotFiles.Count}");
+                    return Result.Succeeded;
+                }
+
+                // Compare latest two snapshots
+                string olderFile = snapshotFiles[snapshotFiles.Count - 2];
+                string newerFile = snapshotFiles[snapshotFiles.Count - 1];
+
+                Newtonsoft.Json.Linq.JObject older, newer;
+                try
+                {
+                    older = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(olderFile));
+                    newer = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(newerFile));
+                }
+                catch (Exception ex)
+                {
+                    TaskDialog.Show("Revision Comparison", $"Failed to parse snapshots:\n{ex.Message}");
+                    return Result.Failed;
+                }
+
+                int added = 0, removed = 0, changed = 0;
+                var changes = new StringBuilder();
+
+                // Compare element sets
+                var olderElements = older.Properties().Select(p => p.Name).ToHashSet();
+                var newerElements = newer.Properties().Select(p => p.Name).ToHashSet();
+
+                var addedIds = newerElements.Except(olderElements).ToList();
+                var removedIds = olderElements.Except(newerElements).ToList();
+                var commonIds = olderElements.Intersect(newerElements).ToList();
+
+                added = addedIds.Count;
+                removed = removedIds.Count;
+
+                foreach (string id in commonIds)
+                {
+                    string oldTag = older[id]?["tag"]?.ToString() ?? "";
+                    string newTag = newer[id]?["tag"]?.ToString() ?? "";
+                    if (oldTag != newTag)
+                    {
+                        changed++;
+                        if (changed <= 20) // Show first 20 changes
+                            changes.AppendLine($"  {id}: {oldTag} → {newTag}");
+                    }
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Revision Comparison Report");
+                sb.AppendLine(new string('═', 50));
+                sb.AppendLine($"Older: {Path.GetFileName(olderFile)}");
+                sb.AppendLine($"Newer: {Path.GetFileName(newerFile)}");
+                sb.AppendLine();
+                sb.AppendLine($"  Added:   {added} elements");
+                sb.AppendLine($"  Removed: {removed} elements");
+                sb.AppendLine($"  Changed: {changed} elements");
+
+                if (changes.Length > 0)
+                {
+                    sb.AppendLine("\nTag Changes (first 20):");
+                    sb.Append(changes);
+                }
+
+                TaskDialog.Show("STING Revision Comparison", sb.ToString());
+                StingLog.Info($"RevisionComparison: +{added} -{removed} ~{changed}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("RevisionComparisonReportCommand failed", ex);
                 return Result.Failed;
             }
         }

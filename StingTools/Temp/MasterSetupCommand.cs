@@ -43,7 +43,7 @@ namespace StingTools.Temp
             catch (Exception ex)
             {
                 StingLog.Error("MasterSetupCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Master Setup failed:\n{ex.Message}"); } catch (Exception ex2) { StingLog.Warn($"TaskDialog fallback: {ex2.Message}"); }
                 return Result.Failed;
             }
         }
@@ -83,6 +83,28 @@ namespace StingTools.Temp
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
+
+            // AE-03: Idempotency check — warn if Master Setup was already run on this project
+            try
+            {
+                string prevTimestamp = ParameterHelpers.GetString(doc.ProjectInformation, "STING_MASTER_SETUP_TS");
+                if (!string.IsNullOrEmpty(prevTimestamp))
+                {
+                    TaskDialog idempotencyDlg = new TaskDialog("STING Master Setup");
+                    idempotencyDlg.MainInstruction = "Master Setup was previously run";
+                    idempotencyDlg.MainContent =
+                        $"Last run: {prevTimestamp}\n\n" +
+                        "Running again will re-apply all setup steps.\n" +
+                        "Already-existing items (parameters, materials, types) will be skipped,\n" +
+                        "but tags and schedules may be regenerated.\n\n" +
+                        "Continue anyway?";
+                    idempotencyDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (idempotencyDlg.Show() == TaskDialogResult.No)
+                        return Result.Cancelled;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AE-03: Idempotency check: {ex.Message}"); }
+
             StingLog.Info("Master Setup: starting full automation workflow");
             var report = new StringBuilder();
             report.AppendLine("STING Master Setup Results");
@@ -92,6 +114,7 @@ namespace StingTools.Temp
             int passed = 0;
             int failed = 0;
             var totalSw = Stopwatch.StartNew();
+            using var _perfOp = PerformanceTracker.Track("MasterSetup");
 
             // Step 0: Load project_config.json so tag format, LOC/ZONE codes,
             // and discipline mappings reflect user's project settings
@@ -105,8 +128,11 @@ namespace StingTools.Temp
             else
             {
                 TagConfig.LoadDefaults();
-                StingLog.Info("Master Setup: project_config.json not found, using defaults");
-                report.AppendLine($"   0. Load project_config.json — SKIPPED (using defaults)");
+                // TEMP-03: Log as WARNING (not just Info) so users know defaults are active
+                StingLog.Warn("Master Setup: project_config.json not found — using built-in defaults. " +
+                    "Run 'Project Setup Wizard' to create project-specific configuration.");
+                report.AppendLine($"   0. Load project_config.json — WARNING (not found, using defaults)");
+                report.AppendLine($"      Run 'Project Setup Wizard' first for project-specific LOC/ZONE codes");
             }
 
             // Step 1: Load shared parameters (critical — other steps depend on it)
@@ -233,7 +259,11 @@ namespace StingTools.Temp
             passed += DoStep("Auto-Create Legends (discipline + system)",
                 () => RunCommand(new Tags.AutoCreateLegendsCommand(), commandData, elements));
 
-            // Step 18: Generate BEP (ISO 19650 BIM Execution Plan)
+            // Step 18: Tag sheets with ISO 19650 document codes
+            passed += DoStep("Tag Sheets (ISO 19650 doc codes)",
+                () => RunCommand(new Tags.TagSheetsCommand(), commandData, elements));
+
+            // Step 19: Generate BEP (ISO 19650 BIM Execution Plan)
             passed += DoStep("Generate BEP + Export XLSX",
                 () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 
@@ -257,13 +287,51 @@ namespace StingTools.Temp
             if (failed > 0)
                 report.AppendLine($"  Failed: {failed} — check StingTools.log for details");
 
-            TaskDialog td = new TaskDialog("STING Master Setup");
-            td.MainInstruction = $"Master Setup: {passed}/{stepNum} steps complete";
-            td.MainContent = report.ToString();
-            td.Show();
+            // GAP-1C: Run post-setup validation to catch configuration issues
+            try
+            {
+                var validator = new ValidateTemplateCommand();
+                string valMsg = "";
+                validator.Execute(commandData, ref valMsg, elements);
+                // Validation results shown by ValidateTemplateCommand itself
+                StingLog.Info("Master Setup: post-setup validation completed");
+            }
+            catch (Exception valEx)
+            {
+                StingLog.Warn($"Master Setup post-validation: {valEx.Message}");
+                report.AppendLine($"  Post-validation: skipped ({valEx.Message})");
+            }
+
+            var panel = UI.StingResultPanel.Create("Master Setup Complete")
+                .SetSubtitle($"{passed}/{stepNum} steps succeeded in {totalSw.Elapsed.TotalSeconds:F1}s")
+                .SetOverallPct(stepNum > 0 ? passed * 100.0 / stepNum : 0)
+                .SetRawText(report.ToString());
+
+            panel.AddSection("SETUP RESULTS")
+                .Metric("Steps completed", $"{passed}/{stepNum}")
+                .Metric("Duration", $"{totalSw.Elapsed.TotalSeconds:F1}s");
+            if (failed > 0)
+                panel.MetricError("Failed steps", failed.ToString(), "check StingTools.log");
+            else
+                panel.Info("All steps completed successfully.");
+
+            panel.Show();
 
             StingLog.Info($"Master Setup complete: {passed}/{stepNum} passed, " +
                 $"elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
+
+            // AE-03: Write setup timestamp for idempotency detection
+            try
+            {
+                using (var tsTx = new Transaction(doc, "STING Master Setup Timestamp"))
+                {
+                    tsTx.Start();
+                    ParameterHelpers.SetString(doc.ProjectInformation, "STING_MASTER_SETUP_TS",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    tsTx.Commit();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AE-03: Timestamp write: {ex.Message}"); }
 
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }

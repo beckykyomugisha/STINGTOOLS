@@ -122,3 +122,41 @@ COLLISION,Overwrite,Force overwrite existing tags with new values
 SEQKEY,FORMAT,DISC_SYS_LVL,Sequence counter grouping key
 SEQKEY,MAX,9999,Maximum sequence number (10^NumPad - 1)
 SEQKEY,OVERFLOW_ACTION,WARN,Action on overflow: WARN (log + continue)
+#
+# SECTION 13: TIE-IN POINT CONTAINERS (v5.1 — ISO 19650-3 Interface Management)
+# Tie-in points mark physical handover boundaries between systems/phases/contracts.
+# Parameters are attributes of existing pipe/duct/conduit elements (not separate elements).
+# Format: TIEIN,ParamName,DataType,Description
+#
+TIEIN,ASS_TIEIN_REF_TXT,TEXT,Tie-in reference code (e.g. TI-M-HWS-001)
+TIEIN,ASS_TIEIN_STATUS_TXT,TEXT,Status: OPEN / CONNECTED / CAPPED / DEFERRED
+TIEIN,ASS_TIEIN_PHASE_TXT,TEXT,Construction phase: PH1 / PH2 / PH3 / FUTURE
+TIEIN,ASS_TIEIN_BY_TXT,TEXT,Responsible party: MAIN / SUB / SPECIALIST / FUTURE
+TIEIN,ASS_TIEIN_SIZE_TXT,TEXT,Size at point: DN50 / 400×250 / 32mm conduit
+TIEIN,ASS_TIEIN_ELEV_TXT,TEXT,Elevation AFFL or AFF (e.g. 3450 AFFL)
+TIEIN,ASS_TIEIN_FLOW_DIR_TXT,TEXT,Flow direction: SUP / RET / BIDIR / UNKWN
+TIEIN,ASS_TIEIN_IFC_REF_TXT,TEXT,IFC/Interface Control Document reference
+TIEIN,ASS_TIEIN_CONNECTED_BOOL,YESNO,Resolved flag: 0=open / 1=connected
+TIEIN,ASS_TIEIN_TAG_1_TXT,TEXT,Assembled tie-in display tag (auto-populated)
+#
+# TIE-IN TAG7 PARAGRAPH CONTAINERS (discipline-specific)
+#
+TIEIN_TAG7,PLM_TAG_7_PARA_TIEIN_TXT,TEXT,Plumbing tie-in TAG7 paragraph container
+TIEIN_TAG7,HVC_TAG_7_PARA_TIEIN_TXT,TEXT,HVAC tie-in TAG7 paragraph container
+TIEIN_TAG7,ELC_TAG_7_PARA_TIEIN_TXT,TEXT,Electrical tie-in TAG7 paragraph container
+TIEIN_TAG7,FLS_TAG_7_PARA_TIEIN_TXT,TEXT,Fire protection tie-in TAG7 paragraph container
+#
+# TIE-IN TAG FAMILIES (6 discipline-specific tag families)
+#
+TIEIN_FAMILY,STING - Tie-In Point Tag (Pipe),Pipes,PLM_TAG_7_PARA_TIEIN_TXT
+TIEIN_FAMILY,STING - Tie-In Point Tag (Duct),Ducts,HVC_TAG_7_PARA_TIEIN_TXT
+TIEIN_FAMILY,STING - Tie-In Point Tag (Conduit),Conduits,ELC_TAG_7_PARA_TIEIN_TXT
+TIEIN_FAMILY,STING - Tie-In Point Tag (Cable Tray),Cable Trays,ELC_TAG_7_PARA_TIEIN_TXT
+TIEIN_FAMILY,STING - Tie-In Point Tag (Fire Protection),Pipes (FP),FLS_TAG_7_PARA_TIEIN_TXT
+TIEIN_FAMILY,STING - Tie-In Point Tag (Gas),Pipes (Gas),PLM_TAG_7_PARA_TIEIN_TXT
+
+# ─── Section 14: Sheet-Level Containers ──────────────────────────────────────
+# v5.1 | Phase 39: ISO 19650 document code containers for ViewSheet elements
+# These are sheet-level containers, not element-level — bound to ViewSheet category
+SHEETS,SHT_TAG_1_TXT,"SHT_DISC_TXT,SHT_ORIGINATOR_TXT,SHT_LEVEL_TXT,SHT_FORM_TXT,SHT_NUMBER_TXT,SHT_REV_TXT",-,Sheet ISO 19650 document code,Sheets
+SHEETS,SHT_TAG_7_TXT,"SHT_DISC_TXT,SHT_NAME_TXT,SHT_LEVEL_TXT,SHT_FORM_TXT,SHT_REV_TXT",-,Sheet rich narrative description,Sheets

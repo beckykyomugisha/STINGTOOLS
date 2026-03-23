@@ -107,13 +107,34 @@ namespace StingTools.Tags
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
 
-            // Phase 3: Smart sort for contiguous SEQ
+            // FIX-UI04: Show progress dialog BEFORE SmartSortElements so the user
+            // sees immediate feedback instead of a frozen UI during the sort phase.
+            // SmartSortElements calls GetMepSystemAwareSysCode() per element (MEP
+            // connector traversal) which can take several seconds on large models.
+            bool cancelled = false;
+            // HC-003: Configurable batch size from project_config.json (default 500)
+            int BatchSize = TagConfig.ResolveBatchSize;
+            int processed = 0;
+            var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
+            progress.SetStatus($"Sorting {totalTaggable} elements by level/discipline...");
+
+            // Phase 3: Smart sort for contiguous SEQ (progress visible during sort)
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
+            progress.SetStatus("Building pipeline context...");
 
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            var sequenceCounters = new Dictionary<string, int>(); // Fresh counters — rebuild all SEQ from scratch
-            var tagIndex = new HashSet<string>(); // Fresh index — no pre-existing tags (we're overwriting all)
+            // Use existing SEQ counters so we don't collide with tags on elements
+            // that may be excluded from this run (e.g., unfamiliar categories).
+            // BuildTagIndexAndCounters merges sidecar data for session continuity.
+            var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+            // GAP-A7 fix: Do NOT clear the tag index. Preserve existing tags for
+            // O(1) collision detection. BuildAndWriteTag adds newly generated tags
+            // to the index, preventing duplicates both within this batch and against
+            // pre-existing project tags. Clearing caused duplicate tag generation.
             var stats = new TaggingStats();
+            // GAP-03: Load pipeline context once (formulas + grid lines) for RunFullPipeline
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
             var sw = Stopwatch.StartNew();
             int populated = 0, statusFixed = 0, revFixed = 0;
             int tagsRebuilt = 0, containersWritten = 0;
@@ -122,11 +143,6 @@ namespace StingTools.Tags
             StingLog.Info($"ResolveAllIssues: starting — {totalTaggable} elements, " +
                 $"{totalIssues} issues (noTag={noTag}, incomplete={incompleteTag}, " +
                 $"unresolved={unresolvedTag}, emptyStatus={emptyStatus}, emptyRev={emptyRev})");
-
-            bool cancelled = false;
-            const int BatchSize = 500;
-            int processed = 0;
-            var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
 
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += BatchSize)
             {
@@ -150,84 +166,85 @@ namespace StingTools.Tags
                             break;
                         }
 
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                        // GAP-PH-01: Skip demolished elements
+                        if (TagPipelineHelper.IsDemolished(el)) continue;
+
                         try
                         {
-                            string catName = ParameterHelpers.GetCategoryName(el);
+                            // GAP-03: Use unified RunFullPipeline for all 11 canonical steps
+                            // (TypeTokenInherit → PopulateAll → TokenLock → CategoryForceSys →
+                            //  CategoryTokenOverrides → NativeMapper → FormulaEngine →
+                            //  BuildAndWriteTag → WriteContainers → WriteTag7All → GetGridRef)
+                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, sequenceCounters,
+                                formulas, gridLines,
+                                overwrite: true,
+                                skipComplete: false,
+                                collisionMode: TagCollisionMode.Overwrite,
+                                stats: stats);
 
-                            // NG8: TypeTokenInherit before PopulateAll for consistent token inheritance
-                            TokenAutoPopulator.TypeTokenInherit(doc, el);
-
-                            // Step 1: Force-populate all 9 tokens with guaranteed defaults
-                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: true);
-                            populated += popResult.TokensSet;
-                            if (popResult.StatusDetected) statusFixed++;
-                            if (popResult.RevSet) revFixed++;
-
-                            // Step 1b: Validate and fix ISO code violations
-                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                            string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                            string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-
-                            // Cross-validate DISC/SYS — fix SYS if invalid for discipline
-                            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+                            if (pipelineOk)
                             {
-                                string sysErr = ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys);
-                                if (sysErr != null)
+                                tagsRebuilt++;
+                                populated++;          // R-01: Track tokens populated by RunFullPipeline
+                                containersWritten++;  // R-01: Track containers written by RunFullPipeline
+
+                                // Post-pipeline: ISO cross-validation fix for invalid codes
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+
+                                bool isoFixed = false;
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.SYS, sys) != null)
                                 {
                                     string expectedSys = TagConfig.GetSysCode(catName);
                                     if (!string.IsNullOrEmpty(expectedSys))
-                                        ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true);
+                                    { ParameterHelpers.SetString(el, ParamRegistry.SYS, expectedSys, overwrite: true); isoFixed = true; }
+                                }
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
+                                {
+                                    string fixedFunc = TagConfig.GetFuncCode(ParameterHelpers.GetString(el, ParamRegistry.SYS));
+                                    if (!string.IsNullOrEmpty(fixedFunc))
+                                    { ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true); isoFixed = true; }
+                                }
+                                if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
+                                {
+                                    string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
+                                    if (!string.IsNullOrEmpty(fixedProd))
+                                    { ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true); isoFixed = true; }
+                                }
+
+                                // If ISO codes were fixed, rebuild tag string from corrected tokens
+                                // without re-deriving (BuildAndWriteTag re-derives SYS/FUNC/PROD
+                                // which would overwrite the ISO corrections we just applied)
+                                if (isoFixed)
+                                {
+                                    string[] fixedToks = ParamRegistry.ReadTokenValues(el);
+                                    if (fixedToks != null && fixedToks.Length >= 8)
+                                    {
+                                        string fixedTag = string.Join(TagConfig.Separator,
+                                            fixedToks[0], fixedToks[1], fixedToks[2], fixedToks[3],
+                                            fixedToks[4], fixedToks[5], fixedToks[6], fixedToks[7]);
+                                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                                            fixedTag = TagConfig.TagPrefix + TagConfig.Separator + fixedTag;
+                                        if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
+                                            fixedTag = fixedTag + TagConfig.Separator + TagConfig.TagSuffix;
+                                        ParameterHelpers.SetString(el, ParamRegistry.TAG1, fixedTag, overwrite: true);
+                                        tagIndex.Add(fixedTag);
+                                        ParamRegistry.WriteContainers(el, fixedToks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
+                                        // Rebuild TAG7 narrative with corrected tokens
+                                        try { TagConfig.WriteTag7All(doc, el, catName, fixedToks, overwrite: true); }
+                                        catch (Exception t7Ex) { StingLog.Warn($"ResolveAllIssues TAG7 rebuild: {t7Ex.Message}"); }
+                                    }
                                 }
                             }
-                            // Fix FUNC if invalid
-                            if (ISO19650Validator.ValidateToken(ParamRegistry.FUNC, func) != null)
-                            {
-                                string fixedFunc = TagConfig.GetFuncCode(
-                                    ParameterHelpers.GetString(el, ParamRegistry.SYS));
-                                if (!string.IsNullOrEmpty(fixedFunc))
-                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, fixedFunc, overwrite: true);
-                            }
-                            // Fix PROD if invalid
-                            if (ISO19650Validator.ValidateToken(ParamRegistry.PROD, prod) != null)
-                            {
-                                string fixedProd = TagConfig.GetFamilyAwareProdCode(el, catName);
-                                if (!string.IsNullOrEmpty(fixedProd))
-                                    ParameterHelpers.SetString(el, ParamRegistry.PROD, fixedProd, overwrite: true);
-                            }
 
-                            // NG8: Bridge Revit native params to STING shared params
-                            try { NativeParamMapper.MapAll(doc, el); }
-                            catch (Exception nmEx) { StingLog.Warn($"ResolveAllIssues NativeMapper for {el.Id}: {nmEx.Message}"); }
-
-                            // Step 2: Rebuild tag from scratch with fresh SEQ (overwrite mode)
-                            TagConfig.BuildAndWriteTag(doc, el, sequenceCounters,
-                                skipComplete: false,
-                                existingTags: tagIndex,
-                                collisionMode: TagCollisionMode.Overwrite,
-                                stats: stats,
-                                cachedRev: popCtx.ProjectRev);
-                            tagsRebuilt++;
-
-                            // Step 3: Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                            try
-                            {
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            }
-                            catch (Exception tag7Ex)
-                            {
-                                StingLog.Warn($"ResolveAllIssues TAG7 for {el.Id}: {tag7Ex.Message}");
-                            }
-
-                            // Step 4: Write ALL containers (universal + discipline-specific)
-                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                            if (!string.IsNullOrEmpty(tag1))
-                            {
-                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                                containersWritten += ParamRegistry.WriteContainers(el, tokenVals, catName,
-                                    overwrite: true, skipParam: ParamRegistry.TAG7);
-                            }
+                            // Track STATUS/REV stats from current element state
+                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.STATUS))) statusFixed++;
+                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.REV))) revFixed++;
                         }
                         catch (Exception ex)
                         {
@@ -256,15 +273,14 @@ namespace StingTools.Tags
 
             progress.Close();
 
-            // Phase2: Save SEQ sidecar after all batches committed
+            // Save SEQ sidecar once after all batches are committed (or cancelled)
             try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
             catch (Exception ssEx) { StingLog.Warn($"ResolveAllIssues SaveSeqSidecar: {ssEx.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
 
             if (cancelled)
             {
-                ComplianceScan.InvalidateCache();
-                // FIX-13: Invalidate auto-tagger cached context
-                StingAutoTagger.InvalidateContext();
                 TaskDialog.Show("Resolve All Issues",
                     $"Cancelled by user at {processed}/{totalTaggable}.\n" +
                     $"Previously committed batches were saved.\n" +
@@ -273,10 +289,10 @@ namespace StingTools.Tags
             }
 
             sw.Stop();
-            ComplianceScan.InvalidateCache();
-            // FIX-13: Invalidate auto-tagger cached context after batch resolution
-            StingAutoTagger.InvalidateContext();
             duplicatesResolved = stats.TotalCollisions;
+
+            // FIX-B09: Check compliance gate after resolving all issues
+            TagConfig.CheckComplianceGate(doc, "ResolveAllIssues");
 
             // Phase 4: Post-fix verification scan (fresh collector to capture any elements
             // added during Phase 3 and ensure compliance % reflects actual post-fix state)

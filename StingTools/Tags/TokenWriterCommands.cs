@@ -6,6 +6,8 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -46,73 +48,32 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            // Show options dialog — supports >4 options via paging
-            string value = null;
-            int page = 0;
-            const int pageSize = 4; // TaskDialog max command links
+            // Interactive dialog with search, select, cancel, OK
+            // Build valid code set for real-time validation highlighting
+            HashSet<string> validCodes = GetValidCodesForToken(paramName);
 
-            int itemsShown = 0; // tracks cumulative items shown across pages
-            while (value == null)
+            var optionItems = options.Select(o => new StingListPicker.ListItem
             {
-                int startIdx = itemsShown;
-                // Reserve 1 link slot for "More..." if there are items beyond this page
-                int remaining = options.Length - startIdx;
-                bool hasMore = remaining > pageSize;
-                int showCount = hasMore ? pageSize - 1 : Math.Min(remaining, pageSize);
-                int endIdx = startIdx + showCount;
+                Label = o,
+                Detail = validCodes != null && !validCodes.Contains(o) ? "non-compliant" : "",
+                Tag = o,
+                IsInvalid = validCodes != null && !validCodes.Contains(o)
+            }).ToList();
 
-                if (startIdx >= options.Length) break;
+            string scopeLabel = usingSelection ? "Selected elements" : "All taggable in view";
+            var picked = validCodes != null
+                ? StingListPicker.Show(
+                    $"Set {label}",
+                    $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
+                    optionItems, allowMultiSelect: false, validCodes)
+                : StingListPicker.Show(
+                    $"Set {label}",
+                    $"{targetIds.Count} elements ({scopeLabel}). Pick a value to apply.",
+                    optionItems, allowMultiSelect: false);
 
-                TaskDialog td = new TaskDialog(label);
-                td.MainInstruction = $"Set {label} on {targetIds.Count} elements";
-                string pageInfo = options.Length > pageSize
-                    ? $"\nPage {page + 1}: showing {options[startIdx]}..{options[endIdx - 1]}"
-                    : "";
-                td.MainContent = (usingSelection ? "(Selected elements)" : "(All taggable in view)") + pageInfo +
-                    "\n\nClick an option below to apply it:";
-
-                int linkCount = 0;
-                for (int i = startIdx; i < endIdx; i++)
-                {
-                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), options[i]);
-                    linkCount++;
-                }
-
-                // Add "More..." link on reserved slot
-                if (hasMore)
-                {
-                    td.AddCommandLink((TaskDialogCommandLinkId)(linkCount + 1001), "More options...");
-                }
-
-                td.CommonButtons = TaskDialogCommonButtons.Cancel;
-                var result = td.Show();
-
-                int selectedLink = -1;
-                switch (result)
-                {
-                    case TaskDialogResult.CommandLink1: selectedLink = 0; break;
-                    case TaskDialogResult.CommandLink2: selectedLink = 1; break;
-                    case TaskDialogResult.CommandLink3: selectedLink = 2; break;
-                    case TaskDialogResult.CommandLink4: selectedLink = 3; break;
-                    default: return Result.Cancelled;
-                }
-
-                int actualIdx = startIdx + selectedLink;
-                // Check if "More options..." was selected
-                if (hasMore && selectedLink == showCount)
-                {
-                    itemsShown += showCount;
-                    page++;
-                    continue; // Show next page
-                }
-
-                if (actualIdx >= 0 && actualIdx < options.Length)
-                    value = options[actualIdx];
-                else
-                    return Result.Cancelled;
-            }
-
-            if (value == null) return Result.Cancelled;
+            if (picked == null || picked.Count == 0) return Result.Cancelled;
+            string value = picked[0].Tag as string;
+            if (string.IsNullOrEmpty(value)) return Result.Cancelled;
 
             // Validate the chosen value against ISO 19650 code lists
             string validationError = ISO19650Validator.ValidateToken(paramName, value);
@@ -127,6 +88,8 @@ namespace StingTools.Tags
             }
 
             int written = 0;
+            int tagsRebuilt = 0;
+            Dictionary<string, int> seqCounters = null; // R4-B: hoist for sidecar save
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {
                 tx.Start();
@@ -137,22 +100,155 @@ namespace StingTools.Tags
                     if (ParameterHelpers.SetString(elem, paramName, value, overwrite: true))
                         written++;
                 }
+
+                // TAG-01: After setting the token, rebuild TAG1 + containers so they
+                // reflect the change immediately. Previously TAG1/containers remained
+                // stale until user ran a separate BuildTags or Combine command.
+                // R4-B FIX: Use BuildTagIndexAndCounters (merges sidecar) instead of GetExistingSequenceCounters
+                if (written > 0)
+                {
+                    HashSet<string> existingTags;
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                    foreach (ElementId id in targetIds)
+                    {
+                        Element elem = doc.GetElement(id);
+                        if (elem == null) continue;
+                        string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue; // Only rebuild already-tagged elements
+                        try
+                        {
+                            TagConfig.BuildAndWriteTag(doc, elem, seqCounters,
+                                skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                            string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                            if (tokens != null && tokens.Length >= 8)
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(elem);
+                                ParamRegistry.WriteContainers(elem, tokens, catName);
+                                TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
+                            }
+                            tagsRebuilt++;
+                        }
+                        catch (Exception rebuildEx)
+                        {
+                            StingLog.Warn($"TokenWriter TAG1 rebuild for {elem.Id}: {rebuildEx.Message}");
+                        }
+                    }
+                }
+
                 tx.Commit();
             }
 
-            TaskDialog.Show(label, $"Set '{value}' on {written} elements.");
+            // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            if (written > 0 && seqCounters != null)
+            {
+                // R4-B FIX: Save the already-mutated seqCounters (not a fresh scan) so collision increments persist
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception ssEx) { StingLog.Warn($"TokenWriter SaveSeqSidecar: {ssEx.Message}"); }
+                TagConfig.CheckComplianceGate(doc); // R4-B: TokenWriter was missing compliance gate
+            }
+
+            string resultMsg = $"Set '{value}' on {written} elements.";
+            if (tagsRebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {tagsRebuilt} elements.";
+            TaskDialog.Show(label, resultMsg);
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Returns the valid ISO 19650 code set for a token parameter name,
+        /// used to drive red-field validation in StingListPicker.
+        /// Returns null if no validation set applies to this parameter.
+        /// </summary>
+        private static HashSet<string> GetValidCodesForToken(string paramName)
+        {
+            if (paramName == ParamRegistry.DISC) return ISO19650Validator.ValidDiscCodes;
+            if (paramName == ParamRegistry.SYS) return ISO19650Validator.ValidSysCodes;
+            if (paramName == ParamRegistry.FUNC) return ISO19650Validator.ValidFuncCodes;
+            if (paramName == ParamRegistry.LOC)
+                return new HashSet<string>(TagConfig.LocCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            if (paramName == ParamRegistry.ZONE)
+                return new HashSet<string>(TagConfig.ZoneCodes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            return null; // STATUS, SEQ, PROD, REV etc. — no strict code list
         }
     }
 
-    /// <summary>Set the DISC (discipline) token on selected/view elements.</summary>
+    /// <summary>Set the DISC (discipline) token on selected/view elements.
+    /// GAP-TW-01: Also offers to update downstream SYS/FUNC to match new discipline,
+    /// preventing cross-discipline mismatches (e.g., DISC=M but SYS=LV).</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class SetDiscCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, ParamRegistry.DISC, "Discipline (DISC)",
+        public Result Execute(ExternalCommandData commandData, ref string msg, ElementSet elements)
+        {
+            var result = TokenWriter.WriteToken(commandData, ParamRegistry.DISC, "Discipline (DISC)",
                 new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
+
+            if (result != Result.Succeeded) return result;
+
+            // GAP-TW-01: Offer to update SYS/FUNC when DISC changes
+            try
+            {
+                var uidoc = commandData.Application.ActiveUIDocument;
+                Document ctxDoc = uidoc?.Document;
+                if (ctxDoc == null || uidoc == null) return result;
+
+                var selectedIds = uidoc.Selection.GetElementIds();
+                if (selectedIds == null || selectedIds.Count == 0) return result;
+
+                // Check if any elements have mismatched SYS for their new DISC
+                int mismatchCount = 0;
+                foreach (ElementId id in selectedIds)
+                {
+                    Element el = ctxDoc.GetElement(id);
+                    if (el == null) continue;
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (string.IsNullOrEmpty(disc) || string.IsNullOrEmpty(sys)) continue;
+                    // Check if SYS belongs to the new DISC
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    string expectedSys = TagConfig.GetSysCode(catName);
+                    if (!string.IsNullOrEmpty(expectedSys) && sys != expectedSys)
+                        mismatchCount++;
+                }
+
+                if (mismatchCount > 0)
+                {
+                    var dlg = new TaskDialog("STING — Update SYS/FUNC?");
+                    dlg.MainInstruction = $"{mismatchCount} element(s) have SYS codes that don't match the new discipline";
+                    dlg.MainContent = "Update SYS and FUNC tokens to match the new discipline?\n" +
+                        "This prevents cross-discipline tag mismatches.";
+                    dlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (dlg.Show() == TaskDialogResult.Yes)
+                    {
+                        using (Transaction tx = new Transaction(ctxDoc, "STING Update SYS/FUNC from DISC"))
+                        {
+                            tx.Start();
+                            int updated = 0;
+                            foreach (ElementId id in selectedIds)
+                            {
+                                Element el = ctxDoc.GetElement(id);
+                                if (el == null) continue;
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string newSys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                                if (!string.IsNullOrEmpty(newSys))
+                                    ParameterHelpers.SetString(el, ParamRegistry.SYS, newSys, overwrite: true);
+                                string newFunc = TagConfig.GetFuncCode(newSys);
+                                if (!string.IsNullOrEmpty(newFunc))
+                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, newFunc, overwrite: true);
+                                updated++;
+                            }
+                            tx.Commit();
+                            StingLog.Info($"SetDisc: updated SYS/FUNC on {updated} elements");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetDisc downstream update: {ex.Message}"); }
+
+            return result;
+        }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -209,10 +305,11 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
-            // Use shared sequence counter scan (continues from highest existing SEQ per group)
-            var maxSeq = TagConfig.GetExistingSequenceCounters(doc);
+            // Use canonical BuildTagIndexAndCounters (merges sidecar data for session continuity)
+            var (_, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int assigned = 0;
+            int rebuilt = 0;
             using (Transaction tx = new Transaction(doc, "STING Assign Numbers"))
             {
                 tx.Start();
@@ -248,17 +345,67 @@ namespace StingTools.Tags
                         ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
                     }
 
-                    string key = $"{disc}_{sys}_{lvl}";
+                    // LOGIC-04: Include ZONE in group key for distinct sequences per zone
+                    string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);
+                    if (string.IsNullOrEmpty(zone)) zone = "ZZ";
+                    string func = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                    string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
+                    // Use canonical BuildSeqKey for consistent key format across all commands
+                    string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
                     if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
                     maxSeq[key]++;
-                    string seq = maxSeq[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
+                    // Honor SeqScheme setting (Numeric/Alpha/ZonePrefix/DiscPrefix)
+                    string seqContext = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
+                                      : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
+                                      : "";
+                    string seq = TagConfig.BuildSeqString(maxSeq[key], TagConfig.CurrentSeqScheme, seqContext);
                     ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
                     assigned++;
                 }
+
+                // SEQ-01: After assigning SEQ numbers, rebuild TAG1 + containers so they
+                // reflect the new sequence. Previously TAG1 remained stale until a separate
+                // BuildTags command was run.
+                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                rebuilt = 0;
+                foreach (ElementId id in targetIds)
+                {
+                    Element elem = doc.GetElement(id);
+                    if (elem == null) continue;
+                    string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1) &&
+                        string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.DISC)))
+                        continue; // Skip untagged elements with no DISC
+                    try
+                    {
+                        TagConfig.BuildAndWriteTag(doc, elem, maxSeq,
+                            skipComplete: false, existingTags, TagCollisionMode.Skip);
+                        string[] tokens = ParamRegistry.ReadTokenValues(elem);
+                        if (tokens != null && tokens.Length >= 8)
+                        {
+                            string catName = ParameterHelpers.GetCategoryName(elem);
+                            ParamRegistry.WriteContainers(elem, tokens, catName);
+                            TagConfig.WriteTag7All(doc, elem, catName, tokens, overwrite: true);
+                        }
+                        rebuilt++;
+                    }
+                    catch (Exception rebuildEx)
+                    {
+                        StingLog.Warn($"AssignNumbers TAG1 rebuild for {elem.Id}: {rebuildEx.Message}");
+                    }
+                }
+
                 tx.Commit();
             }
 
-            TaskDialog.Show("Assign Numbers", $"Assigned sequence numbers to {assigned} elements.");
+            // FIX-WR07: Save SEQ sidecar + invalidate caches after sequence assignment
+            TagConfig.SaveSeqSidecar(doc, maxSeq);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            string resultMsg = $"Assigned sequence numbers to {assigned} elements.";
+            if (rebuilt > 0) resultMsg += $"\nRebuilt TAG1 + containers on {rebuilt} elements.";
+            TaskDialog.Show("Assign Numbers", resultMsg);
             return Result.Succeeded;
         }
     }
@@ -301,14 +448,13 @@ namespace StingTools.Tags
             // Build collision detection index and sequence counters
             var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
 
-            int built = 0;
-            int collisions = 0;
-            int containerWrites = 0;
-            int skipped = 0;
+            // FIX-B01: Use RunFullPipeline for canonical per-element processing
+            var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            var formulas = TagPipelineHelper.LoadFormulas();
+            var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
-            // Build spatial index and project LOC once before the loop for performance
-            var roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-            string projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+            int built = 0;
+            int skipped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Build Tags + All Containers"))
             {
@@ -318,165 +464,33 @@ namespace StingTools.Tags
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
 
-                    string catName = ParameterHelpers.GetCategoryName(elem);
+                    // FIX-B01: Delegate to unified pipeline (handles all 11 canonical steps)
+                    // overwrite: false — preserves manually-set token values;
+                    // PopulateAll only fills empty tokens, respecting user edits
+                    bool ok = TagPipelineHelper.RunFullPipeline(
+                        doc, elem, popCtx, existingTags, seqCounters,
+                        formulas, gridLines,
+                        overwrite: false, skipComplete: false,
+                        collisionMode: TagCollisionMode.AutoIncrement);
 
-                    // Read all 8 tokens, auto-deriving any empty ones
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(elem);
-
-                    string disc = tokenValues[0]; // DISC
-                    if (string.IsNullOrEmpty(disc))
-                    {
-                        disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
-                        if (string.IsNullOrEmpty(disc)) { skipped++; continue; }
-                        tokenValues[0] = disc;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.DISC, disc);
-                    }
-
-                    // Auto-derive SYS if missing (MEP-aware 6-layer detection, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[4]))
-                    {
-                        string sys = TagConfig.GetMepSystemAwareSysCode(elem, catName);
-                        if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-                        tokenValues[4] = sys;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.SYS, sys);
-                    }
-
-                    // Auto-derive LOC if missing (spatial detection from rooms / project info)
-                    if (string.IsNullOrEmpty(tokenValues[1]))
-                    {
-                        string loc = SpatialAutoDetect.DetectLoc(doc, elem, roomIndex,
-                            projectLoc);
-                        if (!string.IsNullOrEmpty(loc))
-                        {
-                            tokenValues[1] = loc;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, loc);
-                        }
-                    }
-
-                    // Auto-derive ZONE if missing (spatial detection from rooms)
-                    if (string.IsNullOrEmpty(tokenValues[2]))
-                    {
-                        string zone = SpatialAutoDetect.DetectZone(doc, elem, roomIndex);
-                        if (!string.IsNullOrEmpty(zone))
-                        {
-                            tokenValues[2] = zone;
-                            ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, zone);
-                        }
-                    }
-
-                    // Auto-derive LVL if missing (guaranteed default: never "XX" or empty)
-                    if (string.IsNullOrEmpty(tokenValues[3]) || tokenValues[3] == "XX")
-                    {
-                        string lvl = ParameterHelpers.GetLevelCode(doc, elem);
-                        if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
-                        tokenValues[3] = lvl;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LVL, lvl);
-                    }
-
-                    // Auto-derive FUNC if missing (smart subsystem, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[5]))
-                    {
-                        string func = TagConfig.GetSmartFuncCode(elem, tokenValues[4]);
-                        if (string.IsNullOrEmpty(func))
-                            func = TagConfig.FuncMap.TryGetValue(tokenValues[4], out string fv) ? fv : "GEN";
-                        tokenValues[5] = func;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.FUNC, func);
-                    }
-
-                    // Auto-derive LOC/ZONE if missing (guaranteed defaults)
-                    if (string.IsNullOrEmpty(tokenValues[1]))
-                    {
-                        tokenValues[1] = "BLD1";
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.LOC, "BLD1");
-                    }
-                    if (string.IsNullOrEmpty(tokenValues[2]))
-                    {
-                        tokenValues[2] = "Z01";
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.ZONE, "Z01");
-                    }
-
-                    // Auto-derive PROD if missing (family-aware product code, guaranteed default)
-                    if (string.IsNullOrEmpty(tokenValues[6]))
-                    {
-                        string prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
-                        tokenValues[6] = prod;
-                        ParameterHelpers.SetIfEmpty(elem, ParamRegistry.PROD, prod);
-                    }
-
-                    string seq = tokenValues[7]; // SEQ
-
-                    // Build the full 8-segment tag
-                    string tag = string.Join(ParamRegistry.Separator, tokenValues);
-                    // TW-03e: Apply global tag prefix and suffix
-                    if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                        tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
-                    if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                        tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
-
-                    // Collision detection: if tag exists, auto-increment SEQ
-                    string oldTag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
-                    if (existingTags.Contains(tag))
-                    {
-                        string sys = tokenValues[4];
-                        string lvl = tokenValues[3];
-                        string seqKey = $"{disc}_{(string.IsNullOrEmpty(sys) ? TagConfig.GetDiscDefaultSysCode(disc) : sys)}_{(string.IsNullOrEmpty(lvl) ? "L00" : lvl)}";
-                        if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
-
-                        int safety = 10000;
-                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
-                        while (existingTags.Contains(tag) && safety-- > 0)
-                        {
-                            seqCounters[seqKey]++;
-                            if (seqCounters[seqKey] > maxSeqVal)
-                            {
-                                StingLog.Warn($"SEQ overflow in BuildTags collision: {seqKey} at {seqCounters[seqKey]}");
-                                break;
-                            }
-                            seq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
-                            tokenValues[7] = seq;
-                            tag = string.Join(ParamRegistry.Separator, tokenValues);
-                            // TW-03e: Reapply prefix/suffix after collision rebuild
-                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                                tag = TagConfig.TagPrefix + ParamRegistry.Separator + tag;
-                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                                tag = tag + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        }
-
-                        // Write the new SEQ back to the element
-                        ParameterHelpers.SetString(elem, ParamRegistry.SEQ, seq, overwrite: true);
-                        collisions++;
-                    }
-
-                    // Remove element's old tag from index to prevent ghost entries
-                    if (!string.IsNullOrEmpty(oldTag) && oldTag != tag)
-                        existingTags.Remove(oldTag);
-                    existingTags.Add(tag);
-
-                    // Write TAG1 (the master assembled tag)
-                    ParameterHelpers.SetString(elem, ParamRegistry.TAG1, tag, overwrite: true);
-                    built++;
-
-                    // Write ALL containers (category-filtered) via ParamRegistry
-                    containerWrites += ParamRegistry.WriteContainers(
-                        elem, tokenValues, catName, overwrite: true,
-                        skipParam: ParamRegistry.TAG1);
-
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    containerWrites += TagConfig.WriteTag7All(doc, elem, catName, tokenValues, overwrite: true);
+                    if (ok) built++;
+                    else skipped++;
                 }
                 tx.Commit();
             }
 
+            // FIX-WR04: Save SEQ sidecar + invalidate caches after tag building
+            TagConfig.SaveSeqSidecar(doc, seqCounters);
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             var report = new StringBuilder();
             report.AppendLine($"Built tags for {built} elements.");
-            if (collisions > 0)
-                report.AppendLine($"Resolved {collisions} collisions (auto-incremented SEQ).");
-            report.AppendLine($"Wrote {containerWrites} container parameters across {built} elements.");
             if (skipped > 0)
-                report.AppendLine($"Skipped {skipped} elements (no DISC token).");
+                report.AppendLine($"Skipped {skipped} elements.");
 
             TaskDialog.Show("Build Tags", report.ToString());
-            StingLog.Info($"BuildTags: built={built}, collisions={collisions}, containers={containerWrites}");
+            StingLog.Info($"BuildTags: built={built}, skipped={skipped}");
             return Result.Succeeded;
         }
     }
@@ -563,7 +577,7 @@ namespace StingTools.Tags
             // GAP-005 fix: Show revision distribution and stale revision detection
             var revDistribution = new Dictionary<string, int>();
             string currentProjectRev = "";
-            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch { }
+            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Get current project revision failed: {ex.Message}"); }
             int staleRevCount = 0;
             foreach (Element elem2 in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
@@ -701,6 +715,11 @@ namespace StingTools.Tags
                 tx.Commit();
             }
 
+            // GAP-A1 fix: Invalidate caches so compliance dashboard and auto-tagger
+            // reflect the newly-mapped sheet parameter values
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
             int sheetCount = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet)).GetElementCount();
 
@@ -712,6 +731,114 @@ namespace StingTools.Tags
                 "Approved By, Issue Date, Current Revision");
 
             StingLog.Info($"MapSheetsCommand: {written} values written across {sheetCount} sheets");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Tag all sheets with ISO 19650 document codes by scanning viewport contents
+    /// to derive discipline, form, level, originator, and revision tokens.
+    /// Assembles SHT_TAG_1 (full document code) and SHT_TAG_7 (rich narrative).
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TagSheetsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            int sheetCount = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).GetElementCount();
+
+            if (sheetCount == 0)
+            {
+                TaskDialog.Show("STING", "No sheets found in the project.");
+                return Result.Succeeded;
+            }
+
+            var confirm = new TaskDialog("STING — Tag Sheets");
+            confirm.MainInstruction = $"Tag {sheetCount} sheets with ISO 19650 document codes?";
+            confirm.MainContent =
+                "This will scan viewport contents on each sheet to derive:\n\n" +
+                "• SHT_DISC — Discipline (majority vote from elements)\n" +
+                "• SHT_FORM — Document form (DR/SH/M3/LG)\n" +
+                "• SHT_LEVEL — Level code (from viewport views)\n" +
+                "• SHT_ORIGINATOR — From Project Information\n" +
+                "• SHT_REV — Current project revision\n" +
+                "• SHT_TAG_1 — Assembled ISO 19650 document code\n" +
+                "• SHT_TAG_7 — Rich narrative description\n\n" +
+                "Existing sheet token values will be overwritten.";
+            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (confirm.Show() == TaskDialogResult.Cancel)
+                return Result.Cancelled;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            int sheetsProcessed = 0, tokensWritten = 0;
+            using (Transaction tx = new Transaction(doc, "STING Tag Sheets"))
+            {
+                tx.Start();
+
+                // Map native sheet params first
+                NativeParamMapper.MapSheets(doc);
+
+                // Run full sheet tagging pipeline with progress dialog
+                var allSheets = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .ToList();
+
+                string originator = NativeParamMapper.SheetTagger.DetectOriginator(doc);
+                string projectCode = NativeParamMapper.SheetTagger.DetectProjectCode(doc);
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+
+                var pDlg = StingProgressDialog.Show("Tag Sheets", allSheets.Count);
+
+                foreach (var sheet in allSheets)
+                {
+                    if (EscapeChecker.IsEscapePressed())
+                    {
+                        tx.RollBack();
+                        pDlg.Close();
+                        TaskDialog.Show("STING", $"Sheet tagging cancelled.\n{sheetsProcessed} sheets tagged before cancel.");
+                        return Result.Cancelled;
+                    }
+
+                    pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
+
+                    int written = NativeParamMapper.SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                    tokensWritten += written;
+                    sheetsProcessed++;
+                }
+
+                pDlg.Close();
+                tx.Commit();
+            }
+
+            sw.Stop();
+
+            // Cache invalidation — ensure compliance dashboard reflects sheet changes
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            var report = new System.Text.StringBuilder();
+            report.AppendLine("Sheet Tagging Complete");
+            report.AppendLine(new string('═', 40));
+            report.AppendLine($"  Sheets processed:  {sheetsProcessed}");
+            report.AppendLine($"  Tokens written:    {tokensWritten}");
+            report.AppendLine($"  Duration:          {sw.Elapsed.TotalSeconds:F1}s");
+            report.AppendLine();
+            report.AppendLine("Parameters written per sheet:");
+            report.AppendLine("  SHT_DISC, SHT_FORM, SHT_LEVEL,");
+            report.AppendLine("  SHT_ORIGINATOR, SHT_REV,");
+            report.AppendLine("  SHT_TAG_1 (document code), SHT_TAG_7 (narrative)");
+
+            TaskDialog.Show("STING Tag Sheets", report.ToString());
+            StingLog.Info($"TagSheetsCommand: {sheetsProcessed} sheets, {tokensWritten} tokens, {sw.Elapsed.TotalSeconds:F1}s");
             return Result.Succeeded;
         }
     }

@@ -8,93 +8,140 @@ namespace StingTools.UI
 {
     /// <summary>
     /// UI-01: Theme engine for STING Tools dockable panel.
-    /// Provides Dark, Light, Grey, and Corporate themes with
-    /// dynamic resource switching.
+    /// All themes use light content areas (matching the TAGS sub-tabs style)
+    /// with coloured header/tab bars. Clean white/off-white backgrounds,
+    /// dark text, subtle borders.
+    ///
+    /// IMPORTANT: In Revit's dockable pane hosting, Application.Current.Resources
+    /// may not propagate to the Page's DynamicResource lookups because the WPF
+    /// resource tree can be broken. Resources are set on BOTH the Page and
+    /// Application to ensure DynamicResource bindings resolve correctly.
     /// </summary>
     public static class ThemeManager
     {
         public static string CurrentTheme { get; private set; } = "Light";
 
-        private static readonly string[] ThemeOrder = { "Dark", "Light", "Grey", "Corporate" };
+        private static readonly string[] ThemeOrder = { "Light", "Warm", "Cool", "Corporate" };
+
+        /// <summary>
+        /// Reference to the host Page/FrameworkElement for direct resource setting.
+        /// Set via RegisterTarget() from StingDockPanel constructor.
+        /// </summary>
+        private static FrameworkElement _targetElement;
 
         private static readonly Dictionary<string, Dictionary<string, string>> Themes =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
             {
                 {
-                    "Dark", new Dictionary<string, string>
-                    {
-                        { "PrimaryBg", "#1B2333" },
-                        { "SecondaryBg", "#242D3E" },
-                        { "PanelFg", "#E8EAF0" },
-                        { "AccentBrush", "#2E75B6" },
-                        { "ButtonBg", "#2D3748" },
-                        { "ButtonFg", "#E2E8F0" },
-                        { "HoverBg", "#3D4A5E" },
-                        { "HeaderBg", "#151D2B" },
-                        { "HeaderFg", "#F0F4F8" },
-                        { "BorderColor", "#4A5568" },
-                        { "SuccessColor", "#48BB78" },
-                        { "WarningColor", "#ED8936" },
-                        { "ErrorColor", "#FC8181" },
-                    }
-                },
-                {
+                    // Clean white — light header, no dark shade
                     "Light", new Dictionary<string, string>
                     {
                         { "PrimaryBg", "#FFFFFF" },
-                        { "SecondaryBg", "#F2F2F2" },
-                        { "PanelFg", "#404040" },
-                        { "AccentBrush", "#1B3A5C" },
-                        { "ButtonBg", "#E8E8E8" },
+                        { "SecondaryBg", "#FAFAFA" },
+                        { "PanelFg", "#333333" },
+                        { "AccentBrush", "#E88A1A" },   // Bright orange section headers
+                        { "ButtonBg", "#F0F0F0" },
                         { "ButtonFg", "#333333" },
-                        { "HoverBg", "#D0D0D0" },
-                        { "HeaderBg", "#1B3A5C" },
-                        { "HeaderFg", "#FFFFFF" },
-                        { "BorderColor", "#CCCCCC" },
+                        { "HoverBg", "#E2E2E2" },
+                        { "HeaderBg", "#F5F5F5" },       // Light header bar
+                        { "HeaderFg", "#333333" },
+                        { "BorderColor", "#E0E0E0" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#F57C00" },
                         { "ErrorColor", "#D32F2F" },
+                        { "TabBg", "#EEEEEE" },
+                        { "TabFg", "#555555" },
+                        { "TabSelectedBg", "#FFFFFF" },
+                        { "TabSelectedFg", "#333333" },
                     }
                 },
                 {
-                    "Grey", new Dictionary<string, string>
+                    // Warm cream tint — light warm header
+                    "Warm", new Dictionary<string, string>
                     {
-                        { "PrimaryBg", "#3C3C3C" },
-                        { "SecondaryBg", "#4A4A4A" },
-                        { "PanelFg", "#E0E0E0" },
-                        { "AccentBrush", "#5E9FD4" },
-                        { "ButtonBg", "#555555" },
-                        { "ButtonFg", "#F0F0F0" },
-                        { "HoverBg", "#666666" },
-                        { "HeaderBg", "#333333" },
-                        { "HeaderFg", "#FFFFFF" },
-                        { "BorderColor", "#777777" },
-                        { "SuccessColor", "#66BB6A" },
-                        { "WarningColor", "#FFA726" },
-                        { "ErrorColor", "#EF5350" },
+                        { "PrimaryBg", "#FFFDF8" },
+                        { "SecondaryBg", "#FFF9F0" },
+                        { "PanelFg", "#3E3428" },
+                        { "AccentBrush", "#D46A14" },   // Warm orange headers
+                        { "ButtonBg", "#F5EDE0" },
+                        { "ButtonFg", "#3E3428" },
+                        { "HoverBg", "#EBE0D0" },
+                        { "HeaderBg", "#F5EDE0" },       // Light warm header
+                        { "HeaderFg", "#4A3728" },
+                        { "BorderColor", "#E5D8C8" },
+                        { "SuccessColor", "#558B2F" },
+                        { "WarningColor", "#E65100" },
+                        { "ErrorColor", "#C62828" },
+                        { "TabBg", "#EDE4D6" },
+                        { "TabFg", "#5D4E3C" },
+                        { "TabSelectedBg", "#FFFDF8" },
+                        { "TabSelectedFg", "#3E3428" },
                     }
                 },
                 {
+                    // Cool blue-grey tint — light cool header
+                    "Cool", new Dictionary<string, string>
+                    {
+                        { "PrimaryBg", "#F8FAFC" },
+                        { "SecondaryBg", "#F2F6FA" },
+                        { "PanelFg", "#2D3748" },
+                        { "AccentBrush", "#3182CE" },   // Bright blue headers
+                        { "ButtonBg", "#E8EEF4" },
+                        { "ButtonFg", "#2D3748" },
+                        { "HoverBg", "#D6DFE8" },
+                        { "HeaderBg", "#E8EEF4" },       // Light cool header
+                        { "HeaderFg", "#1A365D" },
+                        { "BorderColor", "#D0DAE4" },
+                        { "SuccessColor", "#276749" },
+                        { "WarningColor", "#C05621" },
+                        { "ErrorColor", "#C53030" },
+                        { "TabBg", "#DCE4ED" },
+                        { "TabFg", "#4A5568" },
+                        { "TabSelectedBg", "#F8FAFC" },
+                        { "TabSelectedFg", "#2D3748" },
+                    }
+                },
+                {
+                    // Corporate — light professional grey header
                     "Corporate", new Dictionary<string, string>
                     {
-                        { "PrimaryBg", "#F5F5F5" },
-                        { "SecondaryBg", "#EEEEEE" },
+                        { "PrimaryBg", "#FAFAFA" },
+                        { "SecondaryBg", "#F3F3F3" },
                         { "PanelFg", "#37474F" },
-                        { "AccentBrush", "#1565C0" },
-                        { "ButtonBg", "#E0E0E0" },
-                        { "ButtonFg", "#263238" },
-                        { "HoverBg", "#BDBDBD" },
-                        { "HeaderBg", "#0D47A1" },
-                        { "HeaderFg", "#FFFFFF" },
-                        { "BorderColor", "#B0BEC5" },
+                        { "AccentBrush", "#1976D2" },   // Corporate blue headers
+                        { "ButtonBg", "#E8E8E8" },
+                        { "ButtonFg", "#37474F" },
+                        { "HoverBg", "#D5D5D5" },
+                        { "HeaderBg", "#ECEFF1" },       // Light slate header
+                        { "HeaderFg", "#263238" },
+                        { "BorderColor", "#CFD8DC" },
                         { "SuccessColor", "#2E7D32" },
                         { "WarningColor", "#E65100" },
                         { "ErrorColor", "#B71C1C" },
+                        { "TabBg", "#CFD8DC" },
+                        { "TabFg", "#455A64" },
+                        { "TabSelectedBg", "#FAFAFA" },
+                        { "TabSelectedFg", "#37474F" },
                     }
                 },
             };
 
-        /// <summary>Apply a named theme to the application resources.</summary>
+        /// <summary>
+        /// Register the panel element that will receive theme resources.
+        /// Call once from the panel constructor after InitializeComponent().
+        /// </summary>
+        public static void RegisterTarget(FrameworkElement element)
+        {
+            _targetElement = element;
+        }
+
+        /// <summary>Alias for RegisterTarget for backwards compatibility.</summary>
+        public static void RegisterHost(FrameworkElement host)
+        {
+            RegisterTarget(host);
+        }
+
+        /// <summary>Apply a named theme to both the panel and Application resources.</summary>
         public static void ApplyTheme(string themeName)
         {
             if (!Themes.ContainsKey(themeName))
@@ -104,27 +151,45 @@ namespace StingTools.UI
             }
 
             var theme = Themes[themeName];
-            var app = Application.Current;
-            if (app == null) return;
 
+            // Set resources on the host element FIRST (direct, always works in Revit)
+            ApplyToTarget(theme, _targetElement?.Resources);
+
+            // Also set on Application.Current for any child windows/dialogs
+            ApplyToTarget(theme, Application.Current?.Resources);
+
+            CurrentTheme = themeName;
+            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
+        }
+
+        private static void ApplyToTarget(Dictionary<string, string> theme, ResourceDictionary resources)
+        {
+            if (resources == null) return;
             foreach (var kvp in theme)
             {
                 try
                 {
                     var color = (Color)ColorConverter.ConvertFromString(kvp.Value);
-                    app.Resources[kvp.Key] = new SolidColorBrush(color);
+                    resources[kvp.Key] = new SolidColorBrush(color);
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"ThemeManager: failed to set {kvp.Key}={kvp.Value}: {ex.Message}");
                 }
             }
-
-            CurrentTheme = themeName;
-            StingLog.Info($"ThemeManager: applied '{themeName}' theme");
         }
 
-        /// <summary>Cycle to the next theme in order: Dark -> Light -> Grey -> Corporate.</summary>
+        /// <summary>
+        /// Seed all theme resource keys at startup.
+        /// Must be called after InitializeComponent() and RegisterTarget().
+        /// </summary>
+        public static void InitialiseResources()
+        {
+            if (!Themes.ContainsKey(CurrentTheme)) CurrentTheme = "Light";
+            ApplyTheme(CurrentTheme);
+        }
+
+        /// <summary>Cycle to the next theme in order: Light -> Warm -> Cool -> Corporate.</summary>
         public static string CycleTheme()
         {
             int idx = Array.IndexOf(ThemeOrder, CurrentTheme);

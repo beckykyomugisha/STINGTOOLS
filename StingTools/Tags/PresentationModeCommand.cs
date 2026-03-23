@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -43,9 +44,6 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
-
-            // Load presentation modes from LABEL_DEFINITIONS.json
-            var modes = LabelDefinitionHelper.LoadPresentationModes();
 
             TaskDialog td = new TaskDialog("Presentation Mode");
             td.MainInstruction = "Select tag presentation mode";
@@ -262,12 +260,12 @@ namespace StingTools.Tags
 
             // Tier 2
             sb.AppendLine("  ── TIER 2 (Gated by TAG_PARA_STATE_2_BOOL) ──");
-            sb.AppendLine("  Calculated value: if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
+            sb.AppendLine("  Calculated value (Type: Text): if(TAG_PARA_STATE_2_BOOL, <param>, \"\")");
             FormatTierParams(sb, catDef["tier_2"] as JArray, paramText);
 
             // Tier 3
             sb.AppendLine("  ── TIER 3 (Gated by TAG_PARA_STATE_3_BOOL) ──");
-            sb.AppendLine("  Calculated value: if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
+            sb.AppendLine("  Calculated value (Type: Text): if(TAG_PARA_STATE_3_BOOL, <param>, \"\")");
             FormatTierParams(sb, catDef["tier_3"] as JArray, paramText);
 
             sb.AppendLine();
@@ -573,73 +571,16 @@ namespace StingTools.Tags
                 }
             }
 
-            TaskDialog td = new TaskDialog("TAG7 Heading Style");
-            td.MainInstruction = "Set TAG7 heading style (ASS_TAG_2_TXT)";
-            td.MainContent =
-                $"Current State 2 (Technical): {currentT2}\n" +
-                $"Current State 3 (Full Spec): {currentT3}\n\n" +
-                "The short tag heading (FUNC-PROD-SEQ) appears as line 1\n" +
-                "in TAG7 presentation. Choose a style combination:";
+            var dialogResult = HeadingStyleDialog.Show(currentT2, currentT3);
+            if (dialogResult.Cancelled)
+                return Result.Cancelled;
 
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Bold + Underline (Recommended)",
-                "Strong heading: bold text with underline rule — ideal for full specification sheets");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Underline Only",
-                "Subtle heading: underline without bold — professional and minimal");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Bold Only",
-                "Standard heading: bold text without underline — clear visual hierarchy");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "All Styles (Bold + Italic + Underline)",
-                "Maximum emphasis: all formatting applied — for high-impact presentation");
-            td.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            TaskDialogResult result = td.Show();
-
-            bool bold, italic, underline;
-            string styleName;
-            switch (result)
-            {
-                case TaskDialogResult.CommandLink1:
-                    bold = true; italic = false; underline = true;
-                    styleName = "Bold + Underline"; break;
-                case TaskDialogResult.CommandLink2:
-                    bold = false; italic = false; underline = true;
-                    styleName = "Underline Only"; break;
-                case TaskDialogResult.CommandLink3:
-                    bold = true; italic = false; underline = false;
-                    styleName = "Bold Only"; break;
-                case TaskDialogResult.CommandLink4:
-                    bold = true; italic = true; underline = true;
-                    styleName = "All (Bold + Italic + Underline)"; break;
-                default:
-                    return Result.Cancelled;
-            }
-
-            // Ask: apply to both tiers, or tier 3 only?
-            TaskDialog tierPick = new TaskDialog("Apply To");
-            tierPick.MainInstruction = $"Apply '{styleName}' to which tiers?";
-            tierPick.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "State 3 (Full Specification) Only",
-                "Keep State 2 as underline-only for subtle differentiation");
-            tierPick.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Both State 2 + State 3",
-                "Apply the same style to both tiers consistently");
-            tierPick.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            TaskDialogResult tierResult = tierPick.Show();
-
-            bool applyT2, applyT3;
-            switch (tierResult)
-            {
-                case TaskDialogResult.CommandLink1:
-                    applyT2 = false; applyT3 = true; break;
-                case TaskDialogResult.CommandLink2:
-                    applyT2 = true; applyT3 = true; break;
-                default:
-                    return Result.Cancelled;
-            }
+            bool bold = dialogResult.Bold;
+            bool italic = dialogResult.Italic;
+            bool underline = dialogResult.Underline;
+            bool applyT2 = dialogResult.ApplyTier2;
+            bool applyT3 = dialogResult.ApplyTier3;
+            string styleName = BuildStyleName(bold, italic, underline);
 
             // Update LABEL_DEFINITIONS.json
             bool saved = SaveHeadingStyle(doc, bold, italic, underline, applyT2, applyT3);

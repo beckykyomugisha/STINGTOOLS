@@ -147,7 +147,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* level lookup not available */ }
+            catch (Exception ex) { StingLog.Warn($"level lookup not available: {ex.Message}"); }
 
             // Layer 3: Phase-aware inference
             try
@@ -167,7 +167,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* phase lookup not available */ }
+            catch (Exception ex) { StingLog.Warn($"phase lookup not available: {ex.Message}"); }
 
             // Layer 4: Scope box inference
             try
@@ -192,7 +192,7 @@ namespace StingTools.Temp
                     }
                 }
             }
-            catch { /* scope box not available */ }
+            catch (Exception ex) { StingLog.Warn($"scope box not available: {ex.Message}"); }
 
             // Layer 5: View type default
             return DefaultTemplates.TryGetValue(vt, out string def) ? def : null;
@@ -209,6 +209,73 @@ namespace StingTools.Temp
                 result[v.Name] = v;
             }
             return result;
+        }
+
+        /// <summary>
+        /// Collects ALL view templates in the project, indexed by name.
+        /// Used as fallback when no STING-prefixed templates exist.
+        /// </summary>
+        public static Dictionary<string, View> GetAllViewTemplates(Document doc)
+        {
+            var result = new Dictionary<string, View>(StringComparer.OrdinalIgnoreCase);
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.IsTemplate))
+            {
+                result[v.Name] = v;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Enhanced template matching that tries STING templates first,
+        /// then falls back to matching ANY project template by name keywords.
+        /// </summary>
+        public static string FindMatchingTemplateFlexible(View view, Dictionary<string, View> allTemplates)
+        {
+            // First try the standard 5-layer algorithm
+            string stingMatch = FindMatchingTemplate(view);
+            if (stingMatch != null && allTemplates.ContainsKey(stingMatch))
+                return stingMatch;
+
+            // Fall back: search all templates by keyword matching
+            string viewName = (view.Name ?? "").ToLowerInvariant();
+            string viewTypeName = view.ViewType.ToString().ToLowerInvariant();
+
+            foreach (var kv in allTemplates)
+            {
+                string tplName = kv.Key.ToLowerInvariant();
+
+                // Match templates that share keywords with the view name
+                // e.g. view "Mechanical Floor Plan" matches template "Mechanical Plan"
+                if (viewName.Contains("mechanical") && tplName.Contains("mechanical")) return kv.Key;
+                if (viewName.Contains("electrical") && tplName.Contains("electrical")) return kv.Key;
+                if (viewName.Contains("plumbing") && tplName.Contains("plumbing")) return kv.Key;
+                if (viewName.Contains("structural") && tplName.Contains("structural")) return kv.Key;
+                if (viewName.Contains("architectural") && tplName.Contains("architectural")) return kv.Key;
+                if (viewName.Contains("fire") && tplName.Contains("fire")) return kv.Key;
+                if (viewName.Contains("coordination") && tplName.Contains("coordination")) return kv.Key;
+                if (viewName.Contains("hvac") && tplName.Contains("hvac")) return kv.Key;
+                if (viewName.Contains("lighting") && tplName.Contains("lighting")) return kv.Key;
+                if (viewName.Contains("ceiling") && tplName.Contains("ceiling")) return kv.Key;
+                if (viewName.Contains("section") && tplName.Contains("section")) return kv.Key;
+                if (viewName.Contains("elevation") && tplName.Contains("elevation")) return kv.Key;
+                if (viewName.Contains("detail") && tplName.Contains("detail")) return kv.Key;
+                if (viewName.Contains("3d") && tplName.Contains("3d")) return kv.Key;
+            }
+
+            // Fall back to view type matching against template names
+            foreach (var kv in allTemplates)
+            {
+                string tplName = kv.Key.ToLowerInvariant();
+                if (viewTypeName == "floorplan" && tplName.Contains("plan") && !tplName.Contains("ceiling")) return kv.Key;
+                if (viewTypeName == "ceilingplan" && (tplName.Contains("ceiling") || tplName.Contains("rcp"))) return kv.Key;
+                if (viewTypeName == "section" && tplName.Contains("section")) return kv.Key;
+                if (viewTypeName == "elevation" && tplName.Contains("elevation")) return kv.Key;
+                if (viewTypeName == "threed" && tplName.Contains("3d")) return kv.Key;
+            }
+
+            return null;
         }
 
         /// <summary>Collects all non-template views that can have templates assigned.</summary>
@@ -353,7 +420,7 @@ namespace StingTools.Temp
                                             ogs.Transparency > 0)
                                             overridden++;
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Read filter overrides for scoring: {ex.Message}"); }
                                 }
                                 earned = filters.Count > 0
                                     ? weight * overridden / filters.Count : 0;
@@ -380,7 +447,7 @@ namespace StingTools.Temp
                             Parameter pp = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
                             if (pp != null && pp.HasValue) earned = weight;
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Read view phase parameter: {ex.Message}"); }
                         break;
                     case "VGConsistent":
                         earned = view.ViewTemplateId != ElementId.InvalidElementId
@@ -411,7 +478,7 @@ namespace StingTools.Temp
                                 earned = (s >= 20 && s <= 500) ? weight : weight * 0.3;
                             }
                         }
-                        catch { earned = weight * 0.5; }
+                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); earned = weight * 0.5; }
                         break;
                 }
 
@@ -562,7 +629,7 @@ namespace StingTools.Temp
                         ogs.Transparency > 0)
                     { anyOverride = true; break; }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Read filter overrides for audit: {ex.Message}"); }
             }
             if (!anyOverride && template.GetFilters().Count > 0)
             {
@@ -1114,13 +1181,23 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Try STING templates first, fall back to ALL project templates
             var stingTemplates = TemplateManager.GetStingTemplates(doc);
-            if (stingTemplates.Count == 0)
+            var allTemplates = stingTemplates.Count > 0
+                ? stingTemplates
+                : TemplateManager.GetAllViewTemplates(doc);
+            bool usingFallback = stingTemplates.Count == 0;
+
+            if (allTemplates.Count == 0)
             {
                 TaskDialog.Show("Auto-Assign Templates",
-                    "No STING view templates found.\nRun 'View Templates' first.");
+                    "No view templates found in the project.\n" +
+                    "Create view templates first, or run 'View Templates' to generate STING templates.");
                 return Result.Succeeded;
             }
+
+            if (usingFallback)
+                StingLog.Info($"Auto-assign: No STING templates found, using {allTemplates.Count} project templates.");
 
             var views = TemplateManager.GetAssignableViews(doc);
             int assigned = 0, skipped = 0, noMatch = 0, alreadyAssigned = 0;
@@ -1146,10 +1223,13 @@ namespace StingTools.Temp
                     if (view.ViewTemplateId != ElementId.InvalidElementId)
                     { alreadyAssigned++; continue; }
 
-                    string matchName = TemplateManager.FindMatchingTemplate(view);
+                    // Use flexible matching that works with both STING and non-STING templates
+                    string matchName = usingFallback
+                        ? TemplateManager.FindMatchingTemplateFlexible(view, allTemplates)
+                        : TemplateManager.FindMatchingTemplate(view);
                     if (matchName == null) { noMatch++; continue; }
 
-                    if (!stingTemplates.TryGetValue(matchName, out View template))
+                    if (!allTemplates.TryGetValue(matchName, out View template))
                     { skipped++; continue; }
 
                     try
@@ -1584,7 +1664,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             int totalIssues = 0;
             int totalFixed = 0;
@@ -1711,7 +1791,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             int synced = 0, failed = 0;
             bool cancelled = false;
@@ -1850,7 +1930,7 @@ namespace StingTools.Temp
 
             Category linesCat;
             try { linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines); }
-            catch { TaskDialog.Show("Line Styles", "Cannot access Lines category."); return Result.Failed; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); TaskDialog.Show("Line Styles", "Cannot access Lines category."); return Result.Failed; }
 
             var patternLookup = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
             foreach (LinePatternElement lpe in new FilteredElementCollector(doc)
@@ -2038,7 +2118,7 @@ namespace StingTools.Temp
             DimensionType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>()
                 .FirstOrDefault(dt =>
-                { try { return dt.Name.Contains("Linear"); } catch { return false; } })
+                { try { return dt.Name.Contains("Linear"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
                 ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(DimensionType)).Cast<DimensionType>().FirstOrDefault();
 
@@ -2179,7 +2259,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             // Cross-hatch pattern for demolition
             FillPatternElement crossHatch = null;
@@ -2193,7 +2273,7 @@ namespace StingTools.Temp
                         return n.Contains("Crosshatch") || n.Contains("Cross") || n.Contains("STING - Crosshatch");
                     });
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find crosshatch fill pattern: {ex.Message}"); }
 
             int viewsConfigured = 0;
             int filtersApplied = 0;
@@ -2336,13 +2416,13 @@ namespace StingTools.Temp
                                         if (ws.Name.StartsWith("Z-Linked"))
                                         {
                                             try { target.SetWorksetVisibility(ws.Id, WorksetVisibility.Hidden); }
-                                            catch { }
+                                            catch (Exception ex) { StingLog.Warn($"Hide linked workset '{ws.Name}': {ex.Message}"); }
                                         }
                                     }
                                 }
                             }
                         }
-                        catch { /* worksharing not available */ }
+                        catch (Exception ex) { StingLog.Warn($"worksharing not available: {ex.Message}"); }
 
                         // Layer 6: CSV-driven VG schemes (106 VG_SCHEME rows)
                         // Match template name to a VG scheme and apply category-level overrides
@@ -2419,11 +2499,11 @@ namespace StingTools.Temp
                                         if (revCat != null)
                                         {
                                             target.SetCategoryOverrides(
-                                                new ElementId(schemeBic), catOgs);
+                                                new ElementId((long)schemeBic), catOgs);
                                             schemesApplied++;
                                         }
                                     }
-                                    catch { }
+                                    catch (Exception ex) { StingLog.Warn($"Apply category override for VG scheme: {ex.Message}"); }
                                 }
                             }
                         }
@@ -2620,7 +2700,7 @@ namespace StingTools.Temp
                                         perCategory[catName] = 0;
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Resolve category '{catName}' for binding: {ex.Message}"); }
                         }
                     }
 
@@ -2638,7 +2718,7 @@ namespace StingTools.Temp
                         var existing = bmap.get_Item(extDef);
                         if (existing != null) alreadyBound = true;
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Check existing parameter binding: {ex.Message}"); }
 
                     if (alreadyBound)
                     {
@@ -2751,7 +2831,7 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            UIApplication uiApp = commandData.Application;
+            UIApplication uiApp = ParameterHelpers.GetApp(commandData);
             Autodesk.Revit.ApplicationServices.Application app = uiApp.Application;
 
             // ── Step 1: Set up shared parameter file ────────────────────────
@@ -2780,8 +2860,9 @@ namespace StingTools.Temp
             var defByGuid = new Dictionary<Guid, ExternalDefinition>();
             foreach (DefinitionGroup group in defFile.Groups)
             {
-                foreach (ExternalDefinition def in group.Definitions)
+                foreach (Definition rawDef in group.Definitions)
                 {
+                    if (rawDef is not ExternalDefinition def) continue;
                     defByName[def.Name] = def;
                     defByGuid[def.GUID] = def;
                 }
@@ -2922,7 +3003,7 @@ namespace StingTools.Temp
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} — not a family document");
                         skippedNoCategory++;
-                        try { famDoc?.Close(false); } catch { }
+                        try { famDoc?.Close(false); } catch (Exception ex) { StingLog.Warn($"Close non-family document: {ex.Message}"); }
                         continue;
                     }
 
@@ -2937,8 +3018,13 @@ namespace StingTools.Temp
                         continue;
                     }
 
+                    // Tag annotation families report category as "Door Tags",
+                    // "Room Tags", "Generic Model Tags" etc. Map back to the
+                    // host element category used in FAMILY_PARAMETER_BINDINGS.csv.
+                    string lookupCategory = MapTagCategoryToHost(categoryName);
+
                     // Find applicable parameter bindings for this category
-                    if (!bindingsByCategory.TryGetValue(categoryName, out var categoryBindings))
+                    if (!bindingsByCategory.TryGetValue(lookupCategory, out var categoryBindings))
                     {
                         perFamilyResults.Add($"[SKIP] {fileName} ({categoryName}) — no bindings defined for this category");
                         skippedNoCategory++;
@@ -3010,9 +3096,9 @@ namespace StingTools.Temp
 
                             try
                             {
-                                // Determine instance vs type
-                                bool isInstance = entry.bindingType.Equals(
-                                    "Instance", StringComparison.OrdinalIgnoreCase);
+                                // Determine instance vs type (default to Instance if not specified)
+                                bool isInstance = string.IsNullOrEmpty(entry.bindingType) ||
+                                    entry.bindingType.Equals("Instance", StringComparison.OrdinalIgnoreCase);
 
                                 fmgr.AddParameter(extDef, GroupTypeId.General, isInstance);
                                 familyAdded++;
@@ -3056,11 +3142,8 @@ namespace StingTools.Temp
                                 familyFormulas++;
                                 formulasApplied++;
                             }
-                            catch
-                            {
-                                // Formula may reference params not in this family — expected
-                                failedFormulas++;
-                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // Formula may reference params not in this family — expected
+                                failedFormulas++; }
                         }
 
                         tx.Commit();
@@ -3069,7 +3152,7 @@ namespace StingTools.Temp
                     // ── Backup and save ──────────────────────────────────────
                     if (familyAdded > 0 || familyFormulas > 0)
                     {
-                        // Create backup
+                        // Save modified family to a temp path first, then backup original
                         string backupDir = Path.Combine(
                             Path.GetDirectoryName(familyPath), "_param_backups");
                         try
@@ -3080,16 +3163,33 @@ namespace StingTools.Temp
                             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                             string backupName = $"{Path.GetFileNameWithoutExtension(familyPath)}_{timestamp}.rfa";
                             string backupPath = Path.Combine(backupDir, backupName);
+                            // Save current (modified) to temp, close, copy original to backup, rename temp
+                            string tempPath = familyPath + ".sting_tmp";
+                            var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                            famDoc.SaveAs(tempPath, saveOpts);
+                            famDoc.Close(false);
+                            famDoc = null; // prevent double-close below
                             File.Copy(familyPath, backupPath, true);
+                            File.Copy(tempPath, familyPath, true);
+                            try { File.Delete(tempPath); } catch (Exception ex) { StingLog.Warn($"Delete temp file '{tempPath}': {ex.Message}"); }
                         }
                         catch (Exception ex)
                         {
                             StingLog.Warn($"[{fileName}] Backup failed: {ex.Message}");
+                            // If temp save worked but backup/rename failed, try direct save fallback
+                            if (famDoc != null)
+                            {
+                                try
+                                {
+                                    var fallbackOpts = new SaveAsOptions { OverwriteExistingFile = true };
+                                    famDoc.SaveAs(familyPath, fallbackOpts);
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Error($"[{fileName}] Fallback save also failed", ex2);
+                                }
+                            }
                         }
-
-                        // Save modified family
-                        var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
-                        famDoc.SaveAs(familyPath, saveOpts);
                         processed++;
 
                         perFamilyResults.Add(
@@ -3105,13 +3205,15 @@ namespace StingTools.Temp
                             $"no changes needed ({familySkipped} params already exist)");
                     }
 
-                    famDoc.Close(false);
+                    // Close if not already closed during backup/save
+                    if (famDoc != null)
+                        famDoc.Close(false);
                 }
                 catch (Exception ex)
                 {
                     StingLog.Error($"[{fileName}] Processing failed", ex);
                     perFamilyResults.Add($"[FAIL] {fileName} — {ex.Message}");
-                    try { famDoc?.Close(false); } catch { }
+                    try { famDoc?.Close(false); } catch (Exception ex2) { StingLog.Warn($"Close family document after failure: {ex2.Message}"); }
                 }
             }
 
@@ -3141,6 +3243,85 @@ namespace StingTools.Temp
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// Maps Revit tag annotation category names (e.g. "Door Tags", "Generic Model Tags")
+        /// back to host element category names used in FAMILY_PARAMETER_BINDINGS.csv.
+        /// If no mapping is found, returns the original name unchanged.
+        /// </summary>
+        private static string MapTagCategoryToHost(string categoryName)
+        {
+            if (string.IsNullOrEmpty(categoryName)) return categoryName;
+
+            // Direct match — not a tag category, use as-is
+            // (handles host element families like "Doors", "Mechanical Equipment")
+            if (!categoryName.EndsWith(" Tags", StringComparison.OrdinalIgnoreCase))
+                return categoryName;
+
+            // Strip " Tags" suffix and apply known mappings
+            string stem = categoryName.Substring(0, categoryName.Length - 5).Trim();
+
+            // Most tag categories follow the pattern "<PluralHostCategory> Tags"
+            // but some need special mapping:
+            var specialMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Generic Model", "Generic Models" },
+                { "Room", "Rooms" },
+                { "Door", "Doors" },
+                { "Window", "Windows" },
+                { "Wall", "Walls" },
+                { "Floor", "Floors" },
+                { "Ceiling", "Ceilings" },
+                { "Roof", "Roofs" },
+                { "Stair", "Stairs" },
+                { "Ramp", "Ramps" },
+                { "Parking", "Parking" },
+                { "Site", "Site" },
+                { "Curtain Panel", "Curtain Panels" },
+                { "Curtain Wall Mullion", "Curtain Wall Mullions" },
+                { "Structural Column", "Structural Columns" },
+                { "Structural Foundation", "Structural Foundations" },
+                { "Structural Framing", "Structural Framing" },
+                { "Mechanical Equipment", "Mechanical Equipment" },
+                { "Plumbing Equipment", "Plumbing Equipment" },
+                { "Plumbing Fixture", "Plumbing Fixtures" },
+                { "Electrical Equipment", "Electrical Equipment" },
+                { "Electrical Fixture", "Electrical Fixtures" },
+                { "Lighting Fixture", "Lighting Fixtures" },
+                { "Lighting Device", "Lighting Devices" },
+                { "Air Terminal", "Air Terminals" },
+                { "Duct", "Ducts" },
+                { "Duct Fitting", "Duct Fittings" },
+                { "Duct Accessory", "Duct Accessories" },
+                { "Flex Duct", "Flex Ducts" },
+                { "Pipe", "Pipes" },
+                { "Pipe Fitting", "Pipe Fittings" },
+                { "Pipe Accessory", "Pipe Accessories" },
+                { "Flex Pipe", "Flex Pipes" },
+                { "Sprinkler", "Sprinklers" },
+                { "Fire Alarm Device", "Fire Alarm Devices" },
+                { "Communication Device", "Communication Devices" },
+                { "Data Device", "Data Devices" },
+                { "Nurse Call Device", "Nurse Call Devices" },
+                { "Security Device", "Security Devices" },
+                { "Telephone Device", "Telephone Devices" },
+                { "Cable Tray", "Cable Trays" },
+                { "Cable Tray Fitting", "Cable Tray Fittings" },
+                { "Conduit", "Conduits" },
+                { "Conduit Fitting", "Conduit Fittings" },
+                { "Casework", "Casework" },
+                { "Furniture", "Furniture" },
+                { "Specialty Equipment", "Specialty Equipment" },
+                { "Furniture System", "Furniture Systems" },
+            };
+
+            if (specialMappings.TryGetValue(stem, out string hostCategory))
+                return hostCategory;
+
+            // Fallback: try adding 's' for simple pluralization
+            // (e.g., "Widget" → "Widgets")
+            return stem + "s";
         }
     }
 
@@ -3223,7 +3404,7 @@ namespace StingTools.Temp
 
                     try
                     {
-                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
                         vs.Name = fullName;
 
                         string[] fieldNames = fields.Split(',')
@@ -3240,7 +3421,7 @@ namespace StingTools.Temp
                                     { sd.AddField(sf); break; }
                                 }
                             }
-                            catch { }
+                            catch (Exception ex) { StingLog.Warn($"Add schedule field '{fieldName}': {ex.Message}"); }
                         }
                         created++;
                     }
@@ -3587,7 +3768,7 @@ namespace StingTools.Temp
                         if (lc.Green > 150 && lc.Red < 50 && lc.Blue < 50) { detectedDisc = "P"; break; }
                         if (lc.Red > 150 && lc.Green < 50 && lc.Blue < 50) { detectedDisc = "S"; break; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Detect discipline from line color: {ex.Message}"); }
                 }
             }
 
@@ -3662,7 +3843,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
             using (Transaction tx = new Transaction(doc, "STING Clone Template"))
             {
@@ -3811,7 +3992,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
 
                 var stingTemplates = TemplateManager.GetStingTemplates(doc);
                 int p1Idx = 0;
@@ -3920,7 +4101,7 @@ namespace StingTools.Temp
                                         cleared++;
                                     }
                                 }
-                                catch { }
+                                catch (Exception ex) { StingLog.Warn($"Clear element override in '{view.Name}': {ex.Message}"); }
                             }
 
                             if (cleared > 0)

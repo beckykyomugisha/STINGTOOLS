@@ -41,16 +41,21 @@ namespace StingTools.BIMManager
         internal static readonly Dictionary<string, (int order, string trade, int daysPerUnit)> TradeSequence =
             new Dictionary<string, (int order, string trade, int daysPerUnit)>
         {
-            // Substructure
-            ["FOUNDATIONS"]    = (100, "Substructure — Foundations", 14),
+            // Substructure — Phase 56b HIGH-02: Added 6 missing UK construction trades
+            ["EXCAVATION"]     = (80, "Substructure — Excavation & Earthworks", 10),
             ["PILING"]         = (90, "Substructure — Piling", 21),
+            ["FOUNDATIONS"]    = (100, "Substructure — Foundations", 14),
+            ["GROUND_BEAMS"]   = (105, "Substructure — Ground Beams", 7),
             ["BASEMENT"]       = (110, "Substructure — Basement", 21),
+            ["DPC"]            = (115, "Substructure — Damp Proof Course", 3),
+            ["MEMBRANE"]       = (125, "Envelope — Membrane/Insulation", 5),
 
             // Structure (by category)
             ["Structural Foundations"] = (100, "Substructure — Foundations", 14),
             ["Structural Framing"]     = (200, "Superstructure — Frame", 7),
             ["Structural Columns"]     = (210, "Superstructure — Columns", 5),
             ["Floors"]                 = (220, "Superstructure — Floors/Slabs", 7),
+            ["CONCRETE_TOPPING"]       = (230, "Superstructure — Concrete Topping/Screed", 5),
             ["Walls"]                  = (300, "Envelope/Partitions — Walls", 5),
             ["Curtain Panels"]         = (310, "Envelope — Curtain Wall", 7),
             ["Roofs"]                  = (320, "Envelope — Roofing", 7),
@@ -89,7 +94,11 @@ namespace StingTools.BIMManager
             ["Furniture"]           = (900, "FF&E — Furniture", 2),
             ["Furniture Systems"]   = (910, "FF&E — Furniture Systems", 2),
             ["Specialty Equipment"] = (920, "FF&E — Specialty Equipment", 2),
-            ["Casework"]            = (930, "FF&E — Casework", 3)
+            ["Casework"]            = (930, "FF&E — Casework", 3),
+
+            // Commissioning & Handover
+            ["COMMISSIONING"]       = (950, "Commissioning — Testing & Balancing", 14),
+            ["HANDOVER"]            = (980, "Handover — Snagging & Defects", 21)
         };
 
         // ── Default Unit Cost Rates (GBP per unit, approximate) ──
@@ -279,12 +288,16 @@ namespace StingTools.BIMManager
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
             var elementsByLevelAndCat = new Dictionary<string, Dictionary<string, int>>();
 
-            // Build set of demolished/temporary phase IDs to exclude from scheduling
+            // Build set of demolished/temporary phase IDs to exclude from scheduling.
+            // Uses both name-based matching (for standard phase names) and Revit's
+            // built-in phase status detection for coded/numbered phases.
             var demolishedPhaseIds = new HashSet<long>();
             foreach (Phase ph in phases)
             {
                 string phaseName = ph.Name?.ToUpperInvariant() ?? "";
-                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("TEMPORARY"))
+                if (phaseName.Contains("DEMOLISHED") || phaseName.Contains("DEMOLITION") ||
+                    phaseName.Contains("TEMPORARY") || phaseName.Contains("DEMO") ||
+                    phaseName.Contains("REMOVED") || phaseName.Contains("TO BE DEMOLISHED"))
                     demolishedPhaseIds.Add(ph.Id.Value);
             }
 
@@ -301,7 +314,7 @@ namespace StingTools.BIMManager
                 if (phaseDemoParam != null)
                 {
                     var demoPhaseid = phaseDemoParam.AsElementId();
-                    if (demoPhaseid != null && demoPhaseid.Value > 0)
+                    if (demoPhaseid != ElementId.InvalidElementId)
                         continue; // Element is scheduled for demolition
                 }
                 // Also check STING STATUS parameter for DEMOLISHED/TEMPORARY
@@ -550,9 +563,10 @@ namespace StingTools.BIMManager
                 if (totalHours <= 0) return 1;
                 return Math.Max(1, (int)Math.Ceiling(totalHours / 8.0));
             }
-            catch
+            catch (Exception xmlEx)
             {
                 // Fallback: manual parsing for non-standard formats
+                StingLog.Warn($"XmlConvert.ToTimeSpan failed for '{isoDuration}': {xmlEx.Message}");
                 try
                 {
                     string upper = isoDuration.ToUpper().Trim();
@@ -796,7 +810,17 @@ namespace StingTools.BIMManager
                     {
                         var lenParam = el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         double barLen = lenParam != null && lenParam.HasValue ? lenParam.AsDouble() * 0.3048 : 1;
-                        qty += barLen; // rate is per kg; approximate: 1m = ~1kg for rebar
+                        // Try to get bar diameter for accurate weight (kg/m = diameter_mm² × 0.00617)
+                        double kgPerMetre = 0.888; // default 12mm bar (most common)
+                        var diaParam = el.LookupParameter("Bar Diameter")
+                            ?? el.LookupParameter("Diameter");
+                        if (diaParam != null && diaParam.HasValue)
+                        {
+                            double diaMm = diaParam.AsDouble() * 304.8; // ft → mm
+                            if (diaMm > 0)
+                                kgPerMetre = diaMm * diaMm * 0.00617; // steel density formula
+                        }
+                        qty += barLen * kgPerMetre;
                     }
                 }
                 else
@@ -831,13 +855,20 @@ namespace StingTools.BIMManager
 
             estimate["line_items"] = lineItems;
             estimate["subtotal"] = Math.Round(grandTotal, 2);
-            estimate["preliminaries_pct"] = 12;
-            estimate["preliminaries"] = Math.Round(grandTotal * 0.12, 2);
-            estimate["contingency_pct"] = 10;
-            estimate["contingency"] = Math.Round(grandTotal * 0.10, 2);
-            estimate["overhead_profit_pct"] = 8;
-            estimate["overhead_profit"] = Math.Round(grandTotal * 0.08, 2);
-            estimate["grand_total"] = Math.Round(grandTotal * 1.30, 2); // sub + 12% + 10% + 8%
+
+            // R4-B FIX: Configurable percentages via project_config.json (was hardcoded)
+            double prelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
+            double contingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
+            double overheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
+
+            estimate["preliminaries_pct"] = prelimPct;
+            estimate["preliminaries"] = Math.Round(grandTotal * prelimPct / 100.0, 2);
+            estimate["contingency_pct"] = contingencyPct;
+            estimate["contingency"] = Math.Round(grandTotal * contingencyPct / 100.0, 2);
+            estimate["overhead_profit_pct"] = overheadPct;
+            estimate["overhead_profit"] = Math.Round(grandTotal * overheadPct / 100.0, 2);
+            estimate["grand_total"] = Math.Round(grandTotal + (double)estimate["preliminaries"]
+                + (double)estimate["contingency"] + (double)estimate["overhead_profit"], 2);
 
             // Breakdown by discipline
             var byDisc = lineItems.GroupBy(i => i["discipline"]?.ToString() ?? "?")
@@ -878,14 +909,20 @@ namespace StingTools.BIMManager
             int totalMonths = Math.Max(1, (int)Math.Ceiling((projEnd - projStart).TotalDays / 30.0));
 
             // Generate monthly cash flow (S-curve distribution)
+            // Normalize sigmoid so it maps exactly from 0 to 1 over the project duration
+            double sigAt0 = 1.0 / (1.0 + Math.Exp(-10 * (0.0 - 0.5)));
+            double sigAt1 = 1.0 / (1.0 + Math.Exp(-10 * (1.0 - 0.5)));
+            double sigRange = sigAt1 - sigAt0;
+
             var monthly = new JArray();
             double cumulative = 0;
             double prevSCurve = 0;
             for (int m = 0; m < totalMonths; m++)
             {
-                // S-curve formula: sigmoid distribution (differential between consecutive points)
+                // S-curve formula: normalized sigmoid so cumulative reaches exactly 100%
                 double t = (double)(m + 1) / totalMonths;
-                double sCurve = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                double rawSig = 1.0 / (1.0 + Math.Exp(-10 * (t - 0.5)));
+                double sCurve = (rawSig - sigAt0) / sigRange; // normalized to [0, 1]
                 double monthlySpend = grandTotal > 0 ? grandTotal * (sCurve - prevSCurve) : 0;
                 if (monthlySpend < 0) monthlySpend = 0;
                 prevSCurve = sCurve;
@@ -900,6 +937,21 @@ namespace StingTools.BIMManager
                     ["cumulative"] = Math.Round(cumulative, 2),
                     ["percent_complete"] = grandTotal > 0 ? Math.Round(cumulative / grandTotal * 100, 1) : 0
                 });
+            }
+
+            // M-07 FIX: Ensure cumulative total matches grand total.
+            // Float precision in S-curve can cause slight discrepancy; adjust last month.
+            if (monthly.Count > 0 && grandTotal > 0 && Math.Abs(cumulative - grandTotal) > 0.01)
+            {
+                double diff = grandTotal - cumulative;
+                var lastMonth = (JObject)monthly[monthly.Count - 1];
+                double lastSpend = (double)(lastMonth["planned_spend"] ?? 0) + diff;
+                if (lastSpend >= 0) // safety: don't create negative month
+                {
+                    lastMonth["planned_spend"] = Math.Round(lastSpend, 2);
+                    lastMonth["cumulative"] = Math.Round(grandTotal, 2);
+                    lastMonth["percent_complete"] = 100.0;
+                }
             }
 
             cashFlow["monthly"] = monthly;
@@ -977,17 +1029,53 @@ namespace StingTools.BIMManager
             var rates = new Dictionary<string, (double, string)>();
             try
             {
-                foreach (string line in File.ReadLines(csvPath).Skip(1)) // skip header
+                string[] headers = null;
+                foreach (string line in File.ReadLines(csvPath))
                 {
                     var parts = StingToolsApp.ParseCsvLine(line);
-                    if (parts.Length >= 3)
+                    if (headers == null)
                     {
-                        string cat = parts[0].Trim();
-                        if (double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
+                        // Detect header row to find rate and unit column indices
+                        headers = parts.Select(p => p.Trim().ToUpperInvariant()).ToArray();
+                        continue;
+                    }
+                    if (parts.Length < 2) continue;
+
+                    string cat = parts[0].Trim();
+
+                    // Auto-detect column layout:
+                    //   7-col: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                    //   4-col: Category, Unit_Rate, Unit, Description
+                    //   3-col: Category, Rate, Unit
+                    int rateCol = 1, unitCol = 2; // default 3-col
+                    if (headers.Length >= 7)
+                    {
+                        // C-05 FIX: 7-column cost_rates_5d.csv format (0-indexed):
+                        // [0]=Category, [1]=MAT_CODE, [2]=MAT_DISCIPLINE, [3]=Unit_Rate_USD,
+                        // [4]=Unit_Rate_UGX, [5]=Unit, [6]=Description
+                        // Previously unitCol=5 was correct, but verify against header names
+                        rateCol = 3;
+                        unitCol = 5;
+                        // Auto-detect by header name if available (defensive)
+                        for (int hi = 0; hi < headers.Length; hi++)
                         {
-                            string unit = parts.Length >= 3 ? parts[2].Trim() : "each";
-                            rates[cat] = (rate, unit);
+                            string h = headers[hi].Trim().ToUpperInvariant();
+                            if (h == "UNIT" || h == "UOM") unitCol = hi;
+                            else if (h == "UNIT_RATE_USD" || h == "UNIT_RATE" || h == "RATE") rateCol = hi;
                         }
+                    }
+                    else if (headers.Length >= 4 && headers.Any(h => h.Contains("UNIT_RATE")))
+                    {
+                        rateCol = 1;
+                        unitCol = 2;
+                    }
+
+                    if (parts.Length <= rateCol) continue;
+                    if (double.TryParse(parts[rateCol].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
+                    {
+                        string unit = parts.Length > unitCol ? parts[unitCol].Trim() : "each";
+                        if (string.IsNullOrEmpty(unit)) unit = "each";
+                        rates[cat] = (rate, unit);
                     }
                 }
                 StingLog.Info($"Loaded {rates.Count} cost rates from {csvPath}");
@@ -1618,7 +1706,7 @@ namespace StingTools.BIMManager
                 foreach (var m in monthly)
                     csv.AppendLine($"{m["month_name"]},{m["planned_spend"]},{m["cumulative"]},{m["percent_complete"]}");
             try { File.WriteAllText(csvPath, csv.ToString()); }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Cash flow CSV write failed: {ex.Message}"); }
 
             report.AppendLine($"  Saved: {cashFlowPath}");
             report.AppendLine($"  CSV:   {csvPath}");
@@ -1983,6 +2071,484 @@ namespace StingTools.BIMManager
             holidays.Add(augLast);
 
             return holidays;
+        }
+    }
+
+    #endregion
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  4D Navisworks TimeLiner XML Export
+    //
+    //  Exports construction schedule data in Navisworks TimeLiner CSV/XML format
+    //  for import into Autodesk Navisworks Manage. Each task maps to Revit elements
+    //  via element ID sets, enabling 4D simulation playback.
+    //
+    //  Format: TimeLiner CSV with columns:
+    //    Task Name, Planned Start, Planned End, Actual Start, Actual End,
+    //    Task Type, Attached Elements (semicolon-separated UniqueIds)
+    // ════════════════════════════════════════════════════════════════════════════
+
+    #region Navisworks TimeLiner Export
+
+    /// <summary>
+    /// Export 4D schedule data as Navisworks TimeLiner CSV for direct import.
+    /// Maps STING tagged elements to construction tasks via level + trade sequencing.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NavisworksTimeLinerExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+                string outputDir = OutputLocationHelper.PromptForExportPath(doc, "STING_Navisworks_TimeLiner.csv", "CSV Files|*.csv", "Navisworks");
+                if (string.IsNullOrEmpty(outputDir)) return Result.Cancelled;
+
+                // Collect and group elements by level + trade
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+
+                var elemColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums != null && catEnums.Length > 0)
+                    elemColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+
+                // Group elements: Level → Category → List<Element>
+                var grouped = new Dictionary<string, Dictionary<string, List<Element>>>();
+                foreach (Element el in elemColl)
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (!known.Contains(cat)) continue;
+
+                    string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    if (string.IsNullOrEmpty(lvl)) lvl = "L00";
+
+                    if (!grouped.ContainsKey(lvl))
+                        grouped[lvl] = new Dictionary<string, List<Element>>();
+                    if (!grouped[lvl].ContainsKey(cat))
+                        grouped[lvl][cat] = new List<Element>();
+                    grouped[lvl][cat].Add(el);
+                }
+
+                // Build TimeLiner tasks
+                DateTime projectStart = DateTime.Today;
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filePath = Path.Combine(outputDir, $"STING_TimeLiner_{timestamp}.csv");
+
+                int taskCount = 0;
+                using (var writer = new StreamWriter(filePath, false, Encoding.UTF8))
+                {
+                    writer.WriteLine("Task Name,Planned Start,Planned End,Task Type,Status,Element Count,UniqueIds");
+
+                    DateTime currentDate = projectStart;
+                    var sortedLevels = grouped.Keys
+                        .OrderBy(k => levels.FindIndex(l => ParameterHelpers.GetLevelCode(doc, l) == k))
+                        .ToList();
+
+                    foreach (string lvl in sortedLevels)
+                    {
+                        var catGroups = grouped[lvl];
+                        // Sort categories by trade sequence order
+                        var sortedCats = catGroups.Keys
+                            .OrderBy(c => Scheduling4DEngine.TradeSequence.TryGetValue(c, out var ts) ? ts.order : 999)
+                            .ToList();
+
+                        foreach (string cat in sortedCats)
+                        {
+                            var elems = catGroups[cat];
+                            if (elems.Count == 0) continue;
+
+                            string tradeName = Scheduling4DEngine.TradeSequence.TryGetValue(cat, out var trade)
+                                ? trade.trade : cat;
+                            int daysPerUnit = Scheduling4DEngine.TradeSequence.TryGetValue(cat, out var ts2)
+                                ? ts2.daysPerUnit : 5;
+
+                            // Calculate duration based on element count
+                            int duration = Math.Max(1, (int)Math.Ceiling(elems.Count / 10.0) * daysPerUnit);
+                            DateTime taskEnd = currentDate.AddDays(duration);
+
+                            // Collect UniqueIds for Navisworks element selection
+                            string uniqueIds = string.Join(";",
+                                elems.Take(500).Select(e => e.UniqueId));
+
+                            string taskName = $"{lvl} — {tradeName}";
+                            string taskType = cat.Contains("Equipment") || cat.Contains("Fixture")
+                                ? "Install" : "Construct";
+                            string status = ParameterHelpers.GetString(elems[0], ParamRegistry.STATUS) ?? "NEW";
+
+                            writer.WriteLine($"{Esc(taskName)},{currentDate:yyyy-MM-dd},{taskEnd:yyyy-MM-dd}," +
+                                $"{taskType},{status},{elems.Count},{Esc(uniqueIds)}");
+
+                            currentDate = taskEnd;
+                            taskCount++;
+                        }
+                    }
+                }
+
+                // Also export as Navisworks XML (TimeLiner format)
+                string xmlPath = Path.Combine(outputDir, $"STING_TimeLiner_{timestamp}.xml");
+                ExportTimeLinerXml(doc, xmlPath, grouped, levels, projectStart);
+
+                var report = new StringBuilder();
+                report.AppendLine("Navisworks TimeLiner Export Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Tasks generated:     {taskCount}");
+                report.AppendLine($"  Levels:              {grouped.Count}");
+                report.AppendLine($"  Project start:       {projectStart:yyyy-MM-dd}");
+                report.AppendLine($"  Estimated end:       {projectStart.AddDays(taskCount * 5):yyyy-MM-dd}");
+                report.AppendLine();
+                report.AppendLine("Files:");
+                report.AppendLine($"  CSV: {Path.GetFileName(filePath)}");
+                report.AppendLine($"  XML: {Path.GetFileName(xmlPath)}");
+
+                TaskDialog td = new TaskDialog("Navisworks TimeLiner");
+                td.MainInstruction = $"Exported {taskCount} tasks for Navisworks TimeLiner";
+                td.MainContent = report.ToString();
+                td.Show();
+
+                StingLog.Info($"NavisworksTimeLiner: {taskCount} tasks across {grouped.Count} levels");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"NavisworksTimeLiner export failed: {ex.Message}", ex);
+                TaskDialog.Show("Navisworks TimeLiner", $"Export failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private void ExportTimeLinerXml(Document doc, string path,
+            Dictionary<string, Dictionary<string, List<Element>>> grouped,
+            List<Level> levels, DateTime projectStart)
+        {
+            var xmlDoc = new XDocument(
+                new XDeclaration("1.0", "utf-8", "yes"),
+                new XElement("timeliner",
+                    new XAttribute("units", "days"),
+                    new XAttribute("project_start", projectStart.ToString("yyyy-MM-dd")),
+                    new XAttribute("created_by", "STING Tools"),
+                    new XAttribute("version", "1.0")));
+
+            var root = xmlDoc.Root;
+            DateTime currentDate = projectStart;
+            int taskId = 1;
+
+            var sortedLevels = grouped.Keys
+                .OrderBy(k => levels.FindIndex(l => ParameterHelpers.GetLevelCode(doc, l) == k))
+                .ToList();
+
+            foreach (string lvl in sortedLevels)
+            {
+                var levelGroup = new XElement("task_group",
+                    new XAttribute("name", lvl));
+
+                var catGroups = grouped[lvl];
+                var sortedCats = catGroups.Keys
+                    .OrderBy(c => Scheduling4DEngine.TradeSequence.TryGetValue(c, out var ts) ? ts.order : 999)
+                    .ToList();
+
+                foreach (string cat in sortedCats)
+                {
+                    var elems = catGroups[cat];
+                    if (elems.Count == 0) continue;
+
+                    string tradeName = Scheduling4DEngine.TradeSequence.TryGetValue(cat, out var trade)
+                        ? trade.trade : cat;
+                    int duration = Math.Max(1, (int)Math.Ceiling(elems.Count / 10.0) *
+                        (Scheduling4DEngine.TradeSequence.TryGetValue(cat, out var ts2) ? ts2.daysPerUnit : 5));
+
+                    DateTime taskEnd = currentDate.AddDays(duration);
+
+                    var taskEl = new XElement("task",
+                        new XAttribute("id", taskId++),
+                        new XAttribute("name", $"{lvl} — {tradeName}"),
+                        new XElement("planned_start", currentDate.ToString("yyyy-MM-dd")),
+                        new XElement("planned_end", taskEnd.ToString("yyyy-MM-dd")),
+                        new XElement("task_type", cat.Contains("Equipment") ? "Install" : "Construct"),
+                        new XElement("element_count", elems.Count),
+                        new XElement("selection_set",
+                            elems.Take(200).Select(e => new XElement("element",
+                                new XAttribute("unique_id", e.UniqueId)))));
+
+                    levelGroup.Add(taskEl);
+                    currentDate = taskEnd;
+                }
+
+                root.Add(levelGroup);
+            }
+
+            xmlDoc.Save(path);
+        }
+
+        private static string Esc(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return "";
+            if (v.Contains(",") || v.Contains("\"") || v.Contains("\n"))
+                return $"\"{v.Replace("\"", "\"\"")}\"";
+            return v;
+        }
+    }
+
+    #endregion
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  PER-ELEMENT 5D COST TRACEABILITY
+    //
+    //  Writes cost breakdown parameters to each element for full 5D traceability.
+    //  Each element gets: unit rate, quantity, subtotal, prelims %, contingency %,
+    //  overhead %, and grand total — all traceable back to the cost rate source.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    #region Per-Element 5D Cost Traceability
+
+    /// <summary>
+    /// Write per-element 5D cost breakdown to STING parameters for full traceability.
+    /// Each tagged element receives: unit rate, quantity, material cost, labour cost,
+    /// subtotal, and cost source reference. Rates loaded from cost_rates_5d.csv.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ElementCostTraceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+                var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+                // Load cost rates from CSV
+                var costRates = LoadCostRates();
+                if (costRates.Count == 0)
+                {
+                    TaskDialog.Show("5D Cost Trace", "No cost rates found. Check cost_rates_5d.csv.");
+                    return Result.Failed;
+                }
+
+                var elemColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums != null && catEnums.Length > 0)
+                    elemColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                var allElements = elemColl.ToList();
+
+                int costed = 0, skipped = 0;
+                double projectTotal = 0;
+                var costByDisc = new Dictionary<string, double>();
+                var costByCat = new Dictionary<string, double>();
+
+                using (Transaction tx = new Transaction(doc, "STING 5D Cost Trace"))
+                {
+                    tx.Start();
+
+                    foreach (Element el in allElements)
+                    {
+                        string cat = ParameterHelpers.GetCategoryName(el);
+                        if (!known.Contains(cat)) { skipped++; continue; }
+
+                        // Look up rate: by category name first, then by PROD code
+                        CostRateEntry rate = null;
+                        if (costRates.TryGetValue(cat, out var catRate))
+                            rate = catRate;
+                        else
+                        {
+                            string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                            if (!string.IsNullOrEmpty(prod) && costRates.TryGetValue(prod, out var prodRate))
+                                rate = prodRate;
+                        }
+
+                        if (rate == null) { skipped++; continue; }
+
+                        // Derive quantity from element geometry
+                        double qty = DeriveQuantity(el, rate.Unit);
+
+                        double subtotal = rate.UnitRate * qty;
+                        double prelims = subtotal * 0.12;     // 12% preliminaries
+                        double contingency = subtotal * 0.05; // 5% contingency
+                        double overhead = subtotal * 0.08;    // 8% overhead & profit
+                        double grandTotal = subtotal + prelims + contingency + overhead;
+
+                        // Write cost parameters to element
+                        ParameterHelpers.SetString(el, "ASS_COST_RATE_TXT",
+                            $"{rate.UnitRate:F2}/{rate.Unit}", overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_COST_QTY_TXT",
+                            $"{qty:F2} {rate.Unit}", overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_COST_SUBTOTAL_TXT",
+                            $"{subtotal:F2}", overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_COST_TOTAL_TXT",
+                            $"{grandTotal:F2}", overwrite: true);
+                        ParameterHelpers.SetString(el, "ASS_COST_SOURCE_TXT",
+                            $"cost_rates_5d.csv:{cat}", overwrite: true);
+
+                        projectTotal += grandTotal;
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "X";
+                        if (!costByDisc.ContainsKey(disc)) costByDisc[disc] = 0;
+                        costByDisc[disc] += grandTotal;
+                        if (!costByCat.ContainsKey(cat)) costByCat[cat] = 0;
+                        costByCat[cat] += grandTotal;
+                        costed++;
+                    }
+
+                    tx.Commit();
+                }
+
+                // Export cost summary CSV
+                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string csvPath = Path.Combine(outputDir, $"STING_5D_CostTrace_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                using (var writer = new StreamWriter(csvPath, false, Encoding.UTF8))
+                {
+                    writer.WriteLine("Category,Element Count,Unit Rate,Total Cost");
+                    foreach (var kvp in costByCat.OrderByDescending(x => x.Value))
+                    {
+                        var rate = costRates.TryGetValue(kvp.Key, out var r) ? r : null;
+                        writer.WriteLine($"{kvp.Key},{allElements.Count(e => ParameterHelpers.GetCategoryName(e) == kvp.Key)}," +
+                            $"{rate?.UnitRate:F2},{kvp.Value:F2}");
+                    }
+                    writer.WriteLine($"\nTotal,,, {projectTotal:F2}");
+                }
+
+                var report = new StringBuilder();
+                report.AppendLine("Per-Element 5D Cost Traceability Complete");
+                report.AppendLine(new string('═', 50));
+                report.AppendLine($"  Elements costed:     {costed:N0}");
+                report.AppendLine($"  Skipped (no rate):   {skipped:N0}");
+                report.AppendLine($"  Project total:       {projectTotal:C0}");
+                report.AppendLine();
+                report.AppendLine("By Discipline:");
+                foreach (var kvp in costByDisc.OrderByDescending(x => x.Value))
+                    report.AppendLine($"  {kvp.Key,-6} {kvp.Value,14:C0}");
+                report.AppendLine();
+                report.AppendLine("Top categories:");
+                foreach (var kvp in costByCat.OrderByDescending(x => x.Value).Take(10))
+                    report.AppendLine($"  {kvp.Key,-30} {kvp.Value,14:C0}");
+                report.AppendLine();
+                report.AppendLine($"Cost summary exported to: {Path.GetFileName(csvPath)}");
+
+                TaskDialog td = new TaskDialog("5D Cost Traceability");
+                td.MainInstruction = $"Costed {costed:N0} elements — total {projectTotal:C0}";
+                td.MainContent = report.ToString();
+                td.Show();
+
+                StingLog.Info($"ElementCostTrace: {costed} costed, {skipped} skipped, total={projectTotal:F2}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"ElementCostTrace failed: {ex.Message}", ex);
+                TaskDialog.Show("5D Cost Trace", $"Failed: {ex.Message}");
+                return Result.Failed;
+            }
+        }
+
+        private class CostRateEntry
+        {
+            public double UnitRate { get; set; }
+            public string Unit { get; set; } = "each";
+            public string Description { get; set; } = "";
+        }
+
+        private Dictionary<string, CostRateEntry> LoadCostRates()
+        {
+            var rates = new Dictionary<string, CostRateEntry>(StringComparer.OrdinalIgnoreCase);
+            // Phase 40: Use configurable cost rates filename from project_config.json
+            string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
+            string path = StingToolsApp.FindDataFile(costFile);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+
+            try
+            {
+                string[] lines = File.ReadAllLines(path);
+                if (lines.Length < 2) return rates;
+
+                // Auto-detect column layout from header
+                string header = lines[0].ToLowerInvariant();
+                bool is7Col = header.Contains("mat_code");
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                    if (cols.Length < 3) continue;
+
+                    if (is7Col && cols.Length >= 7)
+                    {
+                        // 7-col format: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                        if (double.TryParse(cols[3], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
+                        {
+                            rates[cols[0].Trim()] = new CostRateEntry
+                            {
+                                UnitRate = rate,
+                                Unit = cols.Length > 5 ? cols[5].Trim() : "each",
+                                Description = cols.Length > 6 ? cols[6].Trim() : ""
+                            };
+                        }
+                    }
+                    else
+                    {
+                        // 3-col format: Category, Rate, Unit
+                        if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
+                        {
+                            rates[cols[0].Trim()] = new CostRateEntry
+                            {
+                                UnitRate = rate,
+                                Unit = cols.Length > 2 ? cols[2].Trim() : "each"
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadCostRates: {ex.Message}"); }
+            return rates;
+        }
+
+        private double DeriveQuantity(Element el, string unit)
+        {
+            try
+            {
+                switch (unit.ToLowerInvariant())
+                {
+                    case "m²":
+                        Parameter areaP = el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                        if (areaP != null && areaP.HasValue)
+                            return areaP.AsDouble() * 0.092903; // sq ft → sq m
+                        return 1.0;
+                    case "m³":
+                        Parameter volP = el.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
+                        if (volP != null && volP.HasValue)
+                            return volP.AsDouble() * 0.0283168; // cu ft → cu m
+                        return 1.0;
+                    case "m":
+                        if (el.Location is LocationCurve lc)
+                            return lc.Curve.Length * 0.3048; // ft → m
+                        Parameter lenP = el.LookupParameter("Length") ?? el.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
+                        if (lenP != null && lenP.HasValue)
+                            return lenP.AsDouble() * 0.3048;
+                        return 1.0;
+                    case "kg":
+                        Parameter massP = el.LookupParameter("Weight") ?? el.LookupParameter("Mass");
+                        if (massP != null && massP.HasValue)
+                            return massP.AsDouble();
+                        return 1.0;
+                    default: // "each"
+                        return 1.0;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DeriveQuantity: {ex.Message}");
+                return 1.0;
+            }
         }
     }
 

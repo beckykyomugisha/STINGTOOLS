@@ -197,9 +197,9 @@ namespace StingTools.Temp
                             try
                             {
                                 Category cat = doc.Settings.Categories.get_Item(bic);
-                                if (cat != null) catIds.Add(new ElementId(bic));
+                                if (cat != null) catIds.Add(new ElementId((long)bic));
                             }
-                            catch { /* category not available in this Revit version */ }
+                            catch (Exception ex) { StingLog.Warn($"category not available in this Revit version: {ex.Message}"); }
                         }
                         if (catIds.Count > 0)
                         {
@@ -235,7 +235,7 @@ namespace StingTools.Temp
                     try
                     {
                         Category cat = doc.Settings.Categories.get_Item(bic);
-                        if (cat != null) allCatIds.Add(new ElementId(bic));
+                        if (cat != null) allCatIds.Add(new ElementId((long)bic));
                     }
                     catch (Exception ex) { StingLog.Warn($"Get category '{bic}' for filter: {ex.Message}"); }
                 }
@@ -322,7 +322,7 @@ namespace StingTools.Temp
                                     try
                                     {
                                         Category cat = doc.Settings.Categories.get_Item(bic);
-                                        if (cat != null) csvCatIds.Add(new ElementId(bic));
+                                        if (cat != null) csvCatIds.Add(new ElementId((long)bic));
                                     }
                                     catch (Exception ex) { StingLog.Warn($"Get CSV filter category '{catName}': {ex.Message}"); }
                                 }
@@ -649,7 +649,7 @@ namespace StingTools.Temp
                     .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
                     .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
             }
-            catch { /* OK — won't apply fill patterns */ }
+            catch (Exception ex) { StingLog.Warn($"OK — won't apply fill patterns: {ex.Message}"); }
 
             // Find base views for each view type to duplicate as template bases.
             // Different view types require different base views.

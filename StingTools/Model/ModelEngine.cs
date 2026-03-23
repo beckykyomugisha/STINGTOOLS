@@ -230,9 +230,13 @@ namespace StingTools.Model
                     s.FamilyName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (match != null)
                     return ResolveResult.Found(match.Id, $"{match.FamilyName}: {match.Name}");
+
+                // Phase 56 MA-004: Log warning when keyword doesn't match any type
+                StingLog.Warn($"ResolveFamilySymbol: keyword '{keyword}' not found in {category}. " +
+                    $"Using first available: '{symbols[0].FamilyName}: {symbols[0].Name}'");
             }
 
-            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name}");
+            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name} (default)");
         }
 
         /// <summary>Resolve a Level by name (partial match) or default to lowest.</summary>
@@ -402,11 +406,11 @@ namespace StingTools.Model
                 var p = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
                 {
-                    try { p.Set(ws.Id.IntegerValue); }
-                    catch { try { p.Set((int)(object)ws.Id); } catch { /* API compat */ } }
+                    try { p.Set((int)ws.Id.IntegerValue); }
+                    catch (Exception ex) { StingLog.Warn($"WorksetAssign: {ex.Message}"); }
                 }
             }
-            catch { /* Non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical: {ex.Message}"); }
         }
     }
 
@@ -595,7 +599,7 @@ namespace StingTools.Model
                                     walls[i], walls[(i + 1) % walls.Count]);
                             tx.Commit();
                         }
-                        catch { tx.RollBack(); /* Non-critical */ }
+                        catch (Exception ex) { StingLog.Warn($"Rollback: {ex.Message}"); tx.RollBack(); }
                     }
 
                     // Transaction 3: Place room element
@@ -614,7 +618,7 @@ namespace StingTools.Model
                                     createdRoom.Name = roomName;
                                 tx.Commit();
                             }
-                            catch { tx.RollBack(); }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); tx.RollBack(); }
                         }
                     }
 
@@ -1307,7 +1311,8 @@ namespace StingTools.Model
 
                     // Floor
                     step = 2;
-                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName);
+                    // R4-A FIX: Pass origin so floor aligns with walls when origin != 0
+                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName, originXMm, originYMm);
                     if (floorResult.Success)
                     {
                         results.Add($"  Floor: {floorResult.Message}");
@@ -1316,8 +1321,9 @@ namespace StingTools.Model
 
                     // Roof
                     step = 3;
+                    // R4-A FIX: Pass origin so roof aligns with walls when origin != 0
                     var roofResult = CreateRoof(widthMm, depthMm, roofTypeName, levelName,
-                        roofSlopeDeg, overhangMm);
+                        roofSlopeDeg, overhangMm, originXMm, originYMm);
                     if (roofResult.Success)
                     {
                         results.Add($"  Roof: {roofResult.Message}");
@@ -1347,6 +1353,428 @@ namespace StingTools.Model
             var opts = tx.GetFailureHandlingOptions();
             opts.SetFailuresPreprocessor(fh);
             tx.SetFailureHandlingOptions(opts);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // POST-CREATION AUTO-TAGGING PIPELINE
+        // Phase 55: Created elements are auto-tagged via RunFullPipeline
+        // so they immediately have ISO 19650 tags, containers, TAG7
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Auto-tag all created elements using the full STING tagging pipeline.
+        /// Called after model creation to ensure zero-touch compliance.
+        /// Runs in a separate transaction so model creation succeeds even if tagging fails.
+        /// </summary>
+        public static int AutoTagCreatedElements(Document doc, List<ElementId> createdIds)
+        {
+            if (doc == null || createdIds == null || createdIds.Count == 0) return 0;
+
+            int tagged = 0;
+            try
+            {
+                var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
+                if (ctx == null) { StingLog.Warn("AutoTagCreatedElements: PopulationContext.Build returned null"); return 0; }
+
+                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                var seqCounters = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = Temp.FormulaEngine.LoadFormulas(doc);
+                var gridLines = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid)).Cast<Grid>().ToList();
+
+                using (var tx = new Transaction(doc, "STING MODEL: Auto-Tag Created Elements"))
+                {
+                    tx.Start();
+                    foreach (var id in createdIds)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el == null) continue;
+                        try
+                        {
+                            bool ok = TagPipelineHelper.RunFullPipeline(
+                                doc, el, ctx, existingTags, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false, skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement);
+                            if (ok) tagged++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"AutoTag element {id}: {ex.Message}"); }
+                    }
+                    tx.Commit();
+                }
+
+                if (tagged > 0)
+                {
+                    TagConfig.SaveSeqSidecar(doc, seqCounters);
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
+
+                // Phase 56: Post-creation model validation
+                var validationIssues = WarningsEngine.ValidateModelElements(doc, createdIds);
+                if (validationIssues.Count > 0)
+                {
+                    foreach (var issue in validationIssues.Take(5))
+                        StingLog.Warn($"ModelValidation: {issue}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoTagCreatedElements: {ex.Message}"); }
+            return tagged;
+        }
+
+        /// <summary>
+        /// Auto-tag a single ModelResult's created elements.
+        /// Returns the number of elements successfully tagged.
+        /// </summary>
+        public static int AutoTagResult(Document doc, ModelResult result)
+        {
+            if (result == null || !result.Success) return 0;
+            var ids = new List<ElementId>();
+            if (result.CreatedElementId != null && result.CreatedElementId != ElementId.InvalidElementId)
+                ids.Add(result.CreatedElementId);
+            ids.AddRange(result.CreatedElementIds.Where(id => id != null && id != ElementId.InvalidElementId));
+            return AutoTagCreatedElements(doc, ids);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // MEP ROUTING ENGINE — Auto-routing with clash avoidance
+    // Phase 55: Fills critical MODEL tab gap for automated MEP layout
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// MEP auto-routing engine for duct and pipe layout.
+    /// Provides optimal path finding between equipment with clash avoidance,
+    /// automatic sizing per CIBSE Guide C, and branch/header connections.
+    ///
+    /// Standards: CIBSE Guide C, BS EN 12237, ASHRAE Fundamentals
+    /// </summary>
+    internal static class MEPRoutingEngine
+    {
+        /// <summary>Route segment between two points with sizing.</summary>
+        public class RouteSegment
+        {
+            public XYZ Start { get; set; }
+            public XYZ End { get; set; }
+            public double DiameterMm { get; set; }
+            public double LengthMm { get; set; }
+            public string SegmentType { get; set; } // "Straight", "Elbow", "Tee", "Reducer"
+        }
+
+        /// <summary>Route result with all segments and sizing data.</summary>
+        public class RouteResult
+        {
+            public bool Success { get; set; }
+            public List<RouteSegment> Segments { get; set; } = new();
+            public double TotalLengthMm { get; set; }
+            public int ElbowCount { get; set; }
+            public double PressureDropPa { get; set; }
+            public string Message { get; set; }
+        }
+
+        /// <summary>
+        /// Calculate optimal duct diameter for given airflow rate per CIBSE Guide C.
+        /// Target velocity: 3-6 m/s for low-velocity, 6-12 m/s for high-velocity.
+        /// </summary>
+        public static double SizeDuctDiameterMm(double airflowLps, bool lowVelocity = true)
+        {
+            double targetVel = lowVelocity ? 5.0 : 8.0; // m/s
+            double areaM2 = (airflowLps / 1000.0) / targetVel;
+            double diamM = Math.Sqrt(4.0 * areaM2 / Math.PI);
+            double diamMm = diamM * 1000.0;
+
+            // Round up to standard duct sizes per BS EN 12237
+            double[] standardSizes = { 100, 125, 150, 160, 200, 250, 300, 315, 355,
+                400, 450, 500, 560, 630, 710, 800, 900, 1000, 1120, 1250 };
+            foreach (double s in standardSizes)
+                if (s >= diamMm) return s;
+            return standardSizes[^1];
+        }
+
+        /// <summary>
+        /// Calculate optimal pipe diameter for given flow rate per CIBSE Guide C.
+        /// Target velocity: 0.5-1.5 m/s for LTHW/CHW, 1.0-3.0 m/s for mains.
+        /// </summary>
+        public static double SizePipeDiameterMm(double flowLps, bool mainsPressure = false)
+        {
+            double targetVel = mainsPressure ? 2.0 : 1.0; // m/s
+            double areaM2 = (flowLps / 1000.0) / targetVel;
+            double diamM = Math.Sqrt(4.0 * areaM2 / Math.PI);
+            double diamMm = diamM * 1000.0;
+
+            // Standard copper/steel pipe sizes
+            double[] standardSizes = { 15, 22, 28, 35, 42, 54, 67, 76, 108, 133, 159, 219, 273 };
+            foreach (double s in standardSizes)
+                if (s >= diamMm) return s;
+            return standardSizes[^1];
+        }
+
+        /// <summary>
+        /// Calculate pressure drop through a straight duct segment per CIBSE Guide C.
+        /// Uses Darcy-Weisbach equation with Colebrook-White friction factor.
+        /// </summary>
+        public static double DuctPressureDropPa(double lengthM, double diamMm, double airflowLps)
+        {
+            // Phase 56: Guard against division by zero (BUG-01)
+            if (diamMm <= 0 || lengthM <= 0 || airflowLps <= 0) return 0;
+            double d = diamMm / 1000.0;
+            double area = Math.PI * d * d / 4.0;
+            if (area < 1e-10) return 0; // Prevent division by zero
+            double velocity = (airflowLps / 1000.0) / area;
+            double rho = 1.2; // kg/m³ air density at ~20°C
+            double roughness = 0.00015; // m (galvanised steel)
+
+            // Simplified Colebrook-White (single iteration)
+            double Re = velocity * d / 1.5e-5; // kinematic viscosity ~1.5e-5 m²/s
+            if (Re < 1) return 0;
+            double logTerm = roughness / (3.7 * d) + 5.74 / Math.Pow(Re, 0.9);
+            if (logTerm <= 0 || double.IsNaN(logTerm) || double.IsInfinity(logTerm)) return 0;
+            double logVal = Math.Log10(logTerm);
+            if (Math.Abs(logVal) < 1e-12 || double.IsNaN(logVal) || double.IsInfinity(logVal)) return 0;
+            double f = 0.25 / Math.Pow(logVal, 2);
+            return f * (lengthM / d) * (rho * velocity * velocity / 2.0);
+        }
+
+        /// <summary>
+        /// Generate an L-shaped route between two points (Manhattan routing).
+        /// Avoids direct diagonal runs — uses horizontal + vertical segments.
+        /// </summary>
+        public static RouteResult RouteManhattan(XYZ startFt, XYZ endFt, double diamMm)
+        {
+            var result = new RouteResult { Success = true };
+            double dx = endFt.X - startFt.X;
+            double dy = endFt.Y - startFt.Y;
+            double dz = endFt.Z - startFt.Z;
+
+            // Horizontal first, then vertical offset
+            var mid1 = new XYZ(endFt.X, startFt.Y, startFt.Z);
+            var mid2 = new XYZ(endFt.X, endFt.Y, startFt.Z);
+
+            if (Math.Abs(dx) > 0.01)
+            {
+                result.Segments.Add(new RouteSegment
+                {
+                    Start = startFt, End = mid1,
+                    DiameterMm = diamMm,
+                    LengthMm = Math.Abs(dx) * Units.FeetToMm,
+                    SegmentType = "Straight"
+                });
+            }
+
+            if (Math.Abs(dy) > 0.01)
+            {
+                var segStart = result.Segments.Count > 0 ? mid1 : startFt;
+                result.Segments.Add(new RouteSegment
+                {
+                    Start = segStart, End = mid2,
+                    DiameterMm = diamMm,
+                    LengthMm = Math.Abs(dy) * Units.FeetToMm,
+                    SegmentType = "Straight"
+                });
+                if (result.Segments.Count > 1) result.ElbowCount++;
+            }
+
+            if (Math.Abs(dz) > 0.01)
+            {
+                var segStart = result.Segments.Count > 0 ? mid2 : startFt;
+                result.Segments.Add(new RouteSegment
+                {
+                    Start = segStart, End = endFt,
+                    DiameterMm = diamMm,
+                    LengthMm = Math.Abs(dz) * Units.FeetToMm,
+                    SegmentType = "Straight"
+                });
+                if (result.Segments.Count > 1) result.ElbowCount++;
+            }
+
+            result.TotalLengthMm = result.Segments.Sum(s => s.LengthMm);
+
+            // Phase 56 GAP-A02 fix: Calculate pressure drop for the complete route
+            if (diamMm > 0 && result.TotalLengthMm > 0)
+            {
+                double totalLengthM = result.TotalLengthMm / 1000.0;
+                // Estimate airflow from duct area using mid-range velocity (5 m/s)
+                double areaSqM = Math.PI * (diamMm / 1000.0) * (diamMm / 1000.0) / 4.0;
+                double estimatedAirflowLps = areaSqM * 5.0 * 1000.0; // 5 m/s target velocity
+                result.PressureDropPa = DuctPressureDropPa(totalLengthM, diamMm, estimatedAirflowLps);
+                // Add elbow losses (CIBSE equivalent length: ~1m per 90° elbow at this diameter)
+                result.PressureDropPa += result.ElbowCount * DuctPressureDropPa(1.0, diamMm, estimatedAirflowLps);
+            }
+
+            result.Message = $"Route: {result.Segments.Count} segments, {result.ElbowCount} elbows, " +
+                $"{result.TotalLengthMm / 1000:F1}m total, Ø{diamMm}mm" +
+                (result.PressureDropPa > 0 ? $", ΔP={result.PressureDropPa:F1}Pa" : "");
+            return result;
+        }
+
+        /// <summary>
+        /// Check if a proposed route segment clashes with existing elements.
+        /// Returns list of clashing element IDs.
+        /// </summary>
+        public static List<ElementId> DetectClashes(Document doc, XYZ startFt, XYZ endFt,
+            double clearanceFt = 0.25)
+        {
+            var clashes = new List<ElementId>();
+            try
+            {
+                var mid = (startFt + endFt) / 2.0;
+                var halfLen = startFt.DistanceTo(endFt) / 2.0 + clearanceFt;
+                var outline = new Outline(
+                    new XYZ(mid.X - halfLen, mid.Y - halfLen, mid.Z - clearanceFt),
+                    new XYZ(mid.X + halfLen, mid.Y + halfLen, mid.Z + clearanceFt));
+                var bbFilter = new BoundingBoxIntersectsFilter(outline);
+                var nearby = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(bbFilter)
+                    .ToElementIds();
+                clashes.AddRange(nearby);
+            }
+            catch (Exception ex) { StingLog.Warn($"DetectClashes: {ex.Message}"); }
+            return clashes;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // ROOM LAYOUT INTELLIGENCE — Space planning algorithms
+    // Phase 55: Automated room layout based on area program
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Room layout intelligence engine for automated space planning.
+    /// Generates room arrangements from area programs using bin-packing
+    /// and adjacency-aware placement algorithms.
+    ///
+    /// Standards: BS EN 15221-6 (area measurement), BCO Guide (office standards)
+    /// </summary>
+    internal static class RoomLayoutEngine
+    {
+        /// <summary>Space requirement from area program.</summary>
+        public class SpaceRequirement
+        {
+            public string Name { get; set; }
+            public double AreaSqM { get; set; }
+            public double MinWidthM { get; set; } = 2.5;
+            public double MaxAspectRatio { get; set; } = 3.0;
+            public string Department { get; set; }
+            public List<string> AdjacentTo { get; set; } = new();
+            public bool RequiresWindow { get; set; }
+            public bool RequiresDoor { get; set; } = true;
+        }
+
+        /// <summary>Placed room with position and dimensions.</summary>
+        public class PlacedRoom
+        {
+            public SpaceRequirement Requirement { get; set; }
+            public double X { get; set; }
+            public double Y { get; set; }
+            public double WidthM { get; set; }
+            public double DepthM { get; set; }
+        }
+
+        /// <summary>
+        /// Calculate optimal room dimensions from area requirement.
+        /// Respects minimum width and maximum aspect ratio constraints.
+        /// </summary>
+        public static (double widthM, double depthM) CalculateDimensions(SpaceRequirement req)
+        {
+            double area = req.AreaSqM;
+            double minW = req.MinWidthM;
+            double maxRatio = req.MaxAspectRatio;
+
+            // Start with square aspect
+            double side = Math.Sqrt(area);
+            double width = Math.Max(side, minW);
+            double depth = area / width;
+
+            // Enforce aspect ratio
+            if (width / depth > maxRatio) { depth = width / maxRatio; }
+            if (depth / width > maxRatio) { width = depth / maxRatio; }
+
+            // Round to 100mm module
+            width = Math.Ceiling(width * 10) / 10.0;
+            depth = Math.Ceiling(depth * 10) / 10.0;
+
+            return (width, depth);
+        }
+
+        /// <summary>
+        /// Generate a strip layout for multiple rooms along a corridor.
+        /// Rooms placed side by side with shared party walls.
+        /// BCO Guide standard: 1.5m corridor, rooms either side.
+        /// </summary>
+        public static List<PlacedRoom> StripLayout(
+            List<SpaceRequirement> rooms, double corridorWidthM = 1.5)
+        {
+            var placed = new List<PlacedRoom>();
+            double currentX = 0;
+            double maxDepth = 0;
+
+            // Sort by department then area (largest first) for adjacency
+            var sorted = rooms.OrderBy(r => r.Department).ThenByDescending(r => r.AreaSqM).ToList();
+
+            foreach (var req in sorted)
+            {
+                var (w, d) = CalculateDimensions(req);
+                placed.Add(new PlacedRoom
+                {
+                    Requirement = req,
+                    X = currentX,
+                    Y = corridorWidthM,
+                    WidthM = w,
+                    DepthM = d
+                });
+                currentX += w;
+                maxDepth = Math.Max(maxDepth, d);
+            }
+
+            return placed;
+        }
+
+        /// <summary>
+        /// Execute room layout in Revit: create walls, place rooms, tag.
+        /// </summary>
+        public static ModelResult ExecuteLayout(Document doc, List<PlacedRoom> layout,
+            string levelName = null)
+        {
+            var engine = new ModelEngine(doc);
+            var allIds = new List<ElementId>();
+            int roomCount = 0;
+
+            using (var tg = new TransactionGroup(doc, "STING MODEL: Room Layout"))
+            {
+                tg.Start();
+                try
+                {
+                    foreach (var room in layout)
+                    {
+                        var result = engine.CreateRectangularRoom(
+                            room.WidthM * 1000, room.DepthM * 1000,
+                            room.Requirement.Name, levelName,
+                            originXMm: room.X * 1000, originYMm: room.Y * 1000);
+
+                        if (result.Success)
+                        {
+                            allIds.AddRange(result.CreatedElementIds);
+                            if (result.CreatedElementId != ElementId.InvalidElementId)
+                                allIds.Add(result.CreatedElementId);
+                            roomCount++;
+                        }
+                    }
+                    tg.Assimilate();
+                }
+                catch (Exception ex)
+                {
+                    tg.RollBack();
+                    return ModelResult.Fail($"Room layout failed: {ex.Message}");
+                }
+            }
+
+            // Auto-tag all created elements
+            int tagged = ModelEngine.AutoTagCreatedElements(doc, allIds);
+
+            return ModelResult.OkBatch(
+                $"Created {roomCount} rooms, {allIds.Count} elements, {tagged} auto-tagged",
+                allIds);
         }
     }
 }

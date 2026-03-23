@@ -1,6 +1,6 @@
 {
-  "version": "5.5",
-  "description": "STING Tools master parameter registry v5.5 — single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds",
+  "version": "5.6",
+  "description": "STING Tools master parameter registry v5.6 \u2014 single source of truth for all parameter names, GUIDs, containers, bindings, and warning thresholds",
   "tag_format": {
     "separator": "-",
     "num_pad": 4,
@@ -1289,7 +1289,7 @@
     {
       "param_name": "TAG_BOX_COLOR_R_INT",
       "guid": "d5a1b2c3-5001-4e05-a1c1-500000000001",
-      "description": "Tag bounding box fill color — Red channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1297,7 +1297,7 @@
     {
       "param_name": "TAG_BOX_COLOR_G_INT",
       "guid": "d5a1b2c3-5002-4e05-a1c1-500000000002",
-      "description": "Tag bounding box fill color — Green channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1305,7 +1305,7 @@
     {
       "param_name": "TAG_BOX_COLOR_B_INT",
       "guid": "d5a1b2c3-5003-4e05-a1c1-500000000003",
-      "description": "Tag bounding box fill color — Blue channel (0-255)",
+      "description": "Tag bounding box fill color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1328,7 +1328,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_R_INT",
       "guid": "d5a1b2c3-5006-4e05-a1c1-500000000006",
-      "description": "Tag leader line color — Red channel (0-255)",
+      "description": "Tag leader line color \u2014 Red channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1336,7 +1336,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_G_INT",
       "guid": "d5a1b2c3-5007-4e05-a1c1-500000000007",
-      "description": "Tag leader line color — Green channel (0-255)",
+      "description": "Tag leader line color \u2014 Green channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1344,7 +1344,7 @@
     {
       "param_name": "TAG_LEADER_COLOR_B_INT",
       "guid": "d5a1b2c3-5008-4e05-a1c1-500000000008",
-      "description": "Tag leader line color — Blue channel (0-255)",
+      "description": "Tag leader line color \u2014 Blue channel (0-255)",
       "binding": "universal",
       "param_type": "INTEGER",
       "required": false
@@ -1583,7 +1583,7 @@
       "required": false
     },
     {
-      "param_name": "COM_COMMISSIONING_STATUS_TXT",
+      "param_name": "COM_COMMISSION_STATUS_TXT",
       "guid": "c01c5ff4-c401-9d93-c7b8-dd83a8bc15b6",
       "description": "Commissioning status (NOT_STARTED/IN_PROGRESS/PASSED/FAILED)",
       "binding": "universal",
@@ -1912,7 +1912,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "Comprehensive descriptive narrative — AI-assembled asset profile with embedded markup tokens for rich rendering"
+          "description": "Comprehensive descriptive narrative \u2014 AI-assembled asset profile with embedded markup tokens for rich rendering"
         },
         {
           "param_name": "ASS_TAG_7A_TXT",
@@ -1921,7 +1921,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section A: Identity Header — asset name, product, manufacturer, model (styled as BOLD in tag families)"
+          "description": "TAG7 Section A: Identity Header \u2014 asset name, product, manufacturer, model (styled as BOLD in tag families)"
         },
         {
           "param_name": "ASS_TAG_7B_TXT",
@@ -1930,7 +1930,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section B: System & Function Context — full system/function descriptions (styled as ITALIC in tag families)"
+          "description": "TAG7 Section B: System & Function Context \u2014 full system/function descriptions (styled as ITALIC in tag families)"
         },
         {
           "param_name": "ASS_TAG_7C_TXT",
@@ -1939,7 +1939,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section C: Spatial Context — room, department, grid reference"
+          "description": "TAG7 Section C: Spatial Context \u2014 room, department, grid reference"
         },
         {
           "param_name": "ASS_TAG_7D_TXT",
@@ -1948,7 +1948,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section D: Lifecycle & Status — status, revision, origin, maintenance"
+          "description": "TAG7 Section D: Lifecycle & Status \u2014 status, revision, origin, maintenance"
         },
         {
           "param_name": "ASS_TAG_7E_TXT",
@@ -1957,7 +1957,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section E: Technical Specifications — discipline-specific MEP/BLE performance data"
+          "description": "TAG7 Section E: Technical Specifications \u2014 discipline-specific MEP/BLE performance data"
         },
         {
           "param_name": "ASS_TAG_7F_TXT",
@@ -1966,7 +1966,7 @@
           "separator": " | ",
           "prefix": "",
           "suffix": "",
-          "description": "TAG7 Section F: Classification & Reference — Uniformat, OmniClass, keynote, cost, ISO tag"
+          "description": "TAG7 Section F: Classification & Reference \u2014 Uniformat, OmniClass, keynote, cost, ISO tag"
         }
       ]
     },
@@ -2717,12 +2717,12 @@
       {
         "key": "ROOM_AREA",
         "param_name": "ASS_ROOM_AREA_SQ_M",
-        "description": "Room area (m²)"
+        "description": "Room area (m\u00b2)"
       },
       {
         "key": "ROOM_VOLUME",
         "param_name": "ASS_ROOM_VOLUME_CU_M",
-        "description": "Room volume (m³)"
+        "description": "Room volume (m\u00b3)"
       },
       {
         "key": "DEPT",
@@ -2741,7 +2741,7 @@
       },
       {
         "key": "BLE_ROOM_NUM",
-        "param_name": "BLE_ROOM_NUMBER_TXT",
+        "param_name": "BLE_ROOM_NUM_TXT",
         "description": "BLE room number (fallback)"
       }
     ],
@@ -2848,7 +2848,7 @@
       {
         "key": "ELE_AREA",
         "param_name": "BLE_ELE_AREA_SQ_M",
-        "description": "Element area (m²)"
+        "description": "Element area (m\u00b2)"
       },
       {
         "key": "CEILING_HEIGHT",
@@ -2894,6 +2894,106 @@
         "key": "FIRE_RATING",
         "param_name": "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN",
         "description": "Fire resistance rating (min)"
+      },
+      {
+        "key": "HEADROOM",
+        "param_name": "BLE_HEADROOM_MM",
+        "guid": "6cce470d-9750-4b4d-8d98-119ab63c2710",
+        "description": "General headroom clearance in mm",
+        "categories": [
+          "Rooms",
+          "Corridors"
+        ]
+      },
+      {
+        "key": "MULLION_DEPTH",
+        "param_name": "BLE_MULLION_DEPTH_MM",
+        "guid": "bc9e4e0d-1405-4c64-aa1f-9e3dad023231",
+        "description": "Curtain wall mullion depth in mm",
+        "categories": [
+          "Curtain Wall Mullions"
+        ]
+      },
+      {
+        "key": "PANEL_HEIGHT",
+        "param_name": "BLE_PANEL_HEIGHT_MM",
+        "guid": "60fb7d1a-3664-48f9-8dbe-305d57d0d2fe",
+        "description": "Curtain wall panel height in mm",
+        "categories": [
+          "Curtain Panels"
+        ]
+      },
+      {
+        "key": "PANEL_WIDTH",
+        "param_name": "BLE_PANEL_WIDTH_MM",
+        "guid": "ba90a10a-aca3-483d-bbe5-f6db056dc34c",
+        "description": "Curtain wall panel width in mm",
+        "categories": [
+          "Curtain Panels"
+        ]
+      },
+      {
+        "key": "PARK_BAY_LENGTH",
+        "param_name": "BLE_PARK_BAY_LENGTH_MM",
+        "guid": "b9cc4915-c6fa-4959-a348-219eca676953",
+        "description": "Parking bay length in mm",
+        "categories": [
+          "Parking"
+        ]
+      },
+      {
+        "key": "PARK_BAY_WIDTH",
+        "param_name": "BLE_PARK_BAY_WIDTH_MM",
+        "guid": "ae02e434-82de-4302-bd8f-5e4598e18c48",
+        "description": "Parking bay width in mm",
+        "categories": [
+          "Parking"
+        ]
+      },
+      {
+        "key": "RAILING_BALUSTER_SPACING",
+        "param_name": "BLE_RAILING_BALUSTER_SPACING_MM",
+        "guid": "c154ef17-e941-43b3-ac69-f585fd8e42ec",
+        "description": "Railing baluster spacing in mm",
+        "categories": [
+          "Railings"
+        ]
+      },
+      {
+        "key": "RAILING_HEIGHT",
+        "param_name": "BLE_RAILING_HEIGHT_MM",
+        "guid": "d87c0c1b-dbf1-4058-97ee-2c85a97b5e2c",
+        "description": "Railing height in mm",
+        "categories": [
+          "Railings"
+        ]
+      },
+      {
+        "key": "ROOF_AREA",
+        "param_name": "BLE_ROOF_AREA_SQ_M",
+        "guid": "8b37d80a-78c3-4f13-a206-d47f31278861",
+        "description": "Roof plan area in sq.m",
+        "categories": [
+          "Roofs"
+        ]
+      },
+      {
+        "key": "ROOF_THICKNESS",
+        "param_name": "BLE_ROOF_THICKNESS_MM",
+        "guid": "b0da75b6-9b67-4b4f-a05f-a023ae81ba4f",
+        "description": "Roof build-up thickness in mm",
+        "categories": [
+          "Roofs"
+        ]
+      },
+      {
+        "key": "STAIR_HEADROOM",
+        "param_name": "BLE_STAIR_HEADROOM_MM",
+        "guid": "9f4a1173-5829-468b-8b98-99b24066c19b",
+        "description": "Stair headroom clearance in mm",
+        "categories": [
+          "Stairs"
+        ]
       }
     ],
     "electrical": [
@@ -2951,6 +3051,43 @@
         "key": "ELC_IP_RATING",
         "param_name": "ELC_IP_RATING_TXT",
         "description": "IP rating"
+      },
+      {
+        "key": "ELC_CONN_TYPE",
+        "param_name": "ELC_CONN_TYPE_TXT",
+        "guid": "c76769eb-4e83-4a77-962a-141115358f1a",
+        "description": "Electrical connector type",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_DEVICE_VOLTAGE",
+        "param_name": "ELC_VOLTAGE_V",
+        "guid": "e686a0c0-1530-4b66-9b1d-90c727febef6",
+        "description": "Device operating voltage in V",
+        "categories": [
+          "Electrical Equipment",
+          "Electrical Fixtures"
+        ]
+      },
+      {
+        "key": "ELC_WIRE_SIZE",
+        "param_name": "ELC_WIRE_SIZE_TXT",
+        "guid": "6de7d06e-ef0d-4b1b-a86e-f5fc9b348cd3",
+        "description": "Wire size designation",
+        "categories": [
+          "Wires"
+        ]
+      },
+      {
+        "key": "ELC_CTR_SIZE",
+        "param_name": "ELC_CTR_SZ_TXT",
+        "guid": "b52c9bb8-e212-4b2a-805f-00373330f27a",
+        "description": "Cable tray size designation",
+        "categories": [
+          "Cable Trays"
+        ]
       }
     ],
     "lighting": [
@@ -2979,7 +3116,7 @@
       {
         "key": "HVC_DUCT_FLOW",
         "param_name": "HVC_DCT_FLW_CFM",
-        "description": "Duct flow (CFM)"
+        "description": "Duct flow (CFM) (HVAC_AIRFLOW type)"
       },
       {
         "key": "HVC_VELOCITY",
@@ -2995,6 +3132,53 @@
         "key": "HVC_AIRFLOW",
         "param_name": "HVC_AIRFLOW_LPS",
         "description": "Airflow (L/s)"
+      },
+      {
+        "key": "HVC_DCT_SIZE",
+        "param_name": "HVC_DCT_SZ_TXT",
+        "guid": "3b70775d-b7a9-433d-9279-bacd236f86b4",
+        "description": "Duct size designation",
+        "categories": [
+          "Ducts",
+          "Flex Ducts"
+        ]
+      },
+      {
+        "key": "MEC_CTRL_FUNC",
+        "param_name": "MEC_CTRL_FUNCTION_TXT",
+        "guid": "8dcfe8f3-2bfa-495d-bd21-fb0f62c57055",
+        "description": "Mechanical control device function",
+        "categories": [
+          "Mechanical Equipment"
+        ]
+      },
+      {
+        "key": "MEC_CTRL_SIGNAL",
+        "param_name": "MEC_CTRL_SIGNAL_TXT",
+        "guid": "4f0172a1-54e8-411b-82ff-9829109334b8",
+        "description": "Mechanical control signal type",
+        "categories": [
+          "Mechanical Equipment"
+        ]
+      },
+      {
+        "key": "MEC_SET_CAP",
+        "param_name": "MEC_SET_CAPACITY_KW",
+        "guid": "91aa8a15-f619-497f-ba42-3b3793973cbc",
+        "description": "Mechanical equipment set capacity in kW",
+        "categories": [
+          "Mechanical Equipment"
+        ]
+      },
+      {
+        "key": "INS_MATERIAL",
+        "param_name": "INS_MATERIAL_TXT",
+        "guid": "8d94699e-93e5-42e1-ae64-089b032ecbbc",
+        "description": "Insulation material type",
+        "categories": [
+          "Duct Insulations",
+          "Pipe Insulations"
+        ]
       }
     ],
     "plumbing": [
@@ -3022,6 +3206,24 @@
         "key": "PLM_PIPE_LENGTH",
         "param_name": "PLM_PPE_LENGTH_M",
         "description": "Pipe length (m)"
+      },
+      {
+        "key": "PLM_EQP_CAP",
+        "param_name": "PLM_EQP_CAPACITY_L",
+        "guid": "3ba468f6-9106-47ee-8835-7b828cbaf9dd",
+        "description": "Plumbing equipment storage capacity in litres",
+        "categories": [
+          "Plumbing Equipment"
+        ]
+      },
+      {
+        "key": "PLM_EQP_PRESS",
+        "param_name": "PLM_EQP_PRESSURE_KPA",
+        "guid": "fe99ce8a-7e3c-4da0-a3ff-cc516bb8c07a",
+        "description": "Plumbing equipment design pressure in kPa",
+        "categories": [
+          "Plumbing Equipment"
+        ]
       }
     ],
     "paragraph_containers": [
@@ -3696,6 +3898,62 @@
         "description": "Stair supports paragraph",
         "categories": [
           "Stair Supports"
+        ]
+      },
+      {
+        "key": "PARA_HVC_TIEIN",
+        "param_name": "HVC_TAG_7_PARA_TIEIN_TXT",
+        "guid": "4c56e3fa-b2bf-48f2-b8e7-863998f58eea",
+        "description": "HVAC tie-in point paragraph container",
+        "categories": [
+          "Mechanical Equipment",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "PARA_ELC_TIEIN",
+        "param_name": "ELC_TAG_7_PARA_TIEIN_TXT",
+        "guid": "b1eae715-b947-4441-9748-28369434c903",
+        "description": "Electrical tie-in point paragraph container",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "PARA_ELC_COMM",
+        "param_name": "ELC_TAG_7_PARA_COMM_TXT",
+        "guid": "2852b151-3954-4016-9341-9a9bd66c237e",
+        "description": "Communication device paragraph container",
+        "categories": [
+          "Communication Devices"
+        ]
+      },
+      {
+        "key": "PARA_PLM_TIEIN",
+        "param_name": "PLM_TAG_7_PARA_TIEIN_TXT",
+        "guid": "15b0c0b3-afff-48af-aca0-22cfbc260dd8",
+        "description": "Plumbing tie-in point paragraph container",
+        "categories": [
+          "Plumbing Equipment",
+          "Pipes"
+        ]
+      },
+      {
+        "key": "PARA_FLS_TIEIN",
+        "param_name": "FLS_TAG_7_PARA_TIEIN_TXT",
+        "guid": "48033b98-fe7f-4fca-a2bd-cafeb4d9afc3",
+        "description": "Fire protection tie-in paragraph container",
+        "categories": [
+          "Sprinklers"
+        ]
+      },
+      {
+        "key": "PARA_GEN_MISC",
+        "param_name": "GEN_TAG_7_PARA_MISC_TXT",
+        "guid": "e986226b-be4d-4f7a-82ba-95c9fda9e399",
+        "description": "Miscellaneous element paragraph container",
+        "categories": [
+          "Generic Models"
         ]
       }
     ],
@@ -4843,6 +5101,449 @@
           "Vertical Circulation"
         ]
       }
+    ],
+    "fabrication": [
+      {
+        "key": "FAB_CONTAINMENT_D",
+        "param_name": "FAB_CONTAINMENT_D_MM",
+        "guid": "402607c8-8321-430c-bdb9-c17bea38bf42",
+        "description": "MEP fabrication containment depth in mm",
+        "categories": [
+          "MEP Fabrication Containment"
+        ]
+      },
+      {
+        "key": "FAB_CONTAINMENT_W",
+        "param_name": "FAB_CONTAINMENT_W_MM",
+        "guid": "70edb639-cba3-4448-b70c-144d5ad921de",
+        "description": "MEP fabrication containment width in mm",
+        "categories": [
+          "MEP Fabrication Containment"
+        ]
+      },
+      {
+        "key": "FAB_DCT_H",
+        "param_name": "FAB_DCT_H_MM",
+        "guid": "1da67680-2f37-4b93-80b3-e0d44c1382f0",
+        "description": "MEP fabrication ductwork height in mm",
+        "categories": [
+          "MEP Fabrication Ductwork"
+        ]
+      },
+      {
+        "key": "FAB_DCT_W",
+        "param_name": "FAB_DCT_W_MM",
+        "guid": "1e52b9de-ed2b-4baa-924a-16572cccc6c5",
+        "description": "MEP fabrication ductwork width in mm",
+        "categories": [
+          "MEP Fabrication Ductwork"
+        ]
+      },
+      {
+        "key": "FAB_HANGER_LOAD",
+        "param_name": "FAB_HANGER_LOAD_KN",
+        "guid": "e7774bdf-a9cb-4c48-9dde-071fdd7de588",
+        "description": "MEP fabrication hanger design load in kN",
+        "categories": [
+          "MEP Fabrication Hangers"
+        ]
+      },
+      {
+        "key": "FAB_HANGER_TYPE",
+        "param_name": "FAB_HANGER_TYPE_TXT",
+        "guid": "7f116b10-e638-43d1-8643-7b728402cd5d",
+        "description": "MEP fabrication hanger type",
+        "categories": [
+          "MEP Fabrication Hangers"
+        ]
+      },
+      {
+        "key": "FAB_PIPE_DN",
+        "param_name": "FAB_PIPE_DN_MM",
+        "guid": "f6ce5e5b-cb41-4d05-b8fe-3ad04cdbe854",
+        "description": "MEP fabrication pipework nominal diameter in mm",
+        "categories": [
+          "MEP Fabrication Pipework"
+        ]
+      },
+      {
+        "key": "FAB_STIFF_TYPE",
+        "param_name": "FAB_STIFF_TYPE_TXT",
+        "guid": "c6ef8a3f-6004-46f0-a854-83ece97c86cb",
+        "description": "Ductwork stiffener type",
+        "categories": [
+          "MEP Fabrication Ductwork"
+        ]
+      }
+    ],
+    "tiein": [
+      {
+        "key": "TIEIN_BY",
+        "param_name": "ASS_TIEIN_BY_TXT",
+        "guid": "31cdb79a-ec82-4665-a236-29e8c8b37323",
+        "description": "Tie-in installed by",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_CONNECTED",
+        "param_name": "ASS_TIEIN_CONNECTED_BOOL",
+        "guid": "8c0b8ac9-0d50-4c9e-937a-fe2bf47a9ab2",
+        "description": "Tie-in connection status",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_ELEV",
+        "param_name": "ASS_TIEIN_ELEV_TXT",
+        "guid": "1ede7174-3a9f-4dc6-a223-f2903d6d32fa",
+        "description": "Tie-in elevation reference",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_FLOW_DIR",
+        "param_name": "ASS_TIEIN_FLOW_DIR_TXT",
+        "guid": "862825d4-4225-4415-afba-641091b6583b",
+        "description": "Tie-in flow direction",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_IFC_REF",
+        "param_name": "ASS_TIEIN_IFC_REF_TXT",
+        "guid": "4683f650-ebec-4b33-9973-99a1925ed836",
+        "description": "Tie-in IFC GUID reference",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_PHASE",
+        "param_name": "ASS_TIEIN_PHASE_TXT",
+        "guid": "914d3ac1-0a63-4943-bebb-743aaa9c6f2b",
+        "description": "Tie-in construction phase",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_STATUS",
+        "param_name": "ASS_TIEIN_STATUS_TXT",
+        "guid": "48897428-3070-4281-b769-6ff231cf5a8f",
+        "description": "Tie-in status",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      },
+      {
+        "key": "TIEIN_TAG",
+        "param_name": "ASS_TIEIN_TAG_1_TXT",
+        "guid": "4214ae7a-cb61-450e-8ba0-edb534d0866d",
+        "description": "Tie-in connected-to asset tag",
+        "categories": [
+          "Mechanical Equipment",
+          "Electrical Equipment",
+          "Plumbing Equipment",
+          "Pipes",
+          "Ducts"
+        ]
+      }
+    ],
+    "building_elements": [
+      {
+        "key": "CASEWORK_ACCESSIBLE",
+        "param_name": "BLE_CASEWORK_ACCESSIBLE_BOOL",
+        "guid": "3e573cb7-e85f-432b-b457-12f68a7f96ab",
+        "description": "Accessible casework compliance",
+        "categories": [
+          "Casework"
+        ]
+      },
+      {
+        "key": "CASEWORK_COUNTERTOP",
+        "param_name": "BLE_CASEWORK_COUNTERTOP_TXT",
+        "guid": "a73d413c-3c51-46b0-b9c4-18d779f6b5ef",
+        "description": "Casework countertop material",
+        "categories": [
+          "Casework"
+        ]
+      },
+      {
+        "key": "CASEWORK_HARDWARE",
+        "param_name": "BLE_CASEWORK_HARDWARE_TXT",
+        "guid": "81484991-0be4-48f2-a298-a2e3c701263b",
+        "description": "Casework hardware specification",
+        "categories": [
+          "Casework"
+        ]
+      },
+      {
+        "key": "CASEWORK_MATERIAL",
+        "param_name": "BLE_CASEWORK_MATERIAL_TXT",
+        "guid": "1316e56f-5f46-4fbc-99db-87bf7170ded7",
+        "description": "Casework primary material",
+        "categories": [
+          "Casework"
+        ]
+      },
+      {
+        "key": "CASEWORK_TYPE",
+        "param_name": "BLE_CASEWORK_TYPE_TXT",
+        "guid": "ede1c732-f695-4576-aa26-7718b9439b46",
+        "description": "Casework type classification",
+        "categories": [
+          "Casework"
+        ]
+      },
+      {
+        "key": "DOOR_THRESHOLD",
+        "param_name": "BLE_DOOR_THRESHOLD_TXT",
+        "guid": "b75467ab-eb77-4b9d-96af-82ebedd4ee28",
+        "description": "Door threshold type",
+        "categories": [
+          "Doors"
+        ]
+      },
+      {
+        "key": "DOOR_TYPE",
+        "param_name": "BLE_DOOR_TYPE_TXT",
+        "guid": "e1acb721-61c6-4cbb-b602-6306e75b9987",
+        "description": "Door type classification",
+        "categories": [
+          "Doors"
+        ]
+      },
+      {
+        "key": "FURNITURE_FINISH",
+        "param_name": "BLE_FURNITURE_FINISH_TXT",
+        "guid": "5c904149-bdb1-4388-809f-3142ae56fba7",
+        "description": "Furniture surface finish",
+        "categories": [
+          "Furniture"
+        ]
+      },
+      {
+        "key": "MULLION_FINISH",
+        "param_name": "BLE_MULLION_FINISH_TXT",
+        "guid": "3408fe41-f261-4790-a09e-c49c639e8b36",
+        "description": "Curtain wall mullion finish",
+        "categories": [
+          "Curtain Wall Mullions"
+        ]
+      },
+      {
+        "key": "MULLION_MATERIAL",
+        "param_name": "BLE_MULLION_MATERIAL_TXT",
+        "guid": "0d45f729-7eed-4977-a871-4bfb59c736bc",
+        "description": "Curtain wall mullion material",
+        "categories": [
+          "Curtain Wall Mullions"
+        ]
+      },
+      {
+        "key": "PANEL_GLASS_TYPE",
+        "param_name": "BLE_PANEL_GLASS_TYPE_TXT",
+        "guid": "6caeb9b8-f6d7-4214-8daf-3efe34ea8acb",
+        "description": "Curtain wall panel glass type",
+        "categories": [
+          "Curtain Panels"
+        ]
+      },
+      {
+        "key": "PARK_ACCESSIBLE",
+        "param_name": "BLE_PARK_ACCESSIBLE_BOOL",
+        "guid": "f7f616d9-0075-4170-9589-4183ae8e20ac",
+        "description": "Parking bay accessibility",
+        "categories": [
+          "Parking"
+        ]
+      },
+      {
+        "key": "PARK_EV_CHARGING",
+        "param_name": "BLE_PARK_EV_CHARGING_BOOL",
+        "guid": "9a6f6cef-8bc1-430e-888f-381098de0ce8",
+        "description": "EV charging provided",
+        "categories": [
+          "Parking"
+        ]
+      },
+      {
+        "key": "PARK_TYPE",
+        "param_name": "BLE_PARK_TYPE_TXT",
+        "guid": "858269b5-cbad-4ac1-8aed-043029a62e95",
+        "description": "Parking bay type",
+        "categories": [
+          "Parking"
+        ]
+      },
+      {
+        "key": "RAILING_INFILL",
+        "param_name": "BLE_RAILING_INFILL_TXT",
+        "guid": "d752198b-7277-4ce5-93d5-c1b75d84e6b1",
+        "description": "Railing infill type",
+        "categories": [
+          "Railings"
+        ]
+      },
+      {
+        "key": "RAILING_MATERIAL",
+        "param_name": "BLE_RAILING_MATERIAL_TXT",
+        "guid": "00d3e7f7-5eb4-48ab-b7d0-f5e2ae1fcc5f",
+        "description": "Railing primary material",
+        "categories": [
+          "Railings"
+        ]
+      },
+      {
+        "key": "RAILING_TYPE",
+        "param_name": "BLE_RAILING_TYPE_TXT",
+        "guid": "1533dc81-42a2-42ae-8053-bf4211615234",
+        "description": "Railing type classification",
+        "categories": [
+          "Railings"
+        ]
+      },
+      {
+        "key": "RAMP_LANDING",
+        "param_name": "BLE_RAMP_LANDING_TXT",
+        "guid": "8d22e8c1-5e0d-4d36-8384-dce9f0088b72",
+        "description": "Ramp landing specification",
+        "categories": [
+          "Ramps"
+        ]
+      },
+      {
+        "key": "ROOM_FIRE_ESCAPE",
+        "param_name": "BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR",
+        "guid": "5f8fb623-cfd2-4caa-9292-6f6c1b2b4421",
+        "description": "Room fire escape capacity",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "ROOM_VENTILATION",
+        "param_name": "BLE_ROOM_VENTILATION_RATE_LPS",
+        "guid": "6f80a9ba-5955-44c5-aadb-0345248351f2",
+        "description": "Room ventilation rate",
+        "categories": [
+          "Rooms"
+        ]
+      },
+      {
+        "key": "SIGN_ILLUMINATED",
+        "param_name": "BLE_SIGN_ILLUMINATED_BOOL",
+        "guid": "e18cf276-3089-4ac3-900e-8b7403ead6df",
+        "description": "Signage illumination",
+        "categories": [
+          "Signage"
+        ]
+      },
+      {
+        "key": "SIGN_TYPE",
+        "param_name": "BLE_SIGN_TYPE_TXT",
+        "guid": "0342f172-6519-4ac3-a090-fbe9d925268c",
+        "description": "Signage type",
+        "categories": [
+          "Signage"
+        ]
+      },
+      {
+        "key": "WALL_CORE_MATERIAL",
+        "param_name": "BLE_WALL_CORE_MATERIAL_TXT",
+        "guid": "b0fb092e-3cf2-43a2-ac6d-a7914b06a614",
+        "description": "Wall core structural material",
+        "categories": [
+          "Walls"
+        ]
+      },
+      {
+        "key": "WALL_INSULATION",
+        "param_name": "BLE_WALL_INSULATION_TXT",
+        "guid": "274df5cc-a9e9-4ba2-911c-819c1c5ab55f",
+        "description": "Wall insulation type",
+        "categories": [
+          "Walls"
+        ]
+      },
+      {
+        "key": "WALL_WATERPROOF",
+        "param_name": "BLE_WALL_WATERPROOF_TXT",
+        "guid": "50f67f46-3005-4755-b299-a895c3558388",
+        "description": "Wall waterproofing system",
+        "categories": [
+          "Walls"
+        ]
+      },
+      {
+        "key": "FLS_PROT_PRODUCT",
+        "param_name": "FLS_PROT_PRODUCT_TXT",
+        "guid": "82da4c92-5742-4d9f-85c4-4a1676184ff6",
+        "description": "Fire protection product spec",
+        "categories": [
+          "Sprinklers"
+        ]
+      },
+      {
+        "key": "GEN_HEIGHT_MATURITY",
+        "param_name": "GEN_HEIGHT_AT_MATURITY_M",
+        "guid": "e6d1cd2c-4201-432e-9708-798ccc9b3cf8",
+        "description": "Plant height at maturity",
+        "categories": [
+          "Planting"
+        ]
+      },
+      {
+        "key": "GEN_ROAD_TYPE",
+        "param_name": "GEN_ROAD_TYPE_TXT",
+        "guid": "7f1d5dea-2295-45e6-8651-d925ec290ec2",
+        "description": "Road type classification",
+        "categories": [
+          "Site"
+        ]
+      },
+      {
+        "key": "GEN_SPECIES",
+        "param_name": "GEN_SPECIES_TXT",
+        "guid": "bff1ca5d-2186-4605-bb4f-e1cbfdab286d",
+        "description": "Plant species name",
+        "categories": [
+          "Planting"
+        ]
+      }
     ]
   },
   "category_enum_map": {
@@ -5207,7 +5908,7 @@
       "guid": "2e3596c7-f913-5c86-9c2b-547f6375ca3c",
       "description": "Room minimum area compliance",
       "threshold": "7.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5297,7 +5998,7 @@
       "guid": "cc3fc151-264e-5c9e-88fe-add4e5c4e52f",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5487,7 +6188,7 @@
       "guid": "18e66013-b783-5748-9389-06897dd57a86",
       "description": "Vertical circulation structural load check",
       "threshold": "5.0",
-      "unit": "kN/m²",
+      "unit": "kN/m\u00b2",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5517,7 +6218,7 @@
       "guid": "43c8ea79-cafd-5da0-9e6f-e228b85efb39",
       "description": "U-value thermal transmittance check",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5657,7 +6358,7 @@
       "guid": "573be7bf-3821-5434-b6f6-783e1c83ef87",
       "description": "Fire safety device coverage limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5667,7 +6368,7 @@
       "guid": "f8855ea2-6eee-5cd7-a0c7-fdcd787ced84",
       "description": "Sprinkler coverage area limit",
       "threshold": "12.0",
-      "unit": "m²",
+      "unit": "m\u00b2",
       "severity": "CRITICAL",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5797,7 +6498,7 @@
       "guid": "4b0595c4-908f-58fc-821c-b1cacc438418",
       "description": "Space lighting power density limit",
       "threshold": "10",
-      "unit": "W/m²",
+      "unit": "W/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5857,7 +6558,7 @@
       "guid": "88990dc2-2aca-5179-8407-6511d3e36248",
       "description": "Embodied carbon footprint limit per unit",
       "threshold": "500",
-      "unit": "kgCO₂e/m²",
+      "unit": "kgCO\u2082e/m\u00b2",
       "severity": "MEDIUM",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5867,7 +6568,7 @@
       "guid": "5de3531a-bb17-52f6-a946-97320b6fdc89",
       "description": "Floor U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5877,7 +6578,7 @@
       "guid": "04fbb073-cde7-55dd-b056-f67d22e26437",
       "description": "Roof U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5887,7 +6588,7 @@
       "guid": "f6b023a0-c2eb-59f8-8fd7-d05f64aa6f7b",
       "description": "Wall U-value thermal transmittance limit",
       "threshold": "0.30",
-      "unit": "W/m²K",
+      "unit": "W/m\u00b2K",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -5897,7 +6598,7 @@
       "guid": "698beeb9-f4f0-5c0c-a998-dbe92cb657b0",
       "description": "VOC emissions limit for indoor air quality",
       "threshold": "250",
-      "unit": "µg/m³",
+      "unit": "\u00b5g/m\u00b3",
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
@@ -6191,6 +6892,71 @@
       "severity": "HIGH",
       "param_type": "TEXT",
       "binding": "universal"
+    }
+  ],
+  "sheet_tokens": [
+    {
+      "key": "SHT_NUMBER",
+      "param_name": "SHT_NUMBER_TXT",
+      "guid": "f213496b-4218-514b-82cd-ce421248d032",
+      "description": "Sheet number from Revit native",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_NAME",
+      "param_name": "SHT_NAME_TXT",
+      "guid": "7e579423-afd3-520b-b8d9-fcd250d18d6a",
+      "description": "Sheet name from Revit native",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_DISC",
+      "param_name": "SHT_DISC_TXT",
+      "guid": "7f3fbb8d-36ca-530d-814d-e9b243c2a4dc",
+      "description": "Sheet discipline from viewport element majority",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_ORIGINATOR",
+      "param_name": "SHT_ORIGINATOR_TXT",
+      "guid": "5b5715dc-8579-5556-b527-77e3be6aea5c",
+      "description": "Originator code from Project Information",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_FORM",
+      "param_name": "SHT_FORM_TXT",
+      "guid": "54c318b7-811d-50cc-9ca0-72a18b7ff853",
+      "description": "Document form code (DR/SH/M3/LG)",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_LEVEL",
+      "param_name": "SHT_LEVEL_TXT",
+      "guid": "db60894e-8e07-5aff-bcdb-bdaebaceac89",
+      "description": "Level code from viewport views",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_REV",
+      "param_name": "SHT_REV_TXT",
+      "guid": "7542b276-3ab7-5b55-8154-830bd6f20b76",
+      "description": "Revision code from project revision",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_TAG_1",
+      "param_name": "SHT_TAG_1_TXT",
+      "guid": "73019587-020b-5860-bcb1-3dcadeb6f3ac",
+      "description": "Assembled ISO 19650 document code",
+      "binding": "sheets"
+    },
+    {
+      "key": "SHT_TAG_7",
+      "param_name": "SHT_TAG_7_TXT",
+      "guid": "a06370b5-d989-533c-b7af-09ba545790fb",
+      "description": "Rich narrative description",
+      "binding": "sheets"
     }
   ]
 }

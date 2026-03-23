@@ -9,13 +9,10 @@ using Autodesk.Revit.UI;
 namespace StingTools.Core
 {
     /// <summary>
-    /// Ported from tag_logic.py — parameter read/write helpers for Revit elements.
-    /// </summary>
-    /// <summary>
     /// Safe command execution context — null-checked UIApplication, UIDocument,
     /// Document, and ActiveView. Use <see cref="ParameterHelpers.GetContext"/> to obtain.
     /// </summary>
-    public class CommandContext
+    public class StingCommandContext
     {
         public UIApplication App { get; init; }
         public UIDocument UIDoc { get; init; }
@@ -39,7 +36,7 @@ namespace StingTools.Core
         ///   var ctx = ParameterHelpers.GetContext(commandData);
         ///   if (ctx == null) { message = "No document open."; return Result.Failed; }
         /// </summary>
-        public static CommandContext GetContext(ExternalCommandData commandData)
+        public static StingCommandContext GetContext(ExternalCommandData commandData)
         {
             var app = GetApp(commandData);
             var uidoc = app.ActiveUIDocument;
@@ -48,7 +45,7 @@ namespace StingTools.Core
             if (doc == null) return null;
             View activeView = null;
             try { activeView = doc.ActiveView; } catch (Exception ex) { StingLog.Warn($"GetContext: no active view: {ex.Message}"); }
-            return new CommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
+            return new StingCommandContext { App = app, UIDoc = uidoc, Doc = doc, ActiveView = activeView };
         }
 
         /// <summary>
@@ -76,27 +73,67 @@ namespace StingTools.Core
                 "Revit ribbon or the STING dockable panel.");
         }
 
+        /// <summary>
+        /// Safe document accessor. Returns the active Document or null if no document is open.
+        /// Use instead of chained dereferences like GetApp(cmd).ActiveUIDocument.Document
+        /// which crash when ActiveUIDocument is null (no document open / family editor).
+        /// </summary>
+        public static Document GetDoc(ExternalCommandData commandData)
+        {
+            return GetApp(commandData)?.ActiveUIDocument?.Document;
+        }
+
+        /// <summary>
+        /// Safe UIDocument accessor. Returns the active UIDocument or null if no document is open.
+        /// </summary>
+        public static UIDocument GetUIDoc(ExternalCommandData commandData)
+        {
+            return GetApp(commandData)?.ActiveUIDocument;
+        }
+
         // Parameter lookup cache: avoids O(n) LookupParameter on every call.
         // BUG-05: Keyed by (int docHash, ElementId typeId, string paramName) → Definition.
         // docHash prevents cross-document cache collisions since ElementIds are document-relative.
         // Null values are cached to avoid repeated miss lookups.
-        private static readonly ConcurrentDictionary<(int, ElementId, string), Definition> _paramCache
-            = new ConcurrentDictionary<(int, ElementId, string), Definition>();
+        // PERF-05: Use stable document key (PathName/Title) instead of GetHashCode() which
+        // can change across Revit sessions for the same document.
+        private static readonly ConcurrentDictionary<(string, ElementId, string), Definition> _paramCache
+            = new ConcurrentDictionary<(string, ElementId, string), Definition>();
 
-        /// <summary>Clear the parameter lookup cache. Call on document close or when
-        /// shared parameters change (e.g., after LoadSharedParams).</summary>
+        /// <summary>Invalidate all session-level caches (formulas, grid lines) in TagPipelineHelper.
+        /// Forwarding method for callers that reference ParameterHelpers.</summary>
+        public static void InvalidateSessionCaches()
+        {
+            TagPipelineHelper.InvalidateSessionCaches();
+        }
+
+        /// <summary>Clear the parameter lookup cache and solid fill cache. Call on document
+        /// close or when shared parameters change (e.g., after LoadSharedParams).</summary>
         public static void ClearParamCache()
         {
             _paramCache.Clear();
+            // CACHE-01: Also clear solid fill pattern cache to prevent stale entries
+            // when switching between documents with different fill patterns.
+            lock (_solidFillCache) { _solidFillCache.Clear(); }
+            // PERF-03: Clear BIP availability cache on document switch
+            NativeParamMapper.InvalidateBipCache();
+            // PERF-CRIT-01: Clear spatial candidate cache
+            TokenAutoPopulator.InvalidateSpatialCache();
         }
 
-        /// <summary>Cached parameter lookup. Uses document hash + element's TypeId + paramName as cache key.
+        /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
+        internal static string GetStableDocKey(Document doc)
+        {
+            return doc.PathName ?? doc.Title ?? "Untitled";
+        }
+
+        /// <summary>Cached parameter lookup. Uses stable document key + element's TypeId + paramName as cache key.
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.</summary>
         private static Parameter CachedLookup(Element el, string paramName)
         {
-            int docHash = el.Document.GetHashCode();
+            string docKey = GetStableDocKey(el.Document);
             ElementId typeId = el.GetTypeId();
-            var key = (docHash, typeId, paramName);
+            var key = (docKey, typeId, paramName);
 
             if (!_paramCache.TryGetValue(key, out Definition cachedDef))
             {
@@ -140,13 +177,51 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>Set an INTEGER parameter. Skips read-only params. Skips non-zero unless overwrite.</summary>
+        public static bool SetInt(Element el, string paramName, int value, bool overwrite = false)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType == StorageType.Integer)
+            {
+                if (!overwrite && p.AsInteger() != 0) return false;
+                try { p.Set(value); return true; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            }
+            if (p.StorageType == StorageType.String)
+            {
+                string existing = p.AsString() ?? string.Empty;
+                if (!overwrite && existing.Length > 0) return false;
+                try { p.Set(value.ToString()); return true; }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            }
+            return false;
+        }
+
+        /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
+        [ThreadStatic] private static int _readOnlySkipCount;
+        /// <summary>Reset read-only skip counter at start of batch operation.</summary>
+        public static void ResetReadOnlySkipCount() => _readOnlySkipCount = 0;
+        /// <summary>Get cumulative read-only skip count since last reset.</summary>
+        public static int ReadOnlySkipCount => _readOnlySkipCount;
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
-            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+            if (p == null) return false;
+            if (p.IsReadOnly)
+            {
+                // ERR-002: Diagnostic logging for read-only parameter skips
+                _readOnlySkipCount++;
+                if (_readOnlySkipCount <= 5 || _readOnlySkipCount % 100 == 0)
+                    StingLog.Warn($"SetString '{paramName}' on {el.Id}: parameter is read-only (skip #{_readOnlySkipCount})");
+                return false;
+            }
+            if (p.StorageType != StorageType.String)
                 return false;
 
             string existing = p.AsString() ?? string.Empty;
@@ -169,6 +244,60 @@ namespace StingTools.Core
         public static bool SetIfEmpty(Element el, string paramName, string value)
         {
             return SetString(el, paramName, value, overwrite: false);
+        }
+
+        /// <summary>
+        /// Set a Yes/No (integer) parameter. Works with YESNO StorageType.
+        /// Also handles string-stored BOOL params for compatibility.
+        /// </summary>
+        public static bool SetYesNo(Element el, string paramName, bool value, bool overwrite = false)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+
+            try
+            {
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int existing = p.AsInteger();
+                    if (existing != 0 && !overwrite) return false;
+                    p.Set(value ? 1 : 0);
+                    return true;
+                }
+                if (p.StorageType == StorageType.String)
+                {
+                    string existing = p.AsString() ?? "";
+                    if (existing.Length > 0 && !overwrite) return false;
+                    p.Set(value ? "Yes" : "No");
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetYesNo '{paramName}' on {el.Id} failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Set an integer parameter unconditionally (ignores existing value).
+        /// Prefer <see cref="SetInt(Element,string,int,bool)"/> when overwrite control is needed.
+        /// </summary>
+        public static bool SetIntForce(Element el, string paramName, int value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (p.StorageType == StorageType.Integer) { p.Set(value); return true; }
+                if (p.StorageType == StorageType.Double) { p.Set((double)value); return true; }
+                if (p.StorageType == StorageType.String) { p.Set(value.ToString()); return true; }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetInt({paramName}): {ex.Message}"); }
+            return false;
         }
 
         /// <summary>Return a short level code from the element's host level.</summary>
@@ -309,6 +438,58 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Find the solid fill pattern element in the document.
+        /// Used by color override commands and template configuration.
+        /// </summary>
+        /// <summary>PERF-04: Cached solid fill pattern lookup to avoid per-call FilteredElementCollector.</summary>
+        private static readonly Dictionary<string, FillPatternElement> _solidFillCache = new Dictionary<string, FillPatternElement>();
+        public static FillPatternElement GetSolidFillPattern(Document doc)
+        {
+            string key = doc.PathName ?? doc.Title ?? "Untitled";
+            lock (_solidFillCache)
+            {
+                if (_solidFillCache.TryGetValue(key, out var cached))
+                {
+                    // Validate the cached element is still valid
+                    if (cached != null && cached.IsValidObject) return cached;
+                    _solidFillCache.Remove(key);
+                }
+            }
+            var result = new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+            lock (_solidFillCache) { _solidFillCache[key] = result; }
+            return result;
+        }
+
+        /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
+        private static Phase GetElementPhase(Document doc, Element el)
+        {
+            try
+            {
+                var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (phaseParam != null)
+                {
+                    var phaseEl = doc.GetElement(phaseParam.AsElementId()) as Phase;
+                    if (phaseEl != null) return phaseEl;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el?.Id}: {ex.Message}"); }
+
+            // Fallback: last phase in the project
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Phase))
+                    .Cast<Phase>()
+                    .OrderBy(p => p.Id.Value)
+                    .LastOrDefault();
+            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
         /// Find the Room containing an element, using the element's location point.
         /// Returns null if the element has no location point or is not in a room.
         /// </summary>
@@ -323,11 +504,14 @@ namespace StingTools.Core
                     if (room != null) return room;
                 }
 
+                // LG-02: Phase-aware room lookup — use element's creation phase
+                Phase elPhase = GetElementPhase(doc, el);
+
                 // Fall back to location-based lookup
                 LocationPoint lp = el.Location as LocationPoint;
                 if (lp != null)
                 {
-                    return doc.GetRoomAtPoint(lp.Point);
+                    return elPhase != null ? doc.GetRoomAtPoint(lp.Point, elPhase) : doc.GetRoomAtPoint(lp.Point);
                 }
 
                 // For curve-based elements (pipes, ducts), use midpoint
@@ -335,7 +519,7 @@ namespace StingTools.Core
                 if (lc != null)
                 {
                     XYZ mid = lc.Curve.Evaluate(0.5, true);
-                    return doc.GetRoomAtPoint(mid);
+                    return elPhase != null ? doc.GetRoomAtPoint(mid, elPhase) : doc.GetRoomAtPoint(mid);
                 }
             }
             catch (Exception ex)
@@ -355,6 +539,7 @@ namespace StingTools.Core
             }
             return sb.ToString();
         }
+
     }
 
     /// <summary>
@@ -386,6 +571,10 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"BuildRoomIndex failed: {ex.Message}");
             }
+            // Phase 56: Log once when no rooms found so BIM coordinators know LOC detection
+            // will fall back to project-level defaults instead of room-based spatial detection
+            if (index.Count == 0)
+                StingLog.Info("BuildRoomIndex: no placed rooms found — LOC detection will use project-level defaults");
             return index;
         }
 
@@ -672,12 +861,12 @@ namespace StingTools.Core
                         if (isHoriz && dist < minY) { minY = dist; nearY = g.Name; }
                         else if (!isHoriz && dist < minX) { minX = dist; nearX = g.Name; }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"Grid distance calculation failed for grid '{g.Name}': {ex.Message}"); }
                 }
                 if (nearX != null && nearY != null) return $"{nearX}/{nearY}";
                 return nearX ?? nearY;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"Grid reference detection failed: {ex.Message}"); return null; }
         }
     }
 
@@ -917,6 +1106,7 @@ namespace StingTools.Core
         /// </summary>
         public static string DetectProjectRevision(Document doc)
         {
+            if (doc == null) return null;
             try
             {
                 var revisions = new FilteredElementCollector(doc)
@@ -1004,6 +1194,21 @@ namespace StingTools.Core
     public static class TokenAutoPopulator
     {
         /// <summary>
+        /// FIX-B05: MEP categories that benefit from connector traversal for SYS detection.
+        /// Non-MEP categories (Walls, Doors, Furniture, etc.) skip the expensive MEP detection.
+        /// </summary>
+        private static readonly HashSet<string> _mepConnectorCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Mechanical Equipment", "Ducts", "Duct Fittings", "Duct Accessories", "Duct Insulations", "Duct Linings",
+            "Flex Ducts", "Air Terminals",
+            "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulations", "Flex Pipes",
+            "Plumbing Fixtures", "Sprinklers",
+            "Electrical Equipment", "Electrical Fixtures", "Lighting Fixtures", "Lighting Devices",
+            "Communication Devices", "Data Devices", "Fire Alarm Devices", "Nurse Call Devices", "Security Devices",
+            "Cable Trays", "Cable Tray Fittings", "Conduits", "Conduit Fittings",
+        };
+
+        /// <summary>
         /// Pre-built context for batch operations. Build once, reuse for all elements.
         /// Wraps all the indexes and project-level values needed for token population.
         /// </summary>
@@ -1018,11 +1223,34 @@ namespace StingTools.Core
             /// <summary>Last phase ID in the project sequence — used for EXISTING inference.</summary>
             public ElementId LastPhaseId { get; set; }
 
+            /// <summary>Cached grid lines for O(1) WriteGridReference instead of per-element O(n) collector.</summary>
+            public List<Grid> CachedGrids { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
             /// <summary>GAP-019: Configurable default REV (from project_config.json or "P01").</summary>
             public string DefaultRev { get; set; } = "P01";
+
+            /// <summary>Phase 39: Validate that the context has all required data for reliable token population.
+            /// Returns true if all critical fields are initialized. Use after Build() to catch partial init
+            /// on corrupted documents (missing levels, rooms, phases, etc.).</summary>
+            public bool IsValid()
+            {
+                // RoomIndex can be empty (no rooms placed yet) but must not be null
+                if (RoomIndex == null) return false;
+                if (KnownCategories == null || KnownCategories.Count == 0) return false;
+                if (CachedPhases == null) return false;
+                // ProjectLoc may be null/empty (no Project Info set) — acceptable
+                // ProjectRev may be null/empty (no revisions defined) — acceptable
+                return true;
+            }
+
+            /// <summary>Phase 39: Summary of context health for diagnostics.</summary>
+            public string DiagnosticSummary =>
+                $"Rooms={RoomIndex?.Count ?? 0}, Categories={KnownCategories?.Count ?? 0}, " +
+                $"Phases={CachedPhases?.Count ?? 0}, Grids={CachedGrids?.Count ?? 0}, " +
+                $"LOC={ProjectLoc ?? "null"}, REV={ProjectRev ?? "null"}";
 
             /// <summary>
             /// Build a PopulationContext once for a batch operation.
@@ -1034,6 +1262,13 @@ namespace StingTools.Core
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .ToList();
+                var grids = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Grid))
+                    .Cast<Grid>()
+                    .ToList();
+                // PERF-CRIT-01: Build spatial candidate cache for CopyTokensFromNearest
+                TokenAutoPopulator.BuildSpatialCandidateCache(doc);
+
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
@@ -1042,6 +1277,7 @@ namespace StingTools.Core
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
                     CachedPhases = phases,
                     LastPhaseId = phases.Count > 0 ? phases.Last().Id : ElementId.InvalidElementId,
+                    CachedGrids = grids,
                     // GAP-019: Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -1101,27 +1337,6 @@ namespace StingTools.Core
         /// overwrite is true.
         /// </summary>
         /// <summary>
-        /// Copy non-empty token values from element TYPE to instance.
-        /// Runs before PopulateAll so inherited values are not overwritten.
-        /// </summary>
-        public static void TypeTokenInherit(Document doc, Element el)
-        {
-            if (el == null) return;
-            ElementId typeId = el.GetTypeId();
-            if (typeId == null || typeId == ElementId.InvalidElementId) return;
-            Element typeEl = doc.GetElement(typeId);
-            if (typeEl == null) return;
-
-            string[] tokenParams = { ParamRegistry.DISC, ParamRegistry.SYS, ParamRegistry.FUNC, ParamRegistry.PROD };
-            foreach (string param in tokenParams)
-            {
-                string typeVal = ParameterHelpers.GetString(typeEl, param);
-                if (!string.IsNullOrEmpty(typeVal))
-                    ParameterHelpers.SetIfEmpty(el, param, typeVal);
-            }
-        }
-
-        /// <summary>
         /// ENH-01: Inherit token values from connected MEP elements via connectors.
         /// Walks the connector graph one hop to find already-tagged connected elements
         /// and copies SYS, FUNC, and DISC tokens to this element if empty.
@@ -1151,7 +1366,9 @@ namespace StingTools.Core
                 foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
                 {
                     if (conn == null || !conn.IsConnected) continue;
-                    foreach (Connector otherConn in conn.AllRefs)
+                    var allRefs = conn.AllRefs;
+                    if (allRefs == null) continue;
+                    foreach (Connector otherConn in allRefs)
                     {
                         if (otherConn?.Owner == null || otherConn.Owner.Id == el.Id) continue;
                         Element connected = otherConn.Owner;
@@ -1160,13 +1377,35 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(connTag)) continue;
 
                         // Found a tagged connected element — copy empty tokens
+                        int copied = 0;
                         foreach (string param in tokensToCopy)
                         {
                             string val = ParameterHelpers.GetString(connected, param);
                             if (!string.IsNullOrEmpty(val))
-                                ParameterHelpers.SetIfEmpty(el, param, val);
+                            {
+                                if (ParameterHelpers.SetIfEmpty(el, param, val))
+                                    copied++;
+                            }
                         }
-                        return; // Use first tagged connected element
+
+                        // AE-04: Write connector inherit status for diagnostics
+                        if (copied > 0)
+                        {
+                            string sourceTag = connTag.Length > 30 ? connTag.Substring(0, 30) : connTag;
+                            ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
+                                $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
+                        }
+
+                        // Phase 56b CRIT-02 FIX: Check if ALL tokens now populated before returning
+                        // Previously returned after first tagged element even if some tokens still empty
+                        bool nowComplete = true;
+                        foreach (string t in tokensToCopy)
+                        {
+                            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, t)))
+                            { nowComplete = false; break; }
+                        }
+                        if (nowComplete) return; // All tokens filled — done
+                        // Else: continue scanning other connectors for remaining empty tokens
                     }
                 }
             }
@@ -1189,16 +1428,41 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
                 return result;
 
+            // FIX-B05: Only run MEP connector traversal for MEP categories
+            bool isMepCategory = _mepConnectorCategories.Contains(catName);
+
             // ENH-01: Inherit tokens from connected MEP elements before population
             // so that PopulateAll's SetIfEmpty calls won't overwrite inherited values
-            ConnectorInherit(doc, el);
+            // PERF-04: Early-exit for elements with zero connectors to avoid expensive traversal
+            if (isMepCategory)
+            {
+                try
+                {
+                    var fi = el as FamilyInstance;
+                    if (fi?.MEPModel?.ConnectorManager?.Connectors?.Size > 0)
+                        ConnectorInherit(doc, el);
+                }
+                catch (Exception ex) { StingLog.Warn($"ConnectorInherit check: {ex.Message}"); }
+            }
 
             // DISC — deterministic from category (default "A" for unmapped categories)
             string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
 
             // SYS — 6-layer MEP system-aware detection (must come before DISC correction)
             // LOG-01: Track which detection layer produced the SYS code
-            var (sys, sysLayer) = TagConfig.GetMepSystemAwareSysCodeWithLayer(el, catName);
+            // FIX-B05: Skip expensive MEP connector traversal for non-MEP categories
+            string sys;
+            int sysLayer;
+            if (isMepCategory)
+            {
+                (sys, sysLayer) = TagConfig.GetMepSystemAwareSysCodeWithLayer(el, catName);
+            }
+            else
+            {
+                // Non-MEP: use category fallback directly (layers 5-6 in GetMepSystemAwareSysCodeWithLayer)
+                sys = TagConfig.GetSysCode(catName);
+                sysLayer = 6; // category fallback
+            }
             // Guaranteed SYS default: derive from discipline when MEP detection returns empty
             if (string.IsNullOrEmpty(sys))
             {
@@ -1335,7 +1599,7 @@ namespace StingTools.Core
                 if (sysLayerParam != null && !sysLayerParam.IsReadOnly)
                     sysLayerParam.Set(sysLayer);
             }
-            catch { /* advisory — parameter may not be bound yet */ }
+            catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
             // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
@@ -1362,6 +1626,24 @@ namespace StingTools.Core
             else
             {
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
+            }
+
+            // HC-001: Proximity-based token copy for SYS/FUNC when detection yielded generic defaults
+            // Uses configurable ProximityRadiusFt from project_config.json (default 10 ft)
+            if (!overwrite)
+            {
+                string curSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string curFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                bool sysGeneric = string.IsNullOrEmpty(curSys) || curSys == "GEN" || curSys == "ARC" || curSys == "STR";
+                bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
+                if (sysGeneric || funcGeneric)
+                {
+                    var tokensToInherit = new List<string>();
+                    if (sysGeneric) tokensToInherit.Add(ParamRegistry.SYS);
+                    if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
+                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
+                    result.TokensSet += proxCopied;
+                }
             }
 
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
@@ -1420,16 +1702,17 @@ namespace StingTools.Core
                 if (levelId != null && levelId != ElementId.InvalidElementId)
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL_ELEM_ID, levelId.Value.ToString());
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"RunFullPipeline LevelId: {ex.Message}"); }
 
-            // Phase 19: Write nearest grid intersection reference
-            WriteGridReference(doc, el);
+            // Phase 19: Write nearest grid intersection reference (uses cached grids for O(1) per element)
+            WriteGridReference(doc, el, ctx?.CachedGrids);
 
             return result;
         }
 
-        /// <summary>Phase 19: Write nearest grid intersection reference for element.</summary>
-        private static void WriteGridReference(Document doc, Element el)
+        /// <summary>Phase 19: Write nearest grid intersection reference for element.
+        /// Accepts pre-cached grids to avoid per-element FilteredElementCollector (O(n²) → O(n)).</summary>
+        private static void WriteGridReference(Document doc, Element el, List<Grid> cachedGrids = null)
         {
             try
             {
@@ -1439,7 +1722,7 @@ namespace StingTools.Core
                 else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
                 if (point == null) return;
 
-                var grids = new FilteredElementCollector(doc)
+                var grids = cachedGrids ?? new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
@@ -1465,7 +1748,7 @@ namespace StingTools.Core
                             if (dist < minDistY) { minDistY = dist; nearestY = grid; }
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { StingLog.Warn($"WriteGridReference grid '{grid?.Name}': {ex.Message}"); }
                 }
 
                 if (nearestX != null)
@@ -1483,6 +1766,169 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"WriteGridReference: {ex.Message}");
+            }
+        }
+
+        // PERF-CRIT-01: Spatial candidate cache — avoids O(n²) FilteredElementCollector per element.
+        // Key: categoryId.Value. Value: list of (elementId, center point, tag1 value).
+        // Built once per batch in PopulationContext, reused for all CopyTokensFromNearest calls.
+        private static readonly Dictionary<long, List<(ElementId Id, XYZ Center, string Tag1)>>
+            _spatialCandidateCache = new Dictionary<long, List<(ElementId, XYZ, string)>>();
+        private static int _spatialCacheDocHash;
+
+        /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
+        public static void BuildSpatialCandidateCache(Document doc)
+        {
+            int docHash = (doc.PathName ?? doc.Title ?? "").GetHashCode();
+            if (_spatialCacheDocHash == docHash && _spatialCandidateCache.Count > 0) return;
+            _spatialCandidateCache.Clear();
+            _spatialCacheDocHash = docHash;
+            try
+            {
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                if (catEnums == null || catEnums.Length == 0) return;
+                var coll = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                foreach (var e in coll)
+                {
+                    if (e?.Category == null) continue;
+                    string tag1 = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue; // Only include already-tagged
+                    XYZ center = null;
+                    var loc = e.Location;
+                    if (loc is LocationPoint lp) center = lp.Point;
+                    else if (loc is LocationCurve lc) center = lc.Curve.Evaluate(0.5, true);
+                    if (center == null) continue;
+                    long catKey = e.Category.Id.Value;
+                    if (!_spatialCandidateCache.TryGetValue(catKey, out var list))
+                    {
+                        list = new List<(ElementId, XYZ, string)>();
+                        _spatialCandidateCache[catKey] = list;
+                    }
+                    list.Add((e.Id, center, tag1));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildSpatialCandidateCache: {ex.Message}"); }
+        }
+
+        /// <summary>Invalidate spatial candidate cache (call after batch tagging completes).</summary>
+        public static void InvalidateSpatialCache() { _spatialCandidateCache.Clear(); }
+
+        /// <summary>
+        /// Copies specified token values from the nearest already-tagged element of the same
+        /// category within a configurable radius (TagConfig.ProximityRadiusFt, default 10 ft).
+        /// Useful for inheriting SYS/FUNC from adjacent elements when MEP detection yields
+        /// empty or generic defaults.
+        /// PERF-CRIT-01: Uses pre-built spatial candidate cache instead of per-element collector.
+        /// </summary>
+        /// <param name="doc">The Revit document</param>
+        /// <param name="el">Target element to copy tokens TO</param>
+        /// <param name="tokensToCopy">Parameter names to copy (e.g., ParamRegistry.SYS, ParamRegistry.FUNC)</param>
+        /// <param name="candidatePool">Pre-collected candidate elements (null = use spatial cache or collect from doc)</param>
+        /// <returns>Number of tokens successfully copied</returns>
+        public static int CopyTokensFromNearest(Document doc, Element el,
+            string[] tokensToCopy, IList<Element> candidatePool = null)
+        {
+            if (el == null || tokensToCopy == null || tokensToCopy.Length == 0) return 0;
+
+            try
+            {
+                // Get element location
+                XYZ point = null;
+                var loc = el.Location;
+                if (loc is LocationPoint lp) point = lp.Point;
+                else if (loc is LocationCurve lc) point = lc.Curve.Evaluate(0.5, true);
+                if (point == null) return 0;
+
+                string elCat = ParameterHelpers.GetCategoryName(el);
+                if (string.IsNullOrEmpty(elCat)) return 0;
+
+                double radiusFt = TagConfig.ProximityRadiusFt;
+
+                // PERF-CRIT-01: Use pre-built spatial candidate cache for O(n) instead of O(n²).
+                // Falls back to candidatePool or collector if cache is empty.
+                Element nearest = null;
+                double minDist = double.MaxValue;
+
+                if (candidatePool != null)
+                {
+                    // Legacy path: use provided candidate pool
+                    foreach (var candidate in candidatePool)
+                    {
+                        if (candidate == null || candidate.Id == el.Id) continue;
+                        string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+                        XYZ cPoint = null;
+                        var cLoc = candidate.Location;
+                        if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                        else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                        if (cPoint == null) continue;
+                        double dist = point.DistanceTo(cPoint);
+                        if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                    }
+                }
+                else
+                {
+                    // Fast path: use spatial candidate cache (pre-built, no collector needed)
+                    long catKey = el.Category?.Id?.Value ?? 0;
+                    if (_spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
+                    {
+                        ElementId nearestId = null;
+                        foreach (var (cId, cCenter, _) in cached)
+                        {
+                            if (cId == el.Id) continue;
+                            double dist = point.DistanceTo(cCenter);
+                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearestId = cId; }
+                        }
+                        if (nearestId != null) nearest = doc.GetElement(nearestId);
+                    }
+                    else
+                    {
+                        // Fallback: collect from doc (cold cache scenario)
+                        var catId = el.Category?.Id;
+                        if (catId == null) return 0;
+                        foreach (var candidate in new FilteredElementCollector(doc)
+                            .OfCategoryId(catId).WhereElementIsNotElementType())
+                        {
+                            if (candidate.Id == el.Id) continue;
+                            string tag1 = ParameterHelpers.GetString(candidate, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag1)) continue;
+                            XYZ cPoint = null;
+                            var cLoc = candidate.Location;
+                            if (cLoc is LocationPoint clp) cPoint = clp.Point;
+                            else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
+                            if (cPoint == null) continue;
+                            double dist = point.DistanceTo(cPoint);
+                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                        }
+                    }
+                }
+
+                if (nearest == null) return 0;
+
+                int copied = 0;
+                foreach (string tokenName in tokensToCopy)
+                {
+                    string existingVal = ParameterHelpers.GetString(el, tokenName);
+                    if (!string.IsNullOrEmpty(existingVal)) continue; // don't overwrite
+
+                    string sourceVal = ParameterHelpers.GetString(nearest, tokenName);
+                    if (string.IsNullOrEmpty(sourceVal)) continue;
+
+                    if (ParameterHelpers.SetIfEmpty(el, tokenName, sourceVal))
+                        copied++;
+                }
+
+                if (copied > 0)
+                    StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+
+                return copied;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CopyTokensFromNearest: {ex.Message}");
+                return 0;
             }
         }
 
@@ -1578,13 +2024,24 @@ namespace StingTools.Core
                         Phase phase = doc.GetElement(phaseId) as Phase;
                         if (phase != null && !string.IsNullOrEmpty(phase.Name))
                         {
-                            SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", DateTime.Now.ToString("yyyy-MM-dd"));
+                            // LOGIC-04: Use phase name as installation context instead of DateTime.Now.
+                            // DateTime.Now is incorrect for existing/demolished elements — they weren't
+                            // installed today. Write phase name as a meaningful lifecycle marker instead.
+                            string installContext = phase.Name;
+                            // If phase looks like "New Construction" or "Existing", record it;
+                            // only write today's date for elements in a construction phase
+                            if (phase.Name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                phase.Name.IndexOf("Construction", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                installContext = DateTime.Now.ToString("yyyy-MM-dd");
+                            }
+                            ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", installContext);
                             written++;
                         }
                     }
                 }
             }
-            catch { /* Phase detection is advisory */ }
+            catch (Exception ex) { StingLog.Warn($"Phase detection is advisory: {ex.Message}"); }
 
             // Type Name (from the family symbol name)
             string typeName = ParameterHelpers.GetFamilySymbolName(el);
@@ -1620,7 +2077,7 @@ namespace StingTools.Core
                         written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                             dept.AsString() ?? "");
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Room department mapping failed: {ex.Message}"); }
             }
 
             // ── Dimensional parameters (BLE_ schedule fields) ──────────────────
@@ -1644,7 +2101,7 @@ namespace StingTools.Core
 
             // BLE_RAIL_HEIGHT_MM — Railing height
             if (catUpperW.Contains("RAILING"))
-                written += MapDimension(el, BuiltInParameter.INSTANCE_TOP_OFFSET_VALUE_PARAM, "BLE_RAIL_HEIGHT_MM", ftToMmW);
+                written += MapLookup(el, "Top Rail Height", "BLE_RAIL_HEIGHT_MM", ftToMmW);
 
             // STR_FDN_DEPTH_MM — Foundation depth
             if (catUpperW.Contains("FOUNDATION"))
@@ -1794,14 +2251,46 @@ namespace StingTools.Core
             return written;
         }
 
+        // PERF-03: BIP availability cache per category — avoids calling el.get_Parameter(bip)
+        // for BuiltInParameters that don't exist on that category. Each category is checked once;
+        // subsequent elements of the same category skip the Revit API call entirely.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<BuiltInParameter>>
+            _bipMissingByCategory = new();
+
+        private static bool IsBipKnownMissing(Element el, BuiltInParameter bip)
+        {
+            string catKey = el.Category?.Name ?? "";
+            if (string.IsNullOrEmpty(catKey)) return false;
+            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.Contains(bip);
+        }
+
+        private static void MarkBipMissing(Element el, BuiltInParameter bip)
+        {
+            string catKey = el.Category?.Name ?? "";
+            if (string.IsNullOrEmpty(catKey)) return;
+            _bipMissingByCategory.AddOrUpdate(catKey,
+                _ => new HashSet<BuiltInParameter> { bip },
+                (_, existing) => { existing.Add(bip); return existing; });
+        }
+
+        /// <summary>Invalidate BIP availability cache (call on document switch).</summary>
+        internal static void InvalidateBipCache() => _bipMissingByCategory.Clear();
+
         /// <summary>Map a built-in dimension parameter with unit conversion.</summary>
         private static int MapDimension(Element el, BuiltInParameter bip,
             string targetParam, double conversionFactor)
         {
             try
             {
+                // PERF-03: Skip BIPs known to be missing for this category
+                if (IsBipKnownMissing(el, bip)) return 0;
+
                 Parameter p = el.get_Parameter(bip);
-                if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Double)
+                {
+                    if (p == null) MarkBipMissing(el, bip);
+                    return 0;
+                }
 
                 double val = p.AsDouble() * conversionFactor;
                 if (val <= 0.001) return 0;
@@ -1814,7 +2303,7 @@ namespace StingTools.Core
 
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map a named lookup parameter with unit conversion.</summary>
@@ -1833,7 +2322,7 @@ namespace StingTools.Core
                     System.Globalization.CultureInfo.InvariantCulture);
                 return SetIfEmptyInt(el, targetParam, formatted);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map a named parameter string value (e.g., Fire Rating).</summary>
@@ -1851,7 +2340,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
@@ -1864,10 +2353,458 @@ namespace StingTools.Core
                 .ToList();
             foreach (var sheet in sheets)
             {
-                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, "SHT_NUMBER_TXT");
-                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, "SHT_NAME_TXT");
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, ParamRegistry.SHT_NUMBER);
+                written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NAME, ParamRegistry.SHT_NAME);
             }
             return written;
+        }
+
+        /// <summary>
+        /// Sheet-level tagging engine. Derives ISO 19650 document codes for all sheets
+        /// by scanning viewport contents for discipline, level, and form data.
+        /// Returns (sheetsProcessed, tokensWritten).
+        /// </summary>
+        public static (int sheets, int tokens) TagSheets(Document doc)
+        {
+            if (doc == null) return (0, 0);
+
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+
+            if (sheets.Count == 0) return (0, 0);
+
+            // Project-level tokens (shared across all sheets)
+            string originator = SheetTagger.DetectOriginator(doc);
+            string projectCode = SheetTagger.DetectProjectCode(doc);
+            string rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01";
+
+            int processed = 0, tokensWritten = 0;
+
+            foreach (var sheet in sheets)
+            {
+                try
+                {
+                    int w = SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                    tokensWritten += w;
+                    processed++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TagSheets: sheet {sheet.SheetNumber}: {ex.Message}");
+                }
+            }
+
+            return (processed, tokensWritten);
+        }
+
+    // ── SheetTagger (nested helper for sheet-level ISO 19650 tagging) ─────────
+
+        /// <summary>
+        /// Sheet-level tagging engine. Derives ISO 19650 document naming tokens
+        /// for ViewSheet elements by scanning viewport contents.
+        /// </summary>
+        internal static class SheetTagger
+        {
+        /// <summary>
+        /// Tag a single sheet with ISO 19650 document code tokens.
+        /// Returns number of parameters written.
+        /// </summary>
+        public static int TagSheet(Document doc, ViewSheet sheet,
+            string originator, string projectCode, string rev)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int written = 0;
+
+            // 1. Map native sheet number/name
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
+
+            // 2. Derive DISC from viewport element discipline majority vote
+            string disc = DeriveSheetDiscipline(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_DISC, disc);
+
+            // 3. Derive FORM from viewport view types
+            string form = DeriveSheetForm(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_FORM, form);
+
+            // 4. Derive LEVEL from viewport view associated levels
+            string level = DeriveSheetLevel(doc, sheet);
+            written += SetStr(sheet, ParamRegistry.SHT_LEVEL, level);
+
+            // 5. Write project-level tokens
+            written += SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
+            written += SetStr(sheet, ParamRegistry.SHT_REV, rev);
+
+            // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
+            // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
+            string sheetNum = sheet.SheetNumber ?? "00000";
+            string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
+            written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+
+            // 7. Build SHT_TAG_7 narrative
+            string tag7 = BuildSheetNarrative(doc, sheet, disc, form, level, rev);
+            written += SetStr(sheet, ParamRegistry.SHT_TAG_7, tag7);
+
+            // INT-12: Performance warning for slow sheets
+            sw.Stop();
+            if (sw.ElapsedMilliseconds > 2000)
+                StingLog.Warn($"TagSheet: {sheet.SheetNumber} took {sw.ElapsedMilliseconds}ms (slow — large viewport element count)");
+
+            return written;
+        }
+
+        /// <summary>Extract originator code from Project Information.</summary>
+        public static string DetectOriginator(Document doc)
+        {
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return "XX";
+
+                // Check for explicit originator parameter
+                Parameter orgP = pi.LookupParameter("Organization Name")
+                    ?? pi.LookupParameter("Client Name")
+                    ?? pi.LookupParameter("Author");
+                if (orgP != null && orgP.HasValue)
+                {
+                    string val = orgP.AsString();
+                    if (!string.IsNullOrWhiteSpace(val))
+                    {
+                        // Take first 3-6 uppercase chars as code
+                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
+                        return clean.Length <= 6
+                            ? clean.ToUpperInvariant()
+                            : clean.Substring(0, 6).ToUpperInvariant();
+                    }
+                }
+                return "XX";
+            }
+            catch (Exception ex) { StingLog.Warn($"DetectOriginator: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>Extract project code from Project Information.</summary>
+        public static string DetectProjectCode(Document doc)
+        {
+            try
+            {
+                var pi = doc.ProjectInformation;
+                if (pi == null) return "PR01";
+
+                Parameter numP = pi.LookupParameter("Project Number");
+                if (numP != null && numP.HasValue)
+                {
+                    string val = numP.AsString();
+                    if (!string.IsNullOrWhiteSpace(val))
+                    {
+                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
+                        return clean.Length <= 8
+                            ? clean.ToUpperInvariant()
+                            : clean.Substring(0, 8).ToUpperInvariant();
+                    }
+                }
+                return "PR01";
+            }
+            catch (Exception ex) { StingLog.Warn($"DetectProjectCode: {ex.Message}"); return "PR01"; }
+        }
+
+        /// <summary>
+        /// Derive sheet discipline by majority vote of element DISC codes
+        /// across all viewports on the sheet.
+        /// </summary>
+        private static string DeriveSheetDiscipline(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "GEN";
+
+                var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    // Use view-level discipline detection first
+                    var viewDiscs = TagConfig.GetViewRelevantDisciplines(view);
+                    if (viewDiscs != null && viewDiscs.Count > 0)
+                    {
+                        foreach (string d in viewDiscs)
+                        {
+                            discCounts.TryGetValue(d, out int c);
+                            discCounts[d] = c + 1;
+                        }
+                        continue;
+                    }
+
+                    // Fallback: sample elements in the view
+                    try
+                    {
+                        var elements = new FilteredElementCollector(doc, view.Id)
+                            .WhereElementIsNotElementType()
+                            .ToElements();
+
+                        int sampled = 0;
+                        foreach (var el in elements)
+                        {
+                            if (sampled >= 200) break; // cap for performance
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            if (string.IsNullOrEmpty(catName)) continue;
+
+                            // Check stored DISC first, then fall back to category map
+                            string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            if (string.IsNullOrEmpty(elDisc))
+                            {
+                                TagConfig.DiscMap.TryGetValue(catName, out elDisc);
+                            }
+                            if (!string.IsNullOrEmpty(elDisc))
+                            {
+                                discCounts.TryGetValue(elDisc, out int c);
+                                discCounts[elDisc] = c + 1;
+                                sampled++;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"DeriveSheetDiscipline view {view.Name}: {ex.Message}");
+                    }
+                }
+
+                if (discCounts.Count == 0)
+                {
+                    // INT-15: Fallback to sheet name/number pattern matching
+                    return DeriveDiscFromSheetName(sheet);
+                }
+
+                // If multiple disciplines with significant presence → COORD
+                var sorted = discCounts.OrderByDescending(kv => kv.Value).ToList();
+                if (sorted.Count >= 2)
+                {
+                    double total = sorted.Sum(kv => kv.Value);
+                    double topPct = sorted[0].Value / total;
+                    if (topPct < 0.75) return "COORD"; // No single discipline dominates
+                }
+
+                return sorted[0].Key;
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetDiscipline: {ex.Message}"); return "GEN"; }
+        }
+
+        /// <summary>
+        /// Derive document form code from view types on the sheet.
+        /// DR=Drawing, SH=Schedule, M3=3D Model, SP=Specification, LG=Legend.
+        /// </summary>
+        private static string DeriveSheetForm(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "DR";
+
+                bool hasSchedule = false, has3D = false, hasLegend = false;
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    switch (view.ViewType)
+                    {
+                        case ViewType.Schedule:
+                            hasSchedule = true;
+                            break;
+                        case ViewType.ThreeD:
+                            has3D = true;
+                            break;
+                        case ViewType.Legend:
+                        case ViewType.DraftingView:
+                            hasLegend = true;
+                            break;
+                    }
+                }
+
+                // Priority: Schedule > 3D > Legend > Drawing
+                if (hasSchedule) return "SH";
+                if (has3D) return "M3";
+                if (hasLegend) return "LG";
+                return "DR";
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetForm: {ex.Message}"); return "DR"; }
+        }
+
+        /// <summary>
+        /// Derive level code from viewport views' associated levels.
+        /// Returns the most common level code, or "XX" if mixed/none.
+        /// </summary>
+        private static string DeriveSheetLevel(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds == null || vpIds.Count == 0) return "XX";
+
+                var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (ElementId vpId in vpIds)
+                {
+                    var vp = doc.GetElement(vpId) as Viewport;
+                    if (vp == null) continue;
+                    View view = doc.GetElement(vp.ViewId) as View;
+                    if (view == null) continue;
+
+                    // Get associated level — create a temp element lookup
+                    // via the view's GenLevel property
+                    Level lvl = view.GenLevel;
+                    if (lvl == null) continue;
+
+                    // Derive level code directly from level name
+                    // (can't use GetLevelCode which expects an element with LevelId)
+                    string lvlCode = DeriveLevelCodeFromName(lvl.Name);
+                    if (!string.IsNullOrEmpty(lvlCode))
+                    {
+                        levelCounts.TryGetValue(lvlCode, out int c);
+                        levelCounts[lvlCode] = c + 1;
+                    }
+                }
+
+                if (levelCounts.Count == 0) return "XX";
+                if (levelCounts.Count == 1) return levelCounts.Keys.First();
+
+                // Multiple levels — return most common
+                return levelCounts.OrderByDescending(kv => kv.Value).First().Key;
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveSheetLevel: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>Build human-readable sheet narrative for SHT_TAG_7.</summary>
+        private static string BuildSheetNarrative(Document doc, ViewSheet sheet,
+            string disc, string form, string level, string rev)
+        {
+            var parts = new List<string>();
+
+            // Discipline description
+            string discDesc = disc switch
+            {
+                "M" => "Mechanical",
+                "E" => "Electrical",
+                "P" => "Plumbing",
+                "A" => "Architectural",
+                "S" => "Structural",
+                "FP" => "Fire Protection",
+                "LV" => "Low Voltage",
+                "G" => "General",
+                "COORD" => "Coordination (Multi-discipline)",
+                "GEN" => "General",
+                _ => disc
+            };
+
+            // Form description
+            string formDesc = form switch
+            {
+                "DR" => "Drawing",
+                "SH" => "Schedule",
+                "M3" => "3D Model",
+                "SP" => "Specification",
+                "LG" => "Legend",
+                _ => form
+            };
+
+            parts.Add($"{discDesc} {formDesc}");
+
+            // Level
+            if (level != "XX")
+            {
+                string levelDesc = level switch
+                {
+                    "GF" => "Ground Floor",
+                    "B1" => "Basement 1",
+                    "B2" => "Basement 2",
+                    "RF" => "Roof",
+                    _ => $"Level {level}"
+                };
+                parts.Add(levelDesc);
+            }
+
+            // Sheet name
+            if (!string.IsNullOrEmpty(sheet.Name))
+                parts.Add(sheet.Name);
+
+            // Revision
+            parts.Add($"Rev {rev}");
+
+            // Viewport count
+            try
+            {
+                var vpIds = sheet.GetAllViewports();
+                if (vpIds != null && vpIds.Count > 0)
+                    parts.Add($"{vpIds.Count} viewport{(vpIds.Count == 1 ? "" : "s")}");
+            }
+            catch { /* skip */ }
+
+            return string.Join(" | ", parts);
+        }
+
+        /// <summary>
+        /// INT-15: Fallback discipline detection from sheet name/number patterns
+        /// when no viewport elements provide DISC data.
+        /// </summary>
+        private static string DeriveDiscFromSheetName(ViewSheet sheet)
+        {
+            string combined = $"{sheet.SheetNumber} {sheet.Name}".ToUpperInvariant();
+            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") || combined.StartsWith("M-") || combined.StartsWith("M ")) return "M";
+            if (combined.Contains("ELECTRICAL") || combined.Contains("LIGHTING") || combined.StartsWith("E-") || combined.StartsWith("E ")) return "E";
+            if (combined.Contains("PLUMBING") || combined.Contains("SANITARY") || combined.StartsWith("P-") || combined.StartsWith("P ")) return "P";
+            if (combined.Contains("ARCHITECTURAL") || combined.Contains("ARCH") || combined.StartsWith("A-") || combined.StartsWith("A ")) return "A";
+            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCT") || combined.StartsWith("S-") || combined.StartsWith("S ")) return "S";
+            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER") || combined.StartsWith("FP")) return "FP";
+            if (combined.Contains("LOW VOLTAGE") || combined.Contains("DATA") || combined.Contains("SECURITY")) return "LV";
+            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") || combined.Contains("MULTI")) return "COORD";
+            return "GEN";
+        }
+
+        /// <summary>Derive level code from level name string (same logic as GetLevelCode but from name).</summary>
+        private static string DeriveLevelCodeFromName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "XX";
+            string lower = name.Trim().ToLowerInvariant();
+            if (lower.StartsWith("level ") && name.Length > 6)
+            {
+                string digits = new string(name.Substring(6).Where(char.IsDigit).ToArray());
+                if (digits.Length > 0 && digits.Length <= 3) return "L" + digits.PadLeft(2, '0');
+            }
+            if (lower == "ground" || lower == "ground floor" || lower == "ground level") return "GF";
+            if (lower.StartsWith("basement")) return "B1";
+            if (lower.StartsWith("roof") || lower == "rf") return "RF";
+            if (lower.StartsWith("mezzanine") || lower == "mezz") return "MZ";
+            // Extract any trailing digits
+            string trailingDigits = new string(name.Where(char.IsDigit).ToArray());
+            if (trailingDigits.Length > 0) return "L" + trailingDigits.PadLeft(2, '0');
+            return "XX";
+        }
+        } // end SheetTagger
+
+    // ── NativeParamMapper private helpers (MapBuiltIn, SetIfEmptyInt, etc.) ────
+
+        /// <summary>Write parameter, always overwrite. Returns 1 on success, 0 on failure.</summary>
+        private static int SetStr(Element el, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            return ParameterHelpers.SetString(el, paramName, value, overwrite: true) ? 1 : 0;
+        }
+
+        /// <summary>Write parameter only if empty. Returns 1 on success, 0 on failure.</summary>
+        private static int SetIfEmptyStr(Element el, string paramName, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return 0;
+            return ParameterHelpers.SetIfEmpty(el, paramName, value) ? 1 : 0;
         }
 
         /// <summary>Map a built-in string parameter directly (e.g., room finishes).</summary>
@@ -1885,7 +2822,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Map door/window function (Interior/Exterior) from built-in parameter.</summary>
@@ -1900,7 +2837,7 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
                 return SetIfEmptyInt(el, targetParam, val);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Get floor thickness from compound structure or parameter.</summary>
@@ -1921,7 +2858,7 @@ namespace StingTools.Core
                 // Fallback: try "Thickness" named parameter
                 return MapLookup(el, "Thickness", targetParam, 304.8);
             }
-            catch { return 0; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>Get roof slope in degrees.</summary>
@@ -1941,7 +2878,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -1963,7 +2900,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Stair width mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -1982,7 +2919,7 @@ namespace StingTools.Core
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Ramp slope mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -1995,7 +2932,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(typeName))
                     return SetIfEmptyInt(el, targetParam, typeName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Structural type mapping failed: {ex.Message}"); }
             return 0;
         }
 
@@ -2018,7 +2955,7 @@ namespace StingTools.Core
                     written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                         dept.AsString() ?? "");
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Room name/number mapping failed: {ex.Message}"); }
             return written;
         }
 
@@ -2031,15 +2968,19 @@ namespace StingTools.Core
         {
             int written = 0;
 
-            // STATUS: auto-detect from Revit phase/workset, fallback to "NEW"
-            string status = PhaseAutoDetect.DetectStatus(doc, el);
-            if (string.IsNullOrEmpty(status)) status = "NEW";
-            written += SetIfEmptyInt(el, ParamRegistry.STATUS, status);
-
-            // REV: auto-detect from project revision sequence
-            string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-            if (!string.IsNullOrEmpty(rev))
-                written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            // PERF-02: STATUS and REV are already populated by PopulateAll (which uses
+            // cached context). Only set here as a safety net using SetIfEmpty — skip
+            // the expensive uncached DetectStatus/DetectProjectRevision calls.
+            // PopulateAll runs before NativeParamMapper in RunFullPipeline, so these
+            // will almost always be non-empty already.
+            written += SetIfEmptyInt(el, ParamRegistry.STATUS, "NEW");
+            string existingRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
+            if (string.IsNullOrEmpty(existingRev))
+            {
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc);
+                if (!string.IsNullOrEmpty(rev))
+                    written += SetIfEmptyInt(el, ParamRegistry.REV, rev);
+            }
 
             // ORIGIN: set from project originator field if available
             try
@@ -2048,7 +2989,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(origin))
                     written += SetIfEmptyInt(el, ParamRegistry.ORIGIN, origin);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"ORIGIN mapping from ProjectInformation failed: {ex.Message}"); }
 
             // PROJECT: set from project name if available
             try
@@ -2057,7 +2998,7 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(projName))
                     written += SetIfEmptyInt(el, ParamRegistry.PROJECT, projName);
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"PROJECT mapping from ProjectInformation failed: {ex.Message}"); }
             return written;
         }
 
@@ -2168,14 +3109,14 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
-            string flowRate = GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            string flowRate = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
             if (string.IsNullOrEmpty(flowRate))
-                flowRate = GetString(el, ParamRegistry.HVC_AIRFLOW);
+                flowRate = ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW);
             if (!string.IsNullOrEmpty(flowRate))
                 written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
 
             // ── SYN-02: Cross-write ASS_POWER_RATING_TXT from ELC_POWER ──
-            string powerRating = GetString(el, ParamRegistry.ELC_POWER);
+            string powerRating = ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER);
             if (!string.IsNullOrEmpty(powerRating))
                 written += SetIfEmptyInt(el, "ASS_POWER_RATING_TXT", powerRating);
 
@@ -2183,7 +3124,7 @@ namespace StingTools.Core
             // HVC_EFF_RATIO_NR — HVAC COP from Mechanical Equipment
             if (catName == "Mechanical Equipment")
             {
-                written += MapBuiltIn(el, BuiltInParameter.RBS_ENERGY_ANALYSIS_PARAM, "HVC_EFF_RATIO_NR");
+                written += MapLookup(el, "COP", "HVC_EFF_RATIO_NR", 1.0);
             }
 
             return written;
@@ -2286,10 +3227,7 @@ namespace StingTools.Core
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
             }
-            catch
-            {
-                return 0;
-            }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>
@@ -2326,14 +3264,6 @@ namespace StingTools.Core
             return true;
         }
 
-        /// <summary>Find the solid fill pattern element in the document. Cached per document.</summary>
-        public static FillPatternElement GetSolidFillPattern(Document doc)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(FillPatternElement))
-                .Cast<FillPatternElement>()
-                .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-        }
     }
 
     /// <summary>
@@ -2344,6 +3274,68 @@ namespace StingTools.Core
     /// </summary>
     internal static class TagPipelineHelper
     {
+        /// <summary>
+        /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
+        /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
+        /// Returns false if owned by another user — the caller should skip/defer this element.
+        /// </summary>
+        public static bool IsEditableInWorksharing(Document doc, Element el)
+        {
+            if (!doc.IsWorkshared) return true;
+            try
+            {
+                WorksetId wsId = el.WorksetId;
+                if (wsId == null || wsId == WorksetId.InvalidWorksetId) return true;
+                var wsInfo = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
+                if (string.IsNullOrEmpty(wsInfo.Owner) || wsInfo.Owner == "")
+                    return true; // unowned — safe to edit
+                return wsInfo.Owner == doc.Application.Username;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsEditableInWorksharing check failed for {el?.Id}: {ex.Message}");
+                return true; // fail-open: allow edit attempt, Revit will throw if truly locked
+            }
+        }
+
+        /// <summary>
+        /// GAP-PH-01: Check whether element is demolished in the project's current phase.
+        /// Returns true if element has a demolished phase set (PHASE_DEMOLISHED parameter is not InvalidElementId).
+        /// </summary>
+        public static bool IsDemolished(Element el)
+        {
+            try
+            {
+                Parameter demParam = el.get_Parameter(BuiltInParameter.PHASE_DEMOLISHED);
+                if (demParam != null && demParam.HasValue)
+                {
+                    ElementId demPhaseId = demParam.AsElementId();
+                    return demPhaseId != null && demPhaseId != ElementId.InvalidElementId;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsDemolished check failed for {el?.Id}: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Centralized post-tagging cleanup: saves SEQ sidecar, invalidates caches,
+        /// checks compliance gate. Call after tx.Commit() in any tagging command.
+        /// </summary>
+        public static void PostTagCleanup(Document doc, Dictionary<string, int> seqCounters, string commandName)
+        {
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+            catch (Exception ex) { StingLog.Warn($"{commandName} SaveSeqSidecar: {ex.Message}"); }
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+            // DIAG-01: Reset read-only skip counter at batch boundary so each operation
+            // gets fresh diagnostic logging (first 5 warnings + every 100th).
+            ParameterHelpers.ResetReadOnlySkipCount();
+            TagConfig.CheckComplianceGate(doc, commandName);
+        }
+
         /// <summary>
         /// Run the complete tagging pipeline for a single element.
         /// All parameters are pre-built outside the loop for performance.
@@ -2380,30 +3372,45 @@ namespace StingTools.Core
                 }
                 catch (Exception auditEx)
                 {
-                    // Params not bound yet — add ASS_TAG_PREV_TXT + ASS_TAG_MODIFIED_DT to MR_PARAMETERS.csv
                     StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
                 }
 
                 // P4: Inherit token values from family type before populating
                 TokenAutoPopulator.TypeTokenInherit(doc, el);
 
-                // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
-                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
-
-                // FE-01: Read token lock list — skip auto-derivation for locked tokens
-                HashSet<string> lockedTokens = null;
+                // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
+                // values are preserved, but BEFORE PopulateAll/overrides can change them
+                var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
-                    if (!string.IsNullOrWhiteSpace(lockStr))
+                    string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                    if (!string.IsNullOrWhiteSpace(preLockStr))
                     {
-                        lockedTokens = new HashSet<string>(
-                            lockStr.Split(',').Select(s => s.Trim().ToUpperInvariant()),
-                            StringComparer.OrdinalIgnoreCase);
-                        StingLog.Info($"TagPipeline: element {el.Id} has locked tokens: {string.Join(",", lockedTokens)}");
+                        string[] lockKeys = preLockStr.Split(',')
+                            .Select(s => s.Trim().ToUpperInvariant()).ToArray();
+                        var tokenParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
+                            ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
+                            ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
+                            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+                            ["REV"]  = ParamRegistry.REV
+                        };
+                        foreach (string lockKey in lockKeys)
+                        {
+                            if (tokenParamMap.TryGetValue(lockKey, out string paramName))
+                            {
+                                string val = ParameterHelpers.GetString(el, paramName);
+                                if (!string.IsNullOrEmpty(val))
+                                    lockedSnapshot[lockKey] = val;
+                            }
+                        }
                     }
                 }
-                catch { /* Param not bound yet — safe to skip */ }
+                catch (Exception lockEx) { StingLog.Warn($"Token lock read: {lockEx.Message}"); }
+
+                // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+                TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
                 // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
                 if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
@@ -2413,6 +3420,11 @@ namespace StingTools.Core
                 // FE-06: Apply full per-category token overrides
                 if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
                 {
+                    // Check SKIP flag FIRST — avoid writing tokens to skipped categories
+                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
+                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                        return false;
+
                     foreach (var kv in tokenOverrides)
                     {
                         if (kv.Key.Equals("SKIP", StringComparison.OrdinalIgnoreCase)) continue;
@@ -2427,22 +3439,46 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(paramName))
                             ParameterHelpers.SetString(el, paramName, kv.Value, overwrite: true);
                     }
-                    // Handle SKIP flag
-                    if (tokenOverrides.TryGetValue("SKIP", out string skipVal)
-                        && skipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        return false;
+                }
+
+                // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
+                if (lockedSnapshot.Count > 0)
+                {
+                    var restoreParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
+                        ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
+                        ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
+                        ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+                        ["REV"]  = ParamRegistry.REV
+                    };
+                    foreach (var kvp in lockedSnapshot)
+                    {
+                        if (restoreParamMap.TryGetValue(kvp.Key, out string paramName))
+                        {
+                            try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
+                            catch (Exception lockEx)
+                            {
+                                StingLog.Warn($"TagPipeline: failed to restore locked token {kvp.Key} on {el.Id}: {lockEx.Message}");
+                            }
+                        }
+                    }
+                    StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)}");
                 }
 
                 // P2: Bridge Revit native params → STING shared params
                 NativeParamMapper.MapAll(doc, el);
 
                 // P3: Evaluate formulas in dependency order
+                // FUT-18: Lazy formula evaluation — skip formulas whose target parameter
+                // doesn't exist on this element's category (saves ~40% formula iterations)
                 if (formulas != null && formulas.Count > 0)
                 {
                     foreach (var formula in formulas)
                     {
                         try
                         {
+                            // FUT-18: Early-exit skip — avoids expensive BuildContext
                             Parameter targetParam = el.LookupParameter(formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
@@ -2453,7 +3489,7 @@ namespace StingTools.Core
                             {
                                 string result = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
                                 if (result != null && targetParam.StorageType == StorageType.String
-                                    && string.IsNullOrEmpty(targetParam.AsString()))
+                                    && (overwrite || string.IsNullOrEmpty(targetParam.AsString())))
                                     targetParam.Set(result);
                             }
                             else
@@ -2470,23 +3506,41 @@ namespace StingTools.Core
                     }
                 }
 
-                // Core: Build and write TAG1 (with collision detection)
-                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
+                bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
                     collisionMode: collisionMode,
                     stats: stats,
                     cachedRev: ctx?.ProjectRev);
+                if (!tagWriteOk)
+                {
+                    StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    return false;
+                }
 
-                // P1: Write all container parameters
+                // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
+                // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                ParamRegistry.WriteContainers(el, tokenVals, catName,
-                    overwrite: overwrite, skipParam: ParamRegistry.TAG1);
 
-                // Core: Write TAG7 rich narrative (A-F sub-sections)
+                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
+                // Previous logic only retried when ZERO containers were populated,
+                // missing partial failures where 1 of 3 containers wrote but 2 remained empty.
+                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
+                string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag1Check))
+                {
+                    var catContainers = ParamRegistry.ContainersForCategory(catName);
+                    if (catContainers != null && catContainers.Length > 0)
+                    {
+                        ParamRegistry.WriteContainers(el, tokenVals, catName);
+                    }
+                }
+
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
+                // LOGIC-010: Log once per session when no grids exist in document
                 if (gridLines != null && gridLines.Count > 0
                     && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
                 {
@@ -2494,6 +3548,16 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(gridRef))
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
                 }
+                else if ((gridLines == null || gridLines.Count == 0) && !_noGridsLoggedThisSession)
+                {
+                    _noGridsLoggedThisSession = true;
+                    StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
+                }
+
+                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
+                stats?.RecordEmptyTokens(
+                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
+                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
 
                 return true;
             }
@@ -2505,18 +3569,38 @@ namespace StingTools.Core
             }
         }
 
+        // ── LOGIC-010: Track whether "no grids" info has been logged this session ──
+        private static bool _noGridsLoggedThisSession;
+
+        // ── Session caches for formulas and grid lines ──
+        private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
+        private static DateTime _formulaCacheTime;
+        private static readonly TimeSpan FormulaCacheTTL = TimeSpan.FromMinutes(5);
+
+        private static List<Grid> _cachedGridLines;
+        private static string _gridCacheDocKey;
+        private static DateTime _gridCacheTime;
+        private static readonly TimeSpan GridCacheTTL = TimeSpan.FromMinutes(2);
+
         /// <summary>
         /// Build context objects required by RunFullPipeline. Call once before the element loop.
         /// Returns formulas sorted by DependencyLevel (empty list if no formula file found).
+        /// Uses session cache with 5-minute TTL to prevent redundant CSV reads (40+ callers/session).
         /// </summary>
         public static List<Temp.FormulaEngine.FormulaDefinition> LoadFormulas()
         {
+            // Return cached formulas if still valid
+            if (_cachedFormulas != null && (DateTime.UtcNow - _formulaCacheTime) < FormulaCacheTTL)
+                return _cachedFormulas;
+
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
                 if (csvPath == null) return new List<Temp.FormulaEngine.FormulaDefinition>();
                 var formulas = Temp.FormulaEngine.LoadFormulas(csvPath);
                 formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
+                _cachedFormulas = formulas;
+                _formulaCacheTime = DateTime.UtcNow;
                 return formulas;
             }
             catch (Exception ex)
@@ -2526,17 +3610,90 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>P5: Load all Grid elements once before the element loop.</summary>
+        /// <summary>P5: Load all Grid elements once before the element loop.
+        /// Uses session cache with 2-minute TTL keyed by document path.</summary>
         public static List<Grid> LoadGridLines(Document doc)
         {
+            string docKey = ParameterHelpers.GetStableDocKey(doc);
+            if (_cachedGridLines != null && _gridCacheDocKey == docKey &&
+                (DateTime.UtcNow - _gridCacheTime) < GridCacheTTL)
+                return _cachedGridLines;
+
             try
             {
-                return new FilteredElementCollector(doc)
+                var grids = new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid))
                     .Cast<Grid>()
                     .ToList();
+                _cachedGridLines = grids;
+                _gridCacheDocKey = docKey;
+                _gridCacheTime = DateTime.UtcNow;
+                return grids;
             }
-            catch { return new List<Grid>(); }
+            catch (Exception ex) { StingLog.Warn($"LoadGridLines: {ex.Message}"); return new List<Grid>(); }
+        }
+
+        /// <summary>Invalidate formula and grid line caches (call on document close/switch).</summary>
+        public static void InvalidateSessionCaches()
+        {
+            _cachedFormulas = null;
+            _cachedGridLines = null;
+            _gridCacheDocKey = null;
+            _noGridsLoggedThisSession = false; // LOGIC-010: Reset per-session flag
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  BATCH RUNNER — Reusable per-element error recovery for batch ops
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>Result from a batch operation with per-element error tracking.</summary>
+        public class BatchResult
+        {
+            public int Processed { get; set; }
+            public int Succeeded { get; set; }
+            public int Failed { get; set; }
+            public int Skipped { get; set; }
+            public List<(ElementId Id, string Reason)> Failures { get; set; } = new();
+
+            /// <summary>Add failure summary to a StingResultPanel section.</summary>
+            public void AddToPanel(UI.StingResultPanel.Builder panel)
+            {
+                panel.Metric("Processed", Processed.ToString());
+                panel.MetricHighlight("Succeeded", Succeeded.ToString());
+                if (Failed > 0) panel.MetricError("Failed", Failed.ToString());
+                if (Skipped > 0) panel.MetricWarn("Skipped", Skipped.ToString());
+                if (Failures.Count > 0)
+                {
+                    panel.Separator();
+                    foreach (var (id, reason) in Failures.Take(10))
+                        panel.Alert($"Element {id}: {reason}");
+                    if (Failures.Count > 10)
+                        panel.Text($"... and {Failures.Count - 10} more failures (see log)");
+                }
+            }
+        }
+
+        /// <summary>Run an action on each element with per-element error recovery.
+        /// Failed elements are logged and skipped, not rolled back.</summary>
+        public static BatchResult RunBatch(IList<Element> elements, Action<Element> action, string operationName)
+        {
+            var result = new BatchResult();
+            foreach (var el in elements)
+            {
+                result.Processed++;
+                try
+                {
+                    action(el);
+                    result.Succeeded++;
+                }
+                catch (Exception ex)
+                {
+                    result.Failed++;
+                    result.Failures.Add((el.Id, ex.Message));
+                    StingLog.Warn($"{operationName}: Element {el.Id} failed: {ex.Message}");
+                }
+            }
+            return result;
         }
     }
 }

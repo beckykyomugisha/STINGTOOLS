@@ -7,6 +7,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -41,7 +42,7 @@ namespace StingTools.Tags
             catch (Exception ex)
             {
                 StingLog.Error("TagAndCombineCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch { }
+                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
         }
@@ -54,36 +55,28 @@ namespace StingTools.Tags
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
-            // Step 0: Choose scope
-            TaskDialog scopeDlg = new TaskDialog("Tag & Combine All");
-            scopeDlg.MainInstruction = "Tag and populate all containers";
-            scopeDlg.MainContent =
-                "This will:\n" +
-                "  1. Auto-detect LOC/ZONE from spatial data + worksets\n" +
-                "  2. Auto-populate all tokens (DISC, PROD, SYS, FUNC, LVL)\n" +
-                "  3. Auto-detect STATUS from Revit phases + worksets\n" +
-                "  4. Auto-detect REV from project revision sequence\n" +
-                "  5. Tag all untagged elements (continuing from existing numbers)\n" +
-                "  6. Combine tokens into ALL 53 tag containers\n\n" +
-                "Choose scope:";
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Active View",
-                "Process only elements visible in the current view");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Selected Elements",
-                $"{uidoc.Selection.GetElementIds().Count} elements selected");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Entire Project",
-                "Process all taggable elements across the entire model");
-            scopeDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-            var scopeResult = scopeDlg.Show();
+            // Step 0: Choose scope using StingModePicker
+            int selCount = uidoc.Selection.GetElementIds().Count;
+            var scopeOptions = new List<UI.StingModePicker.ModeOption>
+            {
+                new("Active View",
+                    "Process only elements visible in the current view", "view", true),
+                new("Selected Elements",
+                    $"{selCount} elements currently selected", "selected"),
+                new("Entire Project",
+                    "Process all taggable elements across the entire model", "project"),
+            };
+            string scopeResult = UI.StingModePicker.Show(
+                "Tag & Combine All",
+                "Auto-populate tokens, tag, and combine into all 53 containers",
+                scopeOptions,
+                "Auto-detects LOC/ZONE/STATUS/REV from spatial data and phases");
 
             ICollection<ElementId> targetIds;
             string scopeLabel;
             switch (scopeResult)
             {
-                case TaskDialogResult.CommandLink1:
+                case "view":
                     if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
                     {
                         // Performance: use ElementMulticategoryFilter to skip non-taggable elements
@@ -96,7 +89,7 @@ namespace StingTools.Tags
                     }
                     scopeLabel = $"active view '{doc.ActiveView.Name}'";
                     break;
-                case TaskDialogResult.CommandLink2:
+                case "selected":
                     targetIds = uidoc.Selection.GetElementIds();
                     if (targetIds.Count == 0)
                     {
@@ -105,7 +98,7 @@ namespace StingTools.Tags
                     }
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
-                case TaskDialogResult.CommandLink3:
+                case "project":
                     {
                         // Performance: use ElementMulticategoryFilter to skip non-taggable elements
                         var projCollector = new FilteredElementCollector(doc)
@@ -126,9 +119,13 @@ namespace StingTools.Tags
 
             // Build PopulationContext ONCE — caches room index, LOC, REV, phases
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            if (popCtx == null)
+            if (popCtx == null || !popCtx.IsValid())
             {
-                TaskDialog.Show("Tag & Combine", "Failed to build population context. Check the document is valid.");
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
+                StingLog.Error($"TagAndCombine: PopulationContext failed — {diag}");
+                TaskDialog.Show("Tag & Combine",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();
@@ -136,6 +133,7 @@ namespace StingTools.Tags
 
             int totalProcessed = 0;
             int errors = 0;
+            int skippedWorkset = 0, skippedDemolished = 0;
             var stats = new TaggingStats();
 
             bool cancelled = false;
@@ -162,15 +160,24 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
                         continue;
 
+                    // GAP-WS-01: Skip elements on worksets owned by other users
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el))
+                    { skippedWorkset++; continue; }
+
+                    // GAP-PH-01: Skip demolished elements
+                    if (TagPipelineHelper.IsDemolished(el))
+                    { skippedDemolished++; continue; }
+
                     try
                     {
                         totalProcessed++;
 
                         // Full pipeline: populate → map → formulas → tag → containers → TAG7 → grid
-                        TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                        bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                             tagIndex, seqCounters, formulas, gridLines,
                             overwrite: true, skipComplete: false,
                             collisionMode: TagCollisionMode.AutoIncrement, stats: stats);
+                        if (!pipelineOk) errors++;
                     }
                     catch (Exception ex)
                     {
@@ -201,6 +208,10 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Scope:            {scopeLabel}");
             report.AppendLine($"  Processed:        {totalProcessed} elements");
+            if (skippedWorkset > 0)
+                report.AppendLine($"  Skipped (workset):{skippedWorkset:N0} (owned by other users)");
+            if (skippedDemolished > 0)
+                report.AppendLine($"  Skipped (demol.): {skippedDemolished:N0} (demolished elements)");
             report.AppendLine($"  Tagged:           {stats.TotalTagged:N0} new tags");
             if (stats.TotalSkipped > 0)
                 report.AppendLine($"  Skipped:          {stats.TotalSkipped:N0} (already complete)");
@@ -214,18 +225,18 @@ namespace StingTools.Tags
             report.AppendLine();
             report.Append(stats.BuildReport());
 
-            TaskDialog td = new TaskDialog("Tag & Combine All");
-            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
-            td.MainContent = report.ToString();
-            td.Show();
-
-            // GAP-017: Post-batch compliance summary for workflow chain visibility
+            // LOGIC-03: Run compliance scan BEFORE TaskDialog so results are visible to user
             var postScan = ComplianceScan.Scan(doc);
             if (postScan != null)
             {
                 report.AppendLine();
                 report.AppendLine($"Compliance: {postScan.StatusBarText}");
             }
+
+            TaskDialog td = new TaskDialog("Tag & Combine All");
+            td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
+            td.MainContent = report.ToString();
+            td.Show();
 
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +

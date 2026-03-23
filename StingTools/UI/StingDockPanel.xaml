@@ -2,22 +2,23 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
-      Background="#FAFAFA">
+      Background="{DynamicResource PrimaryBg}">
 
     <Page.Resources>
+        <!-- FIX-3.3: DynamicResource bindings — ThemeManager.CycleTheme() now works -->
         <Style x:Key="SectionHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Margin" Value="0,6,0,3"/>
-            <Setter Property="Foreground" Value="#6A1B9A"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style x:Key="GroupBorder" TargetType="Border">
-            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="6"/>
             <Setter Property="Margin" Value="0,3"/>
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         </Style>
         <Style x:Key="CatBtn" TargetType="Button">
             <Setter Property="MinWidth" Value="34"/>
@@ -25,8 +26,9 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Background" Value="#F0F0F0"/>
-            <Setter Property="BorderBrush" Value="#CCC"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
@@ -36,6 +38,9 @@
             <Setter Property="Margin" Value="1"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style x:Key="GreenBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
@@ -75,15 +80,17 @@
             <Setter Property="BorderBrush" Value="#00796B"/>
         </Style>
         <Style x:Key="SectionLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="#6A1B9A"/>
-            <Setter Property="Margin" Value="0,5,0,2"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Margin" Value="0,6,0,2"/>
             <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Opacity" Value="1.0"/>
         </Style>
         <Style x:Key="SubLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="9"/>
-            <Setter Property="Foreground" Value="#888"/>
+            <Setter Property="Foreground" Value="{DynamicResource PanelFg}"/>
             <Setter Property="Margin" Value="0,3,0,1"/>
+            <Setter Property="Opacity" Value="0.7"/>
         </Style>
     </Page.Resources>
 
@@ -95,7 +102,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="#6A1B9A" Padding="8,5">
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBg}" Padding="8,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -104,26 +111,34 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                    <TextBlock x:Name="txtStatus" Text="Always on top: ON" FontSize="9" Foreground="#CE93D8"/>
+                    <TextBlock Text="STINGTOOLS V2.1" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource HeaderFg}"/>
+                    <TextBlock x:Name="txtStatus" Text="Ready" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="#CE93D8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Grid.Column="1" x:Name="txtSelCount" Text="sel 0" FontSize="9" Foreground="{DynamicResource HeaderFg}" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <Button x:Name="btnPin" Grid.Column="2" Content="Pin" Width="30" Height="20"
-                        FontSize="9" Background="#7B1FA2" Foreground="White" BorderThickness="0"
+                        FontSize="9" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                         ToolTip="Pin panel" Click="BtnPin_Click" Margin="0,0,2,0"/>
-                <Button Grid.Column="3" Content="&#x263E;" Width="26" Height="20"
-                        FontSize="11" Background="#7B1FA2" Foreground="White" BorderThickness="0"
-                        ToolTip="Toggle theme (Dark/Light/Grey/Corporate)" Tag="CycleTheme" Click="Cmd_Click"/>
+                <Button Grid.Column="3" Content="&#x2600;" Width="26" Height="20"
+                        FontSize="13" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
+                        ToolTip="Cycle theme: Light / Warm / Cool / Corporate" Tag="CycleTheme" Click="Cmd_Click"/>
             </Grid>
         </Border>
 
         <!-- Tab control -->
-        <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged">
+        <TabControl Grid.Row="1" x:Name="tabMain" SelectionChanged="TabMain_SelectionChanged" Background="{DynamicResource PrimaryBg}">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="FontWeight" Value="Bold"/>
                     <Setter Property="FontSize" Value="10"/>
-                    <Setter Property="Padding" Value="5,2"/>
+                    <Setter Property="Padding" Value="5,3"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TabFg}"/>
+                    <Setter Property="Background" Value="{DynamicResource TabBg}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource TabSelectedFg}"/>
+                            <Setter Property="Background" Value="{DynamicResource TabSelectedBg}"/>
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </TabControl.Resources>
 
@@ -194,6 +209,16 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- SELECTION SETS -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SELECTION SETS"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Save Set" Tag="SaveSelectionSet" Click="Cmd_Click" ToolTip="Save current selection as named set"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Recall Set" Tag="RecallSelectionSet" Click="Cmd_Click" ToolTip="Recall a saved selection set"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Manage" Tag="ManageSelectionSets" Click="Cmd_Click" ToolTip="List, delete, export selection sets"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- STATE -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STATE"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -247,6 +272,26 @@
                                 <Button Style="{StaticResource CatBtn}" Content="M3▲" Tag="LoadM3" Click="Cmd_Click" ToolTip="Load M3"/>
                                 <Button Style="{StaticResource CatBtn}" Content="1↔2" Tag="SwapM1M2" Click="Cmd_Click" ToolTip="Swap M1/M2"/>
                                 <Button Style="{StaticResource CatBtn}" Content="Info" Tag="SelectionInfo" Click="Cmd_Click"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- TAG SELECTOR (multi-criteria) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="TAG SELECTOR"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="★ Tag Selector" Tag="TagSelector" Click="Cmd_Click" ToolTip="Multi-criteria annotation tag selector" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource CatBtn}" Content="By Text" Tag="SelectTagsByText" Click="Cmd_Click" ToolTip="Select tags by displayed text"/>
+                                <Button Style="{StaticResource CatBtn}" Content="By Size" Tag="SelectTagsByTextSize" Click="Cmd_Click" ToolTip="Select tags by text size (mm)"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Arrow" Tag="SelectTagsByArrowhead" Click="Cmd_Click" ToolTip="Select tags by arrowhead style"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Wt" Tag="SelectTagsByLineWeight" Click="Cmd_Click" ToolTip="Select tags by leader line weight"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Elbow" Tag="SelectTagsByElbowAngle" Click="Cmd_Click" ToolTip="Select tags by leader elbow angle"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Family" Tag="SelectTagsByFamily" Click="Cmd_Click" ToolTip="Select tags by tag family/type"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Host" Tag="SelectTagsByHostCategory" Click="Cmd_Click" ToolTip="Select tags by host element category"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Leader" Tag="SelectTagsByLeaderState" Click="Cmd_Click" ToolTip="Select tags by leader state"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Orient" Tag="SelectTagsByOrientation" Click="Cmd_Click" ToolTip="Select horizontal or vertical tags"/>
+                                <Button Style="{StaticResource CatBtn}" Content="DISC" Tag="SelectTagsByDiscipline" Click="Cmd_Click" ToolTip="Select tags by discipline code"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Token" Tag="SelectTagsByToken" Click="Cmd_Click" ToolTip="Select tags by any tag token segment"/>
+                                <Button Style="{StaticResource CatBtn}" Content="Overlap" Tag="SelectOverlappingTags" Click="Cmd_Click" ToolTip="Select overlapping tags"/>
                             </WrapPanel>
                         </Border>
 
@@ -473,7 +518,8 @@
                                 <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="Orphans" Click="Cmd_Click" ToolTip="Find orphaned tags"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[Num]Renumb" Tag="RenumberTags" Click="Cmd_Click"/>
-                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout from current view"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="[List]Apply Clone" Tag="ApplyClonedTags" Click="Cmd_Click" ToolTip="Apply cloned tag layout to current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="AuditCSV" Tag="AuditTagsCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MultiView" Tag="MultiView" Click="Cmd_Click" ToolTip="Tag across views"/>
@@ -649,6 +695,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Combine" Tag="LeaderCombine" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Attach" Tag="AttachLeader" Click="Cmd_Click" ToolTip="Attach leader end to host"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sel w/Ldr" Tag="SelectTagsWithLeaders" Click="Cmd_Click" ToolTip="Select tags with leaders"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Equalize" Tag="EqualizeLeaderLengths" Click="Cmd_Click" ToolTip="Equalize leader lengths to median distance"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ELBOW"/>
                                 <WrapPanel>
@@ -705,6 +752,20 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Line Wt" Tag="SetTagLineWeight" Click="Cmd_Click" ToolTip="Set tag line weight"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="By Param" Tag="ColorTagsByParam" Click="Cmd_Click" ToolTip="Color tags by parameter value"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Type" Tag="SwapTagType" Click="Cmd_Click" ToolTip="Swap tag family type"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Apply Styles" Tag="ApplyTagStyles" Click="Cmd_Click" ToolTip="Apply tag style preset (rule-based type switching)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="PreviewTagStyles" Click="Cmd_Click" ToolTip="Preview tag style changes (dry-run)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add Rule" Tag="SetTagStyleRule" Click="Cmd_Click" ToolTip="Add a tag style rule (parameter → type)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Preset" Tag="SaveTagStylePreset" Click="Cmd_Click" ToolTip="Learn and save current tag styles as preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Preset" Tag="LoadTagStylePreset" Click="Cmd_Click" ToolTip="Load and apply a saved style preset"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <TextBlock Text="Param-Driven:" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Apply" Tag="ApplyParamStyles" Click="Cmd_Click" ToolTip="Apply param-driven styles (size/weight integers + color overrides — no type switching)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview" Tag="PreviewParamStyles" Click="Cmd_Click" ToolTip="Preview param-driven style distribution (dry-run)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch" Tag="BatchParamStyles" Click="Cmd_Click" ToolTip="Apply param-driven styles to entire project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clear" Tag="ClearParamStyles" Click="Cmd_Click" ToolTip="Reset style params and remove color overrides"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -800,6 +861,7 @@
                                     <ComboBoxItem Content="A3"/>
                                     <ComboBoxItem Content="A4"/>
                                 </ComboBox>
+                                <Button Style="{StaticResource ActionBtn}" Content="All Sheets" Tag="PrintSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Selected Sheets" Tag="PdfSelectedSheets" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Active View" Tag="PdfActiveView" Click="Cmd_Click"/>
                             </WrapPanel>
@@ -873,8 +935,11 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Organizer" Tag="SheetOrganizer" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Index" Tag="SheetIndex" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Transmittal" Tag="Transmittal" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Journal" Tag="JournalParser" Click="Cmd_Click" ToolTip="Parse Revit journal files for addin errors, crash diagnostics, and command timeline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="SheetNamingCheck" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Num" Tag="AutoNumberSheets" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Map Sheets" Tag="MapSheets" Click="Cmd_Click" ToolTip="Map native sheet number/name to STING parameters"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes (DISC, FORM, LEVEL, REV, TAG1, TAG7)"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="SHEET NUMBER"/>
                                 <WrapPanel>
@@ -886,6 +951,66 @@
                                     <Button Style="{StaticResource CatBtn}" Content="Rem Pre" Tag="SheetRemovePrefix" Click="Cmd_Click" ToolTip="Remove prefix token from selected sheet names"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Rem Suf" Tag="SheetRemoveSuffix" Click="Cmd_Click" ToolTip="Remove suffix token from selected sheet names"/>
                                     <Button Style="{StaticResource CatBtn}" Content="Find&amp;Replace" Tag="SheetFindReplace" Click="Cmd_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SHEET MANAGER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SHEET MANAGER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Manager" Tag="SheetManager" Click="Cmd_Click" ToolTip="Open full Sheet Manager with dual-panel browser"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Layout" Tag="AutoLayout" Click="Cmd_Click" ToolTip="Auto-arrange viewports on active sheet using shelf packing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clone Sheet" Tag="CloneSheet" Click="Cmd_Click" ToolTip="Clone active sheet with title block and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place Unplaced" Tag="PlaceUnplacedViews" Click="Cmd_Click" ToolTip="Auto-place all unplaced views on new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Optimal Scale" Tag="OptimalScale" Click="Cmd_Click" ToolTip="Calculate optimal scale for active view"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Audit" Tag="SheetAudit" Click="Cmd_Click" ToolTip="Audit all sheets and viewports"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Arrange" Tag="BatchArrange" Click="Cmd_Click" ToolTip="Arrange viewports on all sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Move VP" Tag="MoveViewport" Click="Cmd_Click" ToolTip="Move selected viewport to different sheet"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="MaxRects" Tag="MaxRectsLayout" Click="Cmd_Click" ToolTip="MaxRects packing algorithm for optimal viewport density"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Layout" Tag="SaveLayoutPreset" Click="Cmd_Click" ToolTip="Save current viewport layout as reusable preset"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Apply Layout" Tag="ApplyLayoutPreset" Click="Cmd_Click" ToolTip="Apply saved layout preset to active sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Overflow" Tag="PlaceWithOverflow" Click="Cmd_Click" ToolTip="Place views with auto-overflow to new sheets"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Clone" Tag="BatchCloneSheets" Click="Cmd_Click" ToolTip="Clone multiple sheets at once"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="BatchRenumberSheets" Click="Cmd_Click" ToolTip="Renumber sheets within a discipline"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="VP Types" Tag="AutoAssignVPTypes" Click="Cmd_Click" ToolTip="Auto-assign viewport types by rules"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportSheetSet" Click="Cmd_Click" ToolTip="Export sheet set to CSV file"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="TEMPLATES &amp; COMPLIANCE"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="From Template" Tag="CreateFromTemplate" Click="Cmd_Click" ToolTip="Create sheet from a built-in or saved template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Save Template" Tag="SaveSheetTemplate" Click="Cmd_Click" ToolTip="Save current sheet layout as reusable template"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO Check" Tag="SheetComplianceCheck" Click="Cmd_Click" ToolTip="ISO 19650 sheet compliance audit"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Sheets" Tag="TagSheets" Click="Cmd_Click" ToolTip="Tag all sheets with ISO 19650 document codes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Register" Tag="ExportSheetRegister" Click="Cmd_Click" ToolTip="Export comprehensive sheet register to CSV"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Align" Tag="GridAlignViewports" Click="Cmd_Click" ToolTip="Snap viewport centres to alignment grid"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Align Edges" Tag="AlignViewportEdges" Click="Cmd_Click" ToolTip="Align viewport edges (left/right/top/bottom)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribute" Tag="DistributeViewports" Click="Cmd_Click" ToolTip="Distribute viewports evenly across sheet"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Print" Tag="BatchPrintSheets" Click="Cmd_Click" ToolTip="Export sheets to PDF by discipline or selection"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- FM / O&M HANDOVER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="🏗 FM / O&amp;M HANDOVER"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie-lite asset data (7 sheets: Facility, Floor, Space, Type, Component, System, Zone)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Maint Schedule" Tag="MaintenanceSchedule" Click="Cmd_Click" ToolTip="Export planned preventive maintenance schedule with frequencies and priorities"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="O&amp;M Manual" Tag="OMManual" Click="Cmd_Click" ToolTip="Export Operations &amp; Maintenance manual organized by discipline and system"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Asset Health" Tag="AssetHealth" Click="Cmd_Click" ToolTip="Export asset health scores (0-100) with risk levels and recommendations"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Space Handover" Tag="SpaceHandover" Click="Cmd_Click" ToolTip="Export space/room handover report with asset counts and density"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1012,6 +1137,7 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ONE-CLICK"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Doc Wizard" Tag="DocWizard" Click="Cmd_Click" ToolTip="Unified documentation wizard: sheets, views, viewports, export in one dialog"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Doc Package" Tag="DocumentationPackage" Click="Cmd_Click" ToolTip="One-click full documentation set: views + dependents + sheets + templates"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="VIEW CREATION"/>
@@ -1044,6 +1170,10 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Del Unused" Tag="DeleteUnusedViews" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Duplicate" Tag="DuplicateView" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Rename" Tag="BatchRenameViews" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Magic Rename" Tag="MagicRename" Click="Cmd_Click"
+                                        ToolTip="Universal rename: prefix/suffix/find-replace/case/numbering"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="View Colours" Tag="ViewTabColour" Click="Cmd_Click"
+                                        ToolTip="Analyse views by discipline and colour-code tabs"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Copy Settings" Tag="CopyViewSettings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Crop Content" Tag="CropToContent" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Sum Areas" Tag="SumAreas" Click="Cmd_Click"/>
@@ -1124,6 +1254,7 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="SCHEDULES"/>
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Schedule Wizard" Tag="ScheduleWizard" Click="Cmd_Click" ToolTip="Unified schedule wizard: create, populate, audit, export in one dialog"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Full AutoPop" Tag="FullAutoPopulate" Click="Cmd_Click" ToolTip="Zero-input full pipeline"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Batch Create" Tag="BatchSchedules" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Mat Takeoff" Tag="MaterialSchedules" Click="Cmd_Click"/>
@@ -1131,7 +1262,39 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Formulas" Tag="FormulaEvaluator" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="ExportCSV" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Export BOQ" Tag="BOQExport" Click="Cmd_Click"
-                                        ToolTip="Export grouped Bill of Quantities (NRM2 structure)"/>
+                                        ToolTip="Export grouped Bill of Quantities (NRM2 + TAG7 descriptions)"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
+                                        ToolTip="BIMLink-style export: pick categories and properties, export to Excel" FontWeight="Bold"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- MEP SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Batch MEP" Tag="BatchMEPSchedules" Click="Cmd_Click" ToolTip="Create all MEP schedules at once"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Panels" Tag="PanelSchedule" Click="Cmd_Click" ToolTip="Create panel schedules for electrical equipment"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Lighting" Tag="LightingFixtureSchedule" Click="Cmd_Click" ToolTip="Create lighting fixture schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Mech Equip" Tag="MechEquipSchedule" Click="Cmd_Click" ToolTip="Create mechanical equipment schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="PlumbingFixtureSchedule" Click="Cmd_Click" ToolTip="Create plumbing fixture schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fire Dev" Tag="FireDeviceSchedule" Click="Cmd_Click" ToolTip="Create fire safety device schedule"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Elec Dev" Tag="ElectricalDeviceSchedule" Click="Cmd_Click" ToolTip="Create electrical device schedule"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- ROOM / SPACE MANAGEMENT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="ROOM / SPACE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <WrapPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Audit rooms for completeness and issues"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Connectivity" Tag="SpatialConnectivityAudit" Click="Cmd_Click" ToolTip="Validate rooms: doors, dead-end corridors, min area per BS 6465"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="DataDropReadiness" Click="Cmd_Click" ToolTip="Assess model readiness against DD1-DD4 milestones"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Weekly Report" Tag="WeeklyReport" Click="Cmd_Click" ToolTip="Generate HTML weekly BIM coordinator report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="COBie Import" Tag="COBieImport" Click="Cmd_Click" ToolTip="Import COBie spreadsheet data back into model"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Zone Assign" Tag="RoomZoneAssign" Click="Cmd_Click" ToolTip="Auto-assign ZONE codes from department names"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Sched" Tag="RoomSchedule" Click="Cmd_Click" ToolTip="Create room schedule with area, finishes, tags"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Room Export" Tag="RoomDataExport" Click="Cmd_Click" ToolTip="Export room data to CSV"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Room Push" Tag="RoomParamPush" Click="Cmd_Click" ToolTip="Push LOC/ZONE from rooms to contained elements"/>
                             </WrapPanel>
                         </Border>
 
@@ -1190,12 +1353,40 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Dyn Bind" Tag="DynamicBindings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click" ToolTip="Rule-based MEP-structure clash detection"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="X-Model Clash" Tag="CrossModelClash" Click="Cmd_Click" ToolTip="Cross-model clash detection including linked Revit models"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="MEP Clearance" Tag="MEPClearance" Click="Cmd_Click" ToolTip="Validate MEP maintenance clearances per CIBSE Guide W"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingAudit" Click="Cmd_Click" ToolTip="Audit naming conventions per BS 1192 / ISO 19650"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="IFC Validate" Tag="IFCPropertyValidation" Click="Cmd_Click" ToolTip="Validate IFC property sets per ISO 16739"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="gbXML Check" Tag="GbXMLEnrichment" Click="Cmd_Click" ToolTip="Assess gbXML energy model readiness with STING data"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Productivity" Tag="UserProductivity" Click="Cmd_Click" ToolTip="Per-user tagging and workflow productivity report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tasks" Tag="TaskAssignment" Click="Cmd_Click" ToolTip="Assign tasks to team members with workset checkout"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Notify Prefs" Tag="NotificationPrefs" Click="Cmd_Click" ToolTip="Configure per-user notification preferences"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie spreadsheet for FM handover"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="Export element data as JSON for data interchange"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tag Format" Tag="ConfigureTagFormat" Click="Cmd_Click" ToolTip="Configure tag separator, padding, segment order"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click" ToolTip="Import BOQ data from Excel back to Revit"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Keynotes" Tag="KeynoteSync" Click="Cmd_Click" ToolTip="Auto-sync keynote table from STING tags"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="Excel → View" Tag="ExcelToDraftingView" Click="Cmd_Click" ToolTip="Import Excel spreadsheet into a Revit drafting view as formatted table" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Schedule → Excel" Tag="ScheduleToExcel" Click="Cmd_Click" ToolTip="Export Revit schedule to formatted Excel workbook"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Sticky Import" Tag="BatchStickyImport" Click="Cmd_Click" ToolTip="Batch import QA notes from Excel/CSV (Tag | Note | Category)"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- COBie REFERENCE DATA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COBie REFERENCE DATA"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Type Map" Tag="COBieTypeMap" Click="Cmd_Click" ToolTip="Browse COBie equipment types — push warranty, cost, material data to elements" HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource GreenBtn}" Content="Auto-Match" Tag="COBieAutoMatch" Click="Cmd_Click" ToolTip="Auto-match ALL elements to COBie types by category + PROD code"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="PickLists" Tag="COBiePickLists" Click="Cmd_Click" ToolTip="Browse COBie V2.4 controlled vocabulary lists"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Jobs" Tag="COBieJobTemplates" Click="Cmd_Click" ToolTip="SFG20 / BS 8210 maintenance job templates"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Spares" Tag="COBieSpareParts" Click="Cmd_Click" ToolTip="Spare parts catalogue per equipment type"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Attributes" Tag="COBieAttributes" Click="Cmd_Click" ToolTip="Expected COBie attributes per Type/Space/Component"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Zones" Tag="COBieZoneTypes" Click="Cmd_Click" ToolTip="COBie zone classifications — fire, HVAC, lighting, security, acoustic"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Systems" Tag="COBieSystemMap" Click="Cmd_Click" ToolTip="Building system map — Uniclass/CIBSE codes with STING token mapping"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Doc Types" Tag="COBieDocTypes" Click="Cmd_Click" ToolTip="O&amp;M document types — regulatory refs, retention periods, naming conventions"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Summary" Tag="COBieDataSummary" Click="Cmd_Click" ToolTip="Overview of all COBie reference data loaded"/>
                             </WrapPanel>
                         </Border>
 
@@ -1208,6 +1399,23 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Auto-Tagger" Tag="AutoTaggerToggle" Click="Cmd_Click" ToolTip="Toggle real-time auto-tagging on element placement"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Anomaly Fix" Tag="AnomalyAutoFix" Click="Cmd_Click" ToolTip="Auto-fix common parameter anomalies (empty DISC, wrong LOC, etc.)"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Rev Clouds" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Auto-place revision clouds on sheets with changed elements"/>
+                            </WrapPanel>
+                        </Border>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK WORKFLOWS" Foreground="#6A1B9A"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Morning Check" Tag="RunWorkflow_MorningHealthCheck" Click="Cmd_Click" ToolTip="Daily coordinator routine: stale fix, warnings, compliance (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Quick Fix" Tag="RunWorkflow_QuickFixCycle" Click="Cmd_Click" ToolTip="Rapid quality improvement: auto-fix, resolve, validate (6 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Daily QA" Tag="RunWorkflow_DailyQASync" Click="Cmd_Click" ToolTip="Adaptive daily sync: tag new, delta-sync, validate (13 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Meeting Prep" Tag="RunWorkflow_CoordinationMeetingPrep" Click="Cmd_Click" ToolTip="Prepare for coordination meeting: compliance, warnings, reports (7 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clash Coord" Tag="RunWorkflow_ClashCoordination" Click="Cmd_Click" ToolTip="Cross-discipline clash detection and coordination (5 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="RunWorkflow_WeeklyDataDrop" Click="Cmd_Click" ToolTip="ISO 19650 weekly information exchange (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="RunWorkflow_HandoverReadiness" Click="Cmd_Click" ToolTip="Pre-handover validation and export (9 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="RunWorkflow_EndOfStageGate" Click="Cmd_Click" ToolTip="RIBA stage transition gate: full validation (11 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="End of Day" Tag="RunWorkflow_EndOfDaySync" Click="Cmd_Click" ToolTip="End-of-day sync: validate, export registers, save baseline (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Fed. Audit" Tag="RunWorkflow_FederatedModelAudit" Click="Cmd_Click" ToolTip="Federated model audit: linked models, clashes, naming (7 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Pre-Meeting" Tag="RunWorkflow_PreMeetingPrep" Click="Cmd_Click" ToolTip="Pre-meeting preparation: fix warnings, validate, generate report (7 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Repeat Last" Tag="RepeatLastWorkflow" Click="Cmd_Click" ToolTip="Re-run the last executed workflow preset"/>
                             </WrapPanel>
                         </Border>
 
@@ -1238,7 +1446,11 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Shared Params" Tag="LoadSharedParams" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource RedBtn}" Content="Purge Params" Tag="PurgeSharedParams"
+                                            Click="Cmd_Click" ToolTip="Audit or remove orphaned/all STING shared param bindings"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Project Config" Tag="ConfigEditor" Click="Cmd_Click"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edit Data Files" Tag="GuidedDataEditor"
+                                            Click="Cmd_Click" ToolTip="Guided editor for project_config.json, MR_PARAMETERS.txt, materials — with sync"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Tag Config" Tag="TagConfig" Click="Cmd_Click" ToolTip="View/configure tag lookup tables"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Schema" Tag="SyncParamSchema" Click="Cmd_Click" ToolTip="Sync parameter schema"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Schema" Tag="AuditParamSchema" Click="Cmd_Click" ToolTip="Audit parameter schema"/>
@@ -1389,6 +1601,10 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Map" Tag="ExportTagMap" Click="Cmd_Click" ToolTip="Export all tags to .sting_tagmap.json for cross-project transfer"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Import Tag Map" Tag="ImportTagMap" Click="Cmd_Click" ToolTip="Import tags from another project's tag map file"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                        ToolTip="BIMLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
                             </WrapPanel>
                         </Border>
@@ -1442,7 +1658,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="ISO completeness · tag coverage · leader consistency · view naming · param fill rates · annotation density"
                                                FontSize="9" Foreground="#888" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="#6A1B9A"/>
+                                    <TextBlock Grid.Column="1" x:Name="txtHealthScore" Text="—/100" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
                                 </Grid>
                                 <WrapPanel Margin="0,4,0,0">
                                     <ComboBox x:Name="cmbHealthScope" Width="90" FontSize="10" Height="22">
@@ -1741,8 +1957,18 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Canopy" Tag="ModelCreateCanopy" Click="Cmd_Click" ToolTip="Create canopy/overhang for building envelope"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Route Analysis" Tag="MEPRouteAnalysis" Click="Cmd_Click" ToolTip="Analyse MEP routing clearances per CIBSE Guide W"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
+
+                        <!-- MODEL WIZARD -->
+                        <Border Style="{StaticResource GroupBorder}" Margin="0,0,0,4">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="★ Model Wizard" Tag="ModelWizard" Click="Cmd_Click" ToolTip="Unified model creation dialog: select element type + dimensions in one step"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- ARCHITECTURAL -->
@@ -1758,6 +1984,9 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Opening" Tag="ArchCreateOpening" Click="Cmd_Click" ToolTip="Create wall/floor opening (900×2100mm)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Curtain Wall" Tag="ArchCurtainWall" Click="Cmd_Click" ToolTip="Create curtain wall facade — pick 2 points"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stair Design" Tag="ArchStairDesign" Click="Cmd_Click" ToolTip="BS 5395 stair design: rise, going, 2R+G, pitch, compliance"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1769,6 +1998,183 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Column" Tag="ModelPlaceColumn" Click="Cmd_Click" ToolTip="Place structural column at point"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Column Grid" Tag="ModelColumnGrid" Click="Cmd_Click" ToolTip="Create rectangular column grid"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Beam" Tag="ModelCreateBeam" Click="Cmd_Click" ToolTip="Create beam between two points"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- STRUCTURAL AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STRUCTURAL AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#C62828">
+                            <StackPanel>
+                                <TextBlock Text="Advanced structural modeling with load analysis" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Grid Frame" Tag="StrCreateGridFrame" Click="Cmd_Click" ToolTip="Create multi-bay structural grid frame (columns + beams + optional bracing)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Bay" Tag="StrCreateFullBayFrame" Click="Cmd_Click" ToolTip="Complete bay: 4 columns + beams + bracing + slab in one click" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="Foundations" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pad Footing" Tag="StrCreatePadFooting" Click="Cmd_Click" ToolTip="Isolated pad footing with auto-sizing from load"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Strip Footing" Tag="StrCreateStripFooting" Click="Cmd_Click" ToolTip="Strip/continuous footing along wall line"/>
+                                </WrapPanel>
+                                <TextBlock Text="Framing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Beam System" Tag="StrCreateBeamSystem" Click="Cmd_Click" ToolTip="Beam system with tributary area analysis and auto secondary beams"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing" Tag="StrCreateBracing" Click="Cmd_Click" ToolTip="Bracing patterns: X, V, chevron, K between columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Truss" Tag="StrCreateTruss" Click="Cmd_Click" ToolTip="Parametric truss: Pratt, Warren, Howe, Vierendeel"/>
+                                </WrapPanel>
+                                <TextBlock Text="Elements" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Wall" Tag="StrCreateStructuralWall" Click="Cmd_Click" ToolTip="Shear wall, core wall, or retaining wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Struct Slab" Tag="StrCreateStructuralSlab" Click="Cmd_Click" ToolTip="Structural slab with optional openings"/>
+                                </WrapPanel>
+                                <TextBlock Text="Analysis &amp; Auto-Sizing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrAnalyzeLoadPaths" Click="Cmd_Click" ToolTip="Load path analysis: connectivity graph, missing foundations"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Detect Bays" Tag="StrDetectBays" Click="Cmd_Click" ToolTip="Detect structural bays from existing columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Guide" Tag="StrRecommendGrid" Click="Cmd_Click" ToolTip="Optimal grid spacing recommendations by building type"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Footings" Tag="StrAutoFoundations" Click="Cmd_Click" ToolTip="Auto-size pad footings from column loads + soil capacity" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Takedown" Tag="StrColumnLoadTakedown" Click="Cmd_Click" ToolTip="Calculate tributary loads on each column"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edge Beams" Tag="StrSlabEdgeBeams" Click="Cmd_Click" ToolTip="Auto-create edge beams along unsupported slab edges"/>
+                                </WrapPanel>
+                                <TextBlock Text="CAD → Structure" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ CAD Wizard" Tag="StrCADWizard" Click="Cmd_Click" ToolTip="Full automation wizard: prerequisites → DWG analysis → type mapping → conversion" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Convert structural DWG layers to BIM elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preview Struct" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Prerequisites" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Check loaded families and project readiness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Type Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Browse loaded structural families with extracted dimensions"/>
+                                </WrapPanel>
+                                <TextBlock Text="Structural Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Report" Tag="StrFullReport" Click="Cmd_Click" ToolTip="Comprehensive structural analysis: system classification, deflection, punching shear, wind, sequencing" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="System Type" Tag="StrClassifySystem" Click="Cmd_Click" ToolTip="Auto-classify: frame, braced, shear wall, dual, flat slab"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deflection" Tag="StrDeflectionCheck" Click="Cmd_Click" ToolTip="Check beam deflections per EC2/EC3 serviceability limits"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Punching Shear" Tag="StrPunchingShearCheck" Click="Cmd_Click" ToolTip="Check punching shear at slab-column interfaces (EC2 §6.4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Wind Loads" Tag="StrWindLoad" Click="Cmd_Click" ToolTip="Calculate wind loads per EC1-1-4 and distribute to storeys"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Voronoi Areas" Tag="StrVoronoiAreas" Click="Cmd_Click" ToolTip="True Voronoi tessellation for column tributary areas"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Construction Seq" Tag="StrConstructionSequence" Click="Cmd_Click" ToolTip="Auto-generate construction phase sequence"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Check" Tag="StrClashPreCheck" Click="Cmd_Click" ToolTip="Pre-detect clashes before placing elements"/>
+                                </WrapPanel>
+                                <TextBlock Text="Advanced Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ FEA Frame" Tag="StrFrameAnalysis" Click="Cmd_Click" ToolTip="2D frame analysis — Direct Stiffness Method with member forces and displacements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Seismic EC8" Tag="StrSeismicAnalysis" Click="Cmd_Click" ToolTip="EC8 seismic analysis — equivalent lateral force, base shear, storey forces, drift" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="GA Optimize" Tag="StrOptimizeGrid" Click="Cmd_Click" ToolTip="Genetic algorithm grid optimization — find optimal column spacing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrProgressiveCollapse" Click="Cmd_Click" ToolTip="Progressive collapse check — GSA robustness assessment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Size" Tag="StrAutoSize" Click="Cmd_Click" ToolTip="Iterative auto-sizing — converge member sizes to optimal utilisation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="StrFireResistance" Click="Cmd_Click" ToolTip="Fire resistance check per EC2-1-2 (R30/R60/R90/R120)"/>
+                                </WrapPanel>
+                                <TextBlock Text="Intelligent Automation" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Build Complete" Tag="StrBuildComplete" Click="Cmd_Click" ToolTip="ONE-CLICK: Create complete building — grid + columns + beams + slabs + foundations + bracing + materials + checks" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Materials" Tag="StrAutoMaterials" Click="Cmd_Click" ToolTip="Auto-apply structural materials (grade/exposure/fire-aware)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Column" Tag="StrSmartColumn" Click="Cmd_Click" ToolTip="Intelligent column: grid-snap, clash-check, material, stacking validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Beam" Tag="StrSmartBeam" Click="Cmd_Click" ToolTip="Intelligent beam: auto-size, deflection pre-check, connection validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Model Score" Tag="StrModelScore" Click="Cmd_Click" ToolTip="Score structural model quality (completeness, connectivity, design, materials)"/>
+                                </WrapPanel>
+                                <TextBlock Text="Design &amp; Sustainability" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ BIM Validate" Tag="StrBIMValidation" Click="Cmd_Click" ToolTip="30+ structural BIM validation rules (geometry, connectivity, materials, standards)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CO₂" Tag="StrCarbonAssessment" Click="Cmd_Click" ToolTip="Embodied carbon assessment with RICS rating (ICE Database v3)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Est." Tag="StrRebarEstimate" Click="Cmd_Click" ToolTip="Estimate reinforcement quantities (IStructE Manual ratios)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stability" Tag="StrStabilityCheck" Click="Cmd_Click" ToolTip="P-Delta sway sensitivity check (EC2 §5.8 / EC3 §5.2)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Composite" Tag="StrCompositeBeam" Click="Cmd_Click" ToolTip="EC4 composite beam design with shear studs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pile Design" Tag="StrPileDesign" Click="Cmd_Click" ToolTip="Pile group design with Converse-Labarre efficiency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Retaining" Tag="StrRetainingWall" Click="Cmd_Click" ToolTip="EC7 cantilever retaining wall — sliding, overturning, bearing, stem rebar"/>
+                                </WrapPanel>
+                                <TextBlock Text="Precision Intelligence" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Load Paths" Tag="StrTraceLoadPaths" Click="Cmd_Click" ToolTip="Trace gravity loads roof→foundation, detect floating elements &amp; incomplete paths" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Topology" Tag="StrTopologyOptimize" Click="Cmd_Click" ToolTip="SIMP topology optimization — optimal material distribution with ASCII visualization" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SSI Springs" Tag="StrSSIAnalysis" Click="Cmd_Click" ToolTip="Winkler spring soil-structure interaction with Terzaghi subgrade modulus"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Detail" Tag="StrRebarDetail" Click="Cmd_Click" ToolTip="Auto rebar layout — curtailment, anchorage EC2 §8.4, lap lengths, BS 8666 schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing Opt" Tag="StrBracingOptimize" Click="Cmd_Click" ToolTip="Optimal bracing layout — minimize torsional eccentricity (EC8 §4.2.3)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Constraints" Tag="StrConstraintCheck" Click="Cmd_Click" ToolTip="Design constraint cascade — span/depth, deflection, fire cover, headroom, stacking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Continuity" Tag="StrContinuityCheck" Click="Cmd_Click" ToolTip="Structural path continuity — detect floating beams, unsupported slabs, missing foundations"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Adaptive Size" Tag="StrAdaptiveSize" Click="Cmd_Click" ToolTip="Multi-criteria Pareto sizing — weight/cost/carbon/deflection convergence" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="Detail Design (EC2/EC3)" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Connections" Tag="StrConnectionDesign" Click="Cmd_Click" ToolTip="EC3-1-8 connection design: fin plate, moment end plate, base plate" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Vibration" Tag="StrVibrationCheck" Click="Cmd_Click" ToolTip="Floor vibration check per SCI P354 — response factor, natural frequency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Crack Width" Tag="StrCrackWidth" Click="Cmd_Click" ToolTip="EC2 §7.3 crack width: wk = Sr,max × (εsm-εcm)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Thermal" Tag="StrThermalMovement" Click="Cmd_Click" ToolTip="Expansion joint analysis: movement calculation, joint positions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Beam" Tag="StrDeepBeamSTM" Click="Cmd_Click" ToolTip="Strut-and-tie model for deep beams (EC2 §6.5)"/>
+                                </WrapPanel>
+                                <TextBlock Text="Smart Factory" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Column+" Tag="StrSmartColumnFactory" Click="Cmd_Click" ToolTip="10-step intelligent column: grid-snap → level → stacking → clash → material → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Beam+" Tag="StrSmartBeamFactory" Click="Cmd_Click" ToolTip="9-step intelligent beam: grid-snap → connection → auto-type → deflection → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Diagnostics" Tag="StrDiagnostics" Click="Cmd_Click" ToolTip="ONE-CLICK health check: BIM + continuity + load paths + constraints + materials → RAG score" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Wall+" Tag="StrSmartWallFactory" Click="Cmd_Click" ToolTip="8-step intelligent wall: grid-snap → levels → type match → structural flag → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Pad+" Tag="StrSmartFoundation" Click="Cmd_Click" ToolTip="Auto-sized pad footing: N/q bearing → depth → material → tags" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="EC Code Checks" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fatigue" Tag="StrFatigueAssess" Click="Cmd_Click" ToolTip="EC3-1-9 fatigue: S-N curves, detail categories, Palmgren-Miner damage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Torsion" Tag="StrTorsionDesign" Click="Cmd_Click" ToolTip="EC2 §6.3 torsion: thin-wall analogy, moment-torsion interaction"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrRobustness" Click="Cmd_Click" ToolTip="EC1-1-7 robustness: CC classes, tie forces, key elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Composite Slab" Tag="StrCompositeSlab" Click="Cmd_Click" ToolTip="EC4-1-1 composite slab: deck profiles, mesh, fire rating"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Partial Factors" Tag="StrPartialFactors" Click="Cmd_Click" ToolTip="Multi-code γ-factor comparison: EC/BS/ACI/AS"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Code Compliance" Tag="StrCodeCompliance" Click="Cmd_Click" ToolTip="Full design code compliance report: vibration + crack + thermal + robustness + slab → RAG" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- COVERINGS (Plaster + Paint) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COVERINGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Plaster, render, paint &amp; coatings — walls, beams, columns, floors" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Covering" Tag="CoveringSmartApply" Click="Cmd_Click" ToolTip="Intelligent pipeline: substrate detect → mix design → coverage → layer inject (walls) / param write (beams/columns) → QA → tags. Supports plaster + paint on ANY element." FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" ToolTip="Batch plaster ALL walls + beams + columns in project" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click" ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Materials" Tag="CoveringMaterialBrowser" Click="Cmd_Click" ToolTip="Browse plaster (BLE_MATERIALS.csv) + paint (BS 6150) database"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Substrate" Tag="CoveringSubstrateAnalyze" Click="Cmd_Click" ToolTip="Analyze ANY element substrate: walls, beams, columns, floors"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Paint System" Tag="CoveringPaintSystem" Click="Cmd_Click" ToolTip="Paint system design: DFT, coats, VOC, primer (BS 6150)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="CoveringCoverageCalc" Click="Cmd_Click" ToolTip="Element-agnostic coverage: area, bags/litres, cost, carbon"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="QA Checklist" Tag="CoveringQualityCheck" Click="Cmd_Click" ToolTip="Plaster QA (BS EN 13914) or Paint QA (BS 6150)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="CoveringScheduleExport" Click="Cmd_Click" ToolTip="Export covering schedule for all walls + beams + columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="CoveringFireRating" Click="Cmd_Click" ToolTip="Hp/A fire protection calc for steel — intumescent DFT or board thickness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Moisture Risk" Tag="CoveringMoistureRisk" Click="Cmd_Click" ToolTip="Interstitial condensation check (BS EN ISO 13788 Glaser method)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- EXCEL → STRUCTURAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL → STRUCTURAL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="Import structural design from Excel schedules (BS EN 1992/1993/1997)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Excel Import" Tag="StrExcelImport" Click="Cmd_Click" ToolTip="Full structural import from Excel: columns, beams, slabs, foundations, walls with auto-rebar per EC2" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import Columns" Tag="StrExcelImportColumns" Click="Cmd_Click" ToolTip="Import columns only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import Beams" Tag="StrExcelImportBeams" Click="Cmd_Click" ToolTip="Import beams only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export existing structural elements to Excel schedule format"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="StrExcelTemplate" Click="Cmd_Click" ToolTip="Generate blank Excel template with data validation"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" ToolTip="Auto-design and place rebar per EC2 on selected elements" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto-Size All" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Auto-size all structural elements per EC2/EC3/EC7" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Optimize" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Genetic algorithm column grid optimization"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BBS Export" Tag="StrBarBending" Click="Cmd_Click" ToolTip="Bar bending schedule export per BS 8666"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Design Report" Tag="StrDesignReport" Click="Cmd_Click" ToolTip="Comprehensive EC2/EC3 structural design report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrLoadPathVisualizer" Click="Cmd_Click" ToolTip="Visualize load paths with utilization coloring"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Design Check" Tag="StrDesignCheck" Click="Cmd_Click" ToolTip="Full EC2/EC3/EC7 design compliance check"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Enhanced DWG" Tag="StrEnhancedCADImport" Click="Cmd_Click" ToolTip="Enhanced DWG import with 60+ international layer patterns" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- FULL AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FULL AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1B5E20">
+                            <WrapPanel>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★★★ Full Model Auto" Tag="FullModelAuto" Click="Cmd_Click" ToolTip="ONE-CLICK: Verify → Grid → Elements → Materials → Coverings → Room Finishes → Tags → Diagnostics" FontWeight="Bold"/>
                             </WrapPanel>
                         </Border>
 
@@ -1809,6 +2215,103 @@
                             <StackPanel>
                                 <TextBlock Text="BIM MANAGER — ISO 19650" FontWeight="Bold" FontSize="11" Foreground="#1565C0"/>
                                 <TextBlock Text="BEP, 4D/5D, document control, issues, COBie, briefcase" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- BIM COORDINATION CENTER — PRIMARY ENTRY POINT -->
+                        <Border BorderBrush="#1A237E" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
+                                Background="#E8EAF6">
+                            <StackPanel>
+                                <TextBlock Text="★ BIM COORDINATION CENTER" FontWeight="Bold" FontSize="12" Foreground="#1A237E" Margin="0,0,0,4"/>
+                                <TextBlock Text="Unified dashboard: Model Health • Warnings • Issues • Revisions • Workflows • QA • 4D/5D" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <Button Tag="BIMCoordinationCenter" Click="Cmd_Click"
+                                        FontWeight="Bold" FontSize="12"
+                                        Background="#1A237E" Foreground="White" BorderBrush="#0D1642" BorderThickness="1"
+                                        ToolTip="Unified BIM Coordination Center: 9-tab dashboard with KPIs, compliance tracking, issues, revisions, warnings, workflows, QA and 4D/5D scheduling"
+                                        Cursor="Hand" HorizontalAlignment="Stretch">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#1A237E" BorderBrush="#0D1642" BorderThickness="1"
+                                                    CornerRadius="4" Padding="14,10">
+                                                <TextBlock Text="★  OPEN COORDINATION CENTER" FontWeight="Bold" FontSize="12"
+                                                           Foreground="White" HorizontalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#283593"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#0D1642"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WARNINGS MANAGER — HIGH VISIBILITY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚠  WARNINGS MANAGER"/>
+                        <Border BorderBrush="#E65100" BorderThickness="2" CornerRadius="3" Margin="0,0,0,4" Padding="6"
+                                Background="#FFF3E0">
+                            <StackPanel>
+                                <TextBlock Text="Classify, auto-fix, track and export Revit warnings with SLA enforcement" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="0,0,0,4">
+                                    <Button Tag="WarningsDashboard" Click="Cmd_Click" FontWeight="Bold" FontSize="11" Cursor="Hand"
+                                            ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
+                                                        CornerRadius="3" Padding="10,6">
+                                                    <TextBlock Text="⚠  WARNINGS DASHBOARD" FontWeight="Bold" FontSize="11"
+                                                               Foreground="White" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#F4511E"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#BF360C"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
+                                            ToolTip="Auto-fix: duplicate instances, room separation overlaps, duplicate marks, unjoined geometry" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="WarningsExport" Click="Cmd_Click"
+                                            ToolTip="Export all classified warnings to CSV for BIM360/Aconex tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Baseline" Tag="WarningsBaseline" Click="Cmd_Click"
+                                            ToolTip="Save warning count baseline for trend tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select" Tag="WarningsSelect" Click="Cmd_Click"
+                                            ToolTip="Select elements by warning type in model"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppress" Tag="WarningsSuppress" Click="Cmd_Click"
+                                            ToolTip="Suppress warning types from dashboard (persisted to config)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="WarningsCompliance" Click="Cmd_Click"
+                                            ToolTip="ISO 19650 / CIBSE / BS 7671 compliance mapping"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Monitor" Tag="WarningsMonitor" Click="Cmd_Click"
+                                            ToolTip="Track warning count before/after operations"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DOCUMENT MANAGEMENT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 project document control — folders, issues, revisions, clashes, CDE, handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
+                                            ToolTip="Open Document Management Center — browse all project documents, issues, revisions, clashes and CDE status with tree navigator" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Folders" Tag="CreateFolders" Click="Cmd_Click"
+                                            ToolTip="Create ISO 19650 project folder structure (20 folders: WIP, Shared, Published, Models, Drawings, COBie, Issues, Clashes, Handover, etc.)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Open Project Folder" Tag="OpenProjectFolder" Click="Cmd_Click"
+                                            ToolTip="Open the STING project folder root in Windows Explorer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
+                                            ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -1873,6 +2376,86 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- IoT / SENSOR DATA -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="IoT — SENSOR DATA"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Live BMS/sensor feeds linked to tagged elements" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sensor Link" Tag="IoTSensorLink" Click="Cmd_Click"
+                                            ToolTip="Connect BMS/IoT sensor feeds to tagged elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="IoT Dashboard" Tag="IoTDashboard" Click="Cmd_Click"
+                                            ToolTip="View live sensor data dashboard for tagged assets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Alert Config" Tag="IoTAlertConfig" Click="Cmd_Click"
+                                            ToolTip="Configure anomaly detection alerts for sensor feeds"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="History Export" Tag="IoTHistoryExport" Click="Cmd_Click"
+                                            ToolTip="Export historical sensor data for tagged elements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- STANDARDS / COMPLIANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="STANDARDS — COMPLIANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Standards validation and compliance checking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ISO 19650" Tag="ISO19650Checker" Click="Cmd_Click"
+                                            ToolTip="Run ISO 19650 compliance checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BS 1192" Tag="BS1192Checker" Click="Cmd_Click"
+                                            ToolTip="Run BS 1192 naming convention checker"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Check" Tag="COBieValidator" Click="Cmd_Click"
+                                            ToolTip="Validate COBie data completeness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingConventionAudit" Click="Cmd_Click"
+                                            ToolTip="Audit element and view naming conventions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification" Tag="ClassificationAudit" Click="Cmd_Click"
+                                            ToolTip="Audit Uniclass/OmniClass classification codes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DATA PIPELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA PIPELINE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Export, import, and batch data operations" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="PDF Export" Tag="PDFExport" Click="Cmd_Click"
+                                            ToolTip="Export sheets to PDF"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Quantity Takeoff" Tag="QuantityTakeoff" Click="Cmd_Click"
+                                            ToolTip="Export quantity takeoff to Excel"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Detection" Tag="ClashDetect" Click="Cmd_Click"
+                                            ToolTip="Run MEP vs structural clash detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Model Health" Tag="ModelHealthCheck" Click="Cmd_Click"
+                                            ToolTip="Run model health check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Params" Tag="BatchParameterExport" Click="Cmd_Click"
+                                            ToolTip="Export all tag parameters to CSV"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Project Dashboard" Tag="ProjectDashboard" Click="Cmd_Click"
+                                            ToolTip="Display project-wide statistics dashboard"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MEP SCHEDULES -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="MEP SCHEDULES"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Discipline-specific MEP schedule generation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="HVAC" Tag="MEPScheduleHVAC" Click="Cmd_Click"
+                                            ToolTip="Generate HVAC equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Electrical" Tag="MEPScheduleElec" Click="Cmd_Click"
+                                            ToolTip="Generate electrical equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Plumbing" Tag="MEPSchedulePlumb" Click="Cmd_Click"
+                                            ToolTip="Generate plumbing equipment schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire" Tag="MEPScheduleFire" Click="Cmd_Click"
+                                            ToolTip="Generate fire protection schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="All MEP" Tag="MEPScheduleAll" Click="Cmd_Click"
+                                            ToolTip="Generate all MEP discipline schedules"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- CDE and DOCUMENT CONTROL -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CDE — DOCUMENT CONTROL"/>
                         <Border Style="{StaticResource GroupBorder}">
@@ -1907,6 +2490,7 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
                             <StackPanel>
                                 <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="MANAGE"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
                                             ToolTip="Raise RFI/Clash/Design/NCR/Snagging/Change — auto-titles, due dates, element links" FontWeight="Bold"/>
@@ -1916,6 +2500,19 @@
                                             ToolTip="Close responded, mark in-progress, export CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Elements" Tag="SelectIssueElements" Click="Cmd_Click"
                                             ToolTip="Select all elements linked to open issues"/>
+                                </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ANALYTICS"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Filter Issues" Tag="IssueFilter" Click="Cmd_Click"
+                                            ToolTip="Filter issues by type, priority, status, assignee, discipline, date range"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Timeline" Tag="IssueTimeline" Click="Cmd_Click"
+                                            ToolTip="Show issue timeline with status changes, comments and history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Statistics" Tag="IssueStatistics" Click="Cmd_Click"
+                                            ToolTip="Issue analytics: by type, priority, status, discipline, overdue count"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch Update" Tag="IssueBatchUpdate" Click="Cmd_Click"
+                                            ToolTip="Bulk update status/priority/assignee on multiple issues"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Issues" Tag="IssueExport" Click="Cmd_Click"
+                                            ToolTip="Export all issues to CSV with full field detail"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1927,6 +2524,8 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource PurpleBtn}" Content="COBie Export" Tag="COBieExport" Click="Cmd_Click"
                                             ToolTip="Export full COBie V2.4: 17 worksheets as CSV + XLSX" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Stream" Tag="StreamingCOBieExport" Click="Cmd_Click"
+                                            ToolTip="Streaming COBie export for 100K+ element models — low memory batched processing"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="FM Handover" Tag="HandoverManual" Click="Cmd_Click"
                                             ToolTip="FM Handover Manual + COBie V2.4"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Bulk Export" Tag="BulkBIMExport" Click="Cmd_Click"
@@ -1957,15 +2556,22 @@
 
                         <!-- STICKY NOTES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="STICKY NOTES"/>
-                        <Border Style="{StaticResource GroupBorder}">
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F9A825">
                             <StackPanel>
+                                <TextBlock Text="Per-element annotations with categories, priorities and search" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
-                                            ToolTip="Create element-linked QA/snagging note"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Add Note" Tag="StickyNote" Click="Cmd_Click"
+                                            ToolTip="Create element-linked note with category, priority and colour" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Notes" Tag="ExportStickyNotes" Click="Cmd_Click"
                                             ToolTip="Export all sticky notes to CSV"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Select Noted" Tag="SelectStickyElements" Click="Cmd_Click"
                                             ToolTip="Select all elements with sticky notes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Categories" Tag="StickyCategories" Click="Cmd_Click"
+                                            ToolTip="Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard" Tag="StickyDashboard" Click="Cmd_Click"
+                                            ToolTip="Summary dashboard: notes by category, author, status, linked elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Search" Tag="StickySearch" Click="Cmd_Click"
+                                            ToolTip="Search/filter sticky notes by text, category, author, date range"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -1984,6 +2590,26 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
+                                <!-- BIM COORDINATION CENTER (see prominent button at top of BIM tab) -->
+                            </StackPanel>
+                        </Border>
+
+                        <!-- GAP FIX — CROSS-SYSTEM AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CROSS-SYSTEM AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#AD1457">
+                            <StackPanel>
+                                <TextBlock Text="Cross-system entity linking, CDE compliance, data drop tracking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ CDE Approval" Tag="CDEApprovalWorkflow" Click="Cmd_Click" ToolTip="CDE approval workflow: enforces required sign-offs before SHARED→PUBLISHED" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cross-Link" Tag="CrossSystemLink" Click="Cmd_Click" ToolTip="Link issues ↔ documents ↔ transmittals ↔ revisions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh Data" Tag="RefreshCoordinationData" Click="Cmd_Click" ToolTip="Force-refresh BIM Coordination Center data"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Stream Import" Tag="StreamingCOBieImportValidated" Click="Cmd_Click" ToolTip="Streaming COBie V2.4 import with validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="4D Handover" Tag="Schedule4DHandover" Click="Cmd_Click" ToolTip="Link 4D schedule to DD1-DD4 handover milestones"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie SYS Fix" Tag="COBieSystemGroupFix" Click="Cmd_Click" ToolTip="Fix COBie System grouping via MEP connector graph"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="DD Tracker" Tag="DataDropTracker" Click="Cmd_Click" ToolTip="Data drop progress tracking (DD1-DD4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="CDE Folders" Tag="CDEFolderStructure" Click="Cmd_Click" ToolTip="Generate ISO 19650 CDE folder hierarchy"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Forecast" Tag="ComplianceForecast" Click="Cmd_Click" ToolTip="Predict when target compliance will be reached"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -1994,8 +2620,12 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 4D" Tag="Export4DTimeline" Click="Cmd_Click"
                                             ToolTip="Export 4D timeline data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Navisworks 4D" Tag="NavisworksTimeLiner" Click="Cmd_Click"
+                                            ToolTip="Export Navisworks TimeLiner CSV/XML with trade sequence ordering"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Export 5D" Tag="Export5DCostData" Click="Cmd_Click"
                                             ToolTip="Export 5D cost data as JSON"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cost Trace" Tag="ElementCostTrace" Click="Cmd_Click"
+                                            ToolTip="Per-element 5D cost traceability with geometry-derived quantities"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Link Predecessors" Tag="LinkPredecessors" Click="Cmd_Click"
                                             ToolTip="Auto-link task predecessors in 4D schedule"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Phase Dates" Tag="AssignPhaseDates" Click="Cmd_Click"
@@ -2019,6 +2649,17 @@
                         </Border>
 
                         <!-- EXCEL LINK — BIDIRECTIONAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DATA EXPORT — BIMLINK STYLE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#E8912D">
+                            <StackPanel>
+                                <TextBlock Text="Unified export with category, parameter, family/type filtering and format choice" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
+                                            ToolTip="BIMLink-style unified export: choose categories, parameters, family/type filters, format (CSV/Excel/JSON), and location" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL LINK — BIDIRECTIONAL"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#2E7D32">
                             <StackPanel>
@@ -2032,6 +2673,8 @@
                                             ToolTip="One-click: export → edit in Excel → import on return" FontWeight="Bold"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Excel Wizard" Tag="ExcelExchangeWizard" Click="Cmd_Click"
+                                            ToolTip="Interactive wizard for Export/Import/RoundTrip with column selection and validation options" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Export Schedules" Tag="ExportSchedulesToExcel" Click="Cmd_Click"
                                             ToolTip="Export all Revit schedules to Excel (one worksheet per schedule)"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Import Schedules" Tag="ImportSchedulesFromExcel" Click="Cmd_Click"
@@ -2052,6 +2695,10 @@
                                             ToolTip="Package BIM deliverables for ACC / BIM 360" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="CDE Package" Tag="CDEPackage" Click="Cmd_Click"
                                             ToolTip="ISO 19650 CDE folder structure with discipline sub-folders"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="CDE Validate" Tag="ValidateCDEHandover" Click="Cmd_Click"
+                                            ToolTip="Pre-handover CDE validation: doc status, issues, compliance gate"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Health Score" Tag="ModelHealthScore" Click="Cmd_Click"
+                                            ToolTip="Comprehensive model health score (0-100) with recommendations"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Export" Tag="BCFExport" Click="Cmd_Click"
                                             ToolTip="Export issues as BCF 2.1 with viewpoints and element refs"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"
@@ -2115,6 +2762,15 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Rev" Tag="AutoRevisionOnTagChange" Click="Cmd_Click"
                                             ToolTip="Auto-detect tag changes and create revision when threshold exceeded"/>
                                 </WrapPanel>
+                                <TextBlock Style="{StaticResource SubLabel}" Text="ADVANCED"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Approval Workflow" Tag="RevisionApprovalWorkflow" Click="Cmd_Click"
+                                            ToolTip="Multi-stage approval: Draft → Review → Approved → Issued with tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Distribution" Tag="RevisionDistribution" Click="Cmd_Click"
+                                            ToolTip="Track revision distribution: who received, when, acknowledgement"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Comparison" Tag="RevisionComparisonReport" Click="Cmd_Click"
+                                            ToolTip="Side-by-side parameter changes between revisions with diff highlighting"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -2131,6 +2787,8 @@
                                             ToolTip="Professional Bill of Quantities export (XLSX)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Excel Import" Tag="ExcelImport" Click="Cmd_Click"
                                             ToolTip="Import BOQ data from Excel back into Revit"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Excel Link" Tag="ExcelLinkExport" Click="Cmd_Click"
+                                            ToolTip="BIMLink-style category/property picker export to Excel"/>
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click"
@@ -2139,6 +2797,128 @@
                                             ToolTip="Generate keynote table from STING tag codes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Validate" Tag="ValidateTemplate" Click="Cmd_Click"
                                             ToolTip="45-check BIM template validation"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- QUALITY ASSURANCE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUALITY ASSURANCE"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Model health, warnings, rules, QA reports" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="QA Report" Tag="QAReport" Click="Cmd_Click"
+                                            ToolTip="Unified QA report: health + warnings + setup + rules"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Health Scan" Tag="ModelHealthScan" Click="Cmd_Click"
+                                            ToolTip="12-metric weighted model health score"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Warnings" Tag="WarningReview" Click="Cmd_Click"
+                                            ToolTip="Review and categorise Revit warnings by severity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Custom Rules" Tag="RunCustomRules" Click="Cmd_Click"
+                                            ToolTip="Run custom validation rules from QA_RULES.json"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Setup Check" Tag="SetupValidation" Click="Cmd_Click"
+                                            ToolTip="Validate project setup against BEP requirements"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WORKSET and LINK AUDIT -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="WORKSET and LINK AUDIT"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Workset compliance and linked model management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Workset Audit" Tag="WorksetAudit" Click="Cmd_Click"
+                                            ToolTip="Audit workset organisation and element assignment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Worksets" Tag="CreateStandardWorksets" Click="Cmd_Click"
+                                            ToolTip="Create standard STING discipline worksets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Audit" Tag="LinkAudit" Click="Cmd_Click"
+                                            ToolTip="Audit linked models: status, naming, paths"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Link Stats" Tag="LinkStats" Click="Cmd_Click"
+                                            ToolTip="Element statistics from linked models"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SPATIAL VALIDATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="SPATIAL VALIDATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Room, grid, and level integrity checks" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="SpatialValidation" Click="Cmd_Click"
+                                            ToolTip="Validate rooms: enclosure, naming, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Audit" Tag="GridAudit" Click="Cmd_Click"
+                                            ToolTip="Grid naming consistency and organisation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Level Audit" Tag="LevelAudit" Click="Cmd_Click"
+                                            ToolTip="Level naming, spacing, and consistency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Family Audit" Tag="FamilyAudit" Click="Cmd_Click"
+                                            ToolTip="Loaded families: unused, in-place, duplicates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="View/Sheet" Tag="ViewSheetCompleteness" Click="Cmd_Click"
+                                            ToolTip="View and sheet completeness audit"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CARBON and CHANGE TRACKING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CARBON and CHANGE TRACKING"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Embodied carbon, snapshots, print management" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Carbon Calc" Tag="CarbonCalculator" Click="Cmd_Click"
+                                            ToolTip="Whole-life embodied carbon calculator"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CSV" Tag="CarbonExport" Click="Cmd_Click"
+                                            ToolTip="Export carbon breakdown to CSV"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Take Snapshot" Tag="TakeSnapshot" Click="Cmd_Click"
+                                            ToolTip="Snapshot current STING parameter values"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="CompareSnapshot" Click="Cmd_Click"
+                                            ToolTip="Compare current model against a snapshot"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Batch PDF" Tag="BatchPDFExport" Click="Cmd_Click"
+                                            ToolTip="Batch PDF export with ISO naming"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet Sets" Tag="SheetSetSummary" Click="Cmd_Click"
+                                            ToolTip="Sheet set summary by discipline"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LAN COLLABORATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LAN COLLABORATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
+                            <StackPanel>
+                                <TextBlock Text="Worksharing, sync, backup, team coordination" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Enable WS" Tag="LANEnableWorksharing" Click="Cmd_Click"
+                                            ToolTip="Enable worksharing and create standard worksets"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Sync" Tag="LANSyncToCentral" Click="Cmd_Click"
+                                            ToolTip="Sync to central with conflict detection"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Backup" Tag="LANBackup" Click="Cmd_Click"
+                                            ToolTip="Create model backup"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Team" Tag="LANTeamDashboard" Click="Cmd_Click"
+                                            ToolTip="View team roster and activity"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Change Log" Tag="LANChangeLog" Click="Cmd_Click"
+                                            ToolTip="View change log history"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Sync" Tag="LANAutoSyncToggle" Click="Cmd_Click"
+                                            ToolTip="Toggle auto-sync timer"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ── COORDINATION CENTER ── -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="4" Padding="8,6" Margin="0,0,0,6">
+                            <StackPanel>
+                                <TextBlock Text="COORDINATION CENTER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource HeaderFg}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Live coordination, notifications, access control, dashboards" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="★ Coord Center" Tag="CoordinationCenter" Click="Cmd_Click"
+                                            ToolTip="Open the full Coordination Center — notifications, file monitor, access control, dashboards"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Dashboard" Tag="GenerateDashboard" Click="Cmd_Click"
+                                            ToolTip="Generate self-contained HTML dashboard for stakeholders (phone/tablet/desktop)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="File Monitor" Tag="ToggleFileMonitor" Click="Cmd_Click"
+                                            ToolTip="Start/stop live file monitoring with push notifications"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Broadcast" Tag="BroadcastNotification" Click="Cmd_Click"
+                                            ToolTip="Send a broadcast notification to all team channels"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Access" Tag="AccessControl" Click="Cmd_Click"
+                                            ToolTip="Manage user roles, company access, and discipline filters"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2969,7 +3749,7 @@
         </TabControl>
 
         <!-- Bottom bar -->
-        <Border Grid.Row="2" Background="#F5F5F5" Padding="4,3" BorderBrush="#DDD" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBg}" Padding="4,3" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -2981,7 +3761,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="ft:" FontSize="9" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                <TextBlock Text="ft:" FontSize="9" Foreground="{DynamicResource PanelFg}" VerticalAlignment="Center" Margin="0,0,2,0"/>
                 <ComboBox Grid.Column="1" x:Name="cmbNudgeDist" Width="50" FontSize="9" Height="20">
                     <ComboBoxItem Content="0.25" IsSelected="True"/>
                     <ComboBoxItem Content="0.125"/>
@@ -2990,7 +3770,7 @@
                     <ComboBoxItem Content="2.0"/>
                 </ComboBox>
                 <Slider Grid.Column="2" x:Name="sldNudgeDist" Minimum="0.01" Maximum="2.0" Value="0.25" Width="60" VerticalAlignment="Center" Margin="4,0"/>
-                <TextBlock Grid.Column="3" Text="Always on top: ON" FontSize="9" Foreground="#888" VerticalAlignment="Center" Margin="4,0"/>
+                <TextBlock Grid.Column="3" Text="Always on top: ON" FontSize="9" Foreground="{DynamicResource PanelFg}" Opacity="0.6" VerticalAlignment="Center" Margin="4,0"/>
                 <Ellipse Grid.Column="4" Width="10" Height="10" Fill="#F44336" Margin="4,0" VerticalAlignment="Center"/>
                 <Button Grid.Column="5" Content="[Del]" FontSize="9" Width="30" Height="20" Margin="2,0" Tag="DeleteSelected" Click="Cmd_Click"/>
                 <Button Grid.Column="6" Content="?" FontSize="9" Width="20" Height="20" Margin="2,0" Tag="ShowHelp" Click="Cmd_Click"/>

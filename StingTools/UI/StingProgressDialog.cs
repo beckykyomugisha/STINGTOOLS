@@ -5,13 +5,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
     /// <summary>
     /// ENH-001: Reusable modeless WPF progress window for batch operations.
     /// Shows progress bar, element count, estimated time remaining, and cancel button.
-    /// Thread-safe updates via Dispatcher. Uses Win32 GetAsyncKeyState for Escape key.
+    /// Thread-safe updates via Dispatcher. Uses EscapeChecker for Escape key detection.
     ///
     /// Usage:
     ///   var progress = StingProgressDialog.Show("Batch Tag", totalElements);
@@ -35,17 +36,13 @@ namespace StingTools.UI
         private int _current;
         private volatile bool _cancelled;
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-        private const int VK_ESCAPE = 0x1B;
-
         /// <summary>True if user clicked Cancel or pressed Escape.</summary>
         public bool IsCancelled
         {
             get
             {
-                // Check Escape key (Win32 — works even when Revit has focus)
-                if (!_cancelled && (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0)
+                // Delegate to centralized EscapeChecker (platform-safe, consistent bitmask)
+                if (!_cancelled && EscapeChecker.IsEscapePressed())
                     _cancelled = true;
                 return _cancelled;
             }
@@ -59,7 +56,9 @@ namespace StingTools.UI
             _total = Math.Max(total, 1);
             _current = 0;
             _cancelled = false;
-            _stopwatch = Stopwatch.StartNew();
+            // UX-01: Always create a fresh stopwatch so ETA doesn't carry over
+            _stopwatch = new Stopwatch();
+            _stopwatch.Start();
 
             // Build WPF window programmatically (no XAML needed)
             _progressBar = new ProgressBar
@@ -138,7 +137,7 @@ namespace StingTools.UI
                     helper.Owner = revitProcess.MainWindowHandle;
                 }
             }
-            catch { /* Non-critical — dialog still works without owner */ }
+            catch (Exception ex) { StingLog.Warn($"Non-critical — dialog still works without owner: {ex.Message}"); }
         }
 
         /// <summary>
@@ -194,10 +193,10 @@ namespace StingTools.UI
                                     _etaText.Text = $"~{etaSeconds / 60:F1}min remaining ({rate:F0} elem/s)";
                             }
                         }
-                        catch { /* Window may have been closed */ }
+                        catch (Exception ex) { StingLog.Warn($"Window may have been closed: {ex.Message}"); }
                     }));
                 }
-                catch { /* Dispatcher may be shut down */ }
+                catch (Exception ex) { StingLog.Warn($"Dispatcher may be shut down: {ex.Message}"); }
             }
         }
 
@@ -212,10 +211,10 @@ namespace StingTools.UI
                 // CRASH FIX: Use BeginInvoke to avoid deadlock on close
                 _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    try { _window.Close(); } catch { }
+                    try { _window.Close(); } catch (Exception ex) { StingLog.Warn($"Progress window close failed: {ex.Message}"); }
                 }));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Progress dialog dispose failed: {ex.Message}"); }
         }
 
         /// <summary>
@@ -229,10 +228,10 @@ namespace StingTools.UI
                 string msg = statusMessage ?? "";
                 _window.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    try { _statusText.Text = msg; } catch { }
+                    try { _statusText.Text = msg; } catch (Exception ex) { StingLog.Warn($"Status text update failed: {ex.Message}"); }
                 }));
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Progress status dispatch failed: {ex.Message}"); }
         }
     }
 }

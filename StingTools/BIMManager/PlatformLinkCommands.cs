@@ -4,6 +4,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Globalization;
+using System.Diagnostics;
 using System.Xml.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -11,6 +13,8 @@ using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Select;
+using StingTools.UI;
 
 namespace StingTools.BIMManager
 {
@@ -284,13 +288,34 @@ namespace StingTools.BIMManager
             return markup;
         }
 
-        // ── Create BCF viewpoint.bcfv XML (minimal) ──
-        internal static XDocument CreateBcfViewpoint(string guid)
+        // ── Create BCF viewpoint.bcfv XML with camera data ──
+        internal static XDocument CreateBcfViewpoint(string guid,
+            XYZ cameraPos = null, XYZ cameraDir = null, XYZ cameraUp = null, double viewSize = 50.0)
         {
+            // Default camera: top-down orthogonal if no position supplied
+            if (cameraPos == null) cameraPos = new XYZ(0, 0, 30);
+            if (cameraDir == null) cameraDir = new XYZ(0, 0, -1);
+            if (cameraUp == null) cameraUp = new XYZ(0, 1, 0);
+
             return new XDocument(
                 new XDeclaration("1.0", "utf-8", null),
                 new XElement("VisualizationInfo",
                     new XAttribute("Guid", guid),
+                    new XElement("OrthogonalCamera",
+                        new XElement("CameraViewPoint",
+                            new XElement("X", cameraPos.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraPos.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraPos.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("CameraDirection",
+                            new XElement("X", cameraDir.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraDir.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraDir.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("CameraUpVector",
+                            new XElement("X", cameraUp.X.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Y", cameraUp.Y.ToString("F6", CultureInfo.InvariantCulture)),
+                            new XElement("Z", cameraUp.Z.ToString("F6", CultureInfo.InvariantCulture))),
+                        new XElement("ViewToWorldScale", viewSize.ToString("F6", CultureInfo.InvariantCulture))
+                    ),
                     new XElement("Components",
                         new XElement("Selection"),
                         new XElement("Visibility",
@@ -339,7 +364,7 @@ namespace StingTools.BIMManager
         }
 
         // ── Parse BCF issue back to STING JObject ──
-        internal static JObject ParseBcfTopicToIssue(XDocument markup, string existingNextId)
+        internal static JObject ParseBcfTopicToIssue(XDocument markup, string existingNextId, Document doc = null)
         {
             var topic = markup.Root?.Element("Topic");
             if (topic == null) return null;
@@ -387,7 +412,7 @@ namespace StingTools.BIMManager
                 ["response"] = "",
                 ["element_ids"] = new JArray(),
                 ["view_name"] = "",
-                ["revision"] = "P01",
+                ["revision"] = doc != null ? (PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01") : "P01",
                 ["bcf_guid"] = bcfGuid,
                 ["import_source"] = "BCF 2.1",
                 ["comments"] = new JArray()
@@ -444,7 +469,7 @@ namespace StingTools.BIMManager
             {
                 string relPath = d.FilePath;
                 try { relPath = Path.GetRelativePath(packageDir, d.FilePath); }
-                catch { relPath = Path.GetFileName(d.FilePath); }
+                catch (Exception rpEx) { StingLog.Warn($"GetRelativePath failed: {rpEx.Message}"); relPath = Path.GetFileName(d.FilePath); }
 
                 files.Add(new JObject
                 {
@@ -691,6 +716,7 @@ namespace StingTools.BIMManager
         public string FilePath { get; }
         public string Description { get; }
         public string DocType { get; }
+        public string Category { get; set; }
         public string Suitability { get; set; }
         public string CDEState { get; set; }
 
@@ -699,6 +725,7 @@ namespace StingTools.BIMManager
             FilePath = filePath;
             Description = description;
             DocType = docType;
+            Category = docType; // default Category to DocType
             Suitability = suitability;
             CDEState = cdeState;
         }
@@ -966,31 +993,39 @@ namespace StingTools.BIMManager
 
                 StingLog.Info($"PlatformLink: CDE package complete — {copied} files in {packageDir}");
 
-                var sb = new StringBuilder();
-                sb.AppendLine($"Deliverables packaged: {deliverables.Count}");
-                sb.AppendLine($"Files copied: {copied}");
-                sb.AppendLine($"Package: {Path.GetFileName(packageDir)}");
-                if (namingIssues.Count > 0)
+                // Show CDE package result in corporate WPF DataGrid dialog
+                var resultRows = deliverables.Select(d => new
                 {
-                    sb.AppendLine();
-                    sb.AppendLine($"ISO 19650 naming warnings ({namingIssues.Count}):");
-                    foreach (string issue in namingIssues.Take(10))
-                        sb.AppendLine(issue);
-                    if (namingIssues.Count > 10)
-                        sb.AppendLine($"  ... and {namingIssues.Count - 10} more");
-                }
-                sb.AppendLine();
-                sb.AppendLine("Contents:");
-                sb.AppendLine("  - manifest.json (deliverable index with SHA-256 hashes)");
-                sb.AppendLine("  - model_reference.json (Revit model metadata)");
-                if (File.Exists(bepPath)) sb.AppendLine("  - bep.json (BIM Execution Plan)");
-                if (compScan != null) sb.AppendLine("  - compliance_summary.json (tag compliance)");
-                sb.AppendLine($"  - {copied} deliverable files");
+                    FileName = Path.GetFileName(d.FilePath),
+                    Category = d.Category ?? "—",
+                    Status = File.Exists(d.FilePath) ? "Packaged" : "Missing",
+                    NamingOk = PlatformLinkEngine.ValidateISO19650FileName(Path.GetFileName(d.FilePath), out _) ? "OK" : "Warning",
+                    Size = File.Exists(d.FilePath) ? $"{new FileInfo(d.FilePath).Length / 1024.0:F0} KB" : "—"
+                }).ToList();
 
-                var resultDlg = new TaskDialog("STING CDE Package — Complete");
-                resultDlg.MainInstruction = "CDE deliverable package created";
-                resultDlg.MainContent = sb.ToString();
-                resultDlg.Show();
+                string statusLine = $"{copied} files packaged | {namingIssues.Count} naming warnings | {Path.GetFileName(packageDir)}";
+                var resDlg = new UI.StingDataGridDialog("STING CDE Package — Complete", statusLine, 900, 480);
+                resDlg.AddTextColumn("File Name", "FileName");
+                resDlg.AddTextColumn("Category", "Category", 100);
+                resDlg.AddTextColumn("Status", "Status", 80);
+                resDlg.AddTextColumn("ISO 19650", "NamingOk", 80);
+                resDlg.AddTextColumn("Size", "Size", 80);
+
+                resDlg.AddActionButton("Open Folder", "OpenFolder");
+                resDlg.AddActionButton("Close", "Cancel");
+
+                resDlg.ActionClicked += action =>
+                {
+                    if (action == "OpenFolder")
+                    {
+                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true }); }
+                        catch (Exception ex) { StingLog.Warn($"Open folder: {ex.Message}"); }
+                    }
+                };
+
+                resDlg.SetItems(resultRows);
+                resDlg.SetStatus(statusLine);
+                resDlg.ShowDialog();
 
                 return Result.Succeeded;
             }
@@ -1116,7 +1151,7 @@ namespace StingTools.BIMManager
                 {
                     // Clean up temp directory
                     try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
-                    catch { /* best-effort cleanup */ }
+                    catch (Exception cleanEx) { StingLog.Warn($"BCF temp cleanup: {cleanEx.Message}"); }
                 }
 
                 // Auto-register
@@ -1196,7 +1231,7 @@ namespace StingTools.BIMManager
                     return Result.Cancelled;
                 }
 
-                // If multiple BCF files, let user choose
+                // If multiple BCF files, let user choose via searchable list
                 string selectedBcf;
                 if (bcfFiles.Count == 1)
                 {
@@ -1204,36 +1239,15 @@ namespace StingTools.BIMManager
                 }
                 else
                 {
-                    var chooseDlg = new TaskDialog("STING BCF Import — Select File");
-                    chooseDlg.MainInstruction = $"Found {bcfFiles.Count} BCF files. Select one:";
-                    var sb = new StringBuilder();
-                    for (int i = 0; i < Math.Min(bcfFiles.Count, 4); i++)
+                    var bcfLabels = bcfFiles.Select(f =>
                     {
-                        var fi = new FileInfo(bcfFiles[i]);
-                        sb.AppendLine($"{i + 1}. {fi.Name} ({fi.Length / 1024.0:F0} KB, {fi.LastWriteTime:yyyy-MM-dd HH:mm})");
-                    }
-                    chooseDlg.MainContent = sb.ToString();
-                    chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                        $"Import: {Path.GetFileName(bcfFiles[0])}");
-                    if (bcfFiles.Count > 1)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                            $"Import: {Path.GetFileName(bcfFiles[1])}");
-                    if (bcfFiles.Count > 2)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                            $"Import: {Path.GetFileName(bcfFiles[2])}");
-                    if (bcfFiles.Count > 3)
-                        chooseDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                            $"Import: {Path.GetFileName(bcfFiles[3])}");
-
-                    var choice = chooseDlg.Show();
-                    int idx = choice switch
-                    {
-                        TaskDialogResult.CommandLink1 => 0,
-                        TaskDialogResult.CommandLink2 => 1,
-                        TaskDialogResult.CommandLink3 => 2,
-                        TaskDialogResult.CommandLink4 => 3,
-                        _ => -1
-                    };
+                        var fi = new FileInfo(f);
+                        return $"{fi.Name} ({fi.Length / 1024.0:F0} KB, {fi.LastWriteTime:yyyy-MM-dd HH:mm})";
+                    }).ToList();
+                    string pick = StingListPicker.Show("BCF Import — Select File",
+                        $"Found {bcfFiles.Count} BCF files. Select one to import:", bcfLabels);
+                    if (pick == null) return Result.Cancelled;
+                    int idx = bcfLabels.IndexOf(pick);
                     if (idx < 0 || idx >= bcfFiles.Count) return Result.Cancelled;
                     selectedBcf = bcfFiles[idx];
                 }
@@ -1274,7 +1288,7 @@ namespace StingTools.BIMManager
                             }
 
                             string nextId = BIMManagerEngine.GetNextIssueId(existingIssues, "BCF");
-                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId);
+                            var issue = PlatformLinkEngine.ParseBcfTopicToIssue(markupDoc, nextId, doc);
                             if (issue != null)
                             {
                                 existingIssues.Add(issue);
@@ -1297,7 +1311,7 @@ namespace StingTools.BIMManager
                 finally
                 {
                     try { if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true); }
-                    catch { /* best-effort cleanup */ }
+                    catch (Exception cleanEx) { StingLog.Warn($"BCF extract cleanup: {cleanEx.Message}"); }
                 }
 
                 StingLog.Info($"PlatformLink: BCF import complete — {imported} imported, {skipped} skipped");
