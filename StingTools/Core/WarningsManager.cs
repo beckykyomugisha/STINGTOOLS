@@ -721,9 +721,11 @@ namespace StingTools.Core
                         try
                         {
                             var el = doc.GetElement(id);
-                            if (el is IndependentTag indTag && indTag.TaggedLocalElementId != ElementId.InvalidElementId)
+                            if (el is IndependentTag indTag)
                             {
-                                var room = doc.GetElement(indTag.TaggedLocalElementId);
+                                var taggedIds = indTag.GetTaggedLocalElementIds();
+                                if (taggedIds == null || taggedIds.Count == 0) continue;
+                                var room = doc.GetElement(taggedIds.First());
                                 var pt = room.get_BoundingBox(null);
                                 if (pt != null)
                                 {
