@@ -2094,7 +2094,7 @@ namespace StingTools.Model
                 linkCount = new FilteredElementCollector(doc)
                     .OfClass(typeof(RevitLinkInstance)).GetElementCount();
 
-                try { worksetCount = doc.IsWorkshared ? doc.GetWorksetTable().GetWorksets().Count : 0; }
+                try { worksetCount = doc.IsWorkshared ? new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset).ToWorksets().Count : 0; }
                 catch (Exception ex) { StingLog.Warn($"Workset count: {ex.Message}"); }
 
                 try
