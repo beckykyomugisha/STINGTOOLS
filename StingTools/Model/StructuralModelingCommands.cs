@@ -928,36 +928,57 @@ namespace StingTools.Model
 
             try
             {
-                var wizard = StructuralCADWizard.Show(doc);
-                if (!wizard.Confirmed) return Result.Cancelled;
+                var dlg = StructuralDWGDialog.Show(doc);
+                if (!dlg.Confirmed) return Result.Cancelled;
 
-                if (wizard.SelectedImport == null)
+                if (dlg.SelectedImport == null)
                 {
-                    TaskDialog.Show("STRUCT — CAD Wizard", "No DWG import selected.");
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import selected.");
                     return Result.Cancelled;
                 }
 
-                // Run the full pipeline with wizard settings + selected layers + tolerances
+                // Run pipeline with dialog settings + layer mappings + auto-detected sizes
                 var pipeline = new StructuralCADPipeline(doc);
-                pipeline.SelectedLayers = wizard.GetSelectedLayers();
-                pipeline.EndpointToleranceFt = wizard.EndpointToleranceMm * Units.MmToFeet;
+                pipeline.SelectedLayers = dlg.SelectedLayers;
+
+                // Use auto-detected beam depth if available, otherwise dialog default
+                double beamDepth = dlg.BeamDepthMm;
+                if (dlg.AutoDetectSizes && dlg.DetectedGroups.Count > 0)
+                {
+                    var beamGroup = dlg.DetectedGroups
+                        .FirstOrDefault(g => g.ElementType == "Beam");
+                    if (beamGroup != null && beamGroup.DepthMm > 0)
+                        beamDepth = beamGroup.DepthMm;
+                }
+
                 var result = pipeline.RunFullPipeline(
-                    wizard.SelectedImport,
-                    wizard.SelectedLevel,
-                    wizard.CreateColumns,
-                    wizard.CreateBeams,
-                    wizard.CreateSlabs,
-                    wizard.CreateGrids,
-                    wizard.DefaultBeamDepthMm,
-                    wizard.DefaultSlabThickMm,
-                    wizard.DefaultStoreyHeightMm);
+                    dlg.SelectedImport,
+                    dlg.BaseLevelName,
+                    dlg.CreateColumns,
+                    dlg.CreateBeams,
+                    dlg.CreateSlabs,
+                    dlg.CreateGrids,
+                    beamDepth,
+                    dlg.SlabThicknessMm,
+                    dlg.ColumnHeightMm);
+
+                // Auto-tag created elements if requested
+                if (dlg.AutoTag && result.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                        result.Summary += $" | Auto-tagged {result.CreatedIds.Count} elements";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Auto-tag after DWG: {ex.Message}"); }
+                }
 
                 var msg = result.Summary;
                 if (result.Warnings.Count > 0)
                     msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
-                        string.Join("\n", result.Warnings.Take(15).Select(w => $"• {w}"));
+                        string.Join("\n", result.Warnings.Take(15).Select(w => $"\u2022 {w}"));
 
-                TaskDialog.Show("STRUCT — CAD Wizard", msg);
+                TaskDialog.Show("STRUCT — DWG-to-BIM", msg);
 
                 if (result.CreatedIds.Count > 0)
                     uidoc.Selection.SetElementIds(result.CreatedIds);

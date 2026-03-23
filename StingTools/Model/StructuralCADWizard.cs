@@ -1,15 +1,18 @@
 // ============================================================================
-// StructuralCADWizard.cs — WPF Multi-Page Wizard for Structural CAD Automation
+// StructuralCADWizard.cs — Compact Single-Page DWG-to-Structural BIM Dialog
 //
-// Provides a comprehensive setup dialog before running the CAD-to-structural
-// pipeline. Pages:
-//   1. Prerequisites Check — shows loaded families, levels, DWG status
-//   2. DWG Selection — pick import instance, preview structural layers
-//   3. Configuration — element types to create, default sizes, level mapping
-//   4. Type Mapping — review detected elements → family type assignments
-//   5. Summary — review all settings before execution
+// Replaces the 5-page wizard with a single compact WPF dialog that shows
+// all settings at once. Features:
+//   - DWG import picker with layer analysis DataGrid
+//   - Dropdown-based layer-to-element mapping
+//   - Auto-detect column sizes from geometry (circles + rectangles)
+//   - Level configuration (base + top)
+//   - Per-element-type property groups with auto-detect option
+//   - Custom tag family picker
+//   - Construction logic options (beam/slab/column relationships)
+//   - Shape-aware type creation from detected geometry
 //
-// Built in C# (no XAML) following existing StingWizardDialog pattern.
+// Built in C# (no XAML) following existing StingTools WPF pattern.
 // ============================================================================
 
 using System;
@@ -17,145 +20,229 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
-using System.Windows.Media;
 using Color = System.Windows.Media.Color;
 using Grid = System.Windows.Controls.Grid;
 
 namespace StingTools.Model
 {
+    #region Layer Analysis Data
+
+    /// <summary>Row in the layer analysis DataGrid.</summary>
+    public class LayerRow
+    {
+        public bool Selected { get; set; }
+        public string Name { get; set; }
+        public int Entities { get; set; }
+        public int Lines { get; set; }
+        public int Arcs { get; set; }
+        public string AutoDetect { get; set; }
+        public int ConfidencePct { get; set; }
+        public string MapTo { get; set; } = "";
+
+        /// <summary>Display for layer dropdowns.</summary>
+        public override string ToString() => $"{Name} ({Entities} ent.)";
+    }
+
+    /// <summary>Detected element with auto-sized dimensions from DWG geometry.</summary>
+    public class DetectedElementGroup
+    {
+        public string ElementType { get; set; } // Column, Beam, Wall, Slab, Foundation
+        public string SizeLabel { get; set; }    // e.g. "300x300", "ø450", "200 thk"
+        public int Count { get; set; }
+        public double WidthMm { get; set; }
+        public double DepthMm { get; set; }
+        public double ThicknessMm { get; set; }
+        public bool IsCircular { get; set; }
+    }
+
+    #endregion
+
     /// <summary>
-    /// Multi-page WPF wizard for structural CAD-to-BIM automation.
-    /// Guides user through prerequisites, DWG selection, configuration,
-    /// and type mapping before executing the conversion pipeline.
+    /// Compact single-page WPF dialog for structural DWG-to-BIM conversion.
+    /// All settings visible at once — no page navigation required.
     /// </summary>
-    public class StructuralCADWizard : Window
+    public class StructuralDWGDialog : Window
     {
         // ── State ────────────────────────────────────────────────────────
         private readonly Document _doc;
         private readonly StructuralCADPipeline _pipeline;
-        private int _currentPage = 0;
-        private readonly List<FrameworkElement> _pages = new();
-
-        // User selections
         private ImportInstance _selectedImport;
-        private PrerequisiteCheckResult _prereqResult;
         private StructuralExtractionResult _extraction;
+        private readonly List<LayerRow> _layerRows = new();
+        private readonly List<DetectedElementGroup> _detectedGroups = new();
 
-        // Configuration
-        public bool CreateColumns { get; private set; } = true;
-        public bool CreateBeams { get; private set; } = true;
-        public bool CreateSlabs { get; private set; } = true;
-        public bool CreateGrids { get; private set; } = true;
-        public double DefaultBeamDepthMm { get; private set; } = 450;
-        public double DefaultSlabThickMm { get; private set; } = 200;
-        public double DefaultStoreyHeightMm { get; private set; } = 3600;
-        public string SelectedLevel { get; private set; }
+        // UI elements needing refresh
+        private ComboBox _cmbImport;
+        private DataGrid _layerGrid;
+        private ComboBox _cmbColumnLayer, _cmbBeamLayer, _cmbWallLayer;
+        private ComboBox _cmbSlabLayer, _cmbFoundationLayer, _cmbGridLayer;
+        private ComboBox _cmbBaseLevel, _cmbTopLevel;
+        private TextBlock _txtStatus, _txtDetectedSizes;
+        private CheckBox _chkAutoDetectSizes, _chkAutoTag, _chkAutoSeq;
+        private CheckBox _chkCreateColumns, _chkCreateBeams, _chkCreateWalls;
+        private CheckBox _chkCreateSlabs, _chkCreateFoundations, _chkCreateGrids;
+        private CheckBox _chkBeamsOnWalls, _chkBeamsJoinSlabs, _chkColumnsToSlabs;
+        private TextBox _tbTagPrefix, _tbColHeight, _tbBeamDepth, _tbBeamWidth;
+        private TextBox _tbWallHeight, _tbWallThick, _tbSlabThick, _tbFdnDepth;
+        private ComboBox _cmbNumberScheme, _cmbTagFamily;
+        private TextBlock _txtPreviewTags;
+        private StackPanel _detectedSizesPanel;
+
+        // ── Results ──────────────────────────────────────────────────────
         public bool Confirmed { get; private set; }
-        public double EndpointToleranceMm { get; private set; } = 5;
-        public double MinColumnSizeMm { get; private set; } = 150;
-        public double MinBeamLengthMm { get; private set; } = 500;
         public ImportInstance SelectedImport => _selectedImport;
+        public HashSet<string> SelectedLayers { get; private set; } = new();
 
-        // ── UI Elements ──────────────────────────────────────────────────
-        private ContentControl _pageHost;
-        private Button _btnBack, _btnNext, _btnFinish;
-        private TextBlock _statusText, _pageTitle;
-        private StackPanel _stepIndicator;
+        // Element creation flags
+        public bool CreateColumns => _chkCreateColumns?.IsChecked == true;
+        public bool CreateBeams => _chkCreateBeams?.IsChecked == true;
+        public bool CreateWalls => _chkCreateWalls?.IsChecked == true;
+        public bool CreateSlabs => _chkCreateSlabs?.IsChecked == true;
+        public bool CreateFoundations => _chkCreateFoundations?.IsChecked == true;
+        public bool CreateGrids => _chkCreateGrids?.IsChecked == true;
 
-        private static readonly string[] PageTitles = {
-            "Prerequisites Check",
-            "DWG Selection & Preview",
-            "Configuration",
-            "Type Mapping Review",
-            "Summary & Execute"
-        };
+        // Dimensions
+        public double ColumnHeightMm => ParseDbl(_tbColHeight, 3000);
+        public double BeamDepthMm => ParseDbl(_tbBeamDepth, 450);
+        public double BeamWidthMm => ParseDbl(_tbBeamWidth, 250);
+        public double WallHeightMm => ParseDbl(_tbWallHeight, 3000);
+        public double WallThicknessMm => ParseDbl(_tbWallThick, 200);
+        public double SlabThicknessMm => ParseDbl(_tbSlabThick, 200);
+        public double FoundationDepthMm => ParseDbl(_tbFdnDepth, 600);
+        public bool AutoDetectSizes => _chkAutoDetectSizes?.IsChecked == true;
+        public bool AutoTag => _chkAutoTag?.IsChecked == true;
+        public bool AutoSequence => _chkAutoSeq?.IsChecked == true;
+        public string TagPrefix => _tbTagPrefix?.Text ?? "";
+        public string BaseLevelName => _cmbBaseLevel?.SelectedItem?.ToString();
+        public string TopLevelName => _cmbTopLevel?.SelectedItem?.ToString();
+        public string NumberingScheme => _cmbNumberScheme?.SelectedItem?.ToString() ?? "By Level";
+        public string SelectedTagFamily => _cmbTagFamily?.SelectedItem?.ToString();
+
+        // Construction logic
+        public bool BeamsOnWalls => _chkBeamsOnWalls?.IsChecked == true;
+        public bool BeamsJoinSlabs => _chkBeamsJoinSlabs?.IsChecked == true;
+        public bool ColumnsToSlabs => _chkColumnsToSlabs?.IsChecked == true;
+
+        // Layer mappings
+        public string ColumnLayerName => GetLayerFromCombo(_cmbColumnLayer);
+        public string BeamLayerName => GetLayerFromCombo(_cmbBeamLayer);
+        public string WallLayerName => GetLayerFromCombo(_cmbWallLayer);
+        public string SlabLayerName => GetLayerFromCombo(_cmbSlabLayer);
+        public string FoundationLayerName => GetLayerFromCombo(_cmbFoundationLayer);
+        public string GridLayerName => GetLayerFromCombo(_cmbGridLayer);
+
+        public List<DetectedElementGroup> DetectedGroups => _detectedGroups;
+
+        // ── Theme colors ─────────────────────────────────────────────────
+        private static readonly SolidColorBrush HeaderBg = new(Color.FromRgb(0x1A, 0x23, 0x7E));
+        private static readonly SolidColorBrush AccentBrush = new(Color.FromRgb(0xE8, 0x91, 0x2D));
+        private static readonly SolidColorBrush SectionBg = new(Color.FromRgb(0xF8, 0xF8, 0xFC));
+        private static readonly SolidColorBrush BorderClr = new(Color.FromRgb(0xD0, 0xD0, 0xD8));
+        private static readonly SolidColorBrush LabelFg = new(Color.FromRgb(0x33, 0x33, 0x44));
 
         // ── Constructor ──────────────────────────────────────────────────
-
-        public StructuralCADWizard(Document doc)
+        public StructuralDWGDialog(Document doc)
         {
             _doc = doc ?? throw new ArgumentNullException(nameof(doc));
             _pipeline = new StructuralCADPipeline(doc);
-            _prereqResult = _pipeline.CheckPrerequisites();
 
-            Title = "STING Structural CAD Automation Wizard";
-            Width = 820;
-            Height = 620;
+            Title = "STING Structural DWG-to-BIM";
+            Width = 920; Height = 740;
+            MinWidth = 800; MinHeight = 600;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
-            Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5));
+            Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xFA));
 
             BuildLayout();
-            BuildPages();
-            ShowPage(0);
+            LoadImports();
+            LoadLevels();
+            LoadTagFamilies();
         }
 
-        // ── Layout ───────────────────────────────────────────────────────
-
+        // ── Main Layout ──────────────────────────────────────────────────
         private void BuildLayout()
         {
             var root = new Grid();
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(60) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(50) });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(52) });   // header
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // content
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(48) });   // footer
 
-            // ── Header with step indicator ──
-            var header = new Border
+            // ── Header ──
+            var header = new Border { Background = HeaderBg, Padding = new Thickness(16, 8, 16, 8) };
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.Children.Add(new TextBlock
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28)),
-                Padding = new Thickness(16, 8, 16, 8),
-            };
-            var headerStack = new StackPanel();
-            _pageTitle = new TextBlock
+                Text = "Structural DWG-to-BIM Conversion",
+                FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            _txtStatus = new TextBlock
             {
-                FontSize = 16, FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Text = "Select a DWG import and analyze layers",
+                Foreground = AccentBrush, FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            _stepIndicator = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-            headerStack.Children.Add(_pageTitle);
-            headerStack.Children.Add(_stepIndicator);
-            header.Child = headerStack;
+            Grid.SetColumn(_txtStatus, 1);
+            headerGrid.Children.Add(_txtStatus);
+            header.Child = headerGrid;
             Grid.SetRow(header, 0);
             root.Children.Add(header);
 
-            // ── Page host ──
-            _pageHost = new ContentControl { Margin = new Thickness(16) };
-            Grid.SetRow(_pageHost, 1);
-            root.Children.Add(_pageHost);
+            // ── Scrollable content ──
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Padding = new Thickness(12, 8, 12, 8)
+            };
+            var mainStack = new StackPanel();
 
-            // ── Footer with navigation ──
+            // Section 1: DWG Import + Layer Analysis
+            mainStack.Children.Add(BuildDWGSection());
+            // Section 2: Layer-to-Element Mapping
+            mainStack.Children.Add(BuildMappingSection());
+            // Section 3: Level Configuration + Element Properties (side by side)
+            mainStack.Children.Add(BuildPropertiesSection());
+            // Section 4: Construction Logic + Tagging
+            mainStack.Children.Add(BuildTaggingSection());
+
+            scroll.Content = mainStack;
+            Grid.SetRow(scroll, 1);
+            root.Children.Add(scroll);
+
+            // ── Footer ──
             var footer = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xEE)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Padding = new Thickness(16, 8, 16, 8),
+                Background = new SolidColorBrush(Color.FromRgb(0xEE, 0xEE, 0xF2)),
+                BorderBrush = BorderClr, BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(12, 6, 12, 6)
             };
             var footerGrid = new Grid();
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _statusText = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gray };
-            Grid.SetColumn(_statusText, 0);
-            footerGrid.Children.Add(_statusText);
+            var footerInfo = new TextBlock
+            {
+                FontSize = 10, Foreground = Brushes.Gray,
+                VerticalAlignment = VerticalAlignment.Center,
+                Text = "Select DWG import → Analyze → Map layers → Convert"
+            };
+            footerGrid.Children.Add(footerInfo);
 
             var btnPanel = new StackPanel { Orientation = Orientation.Horizontal };
-            _btnBack = MakeButton("← Back", OnBack);
-            _btnNext = MakeButton("Next →", OnNext);
-            _btnFinish = MakeButton("★ Execute", OnFinish);
-            _btnFinish.Background = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
-            _btnFinish.Foreground = Brushes.White;
-
-            var btnCancel = MakeButton("Cancel", (s, e) => { Confirmed = false; Close(); });
-            btnPanel.Children.Add(_btnBack);
-            btnPanel.Children.Add(_btnNext);
-            btnPanel.Children.Add(_btnFinish);
+            var btnExecute = MakeBtn("Convert to BIM", OnExecute, AccentBrush, Brushes.White, true);
+            btnExecute.MinWidth = 140;
+            var btnCancel = MakeBtn("Cancel", (s, e) => { Confirmed = false; Close(); });
+            btnPanel.Children.Add(btnExecute);
             btnPanel.Children.Add(btnCancel);
             Grid.SetColumn(btnPanel, 1);
             footerGrid.Children.Add(btnPanel);
-
             footer.Child = footerGrid;
             Grid.SetRow(footer, 2);
             root.Children.Add(footer);
@@ -163,585 +250,1118 @@ namespace StingTools.Model
             Content = root;
         }
 
-        private Button MakeButton(string text, RoutedEventHandler handler)
+        // ══════════════════════════════════════════════════════════════════
+        // SECTION 1: DWG Import + Layer Analysis
+        // ══════════════════════════════════════════════════════════════════
+
+        private FrameworkElement BuildDWGSection()
+        {
+            var section = MakeSection("DWG IMPORT & LAYER ANALYSIS");
+            var stack = new StackPanel { Margin = new Thickness(8) };
+
+            // Row: Import picker + Analyze button
+            var row1 = new Grid();
+            row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+            row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            row1.Children.Add(MakeLbl("DWG Import:", 0));
+            _cmbImport = new ComboBox { Margin = new Thickness(4, 2, 4, 2), FontSize = 11 };
+            _cmbImport.SelectionChanged += OnImportChanged;
+            Grid.SetColumn(_cmbImport, 1);
+            row1.Children.Add(_cmbImport);
+
+            var btnAnalyze = MakeBtn("Analyze Layers", OnAnalyze, AccentBrush, Brushes.White, true);
+            Grid.SetColumn(btnAnalyze, 2);
+            row1.Children.Add(btnAnalyze);
+            stack.Children.Add(row1);
+
+            // Quick filter buttons
+            var filterRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 4, 0, 2)
+            };
+            filterRow.Children.Add(MakeSmallBtn("Select All", OnSelectAll));
+            filterRow.Children.Add(MakeSmallBtn("Select None", OnSelectNone));
+            filterRow.Children.Add(MakeSmallBtn("Structural Only", OnSelectStructural, AccentBrush));
+            filterRow.Children.Add(MakeSmallBtn("Auto-Map Layers", OnAutoMap, new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32))));
+            stack.Children.Add(filterRow);
+
+            // Layer analysis DataGrid
+            _layerGrid = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = false,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                MaxHeight = 180,
+                MinHeight = 100,
+                FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 0),
+                BorderBrush = BorderClr,
+                BorderThickness = new Thickness(1),
+                SelectionMode = DataGridSelectionMode.Single,
+                RowHeight = 22,
+            };
+
+            // Columns
+            var selCol = new DataGridCheckBoxColumn
+            {
+                Header = "", Binding = new Binding("Selected") { Mode = BindingMode.TwoWay },
+                Width = 28
+            };
+            _layerGrid.Columns.Add(selCol);
+            _layerGrid.Columns.Add(MakeTextCol("Layer Name", "Name", 150));
+            _layerGrid.Columns.Add(MakeTextCol("Entities", "Entities", 55));
+            _layerGrid.Columns.Add(MakeTextCol("Lines", "Lines", 50));
+            _layerGrid.Columns.Add(MakeTextCol("Arcs", "Arcs", 45));
+            _layerGrid.Columns.Add(MakeTextCol("Auto-Detect", "AutoDetect", 90));
+            _layerGrid.Columns.Add(MakeTextCol("Conf.", "ConfidencePct", 45));
+
+            // MapTo dropdown column
+            var mapCol = new DataGridComboBoxColumn
+            {
+                Header = "Map To",
+                Width = 100,
+                SelectedItemBinding = new Binding("MapTo") { Mode = BindingMode.TwoWay },
+                ItemsSource = new[] { "", "Column", "Beam", "Wall", "Slab", "Foundation", "Grid" }
+            };
+            _layerGrid.Columns.Add(mapCol);
+
+            _layerGrid.ItemsSource = _layerRows;
+            stack.Children.Add(_layerGrid);
+
+            // Detected sizes display
+            _detectedSizesPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+            _txtDetectedSizes = new TextBlock
+            {
+                FontSize = 10, Foreground = Brushes.Gray,
+                Text = "Analyze DWG to detect element sizes"
+            };
+            _detectedSizesPanel.Children.Add(_txtDetectedSizes);
+            stack.Children.Add(_detectedSizesPanel);
+
+            section.Child = stack;
+            return section;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // SECTION 2: Layer-to-Element Mapping (dropdowns)
+        // ══════════════════════════════════════════════════════════════════
+
+        private FrameworkElement BuildMappingSection()
+        {
+            var section = MakeSection("ELEMENT-LAYER MAPPING");
+            var grid = new Grid { Margin = new Thickness(8) };
+
+            // 3 columns of 2 element types each
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) }); // spacer
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) }); // spacer
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.RowDefinitions.Add(new RowDefinition());
+            grid.RowDefinitions.Add(new RowDefinition());
+
+            _cmbColumnLayer = MakeLayerCombo();
+            _cmbBeamLayer = MakeLayerCombo();
+            _cmbWallLayer = MakeLayerCombo();
+            _cmbSlabLayer = MakeLayerCombo();
+            _cmbFoundationLayer = MakeLayerCombo();
+            _cmbGridLayer = MakeLayerCombo();
+
+            var col = MakeMapRow("Column Layer:", _cmbColumnLayer,
+                out _chkCreateColumns, "Circles/rectangles → columns");
+            Grid.SetRow(col, 0); Grid.SetColumn(col, 0);
+            grid.Children.Add(col);
+
+            var beam = MakeMapRow("Beam Layer:", _cmbBeamLayer,
+                out _chkCreateBeams, "Lines between columns → beams");
+            Grid.SetRow(beam, 0); Grid.SetColumn(beam, 2);
+            grid.Children.Add(beam);
+
+            var wall = MakeMapRow("Wall Layer:", _cmbWallLayer,
+                out _chkCreateWalls, "Parallel line pairs → walls");
+            Grid.SetRow(wall, 0); Grid.SetColumn(wall, 4);
+            grid.Children.Add(wall);
+
+            var slab = MakeMapRow("Slab Layer:", _cmbSlabLayer,
+                out _chkCreateSlabs, "Closed loops → floor slabs");
+            Grid.SetRow(slab, 1); Grid.SetColumn(slab, 0);
+            grid.Children.Add(slab);
+
+            var fdn = MakeMapRow("Foundation:", _cmbFoundationLayer,
+                out _chkCreateFoundations, "Footings below columns");
+            Grid.SetRow(fdn, 1); Grid.SetColumn(fdn, 2);
+            grid.Children.Add(fdn);
+
+            var grd = MakeMapRow("Grid Layer:", _cmbGridLayer,
+                out _chkCreateGrids, "Long axis-aligned lines → grids");
+            Grid.SetRow(grd, 1); Grid.SetColumn(grd, 4);
+            grid.Children.Add(grd);
+
+            section.Child = grid;
+            return section;
+        }
+
+        private StackPanel MakeMapRow(string label, ComboBox combo,
+            out CheckBox chk, string tooltip)
+        {
+            var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 6) };
+            chk = new CheckBox
+            {
+                Content = label, IsChecked = true,
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = LabelFg, ToolTip = tooltip,
+                Margin = new Thickness(0, 0, 0, 2)
+            };
+            panel.Children.Add(chk);
+            panel.Children.Add(combo);
+            return panel;
+        }
+
+        private ComboBox MakeLayerCombo()
+        {
+            return new ComboBox
+            {
+                FontSize = 10, Height = 24,
+                Margin = new Thickness(0, 0, 0, 0),
+                IsEditable = true // allow typing to filter
+            };
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // SECTION 3: Level Config + Element Properties
+        // ══════════════════════════════════════════════════════════════════
+
+        private FrameworkElement BuildPropertiesSection()
+        {
+            var section = MakeSection("LEVELS & ELEMENT PROPERTIES");
+            var outerGrid = new Grid { Margin = new Thickness(8) };
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Left: Level config
+            var levelPanel = new StackPanel();
+            levelPanel.Children.Add(MakeSectionLabel("LEVEL CONFIGURATION"));
+            levelPanel.Children.Add(MakeFieldRow("Base Level:", out _cmbBaseLevel));
+            levelPanel.Children.Add(MakeFieldRow("Top Level:", out _cmbTopLevel));
+
+            _chkAutoDetectSizes = new CheckBox
+            {
+                Content = "Auto-detect sizes from geometry",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 8, 0, 4),
+                ToolTip = "Detect column dimensions from circles/rectangles.\nGroup by size to create appropriate types."
+            };
+            levelPanel.Children.Add(_chkAutoDetectSizes);
+            outerGrid.Children.Add(levelPanel);
+
+            // Right: Element properties in compact grid
+            var propsGrid = new Grid();
+            propsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            propsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+            propsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            propsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+            propsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Column props
+            _tbColHeight = new TextBox();
+            var colProps = MakePropsGroup("COLUMN", new[]
+            {
+                ("Height (mm):", "3000", _tbColHeight)
+            });
+            Grid.SetColumn(colProps, 0);
+            propsGrid.Children.Add(colProps);
+
+            // Beam props
+            _tbBeamDepth = new TextBox();
+            _tbBeamWidth = new TextBox();
+            var beamProps = MakePropsGroup("BEAM", new[]
+            {
+                ("Depth (mm):", "450", _tbBeamDepth),
+                ("Width (mm):", "250", _tbBeamWidth)
+            });
+            Grid.SetColumn(beamProps, 2);
+            propsGrid.Children.Add(beamProps);
+
+            // Wall + Slab + Foundation (stacked)
+            var rightStack = new StackPanel();
+            var wallRow = MakeMiniPropRow("Wall", "Height:", "3000", out _tbWallHeight,
+                "Thick:", "200", out _tbWallThick);
+            rightStack.Children.Add(wallRow);
+
+            var slabRow = new StackPanel { Orientation = Orientation.Horizontal };
+            slabRow.Children.Add(MakeMiniField("Slab Thick:", "200", out _tbSlabThick));
+            slabRow.Children.Add(MakeMiniField("Fdn Depth:", "600", out _tbFdnDepth));
+            rightStack.Children.Add(slabRow);
+
+            Grid.SetColumn(rightStack, 4);
+            propsGrid.Children.Add(rightStack);
+
+            Grid.SetColumn(propsGrid, 2);
+            outerGrid.Children.Add(propsGrid);
+
+            section.Child = outerGrid;
+            return section;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // SECTION 4: Construction Logic + Tagging
+        // ══════════════════════════════════════════════════════════════════
+
+        private FrameworkElement BuildTaggingSection()
+        {
+            var section = MakeSection("CONSTRUCTION LOGIC & TAGGING");
+            var outerGrid = new Grid { Margin = new Thickness(8) };
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+            outerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Left: Construction Logic
+            var logicPanel = new StackPanel();
+            logicPanel.Children.Add(MakeSectionLabel("CONSTRUCTION RELATIONSHIPS"));
+
+            _chkBeamsOnWalls = new CheckBox
+            {
+                Content = "Beams rest on top of walls",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = "Beam bottom aligns with wall top level"
+            };
+            _chkBeamsJoinSlabs = new CheckBox
+            {
+                Content = "Beams connect to slabs",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = "Beam top aligns with slab soffit"
+            };
+            _chkColumnsToSlabs = new CheckBox
+            {
+                Content = "Columns stop at slab levels",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 2),
+                ToolTip = "Column top constrained to next slab level"
+            };
+            logicPanel.Children.Add(_chkBeamsOnWalls);
+            logicPanel.Children.Add(_chkBeamsJoinSlabs);
+            logicPanel.Children.Add(_chkColumnsToSlabs);
+
+            logicPanel.Children.Add(new TextBlock
+            {
+                Text = "Construction sequence: Foundation → Column → Beam → Slab",
+                FontSize = 10, Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 6, 0, 0), FontStyle = FontStyles.Italic
+            });
+            outerGrid.Children.Add(logicPanel);
+
+            // Right: Tagging options
+            var tagPanel = new StackPanel();
+            tagPanel.Children.Add(MakeSectionLabel("STING ISO 19650 TAGGING"));
+
+            _chkAutoTag = new CheckBox
+            {
+                Content = "Auto-tag all created elements",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 4)
+            };
+            _chkAutoSeq = new CheckBox
+            {
+                Content = "Auto-assign SEQ numbers per type",
+                IsChecked = true, FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 4)
+            };
+            tagPanel.Children.Add(_chkAutoTag);
+            tagPanel.Children.Add(_chkAutoSeq);
+
+            // Tag prefix
+            var prefixRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+            prefixRow.Children.Add(new TextBlock { Text = "Tag prefix:", FontSize = 11, Width = 70, VerticalAlignment = VerticalAlignment.Center });
+            _tbTagPrefix = new TextBox { Width = 80, FontSize = 11, Height = 22 };
+            prefixRow.Children.Add(_tbTagPrefix);
+            tagPanel.Children.Add(prefixRow);
+
+            // Numbering scheme
+            var numRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+            numRow.Children.Add(new TextBlock { Text = "Numbering:", FontSize = 11, Width = 70, VerticalAlignment = VerticalAlignment.Center });
+            _cmbNumberScheme = new ComboBox { Width = 160, FontSize = 11, Height = 24 };
+            _cmbNumberScheme.Items.Add("By Level (L01-COL-0001)");
+            _cmbNumberScheme.Items.Add("By Grid (A1-COL-0001)");
+            _cmbNumberScheme.Items.Add("Sequential (COL-0001)");
+            _cmbNumberScheme.Items.Add("By Zone (Z01-COL-0001)");
+            _cmbNumberScheme.SelectedIndex = 0;
+            numRow.Children.Add(_cmbNumberScheme);
+            tagPanel.Children.Add(numRow);
+
+            // Tag family picker
+            var famRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+            famRow.Children.Add(new TextBlock { Text = "Tag family:", FontSize = 11, Width = 70, VerticalAlignment = VerticalAlignment.Center });
+            _cmbTagFamily = new ComboBox { Width = 160, FontSize = 11, Height = 24 };
+            _cmbTagFamily.Items.Add("(Default STING tags)");
+            _cmbTagFamily.SelectedIndex = 0;
+            famRow.Children.Add(_cmbTagFamily);
+            tagPanel.Children.Add(famRow);
+
+            // Tag preview
+            _txtPreviewTags = new TextBlock
+            {
+                FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)),
+                Margin = new Thickness(0, 4, 0, 0),
+                TextWrapping = TextWrapping.Wrap,
+                Text = "Column: S-BLD1-Z01-L01-STR-SUP-COL-0001\n" +
+                       "Beam:   S-BLD1-Z01-L01-STR-SUP-BM-0001"
+            };
+            tagPanel.Children.Add(_txtPreviewTags);
+
+            Grid.SetColumn(tagPanel, 2);
+            outerGrid.Children.Add(tagPanel);
+
+            section.Child = outerGrid;
+            return section;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // DATA LOADING
+        // ══════════════════════════════════════════════════════════════════
+
+        private void LoadImports()
+        {
+            var imports = CADToModelEngine.FindImportInstances(_doc);
+            foreach (var imp in imports)
+            {
+                string name = "DWG Import";
+                try { name = imp.Name ?? $"Import #{imp.Id.Value}"; }
+                catch (Exception ex) { StingLog.Warn($"Import name: {ex.Message}"); }
+                _cmbImport.Items.Add(new ComboBoxItem { Content = name, Tag = imp });
+            }
+            if (_cmbImport.Items.Count > 0) _cmbImport.SelectedIndex = 0;
+        }
+
+        private void LoadLevels()
+        {
+            var levels = new FilteredElementCollector(_doc)
+                .OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ToList();
+            foreach (var lev in levels)
+            {
+                _cmbBaseLevel.Items.Add(lev.Name);
+                _cmbTopLevel.Items.Add(lev.Name);
+            }
+            if (levels.Count > 0) _cmbBaseLevel.SelectedIndex = 0;
+            if (levels.Count > 1) _cmbTopLevel.SelectedIndex = levels.Count - 1;
+            else if (levels.Count > 0) _cmbTopLevel.SelectedIndex = 0;
+        }
+
+        private void LoadTagFamilies()
+        {
+            try
+            {
+                foreach (Family fam in new FilteredElementCollector(_doc)
+                    .OfClass(typeof(Family)).Cast<Family>())
+                {
+                    // Include annotation/tag families
+                    if (fam.FamilyCategory == null) continue;
+                    var catId = fam.FamilyCategory.Id.Value;
+                    // Tag categories in Revit
+                    bool isTag = fam.FamilyCategory.Name.Contains("Tag") ||
+                        catId == (int)BuiltInCategory.OST_StructuralColumnTags ||
+                        catId == (int)BuiltInCategory.OST_StructuralFramingTags ||
+                        catId == (int)BuiltInCategory.OST_WallTags ||
+                        catId == (int)BuiltInCategory.OST_FloorTags ||
+                        catId == (int)BuiltInCategory.OST_StructuralFoundationTags ||
+                        catId == (int)BuiltInCategory.OST_MultiCategoryTags;
+                    if (isTag)
+                        _cmbTagFamily.Items.Add(fam.Name);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadTagFamilies: {ex.Message}"); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // EVENT HANDLERS
+        // ══════════════════════════════════════════════════════════════════
+
+        private void OnImportChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_cmbImport.SelectedItem is ComboBoxItem item && item.Tag is ImportInstance imp)
+                _selectedImport = imp;
+        }
+
+        private void OnAnalyze(object sender, RoutedEventArgs e)
+        {
+            if (_selectedImport == null) { _txtStatus.Text = "No DWG import selected"; return; }
+
+            try
+            {
+                _txtStatus.Text = "Analyzing DWG layers...";
+                Mouse.OverrideCursor = Cursors.Wait;
+
+                var manifest = _pipeline.ExtractLayerManifest(_selectedImport);
+
+                // Also run geometry extraction for shape detection
+                _extraction = _pipeline.ExtractStructuralGeometry(_selectedImport);
+
+                // Build layer rows
+                _layerRows.Clear();
+                var lineCountsByLayer = CountLinesByLayer(_selectedImport);
+                var arcCountsByLayer = CountArcsByLayer(_selectedImport);
+
+                foreach (var kvp in manifest.OrderByDescending(x => x.Value.Confidence)
+                    .ThenByDescending(x => x.Value.Count))
+                {
+                    bool isStruct = kvp.Value.Confidence > 0;
+                    string autoMap = "";
+                    if (isStruct)
+                    {
+                        var cls = kvp.Value.Classification;
+                        if (cls.Contains("Column")) autoMap = "Column";
+                        else if (cls.Contains("Beam") || cls.Contains("Framing")) autoMap = "Beam";
+                        else if (cls.Contains("Wall") || cls.Contains("Shear") || cls.Contains("Core") || cls.Contains("Retaining")) autoMap = "Wall";
+                        else if (cls.Contains("Slab") || cls.Contains("Floor")) autoMap = "Slab";
+                        else if (cls.Contains("Footing") || cls.Contains("Foundation") || cls.Contains("Pad") || cls.Contains("Strip") || cls.Contains("Raft") || cls.Contains("Pile")) autoMap = "Foundation";
+                        else if (cls.Contains("Grid")) autoMap = "Grid";
+                    }
+
+                    _layerRows.Add(new LayerRow
+                    {
+                        Selected = isStruct,
+                        Name = kvp.Key,
+                        Entities = kvp.Value.Count,
+                        Lines = lineCountsByLayer.GetValueOrDefault(kvp.Key),
+                        Arcs = arcCountsByLayer.GetValueOrDefault(kvp.Key),
+                        AutoDetect = isStruct ? kvp.Value.Classification : "(Unmapped)",
+                        ConfidencePct = (int)(kvp.Value.Confidence * 100),
+                        MapTo = autoMap
+                    });
+                }
+
+                _layerGrid.Items.Refresh();
+                RefreshLayerCombos();
+                DetectElementSizes();
+
+                _txtStatus.Text = $"Found {_layerRows.Count} layers, {manifest.Values.Sum(v => v.Count)} entities";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DWG analysis failed", ex);
+                _txtStatus.Text = $"Analysis failed: {ex.Message}";
+            }
+            finally { Mouse.OverrideCursor = null; }
+        }
+
+        private void OnSelectAll(object sender, RoutedEventArgs e)
+        {
+            foreach (var r in _layerRows) r.Selected = true;
+            _layerGrid.Items.Refresh();
+        }
+
+        private void OnSelectNone(object sender, RoutedEventArgs e)
+        {
+            foreach (var r in _layerRows) r.Selected = false;
+            _layerGrid.Items.Refresh();
+        }
+
+        private void OnSelectStructural(object sender, RoutedEventArgs e)
+        {
+            foreach (var r in _layerRows)
+                r.Selected = StructuralLayerClassifier.IsStructuralLayer(r.Name);
+            _layerGrid.Items.Refresh();
+        }
+
+        private void OnAutoMap(object sender, RoutedEventArgs e)
+        {
+            foreach (var r in _layerRows)
+            {
+                if (r.ConfidencePct > 0 && !string.IsNullOrEmpty(r.AutoDetect))
+                {
+                    r.Selected = true;
+                    string cls = r.AutoDetect;
+                    if (cls.Contains("Column")) r.MapTo = "Column";
+                    else if (cls.Contains("Beam") || cls.Contains("Framing")) r.MapTo = "Beam";
+                    else if (cls.Contains("Wall") || cls.Contains("Shear") || cls.Contains("Core")) r.MapTo = "Wall";
+                    else if (cls.Contains("Slab") || cls.Contains("Floor")) r.MapTo = "Slab";
+                    else if (cls.Contains("Footing") || cls.Contains("Found") || cls.Contains("Pad") || cls.Contains("Strip") || cls.Contains("Raft")) r.MapTo = "Foundation";
+                    else if (cls.Contains("Grid")) r.MapTo = "Grid";
+                }
+            }
+            _layerGrid.Items.Refresh();
+            RefreshLayerCombos();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // SHAPE DETECTION & AUTO-SIZING
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Analyzes extracted DWG geometry to detect element sizes.
+        /// Groups circles by radius → round column sizes.
+        /// Groups rectangles by width×depth → rectangular column sizes.
+        /// Measures parallel line pairs → wall thicknesses.
+        /// Measures closed loops → slab boundaries with area.
+        /// </summary>
+        private void DetectElementSizes()
+        {
+            _detectedGroups.Clear();
+            if (_extraction == null) return;
+
+            // ── Round columns from circles ──
+            if (_extraction.Circles.Count > 0)
+            {
+                // Group by diameter (rounded to nearest 25mm for tolerance)
+                var circleGroups = _extraction.Circles
+                    .GroupBy(c => Math.Round(c.DiameterMm / 25.0) * 25)
+                    .OrderByDescending(g => g.Count());
+
+                foreach (var g in circleGroups)
+                {
+                    double dia = g.Key;
+                    _detectedGroups.Add(new DetectedElementGroup
+                    {
+                        ElementType = "Column",
+                        SizeLabel = $"\u00f8{dia:F0}mm",
+                        Count = g.Count(),
+                        WidthMm = dia,
+                        DepthMm = dia,
+                        IsCircular = true
+                    });
+                }
+            }
+
+            // ── Rectangular columns from rectangles ──
+            if (_extraction.Rectangles.Count > 0)
+            {
+                // Group by size (nearest 25mm)
+                var rectGroups = _extraction.Rectangles
+                    .GroupBy(r =>
+                    {
+                        double w = Math.Round(r.WidthMm / 25.0) * 25;
+                        double d = Math.Round(r.DepthMm / 25.0) * 25;
+                        return (Math.Min(w, d), Math.Max(w, d)); // normalize orientation
+                    })
+                    .OrderByDescending(g => g.Count());
+
+                foreach (var g in rectGroups)
+                {
+                    _detectedGroups.Add(new DetectedElementGroup
+                    {
+                        ElementType = "Column",
+                        SizeLabel = $"{g.Key.Item1:F0}\u00d7{g.Key.Item2:F0}mm",
+                        Count = g.Count(),
+                        WidthMm = g.Key.Item1,
+                        DepthMm = g.Key.Item2,
+                        IsCircular = false
+                    });
+                }
+            }
+
+            // ── Beam spans from beam lines ──
+            if (_extraction.BeamLines.Count > 0)
+            {
+                var beamLengths = _extraction.BeamLines
+                    .Select(b => b.Start.DistanceTo(b.End) * Units.FeetToMm)
+                    .OrderBy(l => l).ToList();
+
+                double minSpan = beamLengths.First();
+                double maxSpan = beamLengths.Last();
+                double avgSpan = beamLengths.Average();
+
+                _detectedGroups.Add(new DetectedElementGroup
+                {
+                    ElementType = "Beam",
+                    SizeLabel = $"Spans {minSpan / 1000:F1}m–{maxSpan / 1000:F1}m (avg {avgSpan / 1000:F1}m)",
+                    Count = _extraction.BeamLines.Count,
+                    WidthMm = BeamWidthMm,
+                    DepthMm = AutoSizeBeamDepth(avgSpan)
+                });
+            }
+
+            // ── Wall thicknesses from detected walls ──
+            if (_extraction.Walls.Count > 0)
+            {
+                var wallGroups = _extraction.Walls
+                    .GroupBy(w => Math.Round(w.ThicknessFt * Units.FeetToMm / 25) * 25)
+                    .OrderByDescending(g => g.Count());
+
+                foreach (var g in wallGroups)
+                {
+                    _detectedGroups.Add(new DetectedElementGroup
+                    {
+                        ElementType = "Wall",
+                        SizeLabel = $"{g.Key:F0}mm thick",
+                        Count = g.Count(),
+                        ThicknessMm = g.Key
+                    });
+                }
+            }
+
+            // ── Slab boundaries ──
+            if (_extraction.SlabBoundaries.Count > 0)
+            {
+                _detectedGroups.Add(new DetectedElementGroup
+                {
+                    ElementType = "Slab",
+                    SizeLabel = $"{_extraction.SlabBoundaries.Count} boundary loops detected",
+                    Count = _extraction.SlabBoundaries.Count,
+                    ThicknessMm = SlabThicknessMm
+                });
+            }
+
+            // ── Grid lines ──
+            if (_extraction.GridLines.Count > 0)
+            {
+                int hCount = _extraction.GridLines.Count(g => g.IsHorizontal);
+                int vCount = _extraction.GridLines.Count - hCount;
+                _detectedGroups.Add(new DetectedElementGroup
+                {
+                    ElementType = "Grid",
+                    SizeLabel = $"{vCount} vertical + {hCount} horizontal",
+                    Count = _extraction.GridLines.Count
+                });
+            }
+
+            // Update display
+            RefreshDetectedSizes();
+        }
+
+        /// <summary>
+        /// Auto-size beam depth from span using BS EN 1992 span/depth ratios.
+        /// Simply-supported: L/20, Continuous: L/26, Cantilever: L/8.
+        /// Returns depth in mm, rounded to nearest 25mm.
+        /// </summary>
+        private static double AutoSizeBeamDepth(double spanMm)
+        {
+            // Default simply-supported ratio
+            double depth = spanMm / 20.0;
+            // Round up to nearest 25mm, minimum 200mm
+            depth = Math.Max(200, Math.Ceiling(depth / 25.0) * 25);
+            return depth;
+        }
+
+        private void RefreshDetectedSizes()
+        {
+            if (_detectedGroups.Count == 0)
+            {
+                _txtDetectedSizes.Text = "No structural elements detected in selected layers";
+                return;
+            }
+
+            var parts = new List<string>();
+            foreach (var g in _detectedGroups)
+            {
+                parts.Add($"{g.ElementType}: {g.Count}\u00d7 {g.SizeLabel}");
+            }
+            _txtDetectedSizes.Text = "Detected: " + string.Join("  |  ", parts);
+            _txtDetectedSizes.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32));
+        }
+
+        private void RefreshLayerCombos()
+        {
+            var layerNames = _layerRows.Select(r => r.Name).ToList();
+            layerNames.Insert(0, "(none)");
+
+            foreach (var combo in new[] { _cmbColumnLayer, _cmbBeamLayer, _cmbWallLayer,
+                _cmbSlabLayer, _cmbFoundationLayer, _cmbGridLayer })
+            {
+                var prev = combo.Text;
+                combo.Items.Clear();
+                foreach (var name in layerNames) combo.Items.Add(name);
+                if (!string.IsNullOrEmpty(prev) && layerNames.Contains(prev))
+                    combo.Text = prev;
+            }
+
+            // Auto-set from mapped layers
+            foreach (var row in _layerRows.Where(r => !string.IsNullOrEmpty(r.MapTo)))
+            {
+                switch (row.MapTo)
+                {
+                    case "Column": if (string.IsNullOrEmpty(_cmbColumnLayer.Text) || _cmbColumnLayer.Text == "(none)") _cmbColumnLayer.Text = row.Name; break;
+                    case "Beam": if (string.IsNullOrEmpty(_cmbBeamLayer.Text) || _cmbBeamLayer.Text == "(none)") _cmbBeamLayer.Text = row.Name; break;
+                    case "Wall": if (string.IsNullOrEmpty(_cmbWallLayer.Text) || _cmbWallLayer.Text == "(none)") _cmbWallLayer.Text = row.Name; break;
+                    case "Slab": if (string.IsNullOrEmpty(_cmbSlabLayer.Text) || _cmbSlabLayer.Text == "(none)") _cmbSlabLayer.Text = row.Name; break;
+                    case "Foundation": if (string.IsNullOrEmpty(_cmbFoundationLayer.Text) || _cmbFoundationLayer.Text == "(none)") _cmbFoundationLayer.Text = row.Name; break;
+                    case "Grid": if (string.IsNullOrEmpty(_cmbGridLayer.Text) || _cmbGridLayer.Text == "(none)") _cmbGridLayer.Text = row.Name; break;
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // GEOMETRY COUNTING HELPERS
+        // ══════════════════════════════════════════════════════════════════
+
+        private Dictionary<string, int> CountLinesByLayer(ImportInstance import)
+        {
+            var counts = new Dictionary<string, int>();
+            try
+            {
+                WalkGeometryForCounts(import.get_Geometry(new Options()), counts, countLines: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"CountLines: {ex.Message}"); }
+            return counts;
+        }
+
+        private Dictionary<string, int> CountArcsByLayer(ImportInstance import)
+        {
+            var counts = new Dictionary<string, int>();
+            try
+            {
+                WalkGeometryForCounts(import.get_Geometry(new Options()), counts, countLines: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"CountArcs: {ex.Message}"); }
+            return counts;
+        }
+
+        private void WalkGeometryForCounts(GeometryElement geom,
+            Dictionary<string, int> counts, bool countLines, int depth = 0)
+        {
+            if (geom == null || depth > 10) return;
+            foreach (var obj in geom)
+            {
+                if (obj is GeometryInstance gi)
+                {
+                    WalkGeometryForCounts(gi.GetInstanceGeometry(), counts, countLines, depth + 1);
+                    continue;
+                }
+
+                bool match = countLines ? obj is Line : obj is Arc;
+                if (!match) continue;
+
+                string layer = "(unnamed)";
+                try
+                {
+                    if (obj.GraphicsStyleId != ElementId.InvalidElementId)
+                    {
+                        var gs = _doc.GetElement(obj.GraphicsStyleId) as GraphicsStyle;
+                        if (gs?.GraphicsStyleCategory != null)
+                            layer = gs.GraphicsStyleCategory.Name;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed layer name: {ex.Message}"); }
+
+                counts[layer] = counts.GetValueOrDefault(layer) + 1;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // EXECUTE
+        // ══════════════════════════════════════════════════════════════════
+
+        private void OnExecute(object sender, RoutedEventArgs e)
+        {
+            if (_selectedImport == null)
+            {
+                _txtStatus.Text = "Select a DWG import first";
+                _txtStatus.Foreground = Brushes.Red;
+                return;
+            }
+
+            // Build selected layers from both DataGrid selections and combo selections
+            SelectedLayers.Clear();
+            foreach (var row in _layerRows.Where(r => r.Selected))
+                SelectedLayers.Add(row.Name);
+
+            // Also add explicitly mapped layers
+            foreach (var name in new[] { ColumnLayerName, BeamLayerName, WallLayerName,
+                SlabLayerName, FoundationLayerName, GridLayerName })
+            {
+                if (!string.IsNullOrEmpty(name) && name != "(none)")
+                    SelectedLayers.Add(name);
+            }
+
+            if (SelectedLayers.Count == 0 && !CreateColumns && !CreateBeams &&
+                !CreateWalls && !CreateSlabs && !CreateFoundations && !CreateGrids)
+            {
+                _txtStatus.Text = "Select at least one layer or element type";
+                _txtStatus.Foreground = Brushes.Red;
+                return;
+            }
+
+            Confirmed = true;
+            Close();
+        }
+
+        /// <summary>
+        /// Gets the mapping of element types to their assigned layer names.
+        /// Used by the pipeline to filter geometry by layer per element type.
+        /// </summary>
+        public Dictionary<string, string> GetLayerMappings()
+        {
+            var map = new Dictionary<string, string>();
+            if (!string.IsNullOrEmpty(ColumnLayerName) && ColumnLayerName != "(none)")
+                map["Column"] = ColumnLayerName;
+            if (!string.IsNullOrEmpty(BeamLayerName) && BeamLayerName != "(none)")
+                map["Beam"] = BeamLayerName;
+            if (!string.IsNullOrEmpty(WallLayerName) && WallLayerName != "(none)")
+                map["Wall"] = WallLayerName;
+            if (!string.IsNullOrEmpty(SlabLayerName) && SlabLayerName != "(none)")
+                map["Slab"] = SlabLayerName;
+            if (!string.IsNullOrEmpty(FoundationLayerName) && FoundationLayerName != "(none)")
+                map["Foundation"] = FoundationLayerName;
+            if (!string.IsNullOrEmpty(GridLayerName) && GridLayerName != "(none)")
+                map["Grid"] = GridLayerName;
+
+            // Also include DataGrid MapTo assignments
+            foreach (var row in _layerRows.Where(r => r.Selected && !string.IsNullOrEmpty(r.MapTo)))
+            {
+                if (!map.ContainsKey(row.MapTo))
+                    map[row.MapTo] = row.Name;
+                else
+                    map[row.MapTo] += "|" + row.Name; // pipe-delimited multi-layer
+            }
+
+            return map;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // UI HELPERS
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Creates a section panel with a colored header title and a content area.
+        /// Callers add their content to the returned SectionPanel.Content property.
+        /// </summary>
+        private static SectionPanel MakeSection(string title)
+        {
+            return new SectionPanel(title);
+        }
+
+        /// <summary>Panel with a header and content area for compact section layout.</summary>
+        private class SectionPanel : Border
+        {
+            private readonly ContentControl _content;
+
+            public SectionPanel(string title)
+            {
+                BorderBrush = BorderClr;
+                BorderThickness = new Thickness(1);
+                CornerRadius = new CornerRadius(4);
+                Background = SectionBg;
+                Margin = new Thickness(0, 0, 0, 8);
+
+                var header = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xF0)),
+                    Padding = new Thickness(8, 4, 8, 4),
+                    CornerRadius = new CornerRadius(4, 4, 0, 0)
+                };
+                header.Child = new TextBlock
+                {
+                    Text = title, FontSize = 11, FontWeight = FontWeights.Bold,
+                    Foreground = HeaderBg
+                };
+
+                _content = new ContentControl();
+                var dock = new DockPanel();
+                DockPanel.SetDock(header, Dock.Top);
+                dock.Children.Add(header);
+                dock.Children.Add(_content);
+                base.Child = dock;
+            }
+
+            /// <summary>Sets the content of this section panel.</summary>
+            public new UIElement Child
+            {
+                get => _content.Content as UIElement;
+                set => _content.Content = value;
+            }
+        }
+
+        private static TextBlock MakeSectionLabel(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x88)),
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+        }
+
+        private static TextBlock MakeLbl(string text, int col)
+        {
+            var lbl = new TextBlock
+            {
+                Text = text, FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
+                Foreground = LabelFg
+            };
+            Grid.SetColumn(lbl, col);
+            return lbl;
+        }
+
+        private static Button MakeBtn(string text, RoutedEventHandler handler,
+            SolidColorBrush bg = null, SolidColorBrush fg = null, bool bold = false)
         {
             var btn = new Button
             {
-                Content = text, MinWidth = 90, Height = 32,
+                Content = text, MinWidth = 90, Height = 28,
                 Margin = new Thickness(4, 0, 4, 0),
-                Padding = new Thickness(12, 4, 12, 4),
-                FontSize = 12,
+                Padding = new Thickness(10, 3, 10, 3),
+                FontSize = 11
             };
+            if (bg != null) btn.Background = bg;
+            if (fg != null) btn.Foreground = fg;
+            if (bold) btn.FontWeight = FontWeights.Bold;
             btn.Click += handler;
             return btn;
         }
 
-        // ── Pages ────────────────────────────────────────────────────────
-
-        private void BuildPages()
+        private static Button MakeSmallBtn(string text, RoutedEventHandler handler,
+            SolidColorBrush bg = null)
         {
-            _pages.Add(BuildPrerequisitesPage());
-            _pages.Add(BuildDWGSelectionPage());
-            _pages.Add(BuildConfigPage());
-            _pages.Add(BuildTypeMappingPage());
-            _pages.Add(BuildSummaryPage());
+            var btn = new Button
+            {
+                Content = text, Height = 22, MinWidth = 70,
+                FontSize = 10, Margin = new Thickness(0, 0, 4, 0),
+                Padding = new Thickness(6, 1, 6, 1)
+            };
+            if (bg != null) { btn.Background = bg; btn.Foreground = Brushes.White; }
+            btn.Click += handler;
+            return btn;
         }
 
-        private ScrollViewer WrapInScroll(UIElement content)
+        private static DataGridTextColumn MakeTextCol(string header, string binding, int width)
         {
-            return new ScrollViewer
+            return new DataGridTextColumn
             {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Content = content,
+                Header = header,
+                Binding = new Binding(binding),
+                Width = width,
+                IsReadOnly = true
             };
         }
 
-        // ── Page 1: Prerequisites ────────────────────────────────────────
-
-        private FrameworkElement BuildPrerequisitesPage()
+        private static StackPanel MakeFieldRow(string label, out ComboBox combo)
         {
-            var stack = new StackPanel();
-
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Checking project readiness for structural automation...",
-                FontSize = 12, Margin = new Thickness(0, 0, 0, 12),
-            });
-
-            var statusBox = new TextBox
-            {
-                Text = _prereqResult.GetStatusText(),
-                IsReadOnly = true,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4)),
-                Padding = new Thickness(12),
-                TextWrapping = TextWrapping.NoWrap,
-                AcceptsReturn = true,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MinHeight = 300,
-            };
-
-            stack.Children.Add(statusBox);
-
-            // Family catalog summary
-            _pipeline.TypeFactory.BuildCatalog();
-            var catalogBox = new TextBox
-            {
-                Text = _pipeline.TypeFactory.GetCatalogSummary(),
-                IsReadOnly = true,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 10,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xDC, 0xFE)),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 8, 0, 0),
-                TextWrapping = TextWrapping.NoWrap,
-                AcceptsReturn = true,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MinHeight = 150,
-            };
-            stack.Children.Add(new TextBlock { Text = "LOADED STRUCTURAL FAMILIES:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 4) });
-            stack.Children.Add(catalogBox);
-
-            return WrapInScroll(stack);
-        }
-
-        // ── Page 2: DWG Selection ────────────────────────────────────────
-
-        // Stores the user's layer checkbox selections
-        private readonly Dictionary<string, CheckBox> _layerCheckboxes = new();
-
-        private FrameworkElement BuildDWGSelectionPage()
-        {
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Select the DWG import, then choose which layers to convert:",
-                FontSize = 12, Margin = new Thickness(0, 0, 0, 12),
-            });
-
-            var imports = CADToModelEngine.FindImportInstances(_doc);
-            if (imports.Count > 0)
-            {
-                _selectedImport = imports[0];
-
-                var listBox = new ListBox { MinHeight = 80, MaxHeight = 100, Margin = new Thickness(0, 0, 0, 8) };
-                foreach (var imp in imports)
-                {
-                    string name = "DWG Import";
-                    try { name = imp.Name ?? $"Import #{imp.Id.Value}"; }
-                    catch (Exception ex) { StingLog.Warn($"Import name: {ex.Message}"); }
-                    listBox.Items.Add(new ListBoxItem { Content = name, Tag = imp });
-                }
-                listBox.SelectedIndex = 0;
-                listBox.SelectionChanged += (s, e) =>
-                {
-                    if (listBox.SelectedItem is ListBoxItem item && item.Tag is ImportInstance imp)
-                        _selectedImport = imp;
-                };
-                stack.Children.Add(listBox);
-
-                // Scale detection display
-                var scaleText = new TextBlock
-                {
-                    Text = "DWG Scale: (click Analyze to detect)",
-                    FontSize = 11, Foreground = Brushes.Gray,
-                    Margin = new Thickness(0, 4, 0, 8),
-                };
-                stack.Children.Add(scaleText);
-
-                // Layer selection panel — MISS-01 FIX
-                var layerPanel = new StackPanel();
-                var layerBorder = new Border
-                {
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
-                    BorderThickness = new Thickness(1),
-                    Padding = new Thickness(8),
-                    Margin = new Thickness(0, 4, 0, 8),
-                    MaxHeight = 250,
-                    Child = new ScrollViewer
-                    {
-                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                        Content = layerPanel,
-                    },
-                };
-
-                var layerHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-                layerHeader.Children.Add(new TextBlock
-                {
-                    Text = "LAYER SELECTION:", FontWeight = FontWeights.Bold,
-                    Margin = new Thickness(0, 0, 12, 0),
-                });
-                var selectAllBtn = MakeButton("Select All", (s, e) =>
-                {
-                    foreach (var cb in _layerCheckboxes.Values) cb.IsChecked = true;
-                });
-                selectAllBtn.Height = 22; selectAllBtn.MinWidth = 70; selectAllBtn.FontSize = 10;
-                var selectNoneBtn = MakeButton("Select None", (s, e) =>
-                {
-                    foreach (var cb in _layerCheckboxes.Values) cb.IsChecked = false;
-                });
-                selectNoneBtn.Height = 22; selectNoneBtn.MinWidth = 70; selectNoneBtn.FontSize = 10;
-                var selectStructBtn = MakeButton("Structural Only", (s, e) =>
-                {
-                    foreach (var kvp in _layerCheckboxes)
-                        kvp.Value.IsChecked = StructuralLayerClassifier.IsStructuralLayer(kvp.Key);
-                });
-                selectStructBtn.Height = 22; selectStructBtn.MinWidth = 90; selectStructBtn.FontSize = 10;
-                selectStructBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
-                selectStructBtn.Foreground = Brushes.White;
-                layerHeader.Children.Add(selectAllBtn);
-                layerHeader.Children.Add(selectNoneBtn);
-                layerHeader.Children.Add(selectStructBtn);
-                stack.Children.Add(layerHeader);
-
-                // Analyze button — populates layer checkboxes
-                var analyzeBtn = MakeButton("★ Analyze DWG Layers", (s, e) =>
-                {
-                    if (_selectedImport == null) return;
-
-                    var manifest = _pipeline.ExtractLayerManifest(_selectedImport);
-                    layerPanel.Children.Clear();
-                    _layerCheckboxes.Clear();
-
-                    // Sort: structural layers first, then by entity count
-                    var sorted = manifest.OrderByDescending(kvp => kvp.Value.Confidence)
-                        .ThenByDescending(kvp => kvp.Value.Count);
-
-                    foreach (var kvp in sorted)
-                    {
-                        bool isStruct = kvp.Value.Confidence > 0;
-                        var cb = new CheckBox
-                        {
-                            Content = $"{kvp.Key}  —  {kvp.Value.Count} entities  →  {kvp.Value.Classification}" +
-                                (isStruct ? $" ({kvp.Value.Confidence * 100:F0}%)" : ""),
-                            IsChecked = isStruct, // Auto-select structural layers
-                            Margin = new Thickness(0, 1, 0, 1),
-                            FontSize = 11,
-                            FontWeight = isStruct ? FontWeights.SemiBold : FontWeights.Normal,
-                            Foreground = isStruct
-                                ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))
-                                : Brushes.Gray,
-                        };
-                        _layerCheckboxes[kvp.Key] = cb;
-                        layerPanel.Children.Add(cb);
-                    }
-
-                    // Detect scale
-                    var extraction = _pipeline.ExtractStructuralGeometry(_selectedImport);
-                    _extraction = extraction;
-                    double scale = extraction.DetectedScaleFactor;
-                    string scaleDesc = Math.Abs(scale - 1.0) < 0.001 ? "1:1 (no conversion)"
-                        : Math.Abs(scale - 0.00328) < 0.001 ? "ft → internal (imperial DWG)"
-                        : $"{scale:F4} (custom)";
-                    scaleText.Text = $"DWG Scale: {scaleDesc}";
-                    scaleText.Foreground = Math.Abs(scale - 1.0) < 0.001 ? Brushes.Green : Brushes.Orange;
-                });
-
-                analyzeBtn.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
-                analyzeBtn.Foreground = Brushes.White;
-                analyzeBtn.FontWeight = FontWeights.Bold;
-                stack.Children.Add(analyzeBtn);
-                stack.Children.Add(layerBorder);
-            }
-            else
-            {
-                stack.Children.Add(new TextBlock
-                {
-                    Text = "No imported DWG files found.\nLink a structural DWG first.",
-                    Foreground = Brushes.Red, FontWeight = FontWeights.Bold,
-                });
-            }
-
-            return WrapInScroll(stack);
-        }
-
-        // ── Page 3: Configuration ────────────────────────────────────────
-
-        private FrameworkElement BuildConfigPage()
-        {
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Configure structural conversion settings:",
-                FontSize = 12, FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 12),
-            });
-
-            // Element type checkboxes
-            var chkCols = new CheckBox { Content = "Create Columns (from circles + rectangles)", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
-            var chkBeams = new CheckBox { Content = "Create Beams (from centerlines on beam layers)", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
-            var chkSlabs = new CheckBox { Content = "Create Slabs (from slab boundary loops)", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
-            var chkGrids = new CheckBox { Content = "Create Grid Lines (from long axis-aligned lines)", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
-
-            chkCols.Checked += (s, e) => CreateColumns = true;
-            chkCols.Unchecked += (s, e) => CreateColumns = false;
-            chkBeams.Checked += (s, e) => CreateBeams = true;
-            chkBeams.Unchecked += (s, e) => CreateBeams = false;
-            chkSlabs.Checked += (s, e) => CreateSlabs = true;
-            chkSlabs.Unchecked += (s, e) => CreateSlabs = false;
-            chkGrids.Checked += (s, e) => CreateGrids = true;
-            chkGrids.Unchecked += (s, e) => CreateGrids = false;
-
-            stack.Children.Add(new TextBlock { Text = "ELEMENTS TO CREATE:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
-            stack.Children.Add(chkCols);
-            stack.Children.Add(chkBeams);
-            stack.Children.Add(chkSlabs);
-            stack.Children.Add(chkGrids);
-
-            // Dimension inputs
-            stack.Children.Add(new TextBlock { Text = "DEFAULT DIMENSIONS:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
-
-            stack.Children.Add(MakeInputRow("Default beam depth (mm):", "450", v => DefaultBeamDepthMm = v));
-            stack.Children.Add(MakeInputRow("Default slab thickness (mm):", "200", v => DefaultSlabThickMm = v));
-            stack.Children.Add(MakeInputRow("Default storey height (mm):", "3600", v => DefaultStoreyHeightMm = v));
-
-            // Detection tolerances
-            stack.Children.Add(new TextBlock { Text = "DETECTION TOLERANCES:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
-            stack.Children.Add(MakeInputRow("Endpoint snap tolerance (mm):", "5", v => EndpointToleranceMm = v));
-            stack.Children.Add(MakeInputRow("Min column size (mm):", "150", v => MinColumnSizeMm = v));
-            stack.Children.Add(MakeInputRow("Min beam length (mm):", "500", v => MinBeamLengthMm = v));
-
-            // Level selection
-            stack.Children.Add(new TextBlock { Text = "TARGET LEVEL:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
-            var levelCombo = new ComboBox { MinWidth = 200, Margin = new Thickness(0, 4, 0, 4) };
-            var levels = new FilteredElementCollector(_doc)
-                .OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
-            foreach (var lev in levels)
-                levelCombo.Items.Add(lev.Name);
-            if (levelCombo.Items.Count > 0) levelCombo.SelectedIndex = 0;
-            levelCombo.SelectionChanged += (s, e) =>
-                SelectedLevel = levelCombo.SelectedItem?.ToString();
-            stack.Children.Add(levelCombo);
-
-            return WrapInScroll(stack);
-        }
-
-        private StackPanel MakeInputRow(string label, string defaultVal, Action<double> setter)
-        {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            row.Children.Add(new TextBlock { Text = label, Width = 220, VerticalAlignment = VerticalAlignment.Center });
-            var tb = new TextBox { Text = defaultVal, Width = 100, Margin = new Thickness(4, 0, 0, 0) };
-            tb.TextChanged += (s, e) =>
-            {
-                if (double.TryParse(tb.Text, out double val) && val > 0)
-                {
-                    setter(val);
-                    tb.Background = Brushes.White;
-                }
-                else
-                {
-                    tb.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0xCC));
-                }
-            };
-            row.Children.Add(tb);
+            combo = new ComboBox { FontSize = 11, Height = 24, Margin = new Thickness(0, 2, 0, 2) };
+            var row = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
+            row.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = LabelFg });
+            row.Children.Add(combo);
             return row;
         }
 
-        // ── Page 4: Type Mapping Review ──────────────────────────────────
-
-        private FrameworkElement BuildTypeMappingPage()
+        private static StackPanel MakePropsGroup(string title,
+            (string Label, string Default, TextBox Tb)[] fields, int labelWidth = 85)
         {
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
+            var panel = new StackPanel
             {
-                Text = "Review detected elements and their matched family types.\n" +
-                    "Types will be auto-created if no exact match is found:",
-                FontSize = 12, Margin = new Thickness(0, 0, 0, 12),
-            });
-
-            var mappingBox = new TextBox
-            {
-                IsReadOnly = true,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 10,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4)),
-                Padding = new Thickness(12),
-                TextWrapping = TextWrapping.NoWrap,
-                AcceptsReturn = true,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MinHeight = 380,
-                Text = "(Type mappings will appear after DWG analysis on page 2)",
+                Margin = new Thickness(0, 0, 0, 4)
             };
+            var titleBorder = new Border
+            {
+                Background = AccentBrush, Padding = new Thickness(6, 2, 6, 2),
+                CornerRadius = new CornerRadius(3),
+                Margin = new Thickness(0, 0, 0, 4),
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            titleBorder.Child = new TextBlock
+            {
+                Text = title, FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            panel.Children.Add(titleBorder);
 
-            // Auto-populate when page shown
-            mappingBox.Tag = "mapping";
-            stack.Children.Add(mappingBox);
-            stack.Tag = mappingBox; // Store reference for refresh
+            foreach (var (label, defaultVal, tb) in fields)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+                row.Children.Add(new TextBlock
+                {
+                    Text = label, FontSize = 11, Width = 85,
+                    VerticalAlignment = VerticalAlignment.Center, Foreground = LabelFg
+                });
+                tb.Text = defaultVal;
+                tb.Width = 60;
+                tb.FontSize = 11;
+                tb.Height = 22;
+                tb.TextChanged += (s, e) => ValidateNumericInput(tb);
+                row.Children.Add(tb);
+                panel.Children.Add(row);
+            }
 
-            return WrapInScroll(stack);
+            return panel;
         }
 
-        private void RefreshTypeMappingPage()
+        private static StackPanel MakeMiniPropRow(string title,
+            string lbl1, string def1, out TextBox tb1,
+            string lbl2, string def2, out TextBox tb2)
         {
-            if (_pages.Count <= 3) return;
-            var scroll = _pages[3] as ScrollViewer;
-            var stack = scroll?.Content as StackPanel;
-            var mappingBox = stack?.Tag as TextBox;
-            if (mappingBox == null) return;
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("DETECTED ELEMENT → FAMILY TYPE MAPPING");
-            sb.AppendLine("══════════════════════════════════════════════════════");
-
-            if (_extraction != null)
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            var titleBlock = new TextBlock
             {
-                // Columns from circles
-                sb.AppendLine($"\n  ROUND COLUMNS ({_extraction.Circles.Count} detected):");
-                foreach (var c in _extraction.Circles.Take(10))
-                {
-                    var match = _pipeline.TypeFactory.FindOrCreateColumnType(c.DiameterMm, c.DiameterMm);
-                    sb.AppendLine($"    ø{c.DiameterMm:F0}mm → {match.FamilyName}: {match.TypeName} [{match.MatchMethod}]");
-                }
+                Text = title + ":", FontSize = 10, FontWeight = FontWeights.Bold,
+                Width = 40, VerticalAlignment = VerticalAlignment.Center,
+                Foreground = LabelFg
+            };
+            panel.Children.Add(titleBlock);
+            panel.Children.Add(MakeMiniField(lbl1, def1, out tb1));
+            panel.Children.Add(MakeMiniField(lbl2, def2, out tb2));
+            return panel;
+        }
 
-                // Columns from rectangles
-                sb.AppendLine($"\n  RECTANGULAR COLUMNS ({_extraction.Rectangles.Count} detected):");
-                // Group by unique size to avoid redundant lookups
-                var rectSizes = _extraction.Rectangles
-                    .GroupBy(r => $"{r.WidthMm:F0}×{r.DepthMm:F0}")
-                    .Take(10);
-                foreach (var g in rectSizes)
-                {
-                    var r = g.First();
-                    var match = _pipeline.TypeFactory.FindOrCreateColumnType(r.WidthMm, r.DepthMm);
-                    sb.AppendLine($"    {g.Key}mm ({g.Count()}×) → {match.FamilyName}: {match.TypeName} [{match.MatchMethod}]");
-                }
+        private static StackPanel MakeMiniField(string label, string defaultVal, out TextBox tb)
+        {
+            tb = new TextBox { Text = defaultVal, Width = 50, FontSize = 10, Height = 20 };
+            tb.TextChanged += (s, e) => ValidateNumericInput(tb);
+            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 0) };
+            panel.Children.Add(new TextBlock
+            {
+                Text = label, FontSize = 10, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 3, 0), Foreground = LabelFg
+            });
+            panel.Children.Add(tb);
+            return panel;
+        }
 
-                // Beams
-                sb.AppendLine($"\n  BEAMS ({_extraction.BeamLines.Count} detected):");
-                var beamMatch = _pipeline.TypeFactory.FindOrCreateBeamType(DefaultBeamDepthMm);
-                sb.AppendLine($"    Default {DefaultBeamDepthMm:F0}mm deep → {beamMatch.FamilyName}: {beamMatch.TypeName} [{beamMatch.MatchMethod}]");
-
-                // Walls
-                sb.AppendLine($"\n  WALLS ({_extraction.Walls.Count} detected):");
-                var wallSizes = _extraction.Walls.GroupBy(w => $"{w.ThicknessFt * Units.FeetToMm:F0}mm").Take(5);
-                foreach (var g in wallSizes)
-                    sb.AppendLine($"    {g.Key} thick ({g.Count()}×)");
-
-                // Slabs
-                sb.AppendLine($"\n  SLABS ({_extraction.SlabBoundaries.Count} detected):");
-                var slabMatch = _pipeline.TypeFactory.FindOrCreateFloorType(DefaultSlabThickMm);
-                sb.AppendLine($"    Default {DefaultSlabThickMm:F0}mm thick → {slabMatch.FamilyName}: {slabMatch.TypeName} [{slabMatch.MatchMethod}]");
-
-                sb.AppendLine($"\n  GRID LINES ({_extraction.GridLines.Count} detected)");
-            }
+        private static void ValidateNumericInput(TextBox tb)
+        {
+            if (double.TryParse(tb.Text, out double val) && val > 0)
+                tb.Background = Brushes.White;
             else
-            {
-                sb.AppendLine("\n  ⚠ No DWG analysis performed yet.");
-                sb.AppendLine("    Go back to page 2 and click 'Analyze Structural Layers'.");
-            }
-
-            mappingBox.Text = sb.ToString();
+                tb.Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xDD, 0xDD));
         }
 
-        // ── Page 5: Summary ──────────────────────────────────────────────
-
-        private FrameworkElement BuildSummaryPage()
+        private static double ParseDbl(TextBox tb, double fallback)
         {
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Review settings and click 'Execute' to run the conversion:",
-                FontSize = 12, FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 12),
-            });
-
-            var summaryBox = new TextBox
-            {
-                IsReadOnly = true,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x6A, 0x99, 0x55)),
-                Padding = new Thickness(12),
-                TextWrapping = TextWrapping.Wrap,
-                AcceptsReturn = true,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                MinHeight = 350,
-            };
-            summaryBox.Tag = "summary";
-            stack.Children.Add(summaryBox);
-            stack.Tag = summaryBox;
-
-            return WrapInScroll(stack);
+            if (tb != null && double.TryParse(tb.Text, out double val) && val > 0)
+                return val;
+            return fallback;
         }
 
-        private void RefreshSummaryPage()
+        private static string GetLayerFromCombo(ComboBox combo)
         {
-            if (_pages.Count <= 4) return;
-            var scroll = _pages[4] as ScrollViewer;
-            var stack = scroll?.Content as StackPanel;
-            var summaryBox = stack?.Tag as TextBox;
-            if (summaryBox == null) return;
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("STRUCTURAL CAD AUTOMATION — EXECUTION SUMMARY");
-            sb.AppendLine("═══════════════════════════════════════════════════");
-            sb.AppendLine();
-            sb.AppendLine($"  DWG Import:       {(_selectedImport != null ? "Selected" : "NONE")}");
-            sb.AppendLine($"  Target Level:     {SelectedLevel ?? "(default)"}");
-            sb.AppendLine();
-            sb.AppendLine("  ELEMENTS TO CREATE:");
-            sb.AppendLine($"    Columns:        {(CreateColumns ? "YES" : "NO")}{(_extraction != null ? $" ({_extraction.Circles.Count + _extraction.Rectangles.Count} detected)" : "")}");
-            sb.AppendLine($"    Beams:          {(CreateBeams ? "YES" : "NO")}{(_extraction != null ? $" ({_extraction.BeamLines.Count} detected)" : "")}");
-            sb.AppendLine($"    Slabs:          {(CreateSlabs ? "YES" : "NO")}{(_extraction != null ? $" ({_extraction.SlabBoundaries.Count} detected)" : "")}");
-            sb.AppendLine($"    Grid Lines:     {(CreateGrids ? "YES" : "NO")}{(_extraction != null ? $" ({_extraction.GridLines.Count} detected)" : "")}");
-            sb.AppendLine();
-            sb.AppendLine("  DEFAULT DIMENSIONS:");
-            sb.AppendLine($"    Beam depth:     {DefaultBeamDepthMm}mm");
-            sb.AppendLine($"    Slab thickness: {DefaultSlabThickMm}mm");
-            sb.AppendLine($"    Storey height:  {DefaultStoreyHeightMm}mm");
-            sb.AppendLine();
-            sb.AppendLine($"  Type catalog:     {_pipeline.TypeFactory.CatalogSize} loaded types");
-            sb.AppendLine();
-            sb.AppendLine("  Click 'Execute' to start the conversion pipeline.");
-
-            summaryBox.Text = sb.ToString();
-        }
-
-        // ── Navigation ───────────────────────────────────────────────────
-
-        private void ShowPage(int idx)
-        {
-            _currentPage = Math.Max(0, Math.Min(idx, _pages.Count - 1));
-            _pageHost.Content = _pages[_currentPage];
-            _pageTitle.Text = $"Step {_currentPage + 1} of {_pages.Count}: {PageTitles[_currentPage]}";
-
-            _btnBack.IsEnabled = _currentPage > 0;
-            _btnNext.Visibility = _currentPage < _pages.Count - 1
-                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            _btnFinish.Visibility = _currentPage == _pages.Count - 1
-                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-
-            _statusText.Text = _currentPage < _pages.Count - 1
-                ? "Configure settings, then click Next →"
-                : "Review and click Execute to start conversion";
-
-            UpdateStepIndicator();
-
-            // Refresh data pages
-            if (_currentPage == 3) RefreshTypeMappingPage();
-            if (_currentPage == 4) RefreshSummaryPage();
-        }
-
-        private void UpdateStepIndicator()
-        {
-            _stepIndicator.Children.Clear();
-            for (int i = 0; i < _pages.Count; i++)
-            {
-                var circle = new Border
-                {
-                    Width = 22, Height = 22,
-                    CornerRadius = new CornerRadius(11),
-                    Background = i == _currentPage
-                        ? Brushes.White
-                        : i < _currentPage
-                            ? new SolidColorBrush(Color.FromRgb(0xFF, 0xCC, 0xCC))
-                            : new SolidColorBrush(Color.FromRgb(0x88, 0x44, 0x44)),
-                    Margin = new Thickness(3, 0, 3, 0),
-                    Child = new TextBlock
-                    {
-                        Text = (i + 1).ToString(),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        FontSize = 10,
-                        Foreground = i == _currentPage
-                            ? new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28))
-                            : Brushes.White,
-                    }
-                };
-                _stepIndicator.Children.Add(circle);
-            }
-        }
-
-        private void OnBack(object sender, RoutedEventArgs e) => ShowPage(_currentPage - 1);
-        private void OnNext(object sender, RoutedEventArgs e) => ShowPage(_currentPage + 1);
-
-        /// <summary>Gets the user-selected layer names from the wizard checkboxes.</summary>
-        public HashSet<string> GetSelectedLayers()
-        {
-            var selected = new HashSet<string>();
-            foreach (var kvp in _layerCheckboxes)
-            {
-                if (kvp.Value.IsChecked == true)
-                    selected.Add(kvp.Key);
-            }
-            return selected;
-        }
-
-        private void OnFinish(object sender, RoutedEventArgs e)
-        {
-            // Bug#13 FIX: Validate prerequisites before execution
-            if (_selectedImport == null)
-            {
-                _statusText.Text = "ERROR: No DWG import selected. Go back to Step 2.";
-                _statusText.Foreground = System.Windows.Media.Brushes.Red;
-                return;
-            }
-            if (!CreateColumns && !CreateBeams && !CreateSlabs && !CreateGrids)
-            {
-                _statusText.Text = "ERROR: At least one element type must be enabled.";
-                _statusText.Foreground = System.Windows.Media.Brushes.Red;
-                return;
-            }
-            Confirmed = true;
-            Close();
+            return combo?.Text?.Trim() ?? "";
         }
 
         // ── Static Show ──────────────────────────────────────────────────
 
         /// <summary>
-        /// Shows the wizard dialog and returns the configured wizard instance.
-        /// Check wizard.Confirmed before using results.
+        /// Shows the dialog and returns the configured instance.
+        /// Check dialog.Confirmed before using results.
         /// </summary>
-        public static StructuralCADWizard Show(Document doc)
+        public static StructuralDWGDialog Show(Document doc)
         {
-            var wizard = new StructuralCADWizard(doc);
-            wizard.ShowDialog();
-            return wizard;
+            var dlg = new StructuralDWGDialog(doc);
+            dlg.ShowDialog();
+            return dlg;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BACKWARDS COMPATIBILITY: Keep old class name as alias
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Legacy alias for the old wizard — redirects to the new compact dialog.
+    /// </summary>
+    public class StructuralCADWizard : StructuralDWGDialog
+    {
+        public StructuralCADWizard(Document doc) : base(doc) { }
+
+        public new static StructuralDWGDialog Show(Document doc)
+        {
+            return StructuralDWGDialog.Show(doc);
         }
     }
 }
