@@ -1171,6 +1171,16 @@ namespace StingTools.Core
                 case "HandoverValidation":      return new HandoverValidationCommand();
                 case "SustainabilityWorkflow":  return new SustainabilityWorkflowCommand();
 
+                // Phase 74: Deep Review Enhancements
+                case "DailyPlanner":            return new DailyPlannerCommand();
+                case "DeliverableMatrix":       return new DeliverableMatrixCommand();
+                case "WarningPrediction":       return new WarningPredictionCommand();
+                case "AcousticAnalysis":        return null; // inline handler in dispatch
+                case "BREEAMAssessment":        return null; // inline handler in dispatch
+                case "LifecycleAssessment":     return null; // inline handler in dispatch
+                case "MEPPressureDrop":         return null; // inline handler in dispatch
+                case "StructuralDeepAnalysis":  return null; // inline handler in dispatch
+
                 // BIM Coordination Center dispatch targets
                 case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
                 case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();

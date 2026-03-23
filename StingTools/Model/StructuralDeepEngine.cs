@@ -109,12 +109,19 @@ namespace StingTools.Model
 
                             if (eccMm > 50) // >50mm eccentricity is significant
                             {
+                                // Calculate torsional moment: Mt = V × e
+                                // Estimate beam reaction from tributary length (~span/2) × 5 kN/m UDL
+                                double beamLengthMm = (line?.Length ?? 3) * 304.8;
+                                double estimatedReactionKN = beamLengthMm / 1000.0 * 5.0 / 2.0; // kN
+                                double torsionalMomentKNm = estimatedReactionKN * eccMm / 1000.0;
+
                                 cases.Add(new TorsionCase
                                 {
                                     ElementId = beam.Id,
-                                    Description = $"Eccentric beam-column connection: {beam.Name} offset {eccMm:F0}mm",
+                                    Description = $"Eccentric beam-column connection: {beam.Name} offset {eccMm:F0}mm, Mt≈{torsionalMomentKNm:F1}kNm",
                                     TorsionType = "Eccentric",
                                     EccentricityMm = eccMm,
+                                    TorsionalMomentKNm = torsionalMomentKNm,
                                     Recommendation = eccMm > colWidthMm / 2
                                         ? "CRITICAL — resultant outside column — redesign connection"
                                         : "Add stiffener plates or use moment-resisting connection"
@@ -210,14 +217,16 @@ namespace StingTools.Model
                 double Wpl_y = b * tf * (d - tf) + tw * Math.Pow(d - 2 * tf, 2) / 4.0;
                 double Mpl = Wpl_y * fyMPa / 1e6; // kNm
 
-                // Slenderness
+                // Slenderness — EC3 §6.3.2.2: λ̄LT = √(Wpl×fy / Mcr)
+                // C1 moment gradient factor applied to Mcr (correct per EC3 6.3.2.3)
+                // NOT applied as post-divisor to χLT (which was incorrect)
                 double lambdaLT = Mpl > 0 && Mcr > 0 ? Math.Sqrt(Mpl / Mcr) : 0;
                 result.SlendernessLambdaLT = lambdaLT;
 
                 // Reduction factor (EC3 §6.3.2.3 — General case)
                 double alphaLT = 0.49; // buckling curve c for rolled I/H sections
-                double lambdaLT0 = 0.4; // plateau length
-                double beta = 0.75;
+                double lambdaLT0 = 0.4; // plateau length per UK NA
+                double beta = 0.75;     // per UK NA to EC3
 
                 double phiLT = 0.5 * (1 + alphaLT * (lambdaLT - lambdaLT0) +
                     beta * lambdaLT * lambdaLT);
@@ -226,8 +235,8 @@ namespace StingTools.Model
                         beta * lambdaLT * lambdaLT, 0))), 1.0)
                     : 1.0;
 
-                // Apply moment gradient factor
-                chiLT = Math.Min(chiLT / momentGradientCm, 1.0);
+                // C1 moment gradient is already applied in Mcr calculation (CalculateMcr)
+                // Do NOT divide χLT by C1 again — that double-counts the effect
 
                 result.ReductionChiLT = chiLT;
                 result.BucklingResistanceMomentKNm = chiLT * Mpl;
@@ -415,6 +424,28 @@ namespace StingTools.Model
             }
 
             return detail;
+        }
+
+        /// <summary>Check weld group capacity per EC3 §4.5.3.</summary>
+        private static void ValidateWeldCapacity(ConnectionDetail detail, double beamDepthMm, double demandKN)
+        {
+            // Fillet weld: throat area = 0.707 × leg_size × weld_length
+            // Capacity = throat_area × fu_weld / (sqrt(3) × γM2)
+            double fuWeld = 430.0; // E35 electrode, fu = 430 MPa
+            double gammaM2 = 1.25;
+            double weldLength = 2 * beamDepthMm; // both sides of web (conservative)
+            double throatArea = 0.707 * detail.WeldSizeMm * weldLength; // mm²
+            double weldCapacityKN = throatArea * fuWeld / (Math.Sqrt(3) * gammaM2) / 1000.0;
+
+            if (weldCapacityKN < demandKN)
+            {
+                double requiredSize = demandKN * 1000.0 * Math.Sqrt(3) * gammaM2 / (fuWeld * 0.707 * weldLength);
+                detail.Checks.Add($"FAIL: Weld capacity {weldCapacityKN:F0}kN < demand {demandKN:F0}kN — increase to {requiredSize:F0}mm fillet");
+            }
+            else
+            {
+                detail.Checks.Add($"PASS: Weld capacity {weldCapacityKN:F0}kN ≥ demand {demandKN:F0}kN ({detail.WeldSizeMm:F0}mm fillet)");
+            }
         }
 
         private static void ValidateDistances(ConnectionDetail detail)

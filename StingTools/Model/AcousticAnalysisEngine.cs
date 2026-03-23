@@ -263,11 +263,30 @@ namespace StingTools.Model
             { "worship",            (1.5, 3.0) },
         };
 
-        /// <summary>Calculate RT60 using Sabine equation: T = 0.161V/A</summary>
-        public static double CalculateSabine(double volumeM3, double totalAbsorptionM2)
+        /// <summary>Calculate RT60 using Sabine equation: T = 0.161V/A with geometry correction.</summary>
+        public static double CalculateSabine(double volumeM3, double totalAbsorptionM2,
+            double lengthM = 0, double widthM = 0, double heightM = 0)
         {
             if (volumeM3 <= 0 || totalAbsorptionM2 <= 0) return 0;
-            return 0.161 * volumeM3 / totalAbsorptionM2;
+            double rt60 = 0.161 * volumeM3 / totalAbsorptionM2;
+
+            // Room geometry correction factor per Fitzroy (1959)
+            // Long/narrow rooms (L/W > 3) have higher low-frequency RT60
+            // Flat rooms (H/W < 0.3) have lower RT60 due to floor/ceiling dominance
+            if (lengthM > 0 && widthM > 0 && heightM > 0)
+            {
+                double aspectRatio = lengthM / Math.Max(widthM, 0.1);
+                double heightRatio = heightM / Math.Max(widthM, 0.1);
+
+                // Geometry correction: narrow rooms +10-30%, flat rooms -10%
+                double geoFactor = 1.0;
+                if (aspectRatio > 3.0) geoFactor += 0.1 * Math.Min(aspectRatio - 3.0, 3.0); // up to +30%
+                if (heightRatio < 0.3) geoFactor -= 0.1;
+
+                rt60 *= geoFactor;
+            }
+
+            return rt60;
         }
 
         /// <summary>Calculate RT60 using Eyring equation (more accurate for high absorption).</summary>

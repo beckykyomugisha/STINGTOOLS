@@ -317,25 +317,30 @@ namespace StingTools.Model
                     result.Iterations = iter + 1;
                     double maxCorrection = 0;
 
-                    // For each loop (pair of branches sharing a node)
-                    for (int i = 0; i < n - 1; i++)
+                    // Full loop Hardy Cross: all branches must have equal pressure drop
+                    // Reference pressure = average of all branch pressure drops
+                    double[] dp = new double[n];
+                    for (int i = 0; i < n; i++)
+                        dp[i] = resistances[i] * flows[i] * Math.Abs(flows[i]);
+
+                    double avgDp = dp.Average();
+
+                    // Apply correction to each branch to equalize pressure drop
+                    for (int i = 0; i < n; i++)
                     {
-                        // Pressure drop = R × Q² (turbulent flow)
-                        double dp_i = resistances[i] * flows[i] * Math.Abs(flows[i]);
-                        double dp_next = resistances[i + 1] * flows[i + 1] * Math.Abs(flows[i + 1]);
+                        double imbalance = dp[i] - avgDp;
 
-                        // Imbalance
-                        double imbalance = dp_i - dp_next;
-
-                        // Correction (Hardy Cross): ΔQ = -Σ(R×Q|Q|) / Σ(2×R×|Q|)
-                        double denominator = 2.0 * (resistances[i] * Math.Abs(flows[i]) +
-                            resistances[i + 1] * Math.Abs(flows[i + 1]));
-
+                        // Hardy Cross correction: ΔQ = -F(Q) / F'(Q) where F=R×Q|Q|
+                        double denominator = 2.0 * resistances[i] * Math.Abs(flows[i]);
                         if (Math.Abs(denominator) < 1e-10) continue;
 
                         double correction = -imbalance / denominator;
-                        flows[i] += correction;
-                        flows[i + 1] -= correction;
+
+                        // Damping factor for stability (0.7 under-relaxation)
+                        flows[i] += correction * 0.7;
+
+                        // Ensure flow stays positive (physical constraint)
+                        if (flows[i] < 0.01) flows[i] = 0.01;
 
                         maxCorrection = Math.Max(maxCorrection, Math.Abs(imbalance));
                     }

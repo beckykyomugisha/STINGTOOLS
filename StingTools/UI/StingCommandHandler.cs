@@ -1379,6 +1379,34 @@ namespace StingTools.UI
                     case "HandoverValidation": RunCommand<Core.HandoverValidationCommand>(app); break;
                     case "SustainabilityWorkflow": RunCommand<Core.SustainabilityWorkflowCommand>(app); break;
 
+                    // Phase 74: Deep Review Enhancements
+                    case "DailyPlanner": RunCommand<Core.DailyPlannerCommand>(app); break;
+                    case "DeliverableMatrix": RunCommand<Core.DeliverableMatrixCommand>(app); break;
+                    case "WarningPrediction": RunCommand<Core.WarningPredictionCommand>(app); break;
+                    case "ActionAuditExport":
+                    {
+                        var aaDoc = app.ActiveUIDocument?.Document;
+                        if (aaDoc != null)
+                        {
+                            string outPath = Core.OutputLocationHelper.GetTimestampedPath(aaDoc, "ActionAudit", ".csv");
+                            Core.ActionAuditLog.Export(outPath);
+                            TaskDialog.Show("Action Audit", $"Audit log exported to:\n{outPath}");
+                        }
+                        break;
+                    }
+                    case "ComplianceFallCheck":
+                    {
+                        var cfDoc = app.ActiveUIDocument?.Document;
+                        if (cfDoc != null)
+                        {
+                            var (fallen, current, prev, newStale) = Core.ComplianceFallDetector.CheckForRegression(cfDoc);
+                            TaskDialog.Show("Compliance Check",
+                                fallen ? $"⚠ COMPLIANCE FALLEN: {prev:F1}% → {current:F1}% ({newStale} new stale elements)"
+                                       : $"✓ Compliance stable at {current:F1}%");
+                        }
+                        break;
+                    }
+
                     // Phase 47: BIM Coordination Center (unified dashboard)
                     // Keep-dialog-open loop: re-open after each dispatched command
                     case "BIMCoordinationCenter":

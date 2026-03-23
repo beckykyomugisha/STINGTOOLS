@@ -2201,6 +2201,20 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PHASE 74: BIM COORDINATOR DAILY PLANNER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="BIM COORDINATOR PLANNER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Daily Planner" Tag="DailyPlanner" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator daily task list"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Matrix" Tag="DeliverableMatrix" Click="Cmd_Click" ToolTip="DD1-DD4 deliverable tracking matrix with completion status"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Warning Prediction" Tag="WarningPrediction" Click="Cmd_Click" ToolTip="Predict warning count trend for next 7 days"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Check" Tag="ComplianceFallCheck" Click="Cmd_Click" ToolTip="Detect compliance regression since last check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Audit Log" Tag="ActionAuditExport" Click="Cmd_Click" ToolTip="Export coordination action audit trail to CSV"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- PHASE 69: ACOUSTIC & SUSTAINABILITY -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
