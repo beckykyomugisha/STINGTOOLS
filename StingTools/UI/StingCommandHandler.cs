@@ -1165,17 +1165,16 @@ namespace StingTools.UI
                     case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
                     case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
 
-                    // ── Plastering ──
-                    case "PlasterMaterialBrowser": RunCommand<Model.PlasterMaterialBrowserCommand>(app); break;
-                    case "PlasterSurfaceAnalyze": RunCommand<Model.PlasterSurfaceAnalyzeCommand>(app); break;
-                    case "PlasterMixDesign": RunCommand<Model.PlasterMixDesignCommand>(app); break;
-                    case "PlasterCoverageCalc": RunCommand<Model.PlasterCoverageCalcCommand>(app); break;
-                    case "PlasterQualityChecklist": RunCommand<Model.PlasterQualityChecklistCommand>(app); break;
-                    case "PlasterAddLayers": RunCommand<Model.PlasterAddLayersCommand>(app); break;
-                    case "PlasterSmartApply": RunCommand<Model.PlasterSmartApplyCommand>(app); break;
-                    case "PlasterBatchApply": RunCommand<Model.PlasterBatchApplyCommand>(app); break;
-                    case "PlasterScheduleExport": RunCommand<Model.PlasterScheduleExportCommand>(app); break;
-                    case "PlasterCompareSpec": RunCommand<Model.PlasterCompareSpecCommand>(app); break;
+                    // ── Coverings (Plaster + Paint) ──
+                    case "CoveringMaterialBrowser": RunCommand<Model.CoveringMaterialBrowserCommand>(app); break;
+                    case "CoveringSubstrateAnalyze": RunCommand<Model.CoveringSubstrateAnalyzeCommand>(app); break;
+                    case "CoveringPaintSystem": RunCommand<Model.CoveringPaintSystemCommand>(app); break;
+                    case "CoveringCoverageCalc": RunCommand<Model.CoveringCoverageCalcCommand>(app); break;
+                    case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
+                    case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
+                    case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
+                    case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

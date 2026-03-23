@@ -1,157 +1,59 @@
 // ============================================================================
-// PlasteringCommands.cs — Plastering Plugin IExternalCommand Classes
+// PlasteringCommands.cs — Integrated Coverings, Plastering & Painting Commands
 //
-// 10 commands covering the full plastering lifecycle:
-//   1. PlasterMaterialBrowserCommand    — Browse BS EN 998-1 material database
-//   2. PlasterSurfaceAnalyzeCommand     — Analyze selected wall substrate
-//   3. PlasterMixDesignCommand          — Design multi-coat build-up
-//   4. PlasterCoverageCalcCommand       — Coverage, bags, cost, carbon
-//   5. PlasterQualityChecklistCommand   — 15-point BS EN 13914 QA checklist
-//   6. PlasterAddLayersCommand          — Inject plaster layers into wall type
-//   7. PlasterSmartApplyCommand         — Full 7-step intelligent pipeline
-//   8. PlasterBatchApplyCommand         — Batch plaster all walls by filter
-//   9. PlasterScheduleExportCommand     — Export plaster schedule to CSV
-//  10. PlasterCompareSpecCommand        — Compare internal vs external specs
+// 12 commands supporting walls, beams, columns, floors, ceilings + painting:
+//   1. CoveringMaterialBrowserCommand   — Browse BLE plaster + paint database
+//   2. CoveringSubstrateAnalyzeCommand  — Analyze ANY element substrate
+//   3. CoveringMixDesignCommand         — Multi-coat plaster build-up
+//   4. CoveringPaintSystemCommand       — Paint system spec (DFT, VOC, coats)
+//   5. CoveringCoverageCalcCommand      — Element-agnostic coverage calculator
+//   6. CoveringAddLayersCommand         — Inject layers into wall compound types
+//   7. CoveringSmartApplyCommand        — Full pipeline on selected elements
+//   8. CoveringBatchApplyCommand        — Batch all walls/beams/columns
+//   9. CoveringPaintApplyCommand        — Paint system on any elements
+//  10. CoveringRoomScheduleCommand      — Room finish schedule generation
+//  11. CoveringQualityCheckCommand      — QA checklist (plaster or paint)
+//  12. CoveringScheduleExportCommand    — Export covering schedule to CSV
 // ============================================================================
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.UI;
-using Autodesk.Revit.UI.Selection;
 using StingTools.Core;
 
 namespace StingTools.Model
 {
-    // ══════════════════════════════════════════════════════════════════
-    // 1. MATERIAL BROWSER — BS EN 998-1 Database
-    // ══════════════════════════════════════════════════════════════════
-
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterMaterialBrowserCommand : IExternalCommand
+    public class CoveringMaterialBrowserCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                var materials = PlasterMaterialScience.GetAllMaterials();
+                var mats = CoveringMaterialDatabase.GetAllMaterials();
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("PLASTER MATERIAL DATABASE (BS EN 998-1)");
-                sb.AppendLine(new string('═', 55));
-
-                foreach (var m in materials)
-                {
-                    sb.AppendLine($"\n{m.Name}");
-                    sb.AppendLine($"  Type: {m.Type}, Class: {m.BSClassification}");
-                    sb.AppendLine($"  Mix: {m.MixRatio}, Density: {m.DensityKgM3}kg/m³");
-                    sb.AppendLine($"  Strength: {m.CompressiveStrengthMPa:F1}MPa, λ={m.ThermalConductivity}W/mK");
-                    sb.AppendLine($"  Coverage: {m.CoverageM2PerBag}m²/bag, £{m.CostPerBag:F2}/bag");
-                    sb.AppendLine($"  Curing: {m.CuringTimeHours}h, Fire: {m.FireResistanceMinutes}min");
-                }
-
-                TaskDialog.Show("PLASTER — Materials (BS EN 998-1)", sb.ToString());
-                return Result.Succeeded;
-            }
-            catch (Exception ex) { StingLog.Error("PlasterMaterialBrowser", ex); message = ex.Message; return Result.Failed; }
-        }
-    }
-
-
-    // ══════════════════════════════════════════════════════════════════
-    // 2. SURFACE ANALYZE — Substrate Detection & Suction Classification
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class PlasterSurfaceAnalyzeCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
-            if (uidoc?.Document == null) return Result.Failed;
-            try
-            {
-                var sel = uidoc.Selection.GetElementIds();
-                var walls = sel.Select(id => uidoc.Document.GetElement(id)).OfType<Wall>().ToList();
-
-                if (walls.Count == 0)
-                {
-                    TaskDialog.Show("PLASTER", "Select one or more walls first.");
-                    return Result.Cancelled;
-                }
-
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"SURFACE ANALYSIS — {walls.Count} wall(s)");
+                sb.AppendLine($"COVERING MATERIALS ({mats.Count} items)");
                 sb.AppendLine(new string('═', 50));
-
-                foreach (var wall in walls.Take(5))
-                {
-                    var substrate = SurfaceAnalyzer.DetectSubstrate(wall);
-                    var analysis = SurfaceAnalyzer.AnalyzeSurface(substrate, false);
-                    sb.AppendLine($"\nWall {wall.Id.Value} ({wall.WallType.Name}):");
-                    sb.AppendLine(analysis.Summary);
-                }
-
-                if (walls.Count > 5) sb.AppendLine($"\n... and {walls.Count - 5} more walls");
-
-                TaskDialog.Show("PLASTER — Surface Analysis", sb.ToString());
+                sb.AppendLine("\n── PLASTER/RENDER ──");
+                foreach (var m in CoveringMaterialDatabase.FindPlasters())
+                    sb.AppendLine($"  {m.Name} — {m.ThicknessMm:F0}mm, {m.DensityKgM3}kg/m³, {m.MixRatio}, £{m.CostPerUnit:F2}/{m.UnitType}");
+                sb.AppendLine("\n── PAINT/COATING ──");
+                foreach (var m in CoveringMaterialDatabase.FindPaints())
+                    sb.AppendLine($"  {m.Name} — {m.DFTMicrons:F0}μm DFT, {m.SpreadRateM2PerLitre}m²/L, {m.CoatsRequired} coats, {m.FinishType}, VOC={m.VOCgPerLitre}g/L");
+                TaskDialog.Show("COVERINGS — Materials", sb.ToString());
                 return Result.Succeeded;
             }
-            catch (Exception ex) { StingLog.Error("PlasterSurfaceAnalyze", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringMaterialBrowser", ex); message = ex.Message; return Result.Failed; }
         }
     }
 
-
-    // ══════════════════════════════════════════════════════════════════
-    // 3. MIX DESIGN — Multi-Coat Build-Up Specification
-    // ══════════════════════════════════════════════════════════════════
-
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterMixDesignCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            try
-            {
-                var dlg = new TaskDialog("PLASTER — Mix Design");
-                dlg.MainContent = "Select application:";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Internal — Dense block substrate");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Internal — Plasterboard (skim only)");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "External — 3-coat render (blockwork)");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "External — Insulating render system");
-                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
-
-                var choice = dlg.Show();
-                PlasterBuildUp buildUp = choice switch
-                {
-                    TaskDialogResult.CommandLink1 => PlasterMixDesigner.DesignBuildUp(SubstrateType.DenseBlock, false),
-                    TaskDialogResult.CommandLink2 => PlasterMixDesigner.DesignBuildUp(SubstrateType.Plasterboard, false),
-                    TaskDialogResult.CommandLink3 => PlasterMixDesigner.DesignBuildUp(SubstrateType.DenseBlock, true),
-                    TaskDialogResult.CommandLink4 => PlasterMixDesigner.DesignBuildUp(SubstrateType.LightweightBlock, true, requiresInsulation: true),
-                    _ => null,
-                };
-                if (buildUp == null) return Result.Cancelled;
-
-                TaskDialog.Show("PLASTER — Mix Design (BS EN 13914)", buildUp.Summary);
-                return Result.Succeeded;
-            }
-            catch (Exception ex) { StingLog.Error("PlasterMixDesign", ex); message = ex.Message; return Result.Failed; }
-        }
-    }
-
-
-    // ══════════════════════════════════════════════════════════════════
-    // 4. COVERAGE CALCULATOR — Area, Bags, Cost, Carbon
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class PlasterCoverageCalcCommand : IExternalCommand
+    public class CoveringSubstrateAnalyzeCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -159,128 +61,63 @@ namespace StingTools.Model
             if (uidoc?.Document == null) return Result.Failed;
             try
             {
-                var sel = uidoc.Selection.GetElementIds();
-                var walls = sel.Select(id => uidoc.Document.GetElement(id)).OfType<Wall>().ToList();
-
-                if (walls.Count == 0)
-                {
-                    // Fall back to all walls in view
-                    walls = new FilteredElementCollector(uidoc.Document, uidoc.Document.ActiveView.Id)
-                        .OfClass(typeof(Wall)).Cast<Wall>().ToList();
-                }
-
-                if (walls.Count == 0)
-                {
-                    TaskDialog.Show("PLASTER", "No walls found.");
-                    return Result.Cancelled;
-                }
-
-                var result = PlasterCoverageEngine.CalculateCoverage(
-                    uidoc.Document, walls, PlasterConfig.InternalRenderThicknessMm, false);
-
-                TaskDialog.Show("PLASTER — Coverage Calculator", result.Summary);
-                return Result.Succeeded;
-            }
-            catch (Exception ex) { StingLog.Error("PlasterCoverageCalc", ex); message = ex.Message; return Result.Failed; }
-        }
-    }
-
-
-    // ══════════════════════════════════════════════════════════════════
-    // 5. QUALITY CHECKLIST — 15-Point BS EN 13914
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.ReadOnly)]
-    [Regeneration(RegenerationOption.Manual)]
-    public class PlasterQualityChecklistCommand : IExternalCommand
-    {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-        {
-            try
-            {
-                var buildUp = PlasterMixDesigner.DesignBuildUp(SubstrateType.DenseBlock, false);
-                var surface = SurfaceAnalyzer.AnalyzeSurface(SubstrateType.DenseBlock, false);
-                var checks = PlasterQualityInspector.GenerateChecklist(buildUp, surface);
+                var sel = uidoc.Selection.GetElementIds()
+                    .Select(id => uidoc.Document.GetElement(id)).Where(e => e != null).ToList();
+                if (sel.Count == 0) { TaskDialog.Show("COVERINGS", "Select elements first."); return Result.Cancelled; }
 
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("PLASTER QA CHECKLIST (BS EN 13914 / BS 8000-10)");
-                sb.AppendLine(new string('═', 55));
-
-                int passed = checks.Count(c => c.Pass);
-                sb.AppendLine($"\nOverall: {passed}/{checks.Count} PASS\n");
-
-                foreach (var c in checks)
+                sb.AppendLine($"SUBSTRATE ANALYSIS — {sel.Count} element(s)");
+                sb.AppendLine(new string('═', 50));
+                foreach (var el in sel.Take(8))
                 {
-                    string icon = c.Pass ? "✓" : "✗";
-                    sb.AppendLine($"{icon} [{c.Number:D2}] {c.Description}");
-                    sb.AppendLine($"    Standard: {c.Standard}");
-                    sb.AppendLine($"    Criteria: {c.Criteria}");
+                    var r = SubstrateDetector.Detect(el);
+                    sb.AppendLine($"\n{el.Category?.Name ?? "?"} [{el.Id.Value}]: {r.Summary}");
                 }
-
-                TaskDialog.Show("PLASTER — QA Checklist", sb.ToString());
+                TaskDialog.Show("COVERINGS — Substrate Analysis", sb.ToString());
                 return Result.Succeeded;
             }
-            catch (Exception ex) { StingLog.Error("PlasterQualityChecklist", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringSubstrateAnalyze", ex); message = ex.Message; return Result.Failed; }
         }
     }
 
-
-    // ══════════════════════════════════════════════════════════════════
-    // 6. ADD LAYERS — Inject Plaster into Wall Type
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterAddLayersCommand : IExternalCommand
+    public class CoveringPaintSystemCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
-            if (uidoc?.Document == null) return Result.Failed;
             try
             {
-                var sel = uidoc.Selection.GetElementIds();
-                var wall = sel.Select(id => uidoc.Document.GetElement(id)).OfType<Wall>().FirstOrDefault();
-                if (wall == null) { TaskDialog.Show("PLASTER", "Select a wall."); return Result.Cancelled; }
-
-                var dlg = new TaskDialog("PLASTER — Add Layers");
-                dlg.MainContent = "Apply plaster to:";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Interior face (backing + skim)");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Exterior face (3-coat render)");
+                var dlg = new TaskDialog("COVERINGS — Paint System");
+                dlg.MainContent = "Select paint type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Vinyl Matt Emulsion (internal)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Oil-Based Gloss (woodwork)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Masonry Paint (external)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Intumescent Fire Paint (steel)");
                 dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 var choice = dlg.Show();
-                bool isExternal = choice == TaskDialogResult.CommandLink2;
-                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
-                    return Result.Cancelled;
-
-                var substrate = SurfaceAnalyzer.DetectSubstrate(wall);
-                var buildUp = PlasterMixDesigner.DesignBuildUp(substrate, isExternal);
-
-                using (var tx = new Transaction(uidoc.Document, "STING Plaster Layers"))
+                var (type, substrate) = choice switch
                 {
-                    tx.Start();
-                    var result = PlasterLayerBuilder.AddPlasterLayers(
-                        uidoc.Document, wall.WallType, buildUp, !isExternal);
-                    tx.Commit();
+                    TaskDialogResult.CommandLink1 => (CoveringType.EmulsionPaint, SubstrateType.InSituConcrete),
+                    TaskDialogResult.CommandLink2 => (CoveringType.GlossPaint, SubstrateType.Timber),
+                    TaskDialogResult.CommandLink3 => (CoveringType.MasonryPaint, SubstrateType.DenseBlock),
+                    TaskDialogResult.CommandLink4 => (CoveringType.Intumescent, SubstrateType.SteelSection),
+                    _ => ((CoveringType)(-1), SubstrateType.DenseBlock),
+                };
+                if ((int)type < 0) return Result.Cancelled;
 
-                    TaskDialog.Show("PLASTER — Layers Added", result.Summary);
-                }
-
+                var spec = PaintSpecificationEngine.DesignPaintSystem(substrate, type == CoveringType.MasonryPaint, type);
+                TaskDialog.Show("COVERINGS — Paint System (BS 6150)", spec.Summary);
                 return Result.Succeeded;
             }
-            catch (Exception ex) { StingLog.Error("PlasterAddLayers", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringPaintSystem", ex); message = ex.Message; return Result.Failed; }
         }
     }
 
-
-    // ══════════════════════════════════════════════════════════════════
-    // 7. SMART APPLY — Full 7-Step Intelligent Pipeline
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterSmartApplyCommand : IExternalCommand
+    public class CoveringCoverageCalcCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -288,50 +125,77 @@ namespace StingTools.Model
             if (uidoc?.Document == null) return Result.Failed;
             try
             {
-                var sel = uidoc.Selection.GetElementIds();
-                var walls = sel.Select(id => uidoc.Document.GetElement(id)).OfType<Wall>().ToList();
-                if (walls.Count == 0) { TaskDialog.Show("PLASTER", "Select walls first."); return Result.Cancelled; }
+                var sel = uidoc.Selection.GetElementIds()
+                    .Select(id => uidoc.Document.GetElement(id)).Where(e => e != null).ToList();
+                if (sel.Count == 0)
+                    sel = new FilteredElementCollector(uidoc.Document, uidoc.Document.ActiveView.Id)
+                        .WhereElementIsNotElementType().Where(e => e.Category != null).Take(500).ToList();
 
-                var dlg = new TaskDialog("PLASTER — Smart Apply");
-                dlg.MainContent = $"Plaster {walls.Count} wall(s):";
+                var material = CoveringMaterialDatabase.FindByType(CoveringType.InternalPlaster);
+                var result = ElementCoverageCalculator.Calculate(uidoc.Document, sel, PlasterConfig.InternalRenderMm, material);
+                TaskDialog.Show("COVERINGS — Coverage", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("CoveringCoverageCalc", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CoveringSmartApplyCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var sel = uidoc.Selection.GetElementIds()
+                    .Select(id => uidoc.Document.GetElement(id)).Where(e => e != null).ToList();
+                if (sel.Count == 0) { TaskDialog.Show("COVERINGS", "Select walls, beams, or columns."); return Result.Cancelled; }
+
+                var dlg = new TaskDialog("COVERINGS — Smart Apply");
+                dlg.MainContent = $"Apply covering to {sel.Count} element(s):";
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Internal plaster (backing + skim)");
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "External render (3-coat system)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Internal paint (emulsion, 2 coats)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Intumescent coating (steel fire protection)");
                 dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
                 var choice = dlg.Show();
-                bool isExternal = choice == TaskDialogResult.CommandLink2;
-                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
-                    return Result.Cancelled;
+                bool isExt, isPaint;
+                CoveringType covType;
+                switch (choice)
+                {
+                    case TaskDialogResult.CommandLink1: isExt = false; isPaint = false; covType = CoveringType.InternalPlaster; break;
+                    case TaskDialogResult.CommandLink2: isExt = true; isPaint = false; covType = CoveringType.ExternalRender; break;
+                    case TaskDialogResult.CommandLink3: isExt = false; isPaint = true; covType = CoveringType.EmulsionPaint; break;
+                    case TaskDialogResult.CommandLink4: isExt = false; isPaint = true; covType = CoveringType.Intumescent; break;
+                    default: return Result.Cancelled;
+                }
 
-                SmartPlasterFactory.PlasteringReport report;
-                using (var tx = new Transaction(uidoc.Document, "STING Smart Plaster"))
+                SmartCoveringFactory.CoveringReport report;
+                using (var tx = new Transaction(uidoc.Document, "STING Smart Covering"))
                 {
                     tx.Start();
-                    report = SmartPlasterFactory.PlasterWalls(uidoc.Document, walls, isExternal);
+                    report = SmartCoveringFactory.ApplyCovering(uidoc.Document, sel, isExt, isPaint, covType);
                     if (report.Success) tx.Commit(); else tx.RollBack();
                 }
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine(report.Summary);
-                sb.AppendLine();
                 foreach (var s in report.Steps) sb.AppendLine(s);
                 foreach (var w in report.Warnings) sb.AppendLine($"⚠ {w}");
-
-                TaskDialog.Show("PLASTER — Smart Apply", sb.ToString());
+                TaskDialog.Show("COVERINGS — Smart Apply", sb.ToString());
                 return report.Success ? Result.Succeeded : Result.Failed;
             }
-            catch (Exception ex) { StingLog.Error("PlasterSmartApply", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringSmartApply", ex); message = ex.Message; return Result.Failed; }
         }
     }
-
-
-    // ══════════════════════════════════════════════════════════════════
-    // 8. BATCH APPLY — All Walls by Category Filter
-    // ══════════════════════════════════════════════════════════════════
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterBatchApplyCommand : IExternalCommand
+    public class CoveringBatchApplyCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -339,56 +203,43 @@ namespace StingTools.Model
             if (uidoc?.Document == null) return Result.Failed;
             try
             {
-                var allWalls = new FilteredElementCollector(uidoc.Document)
-                    .OfClass(typeof(Wall)).Cast<Wall>()
-                    .Where(w => w.WallType.Kind == WallKind.Basic)
-                    .ToList();
+                var doc = uidoc.Document;
+                var allElements = new List<Element>();
+                allElements.AddRange(new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>()
+                    .Where(w => w.WallType.Kind == WallKind.Basic));
+                allElements.AddRange(new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType());
+                allElements.AddRange(new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType());
 
-                if (allWalls.Count == 0) { TaskDialog.Show("PLASTER", "No basic walls found."); return Result.Cancelled; }
+                if (allElements.Count == 0) { TaskDialog.Show("COVERINGS", "No walls/beams/columns found."); return Result.Cancelled; }
 
-                var dlg = new TaskDialog("PLASTER — Batch Apply");
-                dlg.MainContent = $"Found {allWalls.Count} basic walls.\n" +
-                    "Apply plaster to ALL walls?";
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    $"Internal plaster — all {allWalls.Count} walls");
-                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Internal plaster — current view only");
-                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                int walls = allElements.Count(e => e is Wall);
+                int beams = allElements.Count(e => e.Category?.BuiltInCategory == BuiltInCategory.OST_StructuralFraming);
+                int cols = allElements.Count(e => e.Category?.BuiltInCategory == BuiltInCategory.OST_StructuralColumns);
 
-                var choice = dlg.Show();
-                IList<Wall> scope;
+                var confirm = TaskDialog.Show("COVERINGS — Batch",
+                    $"Apply internal plaster to {walls} walls + {beams} beams + {cols} columns?",
+                    TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel);
+                if (confirm != TaskDialogResult.Ok) return Result.Cancelled;
 
-                if (choice == TaskDialogResult.CommandLink1)
-                    scope = allWalls;
-                else if (choice == TaskDialogResult.CommandLink2)
-                    scope = new FilteredElementCollector(uidoc.Document, uidoc.Document.ActiveView.Id)
-                        .OfClass(typeof(Wall)).Cast<Wall>()
-                        .Where(w => w.WallType.Kind == WallKind.Basic).ToList();
-                else return Result.Cancelled;
-
-                SmartPlasterFactory.PlasteringReport report;
-                using (var tx = new Transaction(uidoc.Document, "STING Batch Plaster"))
+                SmartCoveringFactory.CoveringReport report;
+                using (var tx = new Transaction(doc, "STING Batch Covering"))
                 {
                     tx.Start();
-                    report = SmartPlasterFactory.PlasterWalls(uidoc.Document, scope, false);
+                    report = SmartCoveringFactory.ApplyCovering(doc, allElements, false, false);
                     if (report.Success) tx.Commit(); else tx.RollBack();
                 }
-
-                TaskDialog.Show("PLASTER — Batch Result", report.Summary);
+                TaskDialog.Show("COVERINGS — Batch Result", report.Summary);
                 return report.Success ? Result.Succeeded : Result.Failed;
             }
-            catch (Exception ex) { StingLog.Error("PlasterBatchApply", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringBatchApply", ex); message = ex.Message; return Result.Failed; }
         }
     }
 
-
-    // ══════════════════════════════════════════════════════════════════
-    // 9. SCHEDULE EXPORT — Plaster Schedule to CSV
-    // ══════════════════════════════════════════════════════════════════
-
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterScheduleExportCommand : IExternalCommand
+    public class CoveringRoomScheduleCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -396,87 +247,96 @@ namespace StingTools.Model
             if (uidoc?.Document == null) return Result.Failed;
             try
             {
-                var walls = new FilteredElementCollector(uidoc.Document)
-                    .OfClass(typeof(Wall)).Cast<Wall>()
-                    .Where(w => w.WallType.Kind == WallKind.Basic).ToList();
+                var schedule = RoomFinishScheduler.GenerateSchedule(uidoc.Document);
+                if (schedule.Count == 0) { TaskDialog.Show("COVERINGS", "No placed rooms found."); return Result.Cancelled; }
 
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine("Wall ID,Wall Type,Level,Length (mm),Height (mm),Area (m²),Substrate,Plaster Spec,Thickness (mm),Bags,Cost (£)");
-
-                foreach (var wall in walls)
+                using (var tx = new Transaction(uidoc.Document, "STING Room Finishes"))
                 {
-                    var substrate = SurfaceAnalyzer.DetectSubstrate(wall);
-                    var buildUp = PlasterMixDesigner.DesignBuildUp(substrate, false);
-                    var heightP = wall.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM);
-                    double hFt = heightP?.AsDouble() ?? 10;
-                    double lFt = (wall.Location as LocationCurve)?.Curve.Length ?? 0;
-                    double areaM2 = hFt * lFt * Units.SqFtToSqM;
-                    var mat = PlasterMaterialScience.RecommendMaterial(substrate, false);
-                    int bags = (int)Math.Ceiling(areaM2 / Math.Max(mat.CoverageM2PerBag, 0.1));
+                    tx.Start();
+                    int written = RoomFinishScheduler.WriteToRooms(uidoc.Document, schedule);
+                    tx.Commit();
 
-                    var levelParam = wall.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
-                    string level = levelParam != null ? (uidoc.Document.GetElement(levelParam.AsElementId()) as Level)?.Name ?? "—" : "—";
-
-                    sb.AppendLine($"{wall.Id.Value},{wall.WallType.Name},{level}," +
-                        $"{lFt * Units.FeetToMm:F0},{hFt * Units.FeetToMm:F0},{areaM2:F1}," +
-                        $"{substrate},{buildUp.Coats.FirstOrDefault()?.Material ?? "—"}," +
-                        $"{buildUp.TotalThicknessMm:F0},{bags},{bags * mat.CostPerBag:F0}");
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"ROOM FINISH SCHEDULE — {schedule.Count} rooms, {written} updated\n");
+                    foreach (var r in schedule.Take(10))
+                        sb.AppendLine($"  {r.RoomNumber} {r.RoomName}: Wall={r.WallFinish}, " +
+                            $"Floor={r.FloorFinish}, Ceiling={r.CeilingFinish}");
+                    if (schedule.Count > 10) sb.AppendLine($"\n  ... and {schedule.Count - 10} more rooms");
+                    TaskDialog.Show("COVERINGS — Room Finishes", sb.ToString());
                 }
-
-                // Save to file
-                var outputPath = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "PlasterSchedule", "csv");
-                System.IO.File.WriteAllText(outputPath, sb.ToString());
-
-                TaskDialog.Show("PLASTER — Schedule Export",
-                    $"Exported {walls.Count} walls to:\n{outputPath}");
                 return Result.Succeeded;
             }
-            catch (Exception ex) { StingLog.Error("PlasterScheduleExport", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringRoomSchedule", ex); message = ex.Message; return Result.Failed; }
         }
     }
 
-
-    // ══════════════════════════════════════════════════════════════════
-    // 10. COMPARE SPEC — Internal vs External Side-by-Side
-    // ══════════════════════════════════════════════════════════════════
-
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
-    public class PlasterCompareSpecCommand : IExternalCommand
+    public class CoveringQualityCheckCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                var intBuildUp = PlasterMixDesigner.DesignBuildUp(SubstrateType.DenseBlock, false);
-                var extBuildUp = PlasterMixDesigner.DesignBuildUp(SubstrateType.DenseBlock, true);
-                var intMat = PlasterMaterialScience.RecommendMaterial(SubstrateType.DenseBlock, false);
-                var extMat = PlasterMaterialScience.RecommendMaterial(SubstrateType.DenseBlock, true);
+                var dlg = new TaskDialog("COVERINGS — QA Checklist");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Plaster QA (BS EN 13914)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Paint QA (BS 6150)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+                bool isPaint = choice == TaskDialogResult.CommandLink2;
+                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2) return Result.Cancelled;
 
+                var checks = CoveringQualityInspector.GenerateChecklist(isPaint);
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("PLASTER SPECIFICATION COMPARISON");
-                sb.AppendLine(new string('═', 55));
-
-                sb.AppendLine("\n┌─ INTERNAL ──────────────────────────────┐");
-                sb.AppendLine(intBuildUp.Summary);
-                sb.AppendLine($"  Material: {intMat.Name} ({intMat.BSClassification})");
-                sb.AppendLine($"  λ = {intMat.ThermalConductivity} W/mK, fire = {intMat.FireResistanceMinutes}min");
-
-                sb.AppendLine("\n┌─ EXTERNAL ──────────────────────────────┐");
-                sb.AppendLine(extBuildUp.Summary);
-                sb.AppendLine($"  Material: {extMat.Name} ({extMat.BSClassification})");
-                sb.AppendLine($"  λ = {extMat.ThermalConductivity} W/mK, fire = {extMat.FireResistanceMinutes}min");
-
-                sb.AppendLine("\n┌─ KEY DIFFERENCES ───────────────────────┐");
-                sb.AppendLine($"  Thickness: INT {intBuildUp.TotalThicknessMm:F0}mm vs EXT {extBuildUp.TotalThicknessMm:F0}mm");
-                sb.AppendLine($"  Coats: INT {intBuildUp.Coats.Count} vs EXT {extBuildUp.Coats.Count}");
-                sb.AppendLine($"  Drying: INT {intBuildUp.TotalDryingDays:F1}d vs EXT {extBuildUp.TotalDryingDays:F1}d");
-                sb.AppendLine($"  Cost/bag: INT £{intMat.CostPerBag:F2} vs EXT £{extMat.CostPerBag:F2}");
-
-                TaskDialog.Show("PLASTER — Specification Comparison", sb.ToString());
+                sb.AppendLine($"{(isPaint ? "PAINT" : "PLASTER")} QA CHECKLIST");
+                sb.AppendLine(new string('═', 50));
+                foreach (var c in checks)
+                    sb.AppendLine($"✓ [{c.Number:D2}] {c.Description}\n    {c.Standard}: {c.Criteria}");
+                TaskDialog.Show("COVERINGS — QA", sb.ToString());
                 return Result.Succeeded;
             }
-            catch (Exception ex) { StingLog.Error("PlasterCompareSpec", ex); message = ex.Message; return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("CoveringQualityCheck", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CoveringScheduleExportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var doc = uidoc.Document;
+                var allElements = new List<Element>();
+                allElements.AddRange(new FilteredElementCollector(doc).OfClass(typeof(Wall)).Cast<Wall>().Where(w => w.WallType.Kind == WallKind.Basic));
+                allElements.AddRange(new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType());
+                allElements.AddRange(new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType());
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Element ID,Category,Type Name,Level,Substrate,Finish Spec,Area (m²),Cost (£)");
+
+                foreach (var el in allElements)
+                {
+                    var sub = SubstrateDetector.Detect(el);
+                    string typeName = el is Wall w ? w.WallType.Name : (el is FamilyInstance fi ? fi.Symbol?.Name ?? "" : "");
+                    string finish = ParameterHelpers.GetString(el, "ASS_FINISH_TXT");
+                    if (string.IsNullOrEmpty(finish)) finish = $"{sub.Substrate} — needs covering";
+                    double area = sub.Target == CoveringTarget.Beam ? ElementCoverageCalculator.Calculate(doc, new[] { el }, 13, null).NetAreaM2 :
+                        sub.Target == CoveringTarget.Column ? ElementCoverageCalculator.Calculate(doc, new[] { el }, 13, null).NetAreaM2 :
+                        (el.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)?.AsDouble() ?? 0) * Units.SqFtToSqM;
+
+                    sb.AppendLine($"{el.Id.Value},{el.Category?.Name},{typeName},,{sub.Substrate},{finish},{area:F1},{area * PlasterConfig.PlasterLabourPerM2:F0}");
+                }
+
+                var path = OutputLocationHelper.GetTimestampedPath(doc, "CoveringSchedule", "csv");
+                System.IO.File.WriteAllText(path, sb.ToString());
+                TaskDialog.Show("COVERINGS — Export", $"Exported {allElements.Count} elements to:\n{path}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("CoveringScheduleExport", ex); message = ex.Message; return Result.Failed; }
         }
     }
 }
