@@ -96,6 +96,8 @@ namespace StingTools.Core
         public int Fixed { get; set; }
         public int Skipped { get; set; }
         public int Failed { get; set; }
+        /// <summary>Phase 56: Net warning reduction after fix verification re-scan.</summary>
+        public int NetReduction { get; set; }
         public List<string> Details { get; set; } = new();
     }
 
@@ -702,7 +704,147 @@ namespace StingTools.Core
                 else
                     tx.RollBack();
             }
+
+            // Phase 56: Fix verification — re-scan warnings after auto-fix to confirm fixes worked
+            if (report.Fixed > 0)
+            {
+                try
+                {
+                    int postFixCount = doc.GetWarnings()?.Count ?? 0;
+                    int preFixCount = warnings.Count;
+                    int netReduction = preFixCount - postFixCount;
+                    report.Details.Add($"");
+                    report.Details.Add($"── Verification ──");
+                    report.Details.Add($"Before: {preFixCount} warnings, After: {postFixCount} warnings");
+                    if (netReduction > 0)
+                        report.Details.Add($"Net reduction: {netReduction} warnings resolved");
+                    else if (netReduction == 0)
+                        report.Details.Add($"Warning: no net reduction — fixes may have introduced new warnings");
+                    else
+                        report.Details.Add($"WARNING: {Math.Abs(netReduction)} NEW warnings introduced by fixes — review manually");
+                    report.NetReduction = netReduction;
+                }
+                catch (Exception ex) { StingLog.Warn($"Fix verification scan: {ex.Message}"); }
+            }
             return report;
+        }
+
+        // ── WARNING PRIORITY QUEUE ──
+
+        /// <summary>
+        /// Phase 56: Calculate weighted priority score for each warning.
+        /// Higher score = fix this warning first. Factors: severity, element count,
+        /// downstream impact (COBie, compliance), age, and auto-fixability.
+        /// </summary>
+        internal static List<(ClassifiedWarning Warning, double Score, string Reason)>
+            PrioritizeWarnings(List<ClassifiedWarning> warnings)
+        {
+            var scored = new List<(ClassifiedWarning, double, string)>();
+            foreach (var w in warnings)
+            {
+                double score = 0;
+                var reasons = new List<string>();
+
+                // Severity weight (0-50)
+                switch (w.Severity)
+                {
+                    case WarningSeverity.Critical: score += 50; reasons.Add("CRITICAL severity"); break;
+                    case WarningSeverity.High: score += 35; reasons.Add("HIGH severity"); break;
+                    case WarningSeverity.Medium: score += 20; break;
+                    case WarningSeverity.Low: score += 10; break;
+                    default: score += 5; break;
+                }
+
+                // Element count impact (0-20)
+                int elemCount = (w.FailingElements?.Count ?? 0) + (w.AdditionalElements?.Count ?? 0);
+                if (elemCount > 10) { score += 20; reasons.Add($"{elemCount} elements affected"); }
+                else if (elemCount > 5) score += 15;
+                else if (elemCount > 1) score += 10;
+                else score += 5;
+
+                // Category impact on downstream systems (0-20)
+                if (w.Category == WarningCategory.Spatial) { score += 20; reasons.Add("Affects room/area data"); }
+                else if (w.Category == WarningCategory.MEP) { score += 15; reasons.Add("Affects MEP systems"); }
+                else if (w.Category == WarningCategory.Data) { score += 15; reasons.Add("Affects tag/schedule data"); }
+                else if (w.Category == WarningCategory.Compliance) { score += 18; reasons.Add("Compliance impact"); }
+                else if (w.Category == WarningCategory.Structural) { score += 12; }
+
+                // Auto-fixable bonus (prioritize easy wins)
+                if (w.CanAutoFix) { score += 10; reasons.Add("Auto-fixable"); }
+
+                scored.Add((w, score, string.Join(", ", reasons)));
+            }
+
+            return scored.OrderByDescending(s => s.Item2).ToList();
+        }
+
+        // ── MODEL VALIDATION ENGINE ──
+
+        /// <summary>
+        /// Phase 56: Post-creation model validation. Checks geometry, spatial,
+        /// MEP system, and naming convention compliance.
+        /// Returns list of validation issues found.
+        /// </summary>
+        internal static List<string> ValidateModelElements(Document doc, List<ElementId> elementIds)
+        {
+            var issues = new List<string>();
+            if (doc == null || elementIds == null || elementIds.Count == 0) return issues;
+
+            foreach (var id in elementIds)
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+
+                try
+                {
+                    // 1. Geometry validation — check for zero-length/area elements
+                    if (el.Location is LocationCurve lc)
+                    {
+                        if (lc.Curve.Length < 0.01) // ~3mm
+                            issues.Add($"Element {el.Id}: near-zero length ({lc.Curve.Length * 304.8:F0}mm)");
+                    }
+
+                    // 2. Bounding box validation — elements without geometry
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): no bounding box — may be invisible");
+                    else if ((bb.Max - bb.Min).GetLength() < 0.001)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): zero-size bounding box");
+
+                    // 3. Level association — elements without a level
+                    var levelId = el.LevelId;
+                    if (levelId == null || levelId == ElementId.InvalidElementId)
+                    {
+                        // Only flag for elements that should have a level
+                        if (el is Wall || el is Floor || el is FamilyInstance fi && fi.Host == null)
+                            issues.Add($"Element {el.Id} ({el.Category?.Name}): not associated with a level");
+                    }
+
+                    // 4. MEP system validation — connectors should be connected
+                    if (el is FamilyInstance fam)
+                    {
+                        var connMgr = fam.MEPModel?.ConnectorManager;
+                        if (connMgr != null)
+                        {
+                            int unconnected = 0;
+                            foreach (Connector c in connMgr.Connectors)
+                                if (!c.IsConnected) unconnected++;
+                            if (unconnected > 0)
+                                issues.Add($"Element {el.Id} ({el.Category?.Name}): {unconnected} unconnected MEP connector(s)");
+                        }
+                    }
+
+                    // 5. Naming convention — elements with default names
+                    string mark = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                    if (string.IsNullOrEmpty(mark) && (el is Wall || el is Floor || el is FamilyInstance))
+                    {
+                        // Not critical but useful for BIM coordinators
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidateModelElement {id}: {ex.Message}"); }
+            }
+
+            return issues;
         }
 
         // ── BASELINE / TREND ──

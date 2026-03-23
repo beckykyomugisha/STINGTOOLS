@@ -1401,6 +1401,14 @@ namespace StingTools.Model
                     ComplianceScan.InvalidateCache();
                     StingAutoTagger.InvalidateContext();
                 }
+
+                // Phase 56: Post-creation model validation
+                var validationIssues = WarningsEngine.ValidateModelElements(doc, createdIds);
+                if (validationIssues.Count > 0)
+                {
+                    foreach (var issue in validationIssues.Take(5))
+                        StingLog.Warn($"ModelValidation: {issue}");
+                }
             }
             catch (Exception ex) { StingLog.Warn($"AutoTagCreatedElements: {ex.Message}"); }
             return tagged;

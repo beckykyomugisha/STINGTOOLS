@@ -491,4 +491,112 @@ namespace StingTools.Core
         public int Untagged { get; set; }
         public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // Phase 56: COMPLIANCE TREND TRACKER
+    // Persists daily compliance snapshots for trend analysis
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Phase 56: Tracks compliance over time for morning briefings and coordination reports.
+    /// Persists to .sting_compliance_trend.json sidecar alongside the .rvt file.
+    /// </summary>
+    internal static class ComplianceTrendTracker
+    {
+        private const int MaxDays = 90;
+
+        /// <summary>Record today's compliance snapshot.</summary>
+        public static void RecordSnapshot(Document doc, ComplianceResult result)
+        {
+            if (doc == null || result == null || string.IsNullOrEmpty(doc.PathName)) return;
+            try
+            {
+                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                var entries = LoadEntries(path);
+                string today = DateTime.Now.ToString("yyyy-MM-dd");
+
+                // Update today's entry or add new
+                var existing = entries.FirstOrDefault(e => e.Date == today);
+                if (existing != null)
+                {
+                    existing.CompliancePct = result.CompliancePercent;
+                    existing.StaleCount = result.StaleCount;
+                    existing.Warnings = doc.GetWarnings()?.Count ?? 0;
+                    existing.PlaceholderCount = result.PlaceholderCount;
+                }
+                else
+                {
+                    entries.Add(new TrendEntry
+                    {
+                        Date = today,
+                        CompliancePct = result.CompliancePercent,
+                        TotalElements = result.TotalElements,
+                        TaggedComplete = result.TaggedComplete,
+                        StaleCount = result.StaleCount,
+                        Warnings = doc.GetWarnings()?.Count ?? 0,
+                        PlaceholderCount = result.PlaceholderCount
+                    });
+                }
+
+                // Cap at MaxDays
+                if (entries.Count > MaxDays)
+                    entries = entries.OrderByDescending(e => e.Date).Take(MaxDays).ToList();
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entries,
+                    Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(path, json);
+            }
+            catch (Exception ex) { StingLog.Warn($"ComplianceTrendTracker: {ex.Message}"); }
+        }
+
+        /// <summary>Get trend direction over last N days.</summary>
+        public static (string direction, double delta) GetTrend(Document doc, int days = 7)
+        {
+            if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                return ("unknown", 0);
+            try
+            {
+                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                var entries = LoadEntries(path);
+                if (entries.Count < 2) return ("insufficient data", 0);
+
+                var sorted = entries.OrderBy(e => e.Date).ToList();
+                int startIdx = Math.Max(0, sorted.Count - days);
+                double first = sorted[startIdx].CompliancePct;
+                double last = sorted[^1].CompliancePct;
+                double delta = last - first;
+
+                string dir = delta > 2 ? "improving" : delta < -2 ? "declining" : "stable";
+                return (dir, delta);
+            }
+            catch { return ("unknown", 0); }
+        }
+
+        private static List<TrendEntry> LoadEntries(string path)
+        {
+            try
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    return Newtonsoft.Json.JsonConvert.DeserializeObject<List<TrendEntry>>(json)
+                        ?? new List<TrendEntry>();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadTrendEntries: {ex.Message}"); }
+            return new List<TrendEntry>();
+        }
+
+        /// <summary>Daily compliance snapshot entry.</summary>
+        public class TrendEntry
+        {
+            [Newtonsoft.Json.JsonProperty("date")] public string Date { get; set; }
+            [Newtonsoft.Json.JsonProperty("compliance_pct")] public double CompliancePct { get; set; }
+            [Newtonsoft.Json.JsonProperty("total")] public int TotalElements { get; set; }
+            [Newtonsoft.Json.JsonProperty("tagged")] public int TaggedComplete { get; set; }
+            [Newtonsoft.Json.JsonProperty("stale")] public int StaleCount { get; set; }
+            [Newtonsoft.Json.JsonProperty("warnings")] public int Warnings { get; set; }
+            [Newtonsoft.Json.JsonProperty("placeholders")] public int PlaceholderCount { get; set; }
+        }
+    }
 }
