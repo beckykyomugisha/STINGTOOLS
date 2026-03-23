@@ -209,17 +209,18 @@ namespace StingTools.Model
                 // Below cut-off — infinite life
                 result.AllowableCycles = double.PositiveInfinity;
             }
-            else if (deltaF <= result.EnduranceLimitMPa / gammaMf)
+            else if (deltaF > result.EnduranceLimitMPa / gammaMf)
             {
-                // Slope m=5 region
-                double n5 = 5e6 * Math.Pow(result.EnduranceLimitMPa / gammaMf / deltaF, 5);
-                result.AllowableCycles = n5;
+                // Phase 56b AE-005 FIX: Slope m=3 region (HIGH stress, LOW cycles: N ≤ 2×10⁶)
+                // Previous code had m=3 and m=5 regions REVERSED — unsafe by factor of ~5×
+                double n3 = 2e6 * Math.Pow(deltaR / deltaF, 3);
+                result.AllowableCycles = n3;
             }
             else
             {
-                // Slope m=3 region
-                double n3 = 2e6 * Math.Pow(deltaR / deltaF, 3);
-                result.AllowableCycles = n3;
+                // Slope m=5 region (LOW stress, HIGH cycles: 2×10⁶ < N ≤ 5×10⁶)
+                double n5 = 5e6 * Math.Pow(result.EnduranceLimitMPa / gammaMf / deltaF, 5);
+                result.AllowableCycles = n5;
             }
 
             // Damage ratio (Palmgren-Miner)
