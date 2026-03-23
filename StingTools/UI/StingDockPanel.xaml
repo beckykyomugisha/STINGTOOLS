@@ -2068,6 +2068,20 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Continuity" Tag="StrContinuityCheck" Click="Cmd_Click" ToolTip="Structural path continuity — detect floating beams, unsupported slabs, missing foundations"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Adaptive Size" Tag="StrAdaptiveSize" Click="Cmd_Click" ToolTip="Multi-criteria Pareto sizing — weight/cost/carbon/deflection convergence" FontWeight="Bold"/>
                                 </WrapPanel>
+                                <TextBlock Text="Detail Design (EC2/EC3)" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Connections" Tag="StrConnectionDesign" Click="Cmd_Click" ToolTip="EC3-1-8 connection design: fin plate, moment end plate, base plate" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Vibration" Tag="StrVibrationCheck" Click="Cmd_Click" ToolTip="Floor vibration check per SCI P354 — response factor, natural frequency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Crack Width" Tag="StrCrackWidth" Click="Cmd_Click" ToolTip="EC2 §7.3 crack width: wk = Sr,max × (εsm-εcm)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Thermal" Tag="StrThermalMovement" Click="Cmd_Click" ToolTip="Expansion joint analysis: movement calculation, joint positions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Beam" Tag="StrDeepBeamSTM" Click="Cmd_Click" ToolTip="Strut-and-tie model for deep beams (EC2 §6.5)"/>
+                                </WrapPanel>
+                                <TextBlock Text="Smart Factory" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Column+" Tag="StrSmartColumnFactory" Click="Cmd_Click" ToolTip="10-step intelligent column: grid-snap → level → stacking → clash → material → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Beam+" Tag="StrSmartBeamFactory" Click="Cmd_Click" ToolTip="9-step intelligent beam: grid-snap → connection → auto-type → deflection → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Diagnostics" Tag="StrDiagnostics" Click="Cmd_Click" ToolTip="ONE-CLICK health check: BIM + continuity + load paths + constraints + materials → RAG score" FontWeight="Bold"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

@@ -2006,8 +2006,8 @@ namespace StingTools.Model
                 double W_req = M_uls * 1e3 / fy; // cm³
 
                 // Iterate through sections to find optimal
-                var sections = SteelSectionDatabase.GetAllBeamSections()
-                    .OrderBy(s => s.WeightKgPerM).ToList();
+                var sections = SteelSectionDatabase.GetAllSections()
+                    .OrderBy(s => s.MassKgPerM).ToList();
 
                 SizingResult sizing = new SizingResult
                 {
@@ -2043,8 +2043,8 @@ namespace StingTools.Model
 
                     // Estimate changes
                     double origWeight = sections.FirstOrDefault(s =>
-                        s.Designation == currentSection)?.WeightKgPerM ?? section.WeightKgPerM;
-                    sizing.WeightChangePercent = (section.WeightKgPerM - origWeight) /
+                        s.Designation == currentSection)?.MassKgPerM ?? section.MassKgPerM;
+                    sizing.WeightChangePercent = (section.MassKgPerM - origWeight) /
                         Math.Max(origWeight, 0.1) * 100;
                     sizing.CostChangePercent = sizing.WeightChangePercent * 0.9; // ~linear
                     sizing.CarbonChangePercent = sizing.WeightChangePercent * 1.0;
@@ -2053,7 +2053,8 @@ namespace StingTools.Model
 
                 if (!sizing.AllCriteriaMet)
                 {
-                    sizing.ProposedSection = sections.LastOrDefault()?.Designation ?? "N/A";
+                    var lastSection = sections.LastOrDefault();
+                    sizing.ProposedSection = lastSection?.Designation ?? "N/A";
                     sizing.IterationsToConverge = sections.Count;
                 }
 

@@ -2907,4 +2907,295 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Error("StrAdaptiveSize", ex); message = ex.Message; return Result.Failed; }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CONNECTION DESIGN (EC3-1-8)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrConnectionDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Connection Design");
+                dlg.MainContent = "Select connection type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Fin plate (simple shear — 200kN)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Moment end plate (shear + moment)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Column base plate (1000kN axial)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                string result = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => ConnectionDesigner.DesignFinPlate(200).Summary,
+                    TaskDialogResult.CommandLink2 => ConnectionDesigner.DesignMomentEndPlate(150, 300).Summary,
+                    TaskDialogResult.CommandLink3 => ConnectionDesigner.DesignBasePlate(1000).Summary,
+                    _ => null,
+                };
+                if (result == null) return Result.Cancelled;
+
+                TaskDialog.Show("STRUCT — Connection (EC3-1-8)", result);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrConnectionDesign", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FLOOR VIBRATION (SCI P354)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrVibrationCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Floor Vibration");
+                dlg.MainContent = "Select occupancy type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Office (R ≤ 4)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Residential (R ≤ 2)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Operating theatre (R ≤ 1)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Shopping/retail (R ≤ 4)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                string occ = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => "office",
+                    TaskDialogResult.CommandLink2 => "residential_day",
+                    TaskDialogResult.CommandLink3 => "operating_theatre",
+                    TaskDialogResult.CommandLink4 => "shopping",
+                    _ => null,
+                };
+                if (occ == null) return Result.Cancelled;
+
+                var result = VibrationChecker.CheckFloorVibration(9000, 3000, occupancy: occ);
+                TaskDialog.Show("STRUCT — Vibration (SCI P354)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrVibrationCheck", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CRACK WIDTH (EC2 §7.3)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCrackWidthCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                // Typical 600mm deep beam under SLS moment
+                var result = CrackWidthCalculator.Calculate(
+                    momentKNm: 200, widthMm: 300, depthMm: 600,
+                    coverMm: 35, barDiaMm: 20, barAreaMm2: 1257); // 4T20
+
+                TaskDialog.Show("STRUCT — Crack Width (EC2 §7.3)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrCrackWidth", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // THERMAL MOVEMENT
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrThermalMovementCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                // Estimate building length from model
+                var cols = new FilteredElementCollector(uidoc.Document)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType().ToList();
+
+                double lengthM = 60; // Default
+                if (cols.Count >= 2)
+                {
+                    var pts = cols.Select(c => (c.Location as LocationPoint)?.Point)
+                        .Where(p => p != null).ToList();
+                    double dx = (pts.Max(p => p.X) - pts.Min(p => p.X)) * Units.FeetToMm / 1000;
+                    double dy = (pts.Max(p => p.Y) - pts.Min(p => p.Y)) * Units.FeetToMm / 1000;
+                    lengthM = Math.Max(dx, dy);
+                }
+
+                var result = ThermalMovementEngine.Analyze(lengthM);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(result.Summary);
+                if (result.JointsRequired)
+                {
+                    sb.AppendLine("\nJoint positions:");
+                    foreach (var pos in result.JointPositionsM)
+                        sb.AppendLine($"  {pos:F1}m from start");
+                }
+
+                TaskDialog.Show("STRUCT — Thermal Movement", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrThermalMovement", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // DEEP BEAM STM (EC2 §6.5)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrDeepBeamSTMCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var result = DeepBeamSTM.Design(spanMm: 4000, depthMm: 3000,
+                    widthMm: 300, loadKN: 2000);
+                TaskDialog.Show("STRUCT — Strut-and-Tie (EC2 §6.5)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrDeepBeamSTM", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SMART COLUMN (Intelligence Factory)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartColumnFactoryCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var point = uidoc.Selection.PickPoint("Pick column position");
+                var levels = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+
+                if (levels.Count < 2) { TaskDialog.Show("Error", "Need ≥2 levels"); return Result.Failed; }
+
+                var report = SmartElementFactory.CreateSmartColumn(
+                    uidoc.Document, point, levels[0], levels[1]);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(report.Summary);
+                sb.AppendLine();
+                foreach (var step in report.Steps) sb.AppendLine(step);
+                foreach (var warn in report.Warnings) sb.AppendLine(warn);
+
+                TaskDialog.Show("STRUCT — Smart Column", sb.ToString());
+                return report.Success ? Result.Succeeded : Result.Failed;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("StrSmartColumnFactory", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SMART BEAM (Intelligence Factory)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartBeamFactoryCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var p1 = uidoc.Selection.PickPoint("Pick beam start");
+                var p2 = uidoc.Selection.PickPoint("Pick beam end");
+
+                var report = SmartElementFactory.CreateSmartBeam(
+                    uidoc.Document, p1, p2, null);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(report.Summary);
+                sb.AppendLine();
+                foreach (var step in report.Steps) sb.AppendLine(step);
+                foreach (var warn in report.Warnings) sb.AppendLine(warn);
+
+                TaskDialog.Show("STRUCT — Smart Beam", sb.ToString());
+                return report.Success ? Result.Succeeded : Result.Failed;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("StrSmartBeamFactory", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // STRUCTURAL DIAGNOSTICS — One-Click Health Check
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrDiagnosticsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = StructuralDiagnostics.RunFullDiagnostics(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+
+                sb.AppendLine("By category:");
+                foreach (var (cat, (p, f)) in result.ByCategory)
+                    sb.AppendLine($"  {cat}: {p} pass, {f} fail ({(p + f > 0 ? 100.0 * p / (p + f) : 0):F0}%)");
+
+                if (result.CriticalIssues.Count > 0)
+                {
+                    sb.AppendLine("\nCritical issues:");
+                    foreach (var issue in result.CriticalIssues.Take(10))
+                        sb.AppendLine($"  {issue}");
+                }
+
+                if (result.Recommendations.Count > 0)
+                {
+                    sb.AppendLine("\nRecommendations:");
+                    foreach (var rec in result.Recommendations)
+                        sb.AppendLine($"  → {rec}");
+                }
+
+                TaskDialog.Show($"STRUCT — Diagnostics ({result.RAGStatus})", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrDiagnostics", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
 }
