@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Host=postgres;Database=stingbim;Username=stingbim;Password=${DB_PASSWORD:-StingBIM2026!}
+      - Jwt__Key=${JWT_KEY:-StingBIM-Production-Secret-Key-Min32Chars!!}
+      - Jwt__Issuer=StingBIM
+      - Jwt__Audience=StingBIM.Client
+      - Redis__Connection=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: stingbim
+      POSTGRES_USER: stingbim
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-StingBIM2026!}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stingbim"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  # Optional: Background job processing (Hangfire)
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["dotnet", "StingBIM.API.dll", "--worker"]
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Default=Host=postgres;Database=stingbim;Username=stingbim;Password=${DB_PASSWORD:-StingBIM2026!}
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

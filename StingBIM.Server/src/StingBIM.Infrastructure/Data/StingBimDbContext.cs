@@ -1,0 +1,105 @@
+using Microsoft.EntityFrameworkCore;
+using StingBIM.Core.Entities;
+
+namespace StingBIM.Infrastructure.Data;
+
+public class StingBimDbContext : DbContext
+{
+    public StingBimDbContext(DbContextOptions<StingBimDbContext> options) : base(options) { }
+
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<TaggedElement> TaggedElements => Set<TaggedElement>();
+    public DbSet<BimIssue> Issues => Set<BimIssue>();
+    public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
+    public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
+    public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
+
+    // StingMIM entities (loaded when MIM is enabled)
+    public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
+    public DbSet<MIM.Entities.MaintenanceTask> MaintenanceTasks => Set<MIM.Entities.MaintenanceTask>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // ── Tenant ──
+        modelBuilder.Entity<Tenant>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasIndex(t => t.Slug).IsUnique();
+            e.Property(t => t.Name).HasMaxLength(200);
+            e.Property(t => t.Slug).HasMaxLength(50);
+        });
+
+        // ── AppUser ──
+        modelBuilder.Entity<AppUser>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.HasIndex(u => u.Email).IsUnique();
+            e.HasOne(u => u.Tenant).WithMany(t => t.Users).HasForeignKey(u => u.TenantId);
+        });
+
+        // ── Project ──
+        modelBuilder.Entity<Project>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasOne(p => p.Tenant).WithMany(t => t.Projects).HasForeignKey(p => p.TenantId);
+            e.HasIndex(p => new { p.TenantId, p.Code }).IsUnique();
+        });
+
+        // ── TaggedElement ──
+        modelBuilder.Entity<TaggedElement>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasOne(t => t.Project).WithMany(p => p.Elements).HasForeignKey(t => t.ProjectId);
+            e.HasIndex(t => new { t.ProjectId, t.RevitElementId }).IsUnique();
+            e.HasIndex(t => t.Tag1);
+            e.HasIndex(t => t.Disc);
+            e.HasIndex(t => t.IsStale);
+        });
+
+        // ── BimIssue ──
+        modelBuilder.Entity<BimIssue>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.HasOne(i => i.Project).WithMany(p => p.Issues).HasForeignKey(i => i.ProjectId);
+            e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
+        });
+
+        // ── DocumentRecord ──
+        modelBuilder.Entity<DocumentRecord>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.HasOne(d => d.Project).WithMany(p => p.Documents).HasForeignKey(d => d.ProjectId);
+        });
+
+        // ── LicenseKey ──
+        modelBuilder.Entity<LicenseKey>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.Key).IsUnique();
+            e.HasOne(l => l.Tenant).WithMany(t => t.LicenseKeys).HasForeignKey(l => l.TenantId);
+        });
+
+        // ── WorkflowRun ──
+        modelBuilder.Entity<WorkflowRun>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.HasOne(w => w.Project).WithMany(p => p.WorkflowRuns).HasForeignKey(w => w.ProjectId);
+        });
+
+        // ── StingMIM Entities ──
+        modelBuilder.Entity<MIM.Entities.Asset>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => new { a.ProjectId, a.AssetTag }).IsUnique();
+        });
+
+        modelBuilder.Entity<MIM.Entities.MaintenanceTask>(e =>
+        {
+            e.HasKey(m => m.Id);
+        });
+    }
+}
