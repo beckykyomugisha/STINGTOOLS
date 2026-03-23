@@ -2736,3 +2736,53 @@ The following gaps were reported by deep review agents but verified as already i
 - **TAG-RESOLVE-SAMPLE-01**: ResolveAllIssues runs RunFullPipeline on ALL elements (not sampled 50)
 - **TAG-VALIDATE-BUCKET-01**: Four-bucket classification already requires STATUS+REV for "fully resolved"
 - **TAG-SEQ-SIDECAR-DRIFT-01**: Sidecar saved per-batch; cancel rolls back current batch only, sidecar tracks committed batches accurately
+- **FM-HO-01 (COBie sheets)**: COBie handover export already generates all 12 sheets (Facility, Floor, Space, Type, Component, System, Zone, Contact, Attribute, Job, Resource + Instruction)
+- **BIM-COBIE-SHEETS-01**: Same as FM-HO-01 — already complete
+
+#### Completed (Phase 78b — Drawing Register ISO 19650, Warnings Performance, Remaining Gap Triage)
+
+694. **Drawing register ISO 19650-2 Annex B fields (DOC-REG-01)** — `DrawingRegisterEntry` expanded with 6 ISO 19650-2 fields: `SuitabilityCode` (S0-S7, auto-derived from CDE status), `DocumentType` (DR/SH/SP/SK/RP, derived from sheet number prefix), `CDELocation` (folder path from status+discipline+number), `ApprovalDate`, `Originator` (from Project Info), `Phase`. CSV export expanded from 13 to 19 columns. Extraction reads `Checked By`/`Approved By` parameters from sheets.
+695. **Warning classification precompiled patterns (PERF-WARN-01)** — `_loweredRules` array precomputes `.ToLowerInvariant()` on all 150+ classification patterns at class initialization. Eliminates 150+ redundant string lowering per warning during `ClassifyWarning()`. Combined with `_classificationCache` (`ConcurrentDictionary`) for O(1) lookup of identical warning descriptions — typical models have 20-30 unique warning types, reducing pattern matching from 10K+ evaluations to ~30 cached lookups.
+696. **Warning classification cache (EF-02)** — Thread-safe `ConcurrentDictionary<string, result>` caches classification outcome per unique warning description. First occurrence evaluates all rules; subsequent identical descriptions return cached result instantly. Reduces O(n×rules) to O(n) for large models with many duplicate warnings.
+
+### Remaining Future Enhancement Gaps (Phase 78 Triage)
+
+After verification, 15 of 44 gaps were confirmed as already implemented or false positives. The remaining 29 gaps are prioritized below:
+
+**CRITICAL (should implement before handover):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement per ISO 19650-2 §5.6 | Documented |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal JSON cross-linking | Documented |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Documented |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Documented |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to DD4 handover dates | Documented |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Documented |
+
+**HIGH (should implement for production):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | Documented |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | Documented |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | Documented |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | Documented |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | Documented |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | Documented |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation cached per document | Documented |
+| TAG-PREFLIGHT-DUP-01 | Reuse PopulationContext from pre-flight in main loop | Documented |
+
+**MEDIUM (enhancement quality):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Documented |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Documented |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Documented |
+| TAG-STALE-WARN-01 | Stale elements auto-creating warnings | Documented |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization via DAG | Documented |
+| DWG-MULTI-01 | DWG multi-layer wall detection | Documented |
+| DWG-CURVE-01 | Curved wall support from DWG arcs | Documented |
+| WF-SCHED-01 | Schedule template library (save/load/apply) | Documented |
+| WF-SCHED-02 | Cross-schedule field consistency validation | Documented |
+| MEP-SCHED-01 | MEP commissioning schedules | Documented |
+| STRUCT-REBAR-01 | Rebar spacing validation (spacing > bar diameter) | Documented |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus in double-leaf Rw | Documented |
