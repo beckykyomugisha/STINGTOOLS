@@ -2531,4 +2531,380 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Error("StrPileDesign failed", ex); message = ex.Message; return Result.Failed; }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // LOAD PATH TRACING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrTraceLoadPathsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = LoadPathTracer.TraceLoadPaths(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("GRAVITY LOAD PATH ANALYSIS");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+
+                foreach (var path in result.Paths.OrderByDescending(p => p.TotalLoadKN).Take(10))
+                {
+                    sb.AppendLine($"Stack {path.GridRef}: {path.TotalLoadKN:F0}kN " +
+                        $"({(path.ReachesFoundation ? "→ Foundation ✓" : "INCOMPLETE ✗")})");
+                    foreach (var link in path.Links)
+                        sb.AppendLine($"  {link.LevelName}: {link.ElementType} +{link.LoadInKN:F0}kN = {link.CumulativeLoadKN:F0}kN");
+                }
+
+                if (result.FloatingElements.Count > 0)
+                    sb.AppendLine($"\n⚠ {result.FloatingElements.Count} floating beams detected!");
+
+                if (result.IncompleteCount > 0)
+                {
+                    sb.AppendLine($"\n⚠ {result.IncompleteCount} columns have no load path to foundation!");
+                    uidoc.Selection.SetElementIds(
+                        result.Paths.Where(p => !p.ReachesFoundation)
+                            .SelectMany(p => p.Links.Select(l => l.ElementId))
+                            .Where(id => id != null).ToList());
+                }
+
+                TaskDialog.Show("STRUCT — Load Paths", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrTraceLoadPaths", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // TOPOLOGY OPTIMIZATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrTopologyOptimizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Topology Optimization");
+                dlg.MainContent = "Select load case for SIMP optimization:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Simply-supported beam — point load at midspan");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Simply-supported beam — UDL across top");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Cantilever bracket — tip load");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Deep beam — two point loads at thirds");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                string loadCase = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => "point_center",
+                    TaskDialogResult.CommandLink2 => "udl_top",
+                    TaskDialogResult.CommandLink3 => "cantilever",
+                    TaskDialogResult.CommandLink4 => "point_third",
+                    _ => null,
+                };
+                if (loadCase == null) return Result.Cancelled;
+
+                var result = TopologyOptimizer.Optimize(
+                    spanMm: 6000, depthMm: 3000,
+                    gridResolution: 30, volumeFraction: 0.4,
+                    loadCase: loadCase, maxIterations: 80);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("TOPOLOGY OPTIMIZATION (SIMP Method)");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+                sb.AppendLine("Material distribution (density map):");
+                sb.AppendLine(result.AsciiVisualization);
+                sb.AppendLine("Legend: ' '=void  .:-=+  *#%@=solid");
+
+                TaskDialog.Show("STRUCT — Topology", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrTopologyOptimize", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SOIL-STRUCTURE INTERACTION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSSIAnalysisCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Soil Type");
+                dlg.MainContent = "Select ground conditions:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Soft clay (ks ≈ 15,000 kPa/m)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Medium clay (ks ≈ 30,000 kPa/m)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Dense sand (ks ≈ 100,000 kPa/m)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Rock (ks ≈ 200,000 kPa/m)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                string soil = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => "soft_clay",
+                    TaskDialogResult.CommandLink2 => "medium_clay",
+                    TaskDialogResult.CommandLink3 => "dense_sand",
+                    TaskDialogResult.CommandLink4 => "rock",
+                    _ => null,
+                };
+                if (soil == null) return Result.Cancelled;
+
+                var result = SoilStructureInteraction.AnalyzeSSI(uidoc.Document, soil);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("SOIL-STRUCTURE INTERACTION (Winkler Spring Model)");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+                sb.AppendLine($"{"Fdn ID",-12} {"Load kN",10} {"Kv kN/mm",10} {"q kPa",10} {"δ mm",8} {"Status",8}");
+                foreach (var s in result.Springs.OrderByDescending(s => s.SettlementMm).Take(15))
+                    sb.AppendLine($"{s.FoundationId.Value,-12} {s.AppliedLoadKN,10:F0} {s.VerticalStiffnessKNPerMm,10:F1} " +
+                        $"{s.ContactPressureKPa,10:F0} {s.SettlementMm,8:F1} {(s.ExceedsBearing ? "FAIL" : "OK"),8}");
+
+                TaskDialog.Show("STRUCT — SSI Analysis", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrSSI", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // RETAINING WALL DESIGN
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRetainingWallCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Retaining Wall");
+                dlg.MainContent = "Select retained height:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "2.0m — garden wall");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "3.0m — basement wall");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "4.5m — deep basement");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "6.0m — heavy retaining");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                double height = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => 2.0,
+                    TaskDialogResult.CommandLink2 => 3.0,
+                    TaskDialogResult.CommandLink3 => 4.5,
+                    TaskDialogResult.CommandLink4 => 6.0,
+                    _ => 0,
+                };
+                if (height == 0) return Result.Cancelled;
+
+                var result = RetainingWallDesigner.Design(height);
+                TaskDialog.Show("STRUCT — Retaining Wall (EC7)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRetainingWall", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // REBAR DETAILING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRebarDetailCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                // Design rebar for a typical beam
+                var detail = RebarDetailEngine.DetailBeam(
+                    spanMm: 8000, widthMm: 300, depthMm: 600,
+                    topRebarMm2: 600, bottomRebarMm2: 1200,
+                    linkSpacingMm: 175, linkDiaMm: 10);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("AUTOMATIC REBAR DETAIL (EC2 + BS 8666)");
+                sb.AppendLine(detail.Summary);
+                sb.AppendLine();
+                sb.AppendLine(detail.Schedule);
+
+                TaskDialog.Show("STRUCT — Rebar Detail", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRebarDetail", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // BRACING OPTIMIZATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrBracingOptimizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = SmartBracingOptimizer.Optimize(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("BRACING OPTIMIZATION (Torsion-Minimized)");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+                sb.AppendLine("Selected bays:");
+                foreach (var sel in result.Selected)
+                    sb.AppendLine($"  Bay {sel.GridRef}: K={sel.StiffnessContributionKN:F0}kN/mm, " +
+                        $"pattern={sel.RecommendedPattern}, score={sel.Score:F0}");
+
+                TaskDialog.Show("STRUCT — Bracing Optimization", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrBracingOptimize", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CONSTRAINT PROPAGATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrConstraintCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = ConstraintPropagator.EvaluateConstraints(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("DESIGN CONSTRAINT PROPAGATION");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+
+                if (result.Violated > 0)
+                {
+                    sb.AppendLine("Violated constraints:");
+                    foreach (var c in result.Constraints.Where(c => !c.Satisfied))
+                        sb.AppendLine($"  ✗ [{c.Source}] {c.Name}: {c.Value:F1}{c.Unit}");
+                }
+
+                if (result.CascadeActions.Count > 0)
+                {
+                    sb.AppendLine("\nCascade actions required:");
+                    foreach (var a in result.CascadeActions)
+                        sb.AppendLine($"  → {a}");
+                }
+
+                TaskDialog.Show("STRUCT — Constraints", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrConstraintCheck", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CONTINUITY VALIDATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrContinuityCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = ContinuityValidator.Validate(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("STRUCTURAL CONTINUITY VALIDATION");
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+
+                if (result.Issues.Count > 0)
+                {
+                    sb.AppendLine("Issues:");
+                    foreach (var (id, type, issue) in result.Issues.Take(20))
+                        sb.AppendLine($"  ✗ {type} {id.Value}: {issue}");
+                    if (result.Issues.Count > 20)
+                        sb.AppendLine($"  ... and {result.Issues.Count - 20} more");
+
+                    uidoc.Selection.SetElementIds(result.Issues.Select(i => i.Id).ToList());
+                }
+
+                TaskDialog.Show("STRUCT — Continuity", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrContinuityCheck", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // ADAPTIVE MEMBER SIZING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAdaptiveSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var results = AdaptiveMemberSizer.SizeAllBeams(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("ADAPTIVE MEMBER SIZING (Multi-Criteria Pareto)");
+                sb.AppendLine($"Sized {results.Count} beams");
+                sb.AppendLine();
+
+                int changed = 0;
+                foreach (var r in results.Where(r => r.ProposedSection != r.OriginalSection).Take(20))
+                {
+                    sb.AppendLine($"  Beam {r.ElementId.Value}: {r.OriginalSection} → {r.ProposedSection} " +
+                        $"(util={r.Utilisation:F2}, weight {r.WeightChangePercent:+0;-0}%, " +
+                        $"iter={r.IterationsToConverge})");
+                    changed++;
+                }
+
+                int allMet = results.Count(r => r.AllCriteriaMet);
+                sb.AppendLine($"\n{allMet}/{results.Count} beams satisfy all criteria, {changed} need resizing");
+
+                TaskDialog.Show("STRUCT — Adaptive Sizing", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrAdaptiveSize", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
 }

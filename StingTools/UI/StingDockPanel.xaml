@@ -2041,6 +2041,18 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Stability" Tag="StrStabilityCheck" Click="Cmd_Click" ToolTip="P-Delta sway sensitivity check (EC2 §5.8 / EC3 §5.2)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Composite" Tag="StrCompositeBeam" Click="Cmd_Click" ToolTip="EC4 composite beam design with shear studs"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pile Design" Tag="StrPileDesign" Click="Cmd_Click" ToolTip="Pile group design with Converse-Labarre efficiency"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Retaining" Tag="StrRetainingWall" Click="Cmd_Click" ToolTip="EC7 cantilever retaining wall — sliding, overturning, bearing, stem rebar"/>
+                                </WrapPanel>
+                                <TextBlock Text="Precision Intelligence" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Load Paths" Tag="StrTraceLoadPaths" Click="Cmd_Click" ToolTip="Trace gravity loads roof→foundation, detect floating elements &amp; incomplete paths" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Topology" Tag="StrTopologyOptimize" Click="Cmd_Click" ToolTip="SIMP topology optimization — optimal material distribution with ASCII visualization" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SSI Springs" Tag="StrSSIAnalysis" Click="Cmd_Click" ToolTip="Winkler spring soil-structure interaction with Terzaghi subgrade modulus"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Detail" Tag="StrRebarDetail" Click="Cmd_Click" ToolTip="Auto rebar layout — curtailment, anchorage EC2 §8.4, lap lengths, BS 8666 schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Bracing Opt" Tag="StrBracingOptimize" Click="Cmd_Click" ToolTip="Optimal bracing layout — minimize torsional eccentricity (EC8 §4.2.3)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Constraints" Tag="StrConstraintCheck" Click="Cmd_Click" ToolTip="Design constraint cascade — span/depth, deflection, fire cover, headroom, stacking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Continuity" Tag="StrContinuityCheck" Click="Cmd_Click" ToolTip="Structural path continuity — detect floating beams, unsupported slabs, missing foundations"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Adaptive Size" Tag="StrAdaptiveSize" Click="Cmd_Click" ToolTip="Multi-criteria Pareto sizing — weight/cost/carbon/deflection convergence" FontWeight="Bold"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

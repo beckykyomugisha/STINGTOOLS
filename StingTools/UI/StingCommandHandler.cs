@@ -1138,6 +1138,15 @@ namespace StingTools.UI
                     case "StrStabilityCheck": RunCommand<Model.StrStabilityCheckCommand>(app); break;
                     case "StrBIMValidation": RunCommand<Model.StrBIMValidationCommand>(app); break;
                     case "StrCompositeBeam": RunCommand<Model.StrCompositeBeamCommand>(app); break;
+                    case "StrTraceLoadPaths": RunCommand<Model.StrTraceLoadPathsCommand>(app); break;
+                    case "StrTopologyOptimize": RunCommand<Model.StrTopologyOptimizeCommand>(app); break;
+                    case "StrSSIAnalysis": RunCommand<Model.StrSSIAnalysisCommand>(app); break;
+                    case "StrRetainingWall": RunCommand<Model.StrRetainingWallCommand>(app); break;
+                    case "StrRebarDetail": RunCommand<Model.StrRebarDetailCommand>(app); break;
+                    case "StrBracingOptimize": RunCommand<Model.StrBracingOptimizeCommand>(app); break;
+                    case "StrConstraintCheck": RunCommand<Model.StrConstraintCheckCommand>(app); break;
+                    case "StrContinuityCheck": RunCommand<Model.StrContinuityCheckCommand>(app); break;
+                    case "StrAdaptiveSize": RunCommand<Model.StrAdaptiveSizeCommand>(app); break;
                     case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
 
                     // ── MEP elements ──
