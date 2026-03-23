@@ -2160,7 +2160,8 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
+            // LOGIC-BUG-05 fix: fallback to "G" (General) not "A" (Architecture) for unknown categories
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "G";
 
             // Note: DiscMap.ContainsKey(catName) is guaranteed true by the early return at line 1105
 
@@ -3328,6 +3329,11 @@ namespace StingTools.Core
             {
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null) return;
+
+                // CRASH-04 fix: ensure parent directory exists before writing
+                string sidecarDir = System.IO.Path.GetDirectoryName(sidecarPath);
+                if (!string.IsNullOrEmpty(sidecarDir) && !System.IO.Directory.Exists(sidecarDir))
+                    System.IO.Directory.CreateDirectory(sidecarDir);
 
                 string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
                     Newtonsoft.Json.Formatting.Indented);
