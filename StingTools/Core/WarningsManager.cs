@@ -114,7 +114,21 @@ namespace StingTools.Core
         public int Failed { get; set; }
         /// <summary>Phase 56: Net warning reduction after fix verification re-scan.</summary>
         public int NetReduction { get; set; }
+        /// <summary>Phase 66: Warnings introduced by fix (regression detection).</summary>
+        public int WarningsIntroduced { get; set; }
         public List<string> Details { get; set; } = new();
+    }
+
+    /// <summary>Phase 66: Cross-system impact analysis — maps warnings to affected BIM deliverables.</summary>
+    internal class WarningImpactAnalysis
+    {
+        public int AffectsCOBie { get; set; }      // Warnings impacting COBie data quality
+        public int AffectsIFC { get; set; }         // Warnings impacting IFC geometry/properties
+        public int AffectsHandover { get; set; }    // Warnings blocking FM handover readiness
+        public int AffectsSchedules { get; set; }   // Warnings causing schedule data errors
+        public int AffectsClash { get; set; }       // Warnings causing false-positive clashes
+        public int TotalDeliverableImpact { get; set; }
+        public string HighestImpactArea { get; set; } = "";
     }
 
 
@@ -381,7 +395,7 @@ namespace StingTools.Core
                 Element el = doc.GetElement(failing.First());
                 if (el != null)
                 {
-                    try { levelName = doc.GetElement(el.LevelId)?.Name ?? ""; } catch { }
+                    try { levelName = doc.GetElement(el.LevelId)?.Name ?? ""; } catch (Exception exLvl) { StingLog.Warn($"Warning classify level: {exLvl.Message}"); }
                     try
                     {
                         if (doc.IsWorkshared)
@@ -394,7 +408,7 @@ namespace StingTools.Core
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception exWs) { StingLog.Warn($"Warning classify workset: {exWs.Message}"); }
                     categoryName = ParameterHelpers.GetCategoryName(el);
                     if (TagConfig.DiscMap.TryGetValue(categoryName, out string d)) discipline = d;
                 }
@@ -828,8 +842,45 @@ namespace StingTools.Core
                 Element el = doc.GetElement(id);
                 if (el?.Location is LocationCurve lc) return lc.Curve.Length;
             }
-            catch { }
+            catch (Exception exLen) { StingLog.Warn($"GetElementLength: {exLen.Message}"); }
             return double.MaxValue; // If can't determine, treat as long (don't delete)
+        }
+
+        /// <summary>Phase 66: Analyse warning impact on BIM deliverables (COBie, IFC, FM handover, schedules, clash).</summary>
+        internal static WarningImpactAnalysis AnalyseDeliverableImpact(List<ClassifiedWarning> warnings)
+        {
+            var impact = new WarningImpactAnalysis();
+            foreach (var w in warnings)
+            {
+                string lower = (w.Description ?? "").ToLowerInvariant();
+                // COBie impact: data quality warnings, missing params, duplicate marks
+                if (w.Category == WarningCategory.Data || lower.Contains("duplicate mark") || lower.Contains("missing parameter"))
+                    impact.AffectsCOBie++;
+                // IFC impact: geometric, structural, and material warnings
+                if (w.Category == WarningCategory.Geometric || w.Category == WarningCategory.Structural || lower.Contains("material"))
+                    impact.AffectsIFC++;
+                // FM handover: spatial, compliance, MEP system warnings
+                if (w.Category == WarningCategory.Spatial || w.Category == WarningCategory.Compliance || lower.Contains("system"))
+                    impact.AffectsHandover++;
+                // Schedule: data quality, level offset, parameter warnings
+                if (lower.Contains("schedule") || lower.Contains("offset from level") || lower.Contains("parameter"))
+                    impact.AffectsSchedules++;
+                // Clash: geometric overlap, MEP intersection warnings
+                if (lower.Contains("overlap") || lower.Contains("intersect") || lower.Contains("clash") || lower.Contains("conflict"))
+                    impact.AffectsClash++;
+            }
+            impact.TotalDeliverableImpact = impact.AffectsCOBie + impact.AffectsIFC + impact.AffectsHandover + impact.AffectsSchedules + impact.AffectsClash;
+
+            // Determine highest-impact area
+            var areas = new[] {
+                (impact.AffectsCOBie, "COBie Export"),
+                (impact.AffectsIFC, "IFC Geometry"),
+                (impact.AffectsHandover, "FM Handover"),
+                (impact.AffectsSchedules, "Schedule Data"),
+                (impact.AffectsClash, "Clash Detection")
+            };
+            impact.HighestImpactArea = areas.OrderByDescending(a => a.Item1).First().Item2;
+            return impact;
         }
 
         /// <summary>
@@ -2872,7 +2923,7 @@ namespace StingTools.Core
                                         User = rec.Value<string>("user") ?? ""
                                     });
                                 }
-                                catch { }
+                                catch (Exception exRec) { StingLog.Warn($"Workflow history record parse: {exRec.Message}"); }
                             }
                         }
                     }
@@ -3094,7 +3145,7 @@ namespace StingTools.Core
                                 if (DateTime.TryParse(ts, out DateTime dt) && after > 0)
                                     coordData.ComplianceTrend.Add((dt, after));
                             }
-                            catch { }
+                            catch (Exception exTrend) { StingLog.Warn($"Compliance trend record: {exTrend.Message}"); }
                         }
                     }
                 }
@@ -3379,7 +3430,7 @@ namespace StingTools.Core
                         var cfg = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath));
                         currentRole = cfg.Value<string>("USER_ROLE") ?? "C";
                     }
-                    catch { }
+                    catch (Exception exCfg) { StingLog.Warn($"EditUserRole config load: {exCfg.Message}"); }
                 }
 
                 string currentLabel = roles.FirstOrDefault(r => r.StartsWith(currentRole + " ")) ?? roles[6];

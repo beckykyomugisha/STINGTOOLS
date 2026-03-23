@@ -1392,6 +1392,9 @@ namespace StingTools.UI
                     case "RunWorkflow_ClashCoordination":
                     case "RunWorkflow_EndOfStageGate":
                     case "RunWorkflow_QuickFixCycle":
+                    case "RunWorkflow_EndOfDaySync":
+                    case "RunWorkflow_FederatedModelAudit":
+                    case "RunWorkflow_PreMeetingPrep":
                     {
                         string wfName = _commandTag.Replace("RunWorkflow_", "")
                             .Replace("Sync", " Sync").Replace("Health", " Health")
@@ -1401,7 +1404,9 @@ namespace StingTools.UI
                             .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
                             .Replace("Stage", " Stage").Replace("Gate", " Gate")
                             .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
-                            .Replace("Clash", " Clash");
+                            .Replace("Clash", " Clash").Replace("Federated", " Federated")
+                            .Replace("Model", " Model").Replace("Audit", " Audit")
+                            .Replace("Day", " Day").Replace("End Of", "End of");
                         SetExtraParam("WorkflowPresetName", wfName.Trim());
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
