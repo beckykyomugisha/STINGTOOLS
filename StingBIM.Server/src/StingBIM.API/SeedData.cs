@@ -19,7 +19,7 @@ public static class SeedData
         {
             Name = "StingBIM Demo",
             Slug = "demo",
-            Tier = PricingTier.Premium,
+            Tier = LicenseTier.Premium,
             MaxUsers = 50,
             MaxProjects = 20,
             MimEnabled = true
@@ -45,7 +45,7 @@ public static class SeedData
         {
             TenantId = tenant.Id,
             Key = "STING-DEMO-2026-PREMIUM",
-            Tier = PricingTier.Premium,
+            Tier = LicenseTier.Premium,
             MaxActivations = 10,
             MimEnabled = true,
             ExpiresAt = DateTime.UtcNow.AddYears(1)

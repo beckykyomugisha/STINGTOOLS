@@ -17,10 +17,22 @@ public class Asset
     public string? BarCode { get; set; }
 
     // Classification
+    public string CategoryName { get; set; } = "";
+    public string FamilyName { get; set; } = "";
     public string? UniclassCode { get; set; }
     public string? OmniClassCode { get; set; }
     public string? CobieType { get; set; }
     public string? CobieSpace { get; set; }
+
+    // STING tag tokens (mirrored from tagged element)
+    public string Discipline { get; set; } = "";
+    public string SystemCode { get; set; } = "";
+    public string FunctionCode { get; set; } = "";
+    public string ProductCode { get; set; } = "";
+    public string Location { get; set; } = "";   // LOC token (BLD1, EXT, etc.)
+    public string Level { get; set; } = "";       // LVL token (L01, GF, etc.)
+    public string LifecycleStatus { get; set; } = "OPERATIONAL"; // OPERATIONAL, DECOMMISSIONED, DISPOSED, UNDER_REPAIR
+    public string? CriticalityRating { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
 
     // Lifecycle (ISO 15686)
     public DateTime? InstallationDate { get; set; }
@@ -63,4 +75,7 @@ public class Asset
     public string? SparePartsJson { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation
+    public ICollection<MaintenanceTask> MaintenanceTasks { get; set; } = new List<MaintenanceTask>();
 }

@@ -22,10 +22,20 @@ public class OfflineQueue
     /// <summary>
     /// Enqueue a sync payload for later delivery.
     /// </summary>
+    private const int MaxQueueFiles = 500; // Prevent unbounded growth
+
     public void Enqueue(PluginSyncPayload payload)
     {
         lock (_lock)
         {
+            // Enforce queue size limit — drop oldest if full
+            var existing = Directory.GetFiles(_queueDir, "sync_*.json").OrderBy(f => f).ToArray();
+            if (existing.Length >= MaxQueueFiles)
+            {
+                for (int i = 0; i <= existing.Length - MaxQueueFiles; i++)
+                    try { File.Delete(existing[i]); } catch (IOException) { }
+            }
+
             string fileName = $"sync_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.json";
             string filePath = Path.Combine(_queueDir, fileName);
             File.WriteAllText(filePath, JsonConvert.SerializeObject(payload, Formatting.None));
@@ -50,9 +60,9 @@ public class OfflineQueue
                     if (payload != null)
                         results.Add((file, payload));
                 }
-                catch
+                catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
                 {
-                    // Skip corrupt files
+                    // Skip corrupt or inaccessible files
                 }
             }
         }

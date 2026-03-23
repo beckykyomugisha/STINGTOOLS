@@ -12,7 +12,7 @@ namespace StingBIM.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-[Authorize]
+[Authorize(Roles = "Admin,Owner")]
 public class AdminController : ControllerBase
 {
     private readonly StingBimDbContext _db;
@@ -80,7 +80,7 @@ public class AdminController : ControllerBase
             Email = req.Email,
             DisplayName = req.DisplayName,
             PasswordHash = HashPassword(req.Password),
-            Role = Enum.TryParse<UserRole>(req.Role, true, out var r) ? r : UserRole.Modeller,
+            Role = Enum.TryParse<UserRole>(req.Role, true, out var r) ? r : UserRole.Contributor,
             Iso19650Role = req.Iso19650Role ?? "M"
         };
 

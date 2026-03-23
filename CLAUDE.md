@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **120 source files** (117 C# + 3 XAML, ~136,200 lines of code) across 10 directories
-- **540 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **154 source files** (151 C# + 3 XAML, ~188,900 lines of code) across 10 directories
+- **692 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -151,10 +151,24 @@ STINGTOOLS/
     │   ├── RevisionManagementCommands.cs # 12 commands: CreateRevision, RevisionDashboard, AutoRevisionCloud, RevisionSchedule, TrackElementRevisions, RevisionCompare, IssueSheetsForRevision, RevisionNamingEnforce, RevisionTagIntegration, RevisionExport, BulkRevisionStamp, AutoRevisionOnTagChange + RevisionEngine
     │   └── SchedulingCommands.cs       # 12 commands: AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar + Scheduling4DEngine
     │
-    ├── Model/                          # Auto-modeling engine (3 files, 16 commands)
-    │   ├── ModelCommands.cs            # 16 model commands: Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview
-    │   ├── ModelEngine.cs              # Model creation engine: walls, floors, roofs, columns, beams, MEP, rooms, building shell + FamilyResolver
-    │   └── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection
+    ├── Model/                          # Auto-modeling engine (17 files, 101 commands)
+    │   ├── ModelCommands.cs            # 16 model commands: Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview (all auto-tag via RunFullPipeline)
+    │   ├── ModelEngine.cs              # Model creation engine + AutoTagCreatedElements + MEPRoutingEngine + RoomLayoutEngine + FamilyResolver
+    │   ├── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection
+    │   ├── ArchitecturalCreationEngine.cs # StairEngine (BS 5395), RailingEngine (BS 6180), CurtainWallEngine (BS EN 13830), OpeningEngine, CoveringFireRating, CoveringMoistureRisk, CoveringThermalBridge, FullModelAutomation
+    │   ├── PlasteringCommands.cs       # 9 plastering/covering commands (BS EN 13914): material browser, substrate analysis, paint system, coverage calc, smart/batch apply, room schedule, quality check, export
+    │   ├── PlasteringEngine.cs         # Plastering algorithm engine: 10 material types, drying times, coverage rates, substrate compatibility, BS EN 998 mortar classification
+    │   ├── StructuralModelingCommands.cs # 76 structural commands: beams, columns, slabs, foundations, trusses, bracing, retaining walls, CAD pipeline, design suite, analysis
+    │   ├── StructuralModelingEngine.cs # Structural creation engine: pad/strip footings, structural slabs/walls, beam systems, grid frames, bay detection
+    │   ├── StructuralAnalysisEngine.cs # 20+ analysis algorithms: load path tracing, frame analysis, deflection check, fire resistance, vibration, wind load, seismic, SSI, progressive collapse
+    │   ├── StructuralDesignSuite.cs    # Design intelligence: connection design, punching shear, crack width, rebar estimation, code compliance (BS EN 1992/1993/1997)
+    │   ├── StructuralAdvancedDesign.cs # Fatigue assessment, torsion design, robustness checks, composite beam/slab design, partial factors
+    │   ├── StructuralAdvancedDesignExt.cs # Deep beam STM, topology optimization, carbon assessment, thermal movement, construction sequence
+    │   ├── StructuralIntelligenceEngine.cs # Smart sizing: adaptive beam/column/foundation factories, Voronoi load areas, BIM validation scoring
+    │   ├── StructuralPrecisionEngine.cs # Precision: column load takedown, slab edge beams, bracing optimization, stability checks, constraint validation
+    │   ├── StructuralCADPipeline.cs    # CAD-to-structural pipeline: wall detection, junction analysis, member classification, full automation
+    │   ├── StructuralCADWizard.cs      # WPF wizard for structural CAD import with tolerance config
+    │   └── StructuralTypeFactory.cs    # Intelligent type catalog: beam/column/slab type selection from span, load, material
     │
     ├── Temp/                           # Template commands (22 files, ~120+ commands)
     │   ├── CreateParametersCommand.cs  # Delegates to LoadSharedParams
@@ -2374,3 +2388,16 @@ docker compose up -d
 519. **Meeting rows interactive** — Upcoming meeting rows clickable with hover highlight. Context menus: Log Minutes, Add Action Item, Export Minutes, Send Reminder. Rich tooltips with meeting details.
 520. **Overview quick actions expanded** — Added New Meeting, Take Snapshot, Validate Tags buttons to quick actions panel.
 521. **20+ action tooltips added** — All meeting, permission, workflow, and snapshot actions documented in `GetActionTooltip()` for hover help.
+
+#### Completed (Phase 55 — Model Auto-Tagging, MEP Routing, Warnings Enhancement & Workflow Automation)
+
+522. **Model auto-tagging pipeline** — `ModelEngine.AutoTagCreatedElements()` runs `TagPipelineHelper.RunFullPipeline()` on all elements created by Model commands. Every model creation (walls, floors, ceilings, roofs, doors, windows, columns, beams, ducts, pipes, fixtures, building shell) now auto-tags with ISO 19650 tags, containers, and TAG7 narrative in a separate transaction. `ModelCommandHelper.AutoTagAndReport()` enriches success messages with tagged count.
+523. **All 14 ModelCommands auto-tag** — `ModelCreateWallCommand`, `ModelCreateRoomCommand`, `ModelCreateFloorCommand`, `ModelCreateCeilingCommand`, `ModelCreateRoofCommand`, `ModelPlaceDoorCommand`, `ModelPlaceWindowCommand`, `ModelPlaceColumnCommand`, `ModelColumnGridCommand`, `ModelCreateBeamCommand`, `ModelCreateDuctCommand`, `ModelCreatePipeCommand`, `ModelPlaceFixtureCommand`, `ModelBuildingShellCommand` — all now call `ModelCommandHelper.AutoTagAndReport()` after creation.
+524. **MEP routing engine** — `MEPRoutingEngine` in `ModelEngine.cs`: auto-sizing per CIBSE Guide C (duct: BS EN 12237 standard sizes, pipe: copper/steel standard sizes), Manhattan routing with L-shaped paths, Darcy-Weisbach pressure drop calculation with Colebrook-White friction factor, clash detection via `BoundingBoxIntersectsFilter`.
+525. **Room layout engine** — `RoomLayoutEngine` in `ModelEngine.cs`: space planning from area programs with BS EN 15221-6/BCO Guide compliance, dimension calculation with min-width and aspect ratio constraints, strip layout algorithm for corridor-based arrangements, `ExecuteLayout()` creates rooms in Revit and auto-tags all created elements.
+526. **Warnings Manager enhanced** — 20 new classification rules added: MEP system completeness (undefined classification, open connectors, unconnected pipes/ducts, cross-fittings), structural integrity (sloped beams, foundations, framing, loads), data quality (Copy/Monitor, sketch-based), performance (detail/model groups, linked models), compliance (egress, corridor width per BS 9991, fire compartmentation, DDA/BS 8300).
+527. **4 new auto-fix strategies** — Strategy 6: overlapping walls auto-joined via `JoinGeometryUtils`. Strategy 7: room tags outside boundary moved to room center. Strategy 8: elements slightly off axis snapped to nearest cardinal direction. Plus wall join for highlighted wall overlaps.
+528. **COBieHandoverExportCommand dispatched** — Missing dispatch entry wired in `StingCommandHandler.cs`.
+529. **4 new workflow presets** — `ModelAuditDeep` (8 steps: warnings→templates→data pipeline→schedules→schema→tags→sheets→compliance), `MEPCoordination` (6 steps: clashes→system push→retag→validate→warnings→compliance), `CDE_Submission` (8 steps: retag→resolve→validate→sheet naming→doc naming→register→sheet register→transmittal), `DesignReviewPrep` (5 steps: auto-assign templates→warnings fix→sheet naming→compliance scores→completeness).
+530. **12 new workflow command resolutions** — `ScheduleAudit`, `SchemaValidate`, `SheetComplianceCheck`, `SheetNamingCheck`, `TemplateAudit`, `TemplateComplianceScore`, `ClashDetection`, `BatchSystemPush`, `ExportSheetRegister`, `COBieHandoverExport`, `GenerateBEP`, `WarningsMonitor` added to `WorkflowEngine.ResolveCommand()`.
+531. **Branch consolidation** — Merged `claude/fix-ui-enhance-workflows-t7m5b` (StingBIM Server + 25 gap fixes) and `claude/structural-modeling-automation-sPf3f` (5 commits: advanced structural, plastering, coverings, design intelligence, architectural creation) into `claude/review-merge-conflicts-aaVRG`. All merge conflicts resolved cleanly.

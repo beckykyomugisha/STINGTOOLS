@@ -39,7 +39,8 @@ public class DocumentsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult> GetDocuments(Guid projectId,
-        [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null)
+        [FromQuery] string? cdeStatus = null, [FromQuery] string? discipline = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
         var query = _db.Documents.Where(d => d.ProjectId == projectId && d.Project!.TenantId == tenantId);
@@ -47,8 +48,10 @@ public class DocumentsController : ControllerBase
         if (!string.IsNullOrEmpty(cdeStatus)) query = query.Where(d => d.CdeStatus == cdeStatus);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(d => d.Discipline == discipline);
 
-        var docs = await query.OrderByDescending(d => d.UploadedAt).ToListAsync();
-        return Ok(docs);
+        var total = await query.CountAsync();
+        var docs = await query.OrderByDescending(d => d.UploadedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Ok(new { docs, total, page, pageSize });
     }
 
     [HttpPost]

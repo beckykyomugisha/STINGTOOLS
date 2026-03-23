@@ -192,6 +192,36 @@ namespace StingTools.Core
             ("underlay", WarningCategory.Annotation, WarningSeverity.Info, "Review underlay settings", false),
             ("grid", WarningCategory.Annotation, WarningSeverity.Low, "Fix grid head position", false),
             ("section", WarningCategory.Annotation, WarningSeverity.Low, "Review section marker", false),
+
+            // Phase 55: Extended classification for BIM coordinator daily workflow
+            // MEP system completeness
+            ("System classification is Undefined", WarningCategory.MEP, WarningSeverity.High, "Assign MEP system classification", false),
+            ("open connector", WarningCategory.MEP, WarningSeverity.High, "Cap or connect open connector", false),
+            ("Unconnected pipe", WarningCategory.MEP, WarningSeverity.High, "Connect pipe to system", false),
+            ("Unconnected duct", WarningCategory.MEP, WarningSeverity.High, "Connect duct to system", false),
+            ("Cross-fitting", WarningCategory.MEP, WarningSeverity.Medium, "Replace cross-fitting with tee arrangement", false),
+
+            // Structural integrity
+            ("sloped beam", WarningCategory.Structural, WarningSeverity.Low, "Verify sloped beam intent", false),
+            ("foundation", WarningCategory.Structural, WarningSeverity.High, "Check foundation bearing", false),
+            ("Structural Framing", WarningCategory.Structural, WarningSeverity.Medium, "Review framing connection", false),
+            ("load", WarningCategory.Structural, WarningSeverity.High, "Verify load path continuity", false),
+
+            // Data quality — auto-fixable
+            ("Room Tag is inside", WarningCategory.Spatial, WarningSeverity.Info, "Tag position is correct", false),
+            ("Copy/Monitor", WarningCategory.Data, WarningSeverity.Medium, "Review Copy/Monitor coordination", false),
+            ("Sketch-based", WarningCategory.Geometric, WarningSeverity.Medium, "Fix sketch boundary", false),
+
+            // Performance — auto-fixable
+            ("Detail group", WarningCategory.Performance, WarningSeverity.Low, "Review detail group usage", false),
+            ("Model group", WarningCategory.Performance, WarningSeverity.Low, "Review model group usage", false),
+            ("Linked model", WarningCategory.Performance, WarningSeverity.Info, "Linked model loaded", false),
+
+            // Compliance — BS/ISO standards
+            ("egress", WarningCategory.Compliance, WarningSeverity.Critical, "Verify escape route compliance", false),
+            ("corridor width", WarningCategory.Compliance, WarningSeverity.High, "Check corridor min width per BS 9991", false),
+            ("compartment", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire compartmentation", false),
+            ("disabled", WarningCategory.Compliance, WarningSeverity.High, "Check DDA/BS 8300 compliance", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -523,7 +553,87 @@ namespace StingTools.Core
                                 doc.GetElement(ids[0]), doc.GetElement(ids[1]));
                             return true;
                         }
-                        catch { }
+                        catch (Exception ex2) { StingLog.Warn($"Unjoin failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 6: Overlapping walls — join geometry
+                if (lower.Contains("highlighted walls overlap"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    if (ids.Count >= 2)
+                    {
+                        try
+                        {
+                            var e1 = doc.GetElement(ids[0]);
+                            var e2 = doc.GetElement(ids[1]);
+                            if (e1 != null && e2 != null && !JoinGeometryUtils.AreElementsJoined(doc, e1, e2))
+                            {
+                                JoinGeometryUtils.JoinGeometry(doc, e1, e2);
+                                return true;
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Wall join failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 7: Room tag outside boundary — move to room center
+                if (lower.Contains("room tag") && lower.Contains("outside"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(id);
+                            if (el is SpatialElementTag roomTag && roomTag.Room != null)
+                            {
+                                var room = roomTag.Room;
+                                var pt = room.get_BoundingBox(null);
+                                if (pt != null)
+                                {
+                                    var center = (pt.Min + pt.Max) / 2.0;
+                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
+                                    return true;
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Room tag move failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 8: Elements slightly off axis — snap to nearest axis
+                if (lower.Contains("slightly off axis"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(id);
+                            if (el?.Location is LocationCurve lc)
+                            {
+                                var line = lc.Curve as Line;
+                                if (line != null)
+                                {
+                                    var dir = line.Direction;
+                                    // Snap near-horizontal to horizontal, near-vertical to vertical
+                                    if (Math.Abs(dir.Y) < 0.01 && Math.Abs(dir.Y) > 0.0001)
+                                    {
+                                        var newEnd = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(0).Y, line.GetEndPoint(1).Z);
+                                        lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
+                                        return true;
+                                    }
+                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.X) > 0.0001)
+                                    {
+                                        var newEnd = new XYZ(line.GetEndPoint(0).X, line.GetEndPoint(1).Y, line.GetEndPoint(1).Z);
+                                        lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Axis snap failed: {ex2.Message}"); }
                     }
                 }
             }

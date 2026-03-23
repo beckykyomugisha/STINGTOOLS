@@ -85,22 +85,26 @@ public class SyncClient : IDisposable
                 return result;
             }
 
-            // Sync tags
+            // Sync tags in batches to avoid timeout on large models
             if (payload.TagElements?.Count > 0)
             {
-                var tagResult = await PostAsync<TagSyncResult>($"/api/tagsync/sync", new
+                for (int i = 0; i < payload.TagElements.Count; i += BatchSize)
                 {
-                    projectId = payload.ProjectId,
-                    userName = payload.UserName,
-                    revitVersion = payload.RevitVersion,
-                    pluginVersion = payload.PluginVersion,
-                    elements = payload.TagElements
-                });
-                if (tagResult != null)
-                {
-                    result.TagsCreated = tagResult.Created;
-                    result.TagsUpdated = tagResult.Updated;
-                    result.ServerCompliancePercent = tagResult.CompliancePercent;
+                    var batch = payload.TagElements.Skip(i).Take(BatchSize).ToList();
+                    var tagResult = await PostAsync<TagSyncResult>($"/api/tagsync/sync", new
+                    {
+                        projectId = payload.ProjectId,
+                        userName = payload.UserName,
+                        revitVersion = payload.RevitVersion,
+                        pluginVersion = payload.PluginVersion,
+                        elements = batch
+                    });
+                    if (tagResult != null)
+                    {
+                        result.TagsCreated += tagResult.Created;
+                        result.TagsUpdated += tagResult.Updated;
+                        result.ServerCompliancePercent = tagResult.CompliancePercent;
+                    }
                 }
             }
 
@@ -177,22 +181,49 @@ public class SyncClient : IDisposable
         return false;
     }
 
+    private const int MaxRetries = 3;
+    private const int BatchSize = 2000; // Max elements per sync batch
+
     private async Task<T?> PostAsync<T>(string url, object body) where T : class
     {
         var json = JsonConvert.SerializeObject(body);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await _http.PostAsync(url, content);
-        response.EnsureSuccessStatusCode();
-        var responseJson = await response.Content.ReadAsStringAsync();
-        return JsonConvert.DeserializeObject<T>(responseJson);
+
+        for (int attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _http.PostAsync(url, content);
+                response.EnsureSuccessStatusCode();
+                var responseJson = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<T>(responseJson);
+            }
+            catch (HttpRequestException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt))); // 1s, 2s, 4s
+                content = new StringContent(json, Encoding.UTF8, "application/json"); // recreate disposed content
+            }
+        }
+        return null;
     }
 
     private async Task<T?> GetAsync<T>(string url) where T : class
     {
-        var response = await _http.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadAsStringAsync();
-        return JsonConvert.DeserializeObject<T>(json);
+        for (int attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _http.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<T>(json);
+            }
+            catch (HttpRequestException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+            }
+        }
+        return null;
     }
 
     public void Dispose() => _http.Dispose();

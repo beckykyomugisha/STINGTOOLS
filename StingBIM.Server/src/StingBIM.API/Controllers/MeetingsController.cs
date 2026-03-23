@@ -23,7 +23,7 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> GetMeetings(Guid projectId)
     {
         var tenantId = GetTenantId();
-        var meetings = await _db.Set<Meeting>()
+        var meetings = await _db.Meetings
             .Where(m => m.ProjectId == projectId && m.Project!.TenantId == tenantId)
             .OrderByDescending(m => m.ScheduledAt)
             .Select(m => new
@@ -55,7 +55,7 @@ public class MeetingsController : ControllerBase
             CreatedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
         };
 
-        _db.Set<Meeting>().Add(meeting);
+        _db.Meetings.Add(meeting);
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetMeetings), new { projectId }, meeting);
     }
@@ -64,7 +64,7 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> LogMinutes(Guid projectId, Guid meetingId, [FromBody] LogMinutesRequest req)
     {
         var tenantId = GetTenantId();
-        var meeting = await _db.Set<Meeting>()
+        var meeting = await _db.Meetings
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
 
@@ -77,7 +77,7 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> AddActionItem(Guid projectId, Guid meetingId, [FromBody] AddActionItemRequest req)
     {
         var tenantId = GetTenantId();
-        var meeting = await _db.Set<Meeting>()
+        var meeting = await _db.Meetings
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.ProjectId == projectId && m.Project!.TenantId == tenantId);
         if (meeting == null) return NotFound();
 
@@ -89,7 +89,7 @@ public class MeetingsController : ControllerBase
             DueDate = req.DueDate
         };
 
-        _db.Set<MeetingActionItem>().Add(item);
+        _db.MeetingActionItems.Add(item);
         await _db.SaveChangesAsync();
         return Ok(item);
     }
@@ -97,7 +97,7 @@ public class MeetingsController : ControllerBase
     [HttpPut("{meetingId}/actions/{actionId}")]
     public async Task<ActionResult> UpdateAction(Guid projectId, Guid meetingId, Guid actionId, [FromBody] UpdateActionRequest req)
     {
-        var action = await _db.Set<MeetingActionItem>()
+        var action = await _db.MeetingActionItems
             .FirstOrDefaultAsync(a => a.Id == actionId && a.MeetingId == meetingId);
         if (action == null) return NotFound();
 
@@ -113,7 +113,7 @@ public class MeetingsController : ControllerBase
     public async Task<ActionResult> GetOpenActions(Guid projectId)
     {
         var tenantId = GetTenantId();
-        var actions = await _db.Set<MeetingActionItem>()
+        var actions = await _db.MeetingActionItems
             .Where(a => a.Meeting!.ProjectId == projectId && a.Meeting.Project!.TenantId == tenantId
                 && (a.Status == "OPEN" || a.Status == "IN_PROGRESS"))
             .OrderBy(a => a.DueDate)

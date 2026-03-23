@@ -72,6 +72,8 @@ public class StingBimDbContext : DbContext
             e.HasKey(i => i.Id);
             e.HasOne(i => i.Project).WithMany(p => p.Issues).HasForeignKey(i => i.ProjectId);
             e.HasIndex(i => new { i.ProjectId, i.IssueCode }).IsUnique();
+            e.HasIndex(i => new { i.ProjectId, i.Status });
+            e.HasIndex(i => i.DueDate).HasFilter("\"Status\" NOT IN ('CLOSED','RESOLVED')");
         });
 
         // ── DocumentRecord ──
@@ -79,6 +81,7 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(d => d.Id);
             e.HasOne(d => d.Project).WithMany(p => p.Documents).HasForeignKey(d => d.ProjectId);
+            e.HasIndex(d => new { d.ProjectId, d.CdeStatus });
         });
 
         // ── LicenseKey ──
@@ -117,6 +120,7 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(m => m.Id);
             e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId);
+            e.HasIndex(m => new { m.ProjectId, m.ScheduledAt });
         });
 
         // ── MeetingActionItem ──
