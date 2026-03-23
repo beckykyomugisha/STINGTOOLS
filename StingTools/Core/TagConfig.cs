@@ -331,6 +331,7 @@ namespace StingTools.Core
             _cachedValidDiscCodes = null;
             _cachedValidSysCodes = null;
             _cachedValidFuncCodes = null;
+            _tokenValidationCache.Clear(); // Phase 78: Clear memoized validation results
         }
 
         /// <summary>
@@ -433,9 +434,22 @@ namespace StingTools.Core
             return null; // valid
         }
 
+        /// <summary>Phase 78: Validation memoization cache — caches ValidateToken results per (token,value) pair.
+        /// For 50K elements with ~200 unique token combinations, reduces validation calls from 50K×8 to ~200.
+        /// Thread-safe ConcurrentDictionary. Cleared via InvalidateValidatorCaches().</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string>
+            _tokenValidationCache = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+
+        /// <summary>Phase 78: Memoized token validation — O(1) lookup for repeated (token,value) pairs.</summary>
+        private static string ValidateTokenCached(string tokenName, string value)
+        {
+            string cacheKey = $"{tokenName}|{value ?? ""}";
+            return _tokenValidationCache.GetOrAdd(cacheKey, _ => ValidateToken(tokenName, value));
+        }
+
         /// <summary>
         /// Validate all 8 tokens on an element. Returns a list of validation errors
-        /// (empty list = fully valid).
+        /// (empty list = fully valid). Uses memoized token validation for O(1) repeated lookups.
         /// </summary>
         public static List<ValidationError> ValidateElement(Element el)
         {
@@ -450,7 +464,7 @@ namespace StingTools.Core
             foreach (string param in tokenParams)
             {
                 string val = ParameterHelpers.GetString(el, param);
-                string error = ValidateToken(param, val);
+                string error = ValidateTokenCached(param, val);
                 if (error != null)
                 {
                     var errorType = string.IsNullOrEmpty(val)

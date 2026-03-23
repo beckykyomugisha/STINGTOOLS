@@ -34,7 +34,7 @@ namespace StingTools.Docs
         public string SheetName { get; set; }
         public string Discipline { get; set; }
         public string Revision { get; set; }
-        public string Status { get; set; }         // WIP, SHARED, PUBLISHED
+        public string Status { get; set; }         // WIP, SHARED, PUBLISHED, ARCHIVE
         public string DrawnBy { get; set; }
         public string CheckedBy { get; set; }
         public string ApprovedBy { get; set; }
@@ -44,6 +44,13 @@ namespace StingTools.Docs
         public int ViewportCount { get; set; }
         public bool IsPlaceholder { get; set; }
         public string FilePath { get; set; }
+        // Phase 78: ISO 19650-2 Annex B required fields
+        public string SuitabilityCode { get; set; } = ""; // S0-S7, CR, AB per ISO 19650
+        public string DocumentType { get; set; } = "";    // DR=Drawing, SH=Sheet, SP=Specification
+        public string CDELocation { get; set; } = "";     // CDE folder path (WIP/SHARED/PUBLISHED/ARCHIVE)
+        public string ApprovalDate { get; set; } = "";    // Date of last approval
+        public string Originator { get; set; } = "";      // Organisation code per ISO 19650
+        public string Phase { get; set; } = "";           // Design phase (S1-S7 per RIBA)
     }
 
     internal static class DrawingRegisterSync
@@ -82,6 +89,28 @@ namespace StingTools.Docs
 
                         var revParam = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION);
                         if (revParam != null) entry.Revision = revParam.AsString() ?? "";
+
+                        // Phase 78: ISO 19650-2 Annex B fields
+                        var checkedParam = sheet.LookupParameter("Checked By") ?? sheet.LookupParameter("CheckedBy");
+                        if (checkedParam != null) entry.CheckedBy = checkedParam.AsString() ?? "";
+                        var approvedParam = sheet.LookupParameter("Approved By") ?? sheet.LookupParameter("ApprovedBy");
+                        if (approvedParam != null) entry.ApprovedBy = approvedParam.AsString() ?? "";
+                        // Derive suitability from CDE status
+                        entry.SuitabilityCode = entry.Status switch
+                        {
+                            "SHARED" => "S3", "PUBLISHED" => "S4", "ARCHIVE" => "S7", _ => "S0"
+                        };
+                        // Derive document type from sheet number prefix
+                        entry.DocumentType = entry.SheetNumber.Length >= 2 ? entry.SheetNumber[..2].ToUpper() switch
+                        {
+                            "DR" => "Drawing", "SH" => "Sheet", "SP" => "Specification",
+                            "SK" => "Sketch", "RP" => "Report", _ => "Drawing"
+                        } : "Drawing";
+                        // CDE location
+                        entry.CDELocation = $"/{entry.Status ?? "WIP"}/{entry.Discipline}/{entry.SheetNumber}";
+                        // Originator from project info
+                        entry.Originator = HandoverHelper.GetProjectInfoParam(doc, "Organization Name") ??
+                            HandoverHelper.GetProjectInfoParam(doc, "Author") ?? "";
 
                         // Detect paper size from title block
                         var titleBlocks = new FilteredElementCollector(doc, sheet.Id)
@@ -123,12 +152,15 @@ namespace StingTools.Docs
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("Sheet Number,Sheet Name,Discipline,Revision,Status,Drawn By,Checked By,Approved By,Date,Scale,Paper Size,Viewports,Placeholder");
+                // Phase 78: ISO 19650-2 Annex B compliant drawing register with suitability, document type, CDE location
+                sb.AppendLine("Sheet Number,Sheet Name,Discipline,Revision,Status,Suitability,Document Type,CDE Location,Originator,Phase," +
+                    "Drawn By,Checked By,Approved By,Approval Date,Date,Scale,Paper Size,Viewports,Placeholder");
 
                 foreach (var e in entries)
                 {
                     sb.AppendLine($"\"{e.SheetNumber}\",\"{e.SheetName}\",\"{e.Discipline}\",\"{e.Revision}\"," +
-                        $"\"{e.Status}\",\"{e.DrawnBy}\",\"{e.CheckedBy}\",\"{e.ApprovedBy}\"," +
+                        $"\"{e.Status}\",\"{e.SuitabilityCode}\",\"{e.DocumentType}\",\"{e.CDELocation}\",\"{e.Originator}\",\"{e.Phase}\"," +
+                        $"\"{e.DrawnBy}\",\"{e.CheckedBy}\",\"{e.ApprovedBy}\",\"{e.ApprovalDate}\"," +
                         $"\"{e.Date}\",\"{e.Scale}\",\"{e.PaperSize}\",{e.ViewportCount},{e.IsPlaceholder}");
                 }
 

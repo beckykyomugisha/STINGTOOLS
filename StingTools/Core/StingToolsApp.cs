@@ -109,6 +109,8 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
+                // Phase 78: Save dropped element IDs to sidecar before clearing queue
+                StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
                 StingAutoTagger.ClearDeferredQueue();
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
@@ -286,6 +288,28 @@ namespace StingTools.Core
                 catch (Exception arwEx)
                 {
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
+
+                // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
+                // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
+                try
+                {
+                    WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
+                    while (WorkflowScheduler.HasPendingPresets)
+                    {
+                        string presetName = WorkflowScheduler.DequeuePendingPreset();
+                        if (!string.IsNullOrEmpty(presetName))
+                        {
+                            StingLog.Info($"WorkflowScheduler: executing queued preset '{presetName}'");
+                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", presetName);
+                            // Actual execution happens via ExternalEvent in StingCommandHandler
+                            break; // Execute one at a time; remaining will execute on next idle
+                        }
+                    }
+                }
+                catch (Exception wsEx)
+                {
+                    StingLog.Warn($"WorkflowScheduler document-open execution: {wsEx.Message}");
                 }
 
                 // Phase 56: Morning Briefing — comprehensive model status on document open

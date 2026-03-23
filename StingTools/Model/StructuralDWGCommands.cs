@@ -199,7 +199,7 @@ namespace StingTools.Model
 
                         foreach (var layer in layerNames)
                         {
-                            string cat = LayerMapper.InferCategory(layer);
+                            string cat = LayerMapper.InferCategory(layer) ?? "";
                             string elemType = cat switch
                             {
                                 "Walls" => "Wall",
