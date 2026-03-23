@@ -1204,8 +1204,8 @@ namespace StingTools.Model
 
                 // Auto-tag created elements
                 var rampResult = new ModelResult { Success = true, Message = $"Ramp created: {widthMm:F0}mm wide × {runMm:F0}mm long, gradient 1:{(1.0/gradient):F0}\n" + (compliance.Length > 0 ? compliance.ToString() : "BS 8300 compliance: PASS") };
-                rampResult.CreatedIds.AddRange(createdIds);
-                ModelCommandHelper.AutoTagAndReport(doc, rampResult);
+                rampResult.CreatedElementIds.AddRange(createdIds);
+                TaskDialog.Show("MODEL — Ramp", ModelCommandHelper.AutoTagAndReport(doc, rampResult));
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1288,8 +1288,8 @@ namespace StingTools.Model
                 }
 
                 var canopyResult = new ModelResult { Success = true, Message = $"Canopy created: {3000}mm × {1500}mm at {2700}mm height" };
-                canopyResult.CreatedIds.AddRange(createdIds);
-                ModelCommandHelper.AutoTagAndReport(doc, canopyResult);
+                canopyResult.CreatedElementIds.AddRange(createdIds);
+                TaskDialog.Show("MODEL — Canopy", ModelCommandHelper.AutoTagAndReport(doc, canopyResult));
                 return Result.Succeeded;
             }
             catch (Exception ex)
