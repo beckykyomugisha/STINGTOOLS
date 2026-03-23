@@ -49,8 +49,6 @@ namespace StingTools.Core
     {
         private static readonly object _lock = new object();
         private static readonly List<ScheduledTrigger> _triggers = new();
-        private static Timer _periodicTimer;
-        private static Document _monitoredDoc;
 
         /// <summary>Trigger types for scheduled workflow execution.</summary>
         internal enum TriggerType

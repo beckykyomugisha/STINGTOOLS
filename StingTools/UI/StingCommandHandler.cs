@@ -2216,7 +2216,8 @@ namespace StingTools.UI
                     // ── Phase 68: Model Intelligence & BIM Coordinator Commands ──
                     case "EmbodiedCarbon":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var allIds = new FilteredElementCollector(doc)
                             .WhereElementIsNotElementType()
                             .Select(e => e.Id).ToList();
@@ -2234,7 +2235,8 @@ namespace StingTools.UI
                     }
                     case "FloorEfficiency":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var results = Model.SpatialAnalysisEngine.CalculateFloorEfficiency(doc);
                         var sb = new StringBuilder();
                         sb.AppendLine("Gross-to-Net Floor Efficiency (BCO Guide target: >80%):");
@@ -2248,7 +2250,8 @@ namespace StingTools.UI
                     }
                     case "RoomAreaAudit":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var results = Model.SpatialAnalysisEngine.AuditRoomAreas(doc);
                         int compliant = results.Count(r => r.Compliant);
                         int nonCompliant = results.Count(r => !r.Compliant && r.MinSqM > 0);
@@ -2261,7 +2264,8 @@ namespace StingTools.UI
                     }
                     case "ModelComplexity":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var (score, byCategory, links, worksets, systems) = Model.ModelMetricsEngine.CalculateComplexity(doc);
                         var topCats = byCategory.OrderByDescending(kv => kv.Value).Take(10);
                         var sb = new StringBuilder();
@@ -2275,7 +2279,8 @@ namespace StingTools.UI
                     }
                     case "DeliverableReadiness":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var warnings = Core.WarningsEngine.ScanWarnings(doc);
                         var compliance = Core.ComplianceScan.Scan(doc);
                         string[] deliverables = { "COBie", "IFC", "PDF", "FM" };
@@ -2294,7 +2299,8 @@ namespace StingTools.UI
                     }
                     case "ActionPlan":
                     {
-                        var doc = uidoc.Document;
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc == null) break;
                         var warnings = Core.WarningsEngine.ScanWarnings(doc);
                         var compliance = Core.ComplianceScan.Scan(doc);
                         var actions = Core.WarningsEngine.GenerateActionPlan(doc, warnings, compliance);

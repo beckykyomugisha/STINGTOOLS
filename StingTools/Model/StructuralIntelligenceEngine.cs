@@ -487,10 +487,10 @@ namespace StingTools.Model
                 if (snapToGrid)
                 {
                     var snapped = SnapToNearestGrid(doc, xFt, yFt);
-                    if (snapped.HasValue)
+                    if (snapped != null)
                     {
-                        xFt = snapped.Value.X;
-                        yFt = snapped.Value.Y;
+                        xFt = snapped.X;
+                        yFt = snapped.Y;
                         result.AlignmentsCorrected++;
                     }
                 }

@@ -1083,7 +1083,6 @@ namespace StingTools.Core
                 case "NamingAudit": return new Temp.NamingConventionAuditCommand();
                 case "CrossModelClash": return new Temp.CrossModelClashCommand();
                 case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
-                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
                 case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
 
                 // Data Pipeline
@@ -1246,18 +1245,18 @@ namespace StingTools.Core
                 case "SheetOrganizer":          return new Docs.SheetOrganizerCommand();
                 case "ViewOrganizer":           return new Docs.ViewOrganizerCommand();
                 case "SyncOverrides":           return new Temp.SyncTemplateOverridesCommand();
-                case "DataDropReadiness":       return new Temp.DataDropReadinessCommand();
-                case "WeeklyCoordinatorReport": return new Temp.WeeklyCoordinatorReportCommand();
+                // case "DataDropReadiness":    return new Temp.DataDropReadinessCommand();        // class not yet implemented
+                // case "WeeklyCoordinatorReport": return new Temp.WeeklyCoordinatorReportCommand(); // class not yet implemented
                 case "ExportSchedulesToExcel":  return new BIMManager.ExportSchedulesToExcelCommand();
-                case "COBieImport":             return new BIMManager.COBieImportCommand();
-                case "UserProductivityReport":  return new Temp.UserProductivityReportCommand();
-                case "FederatedCompliance":     return new Temp.FederatedComplianceScanCommand();
-                case "ApprovalWorkflow":        return new Temp.ApprovalWorkflowCommand();
+                // case "COBieImport":          return new BIMManager.COBieImportCommand();          // class not yet implemented
+                // case "UserProductivityReport": return new Temp.UserProductivityReportCommand();   // class not yet implemented
+                // case "FederatedCompliance":  return new Temp.FederatedComplianceScanCommand();    // class not yet implemented
+                // case "ApprovalWorkflow":     return new Temp.ApprovalWorkflowCommand();           // class not yet implemented
                 case "RevisionSchedule":        return new BIMManager.RevisionScheduleCommand();
                 case "AssignNumbers":           return new Tags.AssignNumbersCommand();
                 case "SetSeqScheme":            return new Tags.SetSeqSchemeCommand();
-                case "ExportTagMap":            return new Tags.ExportTagMapCommand();
-                case "ImportTagMap":            return new Tags.ImportTagMapCommand();
+                // case "ExportTagMap":         return new Tags.ExportTagMapCommand();               // class not yet implemented
+                // case "ImportTagMap":         return new Tags.ImportTagMapCommand();               // class not yet implemented
                 case "BatchPlaceTags":          return new Tags.BatchPlaceTagsCommand();
 
                 default: return null;

@@ -146,7 +146,7 @@ namespace StingTools.Tags
                 // R4-B FIX: Save the already-mutated seqCounters (not a fresh scan) so collision increments persist
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                 catch (Exception ssEx) { StingLog.Warn($"TokenWriter SaveSeqSidecar: {ssEx.Message}"); }
-                TagConfig.CheckComplianceGate(doc); // R4-B: TokenWriter was missing compliance gate
+                TagConfig.CheckComplianceGate(doc, "TokenWriter"); // R4-B: TokenWriter was missing compliance gate
             }
 
             string resultMsg = $"Set '{value}' on {written} elements.";
