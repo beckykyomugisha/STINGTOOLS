@@ -91,16 +91,20 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ── Health check ──
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow, version = "1.0.0" }));
+
 app.MapControllers();
 app.MapHub<ComplianceHub>("/hubs/compliance");
 app.MapHub<TagSyncHub>("/hubs/tagsync");
 
-// ── Auto-migrate in development ──
+// ── Auto-migrate and seed in development ──
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<StingBimDbContext>();
-    db.Database.Migrate();
+    db.Database.EnsureCreated();
+    await StingBIM.API.SeedData.SeedAsync(db);
 }
 
-app.Run();
+await app.RunAsync();

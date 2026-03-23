@@ -7,7 +7,9 @@ COPY src/StingBIM.Shared/StingBIM.Shared.csproj src/StingBIM.Shared/
 COPY src/StingBIM.Core/StingBIM.Core.csproj src/StingBIM.Core/
 COPY src/StingBIM.Infrastructure/StingBIM.Infrastructure.csproj src/StingBIM.Infrastructure/
 COPY src/StingBIM.MIM/StingBIM.MIM.csproj src/StingBIM.MIM/
+COPY src/StingBIM.PluginSync/StingBIM.PluginSync.csproj src/StingBIM.PluginSync/
 COPY src/StingBIM.API/StingBIM.API.csproj src/StingBIM.API/
+COPY StingBIM.sln .
 RUN dotnet restore src/StingBIM.API/StingBIM.API.csproj
 
 # Copy everything and build

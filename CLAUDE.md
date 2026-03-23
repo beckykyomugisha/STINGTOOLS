@@ -2133,6 +2133,136 @@ Critical review of the tagging workflow identified the following logic, automati
 - [Revit API — OverrideGraphicSettings](https://www.revitapidocs.com/2025/eb2bd6b6-b7b2-5452-2070-2dbadb9e068a.htm) — Complete graphic override API
 - [Revit API — IndependentTag](https://www.revitapidocs.com/2025/e52073e2-9d98-6fb5-eb43-288cf9ed2e28.htm) — Tag creation and positioning API
 
+---
+
+## StingBIM Server
+
+### Overview
+
+**StingBIM Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `StingBIM.Server/`.
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| API | ASP.NET Core 8.0 (net8.0) |
+| Database | PostgreSQL 16 + EF Core 8 |
+| Cache | Redis 7 |
+| Real-time | SignalR |
+| Auth | JWT + Refresh tokens |
+| File Storage | MinIO (S3-compatible) |
+| Container | Docker Compose |
+
+### Project Structure
+
+```
+StingBIM.Server/
+├── StingBIM.sln                          # Solution file
+├── docker/
+│   ├── docker-compose.yml                # API + Postgres + Redis
+│   └── Dockerfile                        # Multi-stage API build
+└── src/
+    ├── StingBIM.API/                     # ASP.NET Core Web API
+    │   ├── Controllers/
+    │   │   ├── AuthController.cs         # Login + license activation
+    │   │   ├── ProjectsController.cs     # CRUD + dashboard
+    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
+    │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
+    │   │   ├── IssuesController.cs       # CRUD + SLA tracking
+    │   │   ├── DocumentsController.cs    # CDE state machine
+    │   │   ├── WorkflowsController.cs    # Run logging + trend
+    │   │   ├── MeetingsController.cs     # Agenda + action items
+    │   │   ├── SeqSyncController.cs      # Max-per-key merge
+    │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
+    │   │   ├── WarningsController.cs     # Warning reports + baseline
+    │   │   ├── AdminController.cs        # Org + user + audit management
+    │   │   └── MimController.cs          # StingMIM asset lifecycle
+    │   ├── Middleware/
+    │   │   └── TenantResolutionMiddleware.cs
+    │   ├── SeedData.cs                   # Demo tenant + project + issues
+    │   └── Program.cs                    # DI, middleware, SignalR hubs
+    │
+    ├── StingBIM.Core/                    # Domain entities + DTOs
+    │   ├── Entities/
+    │   │   ├── Tenant.cs                 # Multi-tenant org
+    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
+    │   │   ├── Project.cs                # BIM project container
+    │   │   ├── TaggedElement.cs          # 8-segment tag data
+    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue
+    │   │   ├── DocumentRecord.cs         # CDE document with state
+    │   │   ├── ComplianceSnapshot.cs     # Point-in-time compliance
+    │   │   ├── SeqCounter.cs             # Sequence number counter
+    │   │   ├── Meeting.cs                # Meeting + action items
+    │   │   ├── Transmittal.cs            # Document transmittal
+    │   │   ├── WorkflowRun.cs            # Workflow execution record
+    │   │   ├── LicenseKey.cs             # License with tier + seats
+    │   │   └── AuditLog.cs               # Write operation audit trail
+    │   ├── DTOs/SyncDtos.cs              # Sync request/response models
+    │   └── Interfaces/IRepository.cs
+    │
+    ├── StingBIM.Infrastructure/          # EF Core + SignalR
+    │   ├── Data/StingBimDbContext.cs      # 15 DbSets, indexes, relationships
+    │   ├── Services/TenantContext.cs
+    │   └── SignalR/
+    │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
+    │
+    ├── StingBIM.MIM/                     # Model Information Management
+    │   ├── Entities/Asset.cs             # 40+ field asset entity
+    │   ├── Entities/MaintenanceTask.cs   # PPM scheduling per BS 8210
+    │   └── Services/AssetService.cs
+    │
+    ├── StingBIM.Shared/                  # Cross-cutting (plugin + server)
+    │   ├── Constants/ISO19650Codes.cs    # DISC/SYS/FUNC/PROD/LOC/ZONE codes
+    │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
+    │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
+    │
+    └── StingBIM.PluginSync/             # Plugin-side sync client
+        ├── SyncClient.cs                # HTTP + JWT auth client
+        ├── OfflineQueue.cs              # File-backed offline queue
+        └── SyncScheduler.cs            # 5-min periodic sync
+```
+
+### API Endpoints Summary
+
+| Area | Endpoint | Methods |
+|---|---|---|
+| Auth | `/api/auth/login`, `/api/auth/license/activate` | POST |
+| Projects | `/api/projects` | GET, POST |
+| Dashboard | `/api/projects/{id}/dashboard` | GET |
+| Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
+| Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
+| Issues | `/api/projects/{id}/issues` | GET, POST, PUT + SLA report |
+| Documents | `/api/projects/{id}/documents` | GET, POST + CDE transition |
+| Workflows | `/api/projects/{id}/workflows` | POST run, GET history/trend |
+| Meetings | `/api/projects/{id}/meetings` | GET, POST + actions + open |
+| SEQ Sync | `/api/projects/{id}/seq` | POST sync, GET counters |
+| Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
+| Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
+| MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
+| Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
+| SignalR | `/hubs/compliance`, `/hubs/tagsync` | WebSocket |
+| Health | `/health` | GET |
+
+### Pricing Tiers
+
+| Tier | Users | Price | Projects |
+|---|---|---|---|
+| Starter | 1 | Free | 1, local only |
+| Professional | 1-5 | $15/user/mo | 5, cloud sync |
+| Premium | 6-100 | $25/user/mo | Unlimited |
+| Enterprise | 100+ | Custom | SSO, on-prem |
+| StingMIM | Add-on | $10-17/user/mo | FM, digital twin |
+
+### Running Locally
+
+```bash
+cd StingBIM.Server/docker
+docker compose up -d
+# API: http://localhost:5000
+# Swagger: http://localhost:5000/swagger
+# Demo login: admin@stingbim.demo / admin123
+```
+
 #### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
 
 451. **WarningsManager.cs** — `Core/WarningsManager.cs` (1,115 lines): Comprehensive Revit warnings management engine with 8 commands, `WarningsEngine` (classification, auto-fix, baseline/trend, CSV export), and `StingWarningHandler` (IFailuresPreprocessor with Silent/Selective/Strict modes). Goes beyond BIM42/Ideate/pyRevit with BIM-domain classification (Geometric/Spatial/MEP/Structural/Annotation/Data/Performance/Compliance), 5-tier severity, 55+ classification pattern rules, per-level/workset/discipline breakdown, hotspot detection (top 20 elements by warning count), baseline trend tracking with delta symbols (↑↓→), suppression list (persisted to project_config.json), auto-fix strategies (duplicate instances, room separation overlaps, duplicate marks, unjoined geometry), batch auto-fix with dry-run preview, ISO 19650 compliance mapping, and warning monitor for regression detection.
