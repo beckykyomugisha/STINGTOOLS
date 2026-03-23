@@ -130,7 +130,6 @@ namespace StingTools.Model
                         }
 
                         // Check for cantilever beams (self-weight torsion if loaded off-centre)
-                        bool isCantilever = false;
                         var endPt = line.GetEndPoint(1);
                         var endCols = new FilteredElementCollector(doc)
                             .OfCategory(BuiltInCategory.OST_StructuralColumns)
@@ -144,7 +143,6 @@ namespace StingTools.Model
 
                         if (!endCols)
                         {
-                            isCantilever = true;
                             cases.Add(new TorsionCase
                             {
                                 ElementId = beam.Id,

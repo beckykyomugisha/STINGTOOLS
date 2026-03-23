@@ -503,7 +503,7 @@ namespace StingTools.Model
             inDuctLevel -= endReflection;
 
             // Room correction: +10 dB for reverberant, -3 dB for absorbent
-            double roomCorrection = 0;
+            // Room correction: +10 dB for reverberant, -3 dB for absorbent (reserved for future use)
 
             // Convert to NC rating (simplified: NC ≈ dB(A) - 5)
             int ncRating = (int)(inDuctLevel - 5);

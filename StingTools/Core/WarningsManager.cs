@@ -820,14 +820,16 @@ namespace StingTools.Core
                         try
                         {
                             var el = doc.GetElement(id);
-                            if (el is SpatialElementTag roomTag && roomTag.Room != null)
+                            var rt = el as Autodesk.Revit.DB.Architecture.RoomTag;
+                            if (rt?.Room != null)
                             {
-                                var room = roomTag.Room;
-                                var pt = room.get_BoundingBox(null);
-                                if (pt != null)
+                                var room = rt.Room;
+                                var bb = room.get_BoundingBox(null);
+                                if (bb != null)
                                 {
-                                    var center = (pt.Min + pt.Max) / 2.0;
-                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
+                                    var center = (bb.Min + bb.Max) / 2.0;
+                                    var currentPt = (rt.Location as LocationPoint)?.Point ?? XYZ.Zero;
+                                    rt.Location.Move(center - currentPt);
                                     return true;
                                 }
                             }
