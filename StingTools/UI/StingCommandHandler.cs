@@ -1088,6 +1088,9 @@ namespace StingTools.UI
                     case "ModelPlaceDoor": RunCommand<Model.ModelPlaceDoorCommand>(app); break;
                     case "ModelPlaceWindow": RunCommand<Model.ModelPlaceWindowCommand>(app); break;
                     case "ModelBuildingShell": RunCommand<Model.ModelBuildingShellCommand>(app); break;
+                    case "ModelCreateRamp": RunCommand<Model.ModelCreateRampCommand>(app); break;
+                    case "ModelCreateCanopy": RunCommand<Model.ModelCreateCanopyCommand>(app); break;
+                    case "MEPRouteAnalysis": RunCommand<Model.MEPRouteAnalysisCommand>(app); break;
 
                     // ── Structural elements ──
                     case "ModelPlaceColumn": RunCommand<Model.ModelPlaceColumnCommand>(app); break;
@@ -1268,6 +1271,7 @@ namespace StingTools.UI
 
                     // Model Health
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
+                    case "ModelHealthScore": RunCommand<Core.ModelHealthScoreCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
@@ -1560,6 +1564,21 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "ValidateCDEHandover":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var (pass, issues) = BIMCoordinationCenterCommand.ValidateCDEHandoverReadiness(doc);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(pass ? "CDE HANDOVER VALIDATION: PASS\n" : "CDE HANDOVER VALIDATION: FAIL\n");
+                            if (issues.Count > 0)
+                                foreach (string issue in issues) sb.AppendLine($"  ✘ {issue}");
+                            else sb.AppendLine("  All checks passed. Model is ready for CDE handover.");
+                            TaskDialog.Show("STING CDE Validation", sb.ToString());
+                        }
+                        break;
+                    }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
@@ -1883,6 +1902,14 @@ namespace StingTools.UI
 
                     // ── Temp: Data Validation ──
                     case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "CrossModelClash": RunCommand<Temp.CrossModelClashCommand>(app); break;
+                    case "NamingAudit": RunCommand<Temp.NamingConventionAuditCommand>(app); break;
+                    case "MEPClearance": RunCommand<Temp.MEPClearanceValidationCommand>(app); break;
+                    case "IFCPropertyValidation": RunCommand<Temp.IFCPropertyValidationCommand>(app); break;
+                    case "UserProductivity": RunCommand<BIMManager.UserProductivityReportCommand>(app); break;
+                    case "NotificationPrefs": RunCommand<BIMManager.NotificationPreferencesCommand>(app); break;
+                    case "TaskAssignment": RunCommand<BIMManager.TaskAssignmentCommand>(app); break;
+                    case "GbXMLEnrichment": RunCommand<BIMManager.GbXMLEnrichmentCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;

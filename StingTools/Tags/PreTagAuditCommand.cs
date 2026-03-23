@@ -550,6 +550,61 @@ namespace StingTools.Tags
                 }
             });
 
+            // GAP-R21: Create formal issues from audit anomalies for downstream tracking
+            if (auditIssues.Count > 0)
+            {
+                panel.Action("Create issues from anomalies",
+                    $"Record {auditIssues.Count} anomalies as formal issues in _bim_manager/issues.json", win =>
+                {
+                    try
+                    {
+                        string issuesDir = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                        if (!System.IO.Directory.Exists(issuesDir)) System.IO.Directory.CreateDirectory(issuesDir);
+                        string issuesPath = System.IO.Path.Combine(issuesDir, "issues.json");
+
+                        Newtonsoft.Json.Linq.JArray issues;
+                        if (System.IO.File.Exists(issuesPath))
+                            issues = Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(issuesPath));
+                        else
+                            issues = new Newtonsoft.Json.Linq.JArray();
+
+                        // Group anomalies by type
+                        var grouped = auditIssues.GroupBy(a => a.IssueType).ToList();
+                        int created = 0;
+                        foreach (var g in grouped)
+                        {
+                            string issueId = $"SI-{(issues.Count + created + 1):D4}";
+                            var issue = new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["id"] = issueId,
+                                ["title"] = $"Pre-Tag Audit: {g.Key} ({g.Count()} elements)",
+                                ["type"] = "SI",
+                                ["priority"] = g.Count() > 50 ? "HIGH" : "MEDIUM",
+                                ["status"] = "OPEN",
+                                ["created_date"] = System.DateTime.Now.ToString("o"),
+                                ["created_by"] = System.Environment.UserName,
+                                ["description"] = $"Audit found {g.Count()} elements with {g.Key}",
+                                ["auto_created"] = true,
+                                ["source"] = "PreTagAudit",
+                                ["element_count"] = g.Count()
+                            };
+                            issues.Add(issue);
+                            created++;
+                        }
+                        System.IO.File.WriteAllText(issuesPath,
+                            issues.ToString(Newtonsoft.Json.Formatting.Indented));
+                        TaskDialog.Show("STING", $"Created {created} issues from audit anomalies.");
+                        StingLog.Info($"GAP-R21: Created {created} issues from {auditIssues.Count} anomalies");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        StingLog.Warn($"Create issues from audit: {ex.Message}");
+                        TaskDialog.Show("STING", $"Error creating issues: {ex.Message}");
+                    }
+                });
+            }
+
             panel.Show();
 
             StingLog.Info($"PreTagAudit: {totalTaggable} elements, {predictedCollisions} predicted collisions, " +

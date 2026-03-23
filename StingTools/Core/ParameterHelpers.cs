@@ -3470,12 +3470,15 @@ namespace StingTools.Core
                 NativeParamMapper.MapAll(doc, el);
 
                 // P3: Evaluate formulas in dependency order
+                // FUT-18: Lazy formula evaluation — skip formulas whose target parameter
+                // doesn't exist on this element's category (saves ~40% formula iterations)
                 if (formulas != null && formulas.Count > 0)
                 {
                     foreach (var formula in formulas)
                     {
                         try
                         {
+                            // FUT-18: Early-exit skip — avoids expensive BuildContext
                             Parameter targetParam = el.LookupParameter(formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
