@@ -759,8 +759,16 @@ namespace StingTools.BIMManager
                 var issues = LoadJsonArray(issuesPath);
                 int raised = 0;
 
-                // Only auto-raise if significant non-compliance detected
-                if (scanResult.Untagged > 10)
+                // M-10 FIX: Use percentage-based thresholds instead of hardcoded counts.
+                // Previously used >10/>20 absolute counts which spammed issues on large projects
+                // and missed critical issues on small projects.
+                double untaggedPct = scanResult.TotalElements > 0
+                    ? (double)scanResult.Untagged / scanResult.TotalElements * 100.0 : 0;
+                double incompletePct = scanResult.TotalElements > 0
+                    ? (double)scanResult.TaggedIncomplete / scanResult.TotalElements * 100.0 : 0;
+
+                // Raise issue if >5% untagged (or absolute minimum of 5 elements to avoid noise on tiny models)
+                if (scanResult.Untagged > 5 && untaggedPct > 5.0)
                 {
                     // Check if a similar open issue already exists
                     bool alreadyRaised = issues.Any(i =>
@@ -785,8 +793,8 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                // Raise issue for incomplete tags
-                if (scanResult.TaggedIncomplete > 20)
+                // Raise issue for incomplete tags — >10% incomplete or absolute min 10 elements
+                if (scanResult.TaggedIncomplete > 10 && incompletePct > 10.0)
                 {
                     bool alreadyRaised = issues.Any(i =>
                         i["type"]?.ToString() == "NCR" &&
@@ -3381,7 +3389,8 @@ namespace StingTools.BIMManager
                         return $"[PDF file — {new FileInfo(item.FilePath).Length / 1024} KB]\n" +
                                $"Open externally: {item.FilePath}";
                     default:
-                        return File.ReadAllText(item.FilePath).Substring(0, Math.Min(File.ReadAllText(item.FilePath).Length, 5000));
+                        // H-09 FIX: Read file only once instead of twice
+                        { var content = File.ReadAllText(item.FilePath); return content.Substring(0, Math.Min(content.Length, 5000)); }
                 }
             }
             catch (Exception ex)

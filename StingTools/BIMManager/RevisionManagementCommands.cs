@@ -84,6 +84,12 @@ namespace StingTools.BIMManager
                 ParamRegistry.TAG7F,
                 // Status and revision
                 ParamRegistry.STATUS, ParamRegistry.REV,
+                // AG-09 FIX: Context data for change classification (was missing).
+                // Enables revision reports to distinguish "element moved to new level"
+                // vs "token manually changed".
+                "ASS_GRID_REF_TXT",        // spatial context
+                "ASS_TAG_PREV_TXT",         // audit trail
+                "ASS_TAG_MODIFIED_DT",      // change timestamp
             };
             // Add discipline-specific containers if available
             try
@@ -114,6 +120,19 @@ namespace StingTools.BIMManager
                         var tokens = new Dictionary<string, string>();
                         foreach (string param in tokenParams)
                             tokens[param] = ParameterHelpers.GetString(el, param);
+                        // AG-09 FIX: Capture native Revit context for change classification
+                        try
+                        {
+                            var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                            if (phaseParam != null && phaseParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_PHASE"] = doc.GetElement(phaseParam.AsElementId())?.Name ?? "";
+                            var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM)
+                                ?? el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
+                            if (levelParam != null && levelParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_LEVEL"] = doc.GetElement(levelParam.AsElementId())?.Name ?? "";
+                            tokens["_CATEGORY"] = el.Category?.Name ?? "";
+                        }
+                        catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;
                     }
                 }

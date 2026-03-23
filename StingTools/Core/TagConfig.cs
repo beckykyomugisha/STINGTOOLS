@@ -2082,9 +2082,11 @@ namespace StingTools.Core
                 loc = LocCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "BLD1";
             }
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            if (string.IsNullOrEmpty(zone) || zone == "XX")
+            // M-04 FIX: Also normalize "ZZ" placeholder (matching BuildTagIndexAndCounters
+            // which normalizes XX/ZZ→Z01) to prevent SEQ counter key mismatch
+            if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ")
             {
-                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "Z01";
+                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
             }
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
@@ -3295,9 +3297,11 @@ namespace StingTools.Core
                     string altKey = null;
                     if (SeqIncludeZone && parts.Length == 3)
                     {
-                        // Sidecar has old format (no zone), current format includes zone
-                        // Can't determine zone, so merge into all matching zone keys
-                        altKey = null; // No single translation; just add as-is
+                        // H-02 FIX: Sidecar has old format (no zone), current format includes zone.
+                        // Previously set altKey=null which caused old counters to be added as-is
+                        // with the wrong key format, effectively losing them and restarting SEQ from 1.
+                        // Now merge into default zone key so counters are preserved.
+                        altKey = $"{parts[0]}_Z01_{parts[1]}_{parts[2]}";
                     }
                     else if (!SeqIncludeZone && parts.Length == 4)
                     {

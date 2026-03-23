@@ -116,10 +116,31 @@ namespace StingTools.Core
             }
         }
 
+        // AG-10: Maximum log file size before rotation (50 MB)
+        private const long MaxLogSizeBytes = 50 * 1024 * 1024;
+
         private static void EnsureWriter()
         {
             if (_writer == null)
             {
+                // AG-10 FIX: Check file size — rotate if exceeded to prevent disk exhaustion
+                try
+                {
+                    string path = LogPath;
+                    if (File.Exists(path))
+                    {
+                        var fi = new FileInfo(path);
+                        if (fi.Length > MaxLogSizeBytes)
+                        {
+                            // Rotate: rename current to .old (overwrite previous .old)
+                            string oldPath = path + ".old";
+                            try { if (File.Exists(oldPath)) File.Delete(oldPath); } catch { }
+                            try { File.Move(path, oldPath); } catch { }
+                        }
+                    }
+                }
+                catch { /* Best-effort rotation — don't block logging */ }
+
                 // CRASH FIX: AutoFlush = true ensures every Write goes through to the
                 // FileStream immediately. Combined with FileStream.Flush(flushToDisk: true)
                 // below, this guarantees log entries survive native Revit crashes that

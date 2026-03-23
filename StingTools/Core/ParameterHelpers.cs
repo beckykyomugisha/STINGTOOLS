@@ -3489,17 +3489,21 @@ namespace StingTools.Core
                     }
                 }
 
-                // Core: Build and write TAG1 (with collision detection)
-                TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
+                bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
                     collisionMode: collisionMode,
                     stats: stats,
                     cachedRev: ctx?.ProjectRev);
+                if (!tagWriteOk)
+                {
+                    StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    return false;
+                }
 
-                // P1: Write TAG7 rich narrative (A-F sub-sections)
-                // Re-read token values AFTER BuildAndWriteTag + formulas so containers
-                // and TAG7 reflect formula-computed values (Gap G003 fix)
+                // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
+                // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
                 // GAP-11: Verify container write by checking CATEGORY-SPECIFIC containers,

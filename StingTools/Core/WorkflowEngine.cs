@@ -641,6 +641,20 @@ namespace StingTools.Core
                             }
                         }
                         sw.Stop();
+
+                        // AG-05 FIX: Post-execution timeout check. Can't abort Revit commands mid-execution
+                        // but can warn and treat as failure when a step exceeds its timeout.
+                        if (step.TimeoutSeconds > 0 && sw.Elapsed.TotalSeconds > step.TimeoutSeconds)
+                        {
+                            StingLog.Warn($"Workflow step {stepNum} '{step.Label}' exceeded timeout " +
+                                $"({sw.Elapsed.TotalSeconds:F0}s > {step.TimeoutSeconds}s)");
+                            if (!step.Optional)
+                            {
+                                stepResult = Result.Failed;
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — TIMEOUT ({sw.Elapsed.TotalSeconds:F0}s > {step.TimeoutSeconds}s limit)");
+                            }
+                        }
+
                         string status = stepResult == Result.Succeeded ? "OK" :
                                          stepResult == Result.Cancelled ? "SKIP" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
@@ -660,6 +674,11 @@ namespace StingTools.Core
                             skipped++;
                         else
                             failed++;
+
+                        // C-03 FIX: Reset previousStepSkipped after each executed step.
+                        // Previously never reset to false, causing cascade-skip to permanently
+                        // lock after the first skipped step.
+                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
@@ -894,7 +913,10 @@ namespace StingTools.Core
             IExternalCommand cmd = ResolveCommand(tag);
             if (cmd == null)
             {
-                StingLog.Warn($"WorkflowEngine: unknown command tag '{tag}'");
+                // M-05 FIX: Log error (not just warn) with clear diagnostic message
+                // so workflow preset JSON typos are immediately obvious
+                StingLog.Error($"WorkflowEngine: unknown command tag '{tag}' — check workflow preset JSON for typos. " +
+                    "This step will be reported as FAILED in the workflow report.");
                 return Result.Failed;
             }
 
