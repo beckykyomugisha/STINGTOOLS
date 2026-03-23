@@ -1319,7 +1319,7 @@ namespace StingTools.Model
                     {
                         result.Warnings.Add($"Round column: {ex.Message}");
                     }
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
                 }
                 tx.Commit();
             }
@@ -1499,7 +1499,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
 
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
                 }
 
                 tx.Commit();

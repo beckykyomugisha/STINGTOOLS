@@ -152,8 +152,10 @@ namespace StingTools.Model
             _pipeline = new StructuralCADPipeline(doc);
 
             Title = "STING Structural DWG-to-BIM";
-            Width = 920; Height = 740;
+            Width = 960; Height = 780;
             MinWidth = 800; MinHeight = 600;
+            MaxHeight = SystemParameters.WorkArea.Height * 0.92;
+            MaxWidth = SystemParameters.WorkArea.Width * 0.85;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
             Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xFA));
