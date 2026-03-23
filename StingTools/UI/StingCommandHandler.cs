@@ -1128,6 +1128,11 @@ namespace StingTools.UI
                     case "StrProgressiveCollapse": RunCommand<Model.StrProgressiveCollapseCommand>(app); break;
                     case "StrAutoSize": RunCommand<Model.StrAutoSizeCommand>(app); break;
                     case "StrFireResistance": RunCommand<Model.StrFireResistanceCommand>(app); break;
+                    case "StrAutoMaterials": RunCommand<Model.StrAutoMaterialsCommand>(app); break;
+                    case "StrSmartColumn": RunCommand<Model.StrSmartColumnCommand>(app); break;
+                    case "StrSmartBeam": RunCommand<Model.StrSmartBeamCommand>(app); break;
+                    case "StrBuildComplete": RunCommand<Model.StrBuildCompleteCommand>(app); break;
+                    case "StrModelScore": RunCommand<Model.StrModelScoreCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

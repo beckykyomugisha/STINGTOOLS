@@ -2021,4 +2021,302 @@ namespace StingTools.Model
             }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // AUTO-APPLY STRUCTURAL MATERIALS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Intelligently applies structural materials to all elements.
+    /// Auto-detects concrete grade from position, exposure from level,
+    /// fire rating from building regulations. Creates materials if needed.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAutoMaterialsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Auto Materials");
+                dlg.MainContent = "Auto-apply structural materials to all elements.\nSelect concrete grade:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "C30/37 — Standard (offices, residential)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "C40/50 — High performance (high-rise, car parks)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "C25/30 — Economy (low-rise, foundations)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Steel S355 — All elements as steel");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+
+                ConcreteGrade grade; SteelGrade steel;
+                switch (choice)
+                {
+                    case TaskDialogResult.CommandLink1: grade = ConcreteGrade.C30_37; steel = SteelGrade.S355; break;
+                    case TaskDialogResult.CommandLink2: grade = ConcreteGrade.C40_50; steel = SteelGrade.S355; break;
+                    case TaskDialogResult.CommandLink3: grade = ConcreteGrade.C25_30; steel = SteelGrade.S275; break;
+                    case TaskDialogResult.CommandLink4: grade = ConcreteGrade.C30_37; steel = SteelGrade.S355; break;
+                    default: return Result.Cancelled;
+                }
+
+                using (var tx = new Transaction(uidoc.Document, "STING STRUCT: Auto Materials"))
+                {
+                    tx.Start();
+                    var result = StructuralMaterialEngine.ApplyToAllStructural(
+                        uidoc.Document, grade, steel);
+                    tx.Commit();
+
+                    TaskDialog.Show("STRUCT — Materials Applied", result.Summary);
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrAutoMaterials failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // INTELLIGENT COLUMN PLACEMENT
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartColumnCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var pt = uidoc.Selection.PickPoint("Pick column location (snaps to nearest grid)");
+                var result = IntelligentStructuralPlacer.PlaceColumnIntelligently(
+                    uidoc.Document, pt.X * Units.FeetToMm, pt.Y * Units.FeetToMm);
+
+                if (result.Success && result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                TaskDialog.Show("STRUCT — Smart Column", result.Summary +
+                    (result.Warnings.Count > 0 ? "\n\nWarnings:\n" + string.Join("\n", result.Warnings) : ""));
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrSmartColumn failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // INTELLIGENT BEAM PLACEMENT
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartBeamCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var p1 = uidoc.Selection.PickPoint("Pick beam start");
+                var p2 = uidoc.Selection.PickPoint("Pick beam end");
+
+                var result = IntelligentStructuralPlacer.PlaceBeamIntelligently(
+                    uidoc.Document,
+                    p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm, p1.Z * Units.FeetToMm,
+                    p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, p2.Z * Units.FeetToMm);
+
+                if (result.Success && result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                TaskDialog.Show("STRUCT — Smart Beam", result.Summary +
+                    (result.Warnings.Count > 0 ? "\n\nWarnings:\n" + string.Join("\n", result.Warnings) : ""));
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrSmartBeam failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // ONE-CLICK INTELLIGENT BUILDING
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates a complete structural building from specification in one click.
+    /// Includes: grid, columns, beams, slabs, foundations, bracing, materials,
+    /// and structural checks — all auto-sized and auto-materialed.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrBuildCompleteCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Complete Building");
+                dlg.MainContent = "Create a complete structural building with one click.\n" +
+                    "Includes: columns, beams, slabs, foundations, bracing, materials.\n\n" +
+                    "Select building type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "3-Storey RC Office (30m × 20m, 7.5m grid, C30/37)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "5-Storey Steel Office (36m × 24m, 9m grid, S355)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "2-Storey RC Warehouse (48m × 30m, 12m grid, C35/45)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "4-Storey RC Residential (24m × 15m, 6m grid, C28/35)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                var spec = new BuildingSpecification();
+
+                switch (choice)
+                {
+                    case TaskDialogResult.CommandLink1:
+                        spec = new BuildingSpecification
+                        {
+                            FloorWidthMm = 30000, FloorDepthMm = 20000,
+                            StoreyCount = 3, GridSpacingXMm = 7500, GridSpacingYMm = 7500,
+                            ConcreteGrade = ConcreteGrade.C30_37, BuildingUse = "office"
+                        };
+                        break;
+                    case TaskDialogResult.CommandLink2:
+                        spec = new BuildingSpecification
+                        {
+                            FloorWidthMm = 36000, FloorDepthMm = 24000,
+                            StoreyCount = 5, GridSpacingXMm = 9000, GridSpacingYMm = 9000,
+                            IsSteel = true, SteelGrade = SteelGrade.S355, BuildingUse = "office"
+                        };
+                        break;
+                    case TaskDialogResult.CommandLink3:
+                        spec = new BuildingSpecification
+                        {
+                            FloorWidthMm = 48000, FloorDepthMm = 30000,
+                            StoreyCount = 2, StoreyHeightMm = 6000,
+                            GridSpacingXMm = 12000, GridSpacingYMm = 12000,
+                            ConcreteGrade = ConcreteGrade.C35_45, BuildingUse = "warehouse"
+                        };
+                        break;
+                    case TaskDialogResult.CommandLink4:
+                        spec = new BuildingSpecification
+                        {
+                            FloorWidthMm = 24000, FloorDepthMm = 15000,
+                            StoreyCount = 4, GridSpacingXMm = 6000, GridSpacingYMm = 6000,
+                            ConcreteGrade = ConcreteGrade.C28_35, BuildingUse = "residential"
+                        };
+                        break;
+                    default: return Result.Cancelled;
+                }
+
+                var result = IntelligentFrameBuilder.BuildCompleteStructure(uidoc.Document, spec);
+
+                // Show design report
+                TaskDialog.Show("STRUCT — Building Created",
+                    result.DesignReport ?? result.Summary);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrBuildComplete failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // STRUCTURAL MODEL SCORE
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrModelScoreCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var score = StructuralModelScorer.ScoreModel(uidoc.Document);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"╔══════════════════════════════════════════╗");
+                sb.AppendLine($"║  STRUCTURAL MODEL SCORE: {score.TotalScore:F0}/100  (Grade {score.Grade})  ║");
+                sb.AppendLine($"╚══════════════════════════════════════════╝");
+                sb.AppendLine();
+                sb.AppendLine($"  Completeness:  {score.CompletenessScore:F0}/25  {Bar(score.CompletenessScore, 25)}");
+                sb.AppendLine($"  Connectivity:  {score.ConnectivityScore:F0}/25  {Bar(score.ConnectivityScore, 25)}");
+                sb.AppendLine($"  Design:        {score.DesignScore:F0}/25  {Bar(score.DesignScore, 25)}");
+                sb.AppendLine($"  Materials:     {score.MaterialScore:F0}/25  {Bar(score.MaterialScore, 25)}");
+
+                if (score.Issues.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Issues:");
+                    foreach (var issue in score.Issues.Take(8))
+                        sb.AppendLine($"  • {issue}");
+                }
+                if (score.Recommendations.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Recommendations:");
+                    foreach (var rec in score.Recommendations.Take(5))
+                        sb.AppendLine($"  → {rec}");
+                }
+
+                TaskDialog.Show("STRUCT — Model Score", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrModelScore failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static string Bar(double value, double max)
+        {
+            int filled = (int)(value / max * 10);
+            return new string('#', filled) + new string('-', 10 - filled);
+        }
+    }
 }

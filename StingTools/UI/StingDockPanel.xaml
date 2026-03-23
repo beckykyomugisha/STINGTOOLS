@@ -2025,6 +2025,14 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto Size" Tag="StrAutoSize" Click="Cmd_Click" ToolTip="Iterative auto-sizing — converge member sizes to optimal utilisation"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="StrFireResistance" Click="Cmd_Click" ToolTip="Fire resistance check per EC2-1-2 (R30/R60/R90/R120)"/>
                                 </WrapPanel>
+                                <TextBlock Text="Intelligent Automation" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Build Complete" Tag="StrBuildComplete" Click="Cmd_Click" ToolTip="ONE-CLICK: Create complete building — grid + columns + beams + slabs + foundations + bracing + materials + checks" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Materials" Tag="StrAutoMaterials" Click="Cmd_Click" ToolTip="Auto-apply structural materials (grade/exposure/fire-aware)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Column" Tag="StrSmartColumn" Click="Cmd_Click" ToolTip="Intelligent column: grid-snap, clash-check, material, stacking validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Smart Beam" Tag="StrSmartBeam" Click="Cmd_Click" ToolTip="Intelligent beam: auto-size, deflection pre-check, connection validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Model Score" Tag="StrModelScore" Click="Cmd_Click" ToolTip="Score structural model quality (completeness, connectivity, design, materials)"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
