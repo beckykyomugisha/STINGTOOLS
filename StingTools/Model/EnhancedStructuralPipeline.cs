@@ -81,7 +81,10 @@ namespace StingTools.Model
             {
                 if (s.Sxx >= sxxReq) return (s.Name, s.Mass);
             }
-            return (UBSections.Last().Name, UBSections.Last().Mass); // Largest available
+            // No section meets requirement — return largest with warning
+            StingLog.Warn($"SelectUBForMoment: No UB section for M_Ed={mEdKNm:F0}kNm (Sxx_req={sxxReq:F0}cm³). Largest available selected.");
+            var largest = UBSections.Last();
+            return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
 
         /// <summary>Select optimal UC section for axial + bending.</summary>
@@ -94,7 +97,9 @@ namespace StingTools.Model
                 double util = nEdKN / nRd + mEdKNm / mRd;
                 if (util <= 1.0) return (s.Name, s.Mass);
             }
-            return (UCSections.Last().Name, UCSections.Last().Mass);
+            StingLog.Warn($"SelectUCForAxialMoment: No UC section for N_Ed={nEdKN:F0}kN + M_Ed={mEdKNm:F0}kNm. Largest available selected.");
+            var largest = UCSections.Last();
+            return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
     }
 

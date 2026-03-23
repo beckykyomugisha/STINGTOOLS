@@ -458,7 +458,8 @@ namespace StingTools.Model
                 if (colSheet != null)
                 {
                     var rows = ParseColumnSheet(colSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("COLUMNS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportColumns(rows, options);
                         result.ColumnsCreated = ids.Count;
@@ -471,7 +472,8 @@ namespace StingTools.Model
                 if (beamSheet != null)
                 {
                     var rows = ParseBeamSheet(beamSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("BEAMS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportBeams(rows, options);
                         result.BeamsCreated = ids.Count;
@@ -484,7 +486,8 @@ namespace StingTools.Model
                 if (slabSheet != null)
                 {
                     var rows = ParseSlabSheet(slabSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("SLABS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportSlabs(rows, options);
                         result.SlabsCreated = ids.Count;
@@ -497,7 +500,8 @@ namespace StingTools.Model
                 if (fndSheet != null)
                 {
                     var rows = ParseFoundationSheet(fndSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("FOUNDATIONS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportFoundations(rows, options);
                         result.FoundationsCreated = ids.Count;
@@ -510,7 +514,8 @@ namespace StingTools.Model
                 if (wallSheet != null)
                 {
                     var rows = ParseWallSheet(wallSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("WALLS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportWalls(rows, options);
                         result.WallsCreated = ids.Count;
@@ -522,7 +527,17 @@ namespace StingTools.Model
 
             // Auto-tag created elements
             if (options.AutoTag && result.AllCreatedIds.Count > 0 && !options.DryRun)
+            {
                 ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
+                TagConfig.SaveSeqSidecar(_doc);
+            }
+
+            // Invalidate caches so dashboards reflect new structural elements
+            if (result.AllCreatedIds.Count > 0)
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
 
             StingLog.Info($"ExcelStructuralImport: {result.Summary}");
             return result;
@@ -575,10 +590,12 @@ namespace StingTools.Model
 
         // ── Sheet parsers ──
 
+        private const int MaxExcelRows = 10000;
+
         private List<ColumnScheduleRow> ParseColumnSheet(IXLWorksheet ws)
         {
             var rows = new List<ColumnScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
 
             for (int r = 2; r <= lastRow; r++)
@@ -609,7 +626,7 @@ namespace StingTools.Model
         private List<BeamScheduleRow> ParseBeamSheet(IXLWorksheet ws)
         {
             var rows = new List<BeamScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
 
             for (int r = 2; r <= lastRow; r++)
@@ -643,7 +660,7 @@ namespace StingTools.Model
         private List<SlabScheduleRow> ParseSlabSheet(IXLWorksheet ws)
         {
             var rows = new List<SlabScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {
@@ -670,7 +687,7 @@ namespace StingTools.Model
         private List<FoundationScheduleRow> ParseFoundationSheet(IXLWorksheet ws)
         {
             var rows = new List<FoundationScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {
@@ -695,7 +712,7 @@ namespace StingTools.Model
         private List<WallScheduleRow> ParseWallSheet(IXLWorksheet ws)
         {
             var rows = new List<WallScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {

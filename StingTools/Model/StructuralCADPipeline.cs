@@ -1263,6 +1263,13 @@ namespace StingTools.Model
                     : "No structural elements created — check layer names and selection";
 
                 StingLog.Info($"StructuralCADPipeline v2: {totalResult.Summary}");
+
+                // Invalidate caches so dashboards reflect new structural elements
+                if (totalResult.TotalCreated > 0)
+                {
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
             }
             catch (Exception ex)
             {

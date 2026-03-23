@@ -1072,10 +1072,17 @@ namespace StingTools.Model
                     SelectedLayers.Add(name);
             }
 
-            if (SelectedLayers.Count == 0 && !CreateColumns && !CreateBeams &&
-                !CreateWalls && !CreateSlabs && !CreateFoundations && !CreateGrids)
+            if (SelectedLayers.Count == 0)
             {
-                _txtStatus.Text = "Select at least one layer or element type";
+                _txtStatus.Text = "No layers selected — run Analyze and select layers first";
+                _txtStatus.Foreground = Brushes.Red;
+                return;
+            }
+
+            if (!CreateColumns && !CreateBeams && !CreateWalls &&
+                !CreateSlabs && !CreateFoundations && !CreateGrids)
+            {
+                _txtStatus.Text = "Enable at least one element type to create";
                 _txtStatus.Foreground = Brushes.Red;
                 return;
             }
