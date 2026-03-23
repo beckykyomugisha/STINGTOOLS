@@ -2319,4 +2319,216 @@ namespace StingTools.Model
             return new string('#', filled) + new string('-', 10 - filled);
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // EMBODIED CARBON ASSESSMENT
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCarbonAssessmentCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = EmbodiedCarbonCalculator.AssessModel(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Embodied Carbon Assessment (ICE Database v3)");
+                sb.AppendLine($"RICS Rating: {result.RICSRating}");
+                sb.AppendLine($"Total: {result.TotalCarbonKgCO2:F0} kgCO2e ({result.CarbonPerSqMKgCO2:F0} kgCO2e/m²)");
+                sb.AppendLine($"Cost: ${result.TotalCostUSD:F0} (${result.CostPerSqMUSD:F0}/m²)");
+                sb.AppendLine();
+                sb.AppendLine("By element:");
+                foreach (var kvp in result.CarbonByElement.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"  {kvp.Key}: {kvp.Value:F0} kgCO2e ({kvp.Value / result.TotalCarbonKgCO2 * 100:F0}%)");
+                if (result.ReductionOpportunities.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Reduction opportunities:");
+                    foreach (var r in result.ReductionOpportunities) sb.AppendLine($"  → {r}");
+                }
+                TaskDialog.Show("STRUCT — Carbon Assessment", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrCarbonAssessment failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // REBAR ESTIMATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRebarEstimateCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = AutoRebarEstimator.EstimateProject(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Reinforcement Estimate (IStructE Manual ratios)");
+                sb.AppendLine($"Total: {result.TotalRebarKg:F0} kg ({result.TotalRebarKg / 1000:F1} tonnes)");
+                sb.AppendLine($"Average density: {result.RebarDensityKgPerM3:F0} kg/m³");
+                sb.AppendLine($"Approx bars: {result.TotalBars} × 6m lengths");
+                sb.AppendLine();
+                sb.AppendLine("By element:");
+                foreach (var kvp in result.RebarByElement.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"  {kvp.Key}: {kvp.Value:F0} kg");
+                sb.AppendLine();
+                sb.AppendLine("By diameter:");
+                foreach (var kvp in result.RebarByDiameter.OrderBy(k => k.Key))
+                    sb.AppendLine($"  T{kvp.Key}: {kvp.Value:F0} kg");
+                TaskDialog.Show("STRUCT — Rebar Estimate", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRebarEstimate failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // STABILITY ANALYSIS
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrStabilityCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = StabilityAnalyzer.AnalyzeStability(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Frame Stability Analysis (EC2 §5.8 / EC3 §5.2)");
+                sb.AppendLine($"Classification: {result.FrameClassification}");
+                sb.AppendLine($"Max sway index θ = {result.SwayIndex:F3} (limit 0.10)");
+                sb.AppendLine($"Buckling ratio αcr = {result.BucklingRatio:F1} (limit 10)");
+                sb.AppendLine($"P-Delta required: {result.RequiresPDelta}");
+                sb.AppendLine();
+                sb.AppendLine("Per-storey sway indices:");
+                foreach (var (level, theta) in result.StoreySwayIndices)
+                    sb.AppendLine($"  {level}: θ = {theta:F3} {(theta > 0.1 ? "⚠" : "✓")}");
+                TaskDialog.Show("STRUCT — Stability", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrStabilityCheck failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // BIM VALIDATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrBIMValidationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var result = StructuralBIMValidator.ValidateModel(uidoc.Document);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Structural BIM Validation ({result.CompliancePercent:F0}%)");
+                sb.AppendLine($"{result.Passed}/{result.TotalChecks} pass, {result.Failed} errors, {result.Warnings} warnings");
+                sb.AppendLine();
+                foreach (var check in result.Checks)
+                {
+                    string icon = check.Pass ? "✓" : (check.Severity == "Error" ? "✗" : "⚠");
+                    sb.AppendLine($"  [{check.RuleId}] {icon} {check.Description}: {check.Detail}");
+                }
+                TaskDialog.Show("STRUCT — BIM Validation", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrBIMValidation failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // COMPOSITE BEAM DESIGN
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCompositeBeamCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                // Design for typical office: 9m span, 3m beam spacing
+                var result = CompositeBeamDesigner.Design(9000, 3000);
+                TaskDialog.Show("STRUCT — Composite Beam (EC4)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrCompositeBeam failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FOUNDATION DESIGN (Pile Group)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrPileDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Pile Design");
+                dlg.MainContent = "Design pile group for column load:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "1000 kN (typical 3-storey)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "2500 kN (typical 6-storey)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "5000 kN (high-rise corner)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+                double load = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => 1000,
+                    TaskDialogResult.CommandLink2 => 2500,
+                    TaskDialogResult.CommandLink3 => 5000,
+                    _ => 0,
+                };
+                if (load == 0) return Result.Cancelled;
+
+                var result = FoundationDesignSuite.DesignPileGroup(load);
+                var settlement = FoundationDesignSuite.EstimateSettlement(
+                    result.PileCapWidthMm, load / (result.PileCapWidthMm * result.PileCapDepthMm / 1e6));
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(result.Summary);
+                sb.AppendLine();
+                sb.AppendLine($"Pile cap: {result.PileCapWidthMm}×{result.PileCapDepthMm}×{result.PileCapThicknessMm}mm");
+                sb.AppendLine();
+                sb.AppendLine(settlement.Summary);
+
+                TaskDialog.Show("STRUCT — Pile Design", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrPileDesign failed", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
 }

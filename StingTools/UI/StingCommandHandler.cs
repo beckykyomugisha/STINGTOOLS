@@ -1133,6 +1133,12 @@ namespace StingTools.UI
                     case "StrSmartBeam": RunCommand<Model.StrSmartBeamCommand>(app); break;
                     case "StrBuildComplete": RunCommand<Model.StrBuildCompleteCommand>(app); break;
                     case "StrModelScore": RunCommand<Model.StrModelScoreCommand>(app); break;
+                    case "StrCarbonAssessment": RunCommand<Model.StrCarbonAssessmentCommand>(app); break;
+                    case "StrRebarEstimate": RunCommand<Model.StrRebarEstimateCommand>(app); break;
+                    case "StrStabilityCheck": RunCommand<Model.StrStabilityCheckCommand>(app); break;
+                    case "StrBIMValidation": RunCommand<Model.StrBIMValidationCommand>(app); break;
+                    case "StrCompositeBeam": RunCommand<Model.StrCompositeBeamCommand>(app); break;
+                    case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

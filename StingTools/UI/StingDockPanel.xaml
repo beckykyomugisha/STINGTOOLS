@@ -2033,6 +2033,15 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Smart Beam" Tag="StrSmartBeam" Click="Cmd_Click" ToolTip="Intelligent beam: auto-size, deflection pre-check, connection validation"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Model Score" Tag="StrModelScore" Click="Cmd_Click" ToolTip="Score structural model quality (completeness, connectivity, design, materials)"/>
                                 </WrapPanel>
+                                <TextBlock Text="Design &amp; Sustainability" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ BIM Validate" Tag="StrBIMValidation" Click="Cmd_Click" ToolTip="30+ structural BIM validation rules (geometry, connectivity, materials, standards)" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon CO₂" Tag="StrCarbonAssessment" Click="Cmd_Click" ToolTip="Embodied carbon assessment with RICS rating (ICE Database v3)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Rebar Est." Tag="StrRebarEstimate" Click="Cmd_Click" ToolTip="Estimate reinforcement quantities (IStructE Manual ratios)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stability" Tag="StrStabilityCheck" Click="Cmd_Click" ToolTip="P-Delta sway sensitivity check (EC2 §5.8 / EC3 §5.2)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Composite" Tag="StrCompositeBeam" Click="Cmd_Click" ToolTip="EC4 composite beam design with shear studs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pile Design" Tag="StrPileDesign" Click="Cmd_Click" ToolTip="Pile group design with Converse-Labarre efficiency"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
