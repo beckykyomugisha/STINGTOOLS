@@ -448,11 +448,11 @@ namespace StingTools.Model
                 if (preferred.Count > 0) candidates = preferred;
             }
 
-            // For beams, depth is the primary dimension
-            var ranked = ScoreAndRank(candidates, widthMm, depthMm);
+            // For beams, depth is the primary dimension — use 1.5× depth weight
+            var ranked = ScoreAndRank(candidates, widthMm, depthMm, depthWeight: 1.5);
             var best = ranked.First();
 
-            if (best.entry.DimensionDistance(widthMm, depthMm) < 2.0)
+            if (best.entry.DimensionDistance(widthMm, depthMm, 1.5) < 2.0)
             {
                 EnsureActive(best.entry);
                 return TypeMatchResult.Found(best.entry.TypeId, best.entry.FamilyName,
@@ -697,6 +697,10 @@ namespace StingTools.Model
             if (depthMm <= 0) depthMm = widthMm;
             EnsureCatalog();
 
+            string cacheKey = $"FDN_{widthMm:F0}x{depthMm:F0}";
+            if (_createdTypes.TryGetValue(cacheKey, out var cachedId))
+                return TypeMatchResult.Found(cachedId, "", $"Cached {widthMm}×{depthMm}", TypeMatchMethod.DuplicatedAndSized, 1.0);
+
             var candidates = _catalog
                 .Where(e => e.Category == BuiltInCategory.OST_StructuralFoundation)
                 .ToList();
@@ -707,11 +711,30 @@ namespace StingTools.Model
             var ranked = ScoreAndRank(candidates, widthMm, depthMm);
             var best = ranked.First();
 
+            // Exact match
+            if (best.entry.DimensionDistance(widthMm, depthMm) < 50)
+            {
+                EnsureActive(best.entry);
+                return TypeMatchResult.Found(best.entry.TypeId, best.entry.FamilyName,
+                    best.entry.TypeName, TypeMatchMethod.ExactMatch, best.score);
+            }
+
+            // Try to duplicate and resize
+            double maxDup = Math.Max(widthMm, depthMm) * RelativeDuplicateTolerance;
+            if (best.entry.DimensionDistance(widthMm, depthMm) < maxDup)
+            {
+                var dupResult = DuplicateAndResize(best.entry, widthMm, depthMm,
+                    $"{best.entry.FamilyName} {widthMm:F0}x{depthMm:F0}");
+                if (dupResult.Success)
+                {
+                    _createdTypes[cacheKey] = dupResult.TypeId;
+                    return dupResult;
+                }
+            }
+
             EnsureActive(best.entry);
-            var method = best.entry.DimensionDistance(widthMm, depthMm) < 50
-                ? TypeMatchMethod.ExactMatch : TypeMatchMethod.CloseMatch;
             return TypeMatchResult.Found(best.entry.TypeId, best.entry.FamilyName,
-                best.entry.TypeName, method, best.score);
+                best.entry.TypeName, TypeMatchMethod.CloseMatch, best.score);
         }
 
         // ── Scoring & Ranking ────────────────────────────────────────────
@@ -721,7 +744,8 @@ namespace StingTools.Model
         /// Weights: dimension proximity (0.7), name relevance (0.2), activation state (0.1)
         /// </summary>
         private List<(FamilyCatalogEntry entry, double score)> ScoreAndRank(
-            List<FamilyCatalogEntry> candidates, double targetWidthMm, double targetDepthMm)
+            List<FamilyCatalogEntry> candidates, double targetWidthMm, double targetDepthMm,
+            double depthWeight = 1.0)
         {
             const double W_DIMENSION = 0.7;
             const double W_NAME = 0.2;
@@ -729,14 +753,12 @@ namespace StingTools.Model
 
             var scored = new List<(FamilyCatalogEntry entry, double score)>();
 
-            // Compute max distance for normalization
-            double maxDist = candidates.Max(c => c.DimensionDistance(targetWidthMm, targetDepthMm));
+            double maxDist = candidates.Max(c => c.DimensionDistance(targetWidthMm, targetDepthMm, depthWeight));
             if (maxDist < 1.0) maxDist = 1.0;
 
             foreach (var c in candidates)
             {
-                // Dimension score: 1.0 = perfect match, 0.0 = worst
-                double dist = c.DimensionDistance(targetWidthMm, targetDepthMm);
+                double dist = c.DimensionDistance(targetWidthMm, targetDepthMm, depthWeight);
                 double dimScore = 1.0 - Math.Min(1.0, dist / maxDist);
 
                 // ALG-06 fix: Exclusive keyword matching (highest-priority keyword wins)

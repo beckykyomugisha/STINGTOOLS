@@ -51,6 +51,9 @@ namespace StingTools.Model
         public double DefaultStoreyHeightMm { get; private set; } = 3600;
         public string SelectedLevel { get; private set; }
         public bool Confirmed { get; private set; }
+        public double EndpointToleranceMm { get; private set; } = 5;
+        public double MinColumnSizeMm { get; private set; } = 150;
+        public double MinBeamLengthMm { get; private set; } = 500;
         public ImportInstance SelectedImport => _selectedImport;
 
         // ── UI Elements ──────────────────────────────────────────────────
@@ -433,6 +436,12 @@ namespace StingTools.Model
             stack.Children.Add(MakeInputRow("Default slab thickness (mm):", "200", v => DefaultSlabThickMm = v));
             stack.Children.Add(MakeInputRow("Default storey height (mm):", "3600", v => DefaultStoreyHeightMm = v));
 
+            // Detection tolerances
+            stack.Children.Add(new TextBlock { Text = "DETECTION TOLERANCES:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
+            stack.Children.Add(MakeInputRow("Endpoint snap tolerance (mm):", "5", v => EndpointToleranceMm = v));
+            stack.Children.Add(MakeInputRow("Min column size (mm):", "150", v => MinColumnSizeMm = v));
+            stack.Children.Add(MakeInputRow("Min beam length (mm):", "500", v => MinBeamLengthMm = v));
+
             // Level selection
             stack.Children.Add(new TextBlock { Text = "TARGET LEVEL:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
             var levelCombo = new ComboBox { MinWidth = 200, Margin = new Thickness(0, 4, 0, 4) };
@@ -528,16 +537,27 @@ namespace StingTools.Model
 
                 // Columns from rectangles
                 sb.AppendLine($"\n  RECTANGULAR COLUMNS ({_extraction.Rectangles.Count} detected):");
-                foreach (var r in _extraction.Rectangles.Take(10))
+                // Group by unique size to avoid redundant lookups
+                var rectSizes = _extraction.Rectangles
+                    .GroupBy(r => $"{r.WidthMm:F0}×{r.DepthMm:F0}")
+                    .Take(10);
+                foreach (var g in rectSizes)
                 {
+                    var r = g.First();
                     var match = _pipeline.TypeFactory.FindOrCreateColumnType(r.WidthMm, r.DepthMm);
-                    sb.AppendLine($"    {r.WidthMm:F0}×{r.DepthMm:F0}mm → {match.FamilyName}: {match.TypeName} [{match.MatchMethod}]");
+                    sb.AppendLine($"    {g.Key}mm ({g.Count()}×) → {match.FamilyName}: {match.TypeName} [{match.MatchMethod}]");
                 }
 
                 // Beams
                 sb.AppendLine($"\n  BEAMS ({_extraction.BeamLines.Count} detected):");
                 var beamMatch = _pipeline.TypeFactory.FindOrCreateBeamType(DefaultBeamDepthMm);
                 sb.AppendLine($"    Default {DefaultBeamDepthMm:F0}mm deep → {beamMatch.FamilyName}: {beamMatch.TypeName} [{beamMatch.MatchMethod}]");
+
+                // Walls
+                sb.AppendLine($"\n  WALLS ({_extraction.Walls.Count} detected):");
+                var wallSizes = _extraction.Walls.GroupBy(w => $"{w.ThicknessFt * Units.FeetToMm:F0}mm").Take(5);
+                foreach (var g in wallSizes)
+                    sb.AppendLine($"    {g.Key} thick ({g.Count()}×)");
 
                 // Slabs
                 sb.AppendLine($"\n  SLABS ({_extraction.SlabBoundaries.Count} detected):");

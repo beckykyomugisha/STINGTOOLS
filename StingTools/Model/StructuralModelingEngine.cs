@@ -371,7 +371,9 @@ namespace StingTools.Model
         public static double CalculatePadSize(double columnLoadKN,
             double soilCapacityKPa = 150, double safetyFactor = 2.5)
         {
-            // Required area = Load / (Capacity / SF)
+            if (columnLoadKN <= 0) return MinPadSizeMm;
+            if (soilCapacityKPa <= 0) soilCapacityKPa = 100;
+            if (safetyFactor <= 0) safetyFactor = 2.5;
             double requiredAreaSqM = (columnLoadKN * safetyFactor) / soilCapacityKPa;
             double sideLengthM = Math.Sqrt(requiredAreaSqM);
             // Round up to nearest 50mm
@@ -389,6 +391,9 @@ namespace StingTools.Model
         public static double CalculateStripWidth(double wallLoadKNPerM,
             double soilCapacityKPa = 100, double safetyFactor = 2.5)
         {
+            if (wallLoadKNPerM <= 0) return MinStripWidthMm;
+            if (soilCapacityKPa <= 0) soilCapacityKPa = 100;
+            if (safetyFactor <= 0) safetyFactor = 2.5;
             double requiredWidthM = (wallLoadKNPerM * safetyFactor) / soilCapacityKPa;
             double widthMm = Math.Ceiling(requiredWidthM * 1000.0 / 50.0) * 50.0;
             return Math.Max(widthMm, MinStripWidthMm);
@@ -1056,16 +1061,23 @@ namespace StingTools.Model
                 });
             }
 
-            // Create nodes for beams (at both endpoints)
+            // Create nodes for beams at BOTH endpoints (not midpoint) for accurate connectivity
             foreach (var beam in beams)
             {
                 var loc = beam.Location as LocationCurve;
                 if (loc?.Curve == null) continue;
-                var midPt = loc.Curve.Evaluate(0.5, true);
+                var startPt = loc.Curve.GetEndPoint(0);
+                var endPt = loc.Curve.GetEndPoint(1);
                 nodes.Add(new LoadPathNode
                 {
                     ElementId = beam.Id,
-                    Location = midPt,
+                    Location = startPt,
+                    NodeType = StructuralElementType.Beam,
+                });
+                nodes.Add(new LoadPathNode
+                {
+                    ElementId = beam.Id,
+                    Location = endPt,
                     NodeType = StructuralElementType.Beam,
                 });
             }
@@ -1260,7 +1272,6 @@ namespace StingTools.Model
                         new XYZ(x2, y2, 0), new XYZ(x1, y2, 0)
                     };
 
-                    var cornerIds = new List<ElementId>();
                     bool allCornersHaveColumns = true;
                     foreach (var corner in corners)
                     {
@@ -1647,11 +1658,11 @@ namespace StingTools.Model
                     return StructuralModelResult.Fail("No beam family found.");
                 _resolver.EnsureActive(symbol);
 
-                // Analyze bay layout
+                // Analyze bay layout — convert mm to feet for internal use
                 var bay = new StructuralBay
                 {
-                    SpanXFt = Units.Mm(bayXMm),
-                    SpanYFt = Units.Mm(bayYMm),
+                    SpanXFt = bayXMm * Units.MmToFeet,
+                    SpanYFt = bayYMm * Units.MmToFeet,
                 };
                 var layout = BeamSystemGenerator.AnalyzeBay(bay, liveLoadKPa, deadLoadKPa);
 

@@ -442,11 +442,23 @@ namespace StingTools.Model
             DetectGridLinesV2(allLines, result);
             DetectSlabBoundariesV2(allLines, result);
 
+            // Detect structural walls from parallel line pairs
+            result.Walls = DetectStructuralWalls(allLines);
+
+            // Detect beam-column junction topology
+            var junctions = DetectJunctions(result);
+            int freeEnds = junctions.Count(j => j.JunctionType.Contains("Free"));
+            int noColJunctions = junctions.Count(j => j.JunctionType.Contains("no column"));
+
             result.Summary = $"Extracted: {result.Circles.Count} round + " +
                 $"{result.Rectangles.Count} rect columns, " +
                 $"{result.BeamLines.Count} beams, " +
+                $"{result.Walls.Count} walls, " +
                 $"{result.SlabBoundaries.Count} slabs, " +
-                $"{result.GridLines.Count} grids from {result.TotalEntities} entities";
+                $"{result.GridLines.Count} grids" +
+                $"{(freeEnds > 0 ? $", {freeEnds} free beam ends" : "")}" +
+                $"{(noColJunctions > 0 ? $", {noColJunctions} unsupported intersections" : "")}" +
+                $" from {result.TotalEntities} entities";
 
             return result;
         }
@@ -936,6 +948,212 @@ namespace StingTools.Model
             return Math.Abs(dir.X) > GridAxisTolerance || Math.Abs(dir.Y) > GridAxisTolerance;
         }
 
+        // ── Double-Line Structural Wall Detection ────────────────────────
+
+        /// <summary>
+        /// Detects structural walls from parallel line pairs on wall/structural layers.
+        /// Algorithm (EaseBit-inspired, enhanced):
+        ///   1. Filter lines by structural wall layer classification
+        ///   2. Group lines by direction (±3° tolerance via dot product)
+        ///   3. Within each direction group, find parallel pairs:
+        ///      - Perpendicular distance in [150mm, 500mm] = wall thickness
+        ///      - Longitudinal overlap > 50% of shorter line
+        ///   4. Compute centerline from midpoint of pair
+        ///   5. Use thickness to auto-create wall type via TypeFactory
+        /// </summary>
+        public List<DetectedWall> DetectStructuralWalls(List<ExtractedLine> allLines)
+        {
+            var walls = new List<DetectedWall>();
+            const double parallelTol = 0.05; // ~3° tolerance
+            const double minThickFt = 150 * Units.MmToFeet;
+            const double maxThickFt = 500 * Units.MmToFeet;
+            const double minLengthFt = 500 * Units.MmToFeet;
+            const double overlapRatio = 0.4; // 40% longitudinal overlap required
+
+            var wallLines = allLines.Where(l =>
+            {
+                if (SelectedLayers.Count > 0)
+                    return SelectedLayers.Contains(l.LayerName ?? "");
+                var cls = StructuralLayerClassifier.Classify(l.LayerName);
+                return cls?.Type == StructuralElementType.Wall ||
+                    cls?.Type == StructuralElementType.ShearWall ||
+                    cls?.Type == StructuralElementType.CoreWall ||
+                    cls?.Type == StructuralElementType.RetainingWall ||
+                    l.Category == "Walls";
+            }).Where(l => l.Length >= minLengthFt).ToList();
+
+            if (wallLines.Count < 2) return walls;
+
+            // Group by direction (binning into 5° buckets)
+            var dirGroups = new Dictionary<int, List<int>>();
+            for (int i = 0; i < wallLines.Count; i++)
+            {
+                double angle = Math.Atan2(wallLines[i].Direction.Y, wallLines[i].Direction.X);
+                if (angle < 0) angle += Math.PI; // Normalize to [0, π)
+                int bucket = (int)(angle / (5.0 * Math.PI / 180.0));
+                if (!dirGroups.ContainsKey(bucket))
+                    dirGroups[bucket] = new List<int>();
+                dirGroups[bucket].Add(i);
+            }
+
+            var used = new HashSet<int>();
+
+            foreach (var group in dirGroups.Values)
+            {
+                for (int gi = 0; gi < group.Count; gi++)
+                {
+                    int i = group[gi];
+                    if (used.Contains(i)) continue;
+
+                    var lineA = wallLines[i];
+                    var dirA = lineA.Direction;
+                    int bestJ = -1;
+                    double bestDist = double.MaxValue;
+
+                    for (int gj = gi + 1; gj < group.Count; gj++)
+                    {
+                        int j = group[gj];
+                        if (used.Contains(j)) continue;
+
+                        var lineB = wallLines[j];
+
+                        // Verify parallelism
+                        double dot = Math.Abs(dirA.DotProduct(lineB.Direction));
+                        if (dot < 1.0 - parallelTol) continue;
+
+                        // Perpendicular distance
+                        var diff = lineB.Start - lineA.Start;
+                        var proj = diff - dirA * diff.DotProduct(dirA);
+                        double perpDist = proj.GetLength();
+                        if (perpDist < minThickFt || perpDist > maxThickFt) continue;
+
+                        // Longitudinal overlap check
+                        double projAS = dirA.DotProduct(lineA.Start);
+                        double projAE = dirA.DotProduct(lineA.End);
+                        double projBS = dirA.DotProduct(lineB.Start);
+                        double projBE = dirA.DotProduct(lineB.End);
+                        double aMin = Math.Min(projAS, projAE), aMax = Math.Max(projAS, projAE);
+                        double bMin = Math.Min(projBS, projBE), bMax = Math.Max(projBS, projBE);
+                        double overlapLen = Math.Max(0, Math.Min(aMax, bMax) - Math.Max(aMin, bMin));
+                        double shorter = Math.Min(aMax - aMin, bMax - bMin);
+                        if (shorter <= 0 || overlapLen / shorter < overlapRatio) continue;
+
+                        if (perpDist < bestDist)
+                        {
+                            bestDist = perpDist;
+                            bestJ = j;
+                        }
+                    }
+
+                    if (bestJ >= 0)
+                    {
+                        used.Add(i);
+                        used.Add(bestJ);
+
+                        var lineB = wallLines[bestJ];
+                        var centerStart = (lineA.Start + lineB.Start) * 0.5;
+                        var centerEnd = (lineA.End + lineB.End) * 0.5;
+
+                        walls.Add(new DetectedWall
+                        {
+                            CenterStart = new XYZ(centerStart.X, centerStart.Y, 0),
+                            CenterEnd = new XYZ(centerEnd.X, centerEnd.Y, 0),
+                            ThicknessFt = bestDist,
+                            LayerName = lineA.LayerName,
+                        });
+                    }
+                }
+            }
+
+            return walls;
+        }
+
+        // ── Beam-Column Intersection Detection ───────────────────────────
+
+        /// <summary>
+        /// Detects beam-column connection topology from detected elements.
+        /// Returns junction type (T, L, Cross, Free) for each beam endpoint.
+        /// Used for post-creation validation and analytical model setup.
+        /// </summary>
+        public List<(XYZ Point, string JunctionType, int BeamCount)>
+            DetectJunctions(StructuralExtractionResult extraction)
+        {
+            var junctions = new List<(XYZ, string, int)>();
+            double tolerance = EndpointToleranceFt * 5; // ~25mm
+
+            // Collect all beam endpoints
+            var beamEndpoints = new List<XYZ>();
+            foreach (var bl in extraction.BeamLines)
+            {
+                beamEndpoints.Add(bl.Start);
+                beamEndpoints.Add(bl.End);
+            }
+
+            // Collect column centers
+            var colCenters = new List<XYZ>();
+            colCenters.AddRange(extraction.Circles.Select(c => c.Center));
+            colCenters.AddRange(extraction.Rectangles.Select(r => r.Center));
+
+            // Cluster beam endpoints that are close together
+            var clustered = new List<(XYZ Center, List<XYZ> Points)>();
+            var usedPts = new HashSet<int>();
+
+            for (int i = 0; i < beamEndpoints.Count; i++)
+            {
+                if (usedPts.Contains(i)) continue;
+                usedPts.Add(i);
+                var cluster = new List<XYZ> { beamEndpoints[i] };
+
+                for (int j = i + 1; j < beamEndpoints.Count; j++)
+                {
+                    if (usedPts.Contains(j)) continue;
+                    if (beamEndpoints[i].DistanceTo(beamEndpoints[j]) < tolerance)
+                    {
+                        cluster.Add(beamEndpoints[j]);
+                        usedPts.Add(j);
+                    }
+                }
+
+                var center = new XYZ(
+                    cluster.Average(p => p.X),
+                    cluster.Average(p => p.Y),
+                    cluster.Average(p => p.Z));
+
+                // Check if at a column
+                bool atColumn = colCenters.Any(c =>
+                    Math.Sqrt(Math.Pow(c.X - center.X, 2) + Math.Pow(c.Y - center.Y, 2))
+                    < tolerance * 2);
+
+                string jType;
+                int beamCount = cluster.Count;
+
+                if (atColumn)
+                {
+                    jType = beamCount switch
+                    {
+                        1 => "L-junction (column + 1 beam)",
+                        2 => "T-junction (column + 2 beams)",
+                        3 => "T-junction (column + 3 beams)",
+                        >= 4 => "Cross-junction (column + 4+ beams)",
+                        _ => "Column only",
+                    };
+                }
+                else
+                {
+                    jType = beamCount switch
+                    {
+                        1 => "Free end (no support)",
+                        2 => "Beam splice/continuation",
+                        >= 3 => "Beam intersection (no column — WARNING)",
+                        _ => "Unknown",
+                    };
+                }
+
+                junctions.Add((center, jType, beamCount));
+            }
+
+            return junctions;
+        }
 
         // ── Full Conversion Pipeline ─────────────────────────────────────
 
@@ -984,6 +1202,11 @@ namespace StingTools.Model
                         extraction.BeamLines, level,
                         defaultBeamDepthMm, defaultHeightMm, totalResult);
 
+                // Create structural walls from parallel line pairs
+                if (extraction.Walls.Count > 0)
+                    totalResult.WallsCreated += CreateWallsFromPairs(
+                        extraction.Walls, level, defaultHeightMm, totalResult);
+
                 // Create slabs
                 if (createSlabs && extraction.SlabBoundaries.Count > 0)
                     totalResult.SlabsCreated += CreateSlabsFromBoundaries(
@@ -1010,6 +1233,7 @@ namespace StingTools.Model
                 var parts = new List<string>();
                 if (totalResult.ColumnsCreated > 0) parts.Add($"{totalResult.ColumnsCreated} columns");
                 if (totalResult.BeamsCreated > 0) parts.Add($"{totalResult.BeamsCreated} beams");
+                if (totalResult.WallsCreated > 0) parts.Add($"{totalResult.WallsCreated} walls");
                 if (totalResult.SlabsCreated > 0) parts.Add($"{totalResult.SlabsCreated} slabs");
 
                 totalResult.Summary = parts.Count > 0
@@ -1212,6 +1436,46 @@ namespace StingTools.Model
                 }
                 tx.Commit();
             }
+            return count;
+        }
+
+        private int CreateWallsFromPairs(List<DetectedWall> walls,
+            Level level, double heightMm, StructuralModelResult result)
+        {
+            int count = 0;
+            var fh = new ModelFailureHandler();
+            using (var tx = new Transaction(_doc, "STING STRUCT: Walls from DWG"))
+            {
+                var opts = tx.GetFailureHandlingOptions();
+                opts.SetFailuresPreprocessor(fh);
+                tx.SetFailureHandlingOptions(opts);
+                tx.Start();
+
+                foreach (var wall in walls)
+                {
+                    if (wall.CenterStart.DistanceTo(wall.CenterEnd) < 0.01) continue;
+                    try
+                    {
+                        double thickMm = wall.ThicknessFt * Units.FeetToMm;
+                        var typeMatch = _typeFactory.FindOrCreateWallType(thickMm, true);
+                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+
+                        var line = Line.CreateBound(wall.CenterStart, wall.CenterEnd);
+                        var created = Wall.Create(_doc, line, typeMatch.TypeId,
+                            level?.Id ?? ElementId.InvalidElementId,
+                            Units.Mm(heightMm), 0, false, true);
+                        ModelWorksetAssigner.Assign(_doc, created);
+                        result.CreatedIds.Add(created.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
+
+                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                }
+
+                tx.Commit();
+            }
+            result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
         }
 

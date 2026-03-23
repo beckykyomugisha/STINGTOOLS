@@ -758,37 +758,19 @@ namespace StingTools.Model
                     if (dlg.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
                 }
 
-                // Extract and classify structural layers
-                var cadEngine = new CADToModelEngine(doc);
-                var extraction = cadEngine.PreviewImport(import);
+                // Use the full structural pipeline (not base CADToModelEngine)
+                var pipeline = new StructuralCADPipeline(doc);
+                var result = pipeline.RunFullPipeline(import);
 
-                // Find structural layers
-                var structLayers = extraction.LayerCounts
-                    .Where(kvp => StructuralLayerClassifier.IsStructuralLayer(kvp.Key))
-                    .ToList();
+                var msg = result.Summary;
+                if (result.Warnings.Count > 0)
+                    msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
+                        string.Join("\n", result.Warnings.Take(10).Select(w => $"• {w}"));
 
-                if (structLayers.Count == 0)
-                {
-                    TaskDialog.Show("STRUCT — CAD to Structural",
-                        "No structural layers detected in the DWG.\n" +
-                        "Expected layer names containing: str, struct, beam, col, slab, found, fdn, brace, truss");
-                    return Result.Succeeded;
-                }
+                TaskDialog.Show("STRUCT — CAD to Structural", msg);
 
-                var structSummary = string.Join("\n",
-                    structLayers.Select(kvp =>
-                    {
-                        var cls = StructuralLayerClassifier.Classify(kvp.Key);
-                        return $"  {kvp.Key}: {kvp.Value} entities → {cls?.Type.ToString() ?? "Unknown"} ({cls?.Confidence * 100:F0}% confidence)";
-                    }));
-
-                // Proceed with standard conversion (which creates walls/floors)
-                // then structural layers become the structural elements
-                var result = cadEngine.ConvertImportToElements(import);
-
-                TaskDialog.Show("STRUCT — CAD to Structural",
-                    $"Structural Layer Analysis:\n{structSummary}\n\n" +
-                    $"Conversion Result:\n{result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
 
                 return Result.Succeeded;
             }
@@ -956,9 +938,10 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                // Run the full pipeline with wizard settings + selected layers
+                // Run the full pipeline with wizard settings + selected layers + tolerances
                 var pipeline = new StructuralCADPipeline(doc);
                 pipeline.SelectedLayers = wizard.GetSelectedLayers();
+                pipeline.EndpointToleranceFt = wizard.EndpointToleranceMm * Units.MmToFeet;
                 var result = pipeline.RunFullPipeline(
                     wizard.SelectedImport,
                     wizard.SelectedLevel,
