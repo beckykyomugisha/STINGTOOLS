@@ -469,19 +469,40 @@ namespace StingTools.Core
 
         // ── CLASSIFICATION ──
 
-        /// <summary>Classify a single Revit FailureMessage into STING category/severity/fix strategy.</summary>
+        /// <summary>Phase 78 PERF-WARN: Precompiled lowercase patterns for O(1) string comparison.
+        /// Eliminates 150+ ToLowerInvariant() calls per warning by pre-lowering all patterns at class init.</summary>
+        private static readonly (string pattern, WarningCategory cat, WarningSeverity sev, string fix, bool autoFix)[]
+            _loweredRules = ClassificationRules.Select(r =>
+                (r.pattern.ToLowerInvariant(), r.cat, r.sev, r.fix, r.autoFix)).ToArray();
+
+        /// <summary>Phase 78 EF-02: Warning classification cache — identical descriptions return cached result.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (WarningCategory, WarningSeverity, string, bool)>
+            _classificationCache = new();
+
+        /// <summary>Classify a single Revit FailureMessage into STING category/severity/fix strategy.
+        /// Uses precompiled lowercase patterns and classification cache for performance.</summary>
         internal static (WarningCategory cat, WarningSeverity sev, string fix, bool autoFix) ClassifyWarning(string description)
         {
             if (string.IsNullOrEmpty(description))
                 return (WarningCategory.Unknown, WarningSeverity.Info, "Review warning", false);
 
+            // EF-02: Check cache first — typical models have 20-30 unique warning types
+            if (_classificationCache.TryGetValue(description, out var cached))
+                return cached;
+
             string lower = description.ToLowerInvariant();
-            foreach (var rule in ClassificationRules)
+            foreach (var rule in _loweredRules)
             {
-                if (lower.Contains(rule.pattern.ToLowerInvariant()))
-                    return (rule.cat, rule.sev, rule.fix, rule.autoFix);
+                if (lower.Contains(rule.pattern))
+                {
+                    var result = (rule.cat, rule.sev, rule.fix, rule.autoFix);
+                    _classificationCache.TryAdd(description, result);
+                    return result;
+                }
             }
-            return (WarningCategory.Unknown, WarningSeverity.Info, "Review manually", false);
+            var fallback = (WarningCategory.Unknown, WarningSeverity.Info, "Review manually", false);
+            _classificationCache.TryAdd(description, fallback);
+            return fallback;
         }
 
         /// <summary>Build a ClassifiedWarning from a Revit FailureMessage with full element context.</summary>
