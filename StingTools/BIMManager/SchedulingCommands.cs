@@ -855,12 +855,18 @@ namespace StingTools.BIMManager
 
             estimate["line_items"] = lineItems;
             estimate["subtotal"] = Math.Round(grandTotal, 2);
-            estimate["preliminaries_pct"] = 12;
-            estimate["preliminaries"] = Math.Round(grandTotal * 0.12, 2);
-            estimate["contingency_pct"] = 10;
-            estimate["contingency"] = Math.Round(grandTotal * 0.10, 2);
-            estimate["overhead_profit_pct"] = 8;
-            estimate["overhead_profit"] = Math.Round(grandTotal * 0.08, 2);
+
+            // R4-B FIX: Configurable percentages via project_config.json (was hardcoded)
+            double prelimPct = TagConfig.GetConfigDouble("COST_PRELIMINARIES_PCT", 12.0);
+            double contingencyPct = TagConfig.GetConfigDouble("COST_CONTINGENCY_PCT", 10.0);
+            double overheadPct = TagConfig.GetConfigDouble("COST_OVERHEAD_PROFIT_PCT", 8.0);
+
+            estimate["preliminaries_pct"] = prelimPct;
+            estimate["preliminaries"] = Math.Round(grandTotal * prelimPct / 100.0, 2);
+            estimate["contingency_pct"] = contingencyPct;
+            estimate["contingency"] = Math.Round(grandTotal * contingencyPct / 100.0, 2);
+            estimate["overhead_profit_pct"] = overheadPct;
+            estimate["overhead_profit"] = Math.Round(grandTotal * overheadPct / 100.0, 2);
             estimate["grand_total"] = Math.Round(grandTotal + (double)estimate["preliminaries"]
                 + (double)estimate["contingency"] + (double)estimate["overhead_profit"], 2);
 

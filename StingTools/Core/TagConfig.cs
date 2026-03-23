@@ -737,6 +737,25 @@ namespace StingTools.Core
         /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
         public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
 
+        /// <summary>R4-B: Generic double config getter for project_config.json numeric values.</summary>
+        internal static double GetConfigDouble(string key, double defaultValue)
+        {
+            try
+            {
+                string path = ConfigSource;
+                if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return defaultValue;
+                string json = System.IO.File.ReadAllText(path);
+                var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var token = obj[key];
+                if (token == null) return defaultValue;
+                if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float) return (double)token;
+                if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return (long)token;
+                if (double.TryParse(token.ToString(), out double val)) return val;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetConfigDouble({key}): {ex.Message}"); }
+            return defaultValue;
+        }
+
         /// <summary>AL-07: Workflow preset name to auto-run on DocumentOpened. Empty = disabled.</summary>
         public static string AutoRunWorkflowOnOpen { get; internal set; } = string.Empty;
 
@@ -1030,7 +1049,9 @@ namespace StingTools.Core
                     "CUSTOM_VALID_LOC","CUSTOM_VALID_ZONE",
                     "PROXIMITY_RADIUS_FT","RESOLVE_BATCH_SIZE",
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
-                    "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE"
+                    "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
+                    "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
+                    "TRADE_DURATION_OVERRIDES"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
