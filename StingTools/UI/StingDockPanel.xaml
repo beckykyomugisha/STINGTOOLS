@@ -2005,6 +2005,17 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Prerequisites" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Check loaded families and project readiness"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Type Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Browse loaded structural families with extracted dimensions"/>
                                 </WrapPanel>
+                                <TextBlock Text="Structural Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Full Report" Tag="StrFullReport" Click="Cmd_Click" ToolTip="Comprehensive structural analysis: system classification, deflection, punching shear, wind, sequencing" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="System Type" Tag="StrClassifySystem" Click="Cmd_Click" ToolTip="Auto-classify: frame, braced, shear wall, dual, flat slab"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deflection" Tag="StrDeflectionCheck" Click="Cmd_Click" ToolTip="Check beam deflections per EC2/EC3 serviceability limits"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Punching Shear" Tag="StrPunchingShearCheck" Click="Cmd_Click" ToolTip="Check punching shear at slab-column interfaces (EC2 §6.4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Wind Loads" Tag="StrWindLoad" Click="Cmd_Click" ToolTip="Calculate wind loads per EC1-1-4 and distribute to storeys"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Voronoi Areas" Tag="StrVoronoiAreas" Click="Cmd_Click" ToolTip="True Voronoi tessellation for column tributary areas"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Construction Seq" Tag="StrConstructionSequence" Click="Cmd_Click" ToolTip="Auto-generate construction phase sequence"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Clash Check" Tag="StrClashPreCheck" Click="Cmd_Click" ToolTip="Pre-detect clashes before placing elements"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 

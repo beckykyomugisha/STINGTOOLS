@@ -1114,6 +1114,14 @@ namespace StingTools.UI
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
                     case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
                     case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
+                    case "StrClassifySystem": RunCommand<Model.StrClassifySystemCommand>(app); break;
+                    case "StrDeflectionCheck": RunCommand<Model.StrDeflectionCheckCommand>(app); break;
+                    case "StrPunchingShearCheck": RunCommand<Model.StrPunchingShearCheckCommand>(app); break;
+                    case "StrWindLoad": RunCommand<Model.StrWindLoadCommand>(app); break;
+                    case "StrConstructionSequence": RunCommand<Model.StrConstructionSequenceCommand>(app); break;
+                    case "StrFullReport": RunCommand<Model.StrFullReportCommand>(app); break;
+                    case "StrVoronoiAreas": RunCommand<Model.StrVoronoiAreasCommand>(app); break;
+                    case "StrClashPreCheck": RunCommand<Model.StrClashPreCheckCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

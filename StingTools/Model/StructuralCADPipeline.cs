@@ -1537,4 +1537,577 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
     }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // ADVANCED GEOMETRY ALGORITHMS
+    // ════════════════════════════════════════════════════════════════
+
+    #region RANSAC Line Fitting
+
+    /// <summary>Fitted line from RANSAC with inlier information.</summary>
+    public class FittedLine
+    {
+        public XYZ Start { get; set; }
+        public XYZ End { get; set; }
+        public int InlierCount { get; set; }
+        public double FitError { get; set; }
+        public List<int> InlierIndices { get; set; } = new();
+    }
+
+    /// <summary>
+    /// RANSAC (Random Sample Consensus) line fitting for noisy/fragmented CAD data.
+    /// Handles: fragmented walls (multiple short segments), broken grid lines,
+    /// noisy polylines from poor DWG quality.
+    /// Algorithm:
+    ///   1. Randomly sample 2 endpoints → define candidate line
+    ///   2. Count inliers (line midpoints within threshold of candidate)
+    ///   3. Keep model with most inliers
+    ///   4. Least-squares re-fit on all inliers
+    ///   5. Remove used points, repeat
+    /// </summary>
+    internal static class RANSACLineFitter
+    {
+        /// <summary>
+        /// Fits clean lines through noisy/fragmented CAD line segments.
+        /// </summary>
+        /// <param name="noisyLines">Input fragmented line segments</param>
+        /// <param name="inlierThresholdFt">Max distance from candidate line to be inlier (default 5mm)</param>
+        /// <param name="maxIterations">RANSAC iterations per line (default 200)</param>
+        /// <param name="minInliers">Minimum inlier count to accept a line (default 3)</param>
+        public static List<FittedLine> FitLines(
+            List<ExtractedLine> noisyLines,
+            double inlierThresholdFt = 0.016,
+            int maxIterations = 200,
+            int minInliers = 3)
+        {
+            var results = new List<FittedLine>();
+            if (noisyLines == null || noisyLines.Count < 2) return results;
+
+            // Use midpoints of segments as data points
+            var midpoints = noisyLines.Select(l => (l.Start + l.End) * 0.5).ToList();
+            var used = new HashSet<int>();
+            var rng = new Random(42); // Deterministic for reproducibility
+
+            int maxLines = noisyLines.Count / 2; // Can't have more lines than half the segments
+
+            for (int lineIter = 0; lineIter < maxLines; lineIter++)
+            {
+                var availableIndices = Enumerable.Range(0, midpoints.Count)
+                    .Where(i => !used.Contains(i)).ToList();
+
+                if (availableIndices.Count < minInliers) break;
+
+                FittedLine bestLine = null;
+                int bestInlierCount = 0;
+
+                for (int iter = 0; iter < maxIterations; iter++)
+                {
+                    // Sample 2 random points
+                    int i1 = availableIndices[rng.Next(availableIndices.Count)];
+                    int i2 = availableIndices[rng.Next(availableIndices.Count)];
+                    if (i1 == i2) continue;
+
+                    var p1 = midpoints[i1];
+                    var p2 = midpoints[i2];
+                    if (p1.DistanceTo(p2) < 0.01) continue;
+
+                    // Count inliers
+                    var inliers = new List<int>();
+                    foreach (int idx in availableIndices)
+                    {
+                        double dist = DistancePointToLine2D(midpoints[idx], p1, p2);
+                        if (dist < inlierThresholdFt)
+                            inliers.Add(idx);
+                    }
+
+                    if (inliers.Count > bestInlierCount && inliers.Count >= minInliers)
+                    {
+                        bestInlierCount = inliers.Count;
+
+                        // Least-squares re-fit: find extreme projections along line direction
+                        var dir = (p2 - p1).Normalize();
+                        double minT = double.MaxValue, maxT = double.MinValue;
+                        double rmsError = 0;
+
+                        foreach (int idx in inliers)
+                        {
+                            double t = (midpoints[idx] - p1).DotProduct(dir);
+                            minT = Math.Min(minT, t);
+                            maxT = Math.Max(maxT, t);
+                            double dist = DistancePointToLine2D(midpoints[idx], p1, p2);
+                            rmsError += dist * dist;
+                        }
+                        rmsError = Math.Sqrt(rmsError / inliers.Count);
+
+                        bestLine = new FittedLine
+                        {
+                            Start = p1 + dir * minT,
+                            End = p1 + dir * maxT,
+                            InlierCount = inliers.Count,
+                            FitError = rmsError,
+                            InlierIndices = inliers,
+                        };
+                    }
+                }
+
+                if (bestLine == null || bestLine.InlierCount < minInliers) break;
+
+                results.Add(bestLine);
+                foreach (int idx in bestLine.InlierIndices)
+                    used.Add(idx);
+            }
+
+            StingLog.Info($"RANSAC: fitted {results.Count} lines from {noisyLines.Count} segments " +
+                $"({used.Count} points used)");
+            return results;
+        }
+
+        /// <summary>
+        /// Merges collinear line segments into single consolidated lines.
+        /// Handles fragmented walls drawn as multiple short segments.
+        /// </summary>
+        public static List<ExtractedLine> MergeCollinearSegments(
+            List<ExtractedLine> lines,
+            double angleToleranceRad = 0.05,
+            double gapToleranceFt = 0.1)
+        {
+            if (lines == null || lines.Count <= 1) return lines ?? new List<ExtractedLine>();
+
+            var merged = new List<ExtractedLine>();
+            var used = new bool[lines.Count];
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (used[i]) continue;
+
+                var group = new List<int> { i };
+                var dirI = lines[i].Direction;
+
+                // Find collinear segments
+                for (int j = i + 1; j < lines.Count; j++)
+                {
+                    if (used[j]) continue;
+                    var dirJ = lines[j].Direction;
+
+                    // Check angle (parallel or anti-parallel)
+                    double dot = Math.Abs(dirI.DotProduct(dirJ));
+                    if (dot < Math.Cos(angleToleranceRad)) continue;
+
+                    // Check perpendicular distance
+                    double perpDist = DistancePointToLine2D(
+                        (lines[j].Start + lines[j].End) * 0.5,
+                        lines[i].Start, lines[i].End);
+                    if (perpDist > gapToleranceFt) continue;
+
+                    group.Add(j);
+                }
+
+                if (group.Count == 1)
+                {
+                    merged.Add(lines[i]);
+                    used[i] = true;
+                    continue;
+                }
+
+                // Merge: project all endpoints onto common direction, take extremes
+                var refPt = lines[i].Start;
+                var dir = dirI;
+                double minT = double.MaxValue, maxT = double.MinValue;
+                XYZ minPt = null, maxPt = null;
+
+                foreach (int idx in group)
+                {
+                    double ts = (lines[idx].Start - refPt).DotProduct(dir);
+                    double te = (lines[idx].End - refPt).DotProduct(dir);
+                    if (ts < minT) { minT = ts; minPt = lines[idx].Start; }
+                    if (te < minT) { minT = te; minPt = lines[idx].End; }
+                    if (ts > maxT) { maxT = ts; maxPt = lines[idx].Start; }
+                    if (te > maxT) { maxT = te; maxPt = lines[idx].End; }
+                    used[idx] = true;
+                }
+
+                if (minPt != null && maxPt != null && minPt.DistanceTo(maxPt) > 0.01)
+                {
+                    merged.Add(new ExtractedLine
+                    {
+                        Start = minPt, End = maxPt,
+                        LayerName = lines[i].LayerName,
+                        Category = lines[i].Category,
+                    });
+                }
+            }
+
+            StingLog.Info($"MergeCollinear: {lines.Count} segments → {merged.Count} merged lines");
+            return merged;
+        }
+
+        private static double DistancePointToLine2D(XYZ point, XYZ lineStart, XYZ lineEnd)
+        {
+            var d = lineEnd - lineStart;
+            double lenSq = d.X * d.X + d.Y * d.Y;
+            if (lenSq < 1e-12) return Math.Sqrt(
+                Math.Pow(point.X - lineStart.X, 2) + Math.Pow(point.Y - lineStart.Y, 2));
+
+            double t = Math.Max(0, Math.Min(1,
+                ((point.X - lineStart.X) * d.X + (point.Y - lineStart.Y) * d.Y) / lenSq));
+            double projX = lineStart.X + t * d.X;
+            double projY = lineStart.Y + t * d.Y;
+            return Math.Sqrt(Math.Pow(point.X - projX, 2) + Math.Pow(point.Y - projY, 2));
+        }
+    }
+
+    #endregion
+
+
+    #region Douglas-Peucker Polyline Simplification
+
+    /// <summary>
+    /// Douglas-Peucker polyline simplification algorithm.
+    /// Reduces point count while preserving shape within tolerance.
+    /// O(n log n) average, O(n²) worst case.
+    /// </summary>
+    internal static class PolylineSimplifier
+    {
+        /// <summary>
+        /// Simplifies a polyline by removing points within epsilon of the line
+        /// between retained neighbours.
+        /// </summary>
+        /// <param name="polyline">Input points (ordered)</param>
+        /// <param name="epsilonFt">Maximum perpendicular deviation to allow removal (default 5mm)</param>
+        public static List<XYZ> Simplify(List<XYZ> polyline, double epsilonFt = 0.016)
+        {
+            if (polyline == null || polyline.Count <= 2) return polyline ?? new List<XYZ>();
+
+            var keep = new bool[polyline.Count];
+            keep[0] = true;
+            keep[polyline.Count - 1] = true;
+
+            SimplifyRecursive(polyline, 0, polyline.Count - 1, epsilonFt, keep);
+
+            var result = new List<XYZ>();
+            for (int i = 0; i < polyline.Count; i++)
+                if (keep[i]) result.Add(polyline[i]);
+
+            return result;
+        }
+
+        private static void SimplifyRecursive(
+            List<XYZ> points, int start, int end,
+            double epsilon, bool[] keep)
+        {
+            if (end - start < 2) return;
+
+            double maxDist = 0;
+            int maxIdx = start;
+
+            for (int i = start + 1; i < end; i++)
+            {
+                double dist = PerpendicularDistance(points[i], points[start], points[end]);
+                if (dist > maxDist)
+                {
+                    maxDist = dist;
+                    maxIdx = i;
+                }
+            }
+
+            if (maxDist > epsilon)
+            {
+                keep[maxIdx] = true;
+                SimplifyRecursive(points, start, maxIdx, epsilon, keep);
+                SimplifyRecursive(points, maxIdx, end, epsilon, keep);
+            }
+        }
+
+        private static double PerpendicularDistance(XYZ point, XYZ lineStart, XYZ lineEnd)
+        {
+            var d = lineEnd - lineStart;
+            double lenSq = d.X * d.X + d.Y * d.Y;
+            if (lenSq < 1e-12) return point.DistanceTo(lineStart);
+
+            double t = Math.Max(0, Math.Min(1,
+                ((point.X - lineStart.X) * d.X + (point.Y - lineStart.Y) * d.Y) / lenSq));
+            var proj = new XYZ(lineStart.X + t * d.X, lineStart.Y + t * d.Y, point.Z);
+            return point.DistanceTo(proj);
+        }
+    }
+
+    #endregion
+
+
+    #region Arc and Curve Detection
+
+    /// <summary>Detected arc/curve from sequential line segments.</summary>
+    public class DetectedArc
+    {
+        public XYZ Center { get; set; }
+        public double RadiusFt { get; set; }
+        public double StartAngleRad { get; set; }
+        public double EndAngleRad { get; set; }
+        public double ArcLengthFt { get; set; }
+        public string LayerName { get; set; }
+        public double Confidence { get; set; }
+        public int SegmentCount { get; set; }
+    }
+
+    /// <summary>
+    /// Detects arcs and circles from sequences of short line segments.
+    /// Uses sliding window + least-squares circle fitting.
+    /// Algorithm:
+    ///   1. Slide window of N segments along line list
+    ///   2. Fit circle to segment midpoints (algebraic circle fit)
+    ///   3. If RMS deviation < threshold → arc detected
+    ///   4. Close arcs → circles
+    /// </summary>
+    internal static class ArcDetector
+    {
+        /// <summary>
+        /// Detects arcs from sequences of short lines that approximate curves.
+        /// </summary>
+        public static List<DetectedArc> DetectArcs(
+            List<ExtractedLine> lines,
+            double maxDeviationFt = 0.03,
+            int minSegments = 4)
+        {
+            var arcs = new List<DetectedArc>();
+            if (lines == null || lines.Count < minSegments) return arcs;
+
+            // Sort lines by connectivity (endpoint chaining)
+            var chains = BuildChains(lines, 0.02);
+
+            foreach (var chain in chains)
+            {
+                if (chain.Count < minSegments) continue;
+
+                // Collect midpoints
+                var midpoints = chain.Select(l => (l.Start + l.End) * 0.5).ToList();
+
+                // Try to fit circle to this chain
+                var fit = FitCircle(midpoints);
+                if (fit == null) continue;
+
+                // Check fit quality: RMS deviation from circle
+                double rmsError = 0;
+                foreach (var pt in midpoints)
+                {
+                    double dist = Math.Abs(pt.DistanceTo(fit.Value.Center) - fit.Value.Radius);
+                    rmsError += dist * dist;
+                }
+                rmsError = Math.Sqrt(rmsError / midpoints.Count);
+
+                if (rmsError > maxDeviationFt) continue;
+
+                // Calculate arc angles
+                double startAngle = Math.Atan2(
+                    midpoints[0].Y - fit.Value.Center.Y,
+                    midpoints[0].X - fit.Value.Center.X);
+                double endAngle = Math.Atan2(
+                    midpoints.Last().Y - fit.Value.Center.Y,
+                    midpoints.Last().X - fit.Value.Center.X);
+
+                double arcLength = fit.Value.Radius * Math.Abs(endAngle - startAngle);
+
+                arcs.Add(new DetectedArc
+                {
+                    Center = fit.Value.Center,
+                    RadiusFt = fit.Value.Radius,
+                    StartAngleRad = startAngle,
+                    EndAngleRad = endAngle,
+                    ArcLengthFt = arcLength,
+                    LayerName = chain[0].LayerName,
+                    Confidence = Math.Max(0, 1.0 - rmsError / maxDeviationFt),
+                    SegmentCount = chain.Count,
+                });
+            }
+
+            return arcs;
+        }
+
+        /// <summary>
+        /// Detects closed circles from connected line segments.
+        /// </summary>
+        public static List<DetectedCircle> DetectCirclesFromSegments(
+            List<ExtractedLine> lines, double closureTolerance = 0.03)
+        {
+            var circles = new List<DetectedCircle>();
+            var chains = BuildChains(lines, closureTolerance);
+
+            foreach (var chain in chains)
+            {
+                if (chain.Count < 6) continue;
+
+                // Check closure: first start ≈ last end
+                if (chain[0].Start.DistanceTo(chain.Last().End) > closureTolerance) continue;
+
+                var midpoints = chain.Select(l => (l.Start + l.End) * 0.5).ToList();
+                var fit = FitCircle(midpoints);
+                if (fit == null) continue;
+
+                // Check radius consistency
+                double maxDev = midpoints.Max(p => Math.Abs(p.DistanceTo(fit.Value.Center) - fit.Value.Radius));
+                if (maxDev > closureTolerance * 3) continue;
+
+                circles.Add(new DetectedCircle
+                {
+                    Center = fit.Value.Center,
+                    RadiusFt = fit.Value.Radius,
+                    LayerName = chain[0].LayerName,
+                    Confidence = 0.90,
+                });
+            }
+
+            return circles;
+        }
+
+        /// <summary>Algebraic circle fit (Kasa method): fits circle to 2D points.</summary>
+        private static (XYZ Center, double Radius)? FitCircle(List<XYZ> points)
+        {
+            if (points.Count < 3) return null;
+
+            // Kasa method: minimize Σ(x² + y² - 2ax - 2by - c)²
+            double sumX = 0, sumY = 0, sumX2 = 0, sumY2 = 0;
+            double sumXY = 0, sumX3 = 0, sumY3 = 0, sumX2Y = 0, sumXY2 = 0;
+            int n = points.Count;
+
+            foreach (var p in points)
+            {
+                double x = p.X, y = p.Y;
+                sumX += x; sumY += y;
+                sumX2 += x * x; sumY2 += y * y;
+                sumXY += x * y;
+                sumX3 += x * x * x; sumY3 += y * y * y;
+                sumX2Y += x * x * y; sumXY2 += x * y * y;
+            }
+
+            double A = n * sumX2 - sumX * sumX;
+            double B = n * sumXY - sumX * sumY;
+            double C = n * sumY2 - sumY * sumY;
+            double D = 0.5 * (n * sumX3 + n * sumXY2 - sumX * sumX2 - sumX * sumY2);
+            double E = 0.5 * (n * sumX2Y + n * sumY3 - sumY * sumX2 - sumY * sumY2);
+
+            double denom = A * C - B * B;
+            if (Math.Abs(denom) < 1e-12) return null;
+
+            double cx = (D * C - B * E) / denom;
+            double cy = (A * E - B * D) / denom;
+            double r = Math.Sqrt(points.Average(p =>
+                Math.Pow(p.X - cx, 2) + Math.Pow(p.Y - cy, 2)));
+
+            if (r < 0.01 || r > 1000) return null; // Sanity bounds
+
+            return (new XYZ(cx, cy, 0), r);
+        }
+
+        /// <summary>Builds chains of connected line segments by endpoint proximity.</summary>
+        private static List<List<ExtractedLine>> BuildChains(
+            List<ExtractedLine> lines, double tolerance)
+        {
+            var chains = new List<List<ExtractedLine>>();
+            var used = new bool[lines.Count];
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (used[i]) continue;
+
+                var chain = new List<ExtractedLine> { lines[i] };
+                used[i] = true;
+
+                // Extend chain forward
+                bool extended = true;
+                while (extended)
+                {
+                    extended = false;
+                    var lastEnd = chain.Last().End;
+                    for (int j = 0; j < lines.Count; j++)
+                    {
+                        if (used[j]) continue;
+                        if (lastEnd.DistanceTo(lines[j].Start) < tolerance)
+                        {
+                            chain.Add(lines[j]);
+                            used[j] = true;
+                            extended = true;
+                            break;
+                        }
+                        if (lastEnd.DistanceTo(lines[j].End) < tolerance)
+                        {
+                            // Reverse line
+                            chain.Add(new ExtractedLine
+                            {
+                                Start = lines[j].End, End = lines[j].Start,
+                                LayerName = lines[j].LayerName, Category = lines[j].Category
+                            });
+                            used[j] = true;
+                            extended = true;
+                            break;
+                        }
+                    }
+                }
+
+                chains.Add(chain);
+            }
+
+            return chains;
+        }
+    }
+
+    #endregion
+
+
+    #region Convex Hull
+
+    /// <summary>
+    /// Andrew's monotone chain convex hull algorithm.
+    /// Computes the 2D convex hull of a point set in O(n log n).
+    /// Returns points in counter-clockwise order.
+    /// </summary>
+    internal static class ConvexHull
+    {
+        /// <summary>
+        /// Computes 2D convex hull (ignores Z coordinate).
+        /// Returns vertices in counter-clockwise order.
+        /// </summary>
+        public static List<XYZ> Compute(List<XYZ> points)
+        {
+            if (points == null || points.Count <= 1)
+                return points?.ToList() ?? new List<XYZ>();
+
+            var sorted = points
+                .OrderBy(p => p.X).ThenBy(p => p.Y)
+                .ToList();
+
+            int n = sorted.Count;
+            if (n <= 2) return sorted;
+
+            // Build lower hull
+            var lower = new List<XYZ>();
+            foreach (var p in sorted)
+            {
+                while (lower.Count >= 2 && Cross(lower[^2], lower[^1], p) <= 0)
+                    lower.RemoveAt(lower.Count - 1);
+                lower.Add(p);
+            }
+
+            // Build upper hull
+            var upper = new List<XYZ>();
+            for (int i = n - 1; i >= 0; i--)
+            {
+                while (upper.Count >= 2 && Cross(upper[^2], upper[^1], sorted[i]) <= 0)
+                    upper.RemoveAt(upper.Count - 1);
+                upper.Add(sorted[i]);
+            }
+
+            // Remove last point of each half (duplicated at junction)
+            lower.RemoveAt(lower.Count - 1);
+            upper.RemoveAt(upper.Count - 1);
+
+            lower.AddRange(upper);
+            return lower;
+        }
+
+        /// <summary>Cross product of vectors OA and OB (2D, Z ignored).</summary>
+        private static double Cross(XYZ o, XYZ a, XYZ b) =>
+            (a.X - o.X) * (b.Y - o.Y) - (a.Y - o.Y) * (b.X - o.X);
+    }
+
+    #endregion
 }

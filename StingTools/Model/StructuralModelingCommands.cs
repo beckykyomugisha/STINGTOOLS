@@ -1206,4 +1206,475 @@ namespace StingTools.Model
             }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // STRUCTURAL SYSTEM CLASSIFIER
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-classifies the structural system type (frame, braced, shear wall, dual, flat slab).
+    /// Analyzes element counts, ratios, regularity, and connectivity.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrClassifySystemCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var result = engine.ClassifyStructuralSystem();
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Structural System Type: {result.SystemType}");
+                sb.AppendLine($"Material: {result.MaterialType}");
+                sb.AppendLine();
+                sb.AppendLine("Element Counts:");
+                sb.AppendLine($"  Columns: {result.TotalColumns}");
+                sb.AppendLine($"  Beams: {result.TotalBeams}");
+                sb.AppendLine($"  Walls: {result.TotalWalls}");
+                sb.AppendLine($"  Bracing: {result.TotalBraces}");
+                sb.AppendLine($"  Foundations: {result.TotalFoundations}");
+                sb.AppendLine();
+                sb.AppendLine($"Wall-to-Column Ratio: {result.WallToColumnRatio:F2}");
+                sb.AppendLine($"Has Bracing: {result.HasBracing}");
+                sb.AppendLine($"Has Transfer Elements: {result.HasTransferElements}");
+                sb.AppendLine($"Regular in Plan: {result.IsRegularInPlan}");
+                sb.AppendLine($"Regular in Elevation: {result.IsRegularInElevation}");
+
+                TaskDialog.Show("STRUCT — System Classification", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrClassifySystem failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // DEFLECTION CHECK — ALL BEAMS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Runs serviceability deflection checks on all beams in the model.
+    /// Reports pass/fail with utilisation ratios per EC2/EC3.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrDeflectionCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Deflection Check");
+                dlg.MainContent = "Check beam deflections against serviceability limits.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Steel beams (EC3, E=210GPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RC beams (EC2, span/depth ratios)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+
+                bool isSteel = choice == TaskDialogResult.CommandLink1;
+                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
+                    return Result.Cancelled;
+
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var results = engine.CheckAllBeamDeflections(isSteel: isSteel);
+
+                int passing = results.Count(r => r.Result.Pass);
+                int failing = results.Count(r => !r.Result.Pass);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Deflection Check: {results.Count} beams");
+                sb.AppendLine($"  ✓ Passing: {passing}");
+                sb.AppendLine($"  ✗ Failing: {failing}");
+                sb.AppendLine();
+
+                if (failing > 0)
+                {
+                    sb.AppendLine("Failing beams (worst first):");
+                    foreach (var (id, r) in results.Where(r => !r.Result.Pass)
+                        .OrderByDescending(r => r.Result.CalculatedMm)
+                        .Take(10))
+                    {
+                        sb.AppendLine($"  Beam {id.Value}: {r.Summary}");
+                    }
+
+                    // Select failing beams
+                    var failIds = results.Where(r => !r.Result.Pass)
+                        .Select(r => r.BeamId).ToList();
+                    uidoc.Selection.SetElementIds(failIds);
+                }
+
+                TaskDialog.Show("STRUCT — Deflection Results", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrDeflectionCheck failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // PUNCHING SHEAR CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks punching shear at all slab-column interfaces per EC2 Section 6.4.
+    /// Identifies columns needing shear reinforcement.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrPunchingShearCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var results = engine.CheckAllPunchingShear();
+
+                int passing = results.Count(r => r.Result.Pass);
+                int failing = results.Count(r => !r.Result.Pass);
+                int needsReinf = results.Count(r => r.Result.NeedsShearReinforcement);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Punching Shear Check (EC2 §6.4): {results.Count} interfaces");
+                sb.AppendLine($"  ✓ Passing: {passing}");
+                sb.AppendLine($"  ✗ Failing: {failing}");
+                sb.AppendLine($"  ⚠ Needs shear reinforcement: {needsReinf}");
+
+                if (failing > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Critical columns:");
+                    foreach (var (id, r) in results.Where(r => !r.Result.Pass)
+                        .OrderByDescending(r => r.Result.UtilisationRatio).Take(10))
+                    {
+                        sb.AppendLine($"  Column {id.Value}: util={r.UtilisationRatio:P0}, {r.Summary}");
+                    }
+
+                    var failIds = results.Where(r => !r.Result.Pass)
+                        .Select(r => r.ColumnId).ToList();
+                    uidoc.Selection.SetElementIds(failIds);
+                }
+
+                TaskDialog.Show("STRUCT — Punching Shear", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrPunchingShearCheck failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // WIND LOAD ANALYSIS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Calculates wind loads on the building per EC1-1-4 and distributes to storeys.
+    /// Auto-detects building dimensions from model geometry.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrWindLoadCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var result = engine.CalculateWindLoads();
+                TaskDialog.Show("STRUCT — Wind Load Analysis", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrWindLoad failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CONSTRUCTION SEQUENCE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Auto-generates a construction phase sequence from the structural model.
+    /// Orders: foundations → columns → beams → slabs per level.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrConstructionSequenceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var sequence = engine.GenerateConstructionSequence();
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Construction Sequence: {sequence.Phases.Count} phases");
+                sb.AppendLine($"Estimated duration: {sequence.TotalEstimatedDays} working days");
+                sb.AppendLine();
+
+                foreach (var phase in sequence.Phases)
+                {
+                    sb.AppendLine($"Phase {phase.PhaseNumber}: {phase.PhaseName}");
+                    sb.AppendLine($"  Level: {phase.LevelName}");
+                    sb.AppendLine($"  Elements: {phase.ElementIds.Count}");
+                    sb.AppendLine($"  Duration: ~{phase.EstimatedDays} days");
+                    sb.AppendLine($"  {phase.Description}");
+                    sb.AppendLine();
+                }
+
+                TaskDialog.Show("STRUCT — Construction Sequence", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrConstructionSequence failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FULL STRUCTURAL REPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generates a comprehensive structural analysis report covering system
+    /// classification, load paths, deflection, punching shear, wind loads, and sequencing.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrFullReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var report = engine.GenerateFullStructuralReport();
+
+                // Show summary in TaskDialog (truncated for dialog)
+                var lines = report.Split('\n');
+                var summary = string.Join("\n", lines.Take(40));
+                if (lines.Length > 40) summary += $"\n... ({lines.Length - 40} more lines)";
+
+                TaskDialog.Show("STRUCT — Full Analysis Report", summary);
+
+                // Export full report to file
+                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport");
+                try
+                {
+                    var filePath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(outputDir) ?? System.IO.Path.GetTempPath(),
+                        $"STING_StructuralReport_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                    System.IO.File.WriteAllText(filePath, report);
+                    StingLog.Info($"Structural report exported: {filePath}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Report export failed: {ex.Message}");
+                }
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrFullReport failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // VORONOI TRIBUTARY AREAS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Calculates and displays column tributary areas using true Voronoi tessellation.
+    /// More accurate than grid-based approximation for irregular column layouts.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrVoronoiAreasCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(uidoc.Document);
+                var loads = engine.CalculateColumnLoadsVoronoi();
+
+                if (loads.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — Voronoi", "No columns found.");
+                    return Result.Succeeded;
+                }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Voronoi Tributary Areas: {loads.Count} columns");
+                sb.AppendLine();
+
+                double totalLoad = 0;
+                foreach (var kvp in loads.OrderByDescending(k => k.Value))
+                {
+                    sb.AppendLine($"  Column {kvp.Key.Value}: {kvp.Value:F0} kN");
+                    totalLoad += kvp.Value;
+                }
+                sb.AppendLine();
+                sb.AppendLine($"Total accumulated load: {totalLoad:F0} kN");
+                sb.AppendLine($"Average per column: {totalLoad / loads.Count:F0} kN");
+
+                TaskDialog.Show("STRUCT — Voronoi Tributary Areas", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrVoronoiAreas failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CLASH PRE-DETECTION
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Pre-checks for geometric clashes before placing structural elements.
+    /// Prevents placement conflicts by analyzing existing geometry.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrClashPreCheckCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var doc = uidoc.Document;
+
+                // Check for beam clashes by picking two points
+                var dlg = new TaskDialog("STRUCT — Clash Pre-Check");
+                dlg.MainContent = "Pre-check for clashes before placing elements:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Check beam path (pick 2 points)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Check column location (pick 1 point)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
+                    return Result.Cancelled;
+
+                var engine = new StructuralModelingEngine(doc);
+                ClashResult result;
+
+                if (choice == TaskDialogResult.CommandLink1)
+                {
+                    var p1 = uidoc.Selection.PickPoint("Pick beam start point");
+                    var p2 = uidoc.Selection.PickPoint("Pick beam end point");
+                    result = engine.PreCheckBeamClash(
+                        p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm, p1.Z * Units.FeetToMm,
+                        p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, p2.Z * Units.FeetToMm);
+                }
+                else
+                {
+                    var p = uidoc.Selection.PickPoint("Pick column location");
+                    result = engine.PreCheckColumnClash(
+                        p.X * Units.FeetToMm, p.Y * Units.FeetToMm);
+                }
+
+                var sb = new System.Text.StringBuilder();
+                if (result.HasClashes)
+                {
+                    sb.AppendLine($"⚠ {result.Clashes.Count} clash(es) detected:");
+                    foreach (var clash in result.Clashes)
+                        sb.AppendLine($"  • {clash.ElementDescription} (overlap: {clash.OverlapMm:F0}mm)");
+
+                    var clashIds = result.Clashes
+                        .Select(c => c.ClashingElementId)
+                        .Where(id => id != null && id != ElementId.InvalidElementId)
+                        .ToList();
+                    if (clashIds.Count > 0) uidoc.Selection.SetElementIds(clashIds);
+                }
+                else
+                {
+                    sb.AppendLine("✓ No clashes detected. Safe to place element.");
+                }
+
+                TaskDialog.Show("STRUCT — Clash Check", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                return Result.Cancelled;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrClashPreCheck failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

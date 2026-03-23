@@ -2758,6 +2758,458 @@ namespace StingTools.Model
             return totalResult;
         }
 
+        // ── Enhanced Analysis: Voronoi Tributary Areas ─────────────────
+
+        /// <summary>
+        /// Calculates column loads using true Voronoi tessellation instead of
+        /// simplified grid-based nearest-column assignment.
+        /// Uses FortuneVoronoi from StructuralAnalysisEngine.cs for O(n log n) accuracy.
+        /// Falls back to grid-based method if Voronoi fails.
+        /// </summary>
+        public Dictionary<ElementId, double> CalculateColumnLoadsVoronoi(
+            double liveLoadKPa = 2.5, double deadLoadKPa = 5.0,
+            double selfWeightFactorKPa = 1.5)
+        {
+            var loads = new Dictionary<ElementId, double>();
+
+            try
+            {
+                var columns = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType()
+                    .Cast<FamilyInstance>()
+                    .ToList();
+
+                if (columns.Count == 0) return loads;
+
+                var positions = new List<XYZ>();
+                var idMap = new List<ElementId>();
+                foreach (var col in columns)
+                {
+                    var loc = col.Location as LocationPoint;
+                    if (loc == null) continue;
+                    positions.Add(loc.Point);
+                    idMap.Add(col.Id);
+                }
+
+                if (positions.Count < 2) return CalculateColumnLoads(liveLoadKPa, deadLoadKPa, selfWeightFactorKPa);
+
+                // Get floor bounds
+                double minX = positions.Min(p => p.X) - 2;
+                double maxX = positions.Max(p => p.X) + 2;
+                double minY = positions.Min(p => p.Y) - 2;
+                double maxY = positions.Max(p => p.Y) + 2;
+
+                var voronoiAreas = FortuneVoronoi.CalculateTributaryAreas(
+                    positions, maxX - minX, maxY - minY, minX, minY);
+
+                var levels = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(Level)).Cast<Level>().ToList();
+                int storeys = Math.Max(1, levels.Count - 1);
+                double totalLoadKPa = liveLoadKPa + deadLoadKPa + selfWeightFactorKPa;
+
+                for (int i = 0; i < idMap.Count && i < voronoiAreas.Count; i++)
+                {
+                    if (!voronoiAreas.ContainsKey(i)) continue;
+                    double areaSqM = voronoiAreas[i] * Units.SqFtToSqM;
+                    loads[idMap[i]] = areaSqM * totalLoadKPa * storeys;
+                }
+
+                StingLog.Info($"Voronoi tributary areas calculated for {loads.Count} columns");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Voronoi tributary failed, using grid method: {ex.Message}");
+                return CalculateColumnLoads(liveLoadKPa, deadLoadKPa, selfWeightFactorKPa);
+            }
+
+            return loads;
+        }
+
+        // ── Structural System Classification ─────────────────────────────
+
+        /// <summary>
+        /// Analyzes the existing Revit model to auto-classify the structural system.
+        /// Determines if frame, braced frame, shear wall, dual system, or flat slab.
+        /// </summary>
+        public StructuralSystemResult ClassifyStructuralSystem()
+        {
+            try
+            {
+                return StructuralSystemClassifier.ClassifySystem(_doc);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClassifyStructuralSystem failed", ex);
+                return new StructuralSystemResult
+                {
+                    SystemType = "Unknown",
+                    Summary = $"Classification failed: {ex.Message}"
+                };
+            }
+        }
+
+        // ── Deflection Check for All Beams ───────────────────────────────
+
+        /// <summary>
+        /// Runs deflection serviceability checks on all beams in the model.
+        /// Returns per-beam results with pass/fail and utilisation ratio.
+        /// </summary>
+        public List<(ElementId BeamId, DeflectionResult Result)> CheckAllBeamDeflections(
+            double liveLoadKNPerM = 5.0, bool isSteel = false)
+        {
+            var results = new List<(ElementId, DeflectionResult)>();
+
+            try
+            {
+                var beams = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                foreach (var beam in beams)
+                {
+                    var loc = beam.Location as LocationCurve;
+                    if (loc?.Curve == null) continue;
+
+                    double spanMm = loc.Curve.Length * Units.FeetToMm;
+                    double depthMm = 0;
+                    double widthMm = 0;
+
+                    // Try to get beam dimensions from type
+                    var type = _doc.GetElement(beam.GetTypeId());
+                    if (type != null)
+                    {
+                        var dParam = type.get_Parameter(BuiltInParameter.GENERIC_DEPTH);
+                        if (dParam != null) depthMm = dParam.AsDouble() * Units.FeetToMm;
+                        var wParam = type.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                        if (wParam != null) widthMm = wParam.AsDouble() * Units.FeetToMm;
+                    }
+
+                    if (depthMm <= 0) depthMm = EstimateBeamDepth(spanMm);
+                    if (widthMm <= 0) widthMm = EstimateBeamWidth(depthMm, isSteel);
+
+                    var result = DeflectionChecker.CheckBeamDeflection(
+                        spanMm, depthMm, widthMm, liveLoadKNPerM, isSteel);
+                    results.Add((beam.Id, result));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CheckAllBeamDeflections failed", ex);
+            }
+
+            return results;
+        }
+
+        // ── Punching Shear Check for All Slab-Column Interfaces ──────────
+
+        /// <summary>
+        /// Checks punching shear at every slab-column interface.
+        /// Uses column loads and slab thickness to determine if shear reinforcement is needed.
+        /// </summary>
+        public List<(ElementId ColumnId, PunchingShearResult Result)> CheckAllPunchingShear(
+            double slabThicknessMm = 250, double fckMPa = 30)
+        {
+            var results = new List<(ElementId, PunchingShearResult)>();
+
+            try
+            {
+                var columnLoads = CalculateColumnLoadsVoronoi();
+
+                foreach (var kvp in columnLoads)
+                {
+                    var col = _doc.GetElement(kvp.Key) as FamilyInstance;
+                    if (col == null) continue;
+
+                    double colWidth = 300, colDepth = 300;
+                    var type = _doc.GetElement(col.GetTypeId());
+                    if (type != null)
+                    {
+                        var wP = type.get_Parameter(BuiltInParameter.GENERIC_WIDTH);
+                        if (wP != null) colWidth = wP.AsDouble() * Units.FeetToMm;
+                        var dP = type.get_Parameter(BuiltInParameter.GENERIC_DEPTH);
+                        if (dP != null) colDepth = dP.AsDouble() * Units.FeetToMm;
+                    }
+                    if (colWidth <= 0) colWidth = 300;
+                    if (colDepth <= 0) colDepth = 300;
+
+                    var result = PunchingShearChecker.CheckPunchingShear(
+                        colWidth, colDepth, slabThicknessMm, kvp.Value, fckMPa);
+                    results.Add((kvp.Key, result));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CheckAllPunchingShear failed", ex);
+            }
+
+            return results;
+        }
+
+        // ── Construction Sequence Generation ─────────────────────────────
+
+        /// <summary>
+        /// Auto-generates a construction phase sequence from the structural model.
+        /// Groups elements by level and type, orders: foundations → columns → beams → slabs.
+        /// </summary>
+        public ConstructionSequence GenerateConstructionSequence()
+        {
+            try
+            {
+                return ConstructionSequencer.GenerateSequence(_doc);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("GenerateConstructionSequence failed", ex);
+                return new ConstructionSequence
+                {
+                    Summary = $"Sequence generation failed: {ex.Message}"
+                };
+            }
+        }
+
+        // ── Clash Pre-Detection ──────────────────────────────────────────
+
+        /// <summary>
+        /// Checks for potential clashes before placing a new beam.
+        /// Returns clash details to allow user to adjust before committing.
+        /// </summary>
+        public ClashResult PreCheckBeamClash(
+            double startXMm, double startYMm, double startZMm,
+            double endXMm, double endYMm, double endZMm,
+            double depthMm = 500, double widthMm = 300)
+        {
+            try
+            {
+                var start = new XYZ(Units.Mm(startXMm), Units.Mm(startYMm), Units.Mm(startZMm));
+                var end = new XYZ(Units.Mm(endXMm), Units.Mm(endYMm), Units.Mm(endZMm));
+                return ClashPreDetector.CheckBeamClash(_doc, start, end, depthMm, widthMm);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PreCheckBeamClash failed", ex);
+                return new ClashResult { Summary = $"Check failed: {ex.Message}" };
+            }
+        }
+
+        /// <summary>
+        /// Checks for potential clashes before placing a new column.
+        /// </summary>
+        public ClashResult PreCheckColumnClash(
+            double xMm, double yMm, double widthMm = 400, double depthMm = 400,
+            double heightMm = 3600)
+        {
+            try
+            {
+                var loc = new XYZ(Units.Mm(xMm), Units.Mm(yMm), 0);
+                return ClashPreDetector.CheckColumnClash(_doc, loc, widthMm, depthMm, heightMm);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("PreCheckColumnClash failed", ex);
+                return new ClashResult { Summary = $"Check failed: {ex.Message}" };
+            }
+        }
+
+        // ── Wind Load Analysis ───────────────────────────────────────────
+
+        /// <summary>
+        /// Calculates wind loads on the building and distributes to storeys.
+        /// Auto-detects building dimensions from model geometry.
+        /// </summary>
+        public WindLoadResult CalculateWindLoads(
+            double basicWindSpeedMs = 25, int terrainCategory = 3)
+        {
+            try
+            {
+                // Auto-detect building dimensions
+                var allElements = new FilteredElementCollector(_doc)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                double minX = double.MaxValue, maxX = double.MinValue;
+                double minY = double.MaxValue, maxY = double.MinValue;
+                double maxZ = 0;
+
+                foreach (var el in allElements)
+                {
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    minX = Math.Min(minX, bb.Min.X);
+                    maxX = Math.Max(maxX, bb.Max.X);
+                    minY = Math.Min(minY, bb.Min.Y);
+                    maxY = Math.Max(maxY, bb.Max.Y);
+                    maxZ = Math.Max(maxZ, bb.Max.Z);
+                }
+
+                double widthM = (maxX - minX) * Units.FeetToMm / 1000.0;
+                double depthM = (maxY - minY) * Units.FeetToMm / 1000.0;
+                double heightM = maxZ * Units.FeetToMm / 1000.0;
+
+                if (heightM <= 0) heightM = 10;
+                if (widthM <= 0) widthM = 20;
+
+                var levels = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+                int storeyCount = Math.Max(1, levels.Count - 1);
+                double storeyHeightM = heightM / storeyCount;
+
+                var result = WindLoadCalculator.CalculateWindPressure(
+                    heightM, terrainCategory, basicWindSpeedMs);
+
+                result.TotalForceKN = result.PeakVelocityPressureKPa * widthM * heightM;
+                result.BaseShearKN = result.TotalForceKN;
+                result.OverturnMomentKNm = result.TotalForceKN * heightM * 0.6;
+
+                result.StoreyForcesKN = WindLoadCalculator.DistributeToStoreys(
+                    result.TotalForceKN, storeyCount, storeyHeightM);
+
+                result.Summary = $"Wind analysis: vb={basicWindSpeedMs}m/s, terrain={terrainCategory}, " +
+                    $"qp={result.PeakVelocityPressureKPa:F3}kPa. " +
+                    $"Building {widthM:F0}m × {depthM:F0}m × {heightM:F0}m. " +
+                    $"Base shear={result.BaseShearKN:F0}kN, OTM={result.OverturnMomentKNm:F0}kNm";
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CalculateWindLoads failed", ex);
+                return new WindLoadResult
+                {
+                    Summary = $"Wind analysis failed: {ex.Message}"
+                };
+            }
+        }
+
+        // ── Full Structural Report ───────────────────────────────────────
+
+        /// <summary>
+        /// Generates a comprehensive structural analysis report covering:
+        /// system classification, load paths, deflection checks, punching shear,
+        /// wind loads, and construction sequence.
+        /// </summary>
+        public string GenerateFullStructuralReport(
+            double liveLoadKPa = 2.5, double deadLoadKPa = 5.0,
+            double windSpeedMs = 25, double slabThicknessMm = 250,
+            double fckMPa = 30, bool isSteel = false)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var lines = new List<string>();
+            lines.Add("═══════════════════════════════════════════════════════════");
+            lines.Add("     STING STRUCTURAL ANALYSIS REPORT");
+            lines.Add($"     Generated: {DateTime.Now:yyyy-MM-dd HH:mm}");
+            lines.Add("═══════════════════════════════════════════════════════════");
+            lines.Add("");
+
+            // 1. System Classification
+            try
+            {
+                var system = ClassifyStructuralSystem();
+                lines.Add("── 1. STRUCTURAL SYSTEM ──────────────────────────────────");
+                lines.Add($"   Type: {system.SystemType}");
+                lines.Add($"   Material: {system.MaterialType}");
+                lines.Add($"   Elements: {system.TotalColumns} cols, {system.TotalBeams} beams, " +
+                    $"{system.TotalWalls} walls, {system.TotalBraces} braces, {system.TotalFoundations} fdns");
+                lines.Add($"   Regularity: Plan={system.IsRegularInPlan}, Elevation={system.IsRegularInElevation}");
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   System classification error: {ex.Message}\n"); }
+
+            // 2. Load Path Analysis
+            try
+            {
+                var loadPath = AnalyzeLoadPaths();
+                lines.Add("── 2. LOAD PATH ANALYSIS ────────────────────────────────");
+                lines.Add($"   {loadPath.Summary}");
+                foreach (var w in loadPath.Warnings) lines.Add($"   ⚠ {w}");
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   Load path error: {ex.Message}\n"); }
+
+            // 3. Deflection Checks
+            try
+            {
+                var deflections = CheckAllBeamDeflections(isSteel: isSteel);
+                int passing = deflections.Count(d => d.Result.Pass);
+                int failing = deflections.Count(d => !d.Result.Pass);
+                lines.Add("── 3. BEAM DEFLECTION CHECKS ────────────────────────────");
+                lines.Add($"   Checked: {deflections.Count} beams");
+                lines.Add($"   Passing: {passing} ({(deflections.Count > 0 ? 100.0 * passing / deflections.Count : 0):F0}%)");
+                lines.Add($"   Failing: {failing}");
+                if (failing > 0)
+                {
+                    var worst = deflections.Where(d => !d.Result.Pass)
+                        .OrderByDescending(d => d.Result.Ratio > 0 ? d.Result.CalculatedMm / d.Result.LimitMm : 0)
+                        .Take(5);
+                    foreach (var (id, r) in worst)
+                        lines.Add($"   ✗ Beam {id.Value}: {r.Summary}");
+                }
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   Deflection check error: {ex.Message}\n"); }
+
+            // 4. Punching Shear
+            try
+            {
+                var punching = CheckAllPunchingShear(slabThicknessMm, fckMPa);
+                int psPass = punching.Count(p => p.Result.Pass);
+                int psFail = punching.Count(p => !p.Result.Pass);
+                int needsReinf = punching.Count(p => p.Result.NeedsShearReinforcement);
+                lines.Add("── 4. PUNCHING SHEAR CHECKS ─────────────────────────────");
+                lines.Add($"   Checked: {punching.Count} slab-column interfaces");
+                lines.Add($"   Passing: {psPass}, Failing: {psFail}, Needs reinforcement: {needsReinf}");
+                if (psFail > 0)
+                {
+                    var worstPS = punching.Where(p => !p.Result.Pass)
+                        .OrderByDescending(p => p.Result.UtilisationRatio).Take(5);
+                    foreach (var (id, r) in worstPS)
+                        lines.Add($"   ✗ Column {id.Value}: util={r.UtilisationRatio:F2}, {r.Summary}");
+                }
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   Punching shear error: {ex.Message}\n"); }
+
+            // 5. Wind Loads
+            try
+            {
+                var wind = CalculateWindLoads(windSpeedMs);
+                lines.Add("── 5. WIND LOAD ANALYSIS ────────────────────────────────");
+                lines.Add($"   {wind.Summary}");
+                if (wind.StoreyForcesKN.Count > 0)
+                {
+                    for (int i = 0; i < wind.StoreyForcesKN.Count; i++)
+                        lines.Add($"   Storey {i + 1}: {wind.StoreyForcesKN[i]:F1} kN");
+                }
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   Wind load error: {ex.Message}\n"); }
+
+            // 6. Construction Sequence
+            try
+            {
+                var sequence = GenerateConstructionSequence();
+                lines.Add("── 6. CONSTRUCTION SEQUENCE ─────────────────────────────");
+                lines.Add($"   Total estimated: {sequence.TotalEstimatedDays} days, {sequence.Phases.Count} phases");
+                foreach (var phase in sequence.Phases.Take(10))
+                    lines.Add($"   Phase {phase.PhaseNumber}: {phase.PhaseName} ({phase.EstimatedDays}d, {phase.ElementIds.Count} elements)");
+                if (sequence.Phases.Count > 10)
+                    lines.Add($"   ... and {sequence.Phases.Count - 10} more phases");
+                lines.Add("");
+            }
+            catch (Exception ex) { lines.Add($"   Sequencing error: {ex.Message}\n"); }
+
+            sw.Stop();
+            lines.Add("═══════════════════════════════════════════════════════════");
+            lines.Add($"   Report generated in {sw.Elapsed.TotalSeconds:F1}s");
+            lines.Add("═══════════════════════════════════════════════════════════");
+
+            var report = string.Join("\n", lines);
+            StingLog.Info($"Full structural report generated ({lines.Count} lines)");
+            return report;
+        }
+
         // ── Helpers ──────────────────────────────────────────────────────
 
         private void TrySetParam(Element el, BuiltInParameter bip, double value)
