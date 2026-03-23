@@ -1838,7 +1838,7 @@ namespace StingTools.Model
     /// quantity extraction and carbon factor lookup from MATERIAL_LOOKUP.csv.
     /// Supports A1-A3 (product stage) and B4 (replacement) lifecycle stages.
     /// </summary>
-    internal static class EmbodiedCarbonCalculator
+    internal static class ModelEmbodiedCarbonCalculator
     {
         // Carbon factors in kgCO2e/kg (typical UK values per ICE Database v3.0)
         private static readonly Dictionary<string, double> CarbonFactors = new(StringComparer.OrdinalIgnoreCase)

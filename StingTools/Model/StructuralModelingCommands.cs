@@ -41,7 +41,7 @@ namespace StingTools.Model
     internal static class StructuralAutoTagHelper
     {
         /// <summary>Auto-tag created structural elements and append tag count to result message.</summary>
-        public static void TagAndReport(Document doc, StructuralModelingEngine.StructuralResult result)
+        public static void TagAndReport(Document doc, StructuralModelResult result)
         {
             if (doc == null || result == null || !result.Success || result.CreatedIds.Count == 0) return;
             try

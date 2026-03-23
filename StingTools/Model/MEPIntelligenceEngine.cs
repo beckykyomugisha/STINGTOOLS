@@ -405,7 +405,7 @@ namespace StingTools.Model
     //  MEP VIBRO-ACOUSTIC ENGINE — Vibration & Ductborne Noise
     // ════════════════════════════════════════════════════════════════
 
-    internal class VibrationResult
+    internal class MEPVibrationResult
     {
         public double EquipmentFrequencyHz { get; set; }
         public double MountNaturalFreqHz { get; set; }
@@ -427,10 +427,10 @@ namespace StingTools.Model
         };
 
         /// <summary>Calculate vibration isolation transmissibility.</summary>
-        public static VibrationResult CalculateIsolation(
+        public static MEPVibrationResult CalculateIsolation(
             double equipmentRpm, double equipmentMassKg, double mountStiffnessNPerM)
         {
-            var result = new VibrationResult();
+            var result = new MEPVibrationResult();
 
             try
             {
