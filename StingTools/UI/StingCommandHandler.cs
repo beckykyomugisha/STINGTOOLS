@@ -1093,6 +1093,28 @@ namespace StingTools.UI
                     case "ModelColumnGrid": RunCommand<Model.ModelColumnGridCommand>(app); break;
                     case "ModelCreateBeam": RunCommand<Model.ModelCreateBeamCommand>(app); break;
 
+                    // ── Structural Modeling Automation ──
+                    case "StrCreatePadFooting": RunCommand<Model.StrCreatePadFootingCommand>(app); break;
+                    case "StrCreateStripFooting": RunCommand<Model.StrCreateStripFootingCommand>(app); break;
+                    case "StrCreateStructuralSlab": RunCommand<Model.StrCreateStructuralSlabCommand>(app); break;
+                    case "StrCreateStructuralWall": RunCommand<Model.StrCreateStructuralWallCommand>(app); break;
+                    case "StrCreateBeamSystem": RunCommand<Model.StrCreateBeamSystemCommand>(app); break;
+                    case "StrCreateBracing": RunCommand<Model.StrCreateBracingCommand>(app); break;
+                    case "StrCreateTruss": RunCommand<Model.StrCreateTrussCommand>(app); break;
+                    case "StrCreateFullBayFrame": RunCommand<Model.StrCreateFullBayFrameCommand>(app); break;
+                    case "StrCreateGridFrame": RunCommand<Model.StrCreateGridFrameCommand>(app); break;
+                    case "StrAnalyzeLoadPaths": RunCommand<Model.StrAnalyzeLoadPathsCommand>(app); break;
+                    case "StrDetectBays": RunCommand<Model.StrDetectBaysCommand>(app); break;
+                    case "StrCADToStructural": RunCommand<Model.StrCADToStructuralCommand>(app); break;
+                    case "StrCADPreview": RunCommand<Model.StrCADPreviewCommand>(app); break;
+                    case "StrRecommendGrid": RunCommand<Model.StrRecommendGridCommand>(app); break;
+                    case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
+                    case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
+                    case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
+                    case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
+                    case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
+                    case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
+
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
                     case "ModelCreatePipe": RunCommand<Model.ModelCreatePipeCommand>(app); break;
