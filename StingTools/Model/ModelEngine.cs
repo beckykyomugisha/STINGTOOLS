@@ -1510,6 +1510,55 @@ namespace StingTools.Model
         }
 
         /// <summary>
+        /// Phase 67: Validate duct velocity against CIBSE Guide C limits.
+        /// Returns (pass, actualVelocity, maxVelocity, message).
+        /// </summary>
+        public static (bool Pass, double ActualMs, double MaxMs, string Message) ValidateDuctVelocity(
+            double airflowLps, double diamMm, string ductType = "Supply Duct - Main")
+        {
+            if (diamMm <= 0) return (false, 0, 0, "Invalid duct diameter");
+            double areaM2 = Math.PI * (diamMm / 1000.0) * (diamMm / 1000.0) / 4.0;
+            if (areaM2 < 1e-10) return (false, 0, 0, "Zero area");
+            double velocity = (airflowLps / 1000.0) / areaM2;
+
+            // CIBSE Guide C velocity limits by duct type
+            var limits = Temp.StandardsEngine.CibseVelocityLimits;
+            double maxVel = 10.0; // default fallback
+            if (limits.TryGetValue(ductType, out var limit))
+                maxVel = limit.MaxVelocity;
+
+            bool pass = velocity <= maxVel;
+            string msg = pass
+                ? $"OK: {velocity:F1} m/s ≤ {maxVel:F1} m/s ({ductType})"
+                : $"FAIL: {velocity:F1} m/s > {maxVel:F1} m/s limit ({ductType}) — increase duct size";
+            return (pass, velocity, maxVel, msg);
+        }
+
+        /// <summary>
+        /// Phase 67: Validate pipe velocity against CIBSE Guide C limits.
+        /// Returns (pass, actualVelocity, maxVelocity, message).
+        /// </summary>
+        public static (bool Pass, double ActualMs, double MaxMs, string Message) ValidatePipeVelocity(
+            double flowLps, double diamMm, string pipeType = "Chilled Water")
+        {
+            if (diamMm <= 0) return (false, 0, 0, "Invalid pipe diameter");
+            double areaM2 = Math.PI * (diamMm / 1000.0) * (diamMm / 1000.0) / 4.0;
+            if (areaM2 < 1e-10) return (false, 0, 0, "Zero area");
+            double velocity = (flowLps / 1000.0) / areaM2;
+
+            var limits = Temp.StandardsEngine.CibseVelocityLimits;
+            double maxVel = 3.0;
+            if (limits.TryGetValue(pipeType, out var limit))
+                maxVel = limit.MaxVelocity;
+
+            bool pass = velocity <= maxVel;
+            string msg = pass
+                ? $"OK: {velocity:F2} m/s ≤ {maxVel:F1} m/s ({pipeType})"
+                : $"FAIL: {velocity:F2} m/s > {maxVel:F1} m/s limit ({pipeType}) — increase pipe size";
+            return (pass, velocity, maxVel, msg);
+        }
+
+        /// <summary>
         /// Calculate pressure drop through a straight duct segment per CIBSE Guide C.
         /// Uses Darcy-Weisbach equation with Colebrook-White friction factor.
         /// </summary>
