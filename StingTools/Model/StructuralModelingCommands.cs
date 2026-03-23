@@ -33,6 +33,28 @@ using StingTools.Core;
 namespace StingTools.Model
 {
     // ══════════════════════════════════════════════════════════════════
+    //  Phase 67c: AUTO-TAG HELPER for all structural commands
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>Phase 67c: Shared auto-tag helper for structural element creation commands.
+    /// Ensures all structural elements get ISO 19650 tags, containers, and TAG7 narratives.</summary>
+    internal static class StructuralAutoTagHelper
+    {
+        /// <summary>Auto-tag created structural elements and append tag count to result message.</summary>
+        public static void TagAndReport(Document doc, StructuralModelingEngine.StructuralResult result)
+        {
+            if (doc == null || result == null || !result.Success || result.CreatedIds.Count == 0) return;
+            try
+            {
+                int tagged = ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                if (tagged > 0)
+                    result.Summary += $" | Tagged {tagged} element{(tagged == 1 ? "" : "s")} (ISO 19650)";
+            }
+            catch (Exception ex) { StingLog.Warn($"StructuralAutoTag: {ex.Message}"); }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // PAD FOOTING
     // ══════════════════════════════════════════════════════════════════
 
@@ -80,6 +102,9 @@ namespace StingTools.Model
                     pt.X * Units.FeetToMm, pt.Y * Units.FeetToMm,
                     widthMm, depthMm, thickMm,
                     columnLoadKN: loadKN);
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Pad Footing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
@@ -141,6 +166,9 @@ namespace StingTools.Model
                     p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm,
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     widthMm, depthMm);
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Strip Footing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
@@ -215,6 +243,9 @@ namespace StingTools.Model
                 var result = engine.CreateStructuralSlab(widthMm, depthMm,
                     originXMm: originXMm, originYMm: originYMm);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Structural Slab",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
@@ -276,6 +307,9 @@ namespace StingTools.Model
                     p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm,
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     thicknessMm: thickMm, wallType: wallType);
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Structural Wall",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
@@ -349,6 +383,9 @@ namespace StingTools.Model
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateBeamSystem(bayX, bayY, originX, originY);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Beam System",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
@@ -413,6 +450,9 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     storeyCount: 1, pattern: pattern);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Bracing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
@@ -476,6 +516,9 @@ namespace StingTools.Model
                     p1.X * Units.FeetToMm, p1.Y * Units.FeetToMm, zMm,
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, zMm,
                     type);
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Truss",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
@@ -555,6 +598,9 @@ namespace StingTools.Model
                     originXMm: originX, originYMm: originY,
                     addBracing: addBracing, bracingPattern: pattern);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Full Bay Frame",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
@@ -620,6 +666,9 @@ namespace StingTools.Model
                     storeyCount: storeys,
                     originXMm: pt.X * Units.FeetToMm, originYMm: pt.Y * Units.FeetToMm,
                     perimeterBracing: bracing);
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Grid Frame",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
@@ -1094,6 +1143,9 @@ namespace StingTools.Model
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateAutoSizedFootings(soilKPa);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Auto Foundations",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
@@ -1190,6 +1242,9 @@ namespace StingTools.Model
             {
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateSlabEdgeBeams();
+
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
 
                 TaskDialog.Show("STRUCT — Slab Edge Beams",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
