@@ -2273,12 +2273,12 @@ namespace StingTools.Core
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
-        // ══════════════════════════════════════════════════════════════
-        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
-        // Cross-system automation: warning → issue pipeline
-        // ══════════════════════════════════════════════════════════════
+    //  Phase 55: AUTO-ISSUE CREATION (continuation of WarningsEngine)
+    // ══════════════════════════════════════════════════════════════════
 
+    /// <summary>Extended warnings engine: auto-issue creation from critical warnings.</summary>
+    internal static class WarningsEngineExt
+    {
         /// <summary>
         /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
         /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
@@ -2384,7 +2384,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+    } // end WarningsEngineExt
 
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
