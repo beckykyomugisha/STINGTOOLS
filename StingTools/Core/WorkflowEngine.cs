@@ -1160,6 +1160,17 @@ namespace StingTools.Core
                 case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
+                // Phase 72: Doc/Schedule Automation
+                case "DrawingRegisterSync":     return new Docs.DrawingRegisterSyncCommand();
+                case "CrossScheduleValidate":   return new Docs.CrossScheduleValidateCommand();
+                case "PrintQueue":              return new Docs.PrintQueueCommand();
+                case "DocumentPackage":         return new Docs.DocumentPackageCommand();
+
+                // Phase 73: Workflow Maturity
+                case "CommissioningWorkflow":   return new CommissioningWorkflowCommand();
+                case "HandoverValidation":      return new HandoverValidationCommand();
+                case "SustainabilityWorkflow":  return new SustainabilityWorkflowCommand();
+
                 // BIM Coordination Center dispatch targets
                 case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
                 case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();

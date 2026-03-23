@@ -1284,6 +1284,101 @@ namespace StingTools.UI
                     case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
 
+                    // Phase 69: Acoustic & Sustainability
+                    case "AcousticAnalysis":
+                    {
+                        var aaDoc = app.ActiveUIDocument?.Document;
+                        if (aaDoc != null)
+                        {
+                            var results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            int fails = results.Count(r => !r.Pass);
+                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\n\n");
+                            foreach (var r in results.Take(30)) sb.AppendLine(r.ToString());
+                            TaskDialog.Show("Acoustic Analysis", sb.ToString());
+                        }
+                        break;
+                    }
+                    case "BREEAMAssessment":
+                    {
+                        var brDoc = app.ActiveUIDocument?.Document;
+                        if (brDoc != null)
+                        {
+                            var (breeam, lca, circ) = Model.SustainabilityOrchestrator.Assess(brDoc);
+                            TaskDialog.Show("BREEAM Assessment",
+                                $"BREEAM Score: {breeam.TotalScore:F1}% — {breeam.Rating}\n\n" +
+                                $"Category Scores:\n" + string.Join("\n", breeam.CategoryScores.Select(kv => $"  {kv.Key}: {kv.Value:F0}%")) +
+                                $"\n\nWhole-Life Carbon: {lca.KgCO2PerM2:F0} kgCO2e/m²\n{lca.LETIBenchmark}\n\nCircularity: {circ:F0}%");
+                        }
+                        break;
+                    }
+                    case "LifecycleAssessment":
+                    {
+                        var lcaDoc = app.ActiveUIDocument?.Document;
+                        if (lcaDoc != null)
+                        {
+                            var lca = Model.LifecycleAssessmentEngine.Assess(lcaDoc, 0);
+                            var sb = new System.Text.StringBuilder($"Lifecycle Assessment (BS EN 15978)\n\n");
+                            sb.AppendLine($"A1-A3 Product:      {lca.A1_A3_ProductKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"A4 Transport:       {lca.A4_TransportKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"A5 Construction:    {lca.A5_ConstructionKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"B6 Operational:     {lca.B6_OperationalEnergyKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"C1-C4 End of Life:  {lca.C1_C4_EndOfLifeKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"\nTotal WLC: {lca.WholeLifeCarbon:N0} kgCO2e ({lca.KgCO2PerM2:F0}/m²)");
+                            sb.AppendLine($"\n{lca.LETIBenchmark}");
+                            if (lca.MaterialBreakdown.Count > 0)
+                            {
+                                sb.AppendLine("\nTop Materials:");
+                                foreach (var m in lca.MaterialBreakdown.Take(10))
+                                    sb.AppendLine($"  {m.Material}: {m.KgCO2:N0} kgCO2e ({m.Pct:F1}%)");
+                            }
+                            TaskDialog.Show("Lifecycle Assessment", sb.ToString());
+                        }
+                        break;
+                    }
+
+                    // Phase 70: MEP Intelligence
+                    case "MEPPressureDrop":
+                    {
+                        var mepDoc = app.ActiveUIDocument?.Document;
+                        if (mepDoc != null)
+                        {
+                            var results = Model.MEPSystemAnalyser.AnalyseModel(mepDoc);
+                            int exceeded = results.Count(r => r.VelocityExceeded);
+                            TaskDialog.Show("MEP Pressure Drop",
+                                $"Analysed {results.Count} duct/pipe sections\n" +
+                                $"Velocity exceeded: {exceeded}\n" +
+                                $"Avg pressure drop: {(results.Count > 0 ? results.Average(r => r.TotalLossPa) : 0):F1} Pa/section");
+                        }
+                        break;
+                    }
+
+                    // Phase 71: Structural Deep
+                    case "StructuralDeepAnalysis":
+                    {
+                        var sdDoc = app.ActiveUIDocument?.Document;
+                        if (sdDoc != null)
+                        {
+                            var (torsion, tolerances, total) = Model.StructuralDeepOrchestrator.AnalyseModel(sdDoc);
+                            TaskDialog.Show("Structural Deep Analysis",
+                                $"Torsion Cases: {torsion.Count}\n" +
+                                $"Tolerance Checks: {tolerances.Count}\n\n" +
+                                (torsion.Count > 0 ? "Torsion:\n" + string.Join("\n", torsion.Take(10).Select(t => $"  {t.Description}")) : "") +
+                                (tolerances.Count > 0 ? "\nTolerances:\n" + string.Join("\n", tolerances.Take(10).Select(t => $"  {t.CheckName}: ±{t.ToleranceMm:F1}mm")) : ""));
+                        }
+                        break;
+                    }
+
+                    // Phase 72: Doc/Schedule Automation
+                    case "DrawingRegisterSync": RunCommand<Docs.DrawingRegisterSyncCommand>(app); break;
+                    case "CrossScheduleValidate": RunCommand<Docs.CrossScheduleValidateCommand>(app); break;
+                    case "PrintQueue": RunCommand<Docs.PrintQueueCommand>(app); break;
+                    case "DocumentPackage": RunCommand<Docs.DocumentPackageCommand>(app); break;
+
+                    // Phase 73: Workflow Maturity
+                    case "CommissioningWorkflow": RunCommand<Core.CommissioningWorkflowCommand>(app); break;
+                    case "HandoverValidation": RunCommand<Core.HandoverValidationCommand>(app); break;
+                    case "SustainabilityWorkflow": RunCommand<Core.SustainabilityWorkflowCommand>(app); break;
+
                     // Phase 47: BIM Coordination Center (unified dashboard)
                     // Keep-dialog-open loop: re-open after each dispatched command
                     case "BIMCoordinationCenter":

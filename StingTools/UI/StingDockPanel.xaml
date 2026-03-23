@@ -2201,6 +2201,63 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PHASE 69: ACOUSTIC & SUSTAINABILITY -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <StackPanel>
+                                <TextBlock Text="ACOUSTIC &amp; SUSTAINABILITY" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Acoustic Analysis" Tag="AcousticAnalysis" Click="Cmd_Click" ToolTip="BS 8233/BB93/HTM acoustic performance: Rw, RT60, impact, flanking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BREEAM Assessment" Tag="BREEAMAssessment" Click="Cmd_Click" ToolTip="BREEAM v6.0 credit assessment across 10 categories"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Lifecycle Assessment" Tag="LifecycleAssessment" Click="Cmd_Click" ToolTip="BS EN 15978 whole-life carbon: A1-C4 + LETI benchmark"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 70: MEP INTELLIGENCE -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
+                            <StackPanel>
+                                <TextBlock Text="MEP INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure Drop Analysis" Tag="MEPPressureDrop" Click="Cmd_Click" ToolTip="Darcy-Weisbach + minor losses for ducts and pipes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 71: STRUCTURAL DEEP -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F44336">
+                            <StackPanel>
+                                <TextBlock Text="STRUCTURAL DEEP ANALYSIS" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Structural Analysis" Tag="StructuralDeepAnalysis" Click="Cmd_Click" ToolTip="Torsion detection, LTB, connection detailing, tolerances"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 72: DOC/SCHEDULE AUTOMATION -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
+                            <StackPanel>
+                                <TextBlock Text="DOC &amp; SCHEDULE AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegisterSync" Click="Cmd_Click" ToolTip="Export/sync drawing register CSV from model sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Schedule Validation" Tag="CrossScheduleValidate" Click="Cmd_Click" ToolTip="Cross-schedule consistency validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Print Queue" Tag="PrintQueue" Click="Cmd_Click" ToolTip="Build and export prioritised print queue"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Document Package" Tag="DocumentPackage" Click="Cmd_Click" ToolTip="Assemble ISO 19650 document package for milestone"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 73: WORKFLOW MATURITY -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <StackPanel>
+                                <TextBlock Text="WORKFLOW AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Commissioning" Tag="CommissioningWorkflow" Click="Cmd_Click" ToolTip="MEP commissioning T&amp;B workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Handover Validation" Tag="HandoverValidation" Click="Cmd_Click" ToolTip="Pre-handover validation workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sustainability" Tag="SustainabilityWorkflow" Click="Cmd_Click" ToolTip="Sustainability assessment workflow (6 steps)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
