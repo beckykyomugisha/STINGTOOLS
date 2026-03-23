@@ -153,7 +153,9 @@ namespace StingTools.Model
         // DWG Analysis
         private ImportInstance _selectedImport;
         private List<DWGLayerInfo> _layers = new();
+        #pragma warning disable CS0169
         private StructuralExtractionResult _extraction;
+        #pragma warning restore CS0169
 
         // Result
         public StructuralDWGConfig Config { get; private set; } = new();
@@ -379,9 +381,9 @@ namespace StingTools.Model
             _pageTitle.Text = $"Step {index + 1}/{_pageBuilders.Count}: {PageTitles[index]}";
             _pageSubtitle.Text = PageDescriptions[index];
 
-            _btnBack.Visibility = index > 0 ? Visibility.Visible : Visibility.Collapsed;
-            _btnNext.Visibility = index < _pageBuilders.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
-            _btnFinish.Visibility = index == _pageBuilders.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
+            _btnBack.Visibility = index > 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            _btnNext.Visibility = index < _pageBuilders.Count - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            _btnFinish.Visibility = index == _pageBuilders.Count - 1 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             UpdateStepIndicator();
             UpdateStatus();
