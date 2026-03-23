@@ -228,8 +228,8 @@ namespace StingTools.UI
             var win = new Window
             {
                 Title = $"STING Tools - {b.Title}",
-                Width = 720, Height = 680,
-                MinWidth = 550, MinHeight = 450,
+                Width = 800, Height = 720,
+                MinWidth = 620, MinHeight = 480,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.CanResize,
                 Background = BrBg
@@ -343,14 +343,16 @@ namespace StingTools.UI
                     actContent.Children.Add(new TextBlock
                     {
                         Text = $"\u2192  {act.Label}", FontSize = 13,
-                        Foreground = BrBlue, FontWeight = FontWeights.SemiBold
+                        Foreground = BrBlue, FontWeight = FontWeights.SemiBold,
+                        TextWrapping = TextWrapping.Wrap
                     });
                     if (!string.IsNullOrEmpty(act.Description))
                     {
                         actContent.Children.Add(new TextBlock
                         {
                             Text = act.Description, FontSize = 10.5,
-                            Foreground = BrGrey, Margin = new Thickness(18, 2, 0, 0)
+                            Foreground = BrGrey, Margin = new Thickness(18, 2, 0, 0),
+                            TextWrapping = TextWrapping.Wrap
                         });
                     }
                     actBtn.Content = actContent;
@@ -464,13 +466,14 @@ namespace StingTools.UI
         {
             var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 2, 0, 2) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var label = new TextBlock
             {
                 Text = item.Label, FontSize = 11.5, Foreground = BrGrey,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Top,
+                TextWrapping = TextWrapping.Wrap
             };
             System.Windows.Controls.Grid.SetColumn(label, 0);
             grid.Children.Add(label);
@@ -479,7 +482,8 @@ namespace StingTools.UI
             {
                 Text = item.Value ?? "", FontSize = 11.5, FontWeight = FontWeights.SemiBold,
                 Foreground = item.ValueBrush ?? Brushes.Black,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Top,
+                TextWrapping = TextWrapping.Wrap
             };
             System.Windows.Controls.Grid.SetColumn(value, 1);
             grid.Children.Add(value);
@@ -489,7 +493,8 @@ namespace StingTools.UI
                 var note = new TextBlock
                 {
                     Text = $"({item.Note})", FontSize = 10.5, Foreground = BrGrey,
-                    FontStyle = FontStyles.Italic, VerticalAlignment = VerticalAlignment.Center
+                    FontStyle = FontStyles.Italic, VerticalAlignment = VerticalAlignment.Top,
+                    TextWrapping = TextWrapping.Wrap
                 };
                 System.Windows.Controls.Grid.SetColumn(note, 2);
                 grid.Children.Add(note);
@@ -643,7 +648,9 @@ namespace StingTools.UI
                     var cell = new TextBlock
                     {
                         Text = dataRow[c] ?? "", FontSize = 10.5,
-                        Margin = new Thickness(4, 1, 4, 1)
+                        Margin = new Thickness(4, 1, 4, 1),
+                        TextWrapping = TextWrapping.Wrap,
+                        MaxWidth = 300
                     };
                     // Highlight non-zero numeric values in first non-label column
                     if (c > 0 && int.TryParse(dataRow[c], out int v) && v > 0)

@@ -66,9 +66,12 @@ namespace StingTools.Tags
             int tag1Valid = 0;
             int tag1Incomplete = 0;
             int tag1Missing = 0;
-            // Three mutually-exclusive compliance buckets
+            // M-02 FIX: Four mutually-exclusive compliance buckets (was three — bucketPartial
+            // conflated "complete with placeholders" and "incomplete", misleading BIM coordinators)
             int bucketFully = 0;    // TagIsComplete AND TagIsFullyResolved
-            int bucketPartial = 0;  // non-empty but not fully complete/resolved
+            int bucketCompletePlaceholders = 0; // 8 segments but has GEN/XX/ZZ/0000
+            int bucketIncomplete = 0; // non-empty but <8 segments
+            int bucketPartial = 0;  // sum of above two (kept for backward compat in formulas)
             int bucketUntagged = 0; // null or empty
             int containersEmpty = 0; // TAG_2-6 not populated
             int tokensMissing = 0;
@@ -132,6 +135,7 @@ namespace StingTools.Tags
                     // Phase 39: Distinguish COMPLETE (8 segments but has placeholders)
                     // from RESOLVED (no placeholders). Previously both were "VALID".
                     tag1Valid++;
+                    bucketCompletePlaceholders++;
                     bucketPartial++;
                     tag1Status = "COMPLETE_PLACEHOLDERS";
                 }
@@ -139,6 +143,7 @@ namespace StingTools.Tags
                 {
                     // Non-empty but not complete — partially tagged
                     tag1Incomplete++;
+                    bucketIncomplete++;
                     bucketPartial++;
                     tag1Status = "INCOMPLETE";
                     IncrementDict(issuesByCategory, catName);
@@ -274,14 +279,12 @@ namespace StingTools.Tags
             report.AppendLine(new string('═', 55));
             report.AppendLine();
 
-            // Phase 39: Four-bucket compliance summary — separates "complete with placeholders"
-            // from "partially tagged" for clearer BIM coordinator action items.
-            int completePlaceholder = bucketPartial; // elements with 8 segments but GEN/XX/ZZ/0000
-            int incomplete = tag1Incomplete; // elements with <8 segments
+            // M-02 FIX: Four-bucket compliance summary — now correctly separates
+            // "complete with placeholders" from "incomplete" (previously conflated in bucketPartial).
             report.AppendLine("── Four-Bucket Compliance ──");
             report.AppendLine($"  Fully resolved:       {bucketFully,6:N0}  (8 segments, no placeholders, ISO valid)");
-            report.AppendLine($"  Complete+placeholders: {completePlaceholder,6:N0}  (8 segments but contains GEN/XX/ZZ/0000)");
-            report.AppendLine($"  Incomplete tags:      {incomplete,6:N0}  (<8 segments or missing data)");
+            report.AppendLine($"  Complete+placeholders: {bucketCompletePlaceholders,6:N0}  (8 segments but contains GEN/XX/ZZ/0000)");
+            report.AppendLine($"  Incomplete tags:      {bucketIncomplete,6:N0}  (<8 segments or missing data)");
             report.AppendLine($"  Untagged:             {bucketUntagged,6:N0}  (no tag at all)");
             report.AppendLine($"  Compliance score:     {compliancePct:F1}%  (resolved=1.0, partial=0.5, rest=0.0)");
             report.AppendLine();

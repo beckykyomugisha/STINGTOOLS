@@ -8,8 +8,8 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **119 source files** (116 C# + 3 XAML, ~134,400 lines of code) across 10 directories
-- **539 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **120 source files** (117 C# + 3 XAML, ~136,200 lines of code) across 10 directories
+- **540 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
 - **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
 
@@ -2082,6 +2082,46 @@ Critical review of the tagging workflow identified the following logic, automati
 412. **Keep-dialog-open loop** — `StingCommandHandler` DocumentManager dispatch now loops: shows dialog → user clicks command → dialog closes → command executes → dialog re-opens. User stays in Document Management Center across multiple operations without navigating back.
 413. **Meeting Manager tab** — 8th tab "MEETINGS" in DocumentManagementDialog with 3 sections (PREPARE/DURING/REVIEW): New Meeting (5 types: BIM Coordination, Design Review, Client Review, Handover, Clash Resolution), Auto Agenda (auto-generates from open issues, pending transmittals, recent revisions, compliance status, open action items), Meeting Templates, Log Minutes (multi-line text editor), Add Action Item (description/assignee/due date), Quick Issue, Meeting History (StingResultPanel with per-meeting sections), Open Actions (grouped by overdue/upcoming), Export Minutes (to timestamped .txt file). Data stored in `_bim_manager/meetings.json`.
 
+#### Completed (Phase 43 — Deep Gap Analysis: Performance & Automation Logic Fixes)
+
+420. **PERF-CRIT-01: Spatial candidate cache** — `TokenAutoPopulator.BuildSpatialCandidateCache(doc)` pre-builds per-category spatial index in `PopulationContext.Build()`. `CopyTokensFromNearest` uses cached positions for O(n) lookup. Saves 500ms-2s per 1000-element batch.
+421. **LOGIC-CRIT-01: SeqKey derived values** — `BuildAndWriteTag` seqKey always uses derived token values, preventing counter group mismatch and duplicate SEQ numbers.
+422. **LOGIC-CRIT-02: Safety limit returns false** — `MaxCollisionDepth` exhaustion returns `false` with counter rollback instead of writing duplicate tag.
+423. **SM-CRIT-01: Oversized viewport rejection** — Viewports larger than drawable zone skipped entirely, preventing infinite overflow sheet creation.
+424. **EL-CRIT-01: Excel import safety** — 10K row guard + case-insensitive header mapping.
+425. **PERF-03: BIP availability cache** — `ConcurrentDictionary` caches absent BuiltInParameters per category, saving 10-30ms/element.
+426. **PERF-04: ConnectorInherit early-exit** — Zero-connector elements skip graph traversal.
+427. **PERF-05+06: ComplianceScan optimized** — Skip container check when TAG1 empty + lazy iterator (no .ToList()).
+428. **PERF-07: AutoTagger TTL context** — 5-second TTL instead of immediate rebuild on every invalidation.
+429. **LOGIC-01: Workflow cache fix** — Both compliance AND stale caches invalidated after each step.
+430. **LOGIC-02: Retry stepResult fix** — `stepResult = Result.Failed` on exception catch in retry loop.
+431. **LOGIC-04: CDE enforcement** — `ValidateCDETransition()` called before CDE state writes.
+432. **LOGIC-05: Issue audit trail** — `created_by`, `created_date`, `modified_by`, `modified_date` fields added.
+433. **TS-02: Sheet renumber conflict** — Pre-flight conflict detection against all existing sheet numbers.
+
+#### Completed (Phase 44 — BIM Coordinator Workflow Automation & Event-Driven Notifications)
+
+434. **NTF-01: Issue creation notification** — Push notification via Telegram/Teams/Discord/Email after `RaiseIssueCommand`. Priority mapped from issue severity.
+435. **NTF-02: Issue update notification** — Notification after bulk status changes in `UpdateIssueCommand`.
+436. **NTF-03: Revision creation notification** — HIGH priority notification with compliance %, stale count, snapshot size after `CreateRevisionCommand`.
+437. **NTF-05: COBie export notification** — MEDIUM priority notification with component/system counts after COBie data assembly.
+438. **NTF-07: File monitor priority filtering** — `.rvt/.ifc/.nwd/.nwc` → HIGH, `.pdf/.xlsx/.csv/.bcf/.dwg` → MEDIUM, `.jpg/.png/.bmp/.log/.bak` → SKIP. Reduces notification noise.
+439. **WF-03: Pre-revision compliance gate** — `CreateRevisionCommand` checks compliance before creating revision. If <80%, shows discipline breakdown with tag/stale/untagged counts. Option to proceed or cancel.
+440. **GAP-11: Container write retry fix** — Checks category-specific containers via `ContainersForCategory()` instead of TAG2 sentinel.
+441. **GAP-12: Compliance gate discipline breakdown** — `CheckComplianceGate()` shows per-discipline compliance table, stale count, and prioritized suggested actions.
+442. **REV-02: COBie revision audit trail** — Instruction sheet includes source revision, compliance %, export timestamp, model title for FM change traceability.
+
+#### Completed (Phase 45 — Deep Review: Pipeline Logic, BIM Coordination & Workflow Automation)
+
+443. **LOGIC-003: Container compliance tracked separately** — `ComplianceScan.ComplianceResult.ContainerCompletePct` now reports percentage of tagged elements with all applicable discipline containers populated. Previously, elements with TAG1 but empty containers showed as "compliant" — now status bar shows "85% containers" separately from "92% tagged", preventing false-green deliverables.
+444. **LOGIC-010: Grid ref absence logged distinctly** — `RunFullPipeline` now logs "No grids found in document" once per session (via `_noGridsLoggedThisSession` flag) instead of silently skipping GRID_REF for every element. BIM coordinators can now distinguish "no grids defined" from "grids exist but element is off-grid". Flag reset on document close/switch via `InvalidateSessionCaches()`.
+445. **GAP-BIM-001: Excel import cross-validation** — New `ValidateTokenCrossRefs(disc, sys, func, prod)` method in `ExcelLinkEngine` validates FUNC codes against SYS per CIBSE/Uniclass (e.g., FUNC=PWR invalid for SYS=HVAC), and DISC-SYS consistency (e.g., SYS=HVAC must belong to DISC=M). `ValidateChanges()` now runs Phase 2 cross-token validation after individual token checks, grouping changes by element to detect cross-discipline mismatches before import.
+446. **GAP-BIM-004: Revision change categorization** — `RevisionEngine.ParamChange.ChangeCategory` computed property classifies each parameter change as TOKEN_CHANGE (source tokens), CONTAINER_REGEN (discipline containers), NARRATIVE_CHANGE (TAG7A-F), STATUS_CHANGE (STATUS/REV), or TAG_REFORMAT (TAG1-TAG6). Enables granular revision reports distinguishing major token changes from minor container regenerations.
+447. **GAP-BIM-005: Issue SLA enforcement** — `BIMManagerEngine.SLAThresholdsHours` defines ISO 19650-aligned SLA per priority: CRITICAL=4h, HIGH=24h, MEDIUM=1wk, LOW=2wk. `CheckSLAViolations(doc)` scans open issues against creation timestamp. Wired into `OnDocumentOpened` to show morning SLA alert dialog with overdue count, most-overdue issue, and hours overdue.
+448. **GAP-BIM-006: File monitor deduplication** — `FileMonitorEngine.OnFileEvent` deduplication key changed from `ChangeType:Path` (allowing 3 notifications per save) to `Path` only with 5-second coalescing window. Network drive saves that trigger Created+Modified+Attributes now produce single notification. Cache cleanup threshold raised to 200 entries for high-volume project folders.
+449. **GAP-BIM-010: Dialog state persistence** — `DocumentManagementDialog` remembers last-selected tab index across reopens via static `_lastTabIndex`. SelectionChanged handler updates state on tab switch. Saves ~10 minutes/day of re-navigation for coordinators who frequently open/close the dialog.
+450. **NTF-07 enhanced: File type SKIP list** — `.jpg/.png/.bmp/.log/.bak` files now completely skipped in file monitor (no notification at all), reducing alert fatigue for non-deliverable file changes.
+
 ### External Tool References
 
 - [BIMLOGiQ Smart Annotation](https://bimlogiq.com/product/smart-annotation) — AI-powered tag placement with collision avoidance
@@ -2092,3 +2132,245 @@ Critical review of the tagging workflow identified the following logic, automati
 - [The Building Coder — Tag Extents](https://thebuildingcoder.typepad.com/blog/2022/07/tag-extents-and-lazy-detail-components.html) — Getting accurate tag bounding boxes
 - [Revit API — OverrideGraphicSettings](https://www.revitapidocs.com/2025/eb2bd6b6-b7b2-5452-2070-2dbadb9e068a.htm) — Complete graphic override API
 - [Revit API — IndependentTag](https://www.revitapidocs.com/2025/e52073e2-9d98-6fb5-eb43-288cf9ed2e28.htm) — Tag creation and positioning API
+
+---
+
+## StingBIM Server
+
+### Overview
+
+**StingBIM Server** is a cloud backend that transforms the single-machine Revit plugin into a multi-user, multi-tenant SaaS platform. Located in `StingBIM.Server/`.
+
+### Technology Stack
+
+| Layer | Technology |
+|---|---|
+| API | ASP.NET Core 8.0 (net8.0) |
+| Database | PostgreSQL 16 + EF Core 8 |
+| Cache | Redis 7 |
+| Real-time | SignalR |
+| Auth | JWT + Refresh tokens |
+| File Storage | MinIO (S3-compatible) |
+| Container | Docker Compose |
+
+### Project Structure
+
+```
+StingBIM.Server/
+├── StingBIM.sln                          # Solution file
+├── docker/
+│   ├── docker-compose.yml                # API + Postgres + Redis
+│   └── Dockerfile                        # Multi-stage API build
+└── src/
+    ├── StingBIM.API/                     # ASP.NET Core Web API
+    │   ├── Controllers/
+    │   │   ├── AuthController.cs         # Login + license activation
+    │   │   ├── ProjectsController.cs     # CRUD + dashboard
+    │   │   ├── TagSyncController.cs      # Bulk tag sync from plugin
+    │   │   ├── ComplianceController.cs   # Snapshot push/pull + trend
+    │   │   ├── IssuesController.cs       # CRUD + SLA tracking
+    │   │   ├── DocumentsController.cs    # CDE state machine
+    │   │   ├── WorkflowsController.cs    # Run logging + trend
+    │   │   ├── MeetingsController.cs     # Agenda + action items
+    │   │   ├── SeqSyncController.cs      # Max-per-key merge
+    │   │   ├── TransmittalsController.cs # ISO 19650 transmittals
+    │   │   ├── WarningsController.cs     # Warning reports + baseline
+    │   │   ├── AdminController.cs        # Org + user + audit management
+    │   │   └── MimController.cs          # StingMIM asset lifecycle
+    │   ├── Middleware/
+    │   │   └── TenantResolutionMiddleware.cs
+    │   ├── SeedData.cs                   # Demo tenant + project + issues
+    │   └── Program.cs                    # DI, middleware, SignalR hubs
+    │
+    ├── StingBIM.Core/                    # Domain entities + DTOs
+    │   ├── Entities/
+    │   │   ├── Tenant.cs                 # Multi-tenant org
+    │   │   ├── AppUser.cs                # JWT user with ISO 19650 role
+    │   │   ├── Project.cs                # BIM project container
+    │   │   ├── TaggedElement.cs          # 8-segment tag data
+    │   │   ├── BimIssue.cs               # RFI/NCR/SI issue
+    │   │   ├── DocumentRecord.cs         # CDE document with state
+    │   │   ├── ComplianceSnapshot.cs     # Point-in-time compliance
+    │   │   ├── SeqCounter.cs             # Sequence number counter
+    │   │   ├── Meeting.cs                # Meeting + action items
+    │   │   ├── Transmittal.cs            # Document transmittal
+    │   │   ├── WorkflowRun.cs            # Workflow execution record
+    │   │   ├── LicenseKey.cs             # License with tier + seats
+    │   │   └── AuditLog.cs               # Write operation audit trail
+    │   ├── DTOs/SyncDtos.cs              # Sync request/response models
+    │   └── Interfaces/IRepository.cs
+    │
+    ├── StingBIM.Infrastructure/          # EF Core + SignalR
+    │   ├── Data/StingBimDbContext.cs      # 15 DbSets, indexes, relationships
+    │   ├── Services/TenantContext.cs
+    │   └── SignalR/
+    │       └── ComplianceHub.cs          # ComplianceHub + TagSyncHub
+    │
+    ├── StingBIM.MIM/                     # Model Information Management
+    │   ├── Entities/Asset.cs             # 40+ field asset entity
+    │   ├── Entities/MaintenanceTask.cs   # PPM scheduling per BS 8210
+    │   └── Services/AssetService.cs
+    │
+    ├── StingBIM.Shared/                  # Cross-cutting (plugin + server)
+    │   ├── Constants/ISO19650Codes.cs    # DISC/SYS/FUNC/PROD/LOC/ZONE codes
+    │   ├── Models/SyncModels.cs          # PluginSyncPayload DTOs
+    │   └── Helpers/TagFormatHelper.cs    # Tag validation/parsing
+    │
+    └── StingBIM.PluginSync/             # Plugin-side sync client
+        ├── SyncClient.cs                # HTTP + JWT auth client
+        ├── OfflineQueue.cs              # File-backed offline queue
+        └── SyncScheduler.cs            # 5-min periodic sync
+```
+
+### API Endpoints Summary
+
+| Area | Endpoint | Methods |
+|---|---|---|
+| Auth | `/api/auth/login`, `/api/auth/license/activate` | POST |
+| Projects | `/api/projects` | GET, POST |
+| Dashboard | `/api/projects/{id}/dashboard` | GET |
+| Tag Sync | `/api/tagsync/sync`, `/elements/{id}`, `/compliance/{id}` | POST, GET |
+| Compliance | `/api/projects/{id}/compliance` | POST, GET (latest/history/trend) |
+| Issues | `/api/projects/{id}/issues` | GET, POST, PUT + SLA report |
+| Documents | `/api/projects/{id}/documents` | GET, POST + CDE transition |
+| Workflows | `/api/projects/{id}/workflows` | POST run, GET history/trend |
+| Meetings | `/api/projects/{id}/meetings` | GET, POST + actions + open |
+| SEQ Sync | `/api/projects/{id}/seq` | POST sync, GET counters |
+| Transmittals | `/api/projects/{id}/transmittals` | GET, POST, PUT send |
+| Warnings | `/api/projects/{id}/warnings` | POST report/baseline, GET trend |
+| MIM | `/api/projects/{id}/mim/assets`, `/maintenance`, `/dashboard` | GET, POST, bulk |
+| Admin | `/api/admin/org`, `/users`, `/audit`, `/licenses` | GET, POST, PUT |
+| SignalR | `/hubs/compliance`, `/hubs/tagsync` | WebSocket |
+| Health | `/health` | GET |
+
+### Pricing Tiers
+
+| Tier | Users | Price | Projects |
+|---|---|---|---|
+| Starter | 1 | Free | 1, local only |
+| Professional | 1-5 | $15/user/mo | 5, cloud sync |
+| Premium | 6-100 | $25/user/mo | Unlimited |
+| Enterprise | 100+ | Custom | SSO, on-prem |
+| StingMIM | Add-on | $10-17/user/mo | FM, digital twin |
+
+### Running Locally
+
+```bash
+cd StingBIM.Server/docker
+docker compose up -d
+# API: http://localhost:5000
+# Swagger: http://localhost:5000/swagger
+# Demo login: admin@stingbim.demo / admin123
+```
+
+#### Completed (Phase 46 — Intelligent Warnings Manager, Auto-Tagger Bulk Fix, Token Writer Enhancement)
+
+451. **WarningsManager.cs** — `Core/WarningsManager.cs` (1,115 lines): Comprehensive Revit warnings management engine with 8 commands, `WarningsEngine` (classification, auto-fix, baseline/trend, CSV export), and `StingWarningHandler` (IFailuresPreprocessor with Silent/Selective/Strict modes). Goes beyond BIM42/Ideate/pyRevit with BIM-domain classification (Geometric/Spatial/MEP/Structural/Annotation/Data/Performance/Compliance), 5-tier severity, 55+ classification pattern rules, per-level/workset/discipline breakdown, hotspot detection (top 20 elements by warning count), baseline trend tracking with delta symbols (↑↓→), suppression list (persisted to project_config.json), auto-fix strategies (duplicate instances, room separation overlaps, duplicate marks, unjoined geometry), batch auto-fix with dry-run preview, ISO 19650 compliance mapping, and warning monitor for regression detection.
+452. **WarningsDashboardCommand** — Comprehensive dashboard: total warnings with trend vs baseline, severity/category/discipline/level/workset breakdowns, auto-fixable vs manual-review counts, top 10 hotspot elements.
+453. **WarningsAutoFixCommand** — Batch auto-fix: scan → filter fixable → preview fix strategies → single transaction → report. Strategies: delete duplicate instances, delete shorter room separation line, auto-increment duplicate marks, unjoin non-intersecting geometry.
+454. **WarningsExportCommand** — CSV export with 10 columns (Description, Category, Severity, FixStrategy, CanAutoFix, ElementIds, Level, Workset, Discipline, CategoryName) for BIM360/Aconex/external tracking.
+455. **WarningsBaselineCommand** — Save current warning count as `.sting_warnings_baseline.json` sidecar. Compare against previous baseline with delta report.
+456. **WarningsSelectElementsCommand** — Pick warning type from grouped list → select all affected elements in model view.
+457. **WarningsSuppressCommand** — Add warning patterns to suppression list (persisted to `WARNING_SUPPRESS_PATTERNS` in project_config.json). Suppressed warnings hidden from dashboard but still counted.
+458. **WarningsComplianceCommand** — ISO 19650 / CIBSE / BS 7671 compliance report mapping warnings to standard requirements. PASS/FAIL per requirement category.
+459. **WarningsMonitorCommand** — Pre/post-command warning count tracking. `SnapshotBefore()` + `CheckAfter()` detect warning regression after major operations.
+460. **StingWarningHandler** — `IFailuresPreprocessor` with 3 modes: Silent (dismiss all for batch), Selective (auto-resolve known, dismiss unknown), Strict (rollback on any warning for compliance-gated operations). Tracks encountered warnings for post-transaction reporting.
+461. **GAP-AT-01: Bulk paste queue** — `StingAutoTagger` now queues elements to deferred processing instead of silently dropping batches >50 elements. Uses existing `EnqueueDeferred()` infrastructure from worksharing deferred queue. Bulk paste no longer loses tags.
+462. **GAP-AT-03: Discipline filter persistence** — `SetDisciplineFilter()` persists to `AUTO_TAGGER_DISC_FILTER` in project_config.json. `RestoreDisciplineFilter()` called from `OnDocumentOpened` so filter survives document close/reopen.
+463. **GAP-TW-01: SetDisc updates downstream SYS/FUNC** — `SetDiscCommand` now detects cross-discipline mismatches after DISC change (e.g., DISC=M but SYS=LV). Offers to auto-update SYS/FUNC tokens to match new discipline, preventing invalid ISO 19650 tags.
+464. **Dispatch + XAML** — 8 dispatch entries wired in StingCommandHandler.cs. 8 XAML buttons added to BIM tab Warnings Manager section.
+
+#### Completed (Phase 47 — Unified BIM Coordination Center, Enhanced Warnings Manager, Workflow Automation)
+
+465. **BIM Coordination Center** — `UI/BIMCoordinationCenter.cs` (~1,800 lines): Unified corporate-style WPF dialog merging 6 separate dialogs (Model Health, Project Dashboard, Platform Sync, Revision Dashboard, Issue Tracker, Warnings Manager) into a single 7-tab tabbed interface. Features: left navigation panel (OVERVIEW/MODEL HEALTH/WARNINGS/ISSUES/REVISIONS/PLATFORM/WORKFLOWS), header strip with project name + RAG status + compliance %, KPI cards (Total Elements, Tag Compliance %, Warnings, Open Issues), per-discipline compliance mini-table, RAG progress bars, quick action buttons dispatching to commands, corporate dark-blue/orange theme (#1A237E/#E8912D), VirtualizingStackPanel for all lists, keyboard shortcuts (F5=Refresh, Ctrl+E=Export, Escape=Close). Replaces plain-text TaskDialogs for Model Health Dashboard, Project Dashboard, and Platform Sync with rich WPF panels. Preserves DataGrid views for Issues and Revisions with inline filtering.
+466. **BIMCoordinationCenterCommand** — `Core/WarningsManager.cs`: New `IExternalCommand` that assembles all data (ComplianceScan, WarningsEngine, issues.json, revisions, model health metrics, platform sync state, workflow history) and opens the unified dialog. Processes returned action tags to dispatch follow-up commands (RunDailyQA, AutoFixWarnings, RaiseIssue, CreateRevision, SyncPlatform, ExportCOBie, etc.).
+467. **WarningsEngine cross-system integration** — 5 new methods in `WarningsEngine`:
+    - `CreateIssuesFromWarnings(doc, warnings, minSeverity)` — Auto-creates issues from critical/high warnings grouped by category. Issue type NCR for Critical, SI for High. Returns created issue summaries.
+    - `CheckWarningGate(doc, maxCritical, maxTotal)` — Compliance gate that blocks handover/export when critical warnings exceed threshold. Returns pass/fail with reason.
+    - `CompareWithRevisionBaseline(doc)` — Compares current warning types against last baseline, returns added/removed/unchanged delta with new warning type list.
+    - `CalculateWarningHealthScore(report)` — Weighted health score 0-100: Critical=-20, High=-5, Medium=-2, Low=-1 per warning from base 100.
+    - 12 new classification rules (stair path, railing, curtain wall, ceiling, level, family, workset, material, phase, underlay, grid, section) expanding coverage from 55 to 67 pattern rules.
+468. **Workflow automation enhancements** — 3 new built-in workflow presets:
+    - `MorningHealthCheck` (8 steps): Stale fix → warnings auto-fix → tag new → pre-tag audit → validate → template assign → tag sheets → revision check. Designed for BIM coordinator daily morning routine.
+    - `HandoverReadiness` (9 steps): Stale fix → full tag → validate → template validate → COBie export → drawing register → BOQ → update BEP → create revision. Pre-handover validation with compliance gates.
+    - `WeeklyDataDrop` (8 steps): Stale fix → resolve placeholders → validate → register export → COBie → sheet numbering → register → revision. ISO 19650 information exchange.
+469. **Warning-aware workflow conditions** — 3 new workflow step conditions:
+    - `has_warnings` — Skip step if model has zero warnings (for WarningsAutoFix step)
+    - `has_critical_warnings` — Skip step if no critical-severity warnings exist
+    - `has_open_issues` — Skip step if no open issues in issues.json
+470. **WorkflowEngine command resolution expanded** — Added 10 new command tags to `ResolveCommand()`: WarningsDashboard, WarningsAutoFix, WarningsExport, WarningsBaseline, WarningsCompliance, BIMCoordinationCenter, CompletenessDashboard, TagRegisterExport, ModelHealthDashboard.
+471. **Dispatch + XAML** — BIMCoordinationCenter dispatch entry wired in StingCommandHandler.cs. "Coordination Center" button added to BIM tab with blue styling and descriptive tooltip.
+
+#### Completed (Phase 48 — Deep Review: Interactive Corporate Dashboards, Workflow Automation & Gap Fixes)
+
+472. **BIM Coordination Center rewrite** — `UI/BIMCoordinationCenter.cs` (~1,800 lines): Complete overhaul with 9 tabs (OVERVIEW, MODEL HEALTH, WARNINGS, ISSUES, REVISIONS, PLATFORM, WORKFLOWS, QA DASHBOARD, 4D/5D SCHEDULING). Interactive corporate UI with: hover tooltips on all KPI cards showing drill-down details, double-click handlers on discipline table rows for element selection, context menus on table rows (Select/Export/Drill Down), configurable RAG thresholds from CoordData (not hardcoded 80/50), auto-refresh timer (30-second status bar updates), 5th KPI card for container compliance, phase-based compliance section in overview.
+473. **Issues tab with DataGrid** — Full WPF DataGrid replacing placeholder text: columns (ID, Title, Type, Priority, Status, Assignee, Created, DaysOpen), row background color coding (red=overdue, amber=critical), double-click row sets ResultAction for element selection, filter dropdown for Status (All/Open/Closed/Critical/Overdue), SLA-based overdue calculation per priority.
+474. **Revisions tab with DataGrid** — Full WPF DataGrid: columns (ID, Name, Date, Description, Clouds, Status), double-click to view revision details, summary metrics strip.
+475. **QA Dashboard tab** — New tab: token coverage matrix (8 tokens with filled/empty/placeholder counts from EmptyTokenCounts), validation summary per issue type, anomaly detection summary with auto-fix action button, placeholder count display, compliance trend metrics.
+476. **4D/5D Scheduling tab** — New tab: KPI cards (Total Tasks, Est. Cost, Milestones, Earned Value %), cost breakdown by phase with mini progress bars, milestone progress section, action buttons (AutoSchedule4D, AutoCost5D, ViewTimeline, CostReport, CashFlow, ExportSchedule).
+477. **ComplianceScan phase-based compliance** — `ComplianceScan.cs`: Added `ByPhase` dictionary tracking per-phase compliance (Total/Tagged/CompliancePct per Revit phase). `PhaseComplianceData` class added. Phase name derived from `BuiltInParameter.PHASE_CREATED`. STATUS and REV added to `EmptyTokenCounts` dictionary (10 tokens: DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ/STATUS/REV). `PlaceholderCount` tracks elements with GEN/XX/ZZ/0000 tokens.
+478. **WarningsManager SLA enforcement** — `Core/WarningsManager.cs`: Added `SLAThresholdsHours` (Critical=4h, High=24h, Medium=168h, Low=336h per ISO 19650). `CheckWarningSLAViolations()` calculates violations against baseline timestamps. `SLAViolations` and `AvgCriticalAgeHours` added to `WarningReport`. Integrated into `ScanWarnings()` pipeline.
+479. **Extended warning baseline** — `SaveExtendedBaseline()` persists warning types array alongside count and timestamp for type-level regression analysis. Enables `CompareWithRevisionBaseline()` to detect new warning TYPES (not just count changes).
+480. **Warning drill-down tooltips** — `BuildTopWarningsByCategory()` builds top-3 warning descriptions per category for hover tooltip display in BIM Coordination Center. `TopWarningsByCategory` dictionary added to `WarningReport`.
+481. **WorkflowEngine last-workflow memory** — `LastWorkflowName`, `LastWorkflowResult`, `LastWorkflowTime` static properties persist last workflow execution. `LAST_WORKFLOW_NAME` saved to `project_config.json` for cross-session persistence. "Repeat Last Workflow" dispatch entry wired.
+482. **WorkflowEngine skipIfPreviousSkipped** — `WorkflowStep.SkipIfPreviousSkipped` property enables cascade-skip logic: if step N is skipped due to condition, step N+1 with this flag also skips. Prevents unnecessary steps when their prerequisite was skipped.
+483. **WorkflowEngine pre-flight model check** — `WorkflowEngine.PreFlightCheck()` validates model suitability before workflow execution: element count thresholds, worksharing requirements, data file availability. Returns issues list for user review.
+484. **WorkflowEngine minWarningHealthScore** — New `WorkflowStep.MinWarningHealthScore` condition: skip step if warning health score exceeds threshold (e.g., skip WarningsAutoFix when health > 80).
+485. **BIMCoordinationCenterCommand enhanced data assembly** — Issue rows and revision rows now loaded as structured data objects (`IssueRow`, `RevisionRow`) for DataGrid display. Overdue issues calculated from SLA thresholds per priority. Container compliance and phase compliance populated from ComplianceScan.
+486. **Dispatch entries** — 12 new dispatch entries: RepeatLastWorkflow (inline handler with last-workflow memory), 8 RunWorkflow_* entries for direct workflow preset execution from BIM Coordination Center, SaveExtendedBaseline for typed baseline persistence.
+487. **Hidden issue fixes** — ComplianceScan `EmptyTokenCounts` now includes STATUS/REV (previously missing, causing dashboard to undercount). Placeholder elements tracked separately from incomplete elements. Phase compliance enables BIM coordinators to track per-stage progress (Phase 1 existing vs Phase 2 new construction).
+488. **Warnings TreeView** — Interactive TreeView in Warnings tab grouped by Category > Description with expand/collapse, severity-colored category nodes, top-3 warning descriptions per category, double-click tree nodes to select affected elements and zoom to location. Replaces flat text lists with fully interactive navigation.
+489. **Action Required panel** — Priority-sorted clickable action items in Overview tab: stale elements, overdue issues, critical warnings, untagged elements, placeholder tokens, SLA violations. Each item clickable to dispatch the appropriate fix command. Yellow warning card with colored severity dots.
+490. **Discipline table interactive** — Discipline compliance table rows now interactive: double-click to select all elements of that discipline, hover highlighting (light blue), tooltips showing untagged count. Uses configurable RAG thresholds from CoordData.
+491. **SLA violations display** — Warning summary strip shows SLA violation count chip when violations > 0. SLA thresholds per ISO 19650: Critical=4h, High=24h, Medium=1wk, Low=2wk.
+492. **Quick coordination actions** — "Repeat Last Workflow", "Full Compliance Dashboard", "Document Center" added to overview quick actions. Enables one-click access to most-used BIM coordinator operations.
+493. **Drill-down dispatch** — `SelectByDisc_*`, `SelectWarning_*`, `SelectIssue_*` action patterns dispatched through StingCommandHandler to element selection commands with ExtraParam context passing.
+
+#### Completed (Phase 50 — BIM Coordination Center: UI Fix, Keep-Open Loop, 3D Zoom, Meetings, Platforms)
+
+494. **Lifeless buttons NRE fix** — Fixed `NullReferenceException` crash in all 9 `WarningsManager.cs` commands (`WarningsDashboardCommand`, `BIMCoordinationCenterCommand`, etc.) that used `commandData.Application.ActiveUIDocument` directly. Replaced with `ParameterHelpers.GetApp(commandData)` which falls back to `StingCommandHandler.CurrentApp` when `commandData` is null (as passed by `RunCommand<T>`).
+495. **Keep-dialog-open loop** — BIM Coordination Center now stays open after each command execution, same `while(true)` loop pattern as Document Manager. Refactored `BIMCoordinationCenterCommand` into `BuildCoordData()` and `ProcessAction()` static methods. `StingCommandHandler` uses loop: show dialog → execute command → refresh CoordData → reshow dialog. All tabs auto-refresh with fresh data after every operation.
+496. **3D section box zoom** — Double-clicking warnings in TreeView, issues in DataGrid, and hotspot elements creates/reuses a `STING - Section Box Zoom` 3D view with 3ft padding around affected elements. `ZoomToElementIn3D()` utility computes aggregate bounding box across multiple element IDs. Right-click context menus offer both "Zoom to 3D Section Box" and "Select Elements in Model". Handles `ZoomToWarning_*`, `ZoomToIssue_*`, `ZoomToElement_*` action patterns. Warning elements resolved via `doc.GetWarnings()` description text matching.
+497. **Meeting Manager tab (13th)** — Full meeting coordination with: upcoming meetings display from `meetings.json` sidecar, prepare section (New Meeting, Auto Agenda, Meeting Templates), during section (Log Minutes, Add Action Item, Quick Issue, Take Snapshot), review section (Meeting History, Open Actions, Export Minutes, Send Reminder), action items summary with overdue tracking and top-5 display, coordination metrics KPI cards (Meetings, Actions, Close Rate, Overdue). `LoadMeetings()` and `LoadActionItems()` helpers parse JSON sidecar data.
+498. **Enhanced Platform tab** — Added 7 cloud platforms (Procore, Aconex/Oracle, Trimble Connect, Bentley iTwin, Viewpoint 4P alongside existing ACC and SharePoint). Added descriptive text for each section (CDE, BCF, Data Exchange). New Handover & Bulk Export section with FM Handover, Stage Gate, Tag Register, Sheet Register, BOQ Export buttons. Added Export Template, COBie Stream buttons. All 20+ buttons have descriptive tooltips.
+499. **60+ action button tooltips** — `GetActionTooltip(actionTag)` dictionary provides contextual help for all action buttons across all tabs. Covers Overview, Model Health, Warnings, Issues, Revisions, Platform, 4D/5D, QA, and Deliverables actions.
+
+#### Completed (Phase 51 — BIM Coordination Center: Tab Enrichment & Automation)
+
+500. **MODEL HEALTH enriched** — 4 KPI cards (Health Score, Tag Coverage, Warnings, Stale) replacing single-line header. Health checks with severity icons (✔/⚠/✘) and colored left borders. Actionable "Fix" buttons on failing checks mapping to specific commands via `GetHealthCheckAction()`. Recommendations with inline "Fix" buttons auto-inferred from text via `InferRecommendationAction()`. Phase-based health bars. Container completion RAG bar.
+501. **WORKFLOWS enriched** — 4 KPI cards (Total Runs, Last Run, Compliance Δ, History). Quick Workflow buttons with detailed tooltips for 6 most-used presets. Execution History DataGrid (Time, Preset, Steps, Pass/Fail/Skip, Duration, Before/After compliance) loaded from `STING_WORKFLOW_LOG.json` via `WorkflowRunRow` data class. "Repeat Last" button with last workflow name display.
+502. **QA DASHBOARD enriched** — 4 KPI cards (Placeholders, Anomalies, Stale, Validation Errors). `ValidationErrors` breakdown with count bars and mini-bar visualization (was in CoordData but never rendered). Cross-System Integrity section showing stale↔warning↔issue correlation. Schema Validate action button.
+503. **ISSUES context menu** — Right-click DataGrid rows: Zoom to 3D Section Box, Select Linked Elements, Update Issue Status. Enhanced empty state message with issue type descriptions. Add to Meeting and Create Transmittal automation buttons linking issues to meetings and document exchange.
+504. **TEAM workload visualization** — `TasksByAssignee` stacked bar chart showing workload distribution across team members (tasks=blue, issues=orange) with legend. Was computed in CoordData but never rendered. Hover tooltips show per-assignee task/issue breakdown.
+505. **COORD LOG search/filter** — Search box with watermark text for action/detail/user filtering. Category dropdown filter (dynamic from log data). Impact level dropdown filter (HIGH/MEDIUM/LOW/All). Real-time `applyFilter()` lambda updates DataGrid as user types.
+
+#### Completed (Phase 52 — Permissions, SLA, Compliance Forecast, Information Flow)
+
+506. **PERMISSIONS tab (14th)** — ISO 19650 role-based access control visualization. Current User card with role, CDE access, approval/issue rights. Role Definitions table (14 ISO 19650 roles: A/M/E/S/H/P/C/I/K/Q/F/W/L/Z) with discipline, CDE write access, approve/issue capabilities. CDE Folder Permissions matrix (12 folders: WIP, SHARED, PUBLISHED, ARCHIVE, MODELS, DRAWINGS, SCHEDULES, COBie, BEP, ISSUES, CLASHES, HANDOVER) with read/write/approve roles and lock status. CDE State Transition Rules visualization (7 transitions with from→to chips, descriptions, approver roles). `FolderPermission` and `RoleDefinition` data classes. `GetDefaultRoles()` and `GetDefaultFolderPermissions()` provide ISO 19650-compliant defaults.
+507. **SLA Violations in OVERVIEW** — Shows critical (4-hour) and high (24-hour) SLA breaches with average critical issue age. Populated from `issues.json` SLA calculation in `BuildCoordData()`.
+508. **Compliance Forecast in OVERVIEW** — Projects compliance 3 cycles ahead using linear trend from last 5 workflow runs. Shows trending up/down/stable with projected percentage.
+509. **Dead button dispatch wiring** — 6 previously unhandled buttons wired: ExportCoordLog, ClearCoordLog, IssueBatchUpdate, AssignIssues, TeamReport, SheetNamingCheck. Action Required items now show tooltips with command name and description.
+
+#### Completed (Phase 53 — Cross-System Automation Logic Engine)
+
+510. **Automation Rules engine** — 6 cross-system automation rules displayed in MEETINGS tab with real-time status evaluation and one-click execution:
+  - **Overdue Action → Issue Escalation**: Auto-create HIGH-priority NCR issues from overdue meeting actions
+  - **Open Issues → Next Meeting Agenda**: Auto-populate next meeting agenda from open issues grouped by type/priority
+  - **Compliance Gate → Transmittal Trigger**: Auto-create SHARED transmittal when compliance ≥80%, containers ≥80%, 0 critical warnings
+  - **Meeting Closure → Follow-Up Scheduling**: Auto-schedule follow-up meeting carrying forward open actions
+  - **SLA Violation → Priority Escalation**: Auto-escalate issue priority when SLA threshold exceeded
+  - **Stale Elements → Auto-Retag**: Auto-retag elements that have moved/changed since last tag
+511. **Cross-System Links visualization** — Shows data flow connections: Meetings→Issues, Issues→Transmittals, Transmittals→Compliance, Compliance→Warnings, Warnings→Stale. Displays live counts for each link.
+512. **MakeAutomationRule helper** — Reusable WPF component with title, status text, colored left border (orange=actionable, grey=resolved), inline "Run" button for actionable rules, green checkmark for resolved rules, and descriptive tooltips.
+513. **Issue↔Meeting↔Transmittal buttons** — Added "Add to Meeting" and "Create Transmittal" automation buttons to Issues tab, linking issue resolution to meeting coordination and document exchange workflows.
+
+#### Completed (Phase 54 — Coordination Center Action Fixes & UI Enhancement)
+
+514. **Meeting actions wired inline** — 9 `DocumentManagementDialog` meeting methods changed from `private` to `internal`. `ProcessAction` now handles NewMeeting, AddActionItem, AutoAgenda, LogMinutes, MeetingTemplates, MeetingHistory, OpenActions, ExportMinutes, SendReminder directly instead of routing generically to DocumentManager.
+515. **EditUserRoleInline** — WPF role selection dialog with 14 ISO 19650 roles (A/M/E/S/H/P/C/I/K/Q/F/W/L/Z). Shows CDE permission preview (folder access, approval rights, notification routing). Saves `USER_ROLE` to `project_config.json`.
+516. **TakeModelSnapshot** — Captures model compliance state: tag %, container %, warnings, stale count, per-discipline breakdown, warning health score. Saves to `snapshots.json` sidecar for meeting record and trend tracking.
+517. **EscalateOverdueActions** — Scans `meetings.json` for overdue OPEN action items. Auto-creates NCR issues with HIGH priority, cross-references to original action. Marks original actions as ESCALATED with issue ID link.
+518. **Meeting action items interactive** — Grid layout with description/assignee/due columns. Hover highlight, rich tooltips with instructions, context menus (Mark Complete, Escalate to NCR, Reassign, Add to Agenda). Overdue items highlighted red with border. Shows top 8 with "+N more" link.
+519. **Meeting rows interactive** — Upcoming meeting rows clickable with hover highlight. Context menus: Log Minutes, Add Action Item, Export Minutes, Send Reminder. Rich tooltips with meeting details.
+520. **Overview quick actions expanded** — Added New Meeting, Take Snapshot, Validate Tags buttons to quick actions panel.
+521. **20+ action tooltips added** — All meeting, permission, workflow, and snapshot actions documented in `GetActionTooltip()` for hover help.

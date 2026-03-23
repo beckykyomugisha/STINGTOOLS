@@ -290,10 +290,68 @@ namespace StingTools.Core
         /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
         [JsonProperty("timeoutSeconds")]
         public int TimeoutSeconds { get; set; } = 300;
+
+        /// <summary>Phase 48: Skip step if the previous step was skipped.</summary>
+        [JsonProperty("skipIfPreviousSkipped")]
+        public bool SkipIfPreviousSkipped { get; set; }
+
+        /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
+        [JsonProperty("minWarningHealthScore")]
+        public int? MinWarningHealthScore { get; set; }
     }
 
     internal static class WorkflowEngine
     {
+        // Phase 48: Last workflow memory for "Repeat Last" feature
+        private static string _lastWorkflowName;
+        private static string _lastWorkflowResult;
+        private static DateTime _lastWorkflowTime;
+
+        /// <summary>Phase 48: Name of the last successfully executed workflow preset.</summary>
+        public static string LastWorkflowName => _lastWorkflowName;
+
+        /// <summary>Phase 48: Result summary of last workflow execution.</summary>
+        public static string LastWorkflowResult => _lastWorkflowResult;
+
+        /// <summary>Phase 48: Timestamp of last workflow execution.</summary>
+        public static DateTime LastWorkflowTime => _lastWorkflowTime;
+
+        /// <summary>Phase 48: Pre-flight model check — verifies model is suitable for workflow execution.
+        /// Returns (canProceed, issues) where issues lists any blocking conditions.</summary>
+        public static (bool canProceed, List<string> issues) PreFlightCheck(Document doc, WorkflowPreset preset)
+        {
+            var issues = new List<string>();
+            if (doc == null) { issues.Add("No document is open."); return (false, issues); }
+
+            // Check element count thresholds
+            try
+            {
+                int elementCount = new FilteredElementCollector(doc).WhereElementIsNotElementType().GetElementCount();
+                foreach (var step in preset.Steps)
+                {
+                    if (step.MinElementCount.HasValue && elementCount < step.MinElementCount.Value)
+                        issues.Add($"Step '{step.Label}' requires min {step.MinElementCount} elements (model has {elementCount})");
+                    if (step.MaxElementCount.HasValue && elementCount > step.MaxElementCount.Value)
+                        issues.Add($"Step '{step.Label}' limited to {step.MaxElementCount} elements (model has {elementCount})");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PreFlight element count: {ex.Message}"); }
+
+            // Check worksharing requirements
+            bool isWorkshared = doc.IsWorkshared;
+            foreach (var step in preset.Steps)
+            {
+                if (step.RequiresWorksharedModel && !isWorkshared && !step.Optional)
+                    issues.Add($"Step '{step.Label}' requires workshared model");
+            }
+
+            // Check data file availability
+            if (string.IsNullOrEmpty(StingToolsApp.DataPath) || !Directory.Exists(StingToolsApp.DataPath))
+                issues.Add("STING data directory not found — template/schedule/material commands will fail");
+
+            return (issues.Count == 0, issues);
+        }
+
         /// <summary>
         /// Execute a workflow preset with progress reporting and cancellation.
         /// </summary>
@@ -370,6 +428,8 @@ namespace StingTools.Core
                 tg.Start();
             }
 
+            bool previousStepSkipped = false;  // Phase 48: Track if previous step was skipped
+
             try
             {
                 foreach (var step in preset.Steps)
@@ -384,6 +444,14 @@ namespace StingTools.Core
                         break;
                     }
 
+                    // Phase 48: skipIfPreviousSkipped condition
+                    if (step.SkipIfPreviousSkipped && previousStepSkipped)
+                    {
+                        skipped++;
+                        previousStepSkipped = true;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (previous step was skipped)");
+                        continue;
+                    }
 
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
@@ -424,6 +492,40 @@ namespace StingTools.Core
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
                             if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                        }
+
+                        // Phase 47: Warning-aware workflow conditions
+                        if (step.Condition == "has_warnings")
+                        {
+                            try
+                            {
+                                int warnCount = doc.GetWarnings()?.Count ?? 0;
+                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_critical_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_open_issues")
+                        {
+                            try
+                            {
+                                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                                string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
+                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                string raw = File.ReadAllText(issuesPath);
+                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
                         }
 
                         if (step.Condition == "has_untagged")
@@ -531,11 +633,28 @@ namespace StingTools.Core
                             }
                             catch (Exception retryEx)
                             {
+                                // LOGIC-02: Mark stepResult as Failed on exception so it's never
+                                // left at its previous value if exception is caught and retried.
+                                stepResult = Result.Failed;
                                 StingLog.Warn($"Workflow step {stepNum} attempt {attempt}: {retryEx.Message}");
                                 if (attempt == maxRetries) throw;
                             }
                         }
                         sw.Stop();
+
+                        // AG-05 FIX: Post-execution timeout check. Can't abort Revit commands mid-execution
+                        // but can warn and treat as failure when a step exceeds its timeout.
+                        if (step.TimeoutSeconds > 0 && sw.Elapsed.TotalSeconds > step.TimeoutSeconds)
+                        {
+                            StingLog.Warn($"Workflow step {stepNum} '{step.Label}' exceeded timeout " +
+                                $"({sw.Elapsed.TotalSeconds:F0}s > {step.TimeoutSeconds}s)");
+                            if (!step.Optional)
+                            {
+                                stepResult = Result.Failed;
+                                report.AppendLine($"  {stepNum,2}. {step.Label} — TIMEOUT ({sw.Elapsed.TotalSeconds:F0}s > {step.TimeoutSeconds}s limit)");
+                            }
+                        }
+
                         string status = stepResult == Result.Succeeded ? "OK" :
                                          stepResult == Result.Cancelled ? "SKIP" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
@@ -556,12 +675,21 @@ namespace StingTools.Core
                         else
                             failed++;
 
+                        // C-03 FIX: Reset previousStepSkipped after each executed step.
+                        // Previously never reset to false, causing cascade-skip to permanently
+                        // lock after the first skipped step.
+                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
+
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
-                        // After each step that modifies data, invalidate cached compliance so next
-                        // step's threshold check reflects current state
+                        // LOGIC-01: After each successful step that modifies data, invalidate ALL
+                        // cached checks so next step's threshold/condition checks reflect current state.
+                        // Previously only compliance was invalidated — stale cache was left stale.
                         if (stepResult == Result.Succeeded)
+                        {
                             _cachedCompliancePct = null;
+                            _cachedHasStale = null; // Force re-check for stale elements
+                        }
 
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
                         if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.Optional)
@@ -663,6 +791,13 @@ namespace StingTools.Core
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
+            // Phase 48: Persist last-workflow memory for "Repeat Last" feature
+            _lastWorkflowName = preset.Name;
+            _lastWorkflowResult = $"{passed}/{preset.Steps.Count} OK, {failed} failed";
+            _lastWorkflowTime = DateTime.Now;
+            try { TagConfig.SetConfigValue("LAST_WORKFLOW_NAME", preset.Name); }
+            catch (Exception ex) { StingLog.Warn($"Last workflow persistence: {ex.Message}"); }
+
             // LOG-13: Persist run record as JSONL (one JSON object per line)
             try
             {
@@ -693,6 +828,18 @@ namespace StingTools.Core
                 SaveRunRecord(record, doc);
                 // GAP-09: Save data hash sidecar after workflow to mark data as processed
                 SaveDataHashSidecar(doc);
+
+                // Phase 49: Log to coordination log for audit trail
+                try
+                {
+                    WarningsEngine.LogCoordinationAction(doc,
+                        $"Workflow: {preset.Name}",
+                        "Workflow",
+                        $"Passed: {passed}, Skipped: {skipped}, Failed: {failed}. " +
+                        $"Compliance: {complianceBefore:F0}% → {complianceAfter:F0}%",
+                        failed > 0 ? "HIGH" : "MEDIUM");
+                }
+                catch (Exception coordEx) { StingLog.Warn($"Coord log: {coordEx.Message}"); }
             }
             catch (Exception logEx)
             {
@@ -766,7 +913,10 @@ namespace StingTools.Core
             IExternalCommand cmd = ResolveCommand(tag);
             if (cmd == null)
             {
-                StingLog.Warn($"WorkflowEngine: unknown command tag '{tag}'");
+                // M-05 FIX: Log error (not just warn) with clear diagnostic message
+                // so workflow preset JSON typos are immediately obvious
+                StingLog.Error($"WorkflowEngine: unknown command tag '{tag}' — check workflow preset JSON for typos. " +
+                    "This step will be reported as FAILED in the workflow report.");
                 return Result.Failed;
             }
 
@@ -899,6 +1049,66 @@ namespace StingTools.Core
                 case "TagSheets":            return new Tags.TagSheetsCommand();
                 case "MapSheets":            return new Tags.MapSheetsCommand();
 
+                // Phase 47: Warnings Manager workflow commands
+                case "WarningsDashboard":    return new WarningsDashboardCommand();
+                case "WarningsAutoFix":      return new WarningsAutoFixCommand();
+                case "WarningsExport":       return new WarningsExportCommand();
+                case "WarningsBaseline":     return new WarningsBaselineCommand();
+                case "WarningsCompliance":   return new WarningsComplianceCommand();
+
+                // Phase 47: BIM Coordination Center
+                case "BIMCoordinationCenter": return new BIMCoordinationCenterCommand();
+
+                // Phase 47: Additional tagging and compliance commands
+                case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
+                case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
+                case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
+
+                // BIM Coordination Center dispatch targets
+                case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
+                case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();
+                case "RaiseIssue":              return new BIMManager.RaiseIssueCommand();
+                case "UpdateIssue":             return new BIMManager.UpdateIssueCommand();
+                case "SelectIssueElements":     return new BIMManager.SelectIssueElementsCommand();
+                case "IssueDashboard":          return new BIMManager.IssueDashboardCommand();
+                case "BCFExport":               return new BIMManager.BCFExportCommand();
+                case "BCFImport":               return new BIMManager.BCFImportCommand();
+                case "RevisionCompare":         return new BIMManager.RevisionCompareCommand();
+                case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
+                case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
+                case "RevisionNamingEnforce":   return new BIMManager.RevisionNamingEnforceCommand();
+                case "BulkRevisionStamp":       return new BIMManager.BulkRevisionStampCommand();
+                case "PlatformSync":            return new BIMManager.PlatformSyncCommand();
+                case "CDEPackage":              return new BIMManager.CDEPackageCommand();
+                case "CDEStatus":               return new BIMManager.CDEStatusCommand();
+                case "ValidateDocNaming":       return new BIMManager.ValidateDocNamingCommand();
+                case "CreateTransmittal":       return new BIMManager.CreateTransmittalCommand();
+                case "ExportToExcel":           return new BIMManager.ExportToExcelCommand();
+                case "ImportFromExcel":         return new BIMManager.ImportFromExcelCommand();
+                case "ExcelRoundTrip":          return new BIMManager.ExcelRoundTripCommand();
+                case "IFCExport":               return new Temp.IFCExportCommand();
+                case "ACCPublish":              return new BIMManager.ACCPublishCommand();
+                case "SharePointExport":        return new BIMManager.SharePointExportCommand();
+                case "WorkflowPreset":          return new WorkflowPresetCommand();
+                case "CreateWorkflowPreset":    return new CreateWorkflowPresetCommand();
+                case "ListWorkflowPresets":     return new ListWorkflowPresetsCommand();
+                case "AddDocument":             return new BIMManager.AddDocumentCommand();
+                case "DocumentRegister":        return new BIMManager.DocumentRegisterCommand();
+                case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
+                case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
+                case "WarningsSuppress":        return new WarningsSuppressCommand();
+
+                // 4D/5D Scheduling
+                case "AutoSchedule4D":      return new BIMManager.AutoSchedule4DCommand();
+                case "AutoCost5D":          return new BIMManager.AutoCost5DCommand();
+                case "ViewTimeline4D":      return new BIMManager.ViewTimeline4DCommand();
+                case "CostReport5D":        return new BIMManager.CostReport5DCommand();
+                case "CashFlow5D":          return new BIMManager.CashFlow5DCommand();
+                case "ExportSchedule4D":    return new BIMManager.ExportSchedule4DCommand();
+                case "ImportMSProject":     return new BIMManager.ImportMSProjectCommand();
+                case "MilestoneRegister":   return new BIMManager.MilestoneRegisterCommand();
+                case "PhaseSummary":        return new BIMManager.PhaseSummaryCommand();
+
                 default: return null;
             }
         }
@@ -917,6 +1127,16 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("DocumentPackage"));
             presets.Add(GetBuiltInPreset("BEPPackage"));
             presets.Add(GetBuiltInPreset("PostTaggingQA"));
+            presets.Add(GetBuiltInPreset("MorningHealthCheck"));
+            presets.Add(GetBuiltInPreset("HandoverReadiness"));
+            presets.Add(GetBuiltInPreset("WeeklyDataDrop"));
+            presets.Add(GetBuiltInPreset("CoordinationMeetingPrep"));
+            presets.Add(GetBuiltInPreset("ClashCoordination"));
+            presets.Add(GetBuiltInPreset("EndOfStageGate"));
+            presets.Add(GetBuiltInPreset("QuickFixCycle"));
+
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -1065,8 +1285,149 @@ namespace StingTools.Core
                         }
                     };
 
+                // Phase 47: Morning Health Check — BIM coordinator daily morning routine
+                case "MorningHealthCheck":
+                    return new WorkflowPreset
+                    {
+                        Name = "Morning Health Check",
+                        Description = "BIM coordinator daily morning routine: stale fix, warnings triage, compliance check, issue review",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix model warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "TagNewOnly", Label = "3. Tag new elements", MaxCompliancePct = 98 },
+                            new WorkflowStep { CommandTag = "PreTagAudit", Label = "4. Pre-tag audit", Optional = true, MaxCompliancePct = 95 },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "6. Re-assign view templates", Optional = true },
+                            new WorkflowStep { CommandTag = "TagSheets", Label = "7. Tag sheets", Optional = true },
+                            new WorkflowStep { CommandTag = "AutoRevisionOnTagChange", Label = "8. Auto-revision check", Optional = true },
+                        }
+                    };
+
+                // Phase 47: Handover Readiness — pre-handover validation and export
+                case "HandoverReadiness":
+                    return new WorkflowPreset
+                    {
+                        Name = "Handover Readiness",
+                        Description = "ISO 19650 handover preparation: full validation, COBie export, drawing register, compliance gate",
+                        IsBuiltIn = true,
+                        RollbackOnFailure = false,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "TagAndCombine", Label = "2. Full tag pipeline", MaxCompliancePct = 95 },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. ISO 19650 validation" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "4. BIM template validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 70 },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "6. Drawing register" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "7. BOQ export" },
+                            new WorkflowStep { CommandTag = "UpdateBEP", Label = "8. Update BEP with model data" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "9. Create handover revision" },
+                        }
+                    };
+
+                // Phase 47: Weekly Data Drop — ISO 19650 information exchange
+                case "WeeklyDataDrop":
+                    return new WorkflowPreset
+                    {
+                        Name = "Weekly Data Drop",
+                        Description = "ISO 19650 weekly information exchange: validate, export, package for CDE",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholder tokens", MaxCompliancePct = 95, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "4. Export asset register CSV" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 60 },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "7. Drawing register" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create weekly revision" },
+                        }
+                    };
+
+                // Phase 49: Coordination Meeting Prep — prepare for BIM coordination meeting
+                case "CoordinationMeetingPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Coordination Meeting Prep",
+                        Description = "Prepare model for BIM coordination meeting: compliance check, warnings triage, issue summary, export reports",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix model warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "4. Generate compliance dashboard" },
+                            new WorkflowStep { CommandTag = "WarningsExport", Label = "5. Export warnings report", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "6. Export asset register" },
+                            new WorkflowStep { CommandTag = "ModelHealthDashboard", Label = "7. Model health check" },
+                        }
+                    };
+
+                // Phase 49: Clash Coordination — resolve clashes and coordination issues
+                case "ClashCoordination":
+                    return new WorkflowPreset
+                    {
+                        Name = "Clash Coordination",
+                        Description = "Cross-discipline clash detection and coordination: warnings, clashes, BCF, issue creation",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ClashDetection", Label = "1. Run clash detection" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "2. Warnings dashboard" },
+                            new WorkflowStep { CommandTag = "BCFExport", Label = "3. Export clashes as BCF", Optional = true },
+                            new WorkflowStep { CommandTag = "RaiseIssue", Label = "4. Create coordination issues", Optional = true, Condition = "has_critical_warnings" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate tags after fixes" },
+                        }
+                    };
+
+                // Phase 49: End-of-Stage Gate — RIBA stage transition validation
+                case "EndOfStageGate":
+                    return new WorkflowPreset
+                    {
+                        Name = "End of Stage Gate",
+                        Description = "RIBA stage transition gate: comprehensive validation, COBie, BEP update, compliance report",
+                        IsBuiltIn = true,
+                        RollbackOnFailure = false,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix all stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve all placeholder tokens" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Full ISO 19650 validation" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "4. BIM template validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "StageComplianceGate", Label = "5. RIBA stage compliance gate" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "6. COBie V2.4 export", MinCompliancePct = 80 },
+                            new WorkflowStep { CommandTag = "ExportBEP", Label = "7. Export BEP" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "8. Drawing register" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "9. Asset register export" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "10. BOQ export" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "11. Create stage revision" },
+                        }
+                    };
+
+                // Phase 49: Quick Fix Cycle — rapid model quality improvement
+                case "QuickFixCycle":
+                    return new WorkflowPreset
+                    {
+                        Name = "Quick Fix Cycle",
+                        Description = "Rapid quality improvement: auto-fix warnings, resolve tokens, re-tag stale, validate",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "1. Auto-fix warnings", Optional = true, Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "2. Re-tag stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "AnomalyAutoFix", Label = "3. Fix tag anomalies" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "4. Resolve placeholders", MaxCompliancePct = 95, Optional = true },
+                            new WorkflowStep { CommandTag = "CombineParameters", Label = "5. Update containers" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "6. Validate results" },
+                        }
+                    };
+
                 default:
-                    return new WorkflowPreset { Name = name, Description = "Unknown preset" };
+                    StingLog.Warn($"WorkflowEngine: Unknown built-in preset '{name}'");
+                    return null!;
             }
         }
 

@@ -743,6 +743,20 @@ namespace StingTools.Select
                     staleDetails["PROD"] = staleDetails.TryGetValue("PROD", out int c) ? c + 1 : 1;
                 }
 
+                // M-03 FIX: Check FUNC (was missing — FUNC can change when SYS changes)
+                string storedFunc = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
+                string currentSysForFunc = !string.IsNullOrEmpty(currentSys) ? currentSys
+                    : ParameterHelpers.GetString(elem, ParamRegistry.SYS);
+                string currentFunc = TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
+                if (string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(currentSysForFunc))
+                    currentFunc = TagConfig.FuncMap.TryGetValue(currentSysForFunc, out string fv) ? fv : null;
+                if (!string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(storedFunc)
+                    && !string.Equals(storedFunc, currentFunc, StringComparison.OrdinalIgnoreCase))
+                {
+                    stale = true;
+                    staleDetails["FUNC"] = staleDetails.TryGetValue("FUNC", out int c2) ? c2 + 1 : 1;
+                }
+
                 if (stale) staleIds.Add(elem.Id);
             }
 
