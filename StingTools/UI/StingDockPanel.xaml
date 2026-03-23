@@ -2174,6 +2174,33 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Phase 68: Model Intelligence -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="MODEL INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Embodied Carbon" Tag="EmbodiedCarbon" Click="Cmd_Click" ToolTip="Calculate embodied carbon (kgCO2e) per RICS Whole Life Carbon / ICE Database v3.0"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Floor Efficiency" Tag="FloorEfficiency" Click="Cmd_Click" ToolTip="Gross-to-net floor area ratio per BCO Guide (target >80%)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Room Area Audit" Tag="RoomAreaAudit" Click="Cmd_Click" ToolTip="Audit rooms against minimum area standards (BCO/BS 6465/BS 5395)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Model Complexity" Tag="ModelComplexity" Click="Cmd_Click" ToolTip="Calculate model complexity score (0-100): elements, links, worksets, systems"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Phase 68: BIM Coordinator Tools -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="BIM COORDINATOR" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Readiness" Tag="DeliverableReadiness" Click="Cmd_Click" ToolTip="Assess model readiness for COBie, IFC, PDF, FM handover deliverables"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Action Plan" Tag="ActionPlan" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator action plan based on model state"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Readiness" Tag="RunWorkflow_COBieReadiness" Click="Cmd_Click" ToolTip="Run COBie readiness workflow: retag, resolve, validate, export"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Issue" Tag="RunWorkflow_DrawingIssue" Click="Cmd_Click" ToolTip="Prepare drawings for issue: templates, naming, print, register"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Spatial QA" Tag="RunWorkflow_SpatialQA" Click="Cmd_Click" ToolTip="Validate rooms, areas, connectivity for FM handover"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

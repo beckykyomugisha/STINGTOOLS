@@ -1616,6 +1616,23 @@ namespace StingTools.Core
                 }
             }
 
+            // Phase 68 (NEW-02): CopyTokensFromNearest for LOC/ZONE when spatial detection yields defaults
+            if (!overwrite)
+            {
+                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.DefaultLoc;
+                bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
+                if (locDefault || zoneDefault)
+                {
+                    var spatialTokens = new List<string>();
+                    if (locDefault) spatialTokens.Add(ParamRegistry.LOC);
+                    if (zoneDefault) spatialTokens.Add(ParamRegistry.ZONE);
+                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens.ToArray());
+                    result.TokensSet += spatialCopied;
+                }
+            }
+
             // LVL — deterministic from element level
             // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
             string lvl = ParameterHelpers.GetLevelCode(doc, el);

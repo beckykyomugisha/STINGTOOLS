@@ -1395,6 +1395,9 @@ namespace StingTools.UI
                     case "RunWorkflow_EndOfDaySync":
                     case "RunWorkflow_FederatedModelAudit":
                     case "RunWorkflow_PreMeetingPrep":
+                    case "RunWorkflow_COBieReadiness":
+                    case "RunWorkflow_DrawingIssue":
+                    case "RunWorkflow_SpatialQA":
                     {
                         string wfName = _commandTag.Replace("RunWorkflow_", "")
                             .Replace("Sync", " Sync").Replace("Health", " Health")
@@ -1406,7 +1409,9 @@ namespace StingTools.UI
                             .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
                             .Replace("Clash", " Clash").Replace("Federated", " Federated")
                             .Replace("Model", " Model").Replace("Audit", " Audit")
-                            .Replace("Day", " Day").Replace("End Of", "End of");
+                            .Replace("Day", " Day").Replace("End Of", "End of")
+                            .Replace("COBie", "COBie ").Replace("Drawing", "Drawing ")
+                            .Replace("Spatial", "Spatial ").Replace("Issue", " Issue");
                         SetExtraParam("WorkflowPresetName", wfName.Trim());
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
@@ -2036,6 +2041,105 @@ namespace StingTools.UI
                     case "ToggleFileMonitor": RunCommand<BIMManager.ToggleFileMonitorCommand>(app); break;
                     case "BroadcastNotification": RunCommand<BIMManager.BroadcastNotificationCommand>(app); break;
                     case "AccessControl": RunCommand<BIMManager.AccessControlCommand>(app); break;
+
+                    // ── Phase 68: Model Intelligence & BIM Coordinator Commands ──
+                    case "EmbodiedCarbon":
+                    {
+                        var doc = uidoc.Document;
+                        var allIds = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .Select(e => e.Id).ToList();
+                        var (total, breakdown) = Model.EmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
+                        var topMaterials = breakdown.GroupBy(b => b.Material)
+                            .Select(g => (g.Key, g.Sum(x => x.KgCO2e)))
+                            .OrderByDescending(x => x.Item2).Take(10);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Total Embodied Carbon: {total:N0} kgCO2e ({total / 1000:N1} tCO2e)");
+                        sb.AppendLine($"\nTop materials by carbon impact:");
+                        foreach (var (mat, kg) in topMaterials)
+                            sb.AppendLine($"  {mat}: {kg:N0} kgCO2e ({kg / total * 100:F1}%)");
+                        TaskDialog.Show("STING — Embodied Carbon", sb.ToString());
+                        break;
+                    }
+                    case "FloorEfficiency":
+                    {
+                        var doc = uidoc.Document;
+                        var results = Model.SpatialAnalysisEngine.CalculateFloorEfficiency(doc);
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Gross-to-Net Floor Efficiency (BCO Guide target: >80%):");
+                        foreach (var (level, gross, net, eff) in results.OrderByDescending(r => r.Efficiency))
+                        {
+                            string rating = eff >= 80 ? "✓" : eff >= 70 ? "~" : "✗";
+                            sb.AppendLine($"  {rating} {level}: {eff:F1}% (Net: {net:F0}m², Gross: {gross:F0}m²)");
+                        }
+                        TaskDialog.Show("STING — Floor Efficiency", sb.ToString());
+                        break;
+                    }
+                    case "RoomAreaAudit":
+                    {
+                        var doc = uidoc.Document;
+                        var results = Model.SpatialAnalysisEngine.AuditRoomAreas(doc);
+                        int compliant = results.Count(r => r.Compliant);
+                        int nonCompliant = results.Count(r => !r.Compliant && r.MinSqM > 0);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Room Area Audit: {results.Count} rooms, {compliant} compliant, {nonCompliant} below standard");
+                        foreach (var (room, area, min, ok, std) in results.Where(r => !r.Compliant && r.MinSqM > 0).Take(20))
+                            sb.AppendLine($"  ✗ {room.Name} ({room.Number}): {area:F1}m² < {min:F1}m² min [{std}]");
+                        TaskDialog.Show("STING — Room Area Audit", sb.ToString());
+                        break;
+                    }
+                    case "ModelComplexity":
+                    {
+                        var doc = uidoc.Document;
+                        var (score, byCategory, links, worksets, systems) = Model.ModelMetricsEngine.CalculateComplexity(doc);
+                        var topCats = byCategory.OrderByDescending(kv => kv.Value).Take(10);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Model Complexity Score: {score}/100");
+                        sb.AppendLine($"  Links: {links}, Worksets: {worksets}, MEP Systems: {systems}");
+                        sb.AppendLine($"\nTop categories:");
+                        foreach (var kv in topCats)
+                            sb.AppendLine($"  {kv.Key}: {kv.Value:N0} elements");
+                        TaskDialog.Show("STING — Model Complexity", sb.ToString());
+                        break;
+                    }
+                    case "DeliverableReadiness":
+                    {
+                        var doc = uidoc.Document;
+                        var warnings = Core.WarningsEngine.ScanWarnings(doc);
+                        var compliance = Core.ComplianceScan.Scan(doc);
+                        string[] deliverables = { "COBie", "IFC", "PDF", "FM" };
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Deliverable Readiness Assessment:");
+                        foreach (string d in deliverables)
+                        {
+                            var (dscore, checks) = Core.WarningsEngine.CalculateDeliverableReadiness(doc, d, warnings, compliance);
+                            string rating = dscore >= 80 ? "READY" : dscore >= 50 ? "PARTIAL" : "NOT READY";
+                            sb.AppendLine($"\n  {d}: {dscore}% — {rating}");
+                            foreach (var (check, passed, detail) in checks)
+                                sb.AppendLine($"    {(passed ? "✓" : "✗")} {check}: {detail}");
+                        }
+                        TaskDialog.Show("STING — Deliverable Readiness", sb.ToString());
+                        break;
+                    }
+                    case "ActionPlan":
+                    {
+                        var doc = uidoc.Document;
+                        var warnings = Core.WarningsEngine.ScanWarnings(doc);
+                        var compliance = Core.ComplianceScan.Scan(doc);
+                        var actions = Core.WarningsEngine.GenerateActionPlan(doc, warnings, compliance);
+                        var sb = new StringBuilder();
+                        sb.AppendLine("BIM Coordinator Action Plan (sorted by impact):");
+                        int rank = 0;
+                        foreach (var (action, cmdTag, priority, impact, rationale) in actions)
+                        {
+                            rank++;
+                            sb.AppendLine($"\n  {rank}. [{priority}] {action}");
+                            sb.AppendLine($"     Rationale: {rationale}");
+                            sb.AppendLine($"     Command: {cmdTag} (impact score: {impact})");
+                        }
+                        TaskDialog.Show("STING — Action Plan", sb.ToString());
+                        break;
+                    }
 
                     // ── Unmapped command tag ──
                     default:

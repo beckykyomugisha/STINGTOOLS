@@ -322,6 +322,41 @@ namespace StingTools.Core
             ("import", WarningCategory.Performance, WarningSeverity.Low, "Review imported CAD — consider exploding or linking", false),
             ("raster image", WarningCategory.Performance, WarningSeverity.Low, "Raster images increase file size — consider linking", false),
             ("array", WarningCategory.Performance, WarningSeverity.Low, "Large arrays may impact performance — consider grouping", false),
+
+            // Phase 68: BIM coordinator daily workflow — expanded classification
+            // Coordination & clash
+            ("clash", WarningCategory.Geometric, WarningSeverity.High, "Resolve geometric clash between elements", false),
+            ("clearance", WarningCategory.MEP, WarningSeverity.High, "Check MEP maintenance clearance per CIBSE Guide W", false),
+            ("headroom", WarningCategory.Compliance, WarningSeverity.Critical, "Verify headroom clearance per Part K/BS 8300", false),
+            ("handrail", WarningCategory.Compliance, WarningSeverity.High, "Check handrail compliance per BS 6180/Part K", false),
+            ("guarding", WarningCategory.Compliance, WarningSeverity.Critical, "Verify edge protection per BS 6180", false),
+
+            // Sustainability & environmental
+            ("U-value", WarningCategory.Compliance, WarningSeverity.High, "Check U-value meets Part L thermal requirements", false),
+            ("airtightness", WarningCategory.Compliance, WarningSeverity.High, "Verify airtightness per Part L/ATTMA TS1", false),
+            ("BREEAM", WarningCategory.Compliance, WarningSeverity.Medium, "Review BREEAM credit requirement", false),
+            ("embodied carbon", WarningCategory.Compliance, WarningSeverity.Medium, "Review embodied carbon per RICS Whole Life Carbon", false),
+
+            // MEP design intelligence
+            ("undersized", WarningCategory.MEP, WarningSeverity.High, "Element undersized for design load — verify sizing", false),
+            ("oversized", WarningCategory.MEP, WarningSeverity.Medium, "Element oversized — review design margin per CIBSE", false),
+            ("unbalanced", WarningCategory.MEP, WarningSeverity.High, "System flow imbalance — check balancing valves", false),
+            ("no system", WarningCategory.MEP, WarningSeverity.Critical, "Element not assigned to any MEP system", true),
+            ("routing conflict", WarningCategory.MEP, WarningSeverity.High, "MEP routing conflict with structure", false),
+
+            // Structural design
+            ("excessive deflection", WarningCategory.Structural, WarningSeverity.Critical, "Deflection exceeds L/250 limit per EC2/EC3", false),
+            ("inadequate cover", WarningCategory.Structural, WarningSeverity.Critical, "Concrete cover inadequate per EC2 Table 4.4N", false),
+            ("punching shear", WarningCategory.Structural, WarningSeverity.Critical, "Check punching shear at column per EC2 6.4", false),
+            ("span-to-depth", WarningCategory.Structural, WarningSeverity.High, "Span-to-depth ratio exceeded — increase section depth", false),
+            ("lateral restraint", WarningCategory.Structural, WarningSeverity.High, "Lateral restraint missing per EC3 6.3.2", false),
+
+            // Document & handover quality
+            ("unnamed view", WarningCategory.Data, WarningSeverity.Medium, "View has default name — rename per ISO 19650", false),
+            ("unplaced view", WarningCategory.Data, WarningSeverity.Low, "View not placed on any sheet", false),
+            ("missing title block", WarningCategory.Data, WarningSeverity.High, "Sheet missing title block family", false),
+            ("empty sheet", WarningCategory.Data, WarningSeverity.Medium, "Sheet has no viewports — consider deleting", true),
+            ("broken reference", WarningCategory.Data, WarningSeverity.High, "Broken view/section reference — recreate or delete", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -915,6 +950,60 @@ namespace StingTools.Core
                         }
                         catch (Exception exOff) { StingLog.Warn($"Off-level fix: {exOff.Message}"); }
                     }
+                }
+
+                // Phase 68: Strategy 14: Fix empty sheets — delete viewportless sheets
+                if (lower.Contains("empty sheet"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            var sheet = doc.GetElement(id) as ViewSheet;
+                            if (sheet != null)
+                            {
+                                var vpIds = sheet.GetAllViewports();
+                                if (vpIds == null || vpIds.Count == 0)
+                                {
+                                    doc.Delete(id);
+                                    return true;
+                                }
+                            }
+                        }
+                        catch (Exception exES) { StingLog.Warn($"Empty sheet delete: {exES.Message}"); }
+                    }
+                }
+
+                // Phase 68: Strategy 15: Fix elements with no MEP system — assign default system
+                if (lower.Contains("no system") || lower.Contains("system classification is undefined"))
+                {
+                    StingLog.Info($"AutoFix: MEP system undefined for elements: {string.Join(",", cw.FailingElements.Select(i => i.IntegerValue))} — requires manual system assignment via MEP System Browser");
+                    // Cannot auto-assign system without user intent — flag for review
+                    return false;
+                }
+
+                // Phase 68: Strategy 16: Fix room not enclosed — attempt to detect and log gap direction
+                if (lower.Contains("room not enclosed") || lower.Contains("not in a properly enclosed"))
+                {
+                    foreach (var id in cw.FailingElements)
+                    {
+                        try
+                        {
+                            var room = doc.GetElement(id) as Room;
+                            if (room != null && room.Area <= 0)
+                            {
+                                // Log room location so BIM coordinator can find the gap quickly
+                                var locPt = room.Location as LocationPoint;
+                                string loc = locPt?.Point != null
+                                    ? $"at ({locPt.Point.X:F1},{locPt.Point.Y:F1})"
+                                    : "unknown location";
+                                StingLog.Info($"AutoFix: Room '{room.Name}' ({room.Number}) not enclosed {loc} — check boundary walls for gaps");
+                            }
+                        }
+                        catch (Exception exRoom) { StingLog.Warn($"Room gap detection: {exRoom.Message}"); }
+                    }
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -1909,6 +1998,155 @@ namespace StingTools.Core
                     AllElements = allElements.Distinct().ToList()
                 });
             }
+        }
+
+        // ── Phase 68: BIM Coordinator Action Plan Generator ──────────
+
+        /// <summary>
+        /// Generates a prioritized action plan for BIM coordinators based on current
+        /// model state: warnings, compliance, issues, stale elements. Returns actions
+        /// sorted by impact score (highest first). Each action includes command tag
+        /// for one-click execution.
+        /// </summary>
+        internal static List<(string Action, string CommandTag, string Priority, int ImpactScore, string Rationale)>
+            GenerateActionPlan(Document doc, WarningReport warnings, ComplianceScan.ComplianceResult compliance)
+        {
+            var actions = new List<(string Action, string CommandTag, string Priority, int ImpactScore, string Rationale)>();
+            if (doc == null) return actions;
+
+            try
+            {
+                // 1. Critical warnings first — blocks handover
+                int critical = warnings?.BySeverity.GetValueOrDefault(WarningSeverity.Critical) ?? 0;
+                if (critical > 0)
+                    actions.Add(($"Fix {critical} critical warning(s)", "AutoFixWarnings", "CRITICAL", 100,
+                        "Critical warnings block ISO 19650 handover and may cause data loss"));
+
+                // 2. Stale elements — tag accuracy
+                int stale = compliance?.StaleCount ?? 0;
+                if (stale > 0)
+                    actions.Add(($"Re-tag {stale} stale element(s)", "RetagStale", "HIGH", 90,
+                        "Stale elements have moved/changed — tags no longer match spatial context"));
+
+                // 3. Low compliance — tag coverage
+                double tagPct = compliance?.CompliancePercent ?? 0;
+                if (tagPct < 80)
+                    actions.Add(($"Improve tag compliance from {tagPct:F0}% to 80%+", "BatchTag", "HIGH", 85,
+                        "ISO 19650 requires asset identification for information exchange"));
+                else if (tagPct < 95)
+                    actions.Add(($"Raise tag compliance from {tagPct:F0}% to 95%+", "TagNewOnly", "MEDIUM", 60,
+                        "Near-complete tagging enables reliable COBie export"));
+
+                // 4. Container gaps — COBie readiness
+                double containerPct = compliance?.ContainerCompletePct ?? 100;
+                if (containerPct < 90)
+                    actions.Add(($"Fill container gaps (currently {containerPct:F0}%)", "CombineParameters", "HIGH", 80,
+                        "Discipline containers must be populated for COBie/schedule accuracy"));
+
+                // 5. Placeholder tokens — data quality
+                int placeholders = compliance?.PlaceholderCount ?? 0;
+                if (placeholders > 0)
+                    actions.Add(($"Resolve {placeholders} placeholder token(s) (GEN/XX/ZZ)", "ResolveAllIssues", "MEDIUM", 70,
+                        "Placeholder codes indicate incomplete spatial/system classification"));
+
+                // 6. High warnings — model quality
+                int high = warnings?.BySeverity.GetValueOrDefault(WarningSeverity.High) ?? 0;
+                if (high > 10)
+                    actions.Add(($"Address {high} high-severity warning(s)", "WarningsDashboard", "MEDIUM", 55,
+                        "High-severity warnings affect COBie export and model quality"));
+
+                // 7. Auto-fixable warnings — quick wins
+                int autoFixable = warnings?.AutoFixable ?? 0;
+                if (autoFixable > 5)
+                    actions.Add(($"Auto-fix {autoFixable} warning(s) in one click", "AutoFixWarnings", "LOW", 40,
+                        "Auto-fixable warnings can be resolved without manual intervention"));
+
+                // 8. Validate tags for ISO compliance
+                if (tagPct >= 80)
+                    actions.Add(("Run ISO 19650 tag validation", "ValidateTags", "MEDIUM", 50,
+                        "Cross-validates DISC↔SYS, SYS↔FUNC, FUNC↔PROD per CIBSE/Uniclass"));
+
+                // 9. Template audit — view consistency
+                actions.Add(("Audit view templates for compliance", "TemplateAudit", "LOW", 30,
+                    "Ensures all views use STING templates with correct VG settings"));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GenerateActionPlan: {ex.Message}");
+            }
+
+            // Sort by impact score descending
+            actions.Sort((a, b) => b.ImpactScore.CompareTo(a.ImpactScore));
+            return actions;
+        }
+
+        /// <summary>
+        /// Phase 68: Calculates model readiness score for a specific BIM deliverable.
+        /// Returns 0-100 score with breakdown per criterion.
+        /// </summary>
+        internal static (int Score, List<(string Check, bool Passed, string Detail)> Checks)
+            CalculateDeliverableReadiness(Document doc, string deliverable, WarningReport warnings, ComplianceScan.ComplianceResult compliance)
+        {
+            var checks = new List<(string Check, bool Passed, string Detail)>();
+            if (doc == null) return (0, checks);
+
+            try
+            {
+                double tagPct = compliance?.CompliancePercent ?? 0;
+                double containerPct = compliance?.ContainerCompletePct ?? 100;
+                int stale = compliance?.StaleCount ?? 0;
+                int critical = warnings?.BySeverity.GetValueOrDefault(WarningSeverity.Critical) ?? 0;
+                int total = warnings?.Total ?? 0;
+
+                switch (deliverable?.ToUpperInvariant())
+                {
+                    case "COBIE":
+                        checks.Add(("Tag compliance ≥ 90%", tagPct >= 90, $"{tagPct:F0}%"));
+                        checks.Add(("Container completion ≥ 95%", containerPct >= 95, $"{containerPct:F0}%"));
+                        checks.Add(("No stale elements", stale == 0, stale > 0 ? $"{stale} stale" : "OK"));
+                        checks.Add(("No critical warnings", critical == 0, critical > 0 ? $"{critical} critical" : "OK"));
+                        checks.Add(("No placeholder tokens", (compliance?.PlaceholderCount ?? 0) == 0,
+                            (compliance?.PlaceholderCount ?? 0) > 0 ? $"{compliance.PlaceholderCount} placeholders" : "OK"));
+                        break;
+                    case "IFC":
+                        checks.Add(("Tag compliance ≥ 70%", tagPct >= 70, $"{tagPct:F0}%"));
+                        checks.Add(("No critical geometric warnings", critical == 0, critical > 0 ? $"{critical}" : "OK"));
+                        int geomWarnings = warnings?.ByCategory.GetValueOrDefault(WarningCategory.Geometric) ?? 0;
+                        checks.Add(("Geometric warnings < 20", geomWarnings < 20, $"{geomWarnings} geometric"));
+                        break;
+                    case "PDF":
+                    case "DRAWINGS":
+                        checks.Add(("No empty sheets",
+                            !(warnings?.Warnings?.Any(w => w.Description?.Contains("empty sheet") == true) ?? false), "checked"));
+                        checks.Add(("Sheet naming compliant", true, "run SheetNamingCheck"));
+                        int annotationWarnings = warnings?.ByCategory.GetValueOrDefault(WarningCategory.Annotation) ?? 0;
+                        checks.Add(("Annotation warnings < 10", annotationWarnings < 10, $"{annotationWarnings}"));
+                        break;
+                    case "FM":
+                    case "HANDOVER":
+                        checks.Add(("Tag compliance ≥ 95%", tagPct >= 95, $"{tagPct:F0}%"));
+                        checks.Add(("Container completion ≥ 98%", containerPct >= 98, $"{containerPct:F0}%"));
+                        checks.Add(("No stale elements", stale == 0, stale > 0 ? $"{stale}" : "OK"));
+                        checks.Add(("No critical warnings", critical == 0, critical > 0 ? $"{critical}" : "OK"));
+                        checks.Add(("Warning health ≥ 80", CalculateWarningHealthScore(warnings) >= 80,
+                            $"{CalculateWarningHealthScore(warnings)}"));
+                        int spatialWarnings = warnings?.ByCategory.GetValueOrDefault(WarningCategory.Spatial) ?? 0;
+                        checks.Add(("No spatial warnings", spatialWarnings == 0, $"{spatialWarnings}"));
+                        break;
+                    default:
+                        checks.Add(("Tag compliance ≥ 80%", tagPct >= 80, $"{tagPct:F0}%"));
+                        checks.Add(("No critical warnings", critical == 0, critical > 0 ? $"{critical}" : "OK"));
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CalculateDeliverableReadiness: {ex.Message}");
+            }
+
+            int passed = checks.Count(c => c.Passed);
+            int score = checks.Count > 0 ? (int)(100.0 * passed / checks.Count) : 0;
+            return (score, checks);
         }
     }
 

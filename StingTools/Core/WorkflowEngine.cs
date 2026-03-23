@@ -592,6 +592,35 @@ namespace StingTools.Core
                             if (pct >= 50)
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
                         }
+
+                        // Phase 68: New workflow conditions for BIM coordinator daily operations
+                        if (step.Condition == "has_spatial_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
+                                if (spatial == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no spatial warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_mep_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
+                                if (mep == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no MEP warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "tag_compliance_below_threshold")
+                        {
+                            double pct = cachedCompliancePct();
+                            double threshold = step.MinCompliancePct ?? 90;
+                            if (pct >= threshold)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% meets threshold {threshold:F0}%)"); continue; }
+                        }
                     }
 
                     // AE-05 / GAP-09: Skip if data files unchanged (sidecar file for workshared compatibility)
@@ -1255,6 +1284,11 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("FederatedModelAudit"));
             presets.Add(GetBuiltInPreset("PreMeetingPrep"));
 
+            // Phase 68: Enhanced coordinator productivity presets
+            presets.Add(GetBuiltInPreset("COBieReadiness"));
+            presets.Add(GetBuiltInPreset("DrawingIssue"));
+            presets.Add(GetBuiltInPreset("SpatialQA"));
+
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
 
@@ -1823,6 +1857,60 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "IssueDashboard", Label = "5. Open issues summary" },
                             new WorkflowStep { CommandTag = "RevisionDashboard", Label = "6. Revision status" },
                             new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "7. Generate HTML report" },
+                        }
+                    };
+
+                // Phase 68: BIM coordinator productivity presets
+                case "COBieReadiness":
+                    return new WorkflowPreset
+                    {
+                        Name = "COBie Readiness",
+                        Description = "Prepare model for COBie V2.4 export — validates tags, containers, types, and spatial data",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Re-tag stale elements", Condition = "has_stale" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholder tokens", Condition = "has_placeholders" },
+                            new WorkflowStep { CommandTag = "CombineParameters", Label = "3. Write discipline containers", Condition = "has_container_gaps" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate ISO 19650 tags" },
+                            new WorkflowStep { CommandTag = "SchemaValidate", Label = "5. Validate material schema" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "6. Export COBie V2.4 spreadsheet", MinCompliancePct = 85 },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "7. Export asset register CSV" },
+                        }
+                    };
+
+                case "DrawingIssue":
+                    return new WorkflowPreset
+                    {
+                        Name = "Drawing Issue",
+                        Description = "Prepare drawings for issue — check naming, templates, print to PDF",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "1. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "2. Check sheet naming compliance" },
+                            new WorkflowStep { CommandTag = "AutoFixWarnings", Label = "3. Auto-fix annotation warnings", Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "SheetComplianceCheck", Label = "4. ISO sheet compliance check" },
+                            new WorkflowStep { CommandTag = "BatchPrintSheets", Label = "5. Batch print to PDF" },
+                            new WorkflowStep { CommandTag = "ExportSheetRegister", Label = "6. Export sheet register" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "7. Create revision record" },
+                        }
+                    };
+
+                case "SpatialQA":
+                    return new WorkflowPreset
+                    {
+                        Name = "Spatial QA",
+                        Description = "Validate rooms, areas, and spatial data for FM handover",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RoomAudit", Label = "1. Audit rooms (unnamed/unplaced/unbounded)" },
+                            new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "2. Validate room connectivity" },
+                            new WorkflowStep { CommandTag = "AutoFixWarnings", Label = "3. Fix room enclosure warnings", Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "FamilyStagePopulate", Label = "4. Re-populate spatial tokens" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate updated tags" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Show compliance dashboard" },
                         }
                     };
 
