@@ -1621,7 +1621,7 @@ namespace StingTools.Core
             {
                 string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.DefaultLoc;
+                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.ProjectLoc;
                 bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
                 if (locDefault || zoneDefault)
                 {

@@ -707,7 +707,8 @@ namespace StingTools.Model
                         double avgAlpha = 0.15; // bare typical
                         double totalAbsorption = totalSurface * avgAlpha;
 
-                        string roomType = InferRoomType(room.Name, room.Department ?? "");
+                        string roomDept = room.get_Parameter(Autodesk.Revit.DB.BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "";
+                        string roomType = InferRoomType(room.Name, roomDept);
                         var rtResult = ReverbTimeCalculator.ValidateRT60(volumeM3, totalAbsorption, roomType);
                         if (!rtResult.Pass)
                             results.Add(rtResult);
@@ -733,7 +734,9 @@ namespace StingTools.Model
             var layers = new List<AcousticMaterialData>();
             try
             {
-                var cs = host.GetCompoundStructure();
+                // GetCompoundStructure is on the element type, not the instance
+                var hostType = host.Document?.GetElement(host.GetTypeId()) as HostObjAttributes;
+                var cs = hostType?.GetCompoundStructure();
                 if (cs == null) return layers;
 
                 foreach (var layerIdx in Enumerable.Range(0, cs.LayerCount))

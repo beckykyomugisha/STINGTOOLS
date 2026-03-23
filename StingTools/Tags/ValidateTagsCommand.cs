@@ -293,8 +293,8 @@ namespace StingTools.Tags
             report.AppendLine("── Tag Completeness ──");
             report.Append($"Of the {total:N0} taggable elements in this project, ");
             report.Append($"{bucketFully:N0} are fully resolved with production-ready tags, ");
-            report.Append($"{completePlaceholder:N0} have complete 8-segment tags but contain placeholder values (GEN/XX/ZZ/0000) that require attention, ");
-            report.Append($"{incomplete:N0} have partially populated tags, ");
+            report.Append($"{bucketCompletePlaceholders:N0} have complete 8-segment tags but contain placeholder values (GEN/XX/ZZ/0000) that require attention, ");
+            report.Append($"{bucketIncomplete:N0} have partially populated tags, ");
             report.Append($"and {bucketUntagged:N0} have no tag at all. ");
             report.Append($"The weighted compliance score is {compliancePct:F1}%. ");
             report.AppendLine();

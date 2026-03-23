@@ -1374,7 +1374,7 @@ namespace StingTools.Model
                 {
                     var newLayer = new CompoundStructureLayer(
                         coat.ThicknessMm * Units.MmToFeet,
-                        MaterialFunctionAssignment.Finish,
+                        MaterialFunctionAssignment.Finish1,
                         plasterMatId);
 
                     if (applyToInterior)

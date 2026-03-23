@@ -1203,9 +1203,12 @@ namespace StingTools.Model
                 }
 
                 // Auto-tag created elements
-                ModelCommandHelper.AutoTagAndReport(doc, createdIds,
-                    $"Ramp created: {widthMm:F0}mm wide × {runMm:F0}mm long, gradient 1:{(1.0/gradient):F0}\n" +
-                    (compliance.Length > 0 ? compliance.ToString() : "BS 8300 compliance: PASS"));
+                // Auto-tag: build a synthetic ModelResult for reporting
+                string rampMsg = $"Ramp created: {widthMm:F0}mm wide × {runMm:F0}mm long, gradient 1:{(1.0/gradient):F0}\n" +
+                    (compliance.Length > 0 ? compliance.ToString() : "BS 8300 compliance: PASS");
+                int rampTagged = ModelEngine.AutoTagCreatedElements(doc, createdIds);
+                string rampReport = rampTagged > 0 ? rampMsg + $"\n✓ {rampTagged} element(s) auto-tagged" : rampMsg;
+                TaskDialog.Show("MODEL — Ramp", rampReport);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1287,8 +1290,10 @@ namespace StingTools.Model
                     tx.Commit();
                 }
 
-                ModelCommandHelper.AutoTagAndReport(doc, createdIds,
-                    $"Canopy created: {3000}mm × {1500}mm at {2700}mm height");
+                string canopyMsg = $"Canopy created: {3000}mm × {1500}mm at {2700}mm height";
+                int canopyTagged = ModelEngine.AutoTagCreatedElements(doc, createdIds);
+                TaskDialog.Show("MODEL — Canopy",
+                    canopyTagged > 0 ? canopyMsg + $"\n✓ {canopyTagged} element(s) auto-tagged" : canopyMsg);
                 return Result.Succeeded;
             }
             catch (Exception ex)

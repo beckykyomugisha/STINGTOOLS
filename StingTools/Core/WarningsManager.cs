@@ -6,7 +6,10 @@ using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Tags;
 
 namespace StingTools.Core
@@ -955,7 +958,7 @@ namespace StingTools.Core
                 // (Note: actual cap placement requires system type — log for manual review)
                 if (lower.Contains("unconnected") && (lower.Contains("pipe") || lower.Contains("duct")))
                 {
-                    StingLog.Info($"AutoFix: Unconnected MEP element detected — flagging for manual review. IDs: {string.Join(",", cw.FailingElements.Select(i => i.IntegerValue))}");
+                    StingLog.Info($"AutoFix: Unconnected MEP element detected — flagging for manual review. IDs: {string.Join(",", cw.FailingElements.Select(i => i.Value))}");
                     // Mark elements as needing attention via StingLog — can't auto-cap without system context
                     return false;
                 }
@@ -1018,7 +1021,7 @@ namespace StingTools.Core
                 // Phase 68: Strategy 15: Fix elements with no MEP system — assign default system
                 if (lower.Contains("no system") || lower.Contains("system classification is undefined"))
                 {
-                    StingLog.Info($"AutoFix: MEP system undefined for elements: {string.Join(",", cw.FailingElements.Select(i => i.IntegerValue))} — requires manual system assignment via MEP System Browser");
+                    StingLog.Info($"AutoFix: MEP system undefined for elements: {string.Join(",", cw.FailingElements.Select(i => i.Value))} — requires manual system assignment via MEP System Browser");
                     // Cannot auto-assign system without user intent — flag for review
                     return false;
                 }
@@ -2881,8 +2884,9 @@ namespace StingTools.Core
                 var wr = WarningsEngine.ScanWarnings(doc);
                 double warnHealth = WarningsEngine.CalculateWarningHealthScore(wr);
                 score.Warnings = Math.Max(0, warnHealth / 4.0); // Scale 0-100 to 0-25
-                if (wr.Critical > 0)
-                    score.Recommendations.Add($"Fix {wr.Critical} critical warnings immediately");
+                int wrCritical = wr.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0);
+                if (wrCritical > 0)
+                    score.Recommendations.Add($"Fix {wrCritical} critical warnings immediately");
                 if (wr.AutoFixable > 5)
                     score.Recommendations.Add($"Auto-fix {wr.AutoFixable} warnings to improve score quickly");
             }
@@ -3058,15 +3062,16 @@ namespace StingTools.Core
                 actions.Add(("Retag Stale Elements", $"{comp.StaleCount} elements moved since last tag", "RetagStale", "HIGH"));
 
             // Critical warnings → fix immediately
-            if (warnings.Critical > 0)
-                actions.Add(("Fix Critical Warnings", $"{warnings.Critical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
+            int warnCritical = warnings?.BySeverity.GetValueOrDefault(WarningSeverity.Critical, 0) ?? 0;
+            if (warnCritical > 0)
+                actions.Add(("Fix Critical Warnings", $"{warnCritical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
 
             // Low compliance → batch tag
             if (comp.CompliancePercent < 80 && comp.Untagged > 10)
                 actions.Add(("Batch Tag Untagged", $"{comp.Untagged} untagged elements ({comp.CompliancePercent:F0}%)", "BatchTag", "HIGH"));
 
             // Auto-fixable warnings → quick win
-            if (warnings.AutoFixable > 5)
+            if ((warnings?.AutoFixable ?? 0) > 5)
                 actions.Add(("Auto-Fix Warnings", $"{warnings.AutoFixable} warnings can be auto-fixed", "WarningsAutoFix", "MEDIUM"));
 
             // Placeholders → resolve
@@ -3074,7 +3079,7 @@ namespace StingTools.Core
                 actions.Add(("Resolve Placeholders", $"{comp.PlaceholderCount} elements with GEN/XX/ZZ placeholders", "ResolveAllIssues", "MEDIUM"));
 
             // High compliance → export ready
-            if (comp.CompliancePercent >= 90 && warnings.Critical == 0)
+            if (comp.CompliancePercent >= 90 && warnCritical == 0)
                 actions.Add(("Generate Weekly Report", "Model ready for coordination report", "WeeklyReport", "LOW"));
 
             // Open issues → review
@@ -3085,8 +3090,8 @@ namespace StingTools.Core
             if (comp.ContainerCompletePct < 80 && comp.TaggedComplete > 0)
                 actions.Add(("Run Combine Parameters", $"Container completion at {comp.ContainerCompletePct:F0}%", "CombineParameters", "HIGH"));
 
-            return actions.OrderByDescending(a => a.Priority == "CRITICAL" ? 4 :
-                a.Priority == "HIGH" ? 3 : a.Priority == "MEDIUM" ? 2 : 1).Take(5).ToList();
+            return actions.OrderByDescending(a => a.Item4 == "CRITICAL" ? 4 :
+                a.Item4 == "HIGH" ? 3 : a.Item4 == "MEDIUM" ? 2 : 1).Take(5).ToList();
         }
 
         // ══════════════════════════════════════════════════════════════
