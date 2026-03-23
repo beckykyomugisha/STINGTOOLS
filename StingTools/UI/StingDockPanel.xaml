@@ -1954,6 +1954,9 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Ramp" Tag="ModelCreateRamp" Click="Cmd_Click" ToolTip="Create ramp with BS 8300 compliance (gradient, width, landings)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Canopy" Tag="ModelCreateCanopy" Click="Cmd_Click" ToolTip="Create canopy/overhang for building envelope"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Route Analysis" Tag="MEPRouteAnalysis" Click="Cmd_Click" ToolTip="Analyse MEP routing clearances per CIBSE Guide W"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

@@ -1088,6 +1088,9 @@ namespace StingTools.UI
                     case "ModelPlaceDoor": RunCommand<Model.ModelPlaceDoorCommand>(app); break;
                     case "ModelPlaceWindow": RunCommand<Model.ModelPlaceWindowCommand>(app); break;
                     case "ModelBuildingShell": RunCommand<Model.ModelBuildingShellCommand>(app); break;
+                    case "ModelCreateRamp": RunCommand<Model.ModelCreateRampCommand>(app); break;
+                    case "ModelCreateCanopy": RunCommand<Model.ModelCreateCanopyCommand>(app); break;
+                    case "MEPRouteAnalysis": RunCommand<Model.MEPRouteAnalysisCommand>(app); break;
 
                     // ── Structural elements ──
                     case "ModelPlaceColumn": RunCommand<Model.ModelPlaceColumnCommand>(app); break;
