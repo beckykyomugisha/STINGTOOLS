@@ -1188,6 +1188,24 @@ namespace StingTools.UI
                     case "ArchCreateOpening": RunCommand<Model.ArchCreateOpeningCommand>(app); break;
                     case "FullModelAuto": RunCommand<Model.FullModelAutoCommand>(app); break;
 
+                    // ── Excel → Structural Import ──
+                    case "StrExcelImport": RunCommand<Model.StrExcelImportCommand>(app); break;
+                    case "StrExcelImportColumns": RunCommand<Model.StrExcelImportColumnsCommand>(app); break;
+                    case "StrExcelImportBeams": RunCommand<Model.StrExcelImportBeamsCommand>(app); break;
+                    case "StrExcelExportSchedule": RunCommand<Model.StrExcelExportScheduleCommand>(app); break;
+                    case "StrExcelTemplate": RunCommand<Model.StrExcelTemplateCommand>(app); break;
+                    case "StrAutoRebar": RunCommand<Model.StrAutoRebarCommand>(app); break;
+
+                    // ── Enhanced Structural Algorithms ──
+                    case "StrAutoSizeAll": RunCommand<Model.StrAutoSizeAllCommand>(app); break;
+                    case "StrGridOptimize": RunCommand<Model.StrGridOptimizeCommand>(app); break;
+                    case "StrCarbonOptimize": RunCommand<Model.StrCarbonOptimizeCommand>(app); break;
+                    case "StrBarBending": RunCommand<Model.StrGenerateBarBendingCommand>(app); break;
+                    case "StrDesignReport": RunCommand<Model.StrStructuralReportCommand>(app); break;
+                    case "StrLoadPathVisualizer": RunCommand<Model.StrLoadPathVisualizerCommand>(app); break;
+                    case "StrDesignCheck": RunCommand<Model.StrDesignCheckCommand>(app); break;
+                    case "StrEnhancedCADImport": RunCommand<Model.StrEnhancedCADImportCommand>(app); break;
+
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
                     case "ModelCreatePipe": RunCommand<Model.ModelCreatePipeCommand>(app); break;
@@ -1203,6 +1221,17 @@ namespace StingTools.UI
 
                     // Project Overview
                     case "BIMDashboard": RunCommand<BIMManager.ProjectDashboardCommand>(app); break;
+
+                    // ── Gap Fix: Cross-System Automation ──
+                    case "CDEApprovalWorkflow": RunCommand<BIMManager.CDEApprovalWorkflowCommand>(app); break;
+                    case "CrossSystemLink": RunCommand<BIMManager.CrossSystemLinkCommand>(app); break;
+                    case "RefreshCoordinationData": RunCommand<BIMManager.RefreshCoordinationDataCommand>(app); break;
+                    case "StreamingCOBieImportValidated": RunCommand<BIMManager.StreamingCOBieImportCommand>(app); break;
+                    case "Schedule4DHandover": RunCommand<BIMManager.Schedule4DHandoverCommand>(app); break;
+                    case "COBieSystemGroupFix": RunCommand<BIMManager.COBieSystemGroupFixCommand>(app); break;
+                    case "DataDropTracker": RunCommand<BIMManager.DataDropTrackerCommand>(app); break;
+                    case "CDEFolderStructure": RunCommand<BIMManager.CDEFolderStructureCommand>(app); break;
+                    case "ComplianceForecast": RunCommand<BIMManager.ComplianceForecastCommand>(app); break;
                     case "ISO19650Reference": RunCommand<BIMManager.ISO19650ReferenceCommand>(app); break;
 
                     // BEP (template-driven pre-contract + model enrichment)

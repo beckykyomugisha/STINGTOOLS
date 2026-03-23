@@ -2143,6 +2143,33 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- EXCEL → STRUCTURAL -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="EXCEL → STRUCTURAL"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="Import structural design from Excel schedules (BS EN 1992/1993/1997)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Excel Import" Tag="StrExcelImport" Click="Cmd_Click" ToolTip="Full structural import from Excel: columns, beams, slabs, foundations, walls with auto-rebar per EC2" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import Columns" Tag="StrExcelImportColumns" Click="Cmd_Click" ToolTip="Import columns only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Import Beams" Tag="StrExcelImportBeams" Click="Cmd_Click" ToolTip="Import beams only from Excel schedule"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export existing structural elements to Excel schedule format"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="StrExcelTemplate" Click="Cmd_Click" ToolTip="Generate blank Excel template with data validation"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" ToolTip="Auto-design and place rebar per EC2 on selected elements" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto-Size All" Tag="StrAutoSizeAll" Click="Cmd_Click" ToolTip="Auto-size all structural elements per EC2/EC3/EC7" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Grid Optimize" Tag="StrGridOptimize" Click="Cmd_Click" ToolTip="Genetic algorithm column grid optimization"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Carbon Opt" Tag="StrCarbonOptimize" Click="Cmd_Click" ToolTip="Embodied carbon minimization per structural element"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BBS Export" Tag="StrBarBending" Click="Cmd_Click" ToolTip="Bar bending schedule export per BS 8666"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Design Report" Tag="StrDesignReport" Click="Cmd_Click" ToolTip="Comprehensive EC2/EC3 structural design report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrLoadPathVisualizer" Click="Cmd_Click" ToolTip="Visualize load paths with utilization coloring"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Design Check" Tag="StrDesignCheck" Click="Cmd_Click" ToolTip="Full EC2/EC3/EC7 design compliance check"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Enhanced DWG" Tag="StrEnhancedCADImport" Click="Cmd_Click" ToolTip="Enhanced DWG import with 60+ international layer patterns" FontWeight="Bold"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- FULL AUTOMATION -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FULL AUTOMATION"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1B5E20">
@@ -2564,6 +2591,25 @@
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
                                 <!-- BIM COORDINATION CENTER (see prominent button at top of BIM tab) -->
+                            </StackPanel>
+                        </Border>
+
+                        <!-- GAP FIX — CROSS-SYSTEM AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="CROSS-SYSTEM AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#AD1457">
+                            <StackPanel>
+                                <TextBlock Text="Cross-system entity linking, CDE compliance, data drop tracking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ CDE Approval" Tag="CDEApprovalWorkflow" Click="Cmd_Click" ToolTip="CDE approval workflow: enforces required sign-offs before SHARED→PUBLISHED" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Cross-Link" Tag="CrossSystemLink" Click="Cmd_Click" ToolTip="Link issues ↔ documents ↔ transmittals ↔ revisions"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Refresh Data" Tag="RefreshCoordinationData" Click="Cmd_Click" ToolTip="Force-refresh BIM Coordination Center data"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Stream Import" Tag="StreamingCOBieImportValidated" Click="Cmd_Click" ToolTip="Streaming COBie V2.4 import with validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="4D Handover" Tag="Schedule4DHandover" Click="Cmd_Click" ToolTip="Link 4D schedule to DD1-DD4 handover milestones"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie SYS Fix" Tag="COBieSystemGroupFix" Click="Cmd_Click" ToolTip="Fix COBie System grouping via MEP connector graph"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="DD Tracker" Tag="DataDropTracker" Click="Cmd_Click" ToolTip="Data drop progress tracking (DD1-DD4)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="CDE Folders" Tag="CDEFolderStructure" Click="Cmd_Click" ToolTip="Generate ISO 19650 CDE folder hierarchy"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Forecast" Tag="ComplianceForecast" Click="Cmd_Click" ToolTip="Predict when target compliance will be reached"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
