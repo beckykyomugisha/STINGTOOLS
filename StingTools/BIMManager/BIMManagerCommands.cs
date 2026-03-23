@@ -4907,6 +4907,33 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Phase 55: Export readiness gate — block COBie export below compliance threshold
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null && compResult.CompliancePercent < 60)
+                {
+                    var gateDlg = new TaskDialog("COBie Export — Compliance Gate");
+                    gateDlg.MainInstruction = $"Model is only {compResult.CompliancePercent:F0}% tag-compliant";
+                    gateDlg.MainContent =
+                        $"ISO 19650 COBie export requires minimum 60% tag compliance.\n\n" +
+                        $"Current status:\n" +
+                        $"  Tagged: {compResult.TaggedComplete}/{compResult.TotalElements}\n" +
+                        $"  Untagged: {compResult.Untagged}\n" +
+                        $"  Stale: {compResult.StaleCount}\n" +
+                        $"  Placeholders: {compResult.PlaceholderCount}\n\n" +
+                        $"Run 'Quick Fix Cycle' workflow to improve compliance before export.";
+                    gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Export anyway", "Some COBie fields will be empty (not recommended)");
+                    gateDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    var gateResult = gateDlg.Show();
+                    if (gateResult != TaskDialogResult.CommandLink1) return Result.Cancelled;
+                    StingLog.Warn($"COBie export proceeding below compliance gate: {compResult.CompliancePercent:F0}%");
+                }
+            }
+            catch (Exception gateEx) { StingLog.Warn($"COBie compliance gate check: {gateEx.Message}"); }
+
             // Launch the COBie Export Wizard for interactive configuration
             var settings = COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
