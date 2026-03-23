@@ -2649,3 +2649,38 @@ docker compose up -d
 | DWG-FUT-12 | Point cloud integration | Future | Combine DWG structural layout with point cloud scan for as-built verification |
 | DWG-FUT-13 | ML-based element recognition | Future | Train element classifier on DWG geometry patterns for improved auto-detection accuracy |
 | DWG-FUT-14 | IFC structural import | Future | Import IFC structural models as alternative to DWG with analytical model creation |
+
+#### Completed (Phase 77 — Deep Review: Build Fixes, DWG Validation, Workflow Consumer, Warnings Enhancement)
+
+679. **CS0176 build error fix** — Fixed 6 `CS0176` errors in `StructuralDWGWizard.cs` where `Visibility.Visible`/`Visibility.Collapsed` were accessed as instance references on `Window` class. Fully qualified to `System.Windows.Visibility.Visible`/`Collapsed`. Suppressed CS0169 for `_extraction` field reserved for future extraction pipeline.
+680. **DWG config dimension validation** — Added `StructuralDWGConfig.ValidateDimensions()` method with safe range guards for all 12 dimension properties: wall height (500-15000mm), wall thickness (50-2000mm), column width/depth (100-3000mm), beam depth (100-3000mm), beam width (50-1500mm), slab thickness (50-1000mm), foundation depth (200-5000mm), foundation width (300-5000mm), tolerances. Wired into `StructuralDWGEngine.Execute()` pre-flight. Invalid configs return early with error before any element creation.
+681. **DWG engine level fallback UX** — Improved error message when no levels found: now includes actionable guidance ("Please create at least one Level before importing structural DWG") and logs error. Error count incremented for result tracking.
+682. **LayerMapper null-safety** — Added null coalescing to `LayerMapper.InferCategory()` return in `QuickStructuralDWGCommand` to prevent null switch pattern match.
+683. **DWG conversion sidecar audit trail** — `StructuralDWGEngine.Execute()` now persists `ConversionResult` to `.sting_dwg_conversion.json` sidecar alongside project file with atomic temp-file + rename pattern. Records timestamp, user, element counts by type, joins, types created, tagged count, errors, and duration for conversion history and audit.
+684. **WorkflowScheduler consumer wired** — `StingToolsApp.OnDocumentOpened()` now calls `WorkflowScheduler.CheckDocumentOpenTriggers()` and consumes pending presets from the `ConcurrentQueue`. Previously, presets were queued by trigger evaluation but never dequeued for execution. One preset executed per document-open event via `ExtraParam` dispatch.
+685. **Warning category split: Acoustic + Sustainability + Coordination** — `WarningCategory` enum expanded from 9 to 12 categories: added `Acoustic` (Part E, BB93, BS 8233, BS EN 12354 — sound insulation, flanking, reverberation, impact sound, acoustic seal, resilient mount), `Sustainability` (BREEAM, LETI, RIBA, embodied carbon, lifecycle, circularity, recycled content), and `Coordination` (clash, clearance, headroom, handover). 18 classification rules reclassified from generic `Compliance` to domain-specific categories. Enables BIM coordinators to filter and prioritize warnings by domain without alert fatigue from mixed categories.
+
+### 5-Agent Deep Review Findings Summary (Phase 77)
+
+**Agent 1 (Tagging Pipeline):** [awaiting completion]
+**Agent 2 (BIM/Coordination):** [awaiting completion]
+**Agent 3 (Warnings/Model/Structural):** 42 findings — 4 CRITICAL, 7 HIGH, 18 MEDIUM. Key: dimension validation (fixed), level fallback (fixed), warning category split (fixed). Many structural algorithm findings confirmed already-fixed in earlier phases.
+**Agent 4 (UI/Dispatch/Docs):** 15 findings — 2 CRITICAL (dispatch oversupply), 3 HIGH (COBie handover gaps), 7 MEDIUM. Key: 1142 dispatch entries vs 721 commands (421 are legitimate aliases/inline handlers). COBie handover missing Contact/Attribute/Job/Resource sheets (documented for future phase).
+**Agent 5 (DWG/Phase75):** 42 findings — 12 CRITICAL, 10 HIGH, 12 MEDIUM. Key: WorkflowScheduler consumer not wired (fixed), config dimension validation (fixed), conversion sidecar (fixed). Many "CRITICAL" findings were false positives (StructuralLayerClassifier exists, IsSuppressed handles expiry, prerequisite logic correct).
+
+### Future Enhancement Gaps (Phase 77 Deep Review)
+
+| ID | Gap | Priority | Description |
+|----|-----|----------|-------------|
+| FM-HO-01 | COBie Contact/Attribute/Job/Resource sheets | High | HandoverExportCommands.cs COBie export missing 4 of 11 COBie V2.4 required worksheets |
+| FM-HO-02 | Phase-aware COBie export | High | Multi-phase models cannot differentiate asset lifecycles per phase in COBie Component sheet |
+| WF-SCHED-01 | Schedule template library | Medium | No schedule template save/load/apply system for standardized schedule creation |
+| WF-SCHED-02 | Cross-schedule field consistency | Medium | No validation that different schedules using same field have consistent naming |
+| UI-DISP-01 | Dispatch registry pattern | Low | Refactor 1142-case switch to dispatch registry with per-module command registrations |
+| DOC-REG-01 | Drawing register ISO 19650-2 fields | Medium | Missing CDE status, suitability code, approval history in drawing register export |
+| DWG-MULTI-01 | Multi-layer wall detection | Medium | DWG wizard doesn't detect dual-layer wall encoding (exterior + interior leaf pairs) |
+| DWG-CURVE-01 | Curved wall support | Low | Arc segments in DWG wall layers not detected; only straight lines converted |
+| MEP-SCHED-01 | MEP commissioning schedules | Medium | Missing connector flow rate, balancing status, pressure drop summary schedules |
+| STRUCT-REBAR-01 | Rebar spacing validation | Medium | No pre-check that rebar spacing exceeds bar diameter before design output |
+| PERF-WARN-01 | Warning regex compilation | Medium | 150+ regex patterns evaluated linearly per warning; pre-compile into Regex[] array |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus | Medium | Double-leaf acoustic calculation uses static 10dB cavity bonus instead of frequency-dependent lookup |

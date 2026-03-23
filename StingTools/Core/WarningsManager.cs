@@ -29,6 +29,9 @@ namespace StingTools.Core
         Data,         // Parameters, formulas, schedules, types
         Performance,  // Imports, DWGs, raster, groups, arrays
         Compliance,   // Standards, codes, fire rating, accessibility
+        Acoustic,     // Phase 77: Sound insulation, reverberation, flanking (Part E / BB93 / HTM 08-01)
+        Sustainability, // Phase 77: BREEAM, Part L energy, embodied carbon, LETI/RIBA targets
+        Coordination, // Phase 77: Clash detection, clearance, headroom, handover coordination
         Unknown       // Unclassified
     }
 
@@ -289,18 +292,19 @@ namespace StingTools.Core
             // Compliance — regulatory
             ("Part L", WarningCategory.Compliance, WarningSeverity.High, "Review Part L energy compliance", false),
             ("thermal bridge", WarningCategory.Compliance, WarningSeverity.High, "Check thermal bridge at junction per Part L", false),
-            ("acoustic", WarningCategory.Compliance, WarningSeverity.Medium, "Verify acoustic performance per Approved Document E", false),
-            // Phase 69: Acoustic & sustainability classification rules
-            ("sound insulation", WarningCategory.Compliance, WarningSeverity.High, "Validate airborne sound insulation Rw per BS EN 12354", false),
-            ("flanking", WarningCategory.Compliance, WarningSeverity.High, "Check flanking transmission paths at junctions", false),
-            ("reverberation", WarningCategory.Compliance, WarningSeverity.Medium, "Validate RT60 reverberation time per BS 8233", false),
-            ("impact sound", WarningCategory.Compliance, WarningSeverity.High, "Check impact sound insulation L'nT,w per Approved Document E", false),
-            ("acoustic seal", WarningCategory.Compliance, WarningSeverity.Medium, "Verify acoustic seal at penetrations", false),
-            ("resilient mount", WarningCategory.Compliance, WarningSeverity.Medium, "Check resilient mounting for vibration isolation", false),
-            ("embodied carbon", WarningCategory.Compliance, WarningSeverity.Medium, "Review embodied carbon against LETI/RIBA targets", false),
-            ("BREEAM", WarningCategory.Compliance, WarningSeverity.Medium, "Assess BREEAM credit compliance", false),
-            ("lifecycle", WarningCategory.Compliance, WarningSeverity.Medium, "Complete BS EN 15978 lifecycle assessment", false),
-            ("circularity", WarningCategory.Compliance, WarningSeverity.Low, "Review material circularity and recyclability", false),
+            ("acoustic", WarningCategory.Acoustic, WarningSeverity.Medium, "Verify acoustic performance per Approved Document E", false),
+            // Phase 69/77: Acoustic classification rules (now separate from Compliance)
+            ("sound insulation", WarningCategory.Acoustic, WarningSeverity.High, "Validate airborne sound insulation Rw per BS EN 12354", false),
+            ("flanking", WarningCategory.Acoustic, WarningSeverity.High, "Check flanking transmission paths at junctions", false),
+            ("reverberation", WarningCategory.Acoustic, WarningSeverity.Medium, "Validate RT60 reverberation time per BS 8233", false),
+            ("impact sound", WarningCategory.Acoustic, WarningSeverity.High, "Check impact sound insulation L'nT,w per Approved Document E", false),
+            ("acoustic seal", WarningCategory.Acoustic, WarningSeverity.Medium, "Verify acoustic seal at penetrations", false),
+            ("resilient mount", WarningCategory.Acoustic, WarningSeverity.Medium, "Check resilient mounting for vibration isolation", false),
+            // Phase 69/77: Sustainability classification rules (now separate from Compliance)
+            ("embodied carbon", WarningCategory.Sustainability, WarningSeverity.Medium, "Review embodied carbon against LETI/RIBA targets", false),
+            ("BREEAM", WarningCategory.Sustainability, WarningSeverity.Medium, "Assess BREEAM credit compliance", false),
+            ("lifecycle", WarningCategory.Sustainability, WarningSeverity.Medium, "Complete BS EN 15978 lifecycle assessment", false),
+            ("circularity", WarningCategory.Sustainability, WarningSeverity.Low, "Review material circularity and recyclability", false),
             // Phase 70: MEP intelligence classification rules
             ("pressure drop", WarningCategory.MEP, WarningSeverity.Medium, "Check pressure drop exceeds system capacity", false),
             ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "Review fitting loss coefficient at transition", false),
@@ -324,12 +328,13 @@ namespace StingTools.Core
             ("isolation mount", WarningCategory.MEP, WarningSeverity.Medium, "Equipment vibration transmissibility >10% — upgrade isolation mounts", false),
             ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "High fitting loss concentration — consider routing optimization", false),
             ("flex duct", WarningCategory.MEP, WarningSeverity.Medium, "Flexible duct >3m causes excessive pressure drop per DW/144", false),
-            // Phase 74: Sustainability compliance rules
-            ("LETI target", WarningCategory.Compliance, WarningSeverity.Medium, "Embodied carbon exceeds LETI 2030 target of 350 kgCO2e/m²", false),
-            ("RIBA target", WarningCategory.Compliance, WarningSeverity.Medium, "Embodied carbon exceeds RIBA 2030 target of 500 kgCO2e/m²", false),
-            ("recycled content", WarningCategory.Compliance, WarningSeverity.Low, "Low recycled content — specify BES 6001 or FSC materials", false),
-            ("Part E", WarningCategory.Compliance, WarningSeverity.High, "Separation does not meet Approved Document E minimum Rw", false),
-            ("BB93", WarningCategory.Compliance, WarningSeverity.High, "Classroom acoustic performance below BB93 requirements", false),
+            // Phase 74/77: Sustainability rules (now using Sustainability category)
+            ("LETI target", WarningCategory.Sustainability, WarningSeverity.Medium, "Embodied carbon exceeds LETI 2030 target of 350 kgCO2e/m²", false),
+            ("RIBA target", WarningCategory.Sustainability, WarningSeverity.Medium, "Embodied carbon exceeds RIBA 2030 target of 500 kgCO2e/m²", false),
+            ("recycled content", WarningCategory.Sustainability, WarningSeverity.Low, "Low recycled content — specify BES 6001 or FSC materials", false),
+            // Phase 74/77: Acoustic rules (now using Acoustic category)
+            ("Part E", WarningCategory.Acoustic, WarningSeverity.High, "Separation does not meet Approved Document E minimum Rw", false),
+            ("BB93", WarningCategory.Acoustic, WarningSeverity.High, "Classroom acoustic performance below BB93 requirements", false),
             ("access", WarningCategory.Compliance, WarningSeverity.High, "Review accessibility per Part M/BS 8300", false),
             ("ventilation", WarningCategory.Compliance, WarningSeverity.High, "Check ventilation requirements per Part F/CIBSE Guide A", false),
             ("drainage", WarningCategory.Compliance, WarningSeverity.High, "Check drainage design per Part H/BS EN 12056", false),

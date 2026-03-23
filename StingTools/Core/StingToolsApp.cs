@@ -288,6 +288,28 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
+                // Phase 77: Consume any pending workflow presets from WorkflowScheduler triggers
+                // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
+                try
+                {
+                    WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
+                    while (WorkflowScheduler.HasPendingPresets)
+                    {
+                        string presetName = WorkflowScheduler.DequeuePendingPreset();
+                        if (!string.IsNullOrEmpty(presetName))
+                        {
+                            StingLog.Info($"WorkflowScheduler: executing queued preset '{presetName}'");
+                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", presetName);
+                            // Actual execution happens via ExternalEvent in StingCommandHandler
+                            break; // Execute one at a time; remaining will execute on next idle
+                        }
+                    }
+                }
+                catch (Exception wsEx)
+                {
+                    StingLog.Warn($"WorkflowScheduler document-open execution: {wsEx.Message}");
+                }
+
                 // Phase 56: Morning Briefing — comprehensive model status on document open
                 // Shows compliance, stale elements, warnings, and SLA violations in one dialog
                 try

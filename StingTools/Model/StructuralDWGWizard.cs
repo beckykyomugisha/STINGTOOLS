@@ -115,6 +115,27 @@ namespace StingTools.Model
         // ── Type Creation ──
         public bool CreateNewTypes { get; set; } = true;
         public string TypeNamingPrefix { get; set; } = "STING";
+
+        /// <summary>
+        /// Phase 77: Validate all dimension properties are within safe ranges.
+        /// Returns null if valid, or an error message describing the first invalid value.
+        /// </summary>
+        public string ValidateDimensions()
+        {
+            if (WallHeightMm < 500 || WallHeightMm > 15000) return $"Wall height {WallHeightMm}mm is outside valid range (500-15000mm)";
+            if (WallThicknessMm < 50 || WallThicknessMm > 2000) return $"Wall thickness {WallThicknessMm}mm is outside valid range (50-2000mm)";
+            if (ColumnHeightMm < 500 || ColumnHeightMm > 15000) return $"Column height {ColumnHeightMm}mm is outside valid range (500-15000mm)";
+            if (ColumnWidthMm < 100 || ColumnWidthMm > 3000) return $"Column width {ColumnWidthMm}mm is outside valid range (100-3000mm)";
+            if (ColumnDepthMm < 100 || ColumnDepthMm > 3000) return $"Column depth {ColumnDepthMm}mm is outside valid range (100-3000mm)";
+            if (BeamDepthMm < 100 || BeamDepthMm > 3000) return $"Beam depth {BeamDepthMm}mm is outside valid range (100-3000mm)";
+            if (BeamWidthMm < 50 || BeamWidthMm > 1500) return $"Beam width {BeamWidthMm}mm is outside valid range (50-1500mm)";
+            if (SlabThicknessMm < 50 || SlabThicknessMm > 1000) return $"Slab thickness {SlabThicknessMm}mm is outside valid range (50-1000mm)";
+            if (FoundationDepthMm < 200 || FoundationDepthMm > 5000) return $"Foundation depth {FoundationDepthMm}mm is outside valid range (200-5000mm)";
+            if (FoundationWidthMm < 300 || FoundationWidthMm > 5000) return $"Foundation width {FoundationWidthMm}mm is outside valid range (300-5000mm)";
+            if (EndpointToleranceMm < 0.1 || EndpointToleranceMm > 100) return $"Endpoint tolerance {EndpointToleranceMm}mm is outside valid range (0.1-100mm)";
+            if (ParallelLineToleranceMm < 1 || ParallelLineToleranceMm > 500) return $"Parallel line tolerance {ParallelLineToleranceMm}mm is outside valid range (1-500mm)";
+            return null; // All valid
+        }
     }
 
     #endregion

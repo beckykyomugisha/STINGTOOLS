@@ -152,6 +152,16 @@ namespace StingTools.Model
             {
                 StingLog.Info("StructuralDWGEngine: Starting conversion pipeline");
 
+                // Phase 77: Validate config dimensions before proceeding
+                string dimError = config.ValidateDimensions();
+                if (dimError != null)
+                {
+                    result.Warnings.Add($"Invalid config: {dimError}");
+                    result.Errors++;
+                    StingLog.Warn($"StructuralDWGEngine: Config validation failed: {dimError}");
+                    return result;
+                }
+
                 // 1. Extract geometry from DWG by mapped layers
                 var mappedLines = ExtractMappedGeometry(doc, config, result);
                 StingLog.Info($"Extracted {mappedLines.Count} mapped lines from DWG");
@@ -179,7 +189,9 @@ namespace StingTools.Model
                 }
                 if (baseLevel == null)
                 {
-                    result.Warnings.Add("No levels found in project");
+                    result.Warnings.Add("No levels found in project. Please create at least one Level before importing structural DWG.");
+                    result.Errors++;
+                    StingLog.Error("StructuralDWGEngine: No levels found — cannot create structural elements without a base level");
                     return result;
                 }
 
@@ -236,6 +248,41 @@ namespace StingTools.Model
             sw.Stop();
             result.Duration = sw.Elapsed;
             StingLog.Info($"StructuralDWGEngine: Completed in {sw.Elapsed.TotalSeconds:F1}s, {result.CreatedElementIds.Count} elements");
+
+            // Phase 77: Persist conversion result to sidecar for audit trail
+            try
+            {
+                string projectPath = doc.PathName;
+                if (!string.IsNullOrEmpty(projectPath))
+                {
+                    string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_dwg_conversion.json");
+                    var record = new Newtonsoft.Json.Linq.JObject
+                    {
+                        ["timestamp"] = DateTime.Now.ToString("o"),
+                        ["user"] = Environment.UserName,
+                        ["walls"] = result.WallsCreated,
+                        ["columns"] = result.ColumnsCreated,
+                        ["beams"] = result.BeamsCreated,
+                        ["slabs"] = result.SlabsCreated,
+                        ["foundations"] = result.FoundationsCreated,
+                        ["gridLines"] = result.GridLinesCreated,
+                        ["joins"] = result.JoinsPerformed,
+                        ["types"] = result.TypesCreated,
+                        ["tagged"] = result.ElementsTagged,
+                        ["errors"] = result.Errors,
+                        ["duration_s"] = result.Duration.TotalSeconds,
+                        ["total_elements"] = result.CreatedElementIds.Count,
+                    };
+                    string tempPath = sidecarPath + ".tmp";
+                    System.IO.File.WriteAllText(tempPath, record.ToString());
+                    System.IO.File.Move(tempPath, sidecarPath, true);
+                }
+            }
+            catch (Exception scEx)
+            {
+                StingLog.Warn($"DWG conversion sidecar save: {scEx.Message}");
+            }
+
             return result;
         }
 
