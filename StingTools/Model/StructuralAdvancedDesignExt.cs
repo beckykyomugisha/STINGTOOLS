@@ -209,17 +209,18 @@ namespace StingTools.Model
                 // Below cut-off — infinite life
                 result.AllowableCycles = double.PositiveInfinity;
             }
-            else if (deltaF <= result.EnduranceLimitMPa / gammaMf)
+            else if (deltaF > result.EnduranceLimitMPa / gammaMf)
             {
-                // Slope m=5 region
-                double n5 = 5e6 * Math.Pow(result.EnduranceLimitMPa / gammaMf / deltaF, 5);
-                result.AllowableCycles = n5;
+                // Phase 56b AE-005 FIX: Slope m=3 region (HIGH stress, LOW cycles: N ≤ 2×10⁶)
+                // Previous code had m=3 and m=5 regions REVERSED — unsafe by factor of ~5×
+                double n3 = 2e6 * Math.Pow(deltaR / deltaF, 3);
+                result.AllowableCycles = n3;
             }
             else
             {
-                // Slope m=3 region
-                double n3 = 2e6 * Math.Pow(deltaR / deltaF, 3);
-                result.AllowableCycles = n3;
+                // Slope m=5 region (LOW stress, HIGH cycles: 2×10⁶ < N ≤ 5×10⁶)
+                double n5 = 5e6 * Math.Pow(result.EnduranceLimitMPa / gammaMf / deltaF, 5);
+                result.AllowableCycles = n5;
             }
 
             // Damage ratio (Palmgren-Miner)
@@ -673,7 +674,10 @@ namespace StingTools.Model
                 data.Ip * 1e4 * n; // Approximate composite I
 
             double L = spanM * 1000; // mm
-            result.DeflectionMm = 5 * slsLoad / 1000 * Math.Pow(L, 4) / (384 * Ecm * Ieq);
+            // R4-A FIX: slsLoad is kN/m², per metre strip = slsLoad kN/m = slsLoad N/mm.
+            // Previous code divided by 1000 (kN→N), but for per-metre-width Ieq the load
+            // per mm width is already slsLoad N/mm. The /1000 underestimated deflection by 1000x.
+            result.DeflectionMm = 5 * slsLoad * Math.Pow(L, 4) / (384 * Ecm * Ieq);
             result.DeflectionLimitMm = L / 250; // EC4 limit
 
             // Mesh reinforcement

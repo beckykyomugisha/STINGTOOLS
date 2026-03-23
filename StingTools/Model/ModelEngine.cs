@@ -230,9 +230,13 @@ namespace StingTools.Model
                     s.FamilyName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (match != null)
                     return ResolveResult.Found(match.Id, $"{match.FamilyName}: {match.Name}");
+
+                // Phase 56 MA-004: Log warning when keyword doesn't match any type
+                StingLog.Warn($"ResolveFamilySymbol: keyword '{keyword}' not found in {category}. " +
+                    $"Using first available: '{symbols[0].FamilyName}: {symbols[0].Name}'");
             }
 
-            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name}");
+            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name} (default)");
         }
 
         /// <summary>Resolve a Level by name (partial match) or default to lowest.</summary>
@@ -1307,7 +1311,8 @@ namespace StingTools.Model
 
                     // Floor
                     step = 2;
-                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName);
+                    // R4-A FIX: Pass origin so floor aligns with walls when origin != 0
+                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName, originXMm, originYMm);
                     if (floorResult.Success)
                     {
                         results.Add($"  Floor: {floorResult.Message}");
@@ -1316,8 +1321,9 @@ namespace StingTools.Model
 
                     // Roof
                     step = 3;
+                    // R4-A FIX: Pass origin so roof aligns with walls when origin != 0
                     var roofResult = CreateRoof(widthMm, depthMm, roofTypeName, levelName,
-                        roofSlopeDeg, overhangMm);
+                        roofSlopeDeg, overhangMm, originXMm, originYMm);
                     if (roofResult.Success)
                     {
                         results.Add($"  Roof: {roofResult.Message}");
@@ -1386,8 +1392,10 @@ namespace StingTools.Model
                         try
                         {
                             bool ok = TagPipelineHelper.RunFullPipeline(
-                                doc, el, ctx, seqCounters, existingTags,
-                                TagCollisionMode.AutoIncrement, null, formulas, gridLines);
+                                doc, el, ctx, existingTags, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false, skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement);
                             if (ok) tagged++;
                         }
                         catch (Exception ex) { StingLog.Warn($"AutoTag element {id}: {ex.Message}"); }
@@ -1400,6 +1408,14 @@ namespace StingTools.Model
                     TagConfig.SaveSeqSidecar(doc, seqCounters);
                     ComplianceScan.InvalidateCache();
                     StingAutoTagger.InvalidateContext();
+                }
+
+                // Phase 56: Post-creation model validation
+                var validationIssues = WarningsEngine.ValidateModelElements(doc, createdIds);
+                if (validationIssues.Count > 0)
+                {
+                    foreach (var issue in validationIssues.Take(5))
+                        StingLog.Warn($"ModelValidation: {issue}");
                 }
             }
             catch (Exception ex) { StingLog.Warn($"AutoTagCreatedElements: {ex.Message}"); }
@@ -1499,8 +1515,11 @@ namespace StingTools.Model
         /// </summary>
         public static double DuctPressureDropPa(double lengthM, double diamMm, double airflowLps)
         {
+            // Phase 56: Guard against division by zero (BUG-01)
+            if (diamMm <= 0 || lengthM <= 0 || airflowLps <= 0) return 0;
             double d = diamMm / 1000.0;
             double area = Math.PI * d * d / 4.0;
+            if (area < 1e-10) return 0; // Prevent division by zero
             double velocity = (airflowLps / 1000.0) / area;
             double rho = 1.2; // kg/m³ air density at ~20°C
             double roughness = 0.00015; // m (galvanised steel)
@@ -1508,7 +1527,11 @@ namespace StingTools.Model
             // Simplified Colebrook-White (single iteration)
             double Re = velocity * d / 1.5e-5; // kinematic viscosity ~1.5e-5 m²/s
             if (Re < 1) return 0;
-            double f = 0.25 / Math.Pow(Math.Log10(roughness / (3.7 * d) + 5.74 / Math.Pow(Re, 0.9)), 2);
+            double logTerm = roughness / (3.7 * d) + 5.74 / Math.Pow(Re, 0.9);
+            if (logTerm <= 0 || double.IsNaN(logTerm) || double.IsInfinity(logTerm)) return 0;
+            double logVal = Math.Log10(logTerm);
+            if (Math.Abs(logVal) < 1e-12 || double.IsNaN(logVal) || double.IsInfinity(logVal)) return 0;
+            double f = 0.25 / Math.Pow(logVal, 2);
             return f * (lengthM / d) * (rho * velocity * velocity / 2.0);
         }
 
@@ -1565,8 +1588,22 @@ namespace StingTools.Model
             }
 
             result.TotalLengthMm = result.Segments.Sum(s => s.LengthMm);
+
+            // Phase 56 GAP-A02 fix: Calculate pressure drop for the complete route
+            if (diamMm > 0 && result.TotalLengthMm > 0)
+            {
+                double totalLengthM = result.TotalLengthMm / 1000.0;
+                // Estimate airflow from duct area using mid-range velocity (5 m/s)
+                double areaSqM = Math.PI * (diamMm / 1000.0) * (diamMm / 1000.0) / 4.0;
+                double estimatedAirflowLps = areaSqM * 5.0 * 1000.0; // 5 m/s target velocity
+                result.PressureDropPa = DuctPressureDropPa(totalLengthM, diamMm, estimatedAirflowLps);
+                // Add elbow losses (CIBSE equivalent length: ~1m per 90° elbow at this diameter)
+                result.PressureDropPa += result.ElbowCount * DuctPressureDropPa(1.0, diamMm, estimatedAirflowLps);
+            }
+
             result.Message = $"Route: {result.Segments.Count} segments, {result.ElbowCount} elbows, " +
-                $"{result.TotalLengthMm / 1000:F1}m total, Ø{diamMm}mm";
+                $"{result.TotalLengthMm / 1000:F1}m total, Ø{diamMm}mm" +
+                (result.PressureDropPa > 0 ? $", ΔP={result.PressureDropPa:F1}Pa" : "");
             return result;
         }
 

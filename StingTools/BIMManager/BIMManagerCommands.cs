@@ -109,6 +109,48 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>CS-GAP-01: Compliance-gated CDE transition. Blocks WIP→SHARED below 70% and
+        /// SHARED→PUBLISHED below 90%. Configurable via CDE_SHARED_MIN_COMPLIANCE and CDE_PUBLISHED_MIN_COMPLIANCE.</summary>
+        internal static string ValidateCDEComplianceGate(string newState, Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                double sharedMin = TagConfig.GetConfigDouble("CDE_SHARED_MIN_COMPLIANCE", 70.0);
+                double publishedMin = TagConfig.GetConfigDouble("CDE_PUBLISHED_MIN_COMPLIANCE", 90.0);
+
+                if (newState.Equals("SHARED", StringComparison.OrdinalIgnoreCase) ||
+                    newState.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase))
+                {
+                    ComplianceScan.InvalidateCache();
+                    var scan = ComplianceScan.Scan(doc);
+                    if (scan == null) return null;
+
+                    double threshold = newState.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase)
+                        ? publishedMin : sharedMin;
+
+                    if (scan.CompliancePercent < threshold)
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Compliance gate BLOCKED: {scan.CompliancePercent:F1}% < {threshold:F0}% required for {newState}.");
+                        sb.AppendLine();
+                        sb.AppendLine("Per-discipline breakdown:");
+                        if (scan.ByDisc != null)
+                        {
+                            foreach (var kv in scan.ByDisc.OrderBy(x => x.Value.CompliancePct))
+                                sb.AppendLine($"  {kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Untagged} untagged)");
+                        }
+                        sb.AppendLine();
+                        sb.AppendLine($"Stale elements: {scan.StaleCount}");
+                        sb.AppendLine($"Fix tagging issues before transitioning to {newState}.");
+                        return sb.ToString();
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CDE compliance gate: {ex.Message}"); }
+            return null;
+        }
+
         // ── RIBA Plan of Work 2020 Stages ──
         internal static readonly Dictionary<int, string> RIBAStages = new Dictionary<int, string>
         {
@@ -304,7 +346,10 @@ namespace StingTools.BIMManager
             "20. Risk Register (BIM-Specific Risks and Mitigations)",
             "21. Health and Safety / CDM 2015 / Building Safety Act 2022",
             "22. Document Control, Approvals and Distribution",
-            "23. Appendices (EIR Matrix, Model Element Table, Tag Reference)"
+            "23. Post-Project Information Requirements (As-Built, COBie Data Drops)",
+            "24. Commissioning, Maintenance and FM Readiness Strategy",
+            "25. Digital Strategy and Technology Enablement (Cloud/CDE/BIM360)",
+            "26. Appendices (EIR Matrix, Model Element Table, Tag Reference)"
         };
 
         // ── BEP Template Presets ──
@@ -4063,7 +4108,45 @@ namespace StingTools.BIMManager
             string discipline = wizResult.Discipline;
             string autoTitle = wizResult.Title;
             string description = wizResult.Description;
+
+            // Phase 56 GAP-AU-03: Auto-detect discipline from selected elements
+            if (string.IsNullOrEmpty(discipline) || discipline == "Z")
+            {
+                try
+                {
+                    foreach (var selId in selectedIds)
+                    {
+                        var el = doc.GetElement(selId);
+                        if (el?.Category != null)
+                        {
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            if (!string.IsNullOrEmpty(disc) && disc != "XX")
+                            { discipline = disc; break; }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue discipline auto-detect: {ex.Message}"); }
+            }
             if (string.IsNullOrEmpty(discipline)) discipline = "Z";
+
+            // Phase 56 GAP-AU-03: Auto-assign to discipline lead from project config
+            if (string.IsNullOrEmpty(assignee))
+            {
+                try
+                {
+                    string leadsJson = TagConfig.GetConfigValue("DISCIPLINE_LEADS");
+                    if (!string.IsNullOrEmpty(leadsJson))
+                    {
+                        var leads = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(leadsJson);
+                        if (leads != null && leads.TryGetValue(discipline, out string lead))
+                        {
+                            assignee = lead;
+                            StingLog.Info($"Issue auto-assigned to discipline lead: {discipline} → {lead}");
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue auto-assign: {ex.Message}"); }
+            }
 
             // Add priority to description if not already there
             if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
@@ -4907,6 +4990,33 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Phase 55: Export readiness gate — block COBie export below compliance threshold
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null && compResult.CompliancePercent < 60)
+                {
+                    var gateDlg = new TaskDialog("COBie Export — Compliance Gate");
+                    gateDlg.MainInstruction = $"Model is only {compResult.CompliancePercent:F0}% tag-compliant";
+                    gateDlg.MainContent =
+                        $"ISO 19650 COBie export requires minimum 60% tag compliance.\n\n" +
+                        $"Current status:\n" +
+                        $"  Tagged: {compResult.TaggedComplete}/{compResult.TotalElements}\n" +
+                        $"  Untagged: {compResult.Untagged}\n" +
+                        $"  Stale: {compResult.StaleCount}\n" +
+                        $"  Placeholders: {compResult.PlaceholderCount}\n\n" +
+                        $"Run 'Quick Fix Cycle' workflow to improve compliance before export.";
+                    gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Export anyway", "Some COBie fields will be empty (not recommended)");
+                    gateDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    var gateResult = gateDlg.Show();
+                    if (gateResult != TaskDialogResult.CommandLink1) return Result.Cancelled;
+                    StingLog.Warn($"COBie export proceeding below compliance gate: {compResult.CompliancePercent:F0}%");
+                }
+            }
+            catch (Exception gateEx) { StingLog.Warn($"COBie compliance gate check: {gateEx.Message}"); }
+
             // Launch the COBie Export Wizard for interactive configuration
             var settings = COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
@@ -5360,6 +5470,21 @@ namespace StingTools.BIMManager
                         $"Cannot change CDE status from {currentCDE} to {status}.\n\n{transError}\n\n" +
                         "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE");
                     return Result.Failed;
+                }
+
+                // CS-GAP-01: Compliance gate — blocks transitions when tag compliance is below threshold
+                string compGateError = BIMManagerEngine.ValidateCDEComplianceGate(status, doc);
+                if (compGateError != null)
+                {
+                    var gateDlg = new TaskDialog("STING CDE Compliance Gate");
+                    gateDlg.MainInstruction = $"Compliance gate blocks transition to {status}";
+                    gateDlg.MainContent = compGateError;
+                    gateDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    gateDlg.DefaultButton = TaskDialogResult.No;
+                    gateDlg.FooterText = "Override requires explicit acknowledgment. Click Yes to proceed anyway.";
+                    if (gateDlg.Show() != TaskDialogResult.Yes)
+                        return Result.Cancelled;
+                    StingLog.Warn($"CDE compliance gate overridden for {currentCDE} → {status}");
                 }
             }
 
@@ -8780,6 +8905,812 @@ namespace StingTools.BIMManager
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             return value;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  DM-GAP-01 + B1: DOCUMENT VERSION & SUPERSESSION ENGINE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>DM-GAP-01 + B1: Document version tracking with supersession chains.
+    /// Maintains doc_versions.json sidecar with per-document version history,
+    /// supersession relationships, and CDE state timeline.</summary>
+    internal static class DocumentVersionEngine
+    {
+        private static string GetVersionPath(Document doc)
+        {
+            string docPath = doc?.PathName;
+            if (string.IsNullOrEmpty(docPath)) return null;
+            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "doc_versions.json");
+        }
+
+        /// <summary>Record a version entry for a document (CDE transition, edit, or supersession).</summary>
+        internal static void RecordVersion(Document doc, string documentId, string action,
+            string cdeState = null, string suitability = null, string supersededBy = null, string notes = null)
+        {
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null) return;
+
+                JObject data;
+                if (File.Exists(path))
+                    data = JObject.Parse(File.ReadAllText(path));
+                else
+                    data = new JObject();
+
+                if (data[documentId] == null)
+                    data[documentId] = new JArray();
+
+                var entry = new JObject
+                {
+                    ["version"] = ((JArray)data[documentId]).Count + 1,
+                    ["date"] = DateTime.Now.ToString("o"),
+                    ["user"] = Environment.UserName ?? "unknown",
+                    ["action"] = action
+                };
+
+                if (cdeState != null) entry["cde_state"] = cdeState;
+                if (suitability != null) entry["suitability"] = suitability;
+                if (supersededBy != null) entry["superseded_by"] = supersededBy;
+                if (notes != null) entry["notes"] = notes;
+
+                ((JArray)data[documentId]).Add(entry);
+
+                // Atomic write
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, data.ToString(Formatting.Indented));
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+            }
+            catch (Exception ex) { StingLog.Warn($"DocumentVersionEngine.RecordVersion: {ex.Message}"); }
+        }
+
+        /// <summary>Get version history for a specific document.</summary>
+        internal static JArray GetVersionHistory(Document doc, string documentId)
+        {
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null || !File.Exists(path)) return new JArray();
+                var data = JObject.Parse(File.ReadAllText(path));
+                return data[documentId] as JArray ?? new JArray();
+            }
+            catch (Exception ex) { StingLog.Warn($"GetVersionHistory: {ex.Message}"); return new JArray(); }
+        }
+
+        /// <summary>DM-GAP-01: Get supersession chain for a document (walks superseded_by links).</summary>
+        internal static List<(string DocId, string Date, string Action)> GetSupersessionChain(Document doc, string documentId)
+        {
+            var chain = new List<(string, string, string)>();
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null || !File.Exists(path)) return chain;
+                var data = JObject.Parse(File.ReadAllText(path));
+
+                string currentId = documentId;
+                int maxDepth = 20; // prevent cycles
+                while (!string.IsNullOrEmpty(currentId) && maxDepth-- > 0)
+                {
+                    var history = data[currentId] as JArray;
+                    if (history == null || history.Count == 0) break;
+
+                    var lastEntry = history.Last as JObject;
+                    chain.Add((currentId, lastEntry?["date"]?.ToString() ?? "", lastEntry?["action"]?.ToString() ?? ""));
+
+                    // Find superseded_by in any version entry
+                    string nextId = null;
+                    foreach (JObject entry in history)
+                    {
+                        string sb = entry["superseded_by"]?.ToString();
+                        if (!string.IsNullOrEmpty(sb)) nextId = sb;
+                    }
+                    currentId = nextId;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSupersessionChain: {ex.Message}"); }
+            return chain;
+        }
+
+        /// <summary>Record a supersession event: oldDoc is superseded by newDoc.</summary>
+        internal static void RecordSupersession(Document doc, string oldDocId, string newDocId, string reason = null)
+        {
+            RecordVersion(doc, oldDocId, "SUPERSEDED", supersededBy: newDocId, notes: reason);
+            RecordVersion(doc, newDocId, "CREATED (supersedes " + oldDocId + ")", notes: reason);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  D1: TAG MAP EXPORT/IMPORT ENGINE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>D1: Tag export/import between projects. Enables tag transfer across
+    /// linked models, model splits, and project phases via .sting_tagmap.json files.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportTagMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Collect all tagged elements
+            var allElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                .ToList();
+
+            var tagMap = new JArray();
+            int exported = 0;
+
+            foreach (Element el in allElems)
+            {
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string[] tokens = ParamRegistry.ReadTokenValues(el);
+                if (tokens == null || tokens.Length < 8) continue;
+
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                XYZ center = bb != null ? (bb.Min + bb.Max) * 0.5 : XYZ.Zero;
+
+                var entry = new JObject
+                {
+                    ["unique_id"] = el.UniqueId,
+                    ["element_id"] = el.Id.Value,
+                    ["category"] = ParameterHelpers.GetCategoryName(el),
+                    ["family"] = ParameterHelpers.GetFamilyName(el),
+                    ["type"] = ParameterHelpers.GetFamilySymbolName(el),
+                    ["location_x"] = Math.Round(center.X * 304.8, 1),
+                    ["location_y"] = Math.Round(center.Y * 304.8, 1),
+                    ["location_z"] = Math.Round(center.Z * 304.8, 1),
+                    ["level"] = ParameterHelpers.GetString(el, ParamRegistry.LVL),
+                    ["tag1"] = tag1,
+                    ["disc"] = tokens[0], ["loc"] = tokens[1], ["zone"] = tokens[2],
+                    ["lvl"] = tokens[3], ["sys"] = tokens[4], ["func"] = tokens[5],
+                    ["prod"] = tokens[6], ["seq"] = tokens[7],
+                    ["status"] = ParameterHelpers.GetString(el, "ASS_STATUS_TXT"),
+                    ["rev"] = ParameterHelpers.GetString(el, "ASS_REV_TXT"),
+                };
+
+                tagMap.Add(entry);
+                exported++;
+            }
+
+            if (exported == 0)
+            {
+                TaskDialog.Show("STING Tag Export", "No tagged elements found.");
+                return Result.Cancelled;
+            }
+
+            // Save to file
+            string exportPath = OutputLocationHelper.PromptForExportPath(doc, "TagMap",
+                $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
+            if (string.IsNullOrEmpty(exportPath))
+            {
+                string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                exportPath = Path.Combine(dir, $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
+            }
+
+            var wrapper = new JObject
+            {
+                ["version"] = 1,
+                ["source_project"] = doc.Title ?? "unknown",
+                ["export_date"] = DateTime.Now.ToString("o"),
+                ["element_count"] = exported,
+                ["elements"] = tagMap
+            };
+
+            File.WriteAllText(exportPath, wrapper.ToString(Formatting.Indented));
+            TaskDialog.Show("STING Tag Export", $"Exported {exported} tagged elements to:\n{exportPath}");
+            StingLog.Info($"Tag map exported: {exported} elements to {exportPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>D1: Import tags from another project's .sting_tagmap.json file.
+    /// Matches by UniqueId first, then by family+type+nearest-location fallback.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ImportTagMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // Browse for tag map file
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import STING Tag Map",
+                Filter = "Tag Map (*.sting_tagmap.json)|*.sting_tagmap.json|JSON (*.json)|*.json",
+                DefaultExt = ".sting_tagmap.json"
+            };
+            if (dlg.ShowDialog() != true) return Result.Cancelled;
+
+            string json = File.ReadAllText(dlg.FileName);
+            var wrapper = JObject.Parse(json);
+            var tagEntries = wrapper["elements"] as JArray;
+            if (tagEntries == null || tagEntries.Count == 0)
+            {
+                TaskDialog.Show("STING Tag Import", "No elements found in tag map file.");
+                return Result.Cancelled;
+            }
+
+            // Build local element index by UniqueId and by family+type+location
+            var localElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                .ToList();
+
+            var byUniqueId = new Dictionary<string, Element>();
+            var byLocation = new List<(Element El, string Family, string Type, XYZ Center)>();
+            foreach (Element el in localElems)
+            {
+                byUniqueId[el.UniqueId] = el;
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    XYZ center = (bb.Min + bb.Max) * 0.5;
+                    byLocation.Add((el, ParameterHelpers.GetFamilyName(el),
+                        ParameterHelpers.GetFamilySymbolName(el), center));
+                }
+            }
+
+            int matchedById = 0, matchedByLoc = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Import Tag Map"))
+            {
+                tx.Start();
+                foreach (JObject entry in tagEntries)
+                {
+                    string uid = entry["unique_id"]?.ToString();
+                    Element target = null;
+
+                    // Strategy 1: Match by UniqueId
+                    if (!string.IsNullOrEmpty(uid) && byUniqueId.TryGetValue(uid, out Element uidMatch))
+                    {
+                        target = uidMatch;
+                        matchedById++;
+                    }
+
+                    // Strategy 2: Match by family+type+nearest location (within 500mm)
+                    if (target == null)
+                    {
+                        string family = entry["family"]?.ToString() ?? "";
+                        string type = entry["type"]?.ToString() ?? "";
+                        double x = entry["location_x"]?.Value<double>() ?? 0;
+                        double y = entry["location_y"]?.Value<double>() ?? 0;
+                        double z = entry["location_z"]?.Value<double>() ?? 0;
+                        XYZ importCenter = new XYZ(x / 304.8, y / 304.8, z / 304.8);
+
+                        double bestDist = 500.0 / 304.8; // 500mm in feet
+                        foreach (var (el, fam, typ, center) in byLocation)
+                        {
+                            if (!fam.Equals(family, StringComparison.OrdinalIgnoreCase)) continue;
+                            if (!typ.Equals(type, StringComparison.OrdinalIgnoreCase)) continue;
+                            double dist = importCenter.DistanceTo(center);
+                            if (dist < bestDist)
+                            {
+                                bestDist = dist;
+                                target = el;
+                            }
+                        }
+                        if (target != null) matchedByLoc++;
+                    }
+
+                    if (target == null) { skipped++; continue; }
+
+                    // Write tokens
+                    ParameterHelpers.SetString(target, ParamRegistry.DISC, entry["disc"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.LOC, entry["loc"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.ZONE, entry["zone"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.LVL, entry["lvl"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.SYS, entry["sys"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.FUNC, entry["func"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.PROD, entry["prod"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.SEQ, entry["seq"]?.ToString(), overwrite: true);
+
+                    // Rebuild TAG1
+                    string tag1 = string.Join(ParamRegistry.Separator,
+                        entry["disc"]?.ToString(), entry["loc"]?.ToString(), entry["zone"]?.ToString(),
+                        entry["lvl"]?.ToString(), entry["sys"]?.ToString(), entry["func"]?.ToString(),
+                        entry["prod"]?.ToString(), entry["seq"]?.ToString());
+                    ParameterHelpers.SetString(target, ParamRegistry.TAG1, tag1, overwrite: true);
+                }
+                tx.Commit();
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            TaskDialog.Show("STING Tag Import",
+                $"Import complete from: {Path.GetFileName(dlg.FileName)}\n\n" +
+                $"Matched by UniqueId: {matchedById}\n" +
+                $"Matched by location: {matchedByLoc}\n" +
+                $"Skipped (no match): {skipped}\n" +
+                $"Total processed: {tagEntries.Count}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-04: WEEKLY BIM COORDINATOR REPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-04: Generates a self-contained HTML weekly coordinator report
+    /// aggregating compliance trends, warnings, issues, and workflow runs.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WeeklyCoordinatorReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            ComplianceScan.InvalidateCache();
+            var comp = ComplianceScan.Scan(doc);
+            var trend = ComplianceTrendTracker.GetTrend(doc);
+            var warningReport = WarningsEngine.ScanWarnings(doc);
+
+            // Load issues
+            int openIssues = 0, closedThisWeek = 0;
+            try
+            {
+                string issuesPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "issues.json");
+                if (File.Exists(issuesPath))
+                {
+                    var issues = JArray.Parse(File.ReadAllText(issuesPath));
+                    var weekAgo = DateTime.Now.AddDays(-7);
+                    foreach (JObject issue in issues)
+                    {
+                        string status = issue["status"]?.ToString() ?? "";
+                        if (!status.Equals("CLOSED", StringComparison.OrdinalIgnoreCase)) openIssues++;
+                        else
+                        {
+                            if (DateTime.TryParse(issue["modified_date"]?.ToString(), out DateTime md) && md >= weekAgo)
+                                closedThisWeek++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"WeeklyReport issues: {ex.Message}"); }
+
+            // Build HTML
+            var html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+            html.AppendLine("<title>STING Weekly BIM Coordinator Report</title>");
+            html.AppendLine("<style>");
+            html.AppendLine("body{font-family:Segoe UI,Arial;max-width:900px;margin:0 auto;padding:20px;color:#333}");
+            html.AppendLine("h1{color:#1A237E;border-bottom:3px solid #E8912D;padding-bottom:10px}");
+            html.AppendLine("h2{color:#1A237E;margin-top:30px}");
+            html.AppendLine(".kpi{display:inline-block;background:#f5f5f5;border-left:4px solid #E8912D;padding:12px 20px;margin:5px;min-width:150px}");
+            html.AppendLine(".kpi .value{font-size:28px;font-weight:bold;color:#1A237E}");
+            html.AppendLine(".kpi .label{font-size:12px;color:#666}");
+            html.AppendLine(".green{color:#2E7D32} .amber{color:#F57F17} .red{color:#C62828}");
+            html.AppendLine(".rag-bar{height:20px;border-radius:4px;margin:5px 0}");
+            html.AppendLine("table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px;text-align:left}");
+            html.AppendLine("th{background:#1A237E;color:white} tr:nth-child(even){background:#f9f9f9}");
+            html.AppendLine(".footer{margin-top:40px;padding-top:10px;border-top:1px solid #ccc;color:#999;font-size:11px}");
+            html.AppendLine("</style></head><body>");
+
+            html.AppendLine($"<h1>Weekly BIM Coordinator Report</h1>");
+            html.AppendLine($"<p><strong>Project:</strong> {doc.Title} | <strong>Date:</strong> {DateTime.Now:dd MMM yyyy} | <strong>Period:</strong> Last 7 days</p>");
+
+            // KPI cards
+            string ragClass = comp.RAGStatus == "GREEN" ? "green" : comp.RAGStatus == "AMBER" ? "amber" : "red";
+            html.AppendLine("<div>");
+            html.AppendLine($"<div class='kpi'><div class='value {ragClass}'>{comp.CompliancePercent:F0}%</div><div class='label'>Tag Compliance</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{comp.TotalElements}</div><div class='label'>Total Elements</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{warningReport.Total}</div><div class='label'>Warnings</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{openIssues}</div><div class='label'>Open Issues</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{comp.StaleCount}</div><div class='label'>Stale Elements</div></div>");
+            html.AppendLine("</div>");
+
+            // Compliance trend
+            html.AppendLine("<h2>Compliance Trend (7-day)</h2>");
+            html.AppendLine($"<p>Direction: <strong>{trend.Direction}</strong> ({trend.DeltaPct:+0.0;-0.0;0}%)</p>");
+            html.AppendLine($"<div class='rag-bar' style='background:linear-gradient(to right,#E8912D {comp.CompliancePercent}%,#eee {comp.CompliancePercent}%);width:100%'></div>");
+
+            // Per-discipline table
+            html.AppendLine("<h2>Discipline Breakdown</h2>");
+            html.AppendLine("<table><tr><th>Discipline</th><th>Total</th><th>Tagged</th><th>Untagged</th><th>Compliance</th></tr>");
+            if (comp.ByDisc != null)
+            {
+                foreach (var kv in comp.ByDisc.OrderByDescending(x => x.Value.Total))
+                {
+                    string dRag = kv.Value.CompliancePct >= 80 ? "green" : kv.Value.CompliancePct >= 50 ? "amber" : "red";
+                    html.AppendLine($"<tr><td>{kv.Key}</td><td>{kv.Value.Total}</td><td>{kv.Value.Tagged}</td><td>{kv.Value.Untagged}</td>" +
+                        $"<td class='{dRag}'>{kv.Value.CompliancePct:F0}%</td></tr>");
+                }
+            }
+            html.AppendLine("</table>");
+
+            // Warnings summary
+            html.AppendLine("<h2>Warning Summary</h2>");
+            html.AppendLine($"<p>Total: {warningReport.Total} | Auto-fixable: {warningReport.AutoFixable} | Trend: {warningReport.TrendSymbol}</p>");
+            if (warningReport.RootCauseGroups.Count > 0)
+            {
+                html.AppendLine("<table><tr><th>Warning Type</th><th>Count</th><th>Severity</th><th>Auto-fix</th></tr>");
+                foreach (var g in warningReport.RootCauseGroups.Take(10))
+                {
+                    string desc = g.Description.Length > 60 ? g.Description.Substring(0, 57) + "..." : g.Description;
+                    html.AppendLine($"<tr><td>{System.Net.WebUtility.HtmlEncode(desc)}</td><td>{g.Count}</td>" +
+                        $"<td>{g.Severity}</td><td>{(g.CanAutoFix ? "Yes" : "No")}</td></tr>");
+                }
+                html.AppendLine("</table>");
+            }
+
+            // Issues summary
+            html.AppendLine("<h2>Issues</h2>");
+            html.AppendLine($"<p>Open: {openIssues} | Closed this week: {closedThisWeek}</p>");
+
+            html.AppendLine($"<div class='footer'>Generated by STING Tools v1.0 | {DateTime.Now:yyyy-MM-dd HH:mm} | User: {Environment.UserName}</div>");
+            html.AppendLine("</body></html>");
+
+            // Save
+            string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string reportPath = Path.Combine(dir, $"STING_Weekly_Report_{DateTime.Now:yyyyMMdd}.html");
+            File.WriteAllText(reportPath, html.ToString());
+
+            TaskDialog.Show("STING Weekly Report", $"Report saved to:\n{reportPath}");
+            StingLog.Info($"Weekly report generated: {reportPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-10: COBie ROUND-TRIP IMPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-10: Import COBie V2.4 spreadsheet data back into Revit elements.
+    /// Matches Component rows to elements by UniqueId/BarCode/Tag, updates STING parameters.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieImportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import COBie Spreadsheet",
+                Filter = "Excel (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+                DefaultExt = ".xlsx"
+            };
+            if (dlg.ShowDialog() != true) return Result.Cancelled;
+
+            try
+            {
+                using var workbook = new ClosedXML.Excel.XLWorkbook(dlg.FileName);
+                var componentSheet = workbook.Worksheets.FirstOrDefault(ws =>
+                    ws.Name.Equals("Component", StringComparison.OrdinalIgnoreCase));
+
+                if (componentSheet == null)
+                {
+                    TaskDialog.Show("STING COBie Import", "No 'Component' worksheet found in the COBie file.");
+                    return Result.Failed;
+                }
+
+                // Read headers
+                var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                int lastCol = componentSheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+                for (int c = 1; c <= lastCol; c++)
+                {
+                    string h = componentSheet.Cell(1, c).GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(h)) headers[h] = c;
+                }
+
+                // Build element lookup by UniqueId and TAG1
+                var byUniqueId = new Dictionary<string, Element>();
+                var byTag = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+                var allElems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .ToList();
+                foreach (var el in allElems)
+                {
+                    byUniqueId[el.UniqueId] = el;
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) byTag[tag1] = el;
+                }
+
+                int lastRow = componentSheet.LastRowUsed()?.RowNumber() ?? 1;
+                if (lastRow > 10001) lastRow = 10001; // Safety limit
+
+                int matched = 0, updated = 0, skipped = 0;
+
+                // COBie column → STING parameter mapping
+                var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Description"] = "ASS_DESC_TXT",
+                    ["SerialNumber"] = "ASS_SERIAL_NUM_TXT",
+                    ["BarCode"] = "ASS_BARCODE_TXT",
+                    ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
+                    ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
+                    ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
+                    ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
+                    ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
+                };
+
+                using (Transaction tx = new Transaction(doc, "STING COBie Import"))
+                {
+                    tx.Start();
+                    for (int row = 2; row <= lastRow; row++)
+                    {
+                        // Match element
+                        Element target = null;
+                        if (headers.ContainsKey("ExternalIdentifier"))
+                        {
+                            string extId = componentSheet.Cell(row, headers["ExternalIdentifier"]).GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(extId)) byUniqueId.TryGetValue(extId, out target);
+                        }
+                        if (target == null && headers.ContainsKey("TagNumber"))
+                        {
+                            string tagNum = componentSheet.Cell(row, headers["TagNumber"]).GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(tagNum)) byTag.TryGetValue(tagNum, out target);
+                        }
+
+                        if (target == null) { skipped++; continue; }
+                        matched++;
+
+                        // Update mapped parameters
+                        bool anyWritten = false;
+                        foreach (var kv in columnMap)
+                        {
+                            if (!headers.ContainsKey(kv.Key)) continue;
+                            string val = componentSheet.Cell(row, headers[kv.Key]).GetString()?.Trim();
+                            if (string.IsNullOrEmpty(val)) continue;
+                            if (val.Equals("CLEAR", StringComparison.OrdinalIgnoreCase)) val = "";
+                            if (ParameterHelpers.SetString(target, kv.Value, val, overwrite: true))
+                                anyWritten = true;
+                        }
+                        if (anyWritten) updated++;
+                    }
+                    tx.Commit();
+                }
+
+                ComplianceScan.InvalidateCache();
+                TaskDialog.Show("STING COBie Import",
+                    $"COBie import complete.\n\n" +
+                    $"Rows processed: {lastRow - 1}\n" +
+                    $"Elements matched: {matched}\n" +
+                    $"Elements updated: {updated}\n" +
+                    $"Rows skipped (no match): {skipped}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                StingLog.Error($"COBie import failed: {ex.Message}", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-13: DOCUMENT APPROVAL WORKFLOW
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-13: Document approval workflow engine per ISO 19650-2 Section 5.6.
+    /// Tracks approval requests, pending sign-offs, and records approval history.</summary>
+    internal static class ApprovalWorkflowEngine
+    {
+        private static string GetApprovalPath(Document doc)
+        {
+            string docPath = doc?.PathName;
+            if (string.IsNullOrEmpty(docPath)) return null;
+            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "approvals.json");
+        }
+
+        /// <summary>Request approval for a CDE state transition.</summary>
+        internal static string RequestApproval(Document doc, string documentId, string fromState,
+            string toState, string requester, string[] requiredApprovers, string notes = null)
+        {
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null) return null;
+
+                JArray approvals;
+                if (File.Exists(path))
+                    approvals = JArray.Parse(File.ReadAllText(path));
+                else
+                    approvals = new JArray();
+
+                string approvalId = $"APR-{(approvals.Count + 1):D4}";
+                var pending = new JArray();
+                foreach (string approver in requiredApprovers)
+                    pending.Add(new JObject { ["user"] = approver, ["status"] = "PENDING", ["date"] = "" });
+
+                var record = new JObject
+                {
+                    ["approval_id"] = approvalId,
+                    ["document_id"] = documentId,
+                    ["from_state"] = fromState,
+                    ["to_state"] = toState,
+                    ["requester"] = requester,
+                    ["request_date"] = DateTime.Now.ToString("o"),
+                    ["status"] = "PENDING",
+                    ["notes"] = notes ?? "",
+                    ["approvers"] = pending
+                };
+
+                approvals.Add(record);
+                File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
+                return approvalId;
+            }
+            catch (Exception ex) { StingLog.Warn($"RequestApproval: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Record an approval sign-off.</summary>
+        internal static bool SignOff(Document doc, string approvalId, string approverUser, bool approved, string comments = null)
+        {
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null || !File.Exists(path)) return false;
+
+                var approvals = JArray.Parse(File.ReadAllText(path));
+                foreach (JObject record in approvals)
+                {
+                    if (!approvalId.Equals(record["approval_id"]?.ToString(), StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var approvers = record["approvers"] as JArray;
+                    if (approvers == null) continue;
+
+                    foreach (JObject a in approvers)
+                    {
+                        if (approverUser.Equals(a["user"]?.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            a["status"] = approved ? "APPROVED" : "REJECTED";
+                            a["date"] = DateTime.Now.ToString("o");
+                            if (comments != null) a["comments"] = comments;
+                        }
+                    }
+
+                    // Check if all approved
+                    bool allApproved = approvers.All(a => a["status"]?.ToString() == "APPROVED");
+                    bool anyRejected = approvers.Any(a => a["status"]?.ToString() == "REJECTED");
+
+                    record["status"] = anyRejected ? "REJECTED" : allApproved ? "APPROVED" : "PENDING";
+                    if (allApproved || anyRejected)
+                        record["completion_date"] = DateTime.Now.ToString("o");
+
+                    File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                    StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SignOff: {ex.Message}"); }
+            return false;
+        }
+
+        /// <summary>Get pending approvals for a user.</summary>
+        internal static List<JObject> GetPendingForUser(Document doc, string user)
+        {
+            var result = new List<JObject>();
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null || !File.Exists(path)) return result;
+
+                var approvals = JArray.Parse(File.ReadAllText(path));
+                foreach (JObject record in approvals)
+                {
+                    if (record["status"]?.ToString() != "PENDING") continue;
+                    var approvers = record["approvers"] as JArray;
+                    if (approvers == null) continue;
+                    if (approvers.Any(a =>
+                        a["user"]?.ToString().Equals(user, StringComparison.OrdinalIgnoreCase) == true &&
+                        a["status"]?.ToString() == "PENDING"))
+                        result.Add(record);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetPendingForUser: {ex.Message}"); }
+            return result;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-06: DATA DROP READINESS SCORING
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-06: Assesses model readiness against ISO 19650 data drop milestones (DD1-DD4).
+    /// Maps each milestone to required COBie sheets, tag completeness, and parameter groups.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DataDropReadinessCommand : IExternalCommand
+    {
+        // DD requirements per PAS 1192-2 / ISO 19650-2
+        private static readonly Dictionary<string, (double MinCompliance, string[] RequiredSheets, string Description)> DDRequirements =
+            new Dictionary<string, (double, string[], string)>
+            {
+                ["DD1"] = (30.0, new[] { "Facility", "Floor", "Space" },
+                    "Stage 2 — Concept: spatial model with room data"),
+                ["DD2"] = (60.0, new[] { "Facility", "Floor", "Space", "Type", "Component" },
+                    "Stage 3 — Developed: types and major components identified"),
+                ["DD3"] = (85.0, new[] { "Facility", "Floor", "Space", "Type", "Component", "System", "Zone", "Attribute" },
+                    "Stage 4 — Technical: systems connected, attributes populated"),
+                ["DD4"] = (95.0, new[] { "Facility", "Floor", "Space", "Type", "Component", "System", "Zone",
+                    "Attribute", "Connection", "Assembly", "Impact", "Document", "Coordinate" },
+                    "Stage 5 — Construction/Handover: full COBie delivery")
+            };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            ComplianceScan.InvalidateCache();
+            var comp = ComplianceScan.Scan(doc);
+
+            // Determine current data drop target from config or auto-detect
+            string targetDD = TagConfig.GetConfigDouble("CURRENT_DATA_DROP", 0) switch
+            {
+                1 => "DD1", 2 => "DD2", 3 => "DD3", 4 => "DD4",
+                _ => comp.CompliancePercent < 30 ? "DD1" :
+                     comp.CompliancePercent < 60 ? "DD2" :
+                     comp.CompliancePercent < 85 ? "DD3" : "DD4"
+            };
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"DATA DROP READINESS ASSESSMENT\n");
+            sb.AppendLine($"Current target: {targetDD}");
+            sb.AppendLine($"Model compliance: {comp.CompliancePercent:F1}%\n");
+
+            // Check element counts for COBie sheet readiness
+            int roomCount = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .GetElementCount();
+            int typeCount = new FilteredElementCollector(doc)
+                .WhereElementIsElementType()
+                .GetElementCount();
+
+            foreach (var kv in DDRequirements)
+            {
+                var (minComp, sheets, desc) = kv.Value;
+                bool compPass = comp.CompliancePercent >= minComp;
+                bool hasRooms = roomCount > 0;
+                bool hasTypes = kv.Key != "DD1" ? typeCount > 0 : true;
+
+                string status = compPass && hasRooms && hasTypes ? "PASS" : "FAIL";
+                string marker = kv.Key == targetDD ? " ◄ TARGET" : "";
+                string icon = status == "PASS" ? "✔" : "✘";
+
+                sb.AppendLine($"{icon} {kv.Key}: {desc}");
+                sb.AppendLine($"   Compliance: {comp.CompliancePercent:F0}% / {minComp:F0}% required — {(compPass ? "PASS" : "FAIL")}");
+                sb.AppendLine($"   Rooms: {roomCount} — {(hasRooms ? "PASS" : "FAIL (no rooms placed)")}");
+                sb.AppendLine($"   COBie sheets: {string.Join(", ", sheets)}{marker}");
+                sb.AppendLine();
+            }
+
+            // Summary
+            bool targetPass = comp.CompliancePercent >= DDRequirements[targetDD].MinCompliance && roomCount > 0;
+            sb.AppendLine(targetPass
+                ? $"VERDICT: Model is READY for {targetDD} data drop."
+                : $"VERDICT: Model is NOT READY for {targetDD}. Address issues above.");
+
+            TaskDialog.Show("STING Data Drop Readiness", sb.ToString());
+            StingLog.Info($"Data drop readiness: target={targetDD}, pass={targetPass}");
+            return Result.Succeeded;
         }
     }
 

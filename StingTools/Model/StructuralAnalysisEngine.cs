@@ -599,8 +599,11 @@ namespace StingTools.Model
 
             double z = Math.Max(heightM, zMin);
 
+            // Phase 56 BUG-02 fix: Guard against log(z/z0)=0 when z≈z0
+            double zRatio = Math.Max(z / z0, 1.001); // Ensure z > z0 to avoid log(1)=0
+
             // Roughness factor: cr(z) = kr × ln(z/z0)
-            double cr = kr * Math.Log(z / z0);
+            double cr = kr * Math.Log(zRatio);
 
             // Orography factor: co(z) = 1.0 (flat terrain)
             double co = 1.0;
@@ -610,7 +613,8 @@ namespace StingTools.Model
 
             // Turbulence intensity: Iv(z) = kI / (co × ln(z/z0))
             double kI = 1.0; // Turbulence factor
-            double Iv = kI / (co * Math.Log(z / z0));
+            double logZ = Math.Log(zRatio);
+            double Iv = Math.Abs(logZ) > 1e-6 ? kI / (co * logZ) : kI / co;
 
             // Peak velocity pressure: qp(z) = [1 + 7×Iv(z)] × 0.5 × ρ × vm²
             double qp = (1 + 7 * Iv) * 0.5 * RhoAir * vm * vm;
@@ -779,7 +783,11 @@ namespace StingTools.Model
                 // Reduction factor χ (buckling curve 'b' for UC)
                 double alpha = 0.34; // Imperfection factor for curve 'b'
                 double phi = 0.5 * (1 + alpha * (lambdaBar - 0.2) + lambdaBar * lambdaBar);
-                double chi = Math.Min(1.0, 1.0 / (phi + Math.Sqrt(phi * phi - lambdaBar * lambdaBar)));
+                // Phase 56b AE-006 FIX: Guard against sqrt of negative for slender columns
+                double chiSqrtArg = phi * phi - lambdaBar * lambdaBar;
+                double chi = chiSqrtArg >= 0
+                    ? Math.Min(1.0, 1.0 / (phi + Math.Sqrt(chiSqrtArg)))
+                    : Math.Min(1.0, 1.0 / (2 * phi)); // Conservative fallback
                 chi = Math.Max(0, chi);
 
                 double Nbrd = chi * section.AreaCm2 * 100 * fykMPa / (gammaM1 * 1000.0); // kN
@@ -861,8 +869,10 @@ namespace StingTools.Model
                 K = Klim; // Design as singly reinforced for simplicity
             }
 
-            // Lever arm
-            double z = d * (0.5 + Math.Sqrt(0.25 - K / 1.134));
+            // Phase 56b AE-001 FIX: Guard against sqrt of negative when K > 0.2835
+            double sqrtArg = 0.25 - K / 1.134;
+            if (sqrtArg < 0) sqrtArg = 0.25 - Klim / 1.134; // Fallback to limit value
+            double z = d * (0.5 + Math.Sqrt(Math.Max(sqrtArg, 0)));
             z = Math.Min(z, 0.95 * d);
 
             // Required steel area

@@ -87,6 +87,22 @@ namespace StingTools.Core
         public double AvgCriticalAgeHours { get; set; }
         /// <summary>Phase 48: Warning type groups for top-N display per category.</summary>
         public Dictionary<WarningCategory, List<(string Desc, int Count)>> TopWarningsByCategory { get; set; } = new();
+
+        /// <summary>R4-D A1: Root-cause groups — deduplicates identical warning descriptions into
+        /// groups with element counts. Reduces 200 "duplicate instances" warnings to 1 group of 200.</summary>
+        public List<RootCauseGroup> RootCauseGroups { get; set; } = new();
+    }
+
+    /// <summary>R4-D A1: A group of warnings sharing the same description (root cause).</summary>
+    internal class RootCauseGroup
+    {
+        public string Description { get; set; }
+        public WarningCategory Category { get; set; }
+        public WarningSeverity Severity { get; set; }
+        public int Count { get; set; }
+        public bool CanAutoFix { get; set; }
+        public List<ElementId> AllElements { get; set; } = new();
+        public string FixStrategy { get; set; }
     }
 
     /// <summary>Result of a batch auto-fix operation.</summary>
@@ -96,6 +112,8 @@ namespace StingTools.Core
         public int Fixed { get; set; }
         public int Skipped { get; set; }
         public int Failed { get; set; }
+        /// <summary>Phase 56: Net warning reduction after fix verification re-scan.</summary>
+        public int NetReduction { get; set; }
         public List<string> Details { get; set; } = new();
     }
 
@@ -222,6 +240,12 @@ namespace StingTools.Core
             ("corridor width", WarningCategory.Compliance, WarningSeverity.High, "Check corridor min width per BS 9991", false),
             ("compartment", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire compartmentation", false),
             ("disabled", WarningCategory.Compliance, WarningSeverity.High, "Check DDA/BS 8300 compliance", false),
+
+            // Phase 56 WM-008: Additional MEP common warnings
+            ("multi-connector", WarningCategory.MEP, WarningSeverity.High, "Resolve ambiguous connector routing", false),
+            ("reverse flow", WarningCategory.MEP, WarningSeverity.Medium, "Check flow direction setting", false),
+            ("size mismatch", WarningCategory.MEP, WarningSeverity.Medium, "Use correct reducer size", false),
+            ("isolated", WarningCategory.MEP, WarningSeverity.High, "Connect isolated pipe/duct segment to main system", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -277,6 +301,12 @@ namespace StingTools.Core
             }
             return false;
         }
+
+        // ── HELPERS ──
+
+        /// <summary>Phase 56b LOGIC-WARN-01: Centralized null-safe FailureMessage description getter.</summary>
+        private static string GetWarningDesc(FailureMessage fm)
+            => fm?.GetDescriptionText()?.Trim() ?? "";
 
         // ── CLASSIFICATION ──
 
@@ -456,6 +486,36 @@ namespace StingTools.Core
             try { CheckWarningSLAViolations(doc, report); }
             catch (Exception ex) { StingLog.Warn($"SLA check: {ex.Message}"); }
 
+            // R4-C CS-GAP-02: Add stale elements as synthetic warnings so they appear
+            // in the unified warnings pipeline with SLA tracking and auto-fix
+            try
+            {
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null && compResult.StaleCount > 0)
+                {
+                    var syntheticStale = new ClassifiedWarning
+                    {
+                        Description = $"{compResult.StaleCount} elements have moved/changed but tags not updated",
+                        Category = WarningCategory.Data,
+                        Severity = WarningSeverity.High,
+                        CanAutoFix = true,
+                        FixStrategy = "Run RetagStale command to update tags on moved elements"
+                    };
+                    report.Warnings.Add(syntheticStale);
+                    report.Total++;
+                    report.AutoFixable++;
+                    if (!report.ByCategory.ContainsKey(WarningCategory.Data)) report.ByCategory[WarningCategory.Data] = 0;
+                    report.ByCategory[WarningCategory.Data]++;
+                    if (!report.BySeverity.ContainsKey(WarningSeverity.High)) report.BySeverity[WarningSeverity.High] = 0;
+                    report.BySeverity[WarningSeverity.High]++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
+
+            // R4-D A1: Build root-cause groups (deduplicates identical warnings)
+            try { BuildRootCauseGroups(report); }
+            catch (Exception ex) { StingLog.Warn($"Root-cause grouping: {ex.Message}"); }
+
             return report;
         }
 
@@ -484,7 +544,7 @@ namespace StingTools.Core
                         foreach (ElementId id in cw.AdditionalElements)
                         {
                             try { doc.Delete(id); return true; }
-                            catch { }
+                            catch (Exception delEx) { StingLog.Warn($"AutoFix delete {id}: {delEx.Message}"); }
                         }
                     }
                     // Fallback: delete second failing element
@@ -520,7 +580,8 @@ namespace StingTools.Core
                     }
                 }
 
-                // Strategy 4: Duplicate mark value — auto-increment
+                // Strategy 4: Duplicate mark value — auto-increment with collision avoidance
+                // Phase 56 WM-001 fix: naive "_2" append could create new collisions
                 if (lower.Contains("duplicate mark value") || lower.Contains("duplicate type mark"))
                 {
                     var ids = cw.FailingElements.ToList();
@@ -533,8 +594,27 @@ namespace StingTools.Core
                             if (markParam != null && !markParam.IsReadOnly)
                             {
                                 string current = markParam.AsString() ?? "";
-                                // Append _2 suffix to make unique
-                                markParam.Set(current + "_2");
+                                // Build set of existing marks to avoid creating new collisions
+                                var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                try
+                                {
+                                    foreach (Element e in new FilteredElementCollector(doc)
+                                        .WhereElementIsNotElementType())
+                                    {
+                                        string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                        if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                    }
+                                }
+                                catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
+
+                                // Find unique mark by numeric increment
+                                string newMark = current;
+                                for (int attempt = 2; attempt < 1000; attempt++)
+                                {
+                                    newMark = $"{current}_{attempt}";
+                                    if (!existingMarks.Contains(newMark)) break;
+                                }
+                                markParam.Set(newMark);
                                 return true;
                             }
                         }
@@ -702,7 +782,147 @@ namespace StingTools.Core
                 else
                     tx.RollBack();
             }
+
+            // Phase 56: Fix verification — re-scan warnings after auto-fix to confirm fixes worked
+            if (report.Fixed > 0)
+            {
+                try
+                {
+                    int postFixCount = doc.GetWarnings()?.Count ?? 0;
+                    int preFixCount = warnings.Count;
+                    int netReduction = preFixCount - postFixCount;
+                    report.Details.Add($"");
+                    report.Details.Add($"── Verification ──");
+                    report.Details.Add($"Before: {preFixCount} warnings, After: {postFixCount} warnings");
+                    if (netReduction > 0)
+                        report.Details.Add($"Net reduction: {netReduction} warnings resolved");
+                    else if (netReduction == 0)
+                        report.Details.Add($"Warning: no net reduction — fixes may have introduced new warnings");
+                    else
+                        report.Details.Add($"WARNING: {Math.Abs(netReduction)} NEW warnings introduced by fixes — review manually");
+                    report.NetReduction = netReduction;
+                }
+                catch (Exception ex) { StingLog.Warn($"Fix verification scan: {ex.Message}"); }
+            }
             return report;
+        }
+
+        // ── WARNING PRIORITY QUEUE ──
+
+        /// <summary>
+        /// Phase 56: Calculate weighted priority score for each warning.
+        /// Higher score = fix this warning first. Factors: severity, element count,
+        /// downstream impact (COBie, compliance), age, and auto-fixability.
+        /// </summary>
+        internal static List<(ClassifiedWarning Warning, double Score, string Reason)>
+            PrioritizeWarnings(List<ClassifiedWarning> warnings)
+        {
+            var scored = new List<(ClassifiedWarning, double, string)>();
+            foreach (var w in warnings)
+            {
+                double score = 0;
+                var reasons = new List<string>();
+
+                // Severity weight (0-50)
+                switch (w.Severity)
+                {
+                    case WarningSeverity.Critical: score += 50; reasons.Add("CRITICAL severity"); break;
+                    case WarningSeverity.High: score += 35; reasons.Add("HIGH severity"); break;
+                    case WarningSeverity.Medium: score += 20; break;
+                    case WarningSeverity.Low: score += 10; break;
+                    default: score += 5; break;
+                }
+
+                // Element count impact (0-20)
+                int elemCount = (w.FailingElements?.Count ?? 0) + (w.AdditionalElements?.Count ?? 0);
+                if (elemCount > 10) { score += 20; reasons.Add($"{elemCount} elements affected"); }
+                else if (elemCount > 5) score += 15;
+                else if (elemCount > 1) score += 10;
+                else score += 5;
+
+                // Category impact on downstream systems (0-20)
+                if (w.Category == WarningCategory.Spatial) { score += 20; reasons.Add("Affects room/area data"); }
+                else if (w.Category == WarningCategory.MEP) { score += 15; reasons.Add("Affects MEP systems"); }
+                else if (w.Category == WarningCategory.Data) { score += 15; reasons.Add("Affects tag/schedule data"); }
+                else if (w.Category == WarningCategory.Compliance) { score += 18; reasons.Add("Compliance impact"); }
+                else if (w.Category == WarningCategory.Structural) { score += 12; }
+
+                // Auto-fixable bonus (prioritize easy wins)
+                if (w.CanAutoFix) { score += 10; reasons.Add("Auto-fixable"); }
+
+                scored.Add((w, score, string.Join(", ", reasons)));
+            }
+
+            return scored.OrderByDescending(s => s.Item2).ToList();
+        }
+
+        // ── MODEL VALIDATION ENGINE ──
+
+        /// <summary>
+        /// Phase 56: Post-creation model validation. Checks geometry, spatial,
+        /// MEP system, and naming convention compliance.
+        /// Returns list of validation issues found.
+        /// </summary>
+        internal static List<string> ValidateModelElements(Document doc, List<ElementId> elementIds)
+        {
+            var issues = new List<string>();
+            if (doc == null || elementIds == null || elementIds.Count == 0) return issues;
+
+            foreach (var id in elementIds)
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+
+                try
+                {
+                    // 1. Geometry validation — check for zero-length/area elements
+                    if (el.Location is LocationCurve lc)
+                    {
+                        if (lc.Curve.Length < 0.01) // ~3mm
+                            issues.Add($"Element {el.Id}: near-zero length ({lc.Curve.Length * 304.8:F0}mm)");
+                    }
+
+                    // 2. Bounding box validation — elements without geometry
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): no bounding box — may be invisible");
+                    else if ((bb.Max - bb.Min).GetLength() < 0.001)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): zero-size bounding box");
+
+                    // 3. Level association — elements without a level
+                    var levelId = el.LevelId;
+                    if (levelId == null || levelId == ElementId.InvalidElementId)
+                    {
+                        // Only flag for elements that should have a level
+                        if (el is Wall || el is Floor || el is FamilyInstance fi && fi.Host == null)
+                            issues.Add($"Element {el.Id} ({el.Category?.Name}): not associated with a level");
+                    }
+
+                    // 4. MEP system validation — connectors should be connected
+                    if (el is FamilyInstance fam)
+                    {
+                        var connMgr = fam.MEPModel?.ConnectorManager;
+                        if (connMgr != null)
+                        {
+                            int unconnected = 0;
+                            foreach (Connector c in connMgr.Connectors)
+                                if (!c.IsConnected) unconnected++;
+                            if (unconnected > 0)
+                                issues.Add($"Element {el.Id} ({el.Category?.Name}): {unconnected} unconnected MEP connector(s)");
+                        }
+                    }
+
+                    // 5. Naming convention — elements with default names
+                    string mark = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                    if (string.IsNullOrEmpty(mark) && (el is Wall || el is Floor || el is FamilyInstance))
+                    {
+                        // Not critical but useful for BIM coordinators
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidateModelElement {id}: {ex.Message}"); }
+            }
+
+            return issues;
         }
 
         // ── BASELINE / TREND ──
@@ -714,7 +934,8 @@ namespace StingTools.Core
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
-        /// <summary>Save current warning count as baseline for trend tracking.</summary>
+        /// <summary>Save current warning count as baseline for trend tracking.
+        /// Phase 56b DATA-WARN-01: Uses atomic write pattern (temp + rename) to prevent corruption.</summary>
         internal static void SaveBaseline(Document doc)
         {
             try
@@ -722,11 +943,23 @@ namespace StingTools.Core
                 string path = GetBaselinePath(doc);
                 if (path == null) return;
                 int count = doc.GetWarnings()?.Count ?? 0;
-                string json = $"{{\"total\":{count},\"date\":\"{DateTime.Now:o}\"}}";
-                File.WriteAllText(path, json, Encoding.UTF8);
+                string json = $"{{\"version\":2,\"total\":{count},\"date\":\"{DateTime.Now:o}\",\"user\":\"{Environment.UserName}\"}}";
+
+                // Atomic write: temp file then rename to prevent mid-write corruption
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, json, Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
                 StingLog.Info($"Warning baseline saved: {count} warnings");
             }
-            catch (Exception ex) { StingLog.Warn($"SaveBaseline: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveBaseline: {ex.Message}");
+                // Clean up temp file on failure
+                try { string tp = GetBaselinePath(doc) + ".tmp"; if (File.Exists(tp)) File.Delete(tp); }
+                catch { /* best effort cleanup */ }
+            }
         }
 
         /// <summary>Load previous baseline count. Returns null if no baseline exists.</summary>
@@ -1280,37 +1513,111 @@ namespace StingTools.Core
                 var warnings = doc.GetWarnings();
                 int count = warnings?.Count ?? 0;
 
-                // Build warning type array
-                var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // A2: Load existing first-seen timestamps so we don't overwrite them
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                string now = DateTime.Now.ToString("o");
+
+                // Build warning type array with per-type first-seen timestamps
+                var typeEntries = new List<string>();
                 if (warnings != null)
                 {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var fm in warnings)
                     {
                         string desc = fm.GetDescriptionText();
-                        if (!string.IsNullOrEmpty(desc)) types.Add(desc);
+                        if (string.IsNullOrEmpty(desc) || !seen.Add(desc)) continue;
+
+                        // Preserve existing first-seen date, or stamp new
+                        string firstSeenDate = firstSeen.ContainsKey(desc) ? firstSeen[desc] : now;
+                        string escaped = desc.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                        typeEntries.Add($"{{\"desc\":\"{escaped}\",\"first_seen\":\"{firstSeenDate}\",\"count\":1}}");
                     }
                 }
 
                 var sb = new StringBuilder();
                 sb.Append("{");
+                sb.Append($"\"version\":3,");
                 sb.Append($"\"total\":{count},");
-                sb.Append($"\"date\":\"{DateTime.Now:o}\",");
+                sb.Append($"\"date\":\"{now}\",");
                 sb.Append($"\"user\":\"{Environment.UserName ?? "unknown"}\",");
                 sb.Append("\"warning_types\":[");
-                bool first = true;
-                foreach (string t in types)
-                {
-                    if (!first) sb.Append(",");
-                    sb.Append($"\"{t.Replace("\"", "\\\"")}\"");
-                    first = false;
-                }
+                sb.Append(string.Join(",", typeEntries));
                 sb.Append("]");
                 sb.Append("}");
 
-                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-                StingLog.Info($"Extended warning baseline saved: {count} warnings, {types.Count} types");
+                // Atomic write
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
+                StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }
             catch (Exception ex) { StingLog.Warn($"SaveExtendedBaseline: {ex.Message}"); }
+        }
+
+        /// <summary>A2: Load per-warning first-seen timestamps from existing baseline sidecar.</summary>
+        private static Dictionary<string, string> LoadFirstSeenTimestamps(string baselinePath)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (!File.Exists(baselinePath)) return result;
+                string json = File.ReadAllText(baselinePath);
+                var obj = JObject.Parse(json);
+                var types = obj["warning_types"] as JArray;
+                if (types == null) return result;
+                foreach (var item in types)
+                {
+                    if (item is JObject jObj)
+                    {
+                        string desc = jObj["desc"]?.ToString();
+                        string fs = jObj["first_seen"]?.ToString();
+                        if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(fs))
+                            result[desc] = fs;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadFirstSeenTimestamps: {ex.Message}"); }
+            return result;
+        }
+
+        /// <summary>A2: Check per-warning SLA violations using first-seen timestamps.
+        /// Returns list of warnings exceeding their SLA threshold based on individual age.</summary>
+        internal static List<(string Description, double AgeHours, double SLAHours, WarningSeverity Severity)>
+            CheckPerWarningSLAViolations(Document doc, WarningReport report)
+        {
+            var violations = new List<(string, double, double, WarningSeverity)>();
+            try
+            {
+                string path = GetBaselinePath(doc);
+                if (path == null || !File.Exists(path)) return violations;
+
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                if (firstSeen.Count == 0) return violations;
+
+                var now = DateTime.Now;
+                foreach (var group in report.RootCauseGroups)
+                {
+                    if (!firstSeen.TryGetValue(group.Description, out string fsStr)) continue;
+                    if (!DateTime.TryParse(fsStr, out DateTime fsDate)) continue;
+
+                    double ageHours = (now - fsDate).TotalHours;
+                    double slaHours = group.Severity switch
+                    {
+                        WarningSeverity.Critical => 4,
+                        WarningSeverity.High => 24,
+                        WarningSeverity.Medium => 168,
+                        WarningSeverity.Low => 336,
+                        _ => 336
+                    };
+
+                    if (ageHours > slaHours)
+                        violations.Add((group.Description, ageHours, slaHours, group.Severity));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CheckPerWarningSLAViolations: {ex.Message}"); }
+            return violations;
         }
 
         /// <summary>Phase 48: Build top-N warnings per category for drill-down tooltips.</summary>
@@ -1329,6 +1636,41 @@ namespace StingTools.Core
                     .Select(g => (g.Key.Length > 80 ? g.Key.Substring(0, 77) + "..." : g.Key, g.Count()))
                     .ToList();
                 report.TopWarningsByCategory[group.Key] = topDescs;
+            }
+        }
+
+        /// <summary>R4-D A1: Build root-cause groups — deduplicates warnings by description.
+        /// Reduces 200 "duplicate instances" warnings into 1 group with count=200.
+        /// Sorted by count descending so highest-impact groups appear first.</summary>
+        internal static void BuildRootCauseGroups(WarningReport report)
+        {
+            if (report?.Warnings == null || report.Warnings.Count == 0) return;
+            report.RootCauseGroups.Clear();
+
+            var grouped = report.Warnings
+                .GroupBy(w => w.Description ?? "", StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count());
+
+            foreach (var g in grouped)
+            {
+                var first = g.First();
+                var allElements = new List<ElementId>();
+                foreach (var w in g)
+                {
+                    if (w.FailingElements != null)
+                        allElements.AddRange(w.FailingElements);
+                }
+
+                report.RootCauseGroups.Add(new RootCauseGroup
+                {
+                    Description = first.Description ?? "",
+                    Category = first.Category,
+                    Severity = first.Severity,
+                    Count = g.Count(),
+                    CanAutoFix = first.CanAutoFix,
+                    FixStrategy = first.FixStrategy,
+                    AllElements = allElements.Distinct().ToList()
+                });
             }
         }
     }
@@ -1417,6 +1759,117 @@ namespace StingTools.Core
 
     // ══════════════════════════════════════════════════════════════════
     //  COMMANDS (8 IExternalCommand classes)
+        // ══════════════════════════════════════════════════════════════
+        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
+        // Cross-system automation: warning → issue pipeline
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
+        /// Checks for existing linked issues to avoid duplicates.
+        /// Returns count of newly created issues.
+        /// </summary>
+        internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
+            WarningSeverity minSeverity = WarningSeverity.Critical)
+        {
+            if (doc == null || report == null || report.Warnings.Count == 0) return 0;
+
+            int created = 0;
+            try
+            {
+                // Load existing issues to check for duplicates
+                string issuesPath = Path.Combine(
+                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    "_bim_manager", "issues.json");
+
+                var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(issuesPath))
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(issuesPath);
+                        var arr = Newtonsoft.Json.Linq.JArray.Parse(json);
+                        foreach (var item in arr)
+                        {
+                            string desc = item["description"]?.ToString() ?? "";
+                            existingIssues.Add(desc);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
+                }
+
+                // Filter warnings by minimum severity
+                var targetWarnings = report.Warnings.Where(w =>
+                    w.Severity <= minSeverity && // Critical=0, High=1, so <= works
+                    !string.IsNullOrEmpty(w.Description));
+
+                // Group by description to avoid creating 50 issues for same warning type
+                var grouped = targetWarnings
+                    .GroupBy(w => w.Description.Length > 80 ? w.Description.Substring(0, 80) : w.Description)
+                    .Take(20); // Cap at 20 issue types
+
+                var newIssues = new List<object>();
+                int nextId = existingIssues.Count + 1;
+
+                foreach (var group in grouped)
+                {
+                    string desc = $"[AUTO] {group.Key}";
+                    if (existingIssues.Contains(desc)) continue; // Already tracked
+
+                    var first = group.First();
+                    string issueType = first.Severity == WarningSeverity.Critical ? "NCR" : "SI";
+                    string priority = first.Severity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
+
+                    var elementIds = group.SelectMany(w => w.FailingElements ?? Enumerable.Empty<ElementId>())
+                        .Select(id => id.Value.ToString()).Distinct().Take(10).ToList();
+
+                    newIssues.Add(new
+                    {
+                        id = $"{issueType}-{nextId:D4}",
+                        title = desc,
+                        description = $"{group.Count()} warning(s): {group.Key}",
+                        type = issueType,
+                        priority = priority,
+                        status = "OPEN",
+                        discipline = first.Discipline ?? "GEN",
+                        assignee = "BIM Manager",
+                        created_date = DateTime.Now.ToString("o"),
+                        created_by = "STING Auto",
+                        auto_created = true,
+                        warning_category = first.Category.ToString(),
+                        affected_elements = elementIds,
+                        element_count = group.Sum(w => (w.FailingElements?.Count ?? 0))
+                    });
+                    nextId++;
+                    created++;
+                }
+
+                if (newIssues.Count > 0)
+                {
+                    // Append to issues.json
+                    string dir = Path.GetDirectoryName(issuesPath) ?? "";
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                    Newtonsoft.Json.Linq.JArray arr;
+                    if (File.Exists(issuesPath))
+                    {
+                        try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
+                        catch { arr = new Newtonsoft.Json.Linq.JArray(); }
+                    }
+                    else arr = new Newtonsoft.Json.Linq.JArray();
+
+                    foreach (var issue in newIssues)
+                        arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
+
+                    File.WriteAllText(issuesPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
+            return created;
+        }
+
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>

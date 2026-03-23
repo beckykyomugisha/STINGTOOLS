@@ -266,27 +266,88 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
-                // GAP-BIM-005: Check issue SLA violations on document open (morning SLA report)
+                // Phase 56: Morning Briefing — comprehensive model status on document open
+                // Shows compliance, stale elements, warnings, and SLA violations in one dialog
                 try
                 {
-                    var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(e.Document);
-                    if (overdue.Count > 0)
+                    var briefing = new System.Text.StringBuilder();
+                    bool hasAlerts = false;
+
+                    // 1. Compliance scan + trend tracking
+                    var comp = ComplianceScan.Scan(e.Document);
+                    if (comp != null)
                     {
-                        int critCount = overdue.Count(o => o.priority == "CRITICAL");
-                        int highCount = overdue.Count(o => o.priority == "HIGH");
-                        string slaMsg = $"⚠ {overdue.Count} overdue issue(s) detected:";
-                        if (critCount > 0) slaMsg += $"\n  CRITICAL: {critCount} (SLA: 4 hrs)";
-                        if (highCount > 0) slaMsg += $"\n  HIGH: {highCount} (SLA: 24 hrs)";
-                        slaMsg += $"\n\nMost overdue: {overdue[0].issueId} — {overdue[0].title}";
-                        slaMsg += $"\n  ({overdue[0].hoursOverdue:F0} hours overdue)";
-                        slaMsg += "\n\nOpen Document Management Center → ISSUES tab to review.";
-                        StingLog.Warn($"SLA violations detected: {overdue.Count} overdue issues");
-                        Autodesk.Revit.UI.TaskDialog.Show("STING SLA Alert", slaMsg);
+                        // Record daily compliance snapshot for trend analysis
+                        ComplianceTrendTracker.RecordSnapshot(e.Document, comp);
+                        var (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(e.Document);
+
+                        briefing.AppendLine($"Tag Compliance: {comp.CompliancePercent:F0}% ({comp.RAGStatus})" +
+                            (trendDir != "unknown" && trendDir != "insufficient data" ?
+                            $"  [{trendDir} {trendDelta:+0.0;-0.0}% over 7 days]" : ""));
+                        briefing.AppendLine($"  Tagged: {comp.TaggedComplete}/{comp.TotalElements}  |  " +
+                            $"Untagged: {comp.Untagged}  |  Stale: {comp.StaleCount}");
+                        if (comp.PlaceholderCount > 0)
+                            briefing.AppendLine($"  Placeholders (GEN/XX/ZZ): {comp.PlaceholderCount}");
+                        if (comp.StaleCount > 0) hasAlerts = true;
+                        if (comp.CompliancePercent < 60) hasAlerts = true;
+                        if (trendDir == "declining") hasAlerts = true;
+                    }
+
+                    // 2. Warnings summary
+                    try
+                    {
+                        int warnCount = e.Document.GetWarnings()?.Count ?? 0;
+                        briefing.AppendLine($"\nModel Warnings: {warnCount}");
+                        if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                    }
+                    catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
+
+                    // 3. SLA violations
+                    try
+                    {
+                        var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(e.Document);
+                        if (overdue.Count > 0)
+                        {
+                            hasAlerts = true;
+                            int critCount = overdue.Count(o => o.priority == "CRITICAL");
+                            int highCount = overdue.Count(o => o.priority == "HIGH");
+                            briefing.AppendLine($"\nOverdue Issues: {overdue.Count}");
+                            if (critCount > 0) briefing.AppendLine($"  CRITICAL: {critCount} (SLA: 4 hrs)");
+                            if (highCount > 0) briefing.AppendLine($"  HIGH: {highCount} (SLA: 24 hrs)");
+                            briefing.AppendLine($"  Most overdue: {overdue[0].issueId} ({overdue[0].hoursOverdue:F0}h)");
+                        }
+                    }
+                    catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
+
+                    // 4. Show morning briefing dialog only if there are alerts
+                    if (hasAlerts)
+                    {
+                        briefing.AppendLine("\n────────────────────────────────────");
+                        briefing.AppendLine("Open BIM Coordination Center for full details.");
+                        var dlg = new Autodesk.Revit.UI.TaskDialog("STING Morning Briefing");
+                        dlg.MainInstruction = "Model Status Summary";
+                        dlg.MainContent = briefing.ToString();
+                        dlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
+                            "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                        dlg.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Close;
+                        var dlgResult = dlg.Show();
+
+                        // If user clicks "Run Morning Health Check", set ExtraParam for workflow dispatch
+                        if (dlgResult == Autodesk.Revit.UI.TaskDialogResult.CommandLink1)
+                        {
+                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                            StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Info($"Morning briefing: model healthy — " +
+                            $"{comp?.CompliancePercent:F0}% compliance, no alerts");
                     }
                 }
-                catch (Exception slaEx)
+                catch (Exception mbEx)
                 {
-                    StingLog.Warn($"SLA check on document open: {slaEx.Message}");
+                    StingLog.Warn($"Morning briefing: {mbEx.Message}");
                 }
             }
             catch (Exception ex)

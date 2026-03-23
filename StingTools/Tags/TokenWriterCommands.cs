@@ -89,6 +89,7 @@ namespace StingTools.Tags
 
             int written = 0;
             int tagsRebuilt = 0;
+            Dictionary<string, int> seqCounters = null; // R4-B: hoist for sidecar save
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {
                 tx.Start();
@@ -103,10 +104,11 @@ namespace StingTools.Tags
                 // TAG-01: After setting the token, rebuild TAG1 + containers so they
                 // reflect the change immediately. Previously TAG1/containers remained
                 // stale until user ran a separate BuildTags or Combine command.
+                // R4-B FIX: Use BuildTagIndexAndCounters (merges sidecar) instead of GetExistingSequenceCounters
                 if (written > 0)
                 {
-                    var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                    var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+                    HashSet<string> existingTags;
+                    (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                     foreach (ElementId id in targetIds)
                     {
                         Element elem = doc.GetElement(id);
@@ -139,11 +141,12 @@ namespace StingTools.Tags
             // FIX-WR08: Invalidate caches after token writes so dashboard/auto-tagger reflect changes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            if (written > 0)
+            if (written > 0 && seqCounters != null)
             {
-                // seqCounters was built earlier (line 99) and passed to BuildAndWriteTag
-                try { TagConfig.SaveSeqSidecar(doc, TagConfig.GetExistingSequenceCounters(doc)); }
+                // R4-B FIX: Save the already-mutated seqCounters (not a fresh scan) so collision increments persist
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                 catch (Exception ssEx) { StingLog.Warn($"TokenWriter SaveSeqSidecar: {ssEx.Message}"); }
+                TagConfig.CheckComplianceGate(doc); // R4-B: TokenWriter was missing compliance gate
             }
 
             string resultMsg = $"Set '{value}' on {written} elements.";

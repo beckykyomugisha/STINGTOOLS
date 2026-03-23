@@ -625,12 +625,18 @@ namespace StingTools.Core
                 var modifiedIds = args.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
 
-                // Limit batch size to prevent performance issues
-                if (modifiedIds.Count > 100) return;
+                // R4-C AL-GAP-01: Process first 100 instead of dropping entire batch silently.
+                // Previously, moving 200+ elements caused ZERO stale marking.
+                ICollection<ElementId> processIds = modifiedIds;
+                if (modifiedIds.Count > 100)
+                {
+                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing first 100, {modifiedIds.Count - 100} unchecked.");
+                    processIds = modifiedIds.Take(100).ToList();
+                }
 
                 var idsToMark = new List<ElementId>();
 
-                foreach (ElementId id in modifiedIds)
+                foreach (ElementId id in processIds)
                 {
                     Element el = doc.GetElement(id);
                     if (el == null || !el.IsValidObject) continue;

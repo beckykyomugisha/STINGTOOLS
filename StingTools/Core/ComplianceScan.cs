@@ -460,6 +460,63 @@ namespace StingTools.Core
             {
                 _cached = null;
                 _cacheTime = DateTime.MinValue;
+                _incrementalCount = 0;
+            }
+        }
+
+        // FUT-16: Incremental update tracking
+        private static int _incrementalCount = 0;
+        private const int MaxIncrementalUpdates = 1000;
+
+        /// <summary>FUT-16: O(1) incremental compliance update instead of full O(n) rescan.
+        /// Adjusts cached counters in-place when a single element's tag status changes.
+        /// Falls back to full rescan after 1000 incremental updates to prevent drift.</summary>
+        public static void IncrementalUpdate(string oldTag, string newTag, string disc)
+        {
+            lock (_cacheLock)
+            {
+                if (_cached == null) return; // No cache to update
+                if (Interlocked.Increment(ref _incrementalCount) > MaxIncrementalUpdates)
+                {
+                    // Drift guard: force full rescan
+                    _cached = null;
+                    _cacheTime = DateTime.MinValue;
+                    _incrementalCount = 0;
+                    return;
+                }
+
+                bool wasTagged = !string.IsNullOrEmpty(oldTag);
+                bool isTagged = !string.IsNullOrEmpty(newTag);
+                bool wasComplete = wasTagged && TagConfig.TagIsComplete(oldTag);
+                bool isComplete = isTagged && TagConfig.TagIsComplete(newTag);
+
+                // Update untagged count
+                if (!wasTagged && isTagged) _cached.Untagged = Math.Max(0, _cached.Untagged - 1);
+                else if (wasTagged && !isTagged) _cached.Untagged++;
+
+                // Update tagged complete count
+                if (!wasComplete && isComplete) _cached.TaggedComplete++;
+                else if (wasComplete && !isComplete) _cached.TaggedComplete = Math.Max(0, _cached.TaggedComplete - 1);
+
+                // Update tagged incomplete
+                bool wasIncomplete = wasTagged && !wasComplete;
+                bool isIncomplete = isTagged && !isComplete;
+                if (!wasIncomplete && isIncomplete) _cached.TaggedIncomplete++;
+                else if (wasIncomplete && !isIncomplete) _cached.TaggedIncomplete = Math.Max(0, _cached.TaggedIncomplete - 1);
+
+                // Update per-discipline counts
+                if (!string.IsNullOrEmpty(disc) && _cached.ByDisc != null)
+                {
+                    if (!_cached.ByDisc.ContainsKey(disc))
+                        _cached.ByDisc[disc] = new DiscComplianceData { Total = 1 };
+
+                    var dd = _cached.ByDisc[disc];
+                    if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
+                    else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                }
+
+                // Refresh cache timestamp so it stays valid
+                _cacheTime = DateTime.UtcNow;
             }
         }
 
@@ -490,5 +547,201 @@ namespace StingTools.Core
         public int Tagged { get; set; }
         public int Untagged { get; set; }
         public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
+    }
+
+    /// <summary>FUT-02: Per-linked-model compliance data for federated model coordination.</summary>
+    public class LinkedModelCompliance
+    {
+        public string LinkName { get; set; }
+        public string LinkPath { get; set; }
+        public int TotalElements { get; set; }
+        public int TaggedComplete { get; set; }
+        public int Untagged { get; set; }
+        public double CompliancePct => TotalElements > 0 ? TaggedComplete * 100.0 / TotalElements : 0;
+        public string RAGStatus => CompliancePct >= 80 ? "GREEN" : CompliancePct >= 50 ? "AMBER" : "RED";
+    }
+
+    /// <summary>FUT-02: Aggregated compliance across host + all linked Revit models.</summary>
+    public class FederatedComplianceResult
+    {
+        public ComplianceScan.ComplianceResult HostResult { get; set; }
+        public List<LinkedModelCompliance> LinkedResults { get; set; } = new List<LinkedModelCompliance>();
+        public int TotalAcrossAll => (HostResult?.TotalElements ?? 0) + LinkedResults.Sum(l => l.TotalElements);
+        public int TaggedAcrossAll => (HostResult?.TaggedComplete ?? 0) + LinkedResults.Sum(l => l.TaggedComplete);
+        public double FederatedCompliancePct => TotalAcrossAll > 0 ? TaggedAcrossAll * 100.0 / TotalAcrossAll : 0;
+        public string FederatedRAG => FederatedCompliancePct >= 80 ? "GREEN" : FederatedCompliancePct >= 50 ? "AMBER" : "RED";
+    }
+
+    /// <summary>FUT-02: Scan compliance across host document and all linked Revit models.</summary>
+    public static class FederatedComplianceScanner
+    {
+        public static FederatedComplianceResult ScanFederated(Document hostDoc)
+        {
+            var result = new FederatedComplianceResult();
+
+            // Scan host model
+            ComplianceScan.InvalidateCache();
+            result.HostResult = ComplianceScan.Scan(hostDoc);
+
+            // Scan each linked model
+            try
+            {
+                var linkInstances = new FilteredElementCollector(hostDoc)
+                    .OfClass(typeof(RevitLinkInstance))
+                    .Cast<RevitLinkInstance>()
+                    .ToList();
+
+                foreach (var linkInst in linkInstances)
+                {
+                    try
+                    {
+                        var linkType = hostDoc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
+                        if (linkType == null) continue;
+
+                        Document linkedDoc = linkType.GetLinkedDocument();
+                        if (linkedDoc == null) continue;
+
+                        // Quick compliance scan of linked document
+                        var linkResult = new LinkedModelCompliance
+                        {
+                            LinkName = linkType.Name ?? linkInst.Name,
+                            LinkPath = linkedDoc.PathName ?? ""
+                        };
+
+                        var elems = new FilteredElementCollector(linkedDoc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                            .ToList();
+
+                        linkResult.TotalElements = elems.Count;
+                        foreach (var el in elems)
+                        {
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(tag1) && TagConfig.TagIsComplete(tag1))
+                                linkResult.TaggedComplete++;
+                            else if (string.IsNullOrEmpty(tag1))
+                                linkResult.Untagged++;
+                        }
+
+                        result.LinkedResults.Add(linkResult);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"FederatedScan link '{linkInst.Name}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FederatedScan: {ex.Message}"); }
+
+            return result;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Phase 56: COMPLIANCE TREND TRACKER
+    // Persists daily compliance snapshots for trend analysis
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Phase 56: Tracks compliance over time for morning briefings and coordination reports.
+    /// Persists to .sting_compliance_trend.json sidecar alongside the .rvt file.
+    /// </summary>
+    internal static class ComplianceTrendTracker
+    {
+        private const int MaxDays = 90;
+
+        /// <summary>Record today's compliance snapshot.</summary>
+        public static void RecordSnapshot(Document doc, ComplianceResult result)
+        {
+            if (doc == null || result == null || string.IsNullOrEmpty(doc.PathName)) return;
+            try
+            {
+                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                var entries = LoadEntries(path);
+                string today = DateTime.Now.ToString("yyyy-MM-dd");
+
+                // Update today's entry or add new
+                var existing = entries.FirstOrDefault(e => e.Date == today);
+                if (existing != null)
+                {
+                    existing.CompliancePct = result.CompliancePercent;
+                    existing.StaleCount = result.StaleCount;
+                    existing.Warnings = doc.GetWarnings()?.Count ?? 0;
+                    existing.PlaceholderCount = result.PlaceholderCount;
+                }
+                else
+                {
+                    entries.Add(new TrendEntry
+                    {
+                        Date = today,
+                        CompliancePct = result.CompliancePercent,
+                        TotalElements = result.TotalElements,
+                        TaggedComplete = result.TaggedComplete,
+                        StaleCount = result.StaleCount,
+                        Warnings = doc.GetWarnings()?.Count ?? 0,
+                        PlaceholderCount = result.PlaceholderCount
+                    });
+                }
+
+                // Cap at MaxDays
+                if (entries.Count > MaxDays)
+                    entries = entries.OrderByDescending(e => e.Date).Take(MaxDays).ToList();
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entries,
+                    Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(path, json);
+            }
+            catch (Exception ex) { StingLog.Warn($"ComplianceTrendTracker: {ex.Message}"); }
+        }
+
+        /// <summary>Get trend direction over last N days.</summary>
+        public static (string direction, double delta) GetTrend(Document doc, int days = 7)
+        {
+            if (doc == null || string.IsNullOrEmpty(doc.PathName))
+                return ("unknown", 0);
+            try
+            {
+                string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                var entries = LoadEntries(path);
+                if (entries.Count < 2) return ("insufficient data", 0);
+
+                var sorted = entries.OrderBy(e => e.Date).ToList();
+                int startIdx = Math.Max(0, sorted.Count - days);
+                double first = sorted[startIdx].CompliancePct;
+                double last = sorted[^1].CompliancePct;
+                double delta = last - first;
+
+                string dir = delta > 2 ? "improving" : delta < -2 ? "declining" : "stable";
+                return (dir, delta);
+            }
+            catch { return ("unknown", 0); }
+        }
+
+        private static List<TrendEntry> LoadEntries(string path)
+        {
+            try
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    return Newtonsoft.Json.JsonConvert.DeserializeObject<List<TrendEntry>>(json)
+                        ?? new List<TrendEntry>();
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadTrendEntries: {ex.Message}"); }
+            return new List<TrendEntry>();
+        }
+
+        /// <summary>Daily compliance snapshot entry.</summary>
+        public class TrendEntry
+        {
+            [Newtonsoft.Json.JsonProperty("date")] public string Date { get; set; }
+            [Newtonsoft.Json.JsonProperty("compliance_pct")] public double CompliancePct { get; set; }
+            [Newtonsoft.Json.JsonProperty("total")] public int TotalElements { get; set; }
+            [Newtonsoft.Json.JsonProperty("tagged")] public int TaggedComplete { get; set; }
+            [Newtonsoft.Json.JsonProperty("stale")] public int StaleCount { get; set; }
+            [Newtonsoft.Json.JsonProperty("warnings")] public int Warnings { get; set; }
+            [Newtonsoft.Json.JsonProperty("placeholders")] public int PlaceholderCount { get; set; }
+        }
     }
 }

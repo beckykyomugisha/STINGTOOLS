@@ -313,6 +313,7 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
+                    case "EqualizeLeaderLengths": RunCommand<Organise.EqualizeLeaderLengthsCommand>(app); break;
                     case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
@@ -1225,6 +1226,8 @@ namespace StingTools.UI
 
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
+                    case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;
+                    case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
                     case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
@@ -1649,6 +1652,10 @@ namespace StingTools.UI
                     case "SwitchTagPos": RunCommand<Tags.SwitchTagPositionCommand>(app); break;
                     case "ExportTagPositions": RunCommand<Tags.ExportTagPositionsCommand>(app); break;
 
+                    // D1: Tag map export/import between projects
+                    case "ExportTagMap": RunCommand<BIMManager.ExportTagMapCommand>(app); break;
+                    case "ImportTagMap": RunCommand<BIMManager.ImportTagMapCommand>(app); break;
+
                     // TI-02: Tie-In status commands
                     case "SetTieInOpen": SetTieInStatus(app, "OPEN", 0); break;
                     case "SetTieInConnected": SetTieInStatus(app, "CONNECTED", 1); break;
@@ -1743,6 +1750,8 @@ namespace StingTools.UI
 
                     // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
                     case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "SpatialConnectivityAudit": RunCommand<Temp.SpatialConnectivityAuditCommand>(app); break;
+                    case "DataDropReadiness": RunCommand<BIMManager.DataDropReadinessCommand>(app); break;
                     case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
                     case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
                     case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
