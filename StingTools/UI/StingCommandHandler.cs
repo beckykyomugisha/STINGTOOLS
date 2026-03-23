@@ -2220,7 +2220,7 @@ namespace StingTools.UI
                         var allIds = new FilteredElementCollector(doc)
                             .WhereElementIsNotElementType()
                             .Select(e => e.Id).ToList();
-                        var (total, breakdown) = Model.EmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
+                        var (total, breakdown) = Model.ModelEmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
                         var topMaterials = breakdown.GroupBy(b => b.Material)
                             .Select(g => (g.Key, g.Sum(x => x.KgCO2e)))
                             .OrderByDescending(x => x.Item2).Take(10);

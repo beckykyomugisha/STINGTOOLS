@@ -651,7 +651,7 @@ namespace StingTools.Core
         private const int MaxDays = 90;
 
         /// <summary>Record today's compliance snapshot.</summary>
-        public static void RecordSnapshot(Document doc, ComplianceResult result)
+        public static void RecordSnapshot(Document doc, ComplianceScan.ComplianceResult result)
         {
             if (doc == null || result == null || string.IsNullOrEmpty(doc.PathName)) return;
             try
