@@ -630,4 +630,166 @@ namespace StingTools.Temp
             return Result.Succeeded;
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-07: ROOM CONNECTIVITY VALIDATION
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-07: Validates spatial connectivity — rooms without doors, dead-end corridors,
+    /// rooms below minimum area standards per BS 6465/BCO Guide.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SpatialConnectivityAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // Collect all rooms
+            var rooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<SpatialElement>()
+                .Where(r => r is Room)
+                .Cast<Room>()
+                .Where(r => r.Area > 0) // Skip unplaced/unbounded
+                .ToList();
+
+            if (rooms.Count == 0)
+            {
+                TaskDialog.Show("STING Spatial Audit", "No placed rooms found in the model.");
+                return Result.Cancelled;
+            }
+
+            // Collect all doors
+            var doors = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Doors)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            // Build room-to-door mapping
+            var roomDoorCount = new Dictionary<long, int>();
+            foreach (var door in doors)
+            {
+                try
+                {
+                    var fi = door as FamilyInstance;
+                    if (fi == null) continue;
+
+                    // Check FromRoom and ToRoom
+                    var phase = doc.GetElement(door.CreatedPhaseId) as Phase;
+                    if (phase == null && doc.Phases.Size > 0) phase = doc.Phases.get_Item(doc.Phases.Size - 1) as Phase;
+                    if (phase == null) continue;
+
+                    Room fromRoom = fi.get_FromRoom(phase);
+                    Room toRoom = fi.get_ToRoom(phase);
+
+                    if (fromRoom != null)
+                    {
+                        long rid = fromRoom.Id.Value;
+                        if (!roomDoorCount.ContainsKey(rid)) roomDoorCount[rid] = 0;
+                        roomDoorCount[rid]++;
+                    }
+                    if (toRoom != null)
+                    {
+                        long rid = toRoom.Id.Value;
+                        if (!roomDoorCount.ContainsKey(rid)) roomDoorCount[rid] = 0;
+                        roomDoorCount[rid]++;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SpatialAudit door {door.Id}: {ex.Message}"); }
+            }
+
+            // Analyse rooms
+            var noDoors = new List<Room>();
+            var belowMinArea = new List<(Room Room, double AreaM2, double MinM2)>();
+            var deadEndCorridors = new List<Room>();
+
+            // Minimum areas per BS 6465 / BCO Guide (m²)
+            double minOfficeFt2 = 6.0 / 0.0929; // 6m² in ft²
+            double minToiletFt2 = 1.5 / 0.0929;
+
+            foreach (var room in rooms)
+            {
+                long rid = room.Id.Value;
+                int doorCount = roomDoorCount.ContainsKey(rid) ? roomDoorCount[rid] : 0;
+
+                // Check for rooms without doors
+                if (doorCount == 0) noDoors.Add(room);
+
+                // Check dead-end corridors (only 1 door/opening)
+                string name = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                if (doorCount == 1 && (name.IndexOf("corridor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.IndexOf("hallway", StringComparison.OrdinalIgnoreCase) >= 0))
+                    deadEndCorridors.Add(room);
+
+                // Check minimum area
+                double areaFt2 = room.Area;
+                double areaM2 = areaFt2 * 0.0929;
+                if (name.IndexOf("toilet", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    name.IndexOf("WC", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (areaFt2 < minToiletFt2) belowMinArea.Add((room, areaM2, 1.5));
+                }
+                else if (name.IndexOf("office", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         name.IndexOf("meeting", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (areaFt2 < minOfficeFt2) belowMinArea.Add((room, areaM2, 6.0));
+                }
+            }
+
+            // Report
+            var sb = new StringBuilder();
+            sb.AppendLine($"Spatial Connectivity Audit — {rooms.Count} rooms analysed\n");
+
+            sb.AppendLine($"ROOMS WITHOUT DOORS: {noDoors.Count}");
+            foreach (var r in noDoors.Take(20))
+            {
+                string rName = r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "unnamed";
+                string rNum = r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+                sb.AppendLine($"  [{r.Id.Value}] {rNum} - {rName}");
+            }
+            if (noDoors.Count > 20) sb.AppendLine($"  ... and {noDoors.Count - 20} more");
+
+            sb.AppendLine($"\nDEAD-END CORRIDORS (single access): {deadEndCorridors.Count}");
+            foreach (var r in deadEndCorridors.Take(10))
+            {
+                string rName = r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                sb.AppendLine($"  [{r.Id.Value}] {rName} — BS 9999 egress concern");
+            }
+
+            sb.AppendLine($"\nBELOW MINIMUM AREA: {belowMinArea.Count}");
+            foreach (var (r, area, minArea) in belowMinArea.Take(10))
+            {
+                string rName = r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                sb.AppendLine($"  [{r.Id.Value}] {rName}: {area:F1}m² (min {minArea:F1}m²)");
+            }
+
+            int totalIssues = noDoors.Count + deadEndCorridors.Count + belowMinArea.Count;
+            sb.AppendLine($"\nTotal issues: {totalIssues}");
+
+            // Offer to select rooms without doors
+            var dlg = new TaskDialog("STING Spatial Audit");
+            dlg.MainInstruction = $"Spatial Connectivity Audit: {totalIssues} issues found";
+            dlg.MainContent = sb.ToString();
+            if (noDoors.Count > 0)
+            {
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    $"Select {noDoors.Count} rooms without doors");
+            }
+            dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.CommandLink1 && noDoors.Count > 0)
+            {
+                uidoc.Selection.SetElementIds(noDoors.Select(r => r.Id).ToList());
+            }
+
+            StingLog.Info($"Spatial audit: {rooms.Count} rooms, {totalIssues} issues");
+            return Result.Succeeded;
+        }
+    }
 }

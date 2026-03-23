@@ -1287,6 +1287,10 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="Room Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Audit rooms for completeness and issues"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Connectivity" Tag="SpatialConnectivityAudit" Click="Cmd_Click" ToolTip="Validate rooms: doors, dead-end corridors, min area per BS 6465"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="DataDropReadiness" Click="Cmd_Click" ToolTip="Assess model readiness against DD1-DD4 milestones"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Weekly Report" Tag="WeeklyReport" Click="Cmd_Click" ToolTip="Generate HTML weekly BIM coordinator report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="COBie Import" Tag="COBieImport" Click="Cmd_Click" ToolTip="Import COBie spreadsheet data back into model"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Zone Assign" Tag="RoomZoneAssign" Click="Cmd_Click" ToolTip="Auto-assign ZONE codes from department names"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Room Sched" Tag="RoomSchedule" Click="Cmd_Click" ToolTip="Create room schedule with area, finishes, tags"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Room Export" Tag="RoomDataExport" Click="Cmd_Click" ToolTip="Export room data to CSV"/>

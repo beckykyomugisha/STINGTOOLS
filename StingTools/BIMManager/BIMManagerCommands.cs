@@ -9500,4 +9500,218 @@ namespace StingTools.BIMManager
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-13: DOCUMENT APPROVAL WORKFLOW
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-13: Document approval workflow engine per ISO 19650-2 Section 5.6.
+    /// Tracks approval requests, pending sign-offs, and records approval history.</summary>
+    internal static class ApprovalWorkflowEngine
+    {
+        private static string GetApprovalPath(Document doc)
+        {
+            string docPath = doc?.PathName;
+            if (string.IsNullOrEmpty(docPath)) return null;
+            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "approvals.json");
+        }
+
+        /// <summary>Request approval for a CDE state transition.</summary>
+        internal static string RequestApproval(Document doc, string documentId, string fromState,
+            string toState, string requester, string[] requiredApprovers, string notes = null)
+        {
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null) return null;
+
+                JArray approvals;
+                if (File.Exists(path))
+                    approvals = JArray.Parse(File.ReadAllText(path));
+                else
+                    approvals = new JArray();
+
+                string approvalId = $"APR-{(approvals.Count + 1):D4}";
+                var pending = new JArray();
+                foreach (string approver in requiredApprovers)
+                    pending.Add(new JObject { ["user"] = approver, ["status"] = "PENDING", ["date"] = "" });
+
+                var record = new JObject
+                {
+                    ["approval_id"] = approvalId,
+                    ["document_id"] = documentId,
+                    ["from_state"] = fromState,
+                    ["to_state"] = toState,
+                    ["requester"] = requester,
+                    ["request_date"] = DateTime.Now.ToString("o"),
+                    ["status"] = "PENDING",
+                    ["notes"] = notes ?? "",
+                    ["approvers"] = pending
+                };
+
+                approvals.Add(record);
+                File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
+                return approvalId;
+            }
+            catch (Exception ex) { StingLog.Warn($"RequestApproval: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Record an approval sign-off.</summary>
+        internal static bool SignOff(Document doc, string approvalId, string approverUser, bool approved, string comments = null)
+        {
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null || !File.Exists(path)) return false;
+
+                var approvals = JArray.Parse(File.ReadAllText(path));
+                foreach (JObject record in approvals)
+                {
+                    if (!approvalId.Equals(record["approval_id"]?.ToString(), StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var approvers = record["approvers"] as JArray;
+                    if (approvers == null) continue;
+
+                    foreach (JObject a in approvers)
+                    {
+                        if (approverUser.Equals(a["user"]?.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            a["status"] = approved ? "APPROVED" : "REJECTED";
+                            a["date"] = DateTime.Now.ToString("o");
+                            if (comments != null) a["comments"] = comments;
+                        }
+                    }
+
+                    // Check if all approved
+                    bool allApproved = approvers.All(a => a["status"]?.ToString() == "APPROVED");
+                    bool anyRejected = approvers.Any(a => a["status"]?.ToString() == "REJECTED");
+
+                    record["status"] = anyRejected ? "REJECTED" : allApproved ? "APPROVED" : "PENDING";
+                    if (allApproved || anyRejected)
+                        record["completion_date"] = DateTime.Now.ToString("o");
+
+                    File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                    StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SignOff: {ex.Message}"); }
+            return false;
+        }
+
+        /// <summary>Get pending approvals for a user.</summary>
+        internal static List<JObject> GetPendingForUser(Document doc, string user)
+        {
+            var result = new List<JObject>();
+            try
+            {
+                string path = GetApprovalPath(doc);
+                if (path == null || !File.Exists(path)) return result;
+
+                var approvals = JArray.Parse(File.ReadAllText(path));
+                foreach (JObject record in approvals)
+                {
+                    if (record["status"]?.ToString() != "PENDING") continue;
+                    var approvers = record["approvers"] as JArray;
+                    if (approvers == null) continue;
+                    if (approvers.Any(a =>
+                        a["user"]?.ToString().Equals(user, StringComparison.OrdinalIgnoreCase) == true &&
+                        a["status"]?.ToString() == "PENDING"))
+                        result.Add(record);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetPendingForUser: {ex.Message}"); }
+            return result;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-06: DATA DROP READINESS SCORING
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-06: Assesses model readiness against ISO 19650 data drop milestones (DD1-DD4).
+    /// Maps each milestone to required COBie sheets, tag completeness, and parameter groups.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class DataDropReadinessCommand : IExternalCommand
+    {
+        // DD requirements per PAS 1192-2 / ISO 19650-2
+        private static readonly Dictionary<string, (double MinCompliance, string[] RequiredSheets, string Description)> DDRequirements =
+            new Dictionary<string, (double, string[], string)>
+            {
+                ["DD1"] = (30.0, new[] { "Facility", "Floor", "Space" },
+                    "Stage 2 — Concept: spatial model with room data"),
+                ["DD2"] = (60.0, new[] { "Facility", "Floor", "Space", "Type", "Component" },
+                    "Stage 3 — Developed: types and major components identified"),
+                ["DD3"] = (85.0, new[] { "Facility", "Floor", "Space", "Type", "Component", "System", "Zone", "Attribute" },
+                    "Stage 4 — Technical: systems connected, attributes populated"),
+                ["DD4"] = (95.0, new[] { "Facility", "Floor", "Space", "Type", "Component", "System", "Zone",
+                    "Attribute", "Connection", "Assembly", "Impact", "Document", "Coordinate" },
+                    "Stage 5 — Construction/Handover: full COBie delivery")
+            };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            ComplianceScan.InvalidateCache();
+            var comp = ComplianceScan.Scan(doc);
+
+            // Determine current data drop target from config or auto-detect
+            string targetDD = TagConfig.GetConfigDouble("CURRENT_DATA_DROP", 0) switch
+            {
+                1 => "DD1", 2 => "DD2", 3 => "DD3", 4 => "DD4",
+                _ => comp.CompliancePercent < 30 ? "DD1" :
+                     comp.CompliancePercent < 60 ? "DD2" :
+                     comp.CompliancePercent < 85 ? "DD3" : "DD4"
+            };
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"DATA DROP READINESS ASSESSMENT\n");
+            sb.AppendLine($"Current target: {targetDD}");
+            sb.AppendLine($"Model compliance: {comp.CompliancePercent:F1}%\n");
+
+            // Check element counts for COBie sheet readiness
+            int roomCount = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .GetElementCount();
+            int typeCount = new FilteredElementCollector(doc)
+                .WhereElementIsElementType()
+                .GetElementCount();
+
+            foreach (var kv in DDRequirements)
+            {
+                var (minComp, sheets, desc) = kv.Value;
+                bool compPass = comp.CompliancePercent >= minComp;
+                bool hasRooms = roomCount > 0;
+                bool hasTypes = kv.Key != "DD1" ? typeCount > 0 : true;
+
+                string status = compPass && hasRooms && hasTypes ? "PASS" : "FAIL";
+                string marker = kv.Key == targetDD ? " ◄ TARGET" : "";
+                string icon = status == "PASS" ? "✔" : "✘";
+
+                sb.AppendLine($"{icon} {kv.Key}: {desc}");
+                sb.AppendLine($"   Compliance: {comp.CompliancePercent:F0}% / {minComp:F0}% required — {(compPass ? "PASS" : "FAIL")}");
+                sb.AppendLine($"   Rooms: {roomCount} — {(hasRooms ? "PASS" : "FAIL (no rooms placed)")}");
+                sb.AppendLine($"   COBie sheets: {string.Join(", ", sheets)}{marker}");
+                sb.AppendLine();
+            }
+
+            // Summary
+            bool targetPass = comp.CompliancePercent >= DDRequirements[targetDD].MinCompliance && roomCount > 0;
+            sb.AppendLine(targetPass
+                ? $"VERDICT: Model is READY for {targetDD} data drop."
+                : $"VERDICT: Model is NOT READY for {targetDD}. Address issues above.");
+
+            TaskDialog.Show("STING Data Drop Readiness", sb.ToString());
+            StingLog.Info($"Data drop readiness: target={targetDD}, pass={targetPass}");
+            return Result.Succeeded;
+        }
+    }
+
 }

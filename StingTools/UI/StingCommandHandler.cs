@@ -1750,6 +1750,8 @@ namespace StingTools.UI
 
                     // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
                     case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "SpatialConnectivityAudit": RunCommand<Temp.SpatialConnectivityAuditCommand>(app); break;
+                    case "DataDropReadiness": RunCommand<BIMManager.DataDropReadinessCommand>(app); break;
                     case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
                     case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
                     case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
