@@ -310,7 +310,7 @@ namespace StingTools.Model
             // Columns
             var selCol = new DataGridCheckBoxColumn
             {
-                Header = "", Binding = new Binding("Selected") { Mode = BindingMode.TwoWay },
+                Header = "", Binding = new System.Windows.Data.Binding("Selected") { Mode = BindingMode.TwoWay },
                 Width = 28
             };
             _layerGrid.Columns.Add(selCol);
@@ -326,7 +326,7 @@ namespace StingTools.Model
             {
                 Header = "Map To",
                 Width = 100,
-                SelectedItemBinding = new Binding("MapTo") { Mode = BindingMode.TwoWay },
+                SelectedItemBinding = new System.Windows.Data.Binding("MapTo") { Mode = BindingMode.TwoWay },
                 ItemsSource = new[] { "", "Column", "Beam", "Wall", "Slab", "Foundation", "Grid" }
             };
             _layerGrid.Columns.Add(mapCol);
@@ -1227,7 +1227,7 @@ namespace StingTools.Model
             return new DataGridTextColumn
             {
                 Header = header,
-                Binding = new Binding(binding),
+                Binding = new System.Windows.Data.Binding(binding),
                 Width = width,
                 IsReadOnly = true
             };
@@ -1303,7 +1303,8 @@ namespace StingTools.Model
         private static StackPanel MakeMiniField(string label, string defaultVal, out TextBox tb)
         {
             tb = new TextBox { Text = defaultVal, Width = 50, FontSize = 10, Height = 20 };
-            tb.TextChanged += (s, e) => ValidateNumericInput(tb);
+            TextBox localTb = tb;
+            localTb.TextChanged += (s, e) => ValidateNumericInput(localTb);
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 0) };
             panel.Children.Add(new TextBlock
             {

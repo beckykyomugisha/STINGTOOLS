@@ -16,6 +16,7 @@ using Autodesk.Revit.UI;
 using ClosedXML.Excel;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Autodesk.Revit.DB.Architecture;
 using StingTools.Core;
 using StingTools.UI;
 
@@ -164,7 +165,7 @@ namespace StingTools.BIMManager
             {
                 ComplianceScan.InvalidateCache();
                 var scan = ComplianceScan.Scan(doc);
-                sb.AppendLine($"Tag Compliance: {scan?.CompliancePercent:F1}% ({scan?.Tagged}/{scan?.Total})");
+                sb.AppendLine($"Tag Compliance: {scan?.CompliancePercent:F1}% ({(scan?.TaggedComplete ?? 0) + (scan?.TaggedIncomplete ?? 0)}/{scan?.TotalElements})");
                 sb.AppendLine($"Stale: {scan?.StaleCount}, Placeholders: {scan?.PlaceholderCount}");
 
                 // Issues
@@ -409,8 +410,8 @@ namespace StingTools.BIMManager
                 ["tag_pct"] = scan?.CompliancePercent ?? 0,
                 ["container_pct"] = scan?.ContainerCompletePct ?? 0,
                 ["stale_count"] = scan?.StaleCount ?? 0,
-                ["total_elements"] = scan?.Total ?? 0,
-                ["tagged_elements"] = scan?.Tagged ?? 0
+                ["total_elements"] = scan?.TotalElements ?? 0,
+                ["tagged_elements"] = (scan?.TaggedComplete ?? 0) + (scan?.TaggedIncomplete ?? 0)
             };
 
             // Determine current milestone
@@ -427,7 +428,7 @@ namespace StingTools.BIMManager
             return $"Data Drop Progress: {currentDD}\n" +
                    $"Tag Compliance: {pct:F1}%\n" +
                    $"Container Compliance: {scan?.ContainerCompletePct:F1}%\n" +
-                   $"Stale: {scan?.StaleCount}, Total: {scan?.Total}";
+                   $"Stale: {scan?.StaleCount}, Total: {scan?.TotalElements}";
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -588,7 +589,10 @@ namespace StingTools.BIMManager
                 _cachedPreFlightResult != null)
                 return _cachedPreFlightResult;
 
-            _cachedPreFlightResult = WorkflowEngine.PreFlightCheck(doc, presetName);
+            var preset = WorkflowEngine.GetBuiltInPreset(presetName);
+            if (preset == null) return new List<string> { $"Preset '{presetName}' not found." };
+            var (_, preflight) = WorkflowEngine.PreFlightCheck(doc, preset);
+            _cachedPreFlightResult = preflight;
             _cachedPreFlightPreset = presetName;
             _preFlightCacheTime = DateTime.Now;
             return _cachedPreFlightResult;

@@ -758,7 +758,9 @@ namespace StingTools.Model
                         }
 
                         // Find or create column type
-                        FamilySymbol colType = StructuralTypeFactory.FindColumnType(_doc, widthMm, depthMm);
+                        var typeFactory = new StructuralTypeFactory(_doc);
+                        var colResult = typeFactory.FindOrCreateColumnType(widthMm, depthMm);
+                        FamilySymbol colType = colResult?.Success == true ? _doc.GetElement(colResult.TypeId) as FamilySymbol : null;
                         if (colType == null) { StingLog.Warn($"Column row {row.RowNum}: No type for {row.Size}"); continue; }
                         if (!colType.IsActive) colType.Activate();
 
@@ -797,7 +799,9 @@ namespace StingTools.Model
                         Level level = ResolveLevel(row.Level);
                         if (level == null) continue;
 
-                        FamilySymbol beamType = StructuralTypeFactory.FindBeamType(_doc, row.WidthMm, row.DepthMm);
+                        var beamFactory = new StructuralTypeFactory(_doc);
+                        var beamResult = beamFactory.FindOrCreateBeamType(row.DepthMm, row.WidthMm);
+                        FamilySymbol beamType = beamResult?.Success == true ? _doc.GetElement(beamResult.TypeId) as FamilySymbol : null;
                         if (beamType == null) continue;
                         if (!beamType.IsActive) beamType.Activate();
 

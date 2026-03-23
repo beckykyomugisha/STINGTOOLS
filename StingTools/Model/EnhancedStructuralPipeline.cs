@@ -287,11 +287,10 @@ namespace StingTools.Model
             sb.AppendLine("EMBODIED CARBON ASSESSMENT\n");
 
             // Carbon factors (kgCO2e/kg material) — ICE Database v3
-            double steelCarbon = 1.55; // Structural steel
             double concreteCarbon = 0.13; // Per kg concrete (C32/40)
             double rebarCarbon = 1.99; // Reinforcement
 
-            double totalSteel = 0, totalConcrete = 0, totalRebar = 0;
+            double totalConcrete = 0, totalRebar = 0;
 
             var beams = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
                 .WhereElementIsNotElementType().ToList();
