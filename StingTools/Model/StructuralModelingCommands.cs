@@ -905,7 +905,6 @@ namespace StingTools.Model
             }
         }
     }
-}
 
     // ══════════════════════════════════════════════════════════════════
     // STRUCTURAL CAD WIZARD (Full Automation)
@@ -1207,3 +1206,4 @@ namespace StingTools.Model
             }
         }
     }
+}
