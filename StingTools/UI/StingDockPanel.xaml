@@ -695,6 +695,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Combine" Tag="LeaderCombine" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Attach" Tag="AttachLeader" Click="Cmd_Click" ToolTip="Attach leader end to host"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sel w/Ldr" Tag="SelectTagsWithLeaders" Click="Cmd_Click" ToolTip="Select tags with leaders"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Equalize" Tag="EqualizeLeaderLengths" Click="Cmd_Click" ToolTip="Equalize leader lengths to median distance"/>
                                 </WrapPanel>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="ELBOW"/>
                                 <WrapPanel>

@@ -313,6 +313,7 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
+                    case "EqualizeLeaderLengths": RunCommand<Organise.EqualizeLeaderLengthsCommand>(app); break;
                     case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;

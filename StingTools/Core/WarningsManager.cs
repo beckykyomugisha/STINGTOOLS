@@ -87,6 +87,22 @@ namespace StingTools.Core
         public double AvgCriticalAgeHours { get; set; }
         /// <summary>Phase 48: Warning type groups for top-N display per category.</summary>
         public Dictionary<WarningCategory, List<(string Desc, int Count)>> TopWarningsByCategory { get; set; } = new();
+
+        /// <summary>R4-D A1: Root-cause groups — deduplicates identical warning descriptions into
+        /// groups with element counts. Reduces 200 "duplicate instances" warnings to 1 group of 200.</summary>
+        public List<RootCauseGroup> RootCauseGroups { get; set; } = new();
+    }
+
+    /// <summary>R4-D A1: A group of warnings sharing the same description (root cause).</summary>
+    internal class RootCauseGroup
+    {
+        public string Description { get; set; }
+        public WarningCategory Category { get; set; }
+        public WarningSeverity Severity { get; set; }
+        public int Count { get; set; }
+        public bool CanAutoFix { get; set; }
+        public List<ElementId> AllElements { get; set; } = new();
+        public string FixStrategy { get; set; }
     }
 
     /// <summary>Result of a batch auto-fix operation.</summary>
@@ -469,6 +485,10 @@ namespace StingTools.Core
             // Phase 48: SLA violation check
             try { CheckWarningSLAViolations(doc, report); }
             catch (Exception ex) { StingLog.Warn($"SLA check: {ex.Message}"); }
+
+            // R4-D A1: Build root-cause groups (deduplicates identical warnings)
+            try { BuildRootCauseGroups(report); }
+            catch (Exception ex) { StingLog.Warn($"Root-cause grouping: {ex.Message}"); }
 
             return report;
         }
@@ -1516,6 +1536,41 @@ namespace StingTools.Core
                     .Select(g => (g.Key.Length > 80 ? g.Key.Substring(0, 77) + "..." : g.Key, g.Count()))
                     .ToList();
                 report.TopWarningsByCategory[group.Key] = topDescs;
+            }
+        }
+
+        /// <summary>R4-D A1: Build root-cause groups — deduplicates warnings by description.
+        /// Reduces 200 "duplicate instances" warnings into 1 group with count=200.
+        /// Sorted by count descending so highest-impact groups appear first.</summary>
+        internal static void BuildRootCauseGroups(WarningReport report)
+        {
+            if (report?.Warnings == null || report.Warnings.Count == 0) return;
+            report.RootCauseGroups.Clear();
+
+            var grouped = report.Warnings
+                .GroupBy(w => w.Description ?? "", StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count());
+
+            foreach (var g in grouped)
+            {
+                var first = g.First();
+                var allElements = new List<ElementId>();
+                foreach (var w in g)
+                {
+                    if (w.FailingElements != null)
+                        allElements.AddRange(w.FailingElements);
+                }
+
+                report.RootCauseGroups.Add(new RootCauseGroup
+                {
+                    Description = first.Description ?? "",
+                    Category = first.Category,
+                    Severity = first.Severity,
+                    Count = g.Count(),
+                    CanAutoFix = first.CanAutoFix,
+                    FixStrategy = first.FixStrategy,
+                    AllElements = allElements.Distinct().ToList()
+                });
             }
         }
     }
