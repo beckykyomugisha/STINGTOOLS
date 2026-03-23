@@ -1395,7 +1395,17 @@ namespace StingTools.Core
                             ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
                                 $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
                         }
-                        return; // Use first tagged connected element
+
+                        // Phase 56b CRIT-02 FIX: Check if ALL tokens now populated before returning
+                        // Previously returned after first tagged element even if some tokens still empty
+                        bool nowComplete = true;
+                        foreach (string t in tokensToCopy)
+                        {
+                            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, t)))
+                            { nowComplete = false; break; }
+                        }
+                        if (nowComplete) return; // All tokens filled — done
+                        // Else: continue scanning other connectors for remaining empty tokens
                     }
                 }
             }

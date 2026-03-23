@@ -41,16 +41,21 @@ namespace StingTools.BIMManager
         internal static readonly Dictionary<string, (int order, string trade, int daysPerUnit)> TradeSequence =
             new Dictionary<string, (int order, string trade, int daysPerUnit)>
         {
-            // Substructure
-            ["FOUNDATIONS"]    = (100, "Substructure — Foundations", 14),
+            // Substructure — Phase 56b HIGH-02: Added 6 missing UK construction trades
+            ["EXCAVATION"]     = (80, "Substructure — Excavation & Earthworks", 10),
             ["PILING"]         = (90, "Substructure — Piling", 21),
+            ["FOUNDATIONS"]    = (100, "Substructure — Foundations", 14),
+            ["GROUND_BEAMS"]   = (105, "Substructure — Ground Beams", 7),
             ["BASEMENT"]       = (110, "Substructure — Basement", 21),
+            ["DPC"]            = (115, "Substructure — Damp Proof Course", 3),
+            ["MEMBRANE"]       = (125, "Envelope — Membrane/Insulation", 5),
 
             // Structure (by category)
             ["Structural Foundations"] = (100, "Substructure — Foundations", 14),
             ["Structural Framing"]     = (200, "Superstructure — Frame", 7),
             ["Structural Columns"]     = (210, "Superstructure — Columns", 5),
             ["Floors"]                 = (220, "Superstructure — Floors/Slabs", 7),
+            ["CONCRETE_TOPPING"]       = (230, "Superstructure — Concrete Topping/Screed", 5),
             ["Walls"]                  = (300, "Envelope/Partitions — Walls", 5),
             ["Curtain Panels"]         = (310, "Envelope — Curtain Wall", 7),
             ["Roofs"]                  = (320, "Envelope — Roofing", 7),
@@ -89,7 +94,11 @@ namespace StingTools.BIMManager
             ["Furniture"]           = (900, "FF&E — Furniture", 2),
             ["Furniture Systems"]   = (910, "FF&E — Furniture Systems", 2),
             ["Specialty Equipment"] = (920, "FF&E — Specialty Equipment", 2),
-            ["Casework"]            = (930, "FF&E — Casework", 3)
+            ["Casework"]            = (930, "FF&E — Casework", 3),
+
+            // Commissioning & Handover
+            ["COMMISSIONING"]       = (950, "Commissioning — Testing & Balancing", 14),
+            ["HANDOVER"]            = (980, "Handover — Snagging & Defects", 21)
         };
 
         // ── Default Unit Cost Rates (GBP per unit, approximate) ──
