@@ -4066,7 +4066,45 @@ namespace StingTools.BIMManager
             string discipline = wizResult.Discipline;
             string autoTitle = wizResult.Title;
             string description = wizResult.Description;
+
+            // Phase 56 GAP-AU-03: Auto-detect discipline from selected elements
+            if (string.IsNullOrEmpty(discipline) || discipline == "Z")
+            {
+                try
+                {
+                    foreach (var selId in selectedIds)
+                    {
+                        var el = doc.GetElement(selId);
+                        if (el?.Category != null)
+                        {
+                            string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                            if (!string.IsNullOrEmpty(disc) && disc != "XX")
+                            { discipline = disc; break; }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue discipline auto-detect: {ex.Message}"); }
+            }
             if (string.IsNullOrEmpty(discipline)) discipline = "Z";
+
+            // Phase 56 GAP-AU-03: Auto-assign to discipline lead from project config
+            if (string.IsNullOrEmpty(assignee))
+            {
+                try
+                {
+                    string leadsJson = TagConfig.GetConfigValue("DISCIPLINE_LEADS");
+                    if (!string.IsNullOrEmpty(leadsJson))
+                    {
+                        var leads = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(leadsJson);
+                        if (leads != null && leads.TryGetValue(discipline, out string lead))
+                        {
+                            assignee = lead;
+                            StingLog.Info($"Issue auto-assigned to discipline lead: {discipline} → {lead}");
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue auto-assign: {ex.Message}"); }
+            }
 
             // Add priority to description if not already there
             if (!string.IsNullOrEmpty(description) && !description.Contains($"Priority: {priority}"))
