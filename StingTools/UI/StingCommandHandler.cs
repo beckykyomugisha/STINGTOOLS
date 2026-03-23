@@ -1122,6 +1122,12 @@ namespace StingTools.UI
                     case "StrFullReport": RunCommand<Model.StrFullReportCommand>(app); break;
                     case "StrVoronoiAreas": RunCommand<Model.StrVoronoiAreasCommand>(app); break;
                     case "StrClashPreCheck": RunCommand<Model.StrClashPreCheckCommand>(app); break;
+                    case "StrFrameAnalysis": RunCommand<Model.StrFrameAnalysisCommand>(app); break;
+                    case "StrSeismicAnalysis": RunCommand<Model.StrSeismicAnalysisCommand>(app); break;
+                    case "StrOptimizeGrid": RunCommand<Model.StrOptimizeGridCommand>(app); break;
+                    case "StrProgressiveCollapse": RunCommand<Model.StrProgressiveCollapseCommand>(app); break;
+                    case "StrAutoSize": RunCommand<Model.StrAutoSizeCommand>(app); break;
+                    case "StrFireResistance": RunCommand<Model.StrFireResistanceCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

@@ -1677,4 +1677,348 @@ namespace StingTools.Model
             }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // 2D FRAME ANALYSIS (Direct Stiffness Method FEA)
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Performs 2D frame analysis on the structural model using the Direct Stiffness Method.
+    /// Assembles global stiffness matrix, solves displacements, recovers member forces.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrFrameAnalysisCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var (nodes, members) = DirectStiffnessMethod.BuildFromRevitModel(uidoc.Document);
+                if (nodes.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — Frame Analysis", "No structural elements found for analysis.");
+                    return Result.Succeeded;
+                }
+
+                var result = DirectStiffnessMethod.Analyze(nodes, members);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"2D Frame Analysis (Direct Stiffness Method)");
+                sb.AppendLine($"Nodes: {result.Nodes.Count}, Members: {result.Members.Count}");
+                sb.AppendLine($"Converged: {result.Converged}");
+                sb.AppendLine($"Max displacement: {result.MaxDisplacementMm:F2} mm");
+                sb.AppendLine($"Max moment: {result.MaxMomentKNm:F1} kNm");
+                sb.AppendLine($"Max axial: {result.MaxAxialKN:F1} kN");
+                sb.AppendLine();
+
+                // Show top 5 most loaded members
+                var topMembers = result.Members
+                    .OrderByDescending(m => Math.Max(Math.Abs(m.MomentIKNm), Math.Abs(m.MomentJKNm)))
+                    .Take(5);
+                sb.AppendLine("Most loaded members:");
+                foreach (var m in topMembers)
+                    sb.AppendLine($"  Member {m.Id}: M={Math.Max(Math.Abs(m.MomentIKNm), Math.Abs(m.MomentJKNm)):F1}kNm, N={m.AxialForceKN:F1}kN");
+
+                TaskDialog.Show("STRUCT — Frame Analysis", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrFrameAnalysis failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SEISMIC ANALYSIS (EC8)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSeismicAnalysisCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var doc = uidoc.Document;
+
+                // Auto-detect building height and storeys
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+
+                double heightM = levels.Count > 1
+                    ? (levels.Last().Elevation - levels.First().Elevation) * Units.FeetToMm / 1000.0
+                    : 12;
+                int storeyCount = Math.Max(1, levels.Count - 1);
+
+                var result = SeismicAnalyzer.Analyze(heightM, storeyCount);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("EC8 Seismic Analysis (Equivalent Lateral Force)");
+                sb.AppendLine($"T1 = {result.FundamentalPeriodS:F2}s");
+                sb.AppendLine($"Sd(T1) = {result.DesignSpectralAcceleration:F3}g");
+                sb.AppendLine($"Base shear = {result.BaseShearKN:F0} kN");
+                sb.AppendLine($"Behaviour factor q = {result.BehaviourFactor:F1}");
+                sb.AppendLine($"Ductility class: {result.DuctilityClass}");
+                sb.AppendLine($"Drift check: {(result.DriftCheckPass ? "PASS" : "FAIL")}");
+                sb.AppendLine();
+                sb.AppendLine("Storey forces:");
+                for (int i = 0; i < result.StoreyForcesKN.Count; i++)
+                    sb.AppendLine($"  Storey {i + 1}: {result.StoreyForcesKN[i]:F1} kN");
+
+                TaskDialog.Show("STRUCT — Seismic Analysis", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrSeismicAnalysis failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // GENETIC ALGORITHM GRID OPTIMIZATION
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrOptimizeGridCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Grid Optimization");
+                dlg.MainContent = "Optimize column grid spacing using genetic algorithm.\nSelect material:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Steel frame");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "RC frame");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
+                    return Result.Cancelled;
+
+                bool isSteel = choice == TaskDialogResult.CommandLink1;
+
+                // Auto-detect floor plate from model
+                double floorW = 30000, floorD = 20000; // Default 30m × 20m
+
+                var result = GeneticGridOptimizer.Optimize(floorW, floorD, isSteel: isSteel);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Genetic Algorithm Grid Optimization");
+                sb.AppendLine($"Generations: {result.GenerationsUsed}");
+                sb.AppendLine($"Optimal spacing: {result.OptimalSpacingXMm / 1000:F1}m × {result.OptimalSpacingYMm / 1000:F1}m");
+                sb.AppendLine($"Beam depth: ~{result.MaxBeamDepthMm:F0}mm");
+                sb.AppendLine($"Fitness: {result.FitnessScore:F2}");
+                sb.AppendLine();
+                sb.AppendLine("Top 5 solutions:");
+                foreach (var (sx, sy, f) in result.TopSolutions)
+                    sb.AppendLine($"  {sx / 1000:F1}m × {sy / 1000:F1}m (fitness={f:F2})");
+
+                TaskDialog.Show("STRUCT — Grid Optimization", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrOptimizeGrid failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // PROGRESSIVE COLLAPSE / ROBUSTNESS CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrProgressiveCollapseCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var result = ProgressiveCollapseChecker.CheckRobustness(uidoc.Document);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Progressive Collapse / Robustness Check");
+                sb.AppendLine($"Result: {(result.IsRobust ? "ROBUST ✓" : "NOT ROBUST ✗")}");
+                sb.AppendLine($"Robustness class: {result.RobustnessClass}");
+                sb.AppendLine($"Redundancy ratio: {result.RedundancyRatio:P0}");
+                sb.AppendLine($"Critical columns: {result.CriticalColumnCount}");
+                sb.AppendLine();
+
+                var critical = result.ColumnResults.Where(c => !c.Status.StartsWith("OK")).Take(10);
+                if (critical.Any())
+                {
+                    sb.AppendLine("Vulnerable columns:");
+                    foreach (var (id, status, affected) in critical)
+                        sb.AppendLine($"  Column {id.Value}: {status} ({affected} connected beams)");
+
+                    var critIds = critical.Select(c => c.ColumnId).ToList();
+                    uidoc.Selection.SetElementIds(critIds);
+                }
+
+                TaskDialog.Show("STRUCT — Robustness", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrProgressiveCollapse failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // AUTO MEMBER SIZING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAutoSizeCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var result = AutoMemberSizer.AutoSizeAllMembers(uidoc.Document);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Auto Member Sizing — Iterative Convergence");
+                sb.AppendLine($"Iterations: {result.IterationsUsed}, Converged: {result.Converged}");
+                sb.AppendLine($"Members to resize: {result.MembersResized}");
+                sb.AppendLine($"Avg utilisation: {result.AverageUtilisation:F2}");
+                sb.AppendLine($"Max utilisation: {result.MaxUtilisation:F2}");
+                sb.AppendLine();
+
+                if (result.Changes.Count > 0)
+                {
+                    sb.AppendLine("Recommended changes:");
+                    foreach (var (id, old, newSize, util) in result.Changes.Take(15))
+                        sb.AppendLine($"  Beam {id.Value}: {old} → {newSize} (util={util:F2})");
+                    if (result.Changes.Count > 15)
+                        sb.AppendLine($"  ... and {result.Changes.Count - 15} more");
+                }
+
+                TaskDialog.Show("STRUCT — Auto Sizing", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrAutoSize failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FIRE RESISTANCE CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrFireResistanceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Fire Resistance");
+                dlg.MainContent = "Check fire resistance per EC2-1-2.\nSelect required rating:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "R30 (30 minutes)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "R60 (60 minutes)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "R90 (90 minutes)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "R120 (120 minutes)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var choice = dlg.Show();
+
+                int rating = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => 30,
+                    TaskDialogResult.CommandLink2 => 60,
+                    TaskDialogResult.CommandLink3 => 90,
+                    TaskDialogResult.CommandLink4 => 120,
+                    _ => 0,
+                };
+                if (rating == 0) return Result.Cancelled;
+
+                var results = FireResistanceCalculator.CheckAllElements(uidoc.Document, rating);
+                int passing = results.Count(r => r.Pass);
+                int failing = results.Count(r => !r.Pass);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Fire Resistance Check — R{rating}");
+                sb.AppendLine($"Total elements: {results.Count}");
+                sb.AppendLine($"✓ Passing: {passing}");
+                sb.AppendLine($"✗ Failing: {failing}");
+                sb.AppendLine();
+
+                var byType = results.GroupBy(r => r.ElementType);
+                foreach (var group in byType)
+                {
+                    int p = group.Count(r => r.Pass);
+                    int f = group.Count(r => !r.Pass);
+                    sb.AppendLine($"{group.Key}s: {p} pass, {f} fail");
+                }
+
+                if (failing > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("Failing elements:");
+                    foreach (var r in results.Where(r => !r.Pass).Take(10))
+                        sb.AppendLine($"  {r.Summary}");
+                }
+
+                TaskDialog.Show("STRUCT — Fire Resistance", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrFireResistance failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
 }

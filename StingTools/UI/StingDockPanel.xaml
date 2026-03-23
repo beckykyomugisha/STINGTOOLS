@@ -2016,6 +2016,15 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Construction Seq" Tag="StrConstructionSequence" Click="Cmd_Click" ToolTip="Auto-generate construction phase sequence"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Clash Check" Tag="StrClashPreCheck" Click="Cmd_Click" ToolTip="Pre-detect clashes before placing elements"/>
                                 </WrapPanel>
+                                <TextBlock Text="Advanced Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ FEA Frame" Tag="StrFrameAnalysis" Click="Cmd_Click" ToolTip="2D frame analysis — Direct Stiffness Method with member forces and displacements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Seismic EC8" Tag="StrSeismicAnalysis" Click="Cmd_Click" ToolTip="EC8 seismic analysis — equivalent lateral force, base shear, storey forces, drift" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="GA Optimize" Tag="StrOptimizeGrid" Click="Cmd_Click" ToolTip="Genetic algorithm grid optimization — find optimal column spacing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrProgressiveCollapse" Click="Cmd_Click" ToolTip="Progressive collapse check — GSA robustness assessment"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Size" Tag="StrAutoSize" Click="Cmd_Click" ToolTip="Iterative auto-sizing — converge member sizes to optimal utilisation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="StrFireResistance" Click="Cmd_Click" ToolTip="Fire resistance check per EC2-1-2 (R30/R60/R90/R120)"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
