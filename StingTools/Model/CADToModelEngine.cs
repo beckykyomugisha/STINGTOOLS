@@ -47,18 +47,45 @@ namespace StingTools.Model
             ("dim", "Dimensions"), ("text", "Text"), ("anno", "Annotations"),
         };
 
+        /// <summary>Counter for unmatched layer log throttling (first 10 per session).</summary>
+        private static int _unmatchedLogCount = 0;
+
         /// <summary>
         /// Infers the Revit category from a DWG layer name.
-        /// Returns null if no match found.
+        /// First tries exact pattern match from Rules, then MultiLanguagePrefixes,
+        /// then returns null with a throttled log message for unmatched layers.
         /// </summary>
         public static string InferCategory(string layerName)
         {
             if (string.IsNullOrEmpty(layerName)) return null;
             var lower = layerName.ToLowerInvariant();
+
+            // Step 1: Exact pattern match from existing Rules (highest priority)
             foreach (var (pattern, category) in Rules)
             {
                 if (lower.Contains(pattern))
                     return category;
+            }
+
+            // Step 2: Try MultiLanguagePrefixes patterns (multi-language fallback)
+            string upper = layerName.ToUpperInvariant();
+            foreach (var kv in CADToModelEngine.MultiLanguagePrefixes)
+            {
+                string baseCat = kv.Key.Split('_')[0]; // Strip language suffix
+                foreach (string prefix in kv.Value)
+                {
+                    if (upper.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                        upper.Contains(prefix))
+                        return baseCat;
+                }
+            }
+
+            // Step 3: No match — log first 10 unmatched layers per session
+            if (_unmatchedLogCount < 10)
+            {
+                _unmatchedLogCount++;
+                StingLog.Warn($"LayerMapper.InferCategory: No match for layer '{layerName}'" +
+                    (_unmatchedLogCount == 10 ? " (further unmatched layers will not be logged)" : ""));
             }
             return null;
         }
@@ -173,6 +200,14 @@ namespace StingTools.Model
     {
         private readonly Document _doc;
         private readonly ModelEngine _modelEngine;
+
+        /// <summary>
+        /// Configurable gap tolerance for closed loop endpoint matching.
+        /// Default 0.016 ft (~5mm). DWG files often have small endpoint gaps
+        /// from drafting imprecision — endpoints within this distance are
+        /// treated as connected when detecting floor/room boundary loops.
+        /// </summary>
+        public double LoopGapToleranceFt { get; set; } = 0.016; // ~5mm
 
         // Tolerance for parallel line detection (feet)
         private const double ParallelAngleTol = 0.05; // ~3 degrees
@@ -569,7 +604,9 @@ namespace StingTools.Model
 
             // Group lines by proximity and try to form rectangles
             var unused = new List<ExtractedLine>(lines);
-            const double endpointTol = 0.1; // ~30mm tolerance
+            // Use configurable gap tolerance (default ~5mm = 0.016 ft) for endpoint matching;
+            // enforce a floor of 0.005 ft (~1.5mm) to avoid zero-tolerance failures
+            double endpointTol = Math.Max(LoopGapToleranceFt, 0.005);
 
             while (unused.Count >= 3)
             {

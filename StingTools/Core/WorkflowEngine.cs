@@ -353,7 +353,13 @@ namespace StingTools.Core
             foreach (var step in preset.Steps)
             {
                 if (ResolveCommand(step.CommandTag) == null)
-                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail");
+                {
+                    var closest = GetClosestCommandTags(step.CommandTag, 5);
+                    string suggestion = closest.Count > 0
+                        ? $" Did you mean: {string.Join(", ", closest)}"
+                        : "";
+                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail.{suggestion}");
+                }
             }
 
             return (issues.Count == 0, issues);
@@ -1210,8 +1216,87 @@ namespace StingTools.Core
                 case "ImportTagMap":            return new Tags.ImportTagMapCommand();
                 case "BatchPlaceTags":          return new Tags.BatchPlaceTagsCommand();
 
+                // Phase 67: Additional command tag resolutions
+                case "TagSelector":             return new Select.TagSelectorCommand();
+                case "ExportTagPositions":      return new Tags.ExportTagPositionsCommand();
+
                 default: return null;
             }
+        }
+
+        /// <summary>Returns the closest matching valid command tags for a given invalid tag.</summary>
+        private static List<string> GetClosestCommandTags(string invalidTag, int maxResults)
+        {
+            // All valid command tags from the ResolveCommand switch
+            var allTags = new[]
+            {
+                "LoadParams", "MasterSetup", "ProjectSetup", "CreateBLEMaterials", "CreateMEPMaterials",
+                "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
+                "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
+                "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
+                "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
+                "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
+                "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
+                "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
+                "BatchCreateViews", "BatchCreateSheets", "DrawingRegister", "AutoNumberSheets",
+                "SpatialConnectivityAudit", "NamingAudit", "CrossModelClash", "MEPClearance", "BatchPrintSheets",
+                "DynamicBindings", "BOQExport", "BatchFamilyParams", "FamilyParamProcessor",
+                "AutoCreateLegends", "CreateBEP", "UpdateBEP", "ExportBEP", "COBieExport", "DocumentBriefcase",
+                "WorkflowTrend", "CreateRevision", "RevisionDashboard", "AutoRevisionCloud",
+                "AutoRevisionOnTagChange", "RevisionTagIntegration", "RevisionExport",
+                "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
+                "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
+                "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
+                "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
+                "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
+                "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
+                "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
+                "WarningsCompliance", "BIMCoordinationCenter", "CompletenessDashboard", "TagRegisterExport",
+                "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
+                "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
+                "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
+                "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+                "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
+                "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
+                "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
+                "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
+                "WarningsSelectElements", "WarningsSuppress",
+                "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
+                "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
+                "ScheduleAudit", "SchemaValidate", "SheetComplianceCheck", "SheetNamingCheck",
+                "TemplateAudit", "TemplateComplianceScore", "ClashDetection", "BatchSystemPush",
+                "ExportSheetRegister", "COBieHandoverExport", "GenerateBEP", "WarningsMonitor",
+                "DeleteUnusedViews", "ExportCSV", "SheetOrganizer", "ViewOrganizer", "SyncOverrides",
+                "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
+                "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
+                "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
+                "TagSelector", "ExportTagPositions"
+            };
+
+            string lowerInvalid = invalidTag.ToLowerInvariant();
+            return allTags
+                .Select(t => new { Tag = t, Dist = LevenshteinDistance(lowerInvalid, t.ToLowerInvariant()) })
+                .OrderBy(x => x.Dist)
+                .Take(maxResults)
+                .Select(x => x.Tag)
+                .ToList();
+        }
+
+        /// <summary>Simple Levenshtein distance for command tag suggestion.</summary>
+        private static int LevenshteinDistance(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
+            if (string.IsNullOrEmpty(b)) return a.Length;
+            int[,] d = new int[a.Length + 1, b.Length + 1];
+            for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+            for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+            for (int i = 1; i <= a.Length; i++)
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                }
+            return d[a.Length, b.Length];
         }
 
         /// <summary>FIX-7.1: Public wrapper so NLPCommandProcessorCommand can call it.</summary>

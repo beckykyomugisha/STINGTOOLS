@@ -832,7 +832,7 @@ namespace StingTools.BIMManager
                             $"Top issues: {scanResult.TopIssues}";
 
                         var issue = CreateIssue(nextId, "NCR", priority, title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "");
+                            Environment.UserName, "", new List<ElementId>(), "", doc);
                         issues.Add(issue);
                         raised++;
                     }
@@ -854,7 +854,7 @@ namespace StingTools.BIMManager
                             $"(missing segments). Run 'Validate Tags' for details.";
 
                         var issue = CreateIssue(nextId, "NCR", "MEDIUM", title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "");
+                            Environment.UserName, "", new List<ElementId>(), "", doc);
                         issues.Add(issue);
                         raised++;
                     }
@@ -2125,6 +2125,28 @@ namespace StingTools.BIMManager
             return $"{type}-{(max + 1):D4}";
         }
 
+        /// <summary>
+        /// CRIT-005: Check if an existing open issue already references the same element IDs.
+        /// Returns the issue_id of the first matching issue, or null if no match.
+        /// Prevents duplicate issues being raised for the same elements.
+        /// </summary>
+        internal static string FindExistingIssueForElements(JArray issues, List<string> elementIds)
+        {
+            if (issues == null || elementIds == null || elementIds.Count == 0) return null;
+            var targetSet = new HashSet<string>(elementIds);
+            foreach (var issue in issues)
+            {
+                if (issue["status"]?.ToString() == "CLOSED") continue;
+                var existingIds = issue["element_ids"] as JArray;
+                if (existingIds == null || existingIds.Count == 0) continue;
+                var existingSet = new HashSet<string>(existingIds.Select(e => e.ToString()));
+                // Match if any element overlaps
+                if (targetSet.Overlaps(existingSet))
+                    return issue["issue_id"]?.ToString();
+            }
+            return null;
+        }
+
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
@@ -2156,6 +2178,7 @@ namespace StingTools.BIMManager
                 ["view_name"] = viewName ?? "",
                 ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
+                ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
                 ["comments"] = new JArray()
             };
         }
@@ -4098,6 +4121,32 @@ namespace StingTools.BIMManager
 
             var selectedIds = uidoc.Selection.GetElementIds();
 
+            // Filter selected elements to taggable categories only
+            if (selectedIds.Count > 0)
+            {
+                try
+                {
+                    var taggableCats = new HashSet<int>(
+                        SharedParamGuids.AllCategoryEnums.Select(c => (int)c));
+                    var filtered = new List<ElementId>();
+                    int removedCount = 0;
+                    foreach (var id in selectedIds)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el?.Category != null && taggableCats.Contains(el.Category.Id.IntegerValue))
+                            filtered.Add(id);
+                        else
+                            removedCount++;
+                    }
+                    if (removedCount > 0)
+                    {
+                        StingLog.Warn($"RaiseIssue: {removedCount} non-taggable elements removed from selection (kept {filtered.Count})");
+                        selectedIds = new List<ElementId>(filtered);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"RaiseIssue taggable filter: {ex.Message}"); }
+            }
+
             // Launch the Issue Wizard for interactive configuration
             var wizResult = IssueWizard.Show(doc, uidoc);
             if (wizResult == null) return Result.Cancelled;
@@ -4158,7 +4207,7 @@ namespace StingTools.BIMManager
             string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
-                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
+                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name, doc);
 
             // Set due date from wizard if provided
             if (!string.IsNullOrEmpty(wizResult.DueDate))
@@ -5440,9 +5489,13 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // NOTE: Revit TaskDialog supports max 4 CommandLinks (CommandLink1-4).
+            // CDEStates also includes SUPERSEDED, WITHDRAWN, OBSOLETE but these cannot
+            // be shown here. Use the Document Management Center for full 7-state CDE lifecycle.
             var dlg = new TaskDialog("STING CDE Status Manager");
             dlg.MainInstruction = "Set CDE container status for this model:";
-            dlg.MainContent = "ISO 19650 defines 4 CDE containers.\nStored in Project Information parameters.";
+            dlg.MainContent = "ISO 19650 defines 4 primary CDE containers.\nStored in Project Information parameters.\n\n" +
+                "Note: SUPERSEDED, WITHDRAWN, and OBSOLETE states are available\nvia the Document Management Center.";
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "WIP — Work In Progress");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SHARED — For Coordination");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "PUBLISHED — Approved");

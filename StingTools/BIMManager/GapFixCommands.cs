@@ -697,6 +697,41 @@ namespace StingTools.BIMManager
                 ["STRUCT_COL"] = "Column", ["STRUCT_BEAM"] = "Beam", ["STRUCT_FND"] = "Foundation",
                 ["STR_COLUMN"] = "Column", ["STR_BEAM"] = "Beam", ["STR_SLAB"] = "Slab",
                 ["COLUMN"] = "Column", ["BEAM"] = "Beam", ["FOOTING"] = "Foundation",
+                // NBS (UK National BIM Standard — Uniclass Ss codes)
+                ["Ss_15_10"] = "Column", ["Ss_15_20"] = "Beam", ["Ss_15_30"] = "Slab",
+                ["Ss_20"] = "Wall", ["Ss_20_05"] = "Wall", ["Ss_25"] = "Slab",
+                ["Ss_25_10"] = "Slab", ["Ss_25_30"] = "Foundation", ["Ss_30"] = "Stair",
+                ["Ss_15"] = "Beam", ["Ss_32"] = "Brace",
+                ["Ss_15_10_30"] = "Column", ["Ss_15_10_70"] = "Column", // RC / steel columns
+                ["Ss_15_20_30"] = "Beam", ["Ss_15_20_70"] = "Beam",    // RC / steel beams
+                ["Ss_20_10"] = "Wall", ["Ss_20_20"] = "Wall",          // retaining / curtain walls
+                ["Ss_25_20"] = "Slab", ["Ss_25_60"] = "Foundation",    // ground slabs / piles
+                ["Ss_30_10"] = "Stair", ["Ss_30_20"] = "Stair",        // internal / external stairs
+                ["Ss_32_10"] = "Brace", ["Ss_32_20"] = "Brace",        // lateral / vertical bracing
+                ["Ss_35"] = "Foundation", ["Ss_35_10"] = "Foundation",  // substructure / piling
+                // Singapore BIM Guide (BCA)
+                ["A-WALL"] = "Wall", ["S-COLUMN"] = "Column",
+                ["S-FOUNDATION"] = "Foundation", ["S-STAIR"] = "Stair",
+                ["M-DUCT"] = "Beam", ["M-PIPE"] = "Beam", ["E-CABLE"] = "Beam",
+                ["A-DOOR"] = "Wall", ["A-WINDOW"] = "Wall",
+                ["S-PILE"] = "Foundation", ["S-BRACE"] = "Brace",
+                ["A-FLOOR"] = "Slab", ["A-ROOF"] = "Slab", ["A-CLNG"] = "Slab",
+                ["A-STAIR"] = "Stair", ["A-COL"] = "Column",
+                ["M-EQUIP"] = "Column", ["E-PANEL"] = "Column",
+                ["P-PIPE"] = "Beam", ["P-FIXT"] = "Column",
+                // Australian AS 1100.301
+                ["A-WALL-FULL"] = "Wall", ["A-WALL-PART"] = "Wall",
+                ["S-CONC-BEAM"] = "Beam", ["S-CONC-COL"] = "Column", ["S-CONC-SLAB"] = "Slab",
+                ["S-CONC-FNDN"] = "Foundation", ["S-CONC-WALL"] = "Wall",
+                ["S-STEEL-BEAM"] = "Beam", ["S-STEEL-COL"] = "Column",
+                ["S-STEL-BEAM"] = "Beam", ["S-STEL-COL"] = "Column",
+                ["S-CONC-FTG"] = "Foundation", ["S-CONC-PIER"] = "Column",
+                ["A-WALL-EXTR"] = "Wall", ["A-WALL-INTR"] = "Wall",
+                ["S-CONC-STAIR"] = "Stair", ["S-CONC-PILE"] = "Foundation",
+                ["S-STEEL-BRACE"] = "Brace", ["S-STEEL-TRUSS"] = "Beam",
+                ["S-TIMBER-BEAM"] = "Beam", ["S-TIMBER-COL"] = "Column",
+                ["S-REBAR"] = "Beam", ["S-MESH"] = "Slab",
+                ["A-ROOF-SLAB"] = "Slab", ["A-FLOOR-SLAB"] = "Slab",
             };
 
         /// <summary>MED-09: Structural model validation.</summary>

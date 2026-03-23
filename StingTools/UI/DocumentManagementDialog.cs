@@ -1353,8 +1353,9 @@ namespace StingTools.UI
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // GAP-BIM-010: Restore last-used tab on reopen (saves navigation time)
-            if (_lastTabIndex >= 0 && _lastTabIndex < tabs.Items.Count)
-                tabs.SelectedIndex = _lastTabIndex;
+            // Clamp to valid range to prevent IndexOutOfRangeException if tabs were added/removed
+            if (tabs.Items.Count > 0 && _lastTabIndex >= 0)
+                tabs.SelectedIndex = Math.Min(_lastTabIndex, tabs.Items.Count - 1);
             tabs.SelectionChanged += (s, e) => { if (tabs.SelectedIndex >= 0) _lastTabIndex = tabs.SelectedIndex; };
 
             bar.Child = tabs;

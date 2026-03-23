@@ -268,9 +268,9 @@ namespace StingTools.Tags
             double resolvedPct = total > 0 ? fullyResolved * 100.0 / total : 0;
             double statusPct = total > 0 ? (total - statusEmpty) * 100.0 / total : 0;
             double revPct = total > 0 ? (total - revEmpty) * 100.0 / total : 0;
-            // Three-bucket compliance: fully=1.0, partially=0.5, untagged=0.0
+            // Weighted compliance: fully=1.0, completePlaceholders=0.7, incomplete=0.3, untagged=0.0
             double compliancePct = total > 0
-                ? (bucketFully + 0.5 * bucketPartial) / total * 100.0
+                ? (bucketFully + 0.7 * bucketCompletePlaceholders + 0.3 * bucketIncomplete) / total * 100.0
                 : 0;
 
             // Build report — using paragraph-style narrative sections

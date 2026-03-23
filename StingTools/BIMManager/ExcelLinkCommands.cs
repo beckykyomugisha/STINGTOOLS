@@ -174,6 +174,39 @@ namespace StingTools.BIMManager
                     return $"SYS '{sys}' does not typically belong to discipline '{disc}'";
             }
 
+            // FUNC-PROD cross-validation: certain FUNC codes are incompatible with certain PROD codes
+            if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(prod))
+            {
+                var sanitaryProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH" };
+                var plumbingProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH", "TAP", "TMV", "CIS" };
+                var hvacProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "AHU", "FCU", "VAV", "CHR", "BLR", "FAN", "GRL", "DIF", "ATU" };
+                var electricalProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "DB", "MSB", "TFR", "GEN", "UPS", "SWT", "SKT", "LUM", "EMR" };
+
+                // SUP (supply) is incompatible with sanitary products
+                if (func == "SUP" && sanitaryProds.Contains(prod))
+                    return $"FUNC=SUP incompatible with sanitary PROD={prod}";
+
+                // PWR (power) is incompatible with plumbing products
+                if (func == "PWR" && plumbingProds.Contains(prod))
+                    return $"FUNC=PWR incompatible with plumbing PROD={prod}";
+
+                // SAN (sanitary) is incompatible with HVAC products
+                if (func == "SAN" && hvacProds.Contains(prod))
+                    return $"FUNC=SAN incompatible with HVAC PROD={prod}";
+
+                // HTG (heating) / CLG (cooling) incompatible with electrical products
+                if ((func == "HTG" || func == "CLG") && electricalProds.Contains(prod))
+                    return $"FUNC={func} incompatible with electrical PROD={prod}";
+
+                // LTG (lighting) incompatible with plumbing products
+                if (func == "LTG" && plumbingProds.Contains(prod))
+                    return $"FUNC=LTG incompatible with plumbing PROD={prod}";
+            }
+
             return null;
         }
 

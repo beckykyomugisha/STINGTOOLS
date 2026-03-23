@@ -161,6 +161,7 @@ namespace StingTools.Model
         public int FoundationsCreated { get; set; }
         public int WallsCreated { get; set; }
         public int RebarPlaced { get; set; }
+        public int TaggedCount { get; set; }
         public int Errors { get; set; }
         public List<string> Warnings { get; set; } = new();
         public List<ElementId> AllCreatedIds { get; set; } = new();
@@ -170,6 +171,7 @@ namespace StingTools.Model
             $"Columns: {ColumnsCreated}, Beams: {BeamsCreated}, Slabs: {SlabsCreated}\n" +
             $"Foundations: {FoundationsCreated}, Walls: {WallsCreated}\n" +
             $"Rebar sets: {RebarPlaced}, Errors: {Errors}\n" +
+            $"Auto-tagged: {TaggedCount}/{AllCreatedIds.Count}\n" +
             $"Total elements: {AllCreatedIds.Count}";
     }
 
@@ -520,9 +522,15 @@ namespace StingTools.Model
                 }
             }
 
-            // Auto-tag created elements
+            // Auto-tag created elements using the full STING tagging pipeline
+            // (mirrors the pattern in ModelCommands.cs — AutoTagCreatedElements runs
+            // RunFullPipeline per element in a separate transaction)
             if (options.AutoTag && result.AllCreatedIds.Count > 0 && !options.DryRun)
-                ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
+            {
+                int tagged = ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
+                result.TaggedCount = tagged;
+                StingLog.Info($"ExcelStructuralImport: auto-tagged {tagged}/{result.AllCreatedIds.Count} elements");
+            }
 
             StingLog.Info($"ExcelStructuralImport: {result.Summary}");
             return result;
@@ -722,6 +730,7 @@ namespace StingTools.Model
         private List<ElementId> ImportColumns(List<ColumnScheduleRow> rows, StructuralImportOptions options)
         {
             var ids = new List<ElementId>();
+            var failedRows = new List<(int Row, string Reason)>();
             using (var tx = new Transaction(_doc, "STING Import Columns"))
             {
                 tx.Start();
@@ -742,11 +751,21 @@ namespace StingTools.Model
                         }
 
                         XYZ pt = ResolveGridIntersection(gridX, gridY);
-                        if (pt == null) { StingLog.Warn($"Column row {row.RowNum}: Grid {row.GridRef} not found"); continue; }
+                        if (pt == null)
+                        {
+                            failedRows.Add((row.RowNum, $"Grid {row.GridRef} not found"));
+                            StingLog.Warn($"Column row {row.RowNum}: Grid {row.GridRef} not found");
+                            continue;
+                        }
 
                         Level baseLevel = ResolveLevel(row.Level);
                         Level topLevel = ResolveLevel(row.TopLevel);
-                        if (baseLevel == null) { StingLog.Warn($"Column row {row.RowNum}: Level {row.Level} not found"); continue; }
+                        if (baseLevel == null)
+                        {
+                            failedRows.Add((row.RowNum, $"Level {row.Level} not found"));
+                            StingLog.Warn($"Column row {row.RowNum}: Level {row.Level} not found");
+                            continue;
+                        }
 
                         // Parse size
                         double widthMm = 400, depthMm = 400;
@@ -759,7 +778,12 @@ namespace StingTools.Model
 
                         // Find or create column type
                         FamilySymbol colType = StructuralTypeFactory.FindColumnType(_doc, widthMm, depthMm);
-                        if (colType == null) { StingLog.Warn($"Column row {row.RowNum}: No type for {row.Size}"); continue; }
+                        if (colType == null)
+                        {
+                            failedRows.Add((row.RowNum, $"No column type for size {row.Size}"));
+                            StingLog.Warn($"Column row {row.RowNum}: No type for {row.Size}");
+                            continue;
+                        }
                         if (!colType.IsActive) colType.Activate();
 
                         XYZ placePt = new XYZ(pt.X, pt.Y, baseLevel.Elevation);
@@ -770,11 +794,34 @@ namespace StingTools.Model
                     }
                     catch (Exception ex)
                     {
+                        failedRows.Add((row.RowNum, ex.Message));
                         StingLog.Warn($"Column row {row.RowNum}: {ex.Message}");
                     }
                 }
                 tx.Commit();
             }
+
+            // Warn if >5% of rows failed
+            if (rows.Count > 0 && failedRows.Count > 0)
+            {
+                double failPct = failedRows.Count * 100.0 / rows.Count;
+                if (failPct > 5.0)
+                {
+                    var failSummary = string.Join("\n", failedRows.Take(10).Select(f => $"  Row {f.Row}: {f.Reason}"));
+                    string extra = failedRows.Count > 10 ? $"\n  ... and {failedRows.Count - 10} more" : "";
+                    StingLog.Warn($"Column import: {failedRows.Count}/{rows.Count} rows failed ({failPct:F1}%):\n{failSummary}{extra}");
+                    try
+                    {
+                        var td = new Autodesk.Revit.UI.TaskDialog("STING Column Import Warning");
+                        td.MainContent = $"{failedRows.Count} of {rows.Count} rows ({failPct:F1}%) failed to import.\n\n" +
+                            string.Join("\n", failedRows.Take(5).Select(f => $"Row {f.Row}: {f.Reason}")) +
+                            (failedRows.Count > 5 ? $"\n... and {failedRows.Count - 5} more (see log)" : "");
+                        td.Show();
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column import warning dialog: {ex.Message}"); }
+                }
+            }
+
             return ids;
         }
 

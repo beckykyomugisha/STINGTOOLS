@@ -91,6 +91,9 @@ namespace StingTools.Core
         /// <summary>R4-D A1: Root-cause groups — deduplicates identical warning descriptions into
         /// groups with element counts. Reduces 200 "duplicate instances" warnings to 1 group of 200.</summary>
         public List<RootCauseGroup> RootCauseGroups { get; set; } = new();
+
+        /// <summary>Cross-system deliverable impact analysis — maps warnings to affected BIM deliverables.</summary>
+        public WarningImpactAnalysis DeliverableImpact { get; set; }
     }
 
     /// <summary>R4-D A1: A group of warnings sharing the same description (root cause).</summary>
@@ -300,6 +303,18 @@ namespace StingTools.Core
             ("borrowed", WarningCategory.Data, WarningSeverity.Low, "Element borrowed by another user", false),
             ("checked out", WarningCategory.Data, WarningSeverity.Info, "Element checked out for editing", false),
             ("workset", WarningCategory.Performance, WarningSeverity.Low, "Review workset assignment", false),
+
+            // Common BIM coordinator issues
+            ("has no room", WarningCategory.Spatial, WarningSeverity.High, "Place element inside room boundary", false),
+            ("Cannot be placed", WarningCategory.Geometric, WarningSeverity.High, "Fix placement constraints", false),
+            ("Model Line is too short", WarningCategory.Geometric, WarningSeverity.Medium, "Extend or delete short line", false),
+            ("Coincident", WarningCategory.Geometric, WarningSeverity.Medium, "Review coincident elements", false),
+            ("Wall is attached", WarningCategory.Geometric, WarningSeverity.Low, "Review wall attachment", false),
+            ("Host has been deleted", WarningCategory.Data, WarningSeverity.Critical, "Re-host element or delete orphan", false),
+            ("opening cut", WarningCategory.Geometric, WarningSeverity.Medium, "Review opening in host", false),
+            ("Minimum clearance", WarningCategory.Compliance, WarningSeverity.High, "Increase clearance per standards", false),
+            ("not properly associated", WarningCategory.Data, WarningSeverity.Medium, "Fix element association", false),
+            ("Calculated size", WarningCategory.MEP, WarningSeverity.Medium, "Review auto-sized element", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -509,10 +524,10 @@ namespace StingTools.Core
                 }
             }
 
-            // Top 20 hotspot elements
+            // Top hotspot elements (capped at 100 entries)
             report.Hotspots = elementCounts
                 .OrderByDescending(kv => kv.Value)
-                .Take(20)
+                .Take(100)
                 .Select(kv =>
                 {
                     string name = "";
@@ -565,6 +580,10 @@ namespace StingTools.Core
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
+
+            // Analyse deliverable impact (COBie, IFC, FM handover, schedules, clash)
+            try { report.DeliverableImpact = AnalyseDeliverableImpact(report.Warnings); }
+            catch (Exception ex) { StingLog.Warn($"Deliverable impact analysis: {ex.Message}"); }
 
             // R4-D A1: Build root-cause groups (deduplicates identical warnings)
             try { BuildRootCauseGroups(report); }
@@ -758,7 +777,7 @@ namespace StingTools.Core
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
                                         return true;
                                     }
-                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.X) > 0.0001)
+                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.Y) > 0.0001)
                                     {
                                         var newEnd = new XYZ(line.GetEndPoint(0).X, line.GetEndPoint(1).Y, line.GetEndPoint(1).Z);
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
@@ -790,7 +809,7 @@ namespace StingTools.Core
                     }
                 }
 
-                // Phase 63: Strategy 10: Fix empty mark values (assign element ID as temporary mark)
+                // Phase 63: Strategy 10: Fix duplicate mark values — scan ALL model marks for collision avoidance
                 if (lower.Contains("duplicate mark"))
                 {
                     var ids = cw.FailingElements.ToList();
@@ -798,15 +817,17 @@ namespace StingTools.Core
                     {
                         try
                         {
-                            // Collect ALL existing marks to avoid creating new duplicates
+                            // Build HashSet from ALL elements in the model with ALL_MODEL_MARK (not just failing elements)
                             var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            foreach (var checkId in ids)
+                            var allElements = new FilteredElementCollector(doc)
+                                .WhereElementIsNotElementType()
+                                .ToElements();
+                            foreach (var el in allElements)
                             {
-                                var checkEl = doc.GetElement(checkId);
-                                string m = checkEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                string m = el?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
                                 if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
                             }
-                            // Change the second element's mark
+                            // Change the second element's mark with suffix increment against the full model set
                             var secondEl = doc.GetElement(ids[1]);
                             var markParam = secondEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
                             if (markParam != null && !markParam.IsReadOnly)
@@ -1597,8 +1618,9 @@ namespace StingTools.Core
 
         // ── Phase 48: SLA ENFORCEMENT ──
 
-        /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).</summary>
-        internal static readonly Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
+        /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).
+        /// Configurable via WARNING_SLA_*_HOURS keys in project_config.json.</summary>
+        internal static Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
         {
             { WarningSeverity.Critical, 4 },     // 4 hours
             { WarningSeverity.High, 24 },         // 1 day
@@ -1606,6 +1628,31 @@ namespace StingTools.Core
             { WarningSeverity.Low, 336 },         // 2 weeks
             { WarningSeverity.Info, double.MaxValue }  // No SLA
         };
+
+        /// <summary>Load SLA thresholds from project_config.json with current defaults as fallbacks.</summary>
+        internal static void LoadSLAThresholds()
+        {
+            try
+            {
+                double critical = TagConfig.GetConfigDouble("WARNING_SLA_CRITICAL_HOURS", 4);
+                double high = TagConfig.GetConfigDouble("WARNING_SLA_HIGH_HOURS", 24);
+                double medium = TagConfig.GetConfigDouble("WARNING_SLA_MEDIUM_HOURS", 168);
+                double low = TagConfig.GetConfigDouble("WARNING_SLA_LOW_HOURS", 336);
+
+                SLAThresholdsHours = new Dictionary<WarningSeverity, double>
+                {
+                    { WarningSeverity.Critical, critical },
+                    { WarningSeverity.High, high },
+                    { WarningSeverity.Medium, medium },
+                    { WarningSeverity.Low, low },
+                    { WarningSeverity.Info, double.MaxValue }
+                };
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadSLAThresholds: {ex.Message} — using defaults");
+            }
+        }
 
         /// <summary>Phase 48: Check for SLA violations against warning baseline timestamps.
         /// Returns count of warnings exceeding their severity-specific SLA.</summary>

@@ -23,7 +23,16 @@ namespace StingTools.BIMManager
         {
             string projCode = doc.ProjectInformation?.Number ?? doc.Title ?? "PROJ";
             string date = DateTime.Now.ToString("yyyyMMdd");
-            string descShort = description.Length > 20 ? description.Substring(0, 20).Trim() : description;
+            string descShort;
+            if (description.Length > 20)
+            {
+                descShort = description.Substring(0, 20).Trim();
+                StingLog.Info($"RevisionEngine: Description truncated from {description.Length} chars to 20 for revision name: \"{description}\" → \"{descShort}\"");
+            }
+            else
+            {
+                descShort = description;
+            }
             descShort = System.Text.RegularExpressions.Regex.Replace(descShort, @"[^A-Za-z0-9_ ]", "")
                 .Replace(' ', '_');
             return $"REV-{projCode}-{seq:D3}-{date}-{descShort}";
@@ -131,6 +140,15 @@ namespace StingTools.BIMManager
                             if (levelParam != null && levelParam.AsElementId() != ElementId.InvalidElementId)
                                 tokens["_LEVEL"] = doc.GetElement(levelParam.AsElementId())?.Name ?? "";
                             tokens["_CATEGORY"] = el.Category?.Name ?? "";
+                            // Workset context for worksharing change tracking
+                            try
+                            {
+                                if (doc.IsWorkshared && el.WorksetId != null && el.WorksetId != WorksetId.InvalidWorksetId)
+                                    tokens["_WORKSET"] = doc.GetWorksetTable().GetWorkset(el.WorksetId)?.Name ?? "";
+                            }
+                            catch (Exception wsEx) { Core.StingLog.Warn($"Snapshot workset capture: {wsEx.Message}"); }
+                            // MEP system context for system-level change classification
+                            tokens["_SYSTEM"] = ParameterHelpers.GetString(el, "ASS_SYSTEM_TYPE_TXT");
                         }
                         catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;
