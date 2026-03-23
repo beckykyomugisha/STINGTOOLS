@@ -460,6 +460,63 @@ namespace StingTools.Core
             {
                 _cached = null;
                 _cacheTime = DateTime.MinValue;
+                _incrementalCount = 0;
+            }
+        }
+
+        // FUT-16: Incremental update tracking
+        private static int _incrementalCount = 0;
+        private const int MaxIncrementalUpdates = 1000;
+
+        /// <summary>FUT-16: O(1) incremental compliance update instead of full O(n) rescan.
+        /// Adjusts cached counters in-place when a single element's tag status changes.
+        /// Falls back to full rescan after 1000 incremental updates to prevent drift.</summary>
+        public static void IncrementalUpdate(string oldTag, string newTag, string disc)
+        {
+            lock (_cacheLock)
+            {
+                if (_cached == null) return; // No cache to update
+                if (Interlocked.Increment(ref _incrementalCount) > MaxIncrementalUpdates)
+                {
+                    // Drift guard: force full rescan
+                    _cached = null;
+                    _cacheTime = DateTime.MinValue;
+                    _incrementalCount = 0;
+                    return;
+                }
+
+                bool wasTagged = !string.IsNullOrEmpty(oldTag);
+                bool isTagged = !string.IsNullOrEmpty(newTag);
+                bool wasComplete = wasTagged && TagConfig.TagIsComplete(oldTag);
+                bool isComplete = isTagged && TagConfig.TagIsComplete(newTag);
+
+                // Update untagged count
+                if (!wasTagged && isTagged) _cached.Untagged = Math.Max(0, _cached.Untagged - 1);
+                else if (wasTagged && !isTagged) _cached.Untagged++;
+
+                // Update tagged complete count
+                if (!wasComplete && isComplete) _cached.TaggedComplete++;
+                else if (wasComplete && !isComplete) _cached.TaggedComplete = Math.Max(0, _cached.TaggedComplete - 1);
+
+                // Update tagged incomplete
+                bool wasIncomplete = wasTagged && !wasComplete;
+                bool isIncomplete = isTagged && !isComplete;
+                if (!wasIncomplete && isIncomplete) _cached.TaggedIncomplete++;
+                else if (wasIncomplete && !isIncomplete) _cached.TaggedIncomplete = Math.Max(0, _cached.TaggedIncomplete - 1);
+
+                // Update per-discipline counts
+                if (!string.IsNullOrEmpty(disc) && _cached.ByDisc != null)
+                {
+                    if (!_cached.ByDisc.ContainsKey(disc))
+                        _cached.ByDisc[disc] = new DiscComplianceData { Total = 1 };
+
+                    var dd = _cached.ByDisc[disc];
+                    if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
+                    else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                }
+
+                // Refresh cache timestamp so it stays valid
+                _cacheTime = DateTime.UtcNow;
             }
         }
 

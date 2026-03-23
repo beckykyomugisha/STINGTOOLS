@@ -737,6 +737,35 @@ namespace StingTools.Core
         /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
         public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
 
+        /// <summary>FUT-01: SEQ namespace range allocation per linked model.
+        /// Loaded from SEQ_RANGE_ALLOCATION in project_config.json.
+        /// Format: {"ARCH": [1, 4999], "MEP": [5000, 8999], "STR": [9000, 9999]}.</summary>
+        public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
+            = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
+        /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
+        public static (int Min, int Max) GetSeqRange(string modelDiscipline)
+        {
+            if (string.IsNullOrEmpty(modelDiscipline) || SeqRangeAllocation.Count == 0)
+                return (1, 9999);
+            if (SeqRangeAllocation.TryGetValue(modelDiscipline, out var range))
+                return range;
+            return (1, 9999);
+        }
+
+        /// <summary>FUT-01: Validate a SEQ number is within the allocated range for the model discipline.
+        /// Returns null if valid, error message if out of range.</summary>
+        public static string ValidateSeqRange(int seqNumber, string modelDiscipline)
+        {
+            if (SeqRangeAllocation.Count == 0) return null; // No allocation defined
+            var (min, max) = GetSeqRange(modelDiscipline);
+            if (seqNumber < min || seqNumber > max)
+                return $"SEQ {seqNumber:D4} is outside allocated range {min:D4}-{max:D4} for model '{modelDiscipline}'. " +
+                       $"Configure SEQ_RANGE_ALLOCATION in project_config.json.";
+            return null;
+        }
+
         /// <summary>R4-B: Generic double config getter for project_config.json numeric values.</summary>
         internal static double GetConfigDouble(string key, double defaultValue)
         {
@@ -1051,7 +1080,9 @@ namespace StingTools.Core
                     "COBIE_STREAM_BATCH_SIZE","PERF_TRACKING_ENABLED",
                     "COST_RATES_FILE","SHEET_NAMING_STRICT_MODE",
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
-                    "TRADE_DURATION_OVERRIDES"
+                    "TRADE_DURATION_OVERRIDES","SEQ_RANGE_ALLOCATION",
+                    "CDE_SHARED_MIN_COMPLIANCE","CDE_PUBLISHED_MIN_COMPLIANCE",
+                    "DD_SCHEDULE","DD_REQUIREMENTS"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
