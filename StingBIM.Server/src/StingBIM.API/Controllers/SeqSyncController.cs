@@ -32,12 +32,14 @@ public class SeqSyncController : ControllerBase
         var userName = User.FindFirst("display_name")?.Value ?? "Unknown";
         int merged = 0;
 
+        // Load all existing counters in one query (avoids N+1)
+        var existingCounters = await _db.SeqCounters
+            .Where(s => s.ProjectId == projectId)
+            .ToDictionaryAsync(s => s.CounterKey);
+
         foreach (var (key, value) in req.Counters)
         {
-            var existing = await _db.Set<SeqCounter>()
-                .FirstOrDefaultAsync(s => s.ProjectId == projectId && s.CounterKey == key);
-
-            if (existing != null)
+            if (existingCounters.TryGetValue(key, out var existing))
             {
                 if (value > existing.CurrentValue)
                 {
@@ -49,7 +51,7 @@ public class SeqSyncController : ControllerBase
             }
             else
             {
-                _db.Set<SeqCounter>().Add(new SeqCounter
+                _db.SeqCounters.Add(new SeqCounter
                 {
                     ProjectId = projectId,
                     CounterKey = key,
@@ -71,7 +73,7 @@ public class SeqSyncController : ControllerBase
     public async Task<ActionResult> GetCounters(Guid projectId)
     {
         var tenantId = GetTenantId();
-        var counters = await _db.Set<SeqCounter>()
+        var counters = await _db.SeqCounters
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
             .ToDictionaryAsync(s => s.CounterKey, s => s.CurrentValue);
 

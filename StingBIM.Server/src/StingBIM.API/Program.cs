@@ -87,8 +87,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseCors("Dashboard");
-app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available
 app.UseAuthorization();
 
 // ── Health check ──

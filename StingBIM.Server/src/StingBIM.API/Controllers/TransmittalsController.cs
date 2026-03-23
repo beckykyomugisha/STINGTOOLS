@@ -19,15 +19,20 @@ public class TransmittalsController : ControllerBase
     public TransmittalsController(StingBimDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<ActionResult> GetTransmittals(Guid projectId)
+    public async Task<ActionResult> GetTransmittals(Guid projectId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
         var tenantId = GetTenantId();
-        var transmittals = await _db.Set<Transmittal>()
-            .Where(t => t.ProjectId == projectId && t.Project!.TenantId == tenantId)
+        var query = _db.Transmittals
+            .Where(t => t.ProjectId == projectId && t.Project!.TenantId == tenantId);
+
+        var total = await query.CountAsync();
+        var transmittals = await query
             .OrderByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
-        return Ok(transmittals);
+        return Ok(new { transmittals, total, page, pageSize });
     }
 
     [HttpPost]
@@ -38,7 +43,7 @@ public class TransmittalsController : ControllerBase
         if (project == null) return NotFound("Project not found");
 
         // Auto-generate TX code
-        var lastTx = await _db.Set<Transmittal>()
+        var lastTx = await _db.Transmittals
             .Where(t => t.ProjectId == projectId)
             .OrderByDescending(t => t.TransmittalCode)
             .FirstOrDefaultAsync();
@@ -60,7 +65,7 @@ public class TransmittalsController : ControllerBase
             CreatedBy = User.FindFirst("display_name")?.Value ?? "Unknown"
         };
 
-        _db.Set<Transmittal>().Add(transmittal);
+        _db.Transmittals.Add(transmittal);
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetTransmittals), new { projectId }, transmittal);
     }
@@ -69,7 +74,7 @@ public class TransmittalsController : ControllerBase
     public async Task<ActionResult> MarkSent(Guid projectId, Guid txId)
     {
         var tenantId = GetTenantId();
-        var tx = await _db.Set<Transmittal>()
+        var tx = await _db.Transmittals
             .FirstOrDefaultAsync(t => t.Id == txId && t.ProjectId == projectId && t.Project!.TenantId == tenantId);
         if (tx == null) return NotFound();
 

@@ -28,6 +28,8 @@ public class MimController : ControllerBase
     {
         if (!await IsMimEnabledAsync()) return Forbid("StingMIM addon not enabled for this organization");
 
+        if (!await VerifyProjectAccessAsync(projectId)) return NotFound("Project not found");
+
         var query = _db.Assets.Where(a => a.ProjectId == projectId);
         if (!string.IsNullOrEmpty(discipline)) query = query.Where(a => a.Discipline == discipline);
         if (!string.IsNullOrEmpty(status)) query = query.Where(a => a.LifecycleStatus == status);
@@ -130,16 +132,16 @@ public class MimController : ControllerBase
             .Where(m => m.Asset!.ProjectId == projectId);
 
         if (!string.IsNullOrEmpty(status)) query = query.Where(m => m.Status == status);
-        if (overdue == true) query = query.Where(m => m.DueDate < DateTime.UtcNow && m.Status != "COMPLETE");
+        if (overdue == true) query = query.Where(m => m.NextDueDate < DateTime.UtcNow && m.Status != "COMPLETED");
 
         var tasks = await query
-            .OrderBy(m => m.DueDate)
+            .OrderBy(m => m.NextDueDate)
             .Select(m => new
             {
-                m.Id, m.Description, m.TaskType, m.Priority, m.Status, m.DueDate,
-                m.Assignee, m.FrequencyDays, m.LastCompletedAt,
+                m.Id, m.Description, m.Type, m.Priority, m.Status, DueDate = m.NextDueDate,
+                Assignee = m.AssignedTo, m.FrequencyDays, LastCompletedAt = m.CompletedDate,
                 AssetTag = m.Asset!.AssetTag, AssetName = m.Asset.AssetName,
-                IsOverdue = m.DueDate < DateTime.UtcNow && m.Status != "COMPLETE"
+                IsOverdue = m.NextDueDate < DateTime.UtcNow && m.Status != "COMPLETED"
             })
             .ToListAsync();
 
@@ -158,12 +160,12 @@ public class MimController : ControllerBase
         {
             AssetId = req.AssetId,
             Description = req.Description,
-            TaskType = req.TaskType ?? "PPM",
             Priority = req.Priority ?? "MEDIUM",
             Status = "SCHEDULED",
-            DueDate = req.DueDate,
-            Assignee = req.Assignee,
-            FrequencyDays = req.FrequencyDays,
+            ScheduledDate = req.DueDate,
+            NextDueDate = req.DueDate,
+            AssignedTo = req.Assignee,
+            FrequencyDays = req.FrequencyDays ?? 365,
             StandardReference = req.StandardReference
         };
 
@@ -183,16 +185,16 @@ public class MimController : ControllerBase
         var tasks = await _db.MaintenanceTasks
             .Where(m => m.Asset!.ProjectId == projectId).ToListAsync();
 
-        var overdueCount = tasks.Count(t => t.DueDate < DateTime.UtcNow && t.Status != "COMPLETE");
+        var overdueCount = tasks.Count(t => t.NextDueDate < DateTime.UtcNow && t.Status != "COMPLETED");
         var avgCondition = assets.Where(a => a.ConditionScore > 0).Select(a => a.ConditionScore).DefaultIfEmpty(0).Average();
 
         var byDiscipline = assets.GroupBy(a => a.Discipline)
             .ToDictionary(g => g.Key, g => g.Count());
         var byStatus = assets.GroupBy(a => a.LifecycleStatus)
             .ToDictionary(g => g.Key, g => g.Count());
-        var warrantyExpiring = assets.Count(a => a.WarrantyExpiresAt.HasValue
-            && a.WarrantyExpiresAt.Value < DateTime.UtcNow.AddMonths(3)
-            && a.WarrantyExpiresAt.Value > DateTime.UtcNow);
+        var warrantyExpiring = assets.Count(a => a.WarrantyEnd.HasValue
+            && a.WarrantyEnd.Value < DateTime.UtcNow.AddMonths(3)
+            && a.WarrantyEnd.Value > DateTime.UtcNow);
 
         return Ok(new
         {
@@ -207,10 +209,17 @@ public class MimController : ControllerBase
 
     private async Task<bool> IsMimEnabledAsync()
     {
-        var tenantId = Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
-        var tenant = await _db.Tenants.FindAsync(tenantId);
+        var tenant = await _db.Tenants.FindAsync(GetTenantId());
         return tenant?.MimEnabled ?? false;
     }
+
+    private async Task<bool> VerifyProjectAccessAsync(Guid projectId)
+    {
+        return await _db.Projects.AnyAsync(p => p.Id == projectId && p.TenantId == GetTenantId());
+    }
+
+    private Guid GetTenantId() =>
+        Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 }
 
 public record CreateAssetRequest(string AssetTag, string AssetName, string? CategoryName, string? FamilyName,

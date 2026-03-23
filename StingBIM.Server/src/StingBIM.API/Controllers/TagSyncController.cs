@@ -41,12 +41,15 @@ public class TagSyncController : ControllerBase
 
         int created = 0, updated = 0;
 
+        // Load all existing elements for this project in one query (avoids N+1)
+        var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
+        var existingElements = await _db.TaggedElements
+            .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
+            .ToDictionaryAsync(e => e.RevitElementId);
+
         foreach (var dto in request.Elements)
         {
-            var existing = await _db.TaggedElements
-                .FirstOrDefaultAsync(e => e.ProjectId == project.Id && e.RevitElementId == dto.RevitElementId);
-
-            if (existing != null)
+            if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
             {
                 MapDtoToEntity(dto, existing, request.UserName);
                 updated++;
@@ -120,16 +123,19 @@ public class TagSyncController : ControllerBase
 
     private async Task<ComplianceSummaryDto> ComputeComplianceAsync(Guid projectId)
     {
-        var elements = await _db.TaggedElements.Where(e => e.ProjectId == projectId).ToListAsync();
-        int total = elements.Count;
-        int tagged = elements.Count(e => !string.IsNullOrEmpty(e.Tag1));
-        int resolved = elements.Count(e => e.IsFullyResolved);
-        int stale = elements.Count(e => e.IsStale);
+        // Server-side aggregation — no .ToListAsync() to avoid loading all elements
+        var q = _db.TaggedElements.Where(e => e.ProjectId == projectId);
+        int total = await q.CountAsync();
+        int tagged = await q.CountAsync(e => e.Tag1 != null && e.Tag1 != "");
+        int resolved = await q.CountAsync(e => e.IsFullyResolved);
+        int stale = await q.CountAsync(e => e.IsStale);
         double pct = total > 0 ? (double)tagged / total * 100 : 0;
         string rag = pct >= 80 ? "GREEN" : pct >= 50 ? "AMBER" : "RED";
 
-        var byDisc = elements.Where(e => !string.IsNullOrEmpty(e.Disc))
-            .GroupBy(e => e.Disc).ToDictionary(g => g.Key, g => g.Count());
+        var byDisc = await q.Where(e => e.Disc != null && e.Disc != "")
+            .GroupBy(e => e.Disc)
+            .Select(g => new { Key = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count);
 
         return new ComplianceSummaryDto
         {

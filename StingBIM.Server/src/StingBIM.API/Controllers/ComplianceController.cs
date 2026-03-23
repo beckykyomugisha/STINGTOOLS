@@ -50,7 +50,7 @@ public class ComplianceController : ControllerBase
             EmptyTokenCountsJson = req.EmptyTokenCountsJson
         };
 
-        _db.Set<ComplianceSnapshot>().Add(snapshot);
+        _db.ComplianceSnapshots.Add(snapshot);
 
         // Update project cached metrics
         project.CompliancePercent = req.TagPercent;
@@ -71,7 +71,7 @@ public class ComplianceController : ControllerBase
     public async Task<ActionResult> GetLatest(Guid projectId)
     {
         var tenantId = GetTenantId();
-        var snapshot = await _db.Set<ComplianceSnapshot>()
+        var snapshot = await _db.ComplianceSnapshots
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
             .OrderByDescending(s => s.CapturedAt)
             .FirstOrDefaultAsync();
@@ -89,7 +89,7 @@ public class ComplianceController : ControllerBase
         [FromQuery] int limit = 100)
     {
         var tenantId = GetTenantId();
-        var query = _db.Set<ComplianceSnapshot>()
+        var query = _db.ComplianceSnapshots
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId);
 
         if (from.HasValue) query = query.Where(s => s.CapturedAt >= from.Value);
@@ -118,7 +118,7 @@ public class ComplianceController : ControllerBase
         var tenantId = GetTenantId();
         var since = DateTime.UtcNow.AddDays(-days);
 
-        var trend = await _db.Set<ComplianceSnapshot>()
+        var trend = await _db.ComplianceSnapshots
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId && s.CapturedAt >= since)
             .GroupBy(s => s.CapturedAt.Date)
             .Select(g => new
