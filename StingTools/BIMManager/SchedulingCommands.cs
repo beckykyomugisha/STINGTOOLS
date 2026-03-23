@@ -924,6 +924,21 @@ namespace StingTools.BIMManager
                 });
             }
 
+            // M-07 FIX: Ensure cumulative total matches grand total.
+            // Float precision in S-curve can cause slight discrepancy; adjust last month.
+            if (monthly.Count > 0 && grandTotal > 0 && Math.Abs(cumulative - grandTotal) > 0.01)
+            {
+                double diff = grandTotal - cumulative;
+                var lastMonth = (JObject)monthly[monthly.Count - 1];
+                double lastSpend = (double)(lastMonth["planned_spend"] ?? 0) + diff;
+                if (lastSpend >= 0) // safety: don't create negative month
+                {
+                    lastMonth["planned_spend"] = Math.Round(lastSpend, 2);
+                    lastMonth["cumulative"] = Math.Round(grandTotal, 2);
+                    lastMonth["percent_complete"] = 100.0;
+                }
+            }
+
             cashFlow["monthly"] = monthly;
             cashFlow["total_months"] = totalMonths;
             cashFlow["grand_total"] = Math.Round(grandTotal, 2);
@@ -1020,9 +1035,19 @@ namespace StingTools.BIMManager
                     int rateCol = 1, unitCol = 2; // default 3-col
                     if (headers.Length >= 7)
                     {
-                        // 7-column cost_rates_5d.csv format — rate is col 3 (Unit_Rate_USD), unit is col 5
+                        // C-05 FIX: 7-column cost_rates_5d.csv format (0-indexed):
+                        // [0]=Category, [1]=MAT_CODE, [2]=MAT_DISCIPLINE, [3]=Unit_Rate_USD,
+                        // [4]=Unit_Rate_UGX, [5]=Unit, [6]=Description
+                        // Previously unitCol=5 was correct, but verify against header names
                         rateCol = 3;
                         unitCol = 5;
+                        // Auto-detect by header name if available (defensive)
+                        for (int hi = 0; hi < headers.Length; hi++)
+                        {
+                            string h = headers[hi].Trim().ToUpperInvariant();
+                            if (h == "UNIT" || h == "UOM") unitCol = hi;
+                            else if (h == "UNIT_RATE_USD" || h == "UNIT_RATE" || h == "RATE") rateCol = hi;
+                        }
                     }
                     else if (headers.Length >= 4 && headers.Any(h => h.Contains("UNIT_RATE")))
                     {

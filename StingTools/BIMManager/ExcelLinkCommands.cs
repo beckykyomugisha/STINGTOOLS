@@ -680,6 +680,13 @@ namespace StingTools.BIMManager
                     excelValue = excelValue ?? "";
                     string modelValue = ParameterHelpers.GetString(el, paramName) ?? "";
 
+                    // C-04 FIX: Skip empty Excel cells when model already has data.
+                    // Prevents silent data loss when user exports, edits some cells,
+                    // then re-imports without touching other columns (empty ≠ intentional clear).
+                    // To intentionally clear a value, user must enter a placeholder like "CLEAR".
+                    if (string.IsNullOrEmpty(excelValue) && !string.IsNullOrEmpty(modelValue))
+                        continue;
+
                     if (!string.Equals(excelValue, modelValue, StringComparison.Ordinal))
                     {
                         changes.Add(new ChangeRecord

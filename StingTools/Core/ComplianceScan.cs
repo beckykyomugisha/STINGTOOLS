@@ -153,13 +153,23 @@ namespace StingTools.Core
                     return _cached;
             }
 
-            // LOGIC-01 + Phase 39: Atomic compare-exchange prevents concurrent scan race.
-            // Return stale cached result (never null) during scan to prevent dashboard flicker.
+            // C-06 FIX: Atomic compare-exchange prevents concurrent scan race.
+            // Return stale cached result during scan to prevent dashboard flicker.
+            // Previously returned empty ComplianceResult when _cached was null on first scan,
+            // causing 0% compliance RED flash. Now returns a "pending" result with -1 TotalElements
+            // so callers can detect "no data yet" vs "0% compliant".
             if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
                 lock (_cacheLock)
                 {
-                    return _cached ?? new ComplianceResult { ScanTime = DateTime.Now };
+                    if (_cached != null) return _cached;
+                    // First scan still in progress — return a distinguishable "pending" result
+                    // with non-alarming defaults instead of 0/0 = RED
+                    return new ComplianceResult
+                    {
+                        ScanTime = DateTime.Now,
+                        TotalElements = -1 // sentinel: callers should treat -1 as "scan pending"
+                    };
                 }
             }
 

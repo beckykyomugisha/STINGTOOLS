@@ -71,11 +71,19 @@ namespace StingTools.Core
         private const int MaxDeferredQueueSize = 5000;
 
         /// <summary>R-02: Enqueue an element ID for retry after sync-to-central.</summary>
+        // M-06 FIX: Track dropped elements for diagnostic purposes
+        private static int _droppedElementCount = 0;
+
         public static void EnqueueDeferred(ElementId id)
         {
             if (_deferredElements.Count >= MaxDeferredQueueSize)
             {
-                StingLog.Warn($"AutoTagger: deferred queue at capacity ({MaxDeferredQueueSize}), dropping element {id.Value}. Sync to central to drain queue.");
+                _droppedElementCount++;
+                // M-06 FIX: Throttle logging — only log every 100th drop to avoid log spam
+                // but use Error level (not Warn) so it's visible in diagnostics
+                if (_droppedElementCount <= 5 || _droppedElementCount % 100 == 0)
+                    StingLog.Error($"AutoTagger: deferred queue at capacity ({MaxDeferredQueueSize}), " +
+                        $"dropped {_droppedElementCount} elements total. Sync to central to drain queue.");
                 return;
             }
             _deferredElements.Enqueue(id);
@@ -322,6 +330,14 @@ namespace StingTools.Core
                 if (_contextInvalid || _cachedCtx == null || ttlExpired)
                 {
                     _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                    // H-03 FIX: Validate context was actually built. Build() can return null
+                    // on corrupted documents. Without this check, we'd NullReferenceException
+                    // downstream and permanently disable the auto-tagger.
+                    if (_cachedCtx == null)
+                    {
+                        StingLog.Error("AutoTagger: PopulationContext.Build returned null — skipping auto-tag cycle");
+                        return;
+                    }
                     var built = TagConfig.BuildTagIndexAndCounters(doc);
                     _cachedExistingTags = built.Item1;
                     _cachedSeqCounters = built.Item2;
@@ -332,6 +348,8 @@ namespace StingTools.Core
                     StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas, {_gridLines.Count} grids)");
                 }
                 var ctx = _cachedCtx;
+                // H-03 FIX: Secondary null guard in case context was invalidated between rebuild and use
+                if (ctx == null) return;
                 var existingTags = _cachedExistingTags;
                 var seqCounters = _cachedSeqCounters;
 
@@ -417,6 +435,12 @@ namespace StingTools.Core
                     if (_contextInvalid || _cachedCtx == null)
                     {
                         _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+                        // H-03 FIX: Validate context in queue handler too
+                        if (_cachedCtx == null)
+                        {
+                            StingLog.Error("AutoTagQueueHandler: PopulationContext.Build returned null — skipping batch");
+                            return;
+                        }
                         var built = TagConfig.BuildTagIndexAndCounters(doc);
                         _cachedExistingTags = built.Item1;
                         _cachedSeqCounters = built.Item2;
@@ -427,6 +451,7 @@ namespace StingTools.Core
                         StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas)");
                     }
                     var ctx = _cachedCtx;
+                    if (ctx == null) return; // H-03 secondary guard
                     var existingTags = _cachedExistingTags;
                     var seqCounters = _cachedSeqCounters;
 
@@ -687,15 +712,17 @@ namespace StingTools.Core
                 // PERF-07: Partial 20% LRU eviction instead of clearing entire cache
                 if (_elementVersionHash.Count > 10000)
                 {
-                    int evictCount = _elementVersionHash.Count / 5; // 20%
+                    // M-09 FIX: Capture count BEFORE eviction for accurate log output
+                    int originalCount = _elementVersionHash.Count;
+                    int evictCount = originalCount / 5; // 20%
                     int evicted = 0;
-                    foreach (var key in _elementVersionHash.Keys)
+                    foreach (var key in _elementVersionHash.Keys.ToList()) // ToList() prevents enumeration-during-modification
                     {
                         if (evicted >= evictCount) break;
                         _elementVersionHash.TryRemove(key, out _);
                         evicted++;
                     }
-                    StingLog.Info($"StingStaleMarker: evicted {evicted} of {evicted + _elementVersionHash.Count} cached hashes");
+                    StingLog.Info($"StingStaleMarker: evicted {evicted} of {originalCount} cached hashes");
                 }
 
                 StingLog.Info($"OnDocumentChanged: marked {idsToMark.Count} elements stale");

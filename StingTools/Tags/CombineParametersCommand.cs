@@ -125,9 +125,12 @@ namespace StingTools.Tags
             int skippedNoDisc = 0;
             var writesPerGroup = new Dictionary<string, int>();
 
-            // TAG-06: Build tag index + SEQ counters for collision detection in TAG1 rebuild
-            var existingTags = TagConfig.BuildExistingTagIndex(doc);
-            var seqCounters = TagConfig.GetExistingSequenceCounters(doc);
+            // H-04 FIX: Use BuildTagIndexAndCounters (merges sidecar data) instead of
+            // GetExistingSequenceCounters (project params only). Prevents SEQ collisions
+            // when sidecar has higher counter state from previous sessions.
+            var tagIndexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = tagIndexResult.Item1;
+            var seqCounters = tagIndexResult.Item2;
 
             foreach (var g in activeGroups)
                 writesPerGroup[g.GroupCode] = 0;
