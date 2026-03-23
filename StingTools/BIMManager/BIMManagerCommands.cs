@@ -9241,4 +9241,263 @@ namespace StingTools.BIMManager
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-04: WEEKLY BIM COORDINATOR REPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-04: Generates a self-contained HTML weekly coordinator report
+    /// aggregating compliance trends, warnings, issues, and workflow runs.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class WeeklyCoordinatorReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            ComplianceScan.InvalidateCache();
+            var comp = ComplianceScan.Scan(doc);
+            var trend = ComplianceTrendTracker.GetTrend(doc);
+            var warningReport = WarningsEngine.ScanWarnings(doc);
+
+            // Load issues
+            int openIssues = 0, closedThisWeek = 0;
+            try
+            {
+                string issuesPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "issues.json");
+                if (File.Exists(issuesPath))
+                {
+                    var issues = JArray.Parse(File.ReadAllText(issuesPath));
+                    var weekAgo = DateTime.Now.AddDays(-7);
+                    foreach (JObject issue in issues)
+                    {
+                        string status = issue["status"]?.ToString() ?? "";
+                        if (!status.Equals("CLOSED", StringComparison.OrdinalIgnoreCase)) openIssues++;
+                        else
+                        {
+                            if (DateTime.TryParse(issue["modified_date"]?.ToString(), out DateTime md) && md >= weekAgo)
+                                closedThisWeek++;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"WeeklyReport issues: {ex.Message}"); }
+
+            // Build HTML
+            var html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+            html.AppendLine("<title>STING Weekly BIM Coordinator Report</title>");
+            html.AppendLine("<style>");
+            html.AppendLine("body{font-family:Segoe UI,Arial;max-width:900px;margin:0 auto;padding:20px;color:#333}");
+            html.AppendLine("h1{color:#1A237E;border-bottom:3px solid #E8912D;padding-bottom:10px}");
+            html.AppendLine("h2{color:#1A237E;margin-top:30px}");
+            html.AppendLine(".kpi{display:inline-block;background:#f5f5f5;border-left:4px solid #E8912D;padding:12px 20px;margin:5px;min-width:150px}");
+            html.AppendLine(".kpi .value{font-size:28px;font-weight:bold;color:#1A237E}");
+            html.AppendLine(".kpi .label{font-size:12px;color:#666}");
+            html.AppendLine(".green{color:#2E7D32} .amber{color:#F57F17} .red{color:#C62828}");
+            html.AppendLine(".rag-bar{height:20px;border-radius:4px;margin:5px 0}");
+            html.AppendLine("table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px;text-align:left}");
+            html.AppendLine("th{background:#1A237E;color:white} tr:nth-child(even){background:#f9f9f9}");
+            html.AppendLine(".footer{margin-top:40px;padding-top:10px;border-top:1px solid #ccc;color:#999;font-size:11px}");
+            html.AppendLine("</style></head><body>");
+
+            html.AppendLine($"<h1>Weekly BIM Coordinator Report</h1>");
+            html.AppendLine($"<p><strong>Project:</strong> {doc.Title} | <strong>Date:</strong> {DateTime.Now:dd MMM yyyy} | <strong>Period:</strong> Last 7 days</p>");
+
+            // KPI cards
+            string ragClass = comp.RAGStatus == "GREEN" ? "green" : comp.RAGStatus == "AMBER" ? "amber" : "red";
+            html.AppendLine("<div>");
+            html.AppendLine($"<div class='kpi'><div class='value {ragClass}'>{comp.CompliancePercent:F0}%</div><div class='label'>Tag Compliance</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{comp.TotalElements}</div><div class='label'>Total Elements</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{warningReport.Total}</div><div class='label'>Warnings</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{openIssues}</div><div class='label'>Open Issues</div></div>");
+            html.AppendLine($"<div class='kpi'><div class='value'>{comp.StaleCount}</div><div class='label'>Stale Elements</div></div>");
+            html.AppendLine("</div>");
+
+            // Compliance trend
+            html.AppendLine("<h2>Compliance Trend (7-day)</h2>");
+            html.AppendLine($"<p>Direction: <strong>{trend.Direction}</strong> ({trend.DeltaPct:+0.0;-0.0;0}%)</p>");
+            html.AppendLine($"<div class='rag-bar' style='background:linear-gradient(to right,#E8912D {comp.CompliancePercent}%,#eee {comp.CompliancePercent}%);width:100%'></div>");
+
+            // Per-discipline table
+            html.AppendLine("<h2>Discipline Breakdown</h2>");
+            html.AppendLine("<table><tr><th>Discipline</th><th>Total</th><th>Tagged</th><th>Untagged</th><th>Compliance</th></tr>");
+            if (comp.ByDisc != null)
+            {
+                foreach (var kv in comp.ByDisc.OrderByDescending(x => x.Value.Total))
+                {
+                    string dRag = kv.Value.CompliancePct >= 80 ? "green" : kv.Value.CompliancePct >= 50 ? "amber" : "red";
+                    html.AppendLine($"<tr><td>{kv.Key}</td><td>{kv.Value.Total}</td><td>{kv.Value.Tagged}</td><td>{kv.Value.Untagged}</td>" +
+                        $"<td class='{dRag}'>{kv.Value.CompliancePct:F0}%</td></tr>");
+                }
+            }
+            html.AppendLine("</table>");
+
+            // Warnings summary
+            html.AppendLine("<h2>Warning Summary</h2>");
+            html.AppendLine($"<p>Total: {warningReport.Total} | Auto-fixable: {warningReport.AutoFixable} | Trend: {warningReport.TrendSymbol}</p>");
+            if (warningReport.RootCauseGroups.Count > 0)
+            {
+                html.AppendLine("<table><tr><th>Warning Type</th><th>Count</th><th>Severity</th><th>Auto-fix</th></tr>");
+                foreach (var g in warningReport.RootCauseGroups.Take(10))
+                {
+                    string desc = g.Description.Length > 60 ? g.Description.Substring(0, 57) + "..." : g.Description;
+                    html.AppendLine($"<tr><td>{System.Net.WebUtility.HtmlEncode(desc)}</td><td>{g.Count}</td>" +
+                        $"<td>{g.Severity}</td><td>{(g.CanAutoFix ? "Yes" : "No")}</td></tr>");
+                }
+                html.AppendLine("</table>");
+            }
+
+            // Issues summary
+            html.AppendLine("<h2>Issues</h2>");
+            html.AppendLine($"<p>Open: {openIssues} | Closed this week: {closedThisWeek}</p>");
+
+            html.AppendLine($"<div class='footer'>Generated by STING Tools v1.0 | {DateTime.Now:yyyy-MM-dd HH:mm} | User: {Environment.UserName}</div>");
+            html.AppendLine("</body></html>");
+
+            // Save
+            string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string reportPath = Path.Combine(dir, $"STING_Weekly_Report_{DateTime.Now:yyyyMMdd}.html");
+            File.WriteAllText(reportPath, html.ToString());
+
+            TaskDialog.Show("STING Weekly Report", $"Report saved to:\n{reportPath}");
+            StingLog.Info($"Weekly report generated: {reportPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-10: COBie ROUND-TRIP IMPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-10: Import COBie V2.4 spreadsheet data back into Revit elements.
+    /// Matches Component rows to elements by UniqueId/BarCode/Tag, updates STING parameters.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class COBieImportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import COBie Spreadsheet",
+                Filter = "Excel (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+                DefaultExt = ".xlsx"
+            };
+            if (dlg.ShowDialog() != true) return Result.Cancelled;
+
+            try
+            {
+                using var workbook = new ClosedXML.Excel.XLWorkbook(dlg.FileName);
+                var componentSheet = workbook.Worksheets.FirstOrDefault(ws =>
+                    ws.Name.Equals("Component", StringComparison.OrdinalIgnoreCase));
+
+                if (componentSheet == null)
+                {
+                    TaskDialog.Show("STING COBie Import", "No 'Component' worksheet found in the COBie file.");
+                    return Result.Failed;
+                }
+
+                // Read headers
+                var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                int lastCol = componentSheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+                for (int c = 1; c <= lastCol; c++)
+                {
+                    string h = componentSheet.Cell(1, c).GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(h)) headers[h] = c;
+                }
+
+                // Build element lookup by UniqueId and TAG1
+                var byUniqueId = new Dictionary<string, Element>();
+                var byTag = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
+                var allElems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .ToList();
+                foreach (var el in allElems)
+                {
+                    byUniqueId[el.UniqueId] = el;
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) byTag[tag1] = el;
+                }
+
+                int lastRow = componentSheet.LastRowUsed()?.RowNumber() ?? 1;
+                if (lastRow > 10001) lastRow = 10001; // Safety limit
+
+                int matched = 0, updated = 0, skipped = 0;
+
+                // COBie column → STING parameter mapping
+                var columnMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Description"] = "ASS_DESC_TXT",
+                    ["SerialNumber"] = "ASS_SERIAL_NUM_TXT",
+                    ["BarCode"] = "ASS_BARCODE_TXT",
+                    ["AssetIdentifier"] = "ASS_ASSET_ID_TXT",
+                    ["WarrantyDurationParts"] = "MNT_WARRANTY_YRS_TXT",
+                    ["WarrantyGuarantorParts"] = "MNT_WARRANTY_PROVIDER_TXT",
+                    ["InstallationDate"] = "ASS_INSTALL_DATE_TXT",
+                    ["WarrantyStartDate"] = "MNT_WARRANTY_START_TXT",
+                };
+
+                using (Transaction tx = new Transaction(doc, "STING COBie Import"))
+                {
+                    tx.Start();
+                    for (int row = 2; row <= lastRow; row++)
+                    {
+                        // Match element
+                        Element target = null;
+                        if (headers.ContainsKey("ExternalIdentifier"))
+                        {
+                            string extId = componentSheet.Cell(row, headers["ExternalIdentifier"]).GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(extId)) byUniqueId.TryGetValue(extId, out target);
+                        }
+                        if (target == null && headers.ContainsKey("TagNumber"))
+                        {
+                            string tagNum = componentSheet.Cell(row, headers["TagNumber"]).GetString()?.Trim();
+                            if (!string.IsNullOrEmpty(tagNum)) byTag.TryGetValue(tagNum, out target);
+                        }
+
+                        if (target == null) { skipped++; continue; }
+                        matched++;
+
+                        // Update mapped parameters
+                        bool anyWritten = false;
+                        foreach (var kv in columnMap)
+                        {
+                            if (!headers.ContainsKey(kv.Key)) continue;
+                            string val = componentSheet.Cell(row, headers[kv.Key]).GetString()?.Trim();
+                            if (string.IsNullOrEmpty(val)) continue;
+                            if (val.Equals("CLEAR", StringComparison.OrdinalIgnoreCase)) val = "";
+                            if (ParameterHelpers.SetString(target, kv.Value, val, overwrite: true))
+                                anyWritten = true;
+                        }
+                        if (anyWritten) updated++;
+                    }
+                    tx.Commit();
+                }
+
+                ComplianceScan.InvalidateCache();
+                TaskDialog.Show("STING COBie Import",
+                    $"COBie import complete.\n\n" +
+                    $"Rows processed: {lastRow - 1}\n" +
+                    $"Elements matched: {matched}\n" +
+                    $"Elements updated: {updated}\n" +
+                    $"Rows skipped (no match): {skipped}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                StingLog.Error($"COBie import failed: {ex.Message}", ex);
+                return Result.Failed;
+            }
+        }
+    }
+
 }

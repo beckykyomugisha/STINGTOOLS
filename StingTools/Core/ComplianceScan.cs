@@ -549,6 +549,94 @@ namespace StingTools.Core
         public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
     }
 
+    /// <summary>FUT-02: Per-linked-model compliance data for federated model coordination.</summary>
+    public class LinkedModelCompliance
+    {
+        public string LinkName { get; set; }
+        public string LinkPath { get; set; }
+        public int TotalElements { get; set; }
+        public int TaggedComplete { get; set; }
+        public int Untagged { get; set; }
+        public double CompliancePct => TotalElements > 0 ? TaggedComplete * 100.0 / TotalElements : 0;
+        public string RAGStatus => CompliancePct >= 80 ? "GREEN" : CompliancePct >= 50 ? "AMBER" : "RED";
+    }
+
+    /// <summary>FUT-02: Aggregated compliance across host + all linked Revit models.</summary>
+    public class FederatedComplianceResult
+    {
+        public ComplianceScan.ComplianceResult HostResult { get; set; }
+        public List<LinkedModelCompliance> LinkedResults { get; set; } = new List<LinkedModelCompliance>();
+        public int TotalAcrossAll => (HostResult?.TotalElements ?? 0) + LinkedResults.Sum(l => l.TotalElements);
+        public int TaggedAcrossAll => (HostResult?.TaggedComplete ?? 0) + LinkedResults.Sum(l => l.TaggedComplete);
+        public double FederatedCompliancePct => TotalAcrossAll > 0 ? TaggedAcrossAll * 100.0 / TotalAcrossAll : 0;
+        public string FederatedRAG => FederatedCompliancePct >= 80 ? "GREEN" : FederatedCompliancePct >= 50 ? "AMBER" : "RED";
+    }
+
+    /// <summary>FUT-02: Scan compliance across host document and all linked Revit models.</summary>
+    public static class FederatedComplianceScanner
+    {
+        public static FederatedComplianceResult ScanFederated(Document hostDoc)
+        {
+            var result = new FederatedComplianceResult();
+
+            // Scan host model
+            ComplianceScan.InvalidateCache();
+            result.HostResult = ComplianceScan.Scan(hostDoc);
+
+            // Scan each linked model
+            try
+            {
+                var linkInstances = new FilteredElementCollector(hostDoc)
+                    .OfClass(typeof(RevitLinkInstance))
+                    .Cast<RevitLinkInstance>()
+                    .ToList();
+
+                foreach (var linkInst in linkInstances)
+                {
+                    try
+                    {
+                        var linkType = hostDoc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
+                        if (linkType == null) continue;
+
+                        Document linkedDoc = linkType.GetLinkedDocument();
+                        if (linkedDoc == null) continue;
+
+                        // Quick compliance scan of linked document
+                        var linkResult = new LinkedModelCompliance
+                        {
+                            LinkName = linkType.Name ?? linkInst.Name,
+                            LinkPath = linkedDoc.PathName ?? ""
+                        };
+
+                        var elems = new FilteredElementCollector(linkedDoc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                            .ToList();
+
+                        linkResult.TotalElements = elems.Count;
+                        foreach (var el in elems)
+                        {
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(tag1) && TagConfig.TagIsComplete(tag1))
+                                linkResult.TaggedComplete++;
+                            else if (string.IsNullOrEmpty(tag1))
+                                linkResult.Untagged++;
+                        }
+
+                        result.LinkedResults.Add(linkResult);
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"FederatedScan link '{linkInst.Name}': {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FederatedScan: {ex.Message}"); }
+
+            return result;
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════
     // Phase 56: COMPLIANCE TREND TRACKER
     // Persists daily compliance snapshots for trend analysis
