@@ -1007,8 +1007,8 @@ namespace StingTools.Model
 
     #region Connection Result
 
-    /// <summary>Connection check result.</summary>
-    public class ConnectionResult
+    /// <summary>Simple connection check result.</summary>
+    public class SimpleConnectionResult
     {
         public double CapacityKN { get; set; }
         public double DemandKN { get; set; }
@@ -1031,11 +1031,11 @@ namespace StingTools.Model
         /// Single shear: Fv,Rd = αv × fub × A / γM2
         /// Bearing: Fb,Rd = k1 × αb × fu × d × t / γM2
         /// </summary>
-        public static ConnectionResult CheckFinPlateConnection(
+        public static SimpleConnectionResult CheckFinPlateConnection(
             double reactionKN, int boltCount = 4,
             double boltDiaMm = 20, double boltGrade = 8.8)
         {
-            var result = new ConnectionResult { ConnectionType = "Fin Plate" };
+            var result = new SimpleConnectionResult { ConnectionType = "Fin Plate" };
             result.DemandKN = reactionKN;
 
             double gammaM2 = 1.25;
@@ -1068,11 +1068,11 @@ namespace StingTools.Model
         /// <summary>
         /// Checks end plate connection capacity (moment connection).
         /// </summary>
-        public static ConnectionResult CheckEndPlateConnection(
+        public static SimpleConnectionResult CheckEndPlateConnection(
             double momentKNm, double shearKN,
             double boltDiaMm = 20, int boltRows = 4)
         {
-            var result = new ConnectionResult { ConnectionType = "End Plate" };
+            var result = new SimpleConnectionResult { ConnectionType = "End Plate" };
 
             double gammaM2 = 1.25;
             double fub = 800; // Grade 8.8
