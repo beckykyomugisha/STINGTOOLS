@@ -167,7 +167,10 @@ STINGTOOLS/
     │   ├── StructuralIntelligenceEngine.cs # Smart sizing: adaptive beam/column/foundation factories, Voronoi load areas, BIM validation scoring
     │   ├── StructuralPrecisionEngine.cs # Precision: column load takedown, slab edge beams, bracing optimization, stability checks, constraint validation
     │   ├── StructuralCADPipeline.cs    # CAD-to-structural pipeline: wall detection, junction analysis, member classification, full automation
-    │   ├── StructuralCADWizard.cs      # WPF wizard for structural CAD import with tolerance config
+    │   ├── StructuralCADWizard.cs      # Legacy WPF wizard for structural CAD import with tolerance config
+    │   ├── StructuralDWGWizard.cs     # Enhanced 7-page WPF wizard: layer mapping, properties, joining, tagging (~1,100 lines)
+    │   ├── StructuralDWGEngine.cs     # Precision DWG-to-BIM engine: detection, creation, joining, type creation (~900 lines)
+    │   ├── StructuralDWGCommands.cs   # 2 commands: StructuralDWGWizard + QuickStructuralDWG (~200 lines)
     │   └── StructuralTypeFactory.cs    # Intelligent type catalog: beam/column/slab type selection from span, load, material
     │
     ├── Temp/                           # Template commands (22 files, ~120+ commands)
@@ -2620,3 +2623,29 @@ docker compose up -d
 **Docs/Schedules (Agent 4 — 11 gaps):** ViewScheduleLinkEngine missing (DOC-01), schedule template library (DOC-02), document package only 2 of 8 deliverables (DOC-03), PrintQueue O(n²) performance (DOC-04), COBie export only 7 of 11 sheets (HO-01), document versioning/supersession (DOC-06).
 
 **UI/Dispatch (Agent 5 — 6 gaps):** 4 missing command classes (BimKnowledgeBase, CommandSuggestion, ConfigurableTagFormat, CommissioningChecklist), 5 TagStudio stubs with misleading names, 170 dispatch-only entries undocumented.
+
+#### Completed (Phase 76 — Enhanced DWG-to-Structural BIM Wizard)
+
+675. **StructuralDWGWizard.cs** — `Model/StructuralDWGWizard.cs` (~1,100 lines): Complete 7-page WPF wizard for DWG-to-structural BIM conversion, replacing the limited 5-page `StructuralCADWizard`. Pages: (1) DWG Selection & Layer Analysis with entity/line/arc counts and auto-category detection, (2) Layer-to-Element Mapping with per-element-type checkbox groups for 8 structural types (Wall/Column/Beam/Slab/Foundation/Shear Wall/Bracing/Grid Line), auto-map and clear-all quick actions, color-coded element type cards, (3) Element Properties with per-type height/thickness/width/depth/material configuration and material dropdown (12 options: Concrete, Steel, Timber, Masonry, etc.), column shape selection (Rectangular/Circular), foundation type (Pad/Strip/Raft), (4) Structural Options with 9 joining/detection checkboxes (auto-join walls/columns, merge collinear, snap to grid, detect shear walls/bracing/foundations), 7 precision tolerance fields (endpoint, snap, parallel line, min/max column, min beam/wall), type creation prefix, (5) Tagging & Numbering with STING ISO 19650 integration (auto-tag, auto-number, 3 numbering schemes, tag prefix override, example tag preview), (6) Detection Preview with element summary table (type/layers/entities/properties), active options checklist, total estimate with RAG card, (7) Summary & Execute with formatted console-style settings review. `StructuralDWGConfig` result class with 40+ configurable properties. Corporate blue/orange theme (#1A237E/#E8912D).
+676. **StructuralDWGEngine.cs** — `Model/StructuralDWGEngine.cs` (~900 lines): Precision modeling engine with intelligent geometry extraction, element creation, joining, and auto-tagging. Key algorithms: (1) Layer-filtered geometry extraction with reverse lookup map, (2) Parallel line pair detection for accurate wall thickness measurement with overlap validation, (3) Rectangle detection for column cross-sections with 4-line chaining and closure validation, (4) Cluster-based column center detection for non-rectangular column layers, (5) Closed polygon loop detection for slab boundaries with Shoelace area calculation, (6) Collinear wall segment merging with iterative endpoint chaining, (7) Wall T/L/X junction auto-joining via `JoinGeometryUtils` with bounding box overlap pre-check, (8) Column-to-wall joining at intersections, (9) Type creation from detected dimensions (`FindOrCreateWallType`/`ColumnType`/`BeamType`/`FloorType`) with family parameter setting (b/h/Width/Depth), (10) Grid line creation with horizontal=number/vertical=letter naming, (11) Foundation placement below detected column positions, (12) STING auto-tagging via `ModelEngine.AutoTagCreatedElements()`. `SilentWarningDismisser` IFailuresPreprocessor for batch creation. `ConversionResult` with per-element-type counts, join count, type creation count, warnings, and formatted summary.
+677. **StructuralDWGCommands.cs** — `Model/StructuralDWGCommands.cs` (~200 lines, 2 commands): `StructuralDWGWizardCommand` (full 7-page wizard with result dialog and element selection), `QuickStructuralDWGCommand` (one-click conversion with auto-detection, auto-layer-mapping via `LayerMapper` + `StructuralLayerClassifier`, default dimensions, confirmation dialog). Both use `ParameterHelpers.GetApp()` null-safe pattern.
+678. **Dispatch + XAML** — 2 dispatch entries (`StructuralDWGWizard`, `QuickStructuralDWG`). 2 new buttons in MODEL tab "DWG → STRUCTURAL BIM" section: "★★ DWG Wizard" (GreenBtn, featured) and "Quick DWG→Struct" (OrangeBtn). Legacy buttons retained as "CAD Wizard (Legacy)" and "DWG → Struct (Legacy)".
+
+### Future Enhancement Gaps — DWG-to-Structural Auto-Modeling (Phase 76 Review)
+
+| ID | Gap | Priority | Description |
+|----|-----|----------|-------------|
+| DWG-FUT-01 | Structural detail reading | High | Read reinforcement schedules, bar marks, curtain lengths from DWG text/tables and populate Revit rebar parameters |
+| DWG-FUT-02 | Multi-storey propagation | High | Detect repeating floor patterns and auto-replicate structural layout to upper levels with column continuity |
+| DWG-FUT-03 | Section drawing interpretation | Medium | Parse DWG sections/elevations to extract beam depth, slab edge detail, and connection types |
+| DWG-FUT-04 | Block-to-family mapping | Medium | Map DWG blocks to Revit families (door/window/equipment blocks → family instances) with attribute transfer |
+| DWG-FUT-05 | Hatch-to-material mapping | Medium | Interpret DWG hatch patterns to assign materials (45° hatch → concrete, cross-hatch → masonry, etc.) |
+| DWG-FUT-06 | Dimension text extraction | Medium | Read dimension strings near elements to override auto-detected sizes (e.g., "300x600" near a beam) |
+| DWG-FUT-07 | Transfer beam schedule | Medium | Parse tabulated beam schedules from DWG (beam mark, size, span, reinforcement) and apply to created beams |
+| DWG-FUT-08 | Curved wall support | Low | Detect arc segments in wall layers and create curved Revit walls |
+| DWG-FUT-09 | Opening detection | Low | Detect gaps in wall lines as door/window openings and place appropriate family instances |
+| DWG-FUT-10 | Retaining wall detection | Low | Identify retaining walls from ground level context and apply appropriate structural properties |
+| DWG-FUT-11 | Connection detail extraction | Low | Read structural connection details (base plates, splice connections) and create corresponding elements |
+| DWG-FUT-12 | Point cloud integration | Future | Combine DWG structural layout with point cloud scan for as-built verification |
+| DWG-FUT-13 | ML-based element recognition | Future | Train element classifier on DWG geometry patterns for improved auto-detection accuracy |
+| DWG-FUT-14 | IFC structural import | Future | Import IFC structural models as alternative to DWG with analytical model creation |
