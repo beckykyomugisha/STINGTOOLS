@@ -2082,6 +2082,28 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PLASTERING -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="PLASTERING"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Intelligent plastering &amp; rendering (BS EN 13914)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Plaster" Tag="PlasterSmartApply" Click="Cmd_Click" ToolTip="7-step intelligent pipeline: substrate → surface → mix → coverage → layers → QA → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="PlasterBatchApply" Click="Cmd_Click" ToolTip="Batch plaster all walls in project/view" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Add Layers" Tag="PlasterAddLayers" Click="Cmd_Click" ToolTip="Inject plaster layers into selected wall type"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Materials" Tag="PlasterMaterialBrowser" Click="Cmd_Click" ToolTip="Browse BS EN 998-1 plaster material database"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Surface" Tag="PlasterSurfaceAnalyze" Click="Cmd_Click" ToolTip="Analyze wall substrate: suction, pre-treatment, flatness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mix Design" Tag="PlasterMixDesign" Click="Cmd_Click" ToolTip="Design multi-coat build-up per BS EN 13914"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="PlasterCoverageCalc" Click="Cmd_Click" ToolTip="Area, bags, cost, carbon calculation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="QA Checklist" Tag="PlasterQualityChecklist" Click="Cmd_Click" ToolTip="15-point BS EN 13914 quality inspection checklist"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compare" Tag="PlasterCompareSpec" Click="Cmd_Click" ToolTip="Compare internal vs external plaster specs"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Schedule" Tag="PlasterScheduleExport" Click="Cmd_Click" ToolTip="Export plaster schedule to CSV"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- MEP -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MEP"/>
                         <Border Style="{StaticResource GroupBorder}">

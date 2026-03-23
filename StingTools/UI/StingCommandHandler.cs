@@ -1165,6 +1165,18 @@ namespace StingTools.UI
                     case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
                     case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
 
+                    // ── Plastering ──
+                    case "PlasterMaterialBrowser": RunCommand<Model.PlasterMaterialBrowserCommand>(app); break;
+                    case "PlasterSurfaceAnalyze": RunCommand<Model.PlasterSurfaceAnalyzeCommand>(app); break;
+                    case "PlasterMixDesign": RunCommand<Model.PlasterMixDesignCommand>(app); break;
+                    case "PlasterCoverageCalc": RunCommand<Model.PlasterCoverageCalcCommand>(app); break;
+                    case "PlasterQualityChecklist": RunCommand<Model.PlasterQualityChecklistCommand>(app); break;
+                    case "PlasterAddLayers": RunCommand<Model.PlasterAddLayersCommand>(app); break;
+                    case "PlasterSmartApply": RunCommand<Model.PlasterSmartApplyCommand>(app); break;
+                    case "PlasterBatchApply": RunCommand<Model.PlasterBatchApplyCommand>(app); break;
+                    case "PlasterScheduleExport": RunCommand<Model.PlasterScheduleExportCommand>(app); break;
+                    case "PlasterCompareSpec": RunCommand<Model.PlasterCompareSpecCommand>(app); break;
+
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
                     case "ModelCreatePipe": RunCommand<Model.ModelCreatePipeCommand>(app); break;
