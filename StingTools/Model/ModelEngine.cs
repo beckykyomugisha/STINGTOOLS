@@ -230,9 +230,13 @@ namespace StingTools.Model
                     s.FamilyName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (match != null)
                     return ResolveResult.Found(match.Id, $"{match.FamilyName}: {match.Name}");
+
+                // Phase 56 MA-004: Log warning when keyword doesn't match any type
+                StingLog.Warn($"ResolveFamilySymbol: keyword '{keyword}' not found in {category}. " +
+                    $"Using first available: '{symbols[0].FamilyName}: {symbols[0].Name}'");
             }
 
-            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name}");
+            return ResolveResult.Found(symbols[0].Id, $"{symbols[0].FamilyName}: {symbols[0].Name} (default)");
         }
 
         /// <summary>Resolve a Level by name (partial match) or default to lowest.</summary>

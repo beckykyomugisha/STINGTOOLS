@@ -224,6 +224,12 @@ namespace StingTools.Core
             ("corridor width", WarningCategory.Compliance, WarningSeverity.High, "Check corridor min width per BS 9991", false),
             ("compartment", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire compartmentation", false),
             ("disabled", WarningCategory.Compliance, WarningSeverity.High, "Check DDA/BS 8300 compliance", false),
+
+            // Phase 56 WM-008: Additional MEP common warnings
+            ("multi-connector", WarningCategory.MEP, WarningSeverity.High, "Resolve ambiguous connector routing", false),
+            ("reverse flow", WarningCategory.MEP, WarningSeverity.Medium, "Check flow direction setting", false),
+            ("size mismatch", WarningCategory.MEP, WarningSeverity.Medium, "Use correct reducer size", false),
+            ("isolated", WarningCategory.MEP, WarningSeverity.High, "Connect isolated pipe/duct segment to main system", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -522,7 +528,8 @@ namespace StingTools.Core
                     }
                 }
 
-                // Strategy 4: Duplicate mark value — auto-increment
+                // Strategy 4: Duplicate mark value — auto-increment with collision avoidance
+                // Phase 56 WM-001 fix: naive "_2" append could create new collisions
                 if (lower.Contains("duplicate mark value") || lower.Contains("duplicate type mark"))
                 {
                     var ids = cw.FailingElements.ToList();
@@ -535,8 +542,27 @@ namespace StingTools.Core
                             if (markParam != null && !markParam.IsReadOnly)
                             {
                                 string current = markParam.AsString() ?? "";
-                                // Append _2 suffix to make unique
-                                markParam.Set(current + "_2");
+                                // Build set of existing marks to avoid creating new collisions
+                                var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                try
+                                {
+                                    foreach (Element e in new FilteredElementCollector(doc)
+                                        .WhereElementIsNotElementType())
+                                    {
+                                        string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                        if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                    }
+                                }
+                                catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
+
+                                // Find unique mark by numeric increment
+                                string newMark = current;
+                                for (int attempt = 2; attempt < 1000; attempt++)
+                                {
+                                    newMark = $"{current}_{attempt}";
+                                    if (!existingMarks.Contains(newMark)) break;
+                                }
+                                markParam.Set(newMark);
                                 return true;
                             }
                         }
