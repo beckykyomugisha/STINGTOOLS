@@ -758,37 +758,19 @@ namespace StingTools.Model
                     if (dlg.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
                 }
 
-                // Extract and classify structural layers
-                var cadEngine = new CADToModelEngine(doc);
-                var extraction = cadEngine.PreviewImport(import);
+                // Use the full structural pipeline (not base CADToModelEngine)
+                var pipeline = new StructuralCADPipeline(doc);
+                var result = pipeline.RunFullPipeline(import);
 
-                // Find structural layers
-                var structLayers = extraction.LayerCounts
-                    .Where(kvp => StructuralLayerClassifier.IsStructuralLayer(kvp.Key))
-                    .ToList();
+                var msg = result.Summary;
+                if (result.Warnings.Count > 0)
+                    msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
+                        string.Join("\n", result.Warnings.Take(10).Select(w => $"• {w}"));
 
-                if (structLayers.Count == 0)
-                {
-                    TaskDialog.Show("STRUCT — CAD to Structural",
-                        "No structural layers detected in the DWG.\n" +
-                        "Expected layer names containing: str, struct, beam, col, slab, found, fdn, brace, truss");
-                    return Result.Succeeded;
-                }
+                TaskDialog.Show("STRUCT — CAD to Structural", msg);
 
-                var structSummary = string.Join("\n",
-                    structLayers.Select(kvp =>
-                    {
-                        var cls = StructuralLayerClassifier.Classify(kvp.Key);
-                        return $"  {kvp.Key}: {kvp.Value} entities → {cls?.Type.ToString() ?? "Unknown"} ({cls?.Confidence * 100:F0}% confidence)";
-                    }));
-
-                // Proceed with standard conversion (which creates walls/floors)
-                // then structural layers become the structural elements
-                var result = cadEngine.ConvertImportToElements(import);
-
-                TaskDialog.Show("STRUCT — CAD to Structural",
-                    $"Structural Layer Analysis:\n{structSummary}\n\n" +
-                    $"Conversion Result:\n{result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
 
                 return Result.Succeeded;
             }
@@ -924,3 +906,304 @@ namespace StingTools.Model
         }
     }
 }
+
+    // ══════════════════════════════════════════════════════════════════
+    // STRUCTURAL CAD WIZARD (Full Automation)
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Launches the multi-page WPF wizard for structural CAD-to-BIM automation.
+    /// Guides user through prerequisites → DWG selection → configuration → execution.
+    /// Uses StructuralTypeFactory for intelligent family search + type creation.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCADWizardCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var wizard = StructuralCADWizard.Show(doc);
+                if (!wizard.Confirmed) return Result.Cancelled;
+
+                if (wizard.SelectedImport == null)
+                {
+                    TaskDialog.Show("STRUCT — CAD Wizard", "No DWG import selected.");
+                    return Result.Cancelled;
+                }
+
+                // Run the full pipeline with wizard settings + selected layers + tolerances
+                var pipeline = new StructuralCADPipeline(doc);
+                pipeline.SelectedLayers = wizard.GetSelectedLayers();
+                pipeline.EndpointToleranceFt = wizard.EndpointToleranceMm * Units.MmToFeet;
+                var result = pipeline.RunFullPipeline(
+                    wizard.SelectedImport,
+                    wizard.SelectedLevel,
+                    wizard.CreateColumns,
+                    wizard.CreateBeams,
+                    wizard.CreateSlabs,
+                    wizard.CreateGrids,
+                    wizard.DefaultBeamDepthMm,
+                    wizard.DefaultSlabThickMm,
+                    wizard.DefaultStoreyHeightMm);
+
+                var msg = result.Summary;
+                if (result.Warnings.Count > 0)
+                    msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
+                        string.Join("\n", result.Warnings.Take(15).Select(w => $"• {w}"));
+
+                TaskDialog.Show("STRUCT — CAD Wizard", msg);
+
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrCADWizard failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PREREQUISITES CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Checks project prerequisites for structural automation without running conversion.
+    /// Shows loaded families, levels, DWG imports, and type catalog.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCheckPrerequisitesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var pipeline = new StructuralCADPipeline(doc);
+                var prereq = pipeline.CheckPrerequisites();
+
+                pipeline.TypeFactory.BuildCatalog();
+                var catalog = pipeline.TypeFactory.GetCatalogSummary();
+
+                TaskDialog.Show("STRUCT — Prerequisites",
+                    prereq.GetStatusText() + "\n\n" + catalog);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrCheckPrerequisites failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // TYPE CATALOG BROWSER
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Shows all loaded structural family types with extracted dimensions.
+    /// Helps user understand what families are available for type matching.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrBrowseTypeCatalogCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null) return Result.Failed;
+
+            try
+            {
+                var factory = new StructuralTypeFactory(doc);
+                factory.BuildCatalog();
+                TaskDialog.Show("STRUCT — Type Catalog", factory.GetCatalogSummary());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrBrowseTypeCatalog failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AUTO-SIZED FOUNDATIONS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates pad footings under all columns, auto-sized from tributary load analysis.
+    /// Pipeline: column loads → bearing capacity check → pad sizing → type creation → placement.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAutoFoundationsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Auto Foundations");
+                dlg.MainContent = "Create auto-sized pad footings under all columns.\n" +
+                    "Sizes calculated from tributary slab loads + soil bearing capacity.\n\nSelect soil type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Soft clay (75 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Medium clay / dense sand (150 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Hard clay / gravel (300 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Rock (600 kPa)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                double soilKPa;
+                switch (choice)
+                {
+                    case TaskDialogResult.CommandLink1: soilKPa = 75; break;
+                    case TaskDialogResult.CommandLink2: soilKPa = 150; break;
+                    case TaskDialogResult.CommandLink3: soilKPa = 300; break;
+                    case TaskDialogResult.CommandLink4: soilKPa = 600; break;
+                    default: return Result.Cancelled;
+                }
+
+                var engine = new StructuralModelingEngine(doc);
+                var result = engine.CreateAutoSizedFootings(soilKPa);
+
+                TaskDialog.Show("STRUCT — Auto Foundations",
+                    result.Success ? result.Summary : $"Failed: {result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrAutoFoundations failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // COLUMN LOAD TAKEDOWN
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrColumnLoadTakedownCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(doc);
+                var loads = engine.CalculateColumnLoads();
+
+                if (loads.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — Load Takedown", "No columns found.");
+                    return Result.Succeeded;
+                }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"COLUMN LOAD TAKEDOWN — {loads.Count} columns");
+                sb.AppendLine("═══════════════════════════════════════════");
+                sb.AppendLine();
+
+                var sorted = loads.OrderByDescending(kvp => kvp.Value);
+                int rank = 1;
+                foreach (var kvp in sorted.Take(20))
+                {
+                    var col = doc.GetElement(kvp.Key);
+                    string name = col?.Name ?? $"#{kvp.Key.Value}";
+                    double padMm = FoundationAnalyzer.CalculatePadSize(kvp.Value);
+                    sb.AppendLine($"  {rank++}. {name}: {kvp.Value:F0} kN → pad {padMm:F0}×{padMm:F0}mm");
+                }
+
+                if (loads.Count > 20)
+                    sb.AppendLine($"\n  ... and {loads.Count - 20} more columns");
+
+                sb.AppendLine($"\n  Total load: {loads.Values.Sum():F0} kN");
+                sb.AppendLine($"  Max column: {loads.Values.Max():F0} kN");
+                sb.AppendLine($"  Avg column: {loads.Values.Average():F0} kN");
+
+                TaskDialog.Show("STRUCT — Load Takedown", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrColumnLoadTakedown failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // SLAB EDGE BEAMS
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSlabEdgeBeamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(doc);
+                var result = engine.CreateSlabEdgeBeams();
+
+                TaskDialog.Show("STRUCT — Slab Edge Beams",
+                    result.Success ? result.Summary : $"Failed: {result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrSlabEdgeBeams failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
