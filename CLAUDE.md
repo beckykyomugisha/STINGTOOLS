@@ -2420,3 +2420,12 @@ docker compose up -d
 542. **FamilyResolver silent fallback warning** — `ResolveFamilySymbol` now logs `StingLog.Warn` when keyword doesn't match any type and appends "(default)" to name so user knows substitution occurred.
 543. **Issue auto-assign to discipline leads** — `RaiseIssueCommand` auto-detects discipline from selected elements' DISC token and auto-assigns to lead from `DISCIPLINE_LEADS` config in `project_config.json`.
 544. **Bare catch block cleanup** — Fixed bare `catch { }` in WarningsManager AutoFix delete operation with proper `StingLog.Warn` diagnostic.
+545. **CRITICAL: S-N fatigue curve regions reversed** — EC3-1-9 fatigue assessment had m=3 and m=5 S-N curve regions REVERSED, overestimating allowable cycles by ~5x (unsafe design). Fixed in `StructuralAdvancedDesignExt.cs`.
+546. **HIGH: Beam lever arm sqrt(negative)** — RC beam reinforcement design produced NaN when K > 0.2835. Added guard with fallback to Klim in `StructuralAnalysisEngine.cs`.
+547. **HIGH: Column chi factor sqrt(negative)** — Column buckling chi calculation produced NaN for slender columns (lambdaBar > phi). Added conservative fallback in `StructuralAnalysisEngine.cs`.
+548. **CRITICAL: ConnectorInherit early return** — MEP token inheritance returned after first tagged connected element even if FUNC/LOC/ZONE still empty. Now continues scanning all connectors until all tokens populated.
+549. **8 UK construction trades added** — Excavation, Ground Beams, DPC, Membrane, Concrete Topping, Commissioning, Handover added to 4D TradeSequence (40 trades total).
+550. **Workflow pre-flight command tag validation** — `PreFlightCheck()` now validates ALL step command tags resolve to actual commands before execution, preventing mid-workflow NullReferenceException crashes.
+551. **Missing AuditTagsCSV command resolution** — Added to `WorkflowEngine.ResolveCommand()`.
+552. **Atomic baseline file writes** — `SaveBaseline()` uses temp-file + rename pattern to prevent sidecar corruption on disk errors.
+553. **Centralized warning description helper** — `GetWarningDesc()` provides null-safe FailureMessage extraction, eliminating inconsistent null handling.
