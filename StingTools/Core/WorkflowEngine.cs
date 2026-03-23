@@ -349,6 +349,13 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(StingToolsApp.DataPath) || !Directory.Exists(StingToolsApp.DataPath))
                 issues.Add("STING data directory not found — template/schedule/material commands will fail");
 
+            // Phase 56b GAP-1: Validate all command tags resolve to actual commands
+            foreach (var step in preset.Steps)
+            {
+                if (ResolveCommand(step.CommandTag) == null)
+                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail");
+            }
+
             return (issues.Count == 0, issues);
         }
 
@@ -1062,6 +1069,7 @@ namespace StingTools.Core
                 // Phase 47: Additional tagging and compliance commands
                 case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
                 case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
+                case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
                 // BIM Coordination Center dispatch targets
