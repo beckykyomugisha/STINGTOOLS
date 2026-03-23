@@ -2662,7 +2662,7 @@ docker compose up -d
 
 ### 5-Agent Deep Review Findings Summary (Phase 77)
 
-**Agent 1 (Tagging Pipeline):** [awaiting completion]
+**Agent 1 (Tagging Pipeline):** 71 findings — 7 CRITICAL, 10 HIGH, 10 MEDIUM + 5 workflow + 6 integration + 4 standards + 5 error recovery + 7 efficiency + 8 automation gaps. Key: parameter cache key instability across sessions, ValidSysCodes null-check pattern, AutoTagger PopulationContext null crash, 200-element batch final chunk silent failure, four-bucket compliance missing STATUS/REV for "fully resolved", ResolveAllIssues sampled validation (50 of 1000), ValidateToken HashSet optimization (400x faster).
 **Agent 2 (BIM/Coordination):** 47 findings — 8 CRITICAL, 10 HIGH, 10 MEDIUM, 10 LOW + 5 architecture + 4 performance. Key: COBie System worksheet uses defaults not actual SYS distribution, CDE transitions lack approval hierarchy enforcement, issues/revisions/transmittals are disconnected JSON silos, BIM Coordination Center exits after single action, Excel import OOM on 10K+ rows.
 **Agent 3 (Warnings/Model/Structural):** 42 findings — 4 CRITICAL, 7 HIGH, 18 MEDIUM. Key: dimension validation (fixed), level fallback (fixed), warning category split (fixed). Many structural algorithm findings confirmed already-fixed in earlier phases.
 **Agent 4 (UI/Dispatch/Docs):** 15 findings — 2 CRITICAL (dispatch oversupply), 3 HIGH (COBie handover gaps), 7 MEDIUM. Key: 1142 dispatch entries vs 721 commands (421 are legitimate aliases/inline handlers). COBie handover missing Contact/Attribute/Job/Resource sheets (documented for future phase).
@@ -2700,3 +2700,17 @@ docker compose up -d
 | BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | No version field in sidecar JSON files; future field additions break older files |
 | BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | Transmittals never validated for minimum CDE state before sending |
 | BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
+| TAG-CACHE-01 | Parameter cache key instability | Critical | Cache key using doc.GetHashCode() changes across sessions causing stale reads; use stable PathName key |
+| TAG-AUTOTAG-NULL-01 | AutoTagger PopulationContext null crash | Critical | PopulationContext.Build() returns null on corrupted docs; no null check before PopulateAll |
+| TAG-BATCH-FINAL-01 | Batch tag final chunk silent failure | Critical | 200-element chunked transactions silently fail on final incomplete batch (<100 elements) |
+| TAG-VALIDATE-BUCKET-01 | Four-bucket compliance STATUS/REV gap | Critical | "Fully resolved" bucket doesn't require STATUS+REV populated; false-green compliance reporting |
+| TAG-RESOLVE-SAMPLE-01 | ResolveAllIssues sampled validation | Critical | Post-fix ISO validation runs on 50 of 1000 elements; unverified fixes applied to remaining 950 |
+| TAG-VALIDATE-MEMO-01 | ValidateToken HashSet optimization | High | List.Contains O(k) → HashSet O(1) for token validation; 400x faster for 50K-element models |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation recalculated per batch | High | Level elevation dictionary rebuilt per 500-element batch; should be built once per document |
+| TAG-PREFLIGHT-DUP-01 | Pre-flight and main loop duplicate spatial indexing | High | PopulationContext.Build() called twice (pre-flight + tagging); reuse context from pre-flight |
+| TAG-DEFERRED-OVERFLOW-01 | AutoTagger deferred queue overflow silent drop | High | 5000-element queue overflow silently drops elements; need warning + retry sidecar |
+| TAG-SEQ-SIDECAR-DRIFT-01 | SEQ sidecar/model counter divergence on cancel | High | Cancel during batch N leaves sidecar at N but model at N-1; counters diverge by 500 |
+| TAG-ISO-USERNAME-01 | ISO 19650 contributor tracking in audit trail | High | TAG_HISTORY logs timestamp but not username; ISO requires "person responsible" traceability |
+| TAG-STALE-WARN-01 | Stale elements not auto-creating warnings | Medium | Stale flag set by IUpdater but not fed into WarningsEngine pipeline automatically |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization | Medium | Independent workflow steps execute sequentially; DAG-based dependency ordering would halve execution time |
+| TAG-COMPLIANCE-LOCK-01 | ComplianceScan pending state deadlock | Medium | _scanning=-1 sentinel can lock permanently if Revit crashes during scan; needs timeout recovery |
