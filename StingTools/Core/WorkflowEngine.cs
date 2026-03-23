@@ -1135,6 +1135,9 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("EndOfStageGate"));
             presets.Add(GetBuiltInPreset("QuickFixCycle"));
 
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
+
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
             if (Directory.Exists(dataDir))
@@ -1423,7 +1426,8 @@ namespace StingTools.Core
                     };
 
                 default:
-                    return new WorkflowPreset { Name = name, Description = "Unknown preset" };
+                    StingLog.Warn($"WorkflowEngine: Unknown built-in preset '{name}'");
+                    return null!;
             }
         }
 
