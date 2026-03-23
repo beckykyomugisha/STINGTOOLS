@@ -116,6 +116,19 @@ namespace StingTools.Tags
 
             int untagged = taggable - alreadyTagged;
 
+            // Phase 66b: Count elements with placeholder tokens (GEN/XX/ZZ/0000)
+            // so user knows how many tags have placeholders when choosing collision mode.
+            // Note: TagIsComplete returns false for placeholders, so we count them separately
+            // from the main tagged count — they appear as "incomplete" but have 8 segments.
+            int withPlaceholders = 0;
+            foreach (var e in taggableElements)
+            {
+                string tag1 = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(tag1) && !TagConfig.TagIsComplete(tag1) && TagConfig.TagHasPlaceholders(tag1))
+                    withPlaceholders++;
+            }
+            int fullyResolved = alreadyTagged; // TagIsComplete already excludes placeholders
+
             // Collision mode — auto-select via ExtraParam or show dialog
             TagCollisionMode collisionMode = TagCollisionMode.Skip;
             string presetMode = UI.StingCommandHandler.GetExtraParam("AutoTagMode");
@@ -133,18 +146,21 @@ namespace StingTools.Tags
             else if (alreadyTagged > 0)
             {
                 string filtInfo = filteredOut > 0 ? $" ({filteredOut} skipped by [{discFilterLabel}] filter)" : "";
+                string placeholderInfo = withPlaceholders > 0
+                    ? $"\n{fullyResolved} fully resolved, {withPlaceholders} with placeholders (GEN/XX/ZZ)"
+                    : "";
                 var modeOptions = new List<UI.StingModePicker.ModeOption>
                 {
                     new($"Skip existing — tag {untagged} new only",
                         "Only tag untagged elements in this view", "skip", true),
-                    new($"Overwrite all {taggable}",
+                    new($"Overwrite all {taggable}" + (withPlaceholders > 0 ? $" (incl. {withPlaceholders} placeholders)" : ""),
                         "Re-derive and overwrite all tags including existing ones", "overwrite"),
                     new("Auto-increment on collision",
                         "Tag untagged; auto-increment SEQ if collision found", "increment"),
                 };
                 string modeResult = UI.StingModePicker.Show(
                     "Auto Tag — Collision Mode",
-                    $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}",
+                    $"{taggable} taggable, {alreadyTagged} tagged, {untagged} new{filtInfo}{placeholderInfo}",
                     modeOptions);
 
                 if (modeResult == null) return Result.Cancelled;

@@ -549,6 +549,78 @@ namespace StingTools.Core
                             catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
                             if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
                         }
+
+                        // Phase 66c: Additional workflow condition operators
+                        if (step.Condition == "has_placeholders")
+                        {
+                            bool hasPlaceholders = false;
+                            try
+                            {
+                                var catEnums = SharedParamGuids.AllCategoryEnums;
+                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                                if (catEnums != null && catEnums.Length > 0)
+                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                                hasPlaceholders = coll.Any(e =>
+                                {
+                                    string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
+                                    return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t);
+                                });
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
+                            if (!hasPlaceholders) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no placeholder tokens)"); continue; }
+                        }
+                        if (step.Condition == "has_container_gaps")
+                        {
+                            try
+                            {
+                                var scan = ComplianceScan.Scan(doc);
+                                double containerPct = scan?.ContainerCompletePct ?? 100;
+                                if (containerPct >= 95)
+                                { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (containers {containerPct:F0}% complete)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "compliance_above_90")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 90)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 90%)"); continue; }
+                        }
+                        if (step.Condition == "compliance_below_50")
+                        {
+                            double pct = cachedCompliancePct();
+                            if (pct >= 50)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
+                        }
+
+                        // Phase 68: New workflow conditions for BIM coordinator daily operations
+                        if (step.Condition == "has_spatial_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
+                                if (spatial == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no spatial warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "has_mep_warnings")
+                        {
+                            try
+                            {
+                                var warnReport = WarningsEngine.ScanWarnings(doc);
+                                int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
+                                if (mep == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no MEP warnings)"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
+                        }
+                        if (step.Condition == "tag_compliance_below_threshold")
+                        {
+                            double pct = cachedCompliancePct();
+                            double threshold = step.MinCompliancePct ?? 90;
+                            if (pct >= threshold)
+                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% meets threshold {threshold:F0}%)"); continue; }
+                        }
                     }
 
                     // AE-05 / GAP-09: Skip if data files unchanged (sidecar file for workshared compatibility)
@@ -1088,6 +1160,27 @@ namespace StingTools.Core
                 case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
+                // Phase 72: Doc/Schedule Automation
+                case "DrawingRegisterSync":     return new Docs.DrawingRegisterSyncCommand();
+                case "CrossScheduleValidate":   return new Docs.CrossScheduleValidateCommand();
+                case "PrintQueue":              return new Docs.PrintQueueCommand();
+                case "DocumentPackage":         return new Docs.DocumentPackageCommand();
+
+                // Phase 73: Workflow Maturity
+                case "CommissioningWorkflow":   return new CommissioningWorkflowCommand();
+                case "HandoverValidation":      return new HandoverValidationCommand();
+                case "SustainabilityWorkflow":  return new SustainabilityWorkflowCommand();
+
+                // Phase 74: Deep Review Enhancements
+                case "DailyPlanner":            return new DailyPlannerCommand();
+                case "DeliverableMatrix":       return new DeliverableMatrixCommand();
+                case "WarningPrediction":       return new WarningPredictionCommand();
+                case "AcousticAnalysis":        return null; // inline handler in dispatch
+                case "BREEAMAssessment":        return null; // inline handler in dispatch
+                case "LifecycleAssessment":     return null; // inline handler in dispatch
+                case "MEPPressureDrop":         return null; // inline handler in dispatch
+                case "StructuralDeepAnalysis":  return null; // inline handler in dispatch
+
                 // BIM Coordination Center dispatch targets
                 case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
                 case "ExportModelHealth":       return new BIMManager.ExportModelHealthCommand();
@@ -1147,6 +1240,26 @@ namespace StingTools.Core
                 case "GenerateBEP":             return new BIMManager.GenerateBEPCommand();
                 case "WarningsMonitor":         return new WarningsMonitorCommand();
 
+                // Phase 66: Additional command resolutions for comprehensive workflow coverage
+                case "DeleteUnusedViews":       return new Docs.DeleteUnusedViewsCommand();
+                case "ExportCSV":               return new Temp.ExportCSVCommand();
+                case "SheetOrganizer":          return new Docs.SheetOrganizerCommand();
+                case "ViewOrganizer":           return new Docs.ViewOrganizerCommand();
+                case "SyncOverrides":           return new Temp.SyncTemplateOverridesCommand();
+                case "DataDropReadiness":       return new Temp.DataDropReadinessCommand();
+                case "WeeklyCoordinatorReport": return new Temp.WeeklyCoordinatorReportCommand();
+                case "ExportSchedulesToExcel":  return new BIMManager.ExportSchedulesToExcelCommand();
+                case "COBieImport":             return new BIMManager.COBieImportCommand();
+                case "UserProductivityReport":  return new Temp.UserProductivityReportCommand();
+                case "FederatedCompliance":     return new Temp.FederatedComplianceScanCommand();
+                case "ApprovalWorkflow":        return new Temp.ApprovalWorkflowCommand();
+                case "RevisionSchedule":        return new BIMManager.RevisionScheduleCommand();
+                case "AssignNumbers":           return new Tags.AssignNumbersCommand();
+                case "SetSeqScheme":            return new Tags.SetSeqSchemeCommand();
+                case "ExportTagMap":            return new Tags.ExportTagMapCommand();
+                case "ImportTagMap":            return new Tags.ImportTagMapCommand();
+                case "BatchPlaceTags":          return new Tags.BatchPlaceTagsCommand();
+
                 default: return null;
             }
         }
@@ -1186,6 +1299,16 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("IssueResolution"));
             presets.Add(GetBuiltInPreset("ClientReviewPrep"));
             presets.Add(GetBuiltInPreset("RegulatoryScan"));
+
+            // Phase 66: New BIM coordinator automation presets
+            presets.Add(GetBuiltInPreset("EndOfDaySync"));
+            presets.Add(GetBuiltInPreset("FederatedModelAudit"));
+            presets.Add(GetBuiltInPreset("PreMeetingPrep"));
+
+            // Phase 68: Enhanced coordinator productivity presets
+            presets.Add(GetBuiltInPreset("COBieReadiness"));
+            presets.Add(GetBuiltInPreset("DrawingIssue"));
+            presets.Add(GetBuiltInPreset("SpatialQA"));
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -1699,6 +1822,116 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "4. Room connectivity (egress)" },
                             new WorkflowStep { CommandTag = "TemplateComplianceScore", Label = "5. Template compliance" },
                             new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Full compliance" },
+                        }
+                    };
+
+                // Phase 66: BIM coordinator daily efficiency presets
+                case "EndOfDaySync":
+                    return new WorkflowPreset
+                    {
+                        Name = "End of Day Sync",
+                        Description = "End-of-day compliance sync — validates, exports registers, captures revision baseline for overnight comparison",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Re-tag stale elements", Condition = "has_stale" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "2. Validate tag completeness" },
+                            new WorkflowStep { CommandTag = "WarningsBaseline", Label = "3. Save warning baseline snapshot" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "4. Export tag register CSV" },
+                            new WorkflowStep { CommandTag = "ExportSheetRegister", Label = "5. Export sheet register CSV" },
+                            new WorkflowStep { CommandTag = "ExportModelHealth", Label = "6. Export model health report" },
+                            new WorkflowStep { CommandTag = "WarningsExport", Label = "7. Export warnings CSV" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create end-of-day revision snapshot" },
+                        }
+                    };
+
+                case "FederatedModelAudit":
+                    return new WorkflowPreset
+                    {
+                        Name = "Federated Model Audit",
+                        Description = "Cross-model compliance audit — scans linked models, detects clashes, validates naming conventions, exports federated report",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "FederatedCompliance", Label = "1. Scan linked model compliance", Condition = "has_links" },
+                            new WorkflowStep { CommandTag = "CrossModelClash", Label = "2. Cross-model clash detection", Condition = "has_links" },
+                            new WorkflowStep { CommandTag = "NamingAudit", Label = "3. Naming convention audit" },
+                            new WorkflowStep { CommandTag = "MEPClearance", Label = "4. MEP clearance validation" },
+                            new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "5. Room connectivity check" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "6. Warning analysis" },
+                            new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "7. Generate coordinator report" },
+                        }
+                    };
+
+                case "PreMeetingPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Pre-Meeting Preparation",
+                        Description = "BIM coordination meeting prep — auto-generates agenda from open issues, validates compliance, exports key metrics for presentation",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Clear stale elements", Condition = "has_stale" },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate compliance" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "4. Warning summary" },
+                            new WorkflowStep { CommandTag = "IssueDashboard", Label = "5. Open issues summary" },
+                            new WorkflowStep { CommandTag = "RevisionDashboard", Label = "6. Revision status" },
+                            new WorkflowStep { CommandTag = "WeeklyCoordinatorReport", Label = "7. Generate HTML report" },
+                        }
+                    };
+
+                // Phase 68: BIM coordinator productivity presets
+                case "COBieReadiness":
+                    return new WorkflowPreset
+                    {
+                        Name = "COBie Readiness",
+                        Description = "Prepare model for COBie V2.4 export — validates tags, containers, types, and spatial data",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Re-tag stale elements", Condition = "has_stale" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholder tokens", Condition = "has_placeholders" },
+                            new WorkflowStep { CommandTag = "CombineParameters", Label = "3. Write discipline containers", Condition = "has_container_gaps" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate ISO 19650 tags" },
+                            new WorkflowStep { CommandTag = "SchemaValidate", Label = "5. Validate material schema" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "6. Export COBie V2.4 spreadsheet", MinCompliancePct = 85 },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "7. Export asset register CSV" },
+                        }
+                    };
+
+                case "DrawingIssue":
+                    return new WorkflowPreset
+                    {
+                        Name = "Drawing Issue",
+                        Description = "Prepare drawings for issue — check naming, templates, print to PDF",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "1. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "2. Check sheet naming compliance" },
+                            new WorkflowStep { CommandTag = "AutoFixWarnings", Label = "3. Auto-fix annotation warnings", Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "SheetComplianceCheck", Label = "4. ISO sheet compliance check" },
+                            new WorkflowStep { CommandTag = "BatchPrintSheets", Label = "5. Batch print to PDF" },
+                            new WorkflowStep { CommandTag = "ExportSheetRegister", Label = "6. Export sheet register" },
+                            new WorkflowStep { CommandTag = "CreateRevision", Label = "7. Create revision record" },
+                        }
+                    };
+
+                case "SpatialQA":
+                    return new WorkflowPreset
+                    {
+                        Name = "Spatial QA",
+                        Description = "Validate rooms, areas, and spatial data for FM handover",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RoomAudit", Label = "1. Audit rooms (unnamed/unplaced/unbounded)" },
+                            new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "2. Validate room connectivity" },
+                            new WorkflowStep { CommandTag = "AutoFixWarnings", Label = "3. Fix room enclosure warnings", Condition = "has_warnings" },
+                            new WorkflowStep { CommandTag = "FamilyStagePopulate", Label = "4. Re-populate spatial tokens" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate updated tags" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Show compliance dashboard" },
                         }
                     };
 

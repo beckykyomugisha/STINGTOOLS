@@ -530,7 +530,44 @@ namespace StingTools.Core
                 }
             }
 
+            // Phase 66b: Cross-validate FUNC→PROD — detect contradictory function/product pairs.
+            // e.g., FUNC=SUP (Supply) with PROD=WC (WC fixture) is contradictory.
+            if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(prod) &&
+                func != "GEN" && prod != "GEN")
+            {
+                string funcProdError = ValidateFuncProdPair(func, prod, disc);
+                if (funcProdError != null)
+                    errors.Add(new ValidationError(funcProdError, ValidationErrorType.CrossValidation));
+            }
+
             return errors;
+        }
+
+        /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
+        /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            // Define incompatible FUNC→PROD pairs (function cannot produce these product types)
+            var incompatiblePairs = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Supply function should not have sanitary/plumbing products
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Return function should not have electrical products
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                // Lighting function should not have HVAC products
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                // Power function should not have plumbing products
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                // Sanitary function should not have HVAC products
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                // Fire protection function should not have architectural products
+                { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
+            };
+
+            if (incompatiblePairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+                return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
+
+            return null;
         }
 
         /// <summary>
@@ -2123,7 +2160,8 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
+            // LOGIC-BUG-05 fix: fallback to "G" (General) not "A" (Architecture) for unknown categories
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "G";
 
             // Note: DiscMap.ContainsKey(catName) is guaranteed true by the early return at line 1105
 
@@ -3291,6 +3329,11 @@ namespace StingTools.Core
             {
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null) return;
+
+                // CRASH-04 fix: ensure parent directory exists before writing
+                string sidecarDir = System.IO.Path.GetDirectoryName(sidecarPath);
+                if (!string.IsNullOrEmpty(sidecarDir) && !System.IO.Directory.Exists(sidecarDir))
+                    System.IO.Directory.CreateDirectory(sidecarDir);
 
                 string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
                     Newtonsoft.Json.Formatting.Indented);

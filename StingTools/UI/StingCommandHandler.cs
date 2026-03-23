@@ -1284,6 +1284,129 @@ namespace StingTools.UI
                     case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
                     case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
 
+                    // Phase 69: Acoustic & Sustainability
+                    case "AcousticAnalysis":
+                    {
+                        var aaDoc = app.ActiveUIDocument?.Document;
+                        if (aaDoc != null)
+                        {
+                            var results = Model.AcousticAnalysisOrchestrator.AnalyseModel(aaDoc);
+                            int fails = results.Count(r => !r.Pass);
+                            var sb = new System.Text.StringBuilder($"Acoustic Analysis: {results.Count} checks ({fails} failures)\n\n");
+                            foreach (var r in results.Take(30)) sb.AppendLine(r.ToString());
+                            TaskDialog.Show("Acoustic Analysis", sb.ToString());
+                        }
+                        break;
+                    }
+                    case "BREEAMAssessment":
+                    {
+                        var brDoc = app.ActiveUIDocument?.Document;
+                        if (brDoc != null)
+                        {
+                            var (breeam, lca, circ) = Model.SustainabilityOrchestrator.Assess(brDoc);
+                            TaskDialog.Show("BREEAM Assessment",
+                                $"BREEAM Score: {breeam.TotalScore:F1}% — {breeam.Rating}\n\n" +
+                                $"Category Scores:\n" + string.Join("\n", breeam.CategoryScores.Select(kv => $"  {kv.Key}: {kv.Value:F0}%")) +
+                                $"\n\nWhole-Life Carbon: {lca.KgCO2PerM2:F0} kgCO2e/m²\n{lca.LETIBenchmark}\n\nCircularity: {circ:F0}%");
+                        }
+                        break;
+                    }
+                    case "LifecycleAssessment":
+                    {
+                        var lcaDoc = app.ActiveUIDocument?.Document;
+                        if (lcaDoc != null)
+                        {
+                            var lca = Model.LifecycleAssessmentEngine.Assess(lcaDoc, 0);
+                            var sb = new System.Text.StringBuilder($"Lifecycle Assessment (BS EN 15978)\n\n");
+                            sb.AppendLine($"A1-A3 Product:      {lca.A1_A3_ProductKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"A4 Transport:       {lca.A4_TransportKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"A5 Construction:    {lca.A5_ConstructionKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"B6 Operational:     {lca.B6_OperationalEnergyKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"C1-C4 End of Life:  {lca.C1_C4_EndOfLifeKgCO2:N0} kgCO2e");
+                            sb.AppendLine($"\nTotal WLC: {lca.WholeLifeCarbon:N0} kgCO2e ({lca.KgCO2PerM2:F0}/m²)");
+                            sb.AppendLine($"\n{lca.LETIBenchmark}");
+                            if (lca.MaterialBreakdown.Count > 0)
+                            {
+                                sb.AppendLine("\nTop Materials:");
+                                foreach (var m in lca.MaterialBreakdown.Take(10))
+                                    sb.AppendLine($"  {m.Material}: {m.KgCO2:N0} kgCO2e ({m.Pct:F1}%)");
+                            }
+                            TaskDialog.Show("Lifecycle Assessment", sb.ToString());
+                        }
+                        break;
+                    }
+
+                    // Phase 70: MEP Intelligence
+                    case "MEPPressureDrop":
+                    {
+                        var mepDoc = app.ActiveUIDocument?.Document;
+                        if (mepDoc != null)
+                        {
+                            var results = Model.MEPSystemAnalyser.AnalyseModel(mepDoc);
+                            int exceeded = results.Count(r => r.VelocityExceeded);
+                            TaskDialog.Show("MEP Pressure Drop",
+                                $"Analysed {results.Count} duct/pipe sections\n" +
+                                $"Velocity exceeded: {exceeded}\n" +
+                                $"Avg pressure drop: {(results.Count > 0 ? results.Average(r => r.TotalLossPa) : 0):F1} Pa/section");
+                        }
+                        break;
+                    }
+
+                    // Phase 71: Structural Deep
+                    case "StructuralDeepAnalysis":
+                    {
+                        var sdDoc = app.ActiveUIDocument?.Document;
+                        if (sdDoc != null)
+                        {
+                            var (torsion, tolerances, total) = Model.StructuralDeepOrchestrator.AnalyseModel(sdDoc);
+                            TaskDialog.Show("Structural Deep Analysis",
+                                $"Torsion Cases: {torsion.Count}\n" +
+                                $"Tolerance Checks: {tolerances.Count}\n\n" +
+                                (torsion.Count > 0 ? "Torsion:\n" + string.Join("\n", torsion.Take(10).Select(t => $"  {t.Description}")) : "") +
+                                (tolerances.Count > 0 ? "\nTolerances:\n" + string.Join("\n", tolerances.Take(10).Select(t => $"  {t.CheckName}: ±{t.ToleranceMm:F1}mm")) : ""));
+                        }
+                        break;
+                    }
+
+                    // Phase 72: Doc/Schedule Automation
+                    case "DrawingRegisterSync": RunCommand<Docs.DrawingRegisterSyncCommand>(app); break;
+                    case "CrossScheduleValidate": RunCommand<Docs.CrossScheduleValidateCommand>(app); break;
+                    case "PrintQueue": RunCommand<Docs.PrintQueueCommand>(app); break;
+                    case "DocumentPackage": RunCommand<Docs.DocumentPackageCommand>(app); break;
+
+                    // Phase 73: Workflow Maturity
+                    case "CommissioningWorkflow": RunCommand<Core.CommissioningWorkflowCommand>(app); break;
+                    case "HandoverValidation": RunCommand<Core.HandoverValidationCommand>(app); break;
+                    case "SustainabilityWorkflow": RunCommand<Core.SustainabilityWorkflowCommand>(app); break;
+
+                    // Phase 74: Deep Review Enhancements
+                    case "DailyPlanner": RunCommand<Core.DailyPlannerCommand>(app); break;
+                    case "DeliverableMatrix": RunCommand<Core.DeliverableMatrixCommand>(app); break;
+                    case "WarningPrediction": RunCommand<Core.WarningPredictionCommand>(app); break;
+                    case "ActionAuditExport":
+                    {
+                        var aaDoc = app.ActiveUIDocument?.Document;
+                        if (aaDoc != null)
+                        {
+                            string outPath = Core.OutputLocationHelper.GetTimestampedPath(aaDoc, "ActionAudit", ".csv");
+                            Core.ActionAuditLog.Export(outPath);
+                            TaskDialog.Show("Action Audit", $"Audit log exported to:\n{outPath}");
+                        }
+                        break;
+                    }
+                    case "ComplianceFallCheck":
+                    {
+                        var cfDoc = app.ActiveUIDocument?.Document;
+                        if (cfDoc != null)
+                        {
+                            var (fallen, current, prev, newStale) = Core.ComplianceFallDetector.CheckForRegression(cfDoc);
+                            TaskDialog.Show("Compliance Check",
+                                fallen ? $"⚠ COMPLIANCE FALLEN: {prev:F1}% → {current:F1}% ({newStale} new stale elements)"
+                                       : $"✓ Compliance stable at {current:F1}%");
+                        }
+                        break;
+                    }
+
                     // Phase 47: BIM Coordination Center (unified dashboard)
                     // Keep-dialog-open loop: re-open after each dispatched command
                     case "BIMCoordinationCenter":
@@ -1392,6 +1515,12 @@ namespace StingTools.UI
                     case "RunWorkflow_ClashCoordination":
                     case "RunWorkflow_EndOfStageGate":
                     case "RunWorkflow_QuickFixCycle":
+                    case "RunWorkflow_EndOfDaySync":
+                    case "RunWorkflow_FederatedModelAudit":
+                    case "RunWorkflow_PreMeetingPrep":
+                    case "RunWorkflow_COBieReadiness":
+                    case "RunWorkflow_DrawingIssue":
+                    case "RunWorkflow_SpatialQA":
                     {
                         string wfName = _commandTag.Replace("RunWorkflow_", "")
                             .Replace("Sync", " Sync").Replace("Health", " Health")
@@ -1401,7 +1530,11 @@ namespace StingTools.UI
                             .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
                             .Replace("Stage", " Stage").Replace("Gate", " Gate")
                             .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
-                            .Replace("Clash", " Clash");
+                            .Replace("Clash", " Clash").Replace("Federated", " Federated")
+                            .Replace("Model", " Model").Replace("Audit", " Audit")
+                            .Replace("Day", " Day").Replace("End Of", "End of")
+                            .Replace("COBie", "COBie ").Replace("Drawing", "Drawing ")
+                            .Replace("Spatial", "Spatial ").Replace("Issue", " Issue");
                         SetExtraParam("WorkflowPresetName", wfName.Trim());
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
@@ -2031,6 +2164,105 @@ namespace StingTools.UI
                     case "ToggleFileMonitor": RunCommand<BIMManager.ToggleFileMonitorCommand>(app); break;
                     case "BroadcastNotification": RunCommand<BIMManager.BroadcastNotificationCommand>(app); break;
                     case "AccessControl": RunCommand<BIMManager.AccessControlCommand>(app); break;
+
+                    // ── Phase 68: Model Intelligence & BIM Coordinator Commands ──
+                    case "EmbodiedCarbon":
+                    {
+                        var doc = uidoc.Document;
+                        var allIds = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .Select(e => e.Id).ToList();
+                        var (total, breakdown) = Model.EmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
+                        var topMaterials = breakdown.GroupBy(b => b.Material)
+                            .Select(g => (g.Key, g.Sum(x => x.KgCO2e)))
+                            .OrderByDescending(x => x.Item2).Take(10);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Total Embodied Carbon: {total:N0} kgCO2e ({total / 1000:N1} tCO2e)");
+                        sb.AppendLine($"\nTop materials by carbon impact:");
+                        foreach (var (mat, kg) in topMaterials)
+                            sb.AppendLine($"  {mat}: {kg:N0} kgCO2e ({kg / total * 100:F1}%)");
+                        TaskDialog.Show("STING — Embodied Carbon", sb.ToString());
+                        break;
+                    }
+                    case "FloorEfficiency":
+                    {
+                        var doc = uidoc.Document;
+                        var results = Model.SpatialAnalysisEngine.CalculateFloorEfficiency(doc);
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Gross-to-Net Floor Efficiency (BCO Guide target: >80%):");
+                        foreach (var (level, gross, net, eff) in results.OrderByDescending(r => r.Efficiency))
+                        {
+                            string rating = eff >= 80 ? "✓" : eff >= 70 ? "~" : "✗";
+                            sb.AppendLine($"  {rating} {level}: {eff:F1}% (Net: {net:F0}m², Gross: {gross:F0}m²)");
+                        }
+                        TaskDialog.Show("STING — Floor Efficiency", sb.ToString());
+                        break;
+                    }
+                    case "RoomAreaAudit":
+                    {
+                        var doc = uidoc.Document;
+                        var results = Model.SpatialAnalysisEngine.AuditRoomAreas(doc);
+                        int compliant = results.Count(r => r.Compliant);
+                        int nonCompliant = results.Count(r => !r.Compliant && r.MinSqM > 0);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Room Area Audit: {results.Count} rooms, {compliant} compliant, {nonCompliant} below standard");
+                        foreach (var (room, area, min, ok, std) in results.Where(r => !r.Compliant && r.MinSqM > 0).Take(20))
+                            sb.AppendLine($"  ✗ {room.Name} ({room.Number}): {area:F1}m² < {min:F1}m² min [{std}]");
+                        TaskDialog.Show("STING — Room Area Audit", sb.ToString());
+                        break;
+                    }
+                    case "ModelComplexity":
+                    {
+                        var doc = uidoc.Document;
+                        var (score, byCategory, links, worksets, systems) = Model.ModelMetricsEngine.CalculateComplexity(doc);
+                        var topCats = byCategory.OrderByDescending(kv => kv.Value).Take(10);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Model Complexity Score: {score}/100");
+                        sb.AppendLine($"  Links: {links}, Worksets: {worksets}, MEP Systems: {systems}");
+                        sb.AppendLine($"\nTop categories:");
+                        foreach (var kv in topCats)
+                            sb.AppendLine($"  {kv.Key}: {kv.Value:N0} elements");
+                        TaskDialog.Show("STING — Model Complexity", sb.ToString());
+                        break;
+                    }
+                    case "DeliverableReadiness":
+                    {
+                        var doc = uidoc.Document;
+                        var warnings = Core.WarningsEngine.ScanWarnings(doc);
+                        var compliance = Core.ComplianceScan.Scan(doc);
+                        string[] deliverables = { "COBie", "IFC", "PDF", "FM" };
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Deliverable Readiness Assessment:");
+                        foreach (string d in deliverables)
+                        {
+                            var (dscore, checks) = Core.WarningsEngine.CalculateDeliverableReadiness(doc, d, warnings, compliance);
+                            string rating = dscore >= 80 ? "READY" : dscore >= 50 ? "PARTIAL" : "NOT READY";
+                            sb.AppendLine($"\n  {d}: {dscore}% — {rating}");
+                            foreach (var (check, passed, detail) in checks)
+                                sb.AppendLine($"    {(passed ? "✓" : "✗")} {check}: {detail}");
+                        }
+                        TaskDialog.Show("STING — Deliverable Readiness", sb.ToString());
+                        break;
+                    }
+                    case "ActionPlan":
+                    {
+                        var doc = uidoc.Document;
+                        var warnings = Core.WarningsEngine.ScanWarnings(doc);
+                        var compliance = Core.ComplianceScan.Scan(doc);
+                        var actions = Core.WarningsEngine.GenerateActionPlan(doc, warnings, compliance);
+                        var sb = new StringBuilder();
+                        sb.AppendLine("BIM Coordinator Action Plan (sorted by impact):");
+                        int rank = 0;
+                        foreach (var (action, cmdTag, priority, impact, rationale) in actions)
+                        {
+                            rank++;
+                            sb.AppendLine($"\n  {rank}. [{priority}] {action}");
+                            sb.AppendLine($"     Rationale: {rationale}");
+                            sb.AppendLine($"     Command: {cmdTag} (impact score: {impact})");
+                        }
+                        TaskDialog.Show("STING — Action Plan", sb.ToString());
+                        break;
+                    }
 
                     // ── Unmapped command tag ──
                     default:

@@ -325,7 +325,7 @@ namespace StingTools.UI
                 if (handle != IntPtr.Zero)
                     new System.Windows.Interop.WindowInteropHelper(this).Owner = handle;
             }
-            catch { }
+            catch (Exception exOwner) { StingLog.Warn($"BIMCoordCenter window owner: {exOwner.Message}"); }
 
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header

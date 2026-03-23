@@ -226,7 +226,7 @@ namespace StingTools.Model
                         ParameterHelpers.SetIfEmpty(wall, "ASS_DISCIPLINE_COD_TXT", "A");
                         ParameterHelpers.SetIfEmpty(wall, "ASS_PRODCT_COD_TXT", "CW");
                     }
-                    catch { }
+                    catch (Exception exTag) { StingLog.Warn($"CurtainWall tag set: {exTag.Message}"); }
                     return wall.Id;
                 }
             }
