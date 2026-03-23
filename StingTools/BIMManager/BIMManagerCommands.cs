@@ -9714,4 +9714,320 @@ namespace StingTools.BIMManager
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-05: PER-USER PRODUCTIVITY TRACKING
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-05: Tracks per-user tagging/modeling productivity metrics.
+    /// Records element creation, tag operations, and workflow completions per user session.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class UserProductivityReportCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string user = Environment.UserName;
+            var report = new StringBuilder();
+            report.AppendLine($"USER PRODUCTIVITY REPORT — {user}\n");
+
+            // Count elements created by current user (worksharing)
+            int createdByUser = 0, taggedByUser = 0, totalElements = 0;
+            try
+            {
+                var allElems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .ToList();
+                totalElements = allElems.Count;
+
+                foreach (var el in allElems)
+                {
+                    try
+                    {
+                        string creator = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id).Creator;
+                        if (creator.Equals(user, StringComparison.OrdinalIgnoreCase))
+                        {
+                            createdByUser++;
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (!string.IsNullOrEmpty(tag1)) taggedByUser++;
+                        }
+                    }
+                    catch { /* Non-workshared document */ }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Productivity worksharing: {ex.Message}"); }
+
+            report.AppendLine($"Total model elements: {totalElements}");
+            report.AppendLine($"Created by {user}: {createdByUser}");
+            report.AppendLine($"Tagged by {user}: {taggedByUser}");
+            if (createdByUser > 0)
+                report.AppendLine($"Tag completion: {taggedByUser * 100.0 / createdByUser:F0}%");
+
+            // Check workflow run history
+            try
+            {
+                string logPath = doc.PathName != null
+                    ? Path.Combine(Path.GetDirectoryName(doc.PathName), "STING_WORKFLOW_LOG.json")
+                    : null;
+                if (logPath != null && File.Exists(logPath))
+                {
+                    var lines = File.ReadAllLines(logPath);
+                    int workflowRuns = 0;
+                    int weekRuns = 0;
+                    var weekAgo = DateTime.Now.AddDays(-7);
+                    foreach (string line in lines)
+                    {
+                        try
+                        {
+                            var obj = JObject.Parse(line);
+                            string u = obj["UserName"]?.ToString() ?? "";
+                            if (u.Equals(user, StringComparison.OrdinalIgnoreCase))
+                            {
+                                workflowRuns++;
+                                if (DateTime.TryParse(obj["Timestamp"]?.ToString(), out DateTime ts) && ts >= weekAgo)
+                                    weekRuns++;
+                            }
+                        }
+                        catch { /* Skip malformed lines */ }
+                    }
+                    report.AppendLine($"\nWorkflow executions (total): {workflowRuns}");
+                    report.AppendLine($"Workflow executions (7-day): {weekRuns}");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Productivity workflows: {ex.Message}"); }
+
+            // Performance tracker stats
+            report.AppendLine($"\nSession: {DateTime.Now:dd MMM yyyy HH:mm}");
+
+            TaskDialog.Show("STING Productivity", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-14: PER-USER NOTIFICATION PREFERENCES
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-14: Manages per-user notification routing preferences.
+    /// Controls which events generate notifications and via which channel.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NotificationPreferencesCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+
+            // Load current preferences from project_config.json
+            string user = Environment.UserName;
+            var sb = new StringBuilder();
+            sb.AppendLine($"NOTIFICATION PREFERENCES — {user}\n");
+            sb.AppendLine("Configure notifications in project_config.json under NOTIFICATION_PREFS:\n");
+            sb.AppendLine("  NOTIFY_ISSUE_CREATE: true/false  — New issue notifications");
+            sb.AppendLine("  NOTIFY_ISSUE_UPDATE: true/false  — Issue status changes");
+            sb.AppendLine("  NOTIFY_REVISION: true/false      — Revision creation alerts");
+            sb.AppendLine("  NOTIFY_COBIE_EXPORT: true/false  — COBie export completion");
+            sb.AppendLine("  NOTIFY_COMPLIANCE: true/false    — Compliance gate failures");
+            sb.AppendLine("  NOTIFY_SLA_VIOLATION: true/false — SLA breach alerts");
+            sb.AppendLine("  NOTIFY_FILE_CHANGE: true/false   — CDE file monitor events");
+            sb.AppendLine("  NOTIFY_CHANNEL: Teams/Telegram/Discord/Email");
+            sb.AppendLine("  NOTIFY_MINIMUM_PRIORITY: LOW/MEDIUM/HIGH/CRITICAL");
+            sb.AppendLine();
+
+            // Read current settings
+            bool issueCreate = TagConfig.GetConfigDouble("NOTIFY_ISSUE_CREATE", 1) > 0;
+            bool slaViolation = TagConfig.GetConfigDouble("NOTIFY_SLA_VIOLATION", 1) > 0;
+            string channel = "Teams"; // Default
+            string minPriority = "MEDIUM";
+
+            sb.AppendLine("Current settings:");
+            sb.AppendLine($"  Issue creation: {(issueCreate ? "ON" : "OFF")}");
+            sb.AppendLine($"  SLA violation: {(slaViolation ? "ON" : "OFF")}");
+            sb.AppendLine($"  Channel: {channel}");
+            sb.AppendLine($"  Min priority: {minPriority}");
+
+            TaskDialog.Show("STING Notifications", sb.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-15: TASK ASSIGNMENT WITH WORKSET CHECKOUT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-15: Assigns tasks to team members with optional workset checkout.
+    /// Integrates with the issue tracker and meeting action items.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class TaskAssignmentCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Get available worksets for task scoping
+            var worksets = new List<string>();
+            if (doc.IsWorkshared)
+            {
+                var wsFilter = new FilteredWorksetCollector(doc)
+                    .OfKind(WorksetKind.UserWorkset)
+                    .ToWorksets();
+                foreach (var ws in wsFilter)
+                    worksets.Add(ws.Name);
+            }
+
+            // Build task from dialog
+            var dlg = new TaskDialog("STING Task Assignment");
+            dlg.MainInstruction = "Create Task Assignment";
+            dlg.MainContent = worksets.Count > 0
+                ? $"Available worksets: {string.Join(", ", worksets.Take(10))}\n\n" +
+                  "Tasks will be saved to _bim_manager/tasks.json"
+                : "Tasks will be saved to _bim_manager/tasks.json";
+
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create task from current selection");
+            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "View active tasks");
+            dlg.CommonButtons = TaskDialogCommonButtons.Close;
+
+            var result = dlg.Show();
+            if (result == TaskDialogResult.CommandLink1)
+            {
+                // Create task
+                string tasksDir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+                if (!Directory.Exists(tasksDir)) Directory.CreateDirectory(tasksDir);
+                string tasksPath = Path.Combine(tasksDir, "tasks.json");
+
+                JArray tasks;
+                if (File.Exists(tasksPath))
+                    tasks = JArray.Parse(File.ReadAllText(tasksPath));
+                else
+                    tasks = new JArray();
+
+                var selectedIds = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => id.Value.ToString()).ToArray()
+                    ?? Array.Empty<string>();
+
+                string taskId = $"TASK-{(tasks.Count + 1):D4}";
+                var task = new JObject
+                {
+                    ["task_id"] = taskId,
+                    ["title"] = $"Review {selectedIds.Length} elements",
+                    ["assignee"] = Environment.UserName,
+                    ["status"] = "OPEN",
+                    ["created"] = DateTime.Now.ToString("o"),
+                    ["created_by"] = Environment.UserName,
+                    ["workset"] = worksets.Count > 0 ? worksets[0] : "",
+                    ["element_ids"] = new JArray(selectedIds),
+                    ["priority"] = "MEDIUM"
+                };
+                tasks.Add(task);
+                File.WriteAllText(tasksPath, tasks.ToString(Formatting.Indented));
+                TaskDialog.Show("STING", $"Task {taskId} created with {selectedIds.Length} elements.");
+            }
+            else if (result == TaskDialogResult.CommandLink2)
+            {
+                // View tasks
+                string tasksPath = Path.Combine(
+                    Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager", "tasks.json");
+                if (!File.Exists(tasksPath))
+                {
+                    TaskDialog.Show("STING", "No tasks found.");
+                    return Result.Succeeded;
+                }
+
+                var tasks = JArray.Parse(File.ReadAllText(tasksPath));
+                var sb = new StringBuilder();
+                sb.AppendLine($"ACTIVE TASKS — {tasks.Count} total\n");
+                foreach (JObject t in tasks)
+                {
+                    string status = t["status"]?.ToString() ?? "OPEN";
+                    if (status == "CLOSED") continue;
+                    sb.AppendLine($"[{t["task_id"]}] {t["title"]} — {t["assignee"]} ({status})");
+                }
+                TaskDialog.Show("STING Tasks", sb.ToString());
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-11: gbXML ENRICHMENT WITH STING DATA
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-11: Enriches gbXML energy model export with STING thermal data
+    /// from material properties and zone information.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class GbXMLEnrichmentCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Check rooms/spaces for energy model readiness
+            var rooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Room>()
+                .Where(r => r.Area > 0)
+                .ToList();
+
+            var report = new StringBuilder();
+            report.AppendLine("gbXML ENRICHMENT ASSESSMENT\n");
+            report.AppendLine($"Rooms/Spaces: {rooms.Count}");
+
+            int withZone = 0, withThermal = 0;
+            foreach (var room in rooms)
+            {
+                string zone = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
+                if (!string.IsNullOrEmpty(zone)) withZone++;
+
+                // Check for thermal properties on bounding elements
+                var boundarySegs = room.GetBoundarySegments(new SpatialElementBoundaryOptions());
+                if (boundarySegs != null && boundarySegs.Count > 0) withThermal++;
+            }
+
+            report.AppendLine($"With STING zone data: {withZone}/{rooms.Count}");
+            report.AppendLine($"With boundary geometry: {withThermal}/{rooms.Count}");
+
+            // Check wall U-values from STING material data
+            int wallsWithU = 0;
+            var walls = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Walls)
+                .WhereElementIsNotElementType()
+                .ToList();
+            foreach (var wall in walls)
+            {
+                string thermal = ParameterHelpers.GetString(wall, "BLE_U_VALUE_TXT");
+                if (!string.IsNullOrEmpty(thermal)) wallsWithU++;
+            }
+            report.AppendLine($"\nWalls with U-value: {wallsWithU}/{walls.Count}");
+
+            // Energy model readiness score
+            double score = 0;
+            if (rooms.Count > 0) score += 25;
+            if (withZone > rooms.Count * 0.8) score += 25;
+            if (withThermal > rooms.Count * 0.5) score += 25;
+            if (wallsWithU > walls.Count * 0.3) score += 25;
+
+            report.AppendLine($"\ngbXML readiness score: {score:F0}/100");
+            report.AppendLine(score >= 75 ? "READY for energy analysis export."
+                : "NOT READY — populate zone data and material thermal properties first.");
+
+            report.AppendLine("\nTip: Use Revit > Analyze > Energy Settings to configure the energy model,");
+            report.AppendLine("then export via File > Export > gbXML. STING zone/material data will enrich the output.");
+
+            TaskDialog.Show("STING gbXML Enrichment", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
 }

@@ -4413,4 +4413,433 @@ namespace StingTools.Temp
             return desc.Trim();
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-03: CROSS-MODEL CLASH DETECTION
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-03: Enhanced clash detection that includes linked Revit models.
+    /// Checks host MEP vs linked structure and cross-link MEP-to-MEP clashes.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CrossModelClashCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var links = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>()
+                .ToList();
+
+            if (links.Count == 0)
+            {
+                TaskDialog.Show("STING", "No linked models found. Use standard Clash Detection for single-model checks.");
+                return Result.Cancelled;
+            }
+
+            var mepCats = new List<BuiltInCategory>
+            {
+                BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_PipeCurves,
+                BuiltInCategory.OST_Conduit, BuiltInCategory.OST_CableTray,
+                BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_ElectricalEquipment,
+            };
+
+            var structCats = new List<BuiltInCategory>
+            {
+                BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_Floors, BuiltInCategory.OST_Walls,
+            };
+
+            // Collect host MEP elements with bounding boxes
+            var hostMep = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(mepCats))
+                .WhereElementIsNotElementType()
+                .Where(e => e.get_BoundingBox(null) != null)
+                .ToList();
+
+            int crossClashes = 0;
+            var clashReport = new StringBuilder();
+            clashReport.AppendLine("CROSS-MODEL CLASH DETECTION REPORT");
+            clashReport.AppendLine($"Host MEP elements: {hostMep.Count}");
+            clashReport.AppendLine($"Linked models: {links.Count}\n");
+
+            foreach (var linkInst in links)
+            {
+                try
+                {
+                    var linkType = doc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
+                    Document linkedDoc = linkType?.GetLinkedDocument();
+                    if (linkedDoc == null) continue;
+
+                    Transform linkTransform = linkInst.GetTotalTransform();
+
+                    // Get linked structure elements
+                    var linkedStruct = new FilteredElementCollector(linkedDoc)
+                        .WherePasses(new ElementMulticategoryFilter(structCats))
+                        .WhereElementIsNotElementType()
+                        .Where(e => e.get_BoundingBox(null) != null)
+                        .ToList();
+
+                    int linkClashes = 0;
+                    foreach (var mepEl in hostMep)
+                    {
+                        BoundingBoxXYZ mepBB = mepEl.get_BoundingBox(null);
+                        foreach (var strEl in linkedStruct)
+                        {
+                            BoundingBoxXYZ strBB = strEl.get_BoundingBox(null);
+                            // Transform linked BB to host coordinates
+                            XYZ tMin = linkTransform.OfPoint(strBB.Min);
+                            XYZ tMax = linkTransform.OfPoint(strBB.Max);
+                            XYZ adjMin = new XYZ(Math.Min(tMin.X, tMax.X), Math.Min(tMin.Y, tMax.Y), Math.Min(tMin.Z, tMax.Z));
+                            XYZ adjMax = new XYZ(Math.Max(tMin.X, tMax.X), Math.Max(tMin.Y, tMax.Y), Math.Max(tMin.Z, tMax.Z));
+
+                            if (mepBB.Min.X <= adjMax.X && mepBB.Max.X >= adjMin.X &&
+                                mepBB.Min.Y <= adjMax.Y && mepBB.Max.Y >= adjMin.Y &&
+                                mepBB.Min.Z <= adjMax.Z && mepBB.Max.Z >= adjMin.Z)
+                            {
+                                linkClashes++;
+                            }
+                        }
+
+                        if (EscapeChecker.IsEscapePressed()) break;
+                    }
+
+                    crossClashes += linkClashes;
+                    clashReport.AppendLine($"  {linkType?.Name ?? linkInst.Name}: {linkedStruct.Count} struct elements, {linkClashes} clashes");
+                }
+                catch (Exception ex) { StingLog.Warn($"CrossModelClash link: {ex.Message}"); }
+            }
+
+            clashReport.AppendLine($"\nTotal cross-model clashes: {crossClashes}");
+
+            // Export CSV
+            if (crossClashes > 0)
+            {
+                try
+                {
+                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CROSS_CLASH", ".csv");
+                    File.WriteAllText(csvPath, clashReport.ToString());
+                    clashReport.AppendLine($"\nReport: {csvPath}");
+                }
+                catch (Exception ex) { StingLog.Warn($"CrossClash export: {ex.Message}"); }
+            }
+
+            TaskDialog.Show("Cross-Model Clash Detection", clashReport.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-08: NAMING CONVENTION ENFORCEMENT ENGINE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-08: Validates naming conventions across all model elements
+    /// against ISO 19650, BS 1192, and project-specific rules.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class NamingConventionAuditCommand : IExternalCommand
+    {
+        // ISO 19650 / BS 1192 naming patterns
+        private static readonly (string Pattern, string Description)[] NamingRules = new[]
+        {
+            (@"^[A-Z][A-Za-z0-9\s\-_]+$", "Must start with uppercase, alphanumeric only"),
+            (@"[^A-Za-z0-9\s\-_\(\)\.]", "Contains special characters not allowed per BS 1192"),
+            (@"\s{2,}", "Contains double spaces"),
+            (@"^\s|\s$", "Leading or trailing spaces"),
+            (@"[Cc]opy\s*\d*$", "Contains 'Copy' suffix (duplicate element)"),
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var violations = new List<(string Type, string Name, string Rule, long Id)>();
+
+            // Check view names
+            var views = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate)
+                .ToList();
+            foreach (var v in views)
+            {
+                string name = v.Name ?? "";
+                foreach (var (pattern, desc) in NamingRules)
+                {
+                    if (System.Text.RegularExpressions.Regex.IsMatch(name, pattern) &&
+                        pattern.Contains("[^")) // Violation patterns
+                        violations.Add(("View", name, desc, v.Id.Value));
+                    else if (pattern.Contains("Copy") &&
+                        System.Text.RegularExpressions.Regex.IsMatch(name, pattern))
+                        violations.Add(("View", name, desc, v.Id.Value));
+                }
+            }
+
+            // Check sheet names
+            var sheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>()
+                .ToList();
+            foreach (var s in sheets)
+            {
+                string name = s.Name ?? "";
+                string number = s.SheetNumber ?? "";
+                if (string.IsNullOrWhiteSpace(number))
+                    violations.Add(("Sheet", name, "Empty sheet number", s.Id.Value));
+                if (name.Length > 80)
+                    violations.Add(("Sheet", name, "Name exceeds 80 characters", s.Id.Value));
+            }
+
+            // Check family type names
+            var types = new FilteredElementCollector(doc)
+                .WhereElementIsElementType()
+                .ToList();
+            foreach (var t in types.Take(5000)) // Cap for performance
+            {
+                string name = t.Name ?? "";
+                if (name.Contains("  "))
+                    violations.Add(("Type", name, "Double spaces in type name", t.Id.Value));
+                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"[Cc]opy\s*\d*$"))
+                    violations.Add(("Type", name, "Contains 'Copy' suffix", t.Id.Value));
+            }
+
+            // Check level names
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level))
+                .Cast<Level>()
+                .ToList();
+            foreach (var lvl in levels)
+            {
+                string name = lvl.Name ?? "";
+                if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^(Level\s*\d+|L\d{2}|GF|B\d|RF|Roof|Ground|Basement)"))
+                    violations.Add(("Level", name, "Non-standard level name format", lvl.Id.Value));
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"NAMING CONVENTION AUDIT — {violations.Count} violations\n");
+
+            var grouped = violations.GroupBy(v => v.Type);
+            foreach (var g in grouped)
+            {
+                report.AppendLine($"{g.Key}: {g.Count()} violations");
+                foreach (var v in g.Take(10))
+                    report.AppendLine($"  [{v.Id}] \"{v.Name}\" — {v.Rule}");
+                if (g.Count() > 10) report.AppendLine($"  ... and {g.Count() - 10} more");
+                report.AppendLine();
+            }
+
+            TaskDialog.Show("STING Naming Audit", report.ToString());
+            StingLog.Info($"NamingAudit: {violations.Count} violations across {views.Count} views, {sheets.Count} sheets");
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-09: MEP SERVICE CLEARANCE VALIDATION
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-09: Validates MEP service clearances against CIBSE Guide B/W minimum
+    /// clearance requirements for maintenance access and safety.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class MEPClearanceValidationCommand : IExternalCommand
+    {
+        // Minimum clearances in feet (per CIBSE Guide W, BS 8313)
+        private static readonly Dictionary<BuiltInCategory, double> MinClearanceFt = new Dictionary<BuiltInCategory, double>
+        {
+            [BuiltInCategory.OST_DuctCurves] = 0.5,          // 150mm maintenance access
+            [BuiltInCategory.OST_PipeCurves] = 0.33,          // 100mm
+            [BuiltInCategory.OST_Conduit] = 0.25,             // 75mm
+            [BuiltInCategory.OST_CableTray] = 0.5,            // 150mm
+            [BuiltInCategory.OST_MechanicalEquipment] = 2.0,  // 600mm maintenance zone
+            [BuiltInCategory.OST_ElectricalEquipment] = 3.0,  // 900mm arc flash per BS 7671
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var violations = new List<(Element El, double ActualClearanceMm, double RequiredMm, string Direction)>();
+
+            foreach (var kv in MinClearanceFt)
+            {
+                var elems = new FilteredElementCollector(doc)
+                    .OfCategory(kv.Key)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+
+                double reqFt = kv.Value;
+                foreach (var el in elems)
+                {
+                    BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                    if (bb == null) continue;
+
+                    // Check clearance to nearest wall/floor/ceiling by expanding BB and checking intersections
+                    XYZ expanded = new XYZ(reqFt, reqFt, reqFt);
+                    Outline searchOutline = new Outline(bb.Min - expanded, bb.Max + expanded);
+
+                    try
+                    {
+                        var bbFilter = new BoundingBoxIntersectsFilter(searchOutline);
+                        var nearby = new FilteredElementCollector(doc)
+                            .WherePasses(bbFilter)
+                            .WherePasses(new ElementMulticategoryFilter(new[]
+                            {
+                                BuiltInCategory.OST_Walls, BuiltInCategory.OST_Floors,
+                                BuiltInCategory.OST_Ceilings, BuiltInCategory.OST_StructuralFraming
+                            }))
+                            .WhereElementIsNotElementType()
+                            .Where(n => n.Id != el.Id)
+                            .ToList();
+
+                        foreach (var nearEl in nearby)
+                        {
+                            BoundingBoxXYZ nearBB = nearEl.get_BoundingBox(null);
+                            if (nearBB == null) continue;
+
+                            // Calculate actual clearance (closest face distance)
+                            double dx = Math.Max(0, Math.Max(bb.Min.X - nearBB.Max.X, nearBB.Min.X - bb.Max.X));
+                            double dy = Math.Max(0, Math.Max(bb.Min.Y - nearBB.Max.Y, nearBB.Min.Y - bb.Max.Y));
+                            double dz = Math.Max(0, Math.Max(bb.Min.Z - nearBB.Max.Z, nearBB.Min.Z - bb.Max.Z));
+                            double clearanceFt = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+                            if (clearanceFt < reqFt && clearanceFt > 0.01) // Avoid self-intersection false positives
+                            {
+                                double actualMm = clearanceFt * 304.8;
+                                double requiredMm = reqFt * 304.8;
+                                string dir = nearEl.Category?.Name ?? "Structure";
+                                violations.Add((el, actualMm, requiredMm, dir));
+                                break; // One violation per element is enough
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"MEPClearance {el.Id}: {ex.Message}"); }
+                }
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"MEP CLEARANCE VALIDATION — {violations.Count} violations\n");
+            report.AppendLine("Standard: CIBSE Guide W / BS 8313 / BS 7671\n");
+
+            var grouped = violations.GroupBy(v => v.El.Category?.Name ?? "Unknown");
+            foreach (var g in grouped)
+            {
+                report.AppendLine($"{g.Key}: {g.Count()} clearance violations");
+                foreach (var v in g.Take(5))
+                {
+                    string tag = ParameterHelpers.GetString(v.El, ParamRegistry.TAG1);
+                    report.AppendLine($"  [{v.El.Id.Value}] {tag}: {v.ActualClearanceMm:F0}mm vs {v.RequiredMm:F0}mm min ({v.Direction})");
+                }
+                if (g.Count() > 5) report.AppendLine($"  ... and {g.Count() - 5} more");
+            }
+
+            TaskDialog.Show("STING MEP Clearance", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FUT-12: IFC PROPERTY SET VALIDATION ON IMPORT
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>FUT-12: Validates IFC property sets against expected STING parameter schema.
+    /// Checks imported IFC elements have required property sets per ISO 16739.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class IFCPropertyValidationCommand : IExternalCommand
+    {
+        // Required IFC property sets per ISO 16739
+        private static readonly Dictionary<string, string[]> RequiredPsets = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Wall"] = new[] { "Pset_WallCommon", "Identity Data", "Dimensions" },
+            ["Door"] = new[] { "Pset_DoorCommon", "Identity Data" },
+            ["Window"] = new[] { "Pset_WindowCommon", "Identity Data" },
+            ["Slab"] = new[] { "Pset_SlabCommon", "Structural" },
+            ["Column"] = new[] { "Pset_ColumnCommon", "Structural" },
+            ["Beam"] = new[] { "Pset_BeamCommon", "Structural" },
+            ["Space"] = new[] { "Pset_SpaceCommon", "Area" },
+        };
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Check for IFC-imported elements (they have IFC GUID parameter)
+            int total = 0, withPset = 0, missingPset = 0;
+            var issues = new List<string>();
+
+            var allElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            foreach (var el in allElems)
+            {
+                // Check if element has IFC properties
+                string ifcGuid = null;
+                try
+                {
+                    var p = el.LookupParameter("IfcGUID") ?? el.LookupParameter("IFC GUID");
+                    ifcGuid = p?.AsString();
+                }
+                catch { /* Not IFC-imported */ }
+
+                if (string.IsNullOrEmpty(ifcGuid)) continue;
+                total++;
+
+                string catName = el.Category?.Name ?? "";
+                bool hasRequiredPsets = true;
+
+                foreach (var kv in RequiredPsets)
+                {
+                    if (catName.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    foreach (string psetName in kv.Value)
+                    {
+                        // Check if element has parameters from this property set
+                        bool found = false;
+                        foreach (Parameter p in el.Parameters)
+                        {
+                            if (p.Definition?.Name?.Contains(psetName) == true)
+                            { found = true; break; }
+                        }
+                        if (!found)
+                        {
+                            hasRequiredPsets = false;
+                            if (issues.Count < 50)
+                                issues.Add($"  [{el.Id.Value}] {catName}: missing {psetName}");
+                        }
+                    }
+                }
+
+                if (hasRequiredPsets) withPset++;
+                else missingPset++;
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"IFC PROPERTY SET VALIDATION\n");
+            report.AppendLine($"IFC elements found: {total}");
+            report.AppendLine($"With required property sets: {withPset}");
+            report.AppendLine($"Missing property sets: {missingPset}\n");
+
+            if (issues.Count > 0)
+            {
+                report.AppendLine("Issues:");
+                foreach (string issue in issues) report.AppendLine(issue);
+            }
+
+            if (total == 0) report.AppendLine("No IFC-imported elements found in this model.");
+
+            TaskDialog.Show("STING IFC Validation", report.ToString());
+            return Result.Succeeded;
+        }
+    }
 }

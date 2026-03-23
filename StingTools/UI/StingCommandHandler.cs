@@ -1883,6 +1883,14 @@ namespace StingTools.UI
 
                     // ── Temp: Data Validation ──
                     case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "CrossModelClash": RunCommand<Temp.CrossModelClashCommand>(app); break;
+                    case "NamingAudit": RunCommand<Temp.NamingConventionAuditCommand>(app); break;
+                    case "MEPClearance": RunCommand<Temp.MEPClearanceValidationCommand>(app); break;
+                    case "IFCPropertyValidation": RunCommand<Temp.IFCPropertyValidationCommand>(app); break;
+                    case "UserProductivity": RunCommand<BIMManager.UserProductivityReportCommand>(app); break;
+                    case "NotificationPrefs": RunCommand<BIMManager.NotificationPreferencesCommand>(app); break;
+                    case "TaskAssignment": RunCommand<BIMManager.TaskAssignmentCommand>(app); break;
+                    case "GbXMLEnrichment": RunCommand<BIMManager.GbXMLEnrichmentCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;

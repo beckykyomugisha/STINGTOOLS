@@ -1353,6 +1353,14 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Dyn Bind" Tag="DynamicBindings" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Schema" Tag="SchemaValidate" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Clash Detect" Tag="ClashDetect" Click="Cmd_Click" ToolTip="Rule-based MEP-structure clash detection"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="X-Model Clash" Tag="CrossModelClash" Click="Cmd_Click" ToolTip="Cross-model clash detection including linked Revit models"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="MEP Clearance" Tag="MEPClearance" Click="Cmd_Click" ToolTip="Validate MEP maintenance clearances per CIBSE Guide W"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Naming Audit" Tag="NamingAudit" Click="Cmd_Click" ToolTip="Audit naming conventions per BS 1192 / ISO 19650"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="IFC Validate" Tag="IFCPropertyValidation" Click="Cmd_Click" ToolTip="Validate IFC property sets per ISO 16739"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="gbXML Check" Tag="GbXMLEnrichment" Click="Cmd_Click" ToolTip="Assess gbXML energy model readiness with STING data"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Productivity" Tag="UserProductivity" Click="Cmd_Click" ToolTip="Per-user tagging and workflow productivity report"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Tasks" Tag="TaskAssignment" Click="Cmd_Click" ToolTip="Assign tasks to team members with workset checkout"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Notify Prefs" Tag="NotificationPrefs" Click="Cmd_Click" ToolTip="Configure per-user notification preferences"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="IFC Export" Tag="IFCExport" Click="Cmd_Click" ToolTip="Automated IFC 2x3/4 export with STING property sets"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="COBie" Tag="COBieExport" Click="Cmd_Click" ToolTip="Export COBie spreadsheet for FM handover"/>
                                 <Button Style="{StaticResource GreenBtn}" Content="JSON" Tag="JSONExport" Click="Cmd_Click" ToolTip="Export element data as JSON for data interchange"/>

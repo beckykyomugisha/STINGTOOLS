@@ -231,6 +231,28 @@ namespace StingTools.Core
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
 
+                // FUT-19: Background pre-warming — eagerly load formulas, grid lines,
+                // and compliance scan on a background thread so first tagging command is fast
+                try
+                {
+                    var docForPreWarm = e.Document;
+                    System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        try
+                        {
+                            // Pre-load formulas into session cache
+                            TagPipelineHelper.LoadFormulas();
+                            // Pre-load grid lines
+                            if (docForPreWarm != null) TagPipelineHelper.LoadGridLines(docForPreWarm);
+                            // Pre-run compliance scan to populate cache
+                            if (docForPreWarm != null) ComplianceScan.Scan(docForPreWarm);
+                            StingLog.Info("FUT-19: Background pre-warming completed (formulas, grids, compliance)");
+                        }
+                        catch (Exception prEx) { StingLog.Warn($"FUT-19 pre-warm: {prEx.Message}"); }
+                    });
+                }
+                catch (Exception pwEx) { StingLog.Warn($"FUT-19 pre-warm launch: {pwEx.Message}"); }
+
                 // FIX-B10: Restore auto-tagger state from persisted config
                 try
                 {
