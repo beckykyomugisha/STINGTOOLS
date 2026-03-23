@@ -1650,6 +1650,10 @@ namespace StingTools.UI
                     case "SwitchTagPos": RunCommand<Tags.SwitchTagPositionCommand>(app); break;
                     case "ExportTagPositions": RunCommand<Tags.ExportTagPositionsCommand>(app); break;
 
+                    // D1: Tag map export/import between projects
+                    case "ExportTagMap": RunCommand<BIMManager.ExportTagMapCommand>(app); break;
+                    case "ImportTagMap": RunCommand<BIMManager.ImportTagMapCommand>(app); break;
+
                     // TI-02: Tie-In status commands
                     case "SetTieInOpen": SetTieInStatus(app, "OPEN", 0); break;
                     case "SetTieInConnected": SetTieInStatus(app, "CONNECTED", 1); break;

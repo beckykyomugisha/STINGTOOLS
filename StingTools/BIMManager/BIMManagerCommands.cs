@@ -109,6 +109,48 @@ namespace StingTools.BIMManager
             return null;
         }
 
+        /// <summary>CS-GAP-01: Compliance-gated CDE transition. Blocks WIP→SHARED below 70% and
+        /// SHARED→PUBLISHED below 90%. Configurable via CDE_SHARED_MIN_COMPLIANCE and CDE_PUBLISHED_MIN_COMPLIANCE.</summary>
+        internal static string ValidateCDEComplianceGate(string newState, Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                double sharedMin = TagConfig.GetConfigDouble("CDE_SHARED_MIN_COMPLIANCE", 70.0);
+                double publishedMin = TagConfig.GetConfigDouble("CDE_PUBLISHED_MIN_COMPLIANCE", 90.0);
+
+                if (newState.Equals("SHARED", StringComparison.OrdinalIgnoreCase) ||
+                    newState.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase))
+                {
+                    ComplianceScan.InvalidateCache();
+                    var scan = ComplianceScan.Scan(doc);
+                    if (scan == null) return null;
+
+                    double threshold = newState.Equals("PUBLISHED", StringComparison.OrdinalIgnoreCase)
+                        ? publishedMin : sharedMin;
+
+                    if (scan.CompliancePercent < threshold)
+                    {
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Compliance gate BLOCKED: {scan.CompliancePercent:F1}% < {threshold:F0}% required for {newState}.");
+                        sb.AppendLine();
+                        sb.AppendLine("Per-discipline breakdown:");
+                        if (scan.ByDisc != null)
+                        {
+                            foreach (var kv in scan.ByDisc.OrderBy(x => x.Value.CompliancePct))
+                                sb.AppendLine($"  {kv.Key}: {kv.Value.CompliancePct:F0}% ({kv.Value.Untagged} untagged)");
+                        }
+                        sb.AppendLine();
+                        sb.AppendLine($"Stale elements: {scan.StaleCount}");
+                        sb.AppendLine($"Fix tagging issues before transitioning to {newState}.");
+                        return sb.ToString();
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CDE compliance gate: {ex.Message}"); }
+            return null;
+        }
+
         // ── RIBA Plan of Work 2020 Stages ──
         internal static readonly Dictionary<int, string> RIBAStages = new Dictionary<int, string>
         {
@@ -5429,6 +5471,21 @@ namespace StingTools.BIMManager
                         "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE");
                     return Result.Failed;
                 }
+
+                // CS-GAP-01: Compliance gate — blocks transitions when tag compliance is below threshold
+                string compGateError = BIMManagerEngine.ValidateCDEComplianceGate(status, doc);
+                if (compGateError != null)
+                {
+                    var gateDlg = new TaskDialog("STING CDE Compliance Gate");
+                    gateDlg.MainInstruction = $"Compliance gate blocks transition to {status}";
+                    gateDlg.MainContent = compGateError;
+                    gateDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    gateDlg.DefaultButton = TaskDialogResult.No;
+                    gateDlg.FooterText = "Override requires explicit acknowledgment. Click Yes to proceed anyway.";
+                    if (gateDlg.Show() != TaskDialogResult.Yes)
+                        return Result.Cancelled;
+                    StingLog.Warn($"CDE compliance gate overridden for {currentCDE} → {status}");
+                }
             }
 
             string suitCode = status == "PUBLISHED" ? "S6" : status == "SHARED" ? "S3" : "S0";
@@ -8848,6 +8905,339 @@ namespace StingTools.BIMManager
             if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             return value;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  DM-GAP-01 + B1: DOCUMENT VERSION & SUPERSESSION ENGINE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>DM-GAP-01 + B1: Document version tracking with supersession chains.
+    /// Maintains doc_versions.json sidecar with per-document version history,
+    /// supersession relationships, and CDE state timeline.</summary>
+    internal static class DocumentVersionEngine
+    {
+        private static string GetVersionPath(Document doc)
+        {
+            string docPath = doc?.PathName;
+            if (string.IsNullOrEmpty(docPath)) return null;
+            string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "doc_versions.json");
+        }
+
+        /// <summary>Record a version entry for a document (CDE transition, edit, or supersession).</summary>
+        internal static void RecordVersion(Document doc, string documentId, string action,
+            string cdeState = null, string suitability = null, string supersededBy = null, string notes = null)
+        {
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null) return;
+
+                JObject data;
+                if (File.Exists(path))
+                    data = JObject.Parse(File.ReadAllText(path));
+                else
+                    data = new JObject();
+
+                if (data[documentId] == null)
+                    data[documentId] = new JArray();
+
+                var entry = new JObject
+                {
+                    ["version"] = ((JArray)data[documentId]).Count + 1,
+                    ["date"] = DateTime.Now.ToString("o"),
+                    ["user"] = Environment.UserName ?? "unknown",
+                    ["action"] = action
+                };
+
+                if (cdeState != null) entry["cde_state"] = cdeState;
+                if (suitability != null) entry["suitability"] = suitability;
+                if (supersededBy != null) entry["superseded_by"] = supersededBy;
+                if (notes != null) entry["notes"] = notes;
+
+                ((JArray)data[documentId]).Add(entry);
+
+                // Atomic write
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, data.ToString(Formatting.Indented));
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+            }
+            catch (Exception ex) { StingLog.Warn($"DocumentVersionEngine.RecordVersion: {ex.Message}"); }
+        }
+
+        /// <summary>Get version history for a specific document.</summary>
+        internal static JArray GetVersionHistory(Document doc, string documentId)
+        {
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null || !File.Exists(path)) return new JArray();
+                var data = JObject.Parse(File.ReadAllText(path));
+                return data[documentId] as JArray ?? new JArray();
+            }
+            catch (Exception ex) { StingLog.Warn($"GetVersionHistory: {ex.Message}"); return new JArray(); }
+        }
+
+        /// <summary>DM-GAP-01: Get supersession chain for a document (walks superseded_by links).</summary>
+        internal static List<(string DocId, string Date, string Action)> GetSupersessionChain(Document doc, string documentId)
+        {
+            var chain = new List<(string, string, string)>();
+            try
+            {
+                string path = GetVersionPath(doc);
+                if (path == null || !File.Exists(path)) return chain;
+                var data = JObject.Parse(File.ReadAllText(path));
+
+                string currentId = documentId;
+                int maxDepth = 20; // prevent cycles
+                while (!string.IsNullOrEmpty(currentId) && maxDepth-- > 0)
+                {
+                    var history = data[currentId] as JArray;
+                    if (history == null || history.Count == 0) break;
+
+                    var lastEntry = history.Last as JObject;
+                    chain.Add((currentId, lastEntry?["date"]?.ToString() ?? "", lastEntry?["action"]?.ToString() ?? ""));
+
+                    // Find superseded_by in any version entry
+                    string nextId = null;
+                    foreach (JObject entry in history)
+                    {
+                        string sb = entry["superseded_by"]?.ToString();
+                        if (!string.IsNullOrEmpty(sb)) nextId = sb;
+                    }
+                    currentId = nextId;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSupersessionChain: {ex.Message}"); }
+            return chain;
+        }
+
+        /// <summary>Record a supersession event: oldDoc is superseded by newDoc.</summary>
+        internal static void RecordSupersession(Document doc, string oldDocId, string newDocId, string reason = null)
+        {
+            RecordVersion(doc, oldDocId, "SUPERSEDED", supersededBy: newDocId, notes: reason);
+            RecordVersion(doc, newDocId, "CREATED (supersedes " + oldDocId + ")", notes: reason);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  D1: TAG MAP EXPORT/IMPORT ENGINE
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>D1: Tag export/import between projects. Enables tag transfer across
+    /// linked models, model splits, and project phases via .sting_tagmap.json files.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportTagMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            // Collect all tagged elements
+            var allElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                .ToList();
+
+            var tagMap = new JArray();
+            int exported = 0;
+
+            foreach (Element el in allElems)
+            {
+                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                if (string.IsNullOrEmpty(tag1)) continue;
+
+                string[] tokens = ParamRegistry.ReadTokenValues(el);
+                if (tokens == null || tokens.Length < 8) continue;
+
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                XYZ center = bb != null ? (bb.Min + bb.Max) * 0.5 : XYZ.Zero;
+
+                var entry = new JObject
+                {
+                    ["unique_id"] = el.UniqueId,
+                    ["element_id"] = el.Id.Value,
+                    ["category"] = ParameterHelpers.GetCategoryName(el),
+                    ["family"] = ParameterHelpers.GetFamilyName(el),
+                    ["type"] = ParameterHelpers.GetFamilySymbolName(el),
+                    ["location_x"] = Math.Round(center.X * 304.8, 1),
+                    ["location_y"] = Math.Round(center.Y * 304.8, 1),
+                    ["location_z"] = Math.Round(center.Z * 304.8, 1),
+                    ["level"] = ParameterHelpers.GetString(el, ParamRegistry.LVL),
+                    ["tag1"] = tag1,
+                    ["disc"] = tokens[0], ["loc"] = tokens[1], ["zone"] = tokens[2],
+                    ["lvl"] = tokens[3], ["sys"] = tokens[4], ["func"] = tokens[5],
+                    ["prod"] = tokens[6], ["seq"] = tokens[7],
+                    ["status"] = ParameterHelpers.GetString(el, "ASS_STATUS_TXT"),
+                    ["rev"] = ParameterHelpers.GetString(el, "ASS_REV_TXT"),
+                };
+
+                tagMap.Add(entry);
+                exported++;
+            }
+
+            if (exported == 0)
+            {
+                TaskDialog.Show("STING Tag Export", "No tagged elements found.");
+                return Result.Cancelled;
+            }
+
+            // Save to file
+            string exportPath = OutputLocationHelper.PromptForExportPath(doc, "TagMap",
+                $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
+            if (string.IsNullOrEmpty(exportPath))
+            {
+                string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                exportPath = Path.Combine(dir, $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
+            }
+
+            var wrapper = new JObject
+            {
+                ["version"] = 1,
+                ["source_project"] = doc.Title ?? "unknown",
+                ["export_date"] = DateTime.Now.ToString("o"),
+                ["element_count"] = exported,
+                ["elements"] = tagMap
+            };
+
+            File.WriteAllText(exportPath, wrapper.ToString(Formatting.Indented));
+            TaskDialog.Show("STING Tag Export", $"Exported {exported} tagged elements to:\n{exportPath}");
+            StingLog.Info($"Tag map exported: {exported} elements to {exportPath}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>D1: Import tags from another project's .sting_tagmap.json file.
+    /// Matches by UniqueId first, then by family+type+nearest-location fallback.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ImportTagMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+            UIDocument uidoc = ctx.UIDoc;
+
+            // Browse for tag map file
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import STING Tag Map",
+                Filter = "Tag Map (*.sting_tagmap.json)|*.sting_tagmap.json|JSON (*.json)|*.json",
+                DefaultExt = ".sting_tagmap.json"
+            };
+            if (dlg.ShowDialog() != true) return Result.Cancelled;
+
+            string json = File.ReadAllText(dlg.FileName);
+            var wrapper = JObject.Parse(json);
+            var tagEntries = wrapper["elements"] as JArray;
+            if (tagEntries == null || tagEntries.Count == 0)
+            {
+                TaskDialog.Show("STING Tag Import", "No elements found in tag map file.");
+                return Result.Cancelled;
+            }
+
+            // Build local element index by UniqueId and by family+type+location
+            var localElems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                .ToList();
+
+            var byUniqueId = new Dictionary<string, Element>();
+            var byLocation = new List<(Element El, string Family, string Type, XYZ Center)>();
+            foreach (Element el in localElems)
+            {
+                byUniqueId[el.UniqueId] = el;
+                BoundingBoxXYZ bb = el.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    XYZ center = (bb.Min + bb.Max) * 0.5;
+                    byLocation.Add((el, ParameterHelpers.GetFamilyName(el),
+                        ParameterHelpers.GetFamilySymbolName(el), center));
+                }
+            }
+
+            int matchedById = 0, matchedByLoc = 0, skipped = 0;
+
+            using (Transaction tx = new Transaction(doc, "STING Import Tag Map"))
+            {
+                tx.Start();
+                foreach (JObject entry in tagEntries)
+                {
+                    string uid = entry["unique_id"]?.ToString();
+                    Element target = null;
+
+                    // Strategy 1: Match by UniqueId
+                    if (!string.IsNullOrEmpty(uid) && byUniqueId.TryGetValue(uid, out Element uidMatch))
+                    {
+                        target = uidMatch;
+                        matchedById++;
+                    }
+
+                    // Strategy 2: Match by family+type+nearest location (within 500mm)
+                    if (target == null)
+                    {
+                        string family = entry["family"]?.ToString() ?? "";
+                        string type = entry["type"]?.ToString() ?? "";
+                        double x = entry["location_x"]?.Value<double>() ?? 0;
+                        double y = entry["location_y"]?.Value<double>() ?? 0;
+                        double z = entry["location_z"]?.Value<double>() ?? 0;
+                        XYZ importCenter = new XYZ(x / 304.8, y / 304.8, z / 304.8);
+
+                        double bestDist = 500.0 / 304.8; // 500mm in feet
+                        foreach (var (el, fam, typ, center) in byLocation)
+                        {
+                            if (!fam.Equals(family, StringComparison.OrdinalIgnoreCase)) continue;
+                            if (!typ.Equals(type, StringComparison.OrdinalIgnoreCase)) continue;
+                            double dist = importCenter.DistanceTo(center);
+                            if (dist < bestDist)
+                            {
+                                bestDist = dist;
+                                target = el;
+                            }
+                        }
+                        if (target != null) matchedByLoc++;
+                    }
+
+                    if (target == null) { skipped++; continue; }
+
+                    // Write tokens
+                    ParameterHelpers.SetString(target, ParamRegistry.DISC, entry["disc"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.LOC, entry["loc"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.ZONE, entry["zone"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.LVL, entry["lvl"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.SYS, entry["sys"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.FUNC, entry["func"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.PROD, entry["prod"]?.ToString(), overwrite: true);
+                    ParameterHelpers.SetString(target, ParamRegistry.SEQ, entry["seq"]?.ToString(), overwrite: true);
+
+                    // Rebuild TAG1
+                    string tag1 = string.Join(ParamRegistry.Separator,
+                        entry["disc"]?.ToString(), entry["loc"]?.ToString(), entry["zone"]?.ToString(),
+                        entry["lvl"]?.ToString(), entry["sys"]?.ToString(), entry["func"]?.ToString(),
+                        entry["prod"]?.ToString(), entry["seq"]?.ToString());
+                    ParameterHelpers.SetString(target, ParamRegistry.TAG1, tag1, overwrite: true);
+                }
+                tx.Commit();
+            }
+
+            ComplianceScan.InvalidateCache();
+            StingAutoTagger.InvalidateContext();
+
+            TaskDialog.Show("STING Tag Import",
+                $"Import complete from: {Path.GetFileName(dlg.FileName)}\n\n" +
+                $"Matched by UniqueId: {matchedById}\n" +
+                $"Matched by location: {matchedByLoc}\n" +
+                $"Skipped (no match): {skipped}\n" +
+                $"Total processed: {tagEntries.Count}");
+            return Result.Succeeded;
         }
     }
 

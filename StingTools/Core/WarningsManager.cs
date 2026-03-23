@@ -1513,37 +1513,111 @@ namespace StingTools.Core
                 var warnings = doc.GetWarnings();
                 int count = warnings?.Count ?? 0;
 
-                // Build warning type array
-                var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // A2: Load existing first-seen timestamps so we don't overwrite them
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                string now = DateTime.Now.ToString("o");
+
+                // Build warning type array with per-type first-seen timestamps
+                var typeEntries = new List<string>();
                 if (warnings != null)
                 {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var fm in warnings)
                     {
                         string desc = fm.GetDescriptionText();
-                        if (!string.IsNullOrEmpty(desc)) types.Add(desc);
+                        if (string.IsNullOrEmpty(desc) || !seen.Add(desc)) continue;
+
+                        // Preserve existing first-seen date, or stamp new
+                        string firstSeenDate = firstSeen.ContainsKey(desc) ? firstSeen[desc] : now;
+                        string escaped = desc.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                        typeEntries.Add($"{{\"desc\":\"{escaped}\",\"first_seen\":\"{firstSeenDate}\",\"count\":1}}");
                     }
                 }
 
                 var sb = new StringBuilder();
                 sb.Append("{");
+                sb.Append($"\"version\":3,");
                 sb.Append($"\"total\":{count},");
-                sb.Append($"\"date\":\"{DateTime.Now:o}\",");
+                sb.Append($"\"date\":\"{now}\",");
                 sb.Append($"\"user\":\"{Environment.UserName ?? "unknown"}\",");
                 sb.Append("\"warning_types\":[");
-                bool first = true;
-                foreach (string t in types)
-                {
-                    if (!first) sb.Append(",");
-                    sb.Append($"\"{t.Replace("\"", "\\\"")}\"");
-                    first = false;
-                }
+                sb.Append(string.Join(",", typeEntries));
                 sb.Append("]");
                 sb.Append("}");
 
-                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-                StingLog.Info($"Extended warning baseline saved: {count} warnings, {types.Count} types");
+                // Atomic write
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
+                StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }
             catch (Exception ex) { StingLog.Warn($"SaveExtendedBaseline: {ex.Message}"); }
+        }
+
+        /// <summary>A2: Load per-warning first-seen timestamps from existing baseline sidecar.</summary>
+        private static Dictionary<string, string> LoadFirstSeenTimestamps(string baselinePath)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (!File.Exists(baselinePath)) return result;
+                string json = File.ReadAllText(baselinePath);
+                var obj = JObject.Parse(json);
+                var types = obj["warning_types"] as JArray;
+                if (types == null) return result;
+                foreach (var item in types)
+                {
+                    if (item is JObject jObj)
+                    {
+                        string desc = jObj["desc"]?.ToString();
+                        string fs = jObj["first_seen"]?.ToString();
+                        if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(fs))
+                            result[desc] = fs;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadFirstSeenTimestamps: {ex.Message}"); }
+            return result;
+        }
+
+        /// <summary>A2: Check per-warning SLA violations using first-seen timestamps.
+        /// Returns list of warnings exceeding their SLA threshold based on individual age.</summary>
+        internal static List<(string Description, double AgeHours, double SLAHours, WarningSeverity Severity)>
+            CheckPerWarningSLAViolations(Document doc, WarningReport report)
+        {
+            var violations = new List<(string, double, double, WarningSeverity)>();
+            try
+            {
+                string path = GetBaselinePath(doc);
+                if (path == null || !File.Exists(path)) return violations;
+
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                if (firstSeen.Count == 0) return violations;
+
+                var now = DateTime.Now;
+                foreach (var group in report.RootCauseGroups)
+                {
+                    if (!firstSeen.TryGetValue(group.Description, out string fsStr)) continue;
+                    if (!DateTime.TryParse(fsStr, out DateTime fsDate)) continue;
+
+                    double ageHours = (now - fsDate).TotalHours;
+                    double slaHours = group.Severity switch
+                    {
+                        WarningSeverity.Critical => 4,
+                        WarningSeverity.High => 24,
+                        WarningSeverity.Medium => 168,
+                        WarningSeverity.Low => 336,
+                        _ => 336
+                    };
+
+                    if (ageHours > slaHours)
+                        violations.Add((group.Description, ageHours, slaHours, group.Severity));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CheckPerWarningSLAViolations: {ex.Message}"); }
+            return violations;
         }
 
         /// <summary>Phase 48: Build top-N warnings per category for drill-down tooltips.</summary>

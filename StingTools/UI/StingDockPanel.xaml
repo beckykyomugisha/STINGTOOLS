@@ -1586,6 +1586,8 @@
                         <Border Style="{StaticResource GroupBorder}">
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="Export Tag Register" Tag="TagRegisterExport" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Export Tag Map" Tag="ExportTagMap" Click="Cmd_Click" ToolTip="Export all tags to .sting_tagmap.json for cross-project transfer"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Import Tag Map" Tag="ImportTagMap" Click="Cmd_Click" ToolTip="Import tags from another project's tag map file"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="★ Data Export" Tag="StingDataExport" Click="Cmd_Click"
                                         ToolTip="BIMLink-style export: choose categories, parameters, family/type, format and location" FontWeight="Bold"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Combine Parameters" Tag="CombineParameters" Click="Cmd_Click" ToolTip="Auto-fill tokens into all 36 tag containers"/>
