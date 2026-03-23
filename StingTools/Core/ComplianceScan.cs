@@ -598,7 +598,7 @@ namespace StingTools.Core
                         var linkType = hostDoc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
                         if (linkType == null) continue;
 
-                        Document linkedDoc = linkType.GetLinkedDocument();
+                        Document linkedDoc = linkInst.GetLinkDocument();
                         if (linkedDoc == null) continue;
 
                         // Quick compliance scan of linked document

@@ -1525,7 +1525,7 @@ namespace StingTools.Model
                         PhaseName = $"{level.Name} — Floor Slab",
                         Description = $"Cast {floors.Count} floor slabs",
                         ElementIds = floors.Select(e => e.Id).ToList(),
-                        EstimatedDays = Math.Max(2, (int)Math.Ceiling(floors.Count * 2)),
+                        EstimatedDays = Math.Max(2, (int)Math.Ceiling((double)(floors.Count * 2))),
                         LevelName = level.Name,
                     });
                 }

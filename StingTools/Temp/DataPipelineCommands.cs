@@ -4472,7 +4472,7 @@ namespace StingTools.Temp
                 try
                 {
                     var linkType = doc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
-                    Document linkedDoc = linkType?.GetLinkedDocument();
+                    Document linkedDoc = linkInst.GetLinkDocument();
                     if (linkedDoc == null) continue;
 
                     Transform linkTransform = linkInst.GetTotalTransform();

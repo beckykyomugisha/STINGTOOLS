@@ -529,7 +529,8 @@ namespace StingTools.Model
             if (options.AutoTag && result.AllCreatedIds.Count > 0 && !options.DryRun)
             {
                 ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
-                TagConfig.SaveSeqSidecar(_doc);
+                var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(_doc);
+                TagConfig.SaveSeqSidecar(_doc, seqCtrs);
             }
 
             // Invalidate caches so dashboards reflect new structural elements

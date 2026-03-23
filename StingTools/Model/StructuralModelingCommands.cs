@@ -974,7 +974,8 @@ namespace StingTools.Model
                     try
                     {
                         ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
-                        TagConfig.SaveSeqSidecar(doc);
+                        var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
                         result.Summary += $" | Auto-tagged {result.CreatedIds.Count} elements";
                     }
                     catch (Exception ex) { StingLog.Warn($"Auto-tag after DWG: {ex.Message}"); }
@@ -1543,7 +1544,7 @@ namespace StingTools.Model
                 TaskDialog.Show("STRUCT — Full Analysis Report", summary);
 
                 // Export full report to file
-                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport");
+                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport", ".txt");
                 try
                 {
                     var filePath = System.IO.Path.Combine(
