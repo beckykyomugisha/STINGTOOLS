@@ -164,9 +164,13 @@ namespace StingTools.Tags
 
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            if (popCtx == null)
+            if (popCtx == null || !popCtx.IsValid())
             {
-                TaskDialog.Show("Auto Tag", "Failed to build population context.");
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null (possible document corruption)";
+                StingLog.Error($"AutoTag: PopulationContext failed — {diag}");
+                TaskDialog.Show("Auto Tag",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();
@@ -394,9 +398,13 @@ namespace StingTools.Tags
 
             var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            if (popCtx == null)
+            if (popCtx == null || !popCtx.IsValid())
             {
-                TaskDialog.Show("Tag New Only", "Failed to build population context.");
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
+                StingLog.Error($"TagNewOnly: PopulationContext failed — {diag}");
+                TaskDialog.Show("Tag New Only",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();

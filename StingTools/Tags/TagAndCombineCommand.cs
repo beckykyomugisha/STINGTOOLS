@@ -119,9 +119,13 @@ namespace StingTools.Tags
 
             // Build PopulationContext ONCE — caches room index, LOC, REV, phases
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            if (popCtx == null)
+            if (popCtx == null || !popCtx.IsValid())
             {
-                TaskDialog.Show("Tag & Combine", "Failed to build population context. Check the document is valid.");
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
+                StingLog.Error($"TagAndCombine: PopulationContext failed — {diag}");
+                TaskDialog.Show("Tag & Combine",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();
