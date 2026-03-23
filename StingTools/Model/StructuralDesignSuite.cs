@@ -410,7 +410,6 @@ namespace StingTools.Model
             // Shear stud design (19mm dia, 100mm height typical)
             result.ShearStudDiaMm = 19;
             double fu_stud = 450; // MPa (EN 13918)
-            double hsc = 100; // Stud height mm
             double dStud = result.ShearStudDiaMm;
 
             // PRd per stud (EC4 Eq 6.18/6.19): min of steel failure and concrete failure

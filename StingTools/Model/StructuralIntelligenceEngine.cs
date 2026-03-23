@@ -830,7 +830,7 @@ namespace StingTools.Model
 
         // ── Helpers ──
 
-        private static XYZ? SnapToNearestGrid(Document doc, double xFt, double yFt)
+        private static XYZ SnapToNearestGrid(Document doc, double xFt, double yFt)
         {
             var grids = new FilteredElementCollector(doc)
                 .OfClass(typeof(Grid)).Cast<Grid>().ToList();
