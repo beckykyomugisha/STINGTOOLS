@@ -475,7 +475,8 @@ namespace StingTools.Model
                         for (int c = 0; c < nCols; c++)
                         {
                             double oldRho = density[r, c];
-                            double Be = Math.Sqrt(-filteredSens[r, c] / Math.Max(lmid, 1e-10));
+                            // R4-A FIX: Guard against positive filteredSens near boundaries
+                            double Be = Math.Sqrt(Math.Max(0, -filteredSens[r, c]) / Math.Max(lmid, 1e-10));
                             double newRho = oldRho * Be;
 
                             // Move limit
@@ -858,11 +859,21 @@ namespace StingTools.Model
             result.OverturningPass = result.OverturningFOS >= 2.0;
 
             // 3. Bearing pressure (Meyerhof method: eccentric loading)
+            // R4-A FIX: Guard against Beff <= 0 (resultant outside base — wall topples)
             double e = (M_restoring - M_overturning) / W_total - totalWidth / 2;
             double Beff = totalWidth - 2 * Math.Abs(e);
-            result.BearingPressureKPa = W_total / Beff;
             result.BearingCapacityKPa = soilBearingKPa;
-            result.BearingPass = result.BearingPressureKPa <= soilBearingKPa;
+            if (Beff <= 0.001)
+            {
+                result.BearingPressureKPa = double.PositiveInfinity;
+                result.BearingPass = false;
+                result.Summary += " [CRITICAL: Resultant falls outside base — wall will topple]";
+            }
+            else
+            {
+                result.BearingPressureKPa = W_total / Beff;
+                result.BearingPass = result.BearingPressureKPa <= soilBearingKPa;
+            }
 
             // 4. Stem reinforcement (EC2)
             // Bending moment at stem base: M = Ka×γ×H³/6 + Ka×q×H²/2

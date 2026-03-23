@@ -1311,7 +1311,8 @@ namespace StingTools.Model
 
                     // Floor
                     step = 2;
-                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName);
+                    // R4-A FIX: Pass origin so floor aligns with walls when origin != 0
+                    var floorResult = CreateFloor(widthMm, depthMm, floorTypeName, levelName, originXMm, originYMm);
                     if (floorResult.Success)
                     {
                         results.Add($"  Floor: {floorResult.Message}");
@@ -1320,8 +1321,9 @@ namespace StingTools.Model
 
                     // Roof
                     step = 3;
+                    // R4-A FIX: Pass origin so roof aligns with walls when origin != 0
                     var roofResult = CreateRoof(widthMm, depthMm, roofTypeName, levelName,
-                        roofSlopeDeg, overhangMm);
+                        roofSlopeDeg, overhangMm, originXMm, originYMm);
                     if (roofResult.Success)
                     {
                         results.Add($"  Roof: {roofResult.Message}");

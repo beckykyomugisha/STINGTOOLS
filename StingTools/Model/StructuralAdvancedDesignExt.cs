@@ -674,7 +674,10 @@ namespace StingTools.Model
                 data.Ip * 1e4 * n; // Approximate composite I
 
             double L = spanM * 1000; // mm
-            result.DeflectionMm = 5 * slsLoad / 1000 * Math.Pow(L, 4) / (384 * Ecm * Ieq);
+            // R4-A FIX: slsLoad is kN/m², per metre strip = slsLoad kN/m = slsLoad N/mm.
+            // Previous code divided by 1000 (kN→N), but for per-metre-width Ieq the load
+            // per mm width is already slsLoad N/mm. The /1000 underestimated deflection by 1000x.
+            result.DeflectionMm = 5 * slsLoad * Math.Pow(L, 4) / (384 * Ecm * Ieq);
             result.DeflectionLimitMm = L / 250; // EC4 limit
 
             // Mesh reinforcement
