@@ -805,7 +805,7 @@ namespace StingTools.Core
 
             foreach (var kvp in rootCauseElements)
             {
-                var elementId = new ElementId((int)kvp.Key);
+                var elementId = new ElementId((long)kvp.Key);
                 var relatedWarnings = report.Warnings
                     .Where(w => w.FailingElements != null && w.FailingElements.Contains(elementId))
                     .ToList();

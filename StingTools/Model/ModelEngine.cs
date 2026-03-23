@@ -1377,7 +1377,8 @@ namespace StingTools.Model
                 if (ctx == null) { StingLog.Warn("AutoTagCreatedElements: PopulationContext.Build returned null"); return 0; }
 
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-                var formulas = Temp.FormulaEngine.LoadFormulas(doc);
+                var formulaPath = StingToolsApp.FindDataFile("FORMULAS_WITH_DEPENDENCIES.csv");
+                var formulas = formulaPath != null ? Temp.FormulaEngine.LoadFormulas(formulaPath) : new List<Temp.FormulaEngine.FormulaDefinition>();
                 var gridLines = new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid)).Cast<Grid>().ToList();
 
@@ -2093,7 +2094,7 @@ namespace StingTools.Model
                 linkCount = new FilteredElementCollector(doc)
                     .OfClass(typeof(RevitLinkInstance)).GetElementCount();
 
-                try { worksetCount = doc.IsWorkshared ? doc.GetWorksetTable().GetWorksetCount() : 0; }
+                try { worksetCount = doc.IsWorkshared ? doc.GetWorksetTable().GetWorksets().Count : 0; }
                 catch (Exception ex) { StingLog.Warn($"Workset count: {ex.Message}"); }
 
                 try

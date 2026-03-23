@@ -410,7 +410,7 @@ namespace StingTools.Model
             // Shear stud design (19mm dia, 100mm height typical)
             result.ShearStudDiaMm = 19;
             double fu_stud = 450; // MPa (EN 13918)
-            double hsc = 100; // Stud height mm
+            // hsc = 100mm stud height (used in PRd formulas implicitly via dStud ratio)
             double dStud = result.ShearStudDiaMm;
 
             // PRd per stud (EC4 Eq 6.18/6.19): min of steel failure and concrete failure
@@ -1245,22 +1245,22 @@ namespace StingTools.Model
             });
 
             // D01: Structural elements must have material assigned
-            int noMaterial = 0;
+            int noMaterial2 = 0;
             foreach (var el in cols.Concat(beams).Concat(slabs).Take(500))
             {
                 try
                 {
                     var matIds = el.GetMaterialIds(false);
-                    if (matIds == null || matIds.Count == 0) noMaterial++;
+                    if (matIds == null || matIds.Count == 0) noMaterial2++;
                 }
                 catch { /* skip */ }
             }
             checks.Add(new ValidationCheck
             {
                 RuleId = "D01", Category = "Data", Description = "Structural elements have material",
-                Pass = noMaterial == 0, Severity = noMaterial > 0 ? "Warning" : "Info",
-                AffectedCount = noMaterial,
-                Detail = noMaterial > 0 ? $"{noMaterial} elements without material" : "All assigned"
+                Pass = noMaterial2 == 0, Severity = noMaterial2 > 0 ? "Warning" : "Info",
+                AffectedCount = noMaterial2,
+                Detail = noMaterial2 > 0 ? $"{noMaterial2} elements without material" : "All assigned"
             });
 
             // Compile results
