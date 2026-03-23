@@ -1109,6 +1109,20 @@ namespace StingTools.Core
                 case "MilestoneRegister":   return new BIMManager.MilestoneRegisterCommand();
                 case "PhaseSummary":        return new BIMManager.PhaseSummaryCommand();
 
+                // Phase 55: New workflow command resolutions
+                case "ScheduleAudit":           return new Temp.ScheduleAuditCommand();
+                case "SchemaValidate":          return new Temp.SchemaValidateCommand();
+                case "SheetComplianceCheck":    return new Docs.SheetComplianceCheckCommand();
+                case "SheetNamingCheck":        return new Docs.SheetNamingCheckCommand();
+                case "TemplateAudit":           return new Temp.TemplateAuditCommand();
+                case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
+                case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
+                case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
+                case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
+                case "GenerateBEP":             return new BIMManager.GenerateBEPCommand();
+                case "WarningsMonitor":         return new WarningsMonitorCommand();
+
                 default: return null;
             }
         }
@@ -1134,6 +1148,10 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("ClashCoordination"));
             presets.Add(GetBuiltInPreset("EndOfStageGate"));
             presets.Add(GetBuiltInPreset("QuickFixCycle"));
+            presets.Add(GetBuiltInPreset("ModelAuditDeep"));
+            presets.Add(GetBuiltInPreset("MEPCoordination"));
+            presets.Add(GetBuiltInPreset("CDE_Submission"));
+            presets.Add(GetBuiltInPreset("DesignReviewPrep"));
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -1422,6 +1440,78 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "4. Resolve placeholders", MaxCompliancePct = 95, Optional = true },
                             new WorkflowStep { CommandTag = "CombineParameters", Label = "5. Update containers" },
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "6. Validate results" },
+                        }
+                    };
+
+                // Phase 55: New BIM coordinator automation presets
+                case "ModelAuditDeep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Model Audit Deep",
+                        Description = "Comprehensive model health: warnings, templates, parameters, schedules, compliance",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "1. Warning analysis" },
+                            new WorkflowStep { CommandTag = "TemplateAudit", Label = "2. Template audit" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "3. Data pipeline validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "ScheduleAudit", Label = "4. Schedule audit" },
+                            new WorkflowStep { CommandTag = "SchemaValidate", Label = "5. Material schema validation" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "6. Tag validation" },
+                            new WorkflowStep { CommandTag = "SheetComplianceCheck", Label = "7. Sheet compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "8. Full compliance dashboard" },
+                        }
+                    };
+
+                case "MEPCoordination":
+                    return new WorkflowPreset
+                    {
+                        Name = "MEP Coordination",
+                        Description = "MEP system validation: clashes, system integrity, sizing, tagging",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ClashDetection", Label = "1. Clash detection" },
+                            new WorkflowStep { CommandTag = "BatchSystemPush", Label = "2. MEP system push" },
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "3. Re-tag moved elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate tags" },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "5. Auto-fix warnings", Condition = "has_warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Compliance check" },
+                        }
+                    };
+
+                case "CDE_Submission":
+                    return new WorkflowPreset
+                    {
+                        Name = "CDE Submission",
+                        Description = "ISO 19650 CDE submission package: validate, export, register, transmittal",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholders", MaxCompliancePct = 98, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Final tag validation" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "4. Sheet naming check" },
+                            new WorkflowStep { CommandTag = "ValidateDocNaming", Label = "5. Document naming check" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "6. Export tag register" },
+                            new WorkflowStep { CommandTag = "ExportSheetRegister", Label = "7. Export sheet register" },
+                            new WorkflowStep { CommandTag = "CreateTransmittal", Label = "8. Create transmittal" },
+                        }
+                    };
+
+                case "DesignReviewPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Design Review Prep",
+                        Description = "Pre-design review: template check, view preparation, annotation cleanup",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "1. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix warnings", Condition = "has_warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "3. Sheet naming audit" },
+                            new WorkflowStep { CommandTag = "TemplateComplianceScore", Label = "4. Template compliance scores" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "5. Tag completeness report" },
                         }
                     };
 

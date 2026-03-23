@@ -19,6 +19,18 @@ using StingTools.Core;
 
 namespace StingTools.Model
 {
+    /// <summary>Phase 55: Helper to auto-tag model results and build display message.</summary>
+    internal static class ModelCommandHelper
+    {
+        /// <summary>Auto-tag created elements and return enriched message.</summary>
+        public static string AutoTagAndReport(Document doc, ModelResult result)
+        {
+            if (result == null || !result.Success) return result?.Message ?? "Failed";
+            int tagged = ModelEngine.AutoTagResult(doc, result);
+            return tagged > 0 ? result.Message + $"\n✓ {tagged} element(s) auto-tagged" : result.Message;
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // WALLS
     // ══════════════════════════════════════════════════════════════════
@@ -51,7 +63,10 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Wall", result.Message);
+                    // Phase 55: Auto-tag created elements via RunFullPipeline
+                    int tagged = ModelEngine.AutoTagResult(doc, result);
+                    TaskDialog.Show("MODEL — Wall",
+                        result.Message + (tagged > 0 ? $"\n✓ {tagged} element(s) auto-tagged" : ""));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -134,7 +149,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Room", result.Message);
+                    TaskDialog.Show("MODEL — Room", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -227,7 +242,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Floor", result.Message);
+                    TaskDialog.Show("MODEL — Floor", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -277,7 +292,7 @@ namespace StingTools.Model
                     originYMm: pt.Y * Units.FeetToMm);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Ceiling", result.Message);
+                    TaskDialog.Show("MODEL — Ceiling", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Ceiling", $"Failed: {result.Message}");
 
@@ -323,7 +338,7 @@ namespace StingTools.Model
                     originYMm: pt.Y * Units.FeetToMm);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Roof", result.Message);
+                    TaskDialog.Show("MODEL — Roof", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Roof", $"Failed: {result.Message}");
 
@@ -378,7 +393,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Door", result.Message);
+                    TaskDialog.Show("MODEL — Door", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -436,7 +451,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Window", result.Message);
+                    TaskDialog.Show("MODEL — Window", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -485,7 +500,7 @@ namespace StingTools.Model
                     pt.X * Units.FeetToMm, pt.Y * Units.FeetToMm);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Column", result.Message);
+                    TaskDialog.Show("MODEL — Column", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Column", $"Failed: {result.Message}");
 
@@ -551,7 +566,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Column Grid", result.Message);
+                    TaskDialog.Show("MODEL — Column Grid", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
@@ -603,7 +618,7 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, p2.Z * Units.FeetToMm);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Beam", result.Message);
+                    TaskDialog.Show("MODEL — Beam", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Beam", $"Failed: {result.Message}");
 
@@ -651,7 +666,7 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, 2700);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Duct", result.Message);
+                    TaskDialog.Show("MODEL — Duct", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Duct", $"Failed: {result.Message}");
 
@@ -699,7 +714,7 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, 0);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Pipe", result.Message);
+                    TaskDialog.Show("MODEL — Pipe", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Pipe", $"Failed: {result.Message}");
 
@@ -763,7 +778,7 @@ namespace StingTools.Model
                     pt.X * Units.FeetToMm, pt.Y * Units.FeetToMm, 0, hint);
 
                 if (result.Success)
-                    TaskDialog.Show("MODEL — Fixture", result.Message);
+                    TaskDialog.Show("MODEL — Fixture", ModelCommandHelper.AutoTagAndReport(doc, result));
                 else
                     TaskDialog.Show("MODEL — Fixture", $"Failed: {result.Message}");
 
@@ -836,7 +851,7 @@ namespace StingTools.Model
 
                 if (result.Success)
                 {
-                    TaskDialog.Show("MODEL — Building Shell", result.Message);
+                    TaskDialog.Show("MODEL — Building Shell", ModelCommandHelper.AutoTagAndReport(doc, result));
                     if (result.CreatedElementIds.Count > 0)
                         uidoc.Selection.SetElementIds(result.CreatedElementIds);
                 }
