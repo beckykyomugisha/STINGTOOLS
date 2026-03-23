@@ -304,7 +304,10 @@ namespace StingTools.BIMManager
             "20. Risk Register (BIM-Specific Risks and Mitigations)",
             "21. Health and Safety / CDM 2015 / Building Safety Act 2022",
             "22. Document Control, Approvals and Distribution",
-            "23. Appendices (EIR Matrix, Model Element Table, Tag Reference)"
+            "23. Post-Project Information Requirements (As-Built, COBie Data Drops)",
+            "24. Commissioning, Maintenance and FM Readiness Strategy",
+            "25. Digital Strategy and Technology Enablement (Cloud/CDE/BIM360)",
+            "26. Appendices (EIR Matrix, Model Element Table, Tag Reference)"
         };
 
         // ── BEP Template Presets ──

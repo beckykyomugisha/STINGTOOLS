@@ -571,6 +571,10 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"BuildRoomIndex failed: {ex.Message}");
             }
+            // Phase 56: Log once when no rooms found so BIM coordinators know LOC detection
+            // will fall back to project-level defaults instead of room-based spatial detection
+            if (index.Count == 0)
+                StingLog.Info("BuildRoomIndex: no placed rooms found — LOC detection will use project-level defaults");
             return index;
         }
 
