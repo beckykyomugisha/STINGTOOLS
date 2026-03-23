@@ -1390,8 +1390,10 @@ namespace StingTools.Model
                         try
                         {
                             bool ok = TagPipelineHelper.RunFullPipeline(
-                                doc, el, ctx, seqCounters, existingTags,
-                                TagCollisionMode.AutoIncrement, null, formulas, gridLines);
+                                doc, el, ctx, existingTags, seqCounters,
+                                formulas, gridLines,
+                                overwrite: false, skipComplete: true,
+                                collisionMode: TagCollisionMode.AutoIncrement);
                             if (ok) tagged++;
                         }
                         catch (Exception ex) { StingLog.Warn($"AutoTag element {id}: {ex.Message}"); }

@@ -492,7 +492,7 @@ namespace StingTools.Core
                         foreach (ElementId id in cw.AdditionalElements)
                         {
                             try { doc.Delete(id); return true; }
-                            catch { }
+                            catch (Exception delEx) { StingLog.Warn($"AutoFix delete {id}: {delEx.Message}"); }
                         }
                     }
                     // Fallback: delete second failing element
