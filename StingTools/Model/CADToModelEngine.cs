@@ -817,5 +817,98 @@ namespace StingTools.Model
                 .Cast<ImportInstance>()
                 .ToList();
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-MODEL-02: INTELLIGENT DWG LAYER AUTO-DETECTION
+        //  Fuzzy-matches layer names across multiple language conventions
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-MODEL-02: Multi-language layer prefix patterns for intelligent
+        /// DWG layer auto-detection across EN/DA/NO/SV/DE conventions.</summary>
+        private static readonly Dictionary<string, string[]> MultiLanguagePrefixes =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                // English prefixes
+                ["Wall"] = new[] { "WALL", "WL", "A-WALL", "AR-WALL", "ARCH_WALL" },
+                ["Door"] = new[] { "DOOR", "DR", "A-DOOR", "AR-DOOR" },
+                ["Window"] = new[] { "WINDOW", "WIN", "WN", "A-WIND", "AR-WIND" },
+                ["Column"] = new[] { "COLUMN", "COL", "S-COLS", "ST-COL", "STRUCT_COL" },
+                ["Beam"] = new[] { "BEAM", "BM", "S-BEAM", "ST-BEAM" },
+                ["Slab"] = new[] { "SLAB", "FLOOR", "FLR", "A-FLOOR", "S-SLAB" },
+                ["Duct"] = new[] { "DUCT", "DCT", "M-DUCT", "HVAC_DUCT", "MEK_KANAL" },
+                ["Pipe"] = new[] { "PIPE", "PIP", "P-PIPE", "PLUM_PIPE", "VVS_ROR" },
+                ["Electrical"] = new[] { "ELEC", "EL_", "E-POWER", "E-LIGHT", "EL_PANEL" },
+                ["Furniture"] = new[] { "FURN", "FUR", "A-FURN", "FF&E", "MOEB" },
+                // Scandinavian prefixes (DA/NO/SV)
+                ["Wall_Scand"] = new[] { "ARK_VAEG", "ARK_VEGG", "ARK_VÄGG" },
+                ["Duct_Scand"] = new[] { "MEK_KANAL", "VVS_KANAL", "MEK_VENT" },
+                ["Pipe_Scand"] = new[] { "VVS_ROR", "VVS_RØR", "VVS_LEDNING" },
+                // German prefixes (DE)
+                ["Wall_DE"] = new[] { "WAND", "ARC_WAND", "MAUER" },
+                ["Duct_DE"] = new[] { "LUFT_KANAL", "HLK_KANAL", "TGA_LUFT" },
+            };
+
+        /// <summary>GAP-MODEL-02: Auto-detect layer category from layer name using
+        /// fuzzy multi-language matching. Returns category name and confidence (0-100).</summary>
+        internal static (string Category, int Confidence) AutoDetectLayerCategory(string layerName)
+        {
+            if (string.IsNullOrEmpty(layerName)) return (null, 0);
+            string upper = layerName.ToUpperInvariant();
+
+            // Exact prefix match — highest confidence
+            foreach (var kv in MultiLanguagePrefixes)
+            {
+                string baseCat = kv.Key.Split('_')[0]; // Strip language suffix
+                foreach (string prefix in kv.Value)
+                {
+                    if (upper.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        return (baseCat, 95);
+                    if (upper.Contains(prefix))
+                        return (baseCat, 75);
+                }
+            }
+
+            // Fallback to existing LayerMapper.InferCategory
+            string inferred = LayerMapper.InferCategory(layerName);
+            if (inferred != null)
+                return (inferred, 60);
+
+            return (null, 0);
+        }
+
+        /// <summary>GAP-MODEL-02: Batch auto-detect all layers from a DWG import.
+        /// Returns mapping with confidence scores for each layer.</summary>
+        internal static Dictionary<string, (string Category, int Confidence)>
+            AutoDetectAllLayers(Document doc, ImportInstance dwgInstance)
+        {
+            var result = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var geoOpts = new Options { DetailLevel = ViewDetailLevel.Fine };
+                GeometryElement geoElem = dwgInstance.get_Geometry(geoOpts);
+                if (geoElem == null) return result;
+
+                foreach (GeometryObject gObj in geoElem)
+                {
+                    if (gObj is GeometryInstance gi)
+                    {
+                        foreach (GeometryObject subObj in gi.GetInstanceGeometry())
+                        {
+                            if (subObj.GraphicsStyleId != ElementId.InvalidElementId)
+                            {
+                                var style = doc.GetElement(subObj.GraphicsStyleId) as GraphicsStyle;
+                                string layerName = style?.GraphicsStyleCategory?.Name;
+                                if (!string.IsNullOrEmpty(layerName) && !result.ContainsKey(layerName))
+                                {
+                                    result[layerName] = AutoDetectLayerCategory(layerName);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoDetectAllLayers: {ex.Message}"); }
+            return result;
+        }
     }
 }

@@ -2646,6 +2646,10 @@
                                             ToolTip="Package BIM deliverables for ACC / BIM 360" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="CDE Package" Tag="CDEPackage" Click="Cmd_Click"
                                             ToolTip="ISO 19650 CDE folder structure with discipline sub-folders"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="CDE Validate" Tag="ValidateCDEHandover" Click="Cmd_Click"
+                                            ToolTip="Pre-handover CDE validation: doc status, issues, compliance gate"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Health Score" Tag="ModelHealthScore" Click="Cmd_Click"
+                                            ToolTip="Comprehensive model health score (0-100) with recommendations"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Export" Tag="BCFExport" Click="Cmd_Click"
                                             ToolTip="Export issues as BCF 2.1 with viewpoints and element refs"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="BCF Import" Tag="BCFImport" Click="Cmd_Click"

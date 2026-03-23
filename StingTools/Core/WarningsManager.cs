@@ -2619,6 +2619,165 @@ namespace StingTools.Core
         }
 
         /// <summary>Build CoordData for the unified WPF dialog. Can be called from StingCommandHandler loop.</summary>
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-01: SMART ACTION INFERENCE ENGINE
+        //  Analyses model state and suggests next actions for coordinator
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-01: Infers next best actions for BIM coordinator based on
+        /// current model state (compliance, warnings, stale, issues).</summary>
+        internal static List<(string Action, string Reason, string CommandTag, string Priority)>
+            InferNextActions(Document doc, ComplianceScan.ComplianceResult comp, WarningReport warnings, int openIssues)
+        {
+            var actions = new List<(string, string, string, string)>();
+
+            // Stale elements → retag first
+            if (comp.StaleCount > 0)
+                actions.Add(("Retag Stale Elements", $"{comp.StaleCount} elements moved since last tag", "RetagStale", "HIGH"));
+
+            // Critical warnings → fix immediately
+            if (warnings.Critical > 0)
+                actions.Add(("Fix Critical Warnings", $"{warnings.Critical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
+
+            // Low compliance → batch tag
+            if (comp.CompliancePercent < 80 && comp.Untagged > 10)
+                actions.Add(("Batch Tag Untagged", $"{comp.Untagged} untagged elements ({comp.CompliancePercent:F0}%)", "BatchTag", "HIGH"));
+
+            // Auto-fixable warnings → quick win
+            if (warnings.AutoFixable > 5)
+                actions.Add(("Auto-Fix Warnings", $"{warnings.AutoFixable} warnings can be auto-fixed", "WarningsAutoFix", "MEDIUM"));
+
+            // Placeholders → resolve
+            if (comp.PlaceholderCount > 20)
+                actions.Add(("Resolve Placeholders", $"{comp.PlaceholderCount} elements with GEN/XX/ZZ placeholders", "ResolveAllIssues", "MEDIUM"));
+
+            // High compliance → export ready
+            if (comp.CompliancePercent >= 90 && warnings.Critical == 0)
+                actions.Add(("Generate Weekly Report", "Model ready for coordination report", "WeeklyReport", "LOW"));
+
+            // Open issues → review
+            if (openIssues > 5)
+                actions.Add(("Review Open Issues", $"{openIssues} open issues require action", "IssueDashboard", "MEDIUM"));
+
+            // Containers incomplete → combine
+            if (comp.ContainerCompletePct < 80 && comp.TaggedComplete > 0)
+                actions.Add(("Run Combine Parameters", $"Container completion at {comp.ContainerCompletePct:F0}%", "CombineParameters", "HIGH"));
+
+            return actions.OrderByDescending(a => a.Priority == "CRITICAL" ? 4 :
+                a.Priority == "HIGH" ? 3 : a.Priority == "MEDIUM" ? 2 : 1).Take(5).ToList();
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-02: DOCUMENT-ISSUE CROSS-LINKING
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-02: Links documents to issues for ISO 19650 traceability.</summary>
+        internal static class DocumentIssueLinkEngine
+        {
+            private static string GetLinksPath(Document doc)
+            {
+                string docPath = doc?.PathName;
+                if (string.IsNullOrEmpty(docPath)) return null;
+                string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "issue_doc_links.json");
+            }
+
+            /// <summary>Link a document to an issue.</summary>
+            internal static void LinkDocumentToIssue(Document doc, string issueId, string documentId, string linkType = "RESPONSE")
+            {
+                try
+                {
+                    string path = GetLinksPath(doc);
+                    if (path == null) return;
+
+                    JArray links = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
+                    links.Add(new JObject
+                    {
+                        ["issue_id"] = issueId,
+                        ["document_id"] = documentId,
+                        ["link_type"] = linkType,
+                        ["created_date"] = DateTime.Now.ToString("o"),
+                        ["created_by"] = Environment.UserName
+                    });
+                    File.WriteAllText(path, links.ToString(Formatting.Indented));
+                    StingLog.Info($"GAP-COORD-02: Linked {documentId} → {issueId} ({linkType})");
+                }
+                catch (Exception ex) { StingLog.Warn($"DocumentIssueLink: {ex.Message}"); }
+            }
+
+            /// <summary>Get all documents linked to an issue.</summary>
+            internal static List<string> GetDocumentsForIssue(Document doc, string issueId)
+            {
+                try
+                {
+                    string path = GetLinksPath(doc);
+                    if (path == null || !File.Exists(path)) return new List<string>();
+                    var links = JArray.Parse(File.ReadAllText(path));
+                    return links.Where(l => l["issue_id"]?.ToString() == issueId)
+                        .Select(l => l["document_id"]?.ToString()).Where(d => d != null).ToList();
+                }
+                catch { return new List<string>(); }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-03: CDE STATE VALIDATION BEFORE HANDOVER
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-03: Pre-handover CDE state validation.
+        /// Checks all documents are in correct state before deliverable export.</summary>
+        internal static (bool Pass, List<string> Issues) ValidateCDEHandoverReadiness(Document doc)
+        {
+            var issues = new List<string>();
+            try
+            {
+                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string docsPath = Path.Combine(docDir, "_bim_manager", "documents.json");
+                string issuesPath = Path.Combine(docDir, "_bim_manager", "issues.json");
+
+                // Check documents state
+                if (File.Exists(docsPath))
+                {
+                    var docs = JArray.Parse(File.ReadAllText(docsPath));
+                    int wipCount = 0, sharedCount = 0;
+                    foreach (JObject d in docs)
+                    {
+                        string cde = d["cde_status"]?.ToString() ?? "WIP";
+                        if (cde == "WIP") wipCount++;
+                        else if (cde == "SHARED") sharedCount++;
+                    }
+                    if (wipCount > 0) issues.Add($"{wipCount} documents still in WIP status (must be SHARED before handover)");
+                }
+
+                // Check open critical issues
+                if (File.Exists(issuesPath))
+                {
+                    var allIssues = JArray.Parse(File.ReadAllText(issuesPath));
+                    int critOpen = allIssues.Count(i =>
+                        i["status"]?.ToString() != "CLOSED" &&
+                        i["priority"]?.ToString() == "CRITICAL");
+                    if (critOpen > 0) issues.Add($"{critOpen} CRITICAL issues still open");
+                }
+
+                // Check compliance threshold
+                var comp = ComplianceScan.Scan(doc);
+                double minCompliance = TagConfig.GetConfigDouble("CDE_PUBLISHED_MIN_COMPLIANCE", 90);
+                if (comp.CompliancePercent < minCompliance)
+                    issues.Add($"Tag compliance {comp.CompliancePercent:F0}% below {minCompliance:F0}% threshold");
+
+                if (comp.StaleCount > 0)
+                    issues.Add($"{comp.StaleCount} stale elements need retagging");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ValidateCDEHandoverReadiness: {ex.Message}");
+                issues.Add($"Validation error: {ex.Message}");
+            }
+
+            return (issues.Count == 0, issues);
+        }
+
         internal static UI.BIMCoordinationCenter.CoordData BuildCoordData(Document doc)
         {
             try

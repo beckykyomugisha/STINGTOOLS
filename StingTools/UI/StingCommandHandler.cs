@@ -1564,6 +1564,21 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "ValidateCDEHandover":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var (pass, issues) = BIMCoordinationCenterCommand.ValidateCDEHandoverReadiness(doc);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(pass ? "CDE HANDOVER VALIDATION: PASS\n" : "CDE HANDOVER VALIDATION: FAIL\n");
+                            if (issues.Count > 0)
+                                foreach (string issue in issues) sb.AppendLine($"  ✘ {issue}");
+                            else sb.AppendLine("  All checks passed. Model is ready for CDE handover.");
+                            TaskDialog.Show("STING CDE Validation", sb.ToString());
+                        }
+                        break;
+                    }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
