@@ -400,11 +400,15 @@ namespace StingTools.Docs
 
                 string outDir = outputDirectory ?? OutputLocationHelper.GetOutputPath(doc, "Prints");
 
+                // DOC-04 fix: cache register extraction outside loop (was O(n²))
+                var registerEntries = DrawingRegisterSync.ExtractFromModel(doc)
+                    .ToDictionary(e => e.SheetNumber, e => e);
+
                 int priority = 1;
                 foreach (var sheet in sheets)
                 {
-                    string disc = DrawingRegisterSync.ExtractFromModel(doc)
-                        .FirstOrDefault(e => e.SheetNumber == sheet.SheetNumber)?.Discipline ?? "General";
+                    string disc = registerEntries.TryGetValue(sheet.SheetNumber, out var entry)
+                        ? entry.Discipline : DrawingRegisterSync.ExtractFromModel(doc).Count > 0 ? "General" : "General";
 
                     if (disciplineFilter != null && !disc.Contains(disciplineFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
@@ -417,7 +421,7 @@ namespace StingTools.Docs
                         SheetNumber = sheet.SheetNumber,
                         SheetName = sheet.Name,
                         Discipline = disc,
-                        PaperSize = "A1", // default
+                        PaperSize = entry?.PaperSize ?? "A1",
                         Priority = priority++,
                         OutputFormat = outputFormat,
                         OutputPath = Path.Combine(outDir, $"{safeNumber}_{safeName}.{outputFormat.ToLower()}")
