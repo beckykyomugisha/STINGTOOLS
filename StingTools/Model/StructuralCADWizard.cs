@@ -710,6 +710,19 @@ namespace StingTools.Model
 
         private void OnFinish(object sender, RoutedEventArgs e)
         {
+            // Bug#13 FIX: Validate prerequisites before execution
+            if (_selectedImport == null)
+            {
+                _statusText.Text = "ERROR: No DWG import selected. Go back to Step 2.";
+                _statusText.Foreground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+            if (!CreateColumns && !CreateBeams && !CreateSlabs && !CreateGrids)
+            {
+                _statusText.Text = "ERROR: At least one element type must be enabled.";
+                _statusText.Foreground = System.Windows.Media.Brushes.Red;
+                return;
+            }
             Confirmed = true;
             Close();
         }

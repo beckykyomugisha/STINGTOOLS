@@ -137,7 +137,7 @@ namespace StingTools.Model
             // Structural foundations
             ScanCategory(BuiltInCategory.OST_StructuralFoundation);
             // Generic models (sometimes used for structural)
-            ScanCategory(BuiltInCategory.OST_GenericModel);
+            // Bug#10 FIX: Skip OST_GenericModel — pollutes catalog with 1000+ non-structural types
 
             // Wall types (system families — different scanning)
             ScanWallTypes();
@@ -175,9 +175,11 @@ namespace StingTools.Model
 
         private void ScanWallTypes()
         {
+            // Bug#11 FIX: Filter to Basic walls only (exclude curtain, stacked)
             var types = new FilteredElementCollector(_doc)
                 .OfClass(typeof(WallType))
                 .Cast<WallType>()
+                .Where(wt => wt.Kind == WallKind.Basic)
                 .ToList();
 
             foreach (var wt in types)

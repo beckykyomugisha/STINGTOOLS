@@ -1111,6 +1111,9 @@ namespace StingTools.UI
                     case "StrCADWizard": RunCommand<Model.StrCADWizardCommand>(app); break;
                     case "StrCheckPrerequisites": RunCommand<Model.StrCheckPrerequisitesCommand>(app); break;
                     case "StrBrowseTypeCatalog": RunCommand<Model.StrBrowseTypeCatalogCommand>(app); break;
+                    case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
+                    case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
+                    case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

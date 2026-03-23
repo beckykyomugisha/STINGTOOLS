@@ -222,19 +222,29 @@ namespace StingTools.Model
         /// Finds a connecting line from a given endpoint, excluding already-used indices.
         /// Returns (lineIndex, isReversed) or (-1, false) if none found.
         /// </summary>
+        /// Bug#5 FIX: Returns the CLOSEST connecting line, not the first found.
         public (int LineIdx, bool Reversed) FindConnecting(
             XYZ endpoint, double toleranceFt, HashSet<int> exclude)
         {
             var candidates = FindNear(endpoint, toleranceFt);
+            int bestIdx = -1;
+            bool bestReversed = false;
+            double bestDist = double.MaxValue;
+
             foreach (int idx in candidates)
             {
                 if (exclude.Contains(idx)) continue;
-                if (_lines[idx].Start.DistanceTo(endpoint) < toleranceFt)
-                    return (idx, false);
-                if (_lines[idx].End.DistanceTo(endpoint) < toleranceFt)
-                    return (idx, true);
+                double dStart = _lines[idx].Start.DistanceTo(endpoint);
+                double dEnd = _lines[idx].End.DistanceTo(endpoint);
+                double dMin = Math.Min(dStart, dEnd);
+                if (dMin < toleranceFt && dMin < bestDist)
+                {
+                    bestDist = dMin;
+                    bestIdx = idx;
+                    bestReversed = dEnd < dStart;
+                }
             }
-            return (-1, false);
+            return (bestIdx, bestReversed);
         }
     }
 
@@ -836,11 +846,12 @@ namespace StingTools.Model
                     double newMin = Math.Min(Math.Min(projS, projE), Math.Min(projOS, projOE));
                     double newMax = Math.Max(Math.Max(projS, projE), Math.Max(projOS, projOE));
 
-                    var origin = current.Start - dir * projS;
+                    // Bug#2 FIX: Use basePoint-relative projection for correct reconstruction
+                    var basePoint = current.Start;
                     current = new ExtractedLine
                     {
-                        Start = origin + dir * newMin,
-                        End = origin + dir * newMax,
+                        Start = basePoint + dir * (newMin - projS),
+                        End = basePoint + dir * (newMax - projS),
                         LayerName = current.LayerName,
                         Category = current.Category,
                     };
@@ -984,21 +995,32 @@ namespace StingTools.Model
 
             if (wallLines.Count < 2) return walls;
 
-            // Group by direction (binning into 5° buckets)
-            var dirGroups = new Dictionary<int, List<int>>();
+            // Bug#1 FIX: Tolerance-based direction clustering (replaces integer bucket binning)
+            // Integer buckets fail at boundaries (4.9° and 5.1° split into different buckets)
+            const double dirToleranceRad = 5.0 * Math.PI / 180.0; // 5° tolerance
+            var dirGroups = new List<List<int>>();
             for (int i = 0; i < wallLines.Count; i++)
             {
                 double angle = Math.Atan2(wallLines[i].Direction.Y, wallLines[i].Direction.X);
                 if (angle < 0) angle += Math.PI; // Normalize to [0, π)
-                int bucket = (int)(angle / (5.0 * Math.PI / 180.0));
-                if (!dirGroups.ContainsKey(bucket))
-                    dirGroups[bucket] = new List<int>();
-                dirGroups[bucket].Add(i);
+
+                bool added = false;
+                foreach (var group in dirGroups)
+                {
+                    double refAngle = Math.Atan2(
+                        wallLines[group[0]].Direction.Y,
+                        wallLines[group[0]].Direction.X);
+                    if (refAngle < 0) refAngle += Math.PI;
+                    double diff = Math.Abs(angle - refAngle);
+                    if (diff > Math.PI / 2) diff = Math.PI - diff; // Handle wrap-around
+                    if (diff < dirToleranceRad) { group.Add(i); added = true; break; }
+                }
+                if (!added) dirGroups.Add(new List<int> { i });
             }
 
             var used = new HashSet<int>();
 
-            foreach (var group in dirGroups.Values)
+            foreach (var group in dirGroups)
             {
                 for (int gi = 0; gi < group.Count; gi++)
                 {

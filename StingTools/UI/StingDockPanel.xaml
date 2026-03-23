@@ -1988,11 +1988,14 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Struct Wall" Tag="StrCreateStructuralWall" Click="Cmd_Click" ToolTip="Shear wall, core wall, or retaining wall"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Struct Slab" Tag="StrCreateStructuralSlab" Click="Cmd_Click" ToolTip="Structural slab with optional openings"/>
                                 </WrapPanel>
-                                <TextBlock Text="Analysis" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <TextBlock Text="Analysis &amp; Auto-Sizing" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Paths" Tag="StrAnalyzeLoadPaths" Click="Cmd_Click" ToolTip="Load path analysis: connectivity graph, missing foundations"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Detect Bays" Tag="StrDetectBays" Click="Cmd_Click" ToolTip="Detect structural bays from existing columns"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Grid Guide" Tag="StrRecommendGrid" Click="Cmd_Click" ToolTip="Optimal grid spacing recommendations by building type"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Auto Footings" Tag="StrAutoFoundations" Click="Cmd_Click" ToolTip="Auto-size pad footings from column loads + soil capacity" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Load Takedown" Tag="StrColumnLoadTakedown" Click="Cmd_Click" ToolTip="Calculate tributary loads on each column"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Edge Beams" Tag="StrSlabEdgeBeams" Click="Cmd_Click" ToolTip="Auto-create edge beams along unsupported slab edges"/>
                                 </WrapPanel>
                                 <TextBlock Text="CAD → Structure" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>

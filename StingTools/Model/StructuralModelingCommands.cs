@@ -1050,3 +1050,160 @@ namespace StingTools.Model
             }
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AUTO-SIZED FOUNDATIONS
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Creates pad footings under all columns, auto-sized from tributary load analysis.
+    /// Pipeline: column loads → bearing capacity check → pad sizing → type creation → placement.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrAutoFoundationsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Auto Foundations");
+                dlg.MainContent = "Create auto-sized pad footings under all columns.\n" +
+                    "Sizes calculated from tributary slab loads + soil bearing capacity.\n\nSelect soil type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Soft clay (75 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Medium clay / dense sand (150 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Hard clay / gravel (300 kPa)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Rock (600 kPa)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                double soilKPa;
+                switch (choice)
+                {
+                    case TaskDialogResult.CommandLink1: soilKPa = 75; break;
+                    case TaskDialogResult.CommandLink2: soilKPa = 150; break;
+                    case TaskDialogResult.CommandLink3: soilKPa = 300; break;
+                    case TaskDialogResult.CommandLink4: soilKPa = 600; break;
+                    default: return Result.Cancelled;
+                }
+
+                var engine = new StructuralModelingEngine(doc);
+                var result = engine.CreateAutoSizedFootings(soilKPa);
+
+                TaskDialog.Show("STRUCT — Auto Foundations",
+                    result.Success ? result.Summary : $"Failed: {result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrAutoFoundations failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // COLUMN LOAD TAKEDOWN
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrColumnLoadTakedownCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(doc);
+                var loads = engine.CalculateColumnLoads();
+
+                if (loads.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — Load Takedown", "No columns found.");
+                    return Result.Succeeded;
+                }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"COLUMN LOAD TAKEDOWN — {loads.Count} columns");
+                sb.AppendLine("═══════════════════════════════════════════");
+                sb.AppendLine();
+
+                var sorted = loads.OrderByDescending(kvp => kvp.Value);
+                int rank = 1;
+                foreach (var kvp in sorted.Take(20))
+                {
+                    var col = doc.GetElement(kvp.Key);
+                    string name = col?.Name ?? $"#{kvp.Key.Value}";
+                    double padMm = FoundationAnalyzer.CalculatePadSize(kvp.Value);
+                    sb.AppendLine($"  {rank++}. {name}: {kvp.Value:F0} kN → pad {padMm:F0}×{padMm:F0}mm");
+                }
+
+                if (loads.Count > 20)
+                    sb.AppendLine($"\n  ... and {loads.Count - 20} more columns");
+
+                sb.AppendLine($"\n  Total load: {loads.Values.Sum():F0} kN");
+                sb.AppendLine($"  Max column: {loads.Values.Max():F0} kN");
+                sb.AppendLine($"  Avg column: {loads.Values.Average():F0} kN");
+
+                TaskDialog.Show("STRUCT — Load Takedown", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrColumnLoadTakedown failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // SLAB EDGE BEAMS
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSlabEdgeBeamsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData,
+            ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            var doc = uidoc.Document;
+
+            try
+            {
+                var engine = new StructuralModelingEngine(doc);
+                var result = engine.CreateSlabEdgeBeams();
+
+                TaskDialog.Show("STRUCT — Slab Edge Beams",
+                    result.Success ? result.Summary : $"Failed: {result.Summary}");
+                if (result.CreatedIds.Count > 0)
+                    uidoc.Selection.SetElementIds(result.CreatedIds);
+
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StrSlabEdgeBeams failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }

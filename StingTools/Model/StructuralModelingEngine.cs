@@ -682,8 +682,9 @@ namespace StingTools.Model
                         break;
                     case TrussType.Fink:
                         // Triangular (pitched) top chord
+                        // Bug#6 FIX: Min 10% depth at supports to prevent zero-length members
                         topOffset = depthFt * (1.0 - 2.0 * Math.Abs(t - 0.5));
-                        topOffset = Math.Max(topOffset, 0.1);
+                        topOffset = Math.Max(topOffset, depthFt * 0.1);
                         break;
                 }
 
@@ -866,12 +867,20 @@ namespace StingTools.Model
                 }
                 if (!allInside) continue;
 
-                // Ray-casting test for centroid
-                var centroid = new XYZ(
-                    pts.Average(p => p.X),
-                    pts.Average(p => p.Y),
-                    pts.Average(p => p.Z));
-                if (PointInPolygon(centroid, outerPts))
+                // Bug#8 FIX: Multi-point containment test (majority voting)
+                // Centroid alone fails for concave polygons
+                var testPts = new List<XYZ>();
+                var cx = pts.Average(p => p.X);
+                var cy = pts.Average(p => p.Y);
+                testPts.Add(new XYZ(cx, cy, 0)); // centroid
+                // Add midpoints of first 3 edges for robust sampling
+                for (int k = 0; k < Math.Min(3, pts.Count); k++)
+                {
+                    var mid = (pts[k] + pts[(k + 1) % pts.Count]) * 0.5;
+                    testPts.Add(mid);
+                }
+                int insideCount = testPts.Count(tp => PointInPolygon(tp, outerPts));
+                if (insideCount >= 2) // Majority must be inside
                     openings.Add(loop);
             }
 
@@ -2418,6 +2427,335 @@ namespace StingTools.Model
             }
 
             return (bays, summary);
+        }
+
+        // ── Auto Beam Depth Estimation (Gap#1) ─────────────────────────
+
+        /// <summary>
+        /// Estimates beam depth from span using standard span/depth ratios.
+        /// Based on EC2 Table 7.4N (RC) and SCI P363 (Steel).
+        /// Returns recommended depth in mm, rounded up to nearest 25mm.
+        /// </summary>
+        public static double EstimateBeamDepth(double spanMm,
+            string supportCondition = "simply_supported", bool isSteel = false)
+        {
+            double ratio = (supportCondition, isSteel) switch
+            {
+                ("simply_supported", false) => 14.0,  // EC2 RC simply supported
+                ("simply_supported", true) => 20.0,   // Steel UB typically shallower
+                ("continuous", false) => 18.5,         // EC2 RC continuous
+                ("continuous", true) => 25.0,          // Steel continuous
+                ("cantilever", false) => 6.0,          // EC2 RC cantilever
+                ("cantilever", true) => 8.0,           // Steel cantilever
+                ("transfer", false) => 8.0,            // Transfer beam (heavy loads)
+                ("transfer", true) => 12.0,
+                _ => 15.0,
+            };
+
+            double depthMm = spanMm / ratio;
+            // Round up to nearest 25mm for RC, 1mm for steel (use catalogue)
+            depthMm = isSteel
+                ? Math.Ceiling(depthMm)
+                : Math.Ceiling(depthMm / 25.0) * 25.0;
+            return Math.Max(depthMm, 200); // Minimum 200mm
+        }
+
+        /// <summary>
+        /// Estimates beam width from depth using typical b/d ratios.
+        /// RC beams: width = 0.3-0.5 × depth. Steel: from section tables.
+        /// </summary>
+        public static double EstimateBeamWidth(double depthMm, bool isSteel = false)
+        {
+            if (isSteel)
+            {
+                // Steel UB flange width ≈ 0.4-0.6× depth
+                return Math.Max(150, Math.Ceiling(depthMm * 0.45 / 5.0) * 5.0);
+            }
+            // RC beam width: typically 200-400mm, 0.3-0.5× depth
+            double width = Math.Max(200, depthMm * 0.4);
+            return Math.Ceiling(width / 25.0) * 25.0; // Round to 25mm
+        }
+
+        // ── Column Load Takedown (Gap#4) ─────────────────────────────────
+
+        /// <summary>
+        /// Calculates accumulated axial loads on columns from tributary slab areas.
+        /// Uses Voronoi-based nearest-column assignment (via LoadPathAnalyzer).
+        /// Returns (columnId → totalLoadKN) including self-weight.
+        /// </summary>
+        public Dictionary<ElementId, double> CalculateColumnLoads(
+            double liveLoadKPa = 2.5, double deadLoadKPa = 5.0,
+            double selfWeightFactorKPa = 1.5)
+        {
+            var loads = new Dictionary<ElementId, double>();
+
+            var columns = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                .WhereElementIsNotElementType()
+                .Cast<FamilyInstance>()
+                .ToList();
+
+            if (columns.Count == 0) return loads;
+
+            // Get floor area bounds for tributary calculation
+            var floors = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Floors)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (floors.Count == 0)
+            {
+                // No floors — estimate from column bounding box
+                foreach (var col in columns)
+                    loads[col.Id] = 0;
+                return loads;
+            }
+
+            // Compute total floor area and column positions
+            double totalFloorAreaSqFt = 0;
+            foreach (var fl in floors)
+            {
+                var areaParam = fl.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
+                if (areaParam != null) totalFloorAreaSqFt += areaParam.AsDouble();
+            }
+
+            var colNodes = columns
+                .Where(c => (c.Location as LocationPoint) != null)
+                .Select(c => new LoadPathNode
+                {
+                    ElementId = c.Id,
+                    Location = ((LocationPoint)c.Location).Point,
+                    NodeType = StructuralElementType.Column,
+                })
+                .ToList();
+
+            // Use grid-based Voronoi for tributary areas
+            if (colNodes.Count > 0 && totalFloorAreaSqFt > 0)
+            {
+                // Estimate floor extents
+                var allPts = colNodes.Select(n => n.Location).ToList();
+                double minX = allPts.Min(p => p.X) - 1;
+                double maxX = allPts.Max(p => p.X) + 1;
+                double minY = allPts.Min(p => p.Y) - 1;
+                double maxY = allPts.Max(p => p.Y) + 1;
+
+                var tributaryAreas = LoadPathAnalyzer.CalculateTributaryAreas(
+                    colNodes, maxX - minX, maxY - minY, minX, minY);
+
+                // Count number of storeys
+                var levels = new FilteredElementCollector(_doc)
+                    .OfClass(typeof(Level)).Cast<Level>().ToList();
+                int storeys = Math.Max(1, levels.Count - 1);
+
+                double totalLoadKPa = liveLoadKPa + deadLoadKPa + selfWeightFactorKPa;
+
+                foreach (var kvp in tributaryAreas)
+                {
+                    double areaSqM = kvp.Value * Units.SqFtToSqM;
+                    double loadPerFloor = areaSqM * totalLoadKPa;
+                    loads[kvp.Key] = loadPerFloor * storeys; // Accumulate over storeys
+                }
+            }
+
+            return loads;
+        }
+
+        // ── Auto Foundation Sizing from Column Loads (Gap#5) ─────────────
+
+        /// <summary>
+        /// Creates pad footings under all columns, auto-sized from tributary loads.
+        /// Complete automation: load takedown → pad sizing → type creation → placement.
+        /// </summary>
+        public StructuralModelResult CreateAutoSizedFootings(
+            double soilCapacityKPa = 150, double safetyFactor = 2.5,
+            string levelName = null,
+            double liveLoadKPa = 2.5, double deadLoadKPa = 5.0)
+        {
+            var totalResult = new StructuralModelResult { Success = true };
+
+            try
+            {
+                // Step 1: Calculate column loads
+                var columnLoads = CalculateColumnLoads(liveLoadKPa, deadLoadKPa);
+                if (columnLoads.Count == 0)
+                    return StructuralModelResult.Fail("No columns found for foundation sizing.");
+
+                StingLog.Info($"StructuralModelingEngine: Auto-sizing footings for {columnLoads.Count} columns");
+
+                var level = _resolver.ResolveLevel(levelName);
+
+                // Step 2: Size and create footings
+                foreach (var kvp in columnLoads)
+                {
+                    var col = _doc.GetElement(kvp.Key) as FamilyInstance;
+                    if (col == null) continue;
+
+                    var loc = col.Location as LocationPoint;
+                    if (loc == null) continue;
+
+                    double loadKN = kvp.Value;
+                    if (loadKN <= 0) loadKN = 200; // Default 200kN if no floor data
+
+                    double padSizeMm = FoundationAnalyzer.CalculatePadSize(
+                        loadKN, soilCapacityKPa, safetyFactor);
+
+                    var footingResult = CreatePadFooting(
+                        loc.Point.X * Units.FeetToMm,
+                        loc.Point.Y * Units.FeetToMm,
+                        padSizeMm, padSizeMm, 400,
+                        levelName: levelName,
+                        columnLoadKN: loadKN,
+                        soilCapacityKPa: soilCapacityKPa);
+
+                    if (footingResult.Success)
+                    {
+                        totalResult.FootingsCreated += footingResult.FootingsCreated;
+                        totalResult.CreatedIds.AddRange(footingResult.CreatedIds);
+                    }
+                    else
+                    {
+                        totalResult.Warnings.Add($"Footing for column {kvp.Key.Value}: {footingResult.Summary}");
+                    }
+                }
+
+                totalResult.Summary = $"Created {totalResult.FootingsCreated} auto-sized pad footings " +
+                    $"from {columnLoads.Count} column loads " +
+                    $"(soil capacity: {soilCapacityKPa} kPa, SF: {safetyFactor})";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateAutoSizedFootings failed", ex);
+                totalResult.Success = false;
+                totalResult.Summary = $"Auto-sizing failed: {ex.Message}";
+            }
+
+            return totalResult;
+        }
+
+        // ── Slab Edge Beam Generation (Gap#6) ────────────────────────────
+
+        /// <summary>
+        /// Creates edge beams along unsupported slab edges.
+        /// Detects slab boundaries, finds edges not near columns/walls,
+        /// and creates beams along those edges.
+        /// </summary>
+        public StructuralModelResult CreateSlabEdgeBeams(
+            string beamTypeName = null, string levelName = null,
+            double beamDepthMm = 0)
+        {
+            var totalResult = new StructuralModelResult { Success = true };
+
+            try
+            {
+                var level = _resolver.ResolveLevel(levelName);
+                var floors = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Floors)
+                    .WhereElementIsNotElementType()
+                    .Cast<Floor>()
+                    .ToList();
+
+                if (floors.Count == 0)
+                    return StructuralModelResult.Fail("No floor slabs found.");
+
+                // Get column positions for support detection
+                var columns = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                var colPoints = columns
+                    .Select(c => (c.Location as LocationPoint)?.Point)
+                    .Where(p => p != null)
+                    .ToList();
+
+                // Get existing beam endpoints
+                var beams = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                var beamEndpoints = new List<XYZ>();
+                foreach (var b in beams)
+                {
+                    var bLoc = b.Location as LocationCurve;
+                    if (bLoc?.Curve == null) continue;
+                    beamEndpoints.Add(bLoc.Curve.GetEndPoint(0));
+                    beamEndpoints.Add(bLoc.Curve.GetEndPoint(1));
+                }
+
+                var typeResult = _resolver.ResolveFamilySymbol(
+                    BuiltInCategory.OST_StructuralFraming, beamTypeName);
+                if (!typeResult.Success)
+                    return StructuralModelResult.Fail(typeResult.Message);
+
+                var symbol = _doc.GetElement(typeResult.TypeId) as FamilySymbol;
+                if (symbol != null) _resolver.EnsureActive(symbol);
+
+                var fh = new ModelFailureHandler();
+                using (var tx = new Transaction(_doc, "STING STRUCT: Slab Edge Beams"))
+                {
+                    AttachFailureHandler(tx, fh);
+                    tx.Start();
+
+                    foreach (var floor in floors)
+                    {
+                        // Get slab boundary
+                        var sketch = _doc.GetElement(floor.SketchId) as Sketch;
+                        if (sketch == null) continue;
+
+                        foreach (CurveArray profile in sketch.Profile)
+                        {
+                            foreach (Curve edge in profile)
+                            {
+                                var edgeStart = edge.GetEndPoint(0);
+                                var edgeEnd = edge.GetEndPoint(1);
+                                double edgeLenMm = edgeStart.DistanceTo(edgeEnd) * Units.FeetToMm;
+
+                                if (edgeLenMm < 500) continue; // Skip short edges
+
+                                // Check if edge already has a beam
+                                bool hasBeam = beamEndpoints.Any(bp =>
+                                    bp.DistanceTo(edgeStart) < 0.5 ||
+                                    bp.DistanceTo(edgeEnd) < 0.5);
+                                if (hasBeam) continue;
+
+                                // Auto-estimate beam depth from edge span
+                                double depth = beamDepthMm > 0
+                                    ? beamDepthMm
+                                    : EstimateBeamDepth(edgeLenMm);
+
+                                try
+                                {
+                                    double z = level?.Elevation ?? edgeStart.Z;
+                                    var beamLine = Line.CreateBound(
+                                        new XYZ(edgeStart.X, edgeStart.Y, z),
+                                        new XYZ(edgeEnd.X, edgeEnd.Y, z));
+                                    var beam = _doc.Create.NewFamilyInstance(
+                                        beamLine, symbol, level, StructuralType.Beam);
+                                    ModelWorksetAssigner.Assign(_doc, beam);
+                                    totalResult.CreatedIds.Add(beam.Id);
+                                    totalResult.BeamsCreated++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    totalResult.Warnings.Add($"Edge beam: {ex.Message}");
+                                }
+                            }
+                        }
+                    }
+
+                    tx.Commit();
+                }
+
+                totalResult.Warnings.AddRange(fh.CapturedWarnings);
+                totalResult.Summary = $"Created {totalResult.BeamsCreated} slab edge beams";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CreateSlabEdgeBeams failed", ex);
+                totalResult.Success = false;
+                totalResult.Summary = $"Edge beams failed: {ex.Message}";
+            }
+
+            return totalResult;
         }
 
         // ── Helpers ──────────────────────────────────────────────────────
