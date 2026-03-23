@@ -2429,3 +2429,18 @@ docker compose up -d
 551. **Missing AuditTagsCSV command resolution** — Added to `WorkflowEngine.ResolveCommand()`.
 552. **Atomic baseline file writes** — `SaveBaseline()` uses temp-file + rename pattern to prevent sidecar corruption on disk errors.
 553. **Centralized warning description helper** — `GetWarningDesc()` provides null-safe FailureMessage extraction, eliminating inconsistent null handling.
+
+#### Completed (Phase 57 — R4 Deep Review: 4-Agent Pass Across All Systems)
+
+554. **TokenWriter sidecar-merged counters** — `TokenWriter.WriteToken()` now uses `BuildTagIndexAndCounters()` (merges `.sting_seq.json` sidecar) instead of `GetExistingSequenceCounters()`. Hoisted `seqCounters` variable so mutated counters from collision resolution are saved, not a fresh scan. Added missing compliance gate call.
+555. **Excel import CLEAR sentinel** — User types "CLEAR" in Excel cell to intentionally empty a field. Previously documented but never implemented — literal "CLEAR" was written to parameter.
+556. **5D cost percentages configurable** — Preliminaries/contingency/overhead percentages now loaded from `project_config.json` via `COST_PRELIMINARIES_PCT`, `COST_CONTINGENCY_PCT`, `COST_OVERHEAD_PROFIT_PCT` keys. Added `TagConfig.GetConfigDouble()` generic helper.
+557. **Warning root-cause grouping** — `WarningReport.RootCauseGroups` deduplicates identical warnings into groups. 200 "duplicate instances" warnings become 1 group with count=200, sorted by impact. `RootCauseGroup` class includes Description, Category, Severity, Count, CanAutoFix, FixStrategy, AllElements.
+558. **EqualizeLeaderLengthsCommand** — New command calculates median leader length from selected tags, adjusts all tag head positions to match while preserving direction. Saves 20+ min/view of manual leader adjustment. Dispatch + XAML button added.
+559. **ComplianceTrendTracker after workflows** — `RecordSnapshot()` now called after every workflow execution, not just on document open. Enables accurate intra-day compliance tracking.
+560. **StingStaleMarker batch >100 fix** — No longer drops batches >100 silently. Processes first 100 elements and logs warning about unchecked remainder. Previously, moving 200+ elements caused zero stale marking.
+561. **Stale elements as synthetic warnings** — Stale elements now appear as synthetic HIGH-severity warnings in `WarningsEngine.ScanWarnings()`. Brings stale elements into the unified warnings pipeline with SLA tracking, hotspot detection, and auto-issue creation.
+562. **Retaining wall Beff div-by-zero** — When eccentricity exceeds base width/2 (resultant outside foundation), Meyerhof effective width goes negative causing division by zero crash. Now sets bearing=infinity and fails check with topple warning.
+563. **Composite slab deflection 1000x error** — `slsLoad/1000` converted to wrong units (kN/mm instead of N/mm). With per-metre-width Ieq, the load per mm width is simply slsLoad N/mm. Every composite slab silently passed deflection. Removed erroneous /1000 divisor.
+564. **Topology optimization sqrt(negative)** — `filteredSens` can become positive near boundaries due to filter averaging. Added `Math.Max(0,...)` guard to prevent NaN propagation.
+565. **BuildingShell floor/roof origin** — `CreateFloor` and `CreateRoof` were called without passing `originXMm/originYMm`, causing floor and roof to be placed at (0,0) regardless of wall positions.
