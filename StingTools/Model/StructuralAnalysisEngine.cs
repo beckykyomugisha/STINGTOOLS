@@ -599,8 +599,11 @@ namespace StingTools.Model
 
             double z = Math.Max(heightM, zMin);
 
+            // Phase 56 BUG-02 fix: Guard against log(z/z0)=0 when z≈z0
+            double zRatio = Math.Max(z / z0, 1.001); // Ensure z > z0 to avoid log(1)=0
+
             // Roughness factor: cr(z) = kr × ln(z/z0)
-            double cr = kr * Math.Log(z / z0);
+            double cr = kr * Math.Log(zRatio);
 
             // Orography factor: co(z) = 1.0 (flat terrain)
             double co = 1.0;
@@ -610,7 +613,8 @@ namespace StingTools.Model
 
             // Turbulence intensity: Iv(z) = kI / (co × ln(z/z0))
             double kI = 1.0; // Turbulence factor
-            double Iv = kI / (co * Math.Log(z / z0));
+            double logZ = Math.Log(zRatio);
+            double Iv = Math.Abs(logZ) > 1e-6 ? kI / (co * logZ) : kI / co;
 
             // Peak velocity pressure: qp(z) = [1 + 7×Iv(z)] × 0.5 × ρ × vm²
             double qp = (1 + 7 * Iv) * 0.5 * RhoAir * vm * vm;
