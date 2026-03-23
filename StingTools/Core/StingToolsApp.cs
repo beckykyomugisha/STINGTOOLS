@@ -109,6 +109,8 @@ namespace StingTools.Core
                 ComplianceScan.InvalidateCache();
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 UI.StingCommandHandler.ClearStaticState();
+                // Phase 78: Save dropped element IDs to sidecar before clearing queue
+                StingAutoTagger.SaveDroppedElementsSidecar(e.Document);
                 // R-02: Clear deferred elements on document close
                 StingAutoTagger.ClearDeferredQueue();
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");

@@ -21,6 +21,8 @@ namespace StingTools.Core
         private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
         /// <summary>LOGIC-01: Use int + Interlocked for atomic scanning guard instead of volatile bool race.</summary>
         private static int _scanning = 0; // 0 = not scanning, 1 = scanning
+        /// <summary>Phase 78: Timestamp of last scan start for timeout recovery.</summary>
+        private static DateTime _lastScanStart = DateTime.MinValue;
 
         /// <summary>
         /// Quick compliance scan results.
@@ -158,6 +160,14 @@ namespace StingTools.Core
             // Previously returned empty ComplianceResult when _cached was null on first scan,
             // causing 0% compliance RED flash. Now returns a "pending" result with -1 TotalElements
             // so callers can detect "no data yet" vs "0% compliant".
+            // Phase 78: Timeout recovery — if scanning flag stuck for >60s (Revit hang/crash mid-scan),
+            // auto-reset to allow new scans. Prevents permanent lock-out of compliance dashboard.
+            if (_scanning == 1 && (DateTime.Now - _lastScanStart).TotalSeconds > 60)
+            {
+                StingLog.Warn("ComplianceScan: scanning flag stuck >60s — auto-resetting");
+                Interlocked.Exchange(ref _scanning, 0);
+            }
+
             if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
                 lock (_cacheLock)
@@ -175,6 +185,7 @@ namespace StingTools.Core
 
             try
             {
+                _lastScanStart = DateTime.Now;
                 var result = new ComplianceResult { ScanTime = DateTime.Now };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 

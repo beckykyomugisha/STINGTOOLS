@@ -3433,6 +3433,13 @@ namespace StingTools.Core
                         ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    // Phase 78 ISO-CRIT-001: Track contributor username for ISO 19650-2 §5.2 traceability
+                    try
+                    {
+                        string userName = Environment.UserName;
+                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", userName, overwrite: true);
+                    }
+                    catch (Exception usrEx) { StingLog.Warn($"ISO username tracking: {usrEx.Message}"); }
                 }
                 catch (Exception auditEx)
                 {
