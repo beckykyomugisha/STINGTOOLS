@@ -486,6 +486,32 @@ namespace StingTools.Core
             try { CheckWarningSLAViolations(doc, report); }
             catch (Exception ex) { StingLog.Warn($"SLA check: {ex.Message}"); }
 
+            // R4-C CS-GAP-02: Add stale elements as synthetic warnings so they appear
+            // in the unified warnings pipeline with SLA tracking and auto-fix
+            try
+            {
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null && compResult.StaleCount > 0)
+                {
+                    var syntheticStale = new ClassifiedWarning
+                    {
+                        Description = $"{compResult.StaleCount} elements have moved/changed but tags not updated",
+                        Category = WarningCategory.Data,
+                        Severity = WarningSeverity.High,
+                        CanAutoFix = true,
+                        FixStrategy = "Run RetagStale command to update tags on moved elements"
+                    };
+                    report.Warnings.Add(syntheticStale);
+                    report.Total++;
+                    report.AutoFixable++;
+                    if (!report.ByCategory.ContainsKey(WarningCategory.Data)) report.ByCategory[WarningCategory.Data] = 0;
+                    report.ByCategory[WarningCategory.Data]++;
+                    if (!report.BySeverity.ContainsKey(WarningSeverity.High)) report.BySeverity[WarningSeverity.High] = 0;
+                    report.BySeverity[WarningSeverity.High]++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
+
             // R4-D A1: Build root-cause groups (deduplicates identical warnings)
             try { BuildRootCauseGroups(report); }
             catch (Exception ex) { StingLog.Warn($"Root-cause grouping: {ex.Message}"); }

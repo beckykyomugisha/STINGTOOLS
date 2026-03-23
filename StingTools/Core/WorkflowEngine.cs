@@ -809,7 +809,15 @@ namespace StingTools.Core
             try
             {
                 double complianceAfter = 0;
-                try { ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
+                try
+                {
+                    ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext();
+                    var scan = ComplianceScan.Scan(doc);
+                    complianceAfter = scan.CompliancePercent;
+
+                    // R4-C WF-GAP-04: Record trend snapshot after workflow, not just on document open
+                    ComplianceTrendTracker.RecordSnapshot(doc, scan);
+                }
                 catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
 
                 // Phase 39: Capture username from environment for audit trail
