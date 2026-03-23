@@ -15,6 +15,12 @@ public class StingBimDbContext : DbContext
     public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<LicenseKey> LicenseKeys => Set<LicenseKey>();
     public DbSet<WorkflowRun> WorkflowRuns => Set<WorkflowRun>();
+    public DbSet<ComplianceSnapshot> ComplianceSnapshots => Set<ComplianceSnapshot>();
+    public DbSet<SeqCounter> SeqCounters => Set<SeqCounter>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<MeetingActionItem> MeetingActionItems => Set<MeetingActionItem>();
+    public DbSet<Transmittal> Transmittals => Set<Transmittal>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     // StingMIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -88,6 +94,52 @@ public class StingBimDbContext : DbContext
         {
             e.HasKey(w => w.Id);
             e.HasOne(w => w.Project).WithMany(p => p.WorkflowRuns).HasForeignKey(w => w.ProjectId);
+        });
+
+        // ── ComplianceSnapshot ──
+        modelBuilder.Entity<ComplianceSnapshot>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
+            e.HasIndex(s => new { s.ProjectId, s.CapturedAt });
+        });
+
+        // ── SeqCounter ──
+        modelBuilder.Entity<SeqCounter>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasOne(s => s.Project).WithMany().HasForeignKey(s => s.ProjectId);
+            e.HasIndex(s => new { s.ProjectId, s.CounterKey }).IsUnique();
+        });
+
+        // ── Meeting ──
+        modelBuilder.Entity<Meeting>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId);
+        });
+
+        // ── MeetingActionItem ──
+        modelBuilder.Entity<MeetingActionItem>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasOne(a => a.Meeting).WithMany(m => m.ActionItems).HasForeignKey(a => a.MeetingId);
+        });
+
+        // ── Transmittal ──
+        modelBuilder.Entity<Transmittal>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasOne(t => t.Project).WithMany().HasForeignKey(t => t.ProjectId);
+            e.HasIndex(t => new { t.ProjectId, t.TransmittalCode }).IsUnique();
+        });
+
+        // ── AuditLog ──
+        modelBuilder.Entity<AuditLog>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => new { a.TenantId, a.Timestamp });
+            e.HasIndex(a => new { a.ProjectId, a.Timestamp });
         });
 
         // ── StingMIM Entities ──
