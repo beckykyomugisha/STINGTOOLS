@@ -1905,17 +1905,14 @@ namespace StingTools.Core
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
-        // ══════════════════════════════════════════════════════════════
-        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
-        // Cross-system automation: warning → issue pipeline
-        // ══════════════════════════════════════════════════════════════
+    //  Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
+    // ══════════════════════════════════════════════════════════════════
 
+    internal static class WarningsIssueBridge
+    {
         /// <summary>
-        /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Auto-create issues from CRITICAL/HIGH severity warnings.
         /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
-        /// Checks for existing linked issues to avoid duplicates.
-        /// Returns count of newly created issues.
         /// </summary>
         internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
             WarningSeverity minSeverity = WarningSeverity.Critical)
@@ -2016,7 +2013,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+    }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
