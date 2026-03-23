@@ -84,6 +84,12 @@ namespace StingTools.BIMManager
                 ParamRegistry.TAG7F,
                 // Status and revision
                 ParamRegistry.STATUS, ParamRegistry.REV,
+                // AG-09 FIX: Context data for change classification (was missing).
+                // Enables revision reports to distinguish "element moved to new level"
+                // vs "token manually changed".
+                "ASS_GRID_REF_TXT",        // spatial context
+                "ASS_TAG_PREV_TXT",         // audit trail
+                "ASS_TAG_MODIFIED_DT",      // change timestamp
             };
             // Add discipline-specific containers if available
             try
@@ -114,6 +120,19 @@ namespace StingTools.BIMManager
                         var tokens = new Dictionary<string, string>();
                         foreach (string param in tokenParams)
                             tokens[param] = ParameterHelpers.GetString(el, param);
+                        // AG-09 FIX: Capture native Revit context for change classification
+                        try
+                        {
+                            var phaseParam = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                            if (phaseParam != null && phaseParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_PHASE"] = doc.GetElement(phaseParam.AsElementId())?.Name ?? "";
+                            var levelParam = el.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM)
+                                ?? el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
+                            if (levelParam != null && levelParam.AsElementId() != ElementId.InvalidElementId)
+                                tokens["_LEVEL"] = doc.GetElement(levelParam.AsElementId())?.Name ?? "";
+                            tokens["_CATEGORY"] = el.Category?.Name ?? "";
+                        }
+                        catch (Exception ex) { Core.StingLog.Warn($"Snapshot context capture: {ex.Message}"); }
                         snapshot[el.Id.Value] = tokens;
                     }
                 }
@@ -452,6 +471,39 @@ namespace StingTools.BIMManager
             public string ParamName { get; set; }
             public string OldValue { get; set; }
             public string NewValue { get; set; }
+
+            /// <summary>
+            /// GAP-BIM-004: Categorize change type for granular revision reporting.
+            /// TOKEN_CHANGE = source token modified (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/SEQ)
+            /// CONTAINER_REGEN = discipline container regenerated (HVC_EQP_TAG etc.)
+            /// NARRATIVE_CHANGE = TAG7 sub-section changed (TAG7A-F)
+            /// STATUS_CHANGE = STATUS or REV changed
+            /// TAG_REFORMAT = TAG1-TAG6 changed (may be reformat, not content change)
+            /// </summary>
+            public string ChangeCategory
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(ParamName)) return "UNKNOWN";
+                    if (ParamName == ParamRegistry.STATUS || ParamName == ParamRegistry.REV)
+                        return "STATUS_CHANGE";
+                    if (ParamName == ParamRegistry.DISC || ParamName == ParamRegistry.LOC ||
+                        ParamName == ParamRegistry.ZONE || ParamName == ParamRegistry.LVL ||
+                        ParamName == ParamRegistry.SYS || ParamName == ParamRegistry.FUNC ||
+                        ParamName == ParamRegistry.PROD || ParamName == ParamRegistry.SEQ)
+                        return "TOKEN_CHANGE";
+                    if (ParamName == ParamRegistry.TAG7A || ParamName == ParamRegistry.TAG7B ||
+                        ParamName == ParamRegistry.TAG7C || ParamName == ParamRegistry.TAG7D ||
+                        ParamName == ParamRegistry.TAG7E || ParamName == ParamRegistry.TAG7F ||
+                        ParamName == ParamRegistry.TAG7)
+                        return "NARRATIVE_CHANGE";
+                    if (ParamName == ParamRegistry.TAG1 || ParamName == ParamRegistry.TAG2 ||
+                        ParamName == ParamRegistry.TAG3 || ParamName == ParamRegistry.TAG4 ||
+                        ParamName == ParamRegistry.TAG5 || ParamName == ParamRegistry.TAG6)
+                        return "TAG_REFORMAT";
+                    return "CONTAINER_REGEN"; // Discipline-specific containers
+                }
+            }
         }
     }
 
@@ -503,6 +555,28 @@ namespace StingTools.BIMManager
                     result == TaskDialogResult.CommandLink1 ? "Preliminary" :
                     result == TaskDialogResult.CommandLink2 ? "Construction" : "As-Built");
 
+                // WF-03: Pre-revision compliance gate — warn if tag compliance is below threshold
+                try
+                {
+                    var preRevScan = ComplianceScan.Scan(doc);
+                    if (preRevScan.CompliancePercent < 80)
+                    {
+                        var gateDlg = new TaskDialog("STING Pre-Revision Compliance Gate");
+                        gateDlg.MainInstruction = $"Tag compliance is {preRevScan.CompliancePercent:F0}% (below 80% threshold)";
+                        gateDlg.MainContent =
+                            $"Total elements: {preRevScan.TotalElements}\n" +
+                            $"Tagged: {preRevScan.TaggedComplete} | Untagged: {preRevScan.Untagged}\n" +
+                            $"Stale: {preRevScan.StaleCount}\n\n" +
+                            "Creating a revision with low compliance may result in incomplete COBie data.\n" +
+                            "Recommended: tag to ≥80% before creating revision.";
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Create revision anyway");
+                        gateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — tag first");
+                        if (gateDlg.Show() != TaskDialogResult.CommandLink1)
+                            return Result.Cancelled;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Pre-revision compliance check: {ex.Message}"); }
+
                 // Take pre-revision snapshot
                 var snapshot = RevisionEngine.TakeTagSnapshot(doc);
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -530,6 +604,21 @@ namespace StingTools.BIMManager
                 // Invalidate compliance cache so dashboard reflects new revision
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
+
+                // NTF-03: Notify team that revision is open
+                try
+                {
+                    NotificationDeliveryEngine.LoadConfig(doc);
+                    var revScan = ComplianceScan.Scan(doc);
+                    string ntfBody = $"Revision {prefix} created by {Environment.UserName}.\n" +
+                        $"Description: {description}\n" +
+                        $"Tag compliance: {revScan.CompliancePercent:F0}%\n" +
+                        $"Stale elements: {revScan.StaleCount}\n" +
+                        $"Snapshot: {snapshot.Count} elements tracked";
+                    NotificationDeliveryEngine.SendNotification(doc,
+                        $"Revision Created: {prefix}", ntfBody, "HIGH", prefix);
+                }
+                catch (Exception ex) { StingLog.Warn($"Revision notification: {ex.Message}"); }
 
                 StingLog.Info($"Revision created: {prefix} — {description}");
                 return Result.Succeeded;

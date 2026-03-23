@@ -227,6 +227,58 @@ namespace StingTools.BIMManager
             ["INFO"]     = "For information only — no action required"
         };
 
+        /// <summary>GAP-BIM-005: SLA thresholds in hours per priority level (ISO 19650 coordination response times).</summary>
+        internal static readonly Dictionary<string, int> SLAThresholdsHours = new Dictionary<string, int>
+        {
+            ["CRITICAL"] = 4,       // 4 hours — blocks progress
+            ["HIGH"]     = 24,      // 24 hours — significant impact
+            ["MEDIUM"]   = 168,     // 1 week — moderate impact
+            ["LOW"]      = 336,     // 2 weeks — minor impact
+            ["INFO"]     = 0        // No SLA
+        };
+
+        /// <summary>
+        /// GAP-BIM-005: Check all open issues for SLA violations.
+        /// Returns list of overdue issues with hours overdue and escalation recommendation.
+        /// Called from DocumentOpened event for morning SLA report.
+        /// </summary>
+        internal static List<(string issueId, string priority, string title, double hoursOverdue)> CheckSLAViolations(Document doc)
+        {
+            var overdue = new List<(string, string, string, double)>();
+            try
+            {
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                var issues = LoadJsonArray(issuesPath);
+                foreach (var issue in issues)
+                {
+                    string status = issue["status"]?.ToString() ?? "";
+                    if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
+
+                    string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+                    if (!SLAThresholdsHours.TryGetValue(priority, out int slaHours) || slaHours <= 0) continue;
+
+                    string createdStr = issue["created_date"]?.ToString() ?? issue["date_raised"]?.ToString();
+                    if (string.IsNullOrEmpty(createdStr)) continue;
+
+                    if (DateTime.TryParse(createdStr, out DateTime created))
+                    {
+                        double elapsed = (DateTime.Now - created).TotalHours;
+                        if (elapsed > slaHours)
+                        {
+                            overdue.Add((
+                                issue["issue_id"]?.ToString() ?? "?",
+                                priority,
+                                issue["title"]?.ToString() ?? "",
+                                elapsed - slaHours
+                            ));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SLA check failed: {ex.Message}"); }
+            return overdue;
+        }
+
         // ── BEP Section Definitions (ISO 19650-2 §5.3 / UK BIM Framework / PAS 1192-2) ──
         internal static readonly string[] BEPSections = new[]
         {
@@ -707,8 +759,16 @@ namespace StingTools.BIMManager
                 var issues = LoadJsonArray(issuesPath);
                 int raised = 0;
 
-                // Only auto-raise if significant non-compliance detected
-                if (scanResult.Untagged > 10)
+                // M-10 FIX: Use percentage-based thresholds instead of hardcoded counts.
+                // Previously used >10/>20 absolute counts which spammed issues on large projects
+                // and missed critical issues on small projects.
+                double untaggedPct = scanResult.TotalElements > 0
+                    ? (double)scanResult.Untagged / scanResult.TotalElements * 100.0 : 0;
+                double incompletePct = scanResult.TotalElements > 0
+                    ? (double)scanResult.TaggedIncomplete / scanResult.TotalElements * 100.0 : 0;
+
+                // Raise issue if >5% untagged (or absolute minimum of 5 elements to avoid noise on tiny models)
+                if (scanResult.Untagged > 5 && untaggedPct > 5.0)
                 {
                     // Check if a similar open issue already exists
                     bool alreadyRaised = issues.Any(i =>
@@ -733,8 +793,8 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                // Raise issue for incomplete tags
-                if (scanResult.TaggedIncomplete > 20)
+                // Raise issue for incomplete tags — >10% incomplete or absolute min 10 elements
+                if (scanResult.TaggedIncomplete > 10 && incompletePct > 10.0)
                 {
                     bool alreadyRaised = issues.Any(i =>
                         i["type"]?.ToString() == "NCR" &&
@@ -2036,6 +2096,10 @@ namespace StingTools.BIMManager
                 ["assigned_to"] = assignedTo,
                 ["discipline"] = discipline,
                 ["raised_by"] = Environment.UserName,
+                ["created_by"] = Environment.UserName,
+                ["created_date"] = DateTime.Now.ToString("o"),
+                ["modified_by"] = Environment.UserName,
+                ["modified_date"] = DateTime.Now.ToString("o"),
                 ["date_raised"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                 ["date_due"] = priority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
                                priority == "HIGH" ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
@@ -2111,7 +2175,34 @@ namespace StingTools.BIMManager
                 ["Description"] = $"Tag Format: {string.Join(ParamRegistry.Separator, ParamRegistry.SegmentOrder)} ({ParamRegistry.NumPad}-digit SEQ)",
                 ["Notes"] = "Example: M-BLD1-Z01-L02-HVAC-SUP-AHU-0003"
             });
+            // REV-02: Add source revision and compliance snapshot to Instruction sheet
+            // so FM can trace which model state produced this COBie data drop
+            string sourceRev = "";
+            try { sourceRev = RevisionEngine.GetCurrentProjectRevision(doc); }
+            catch (Exception ex) { StingLog.Warn($"COBie instruction revision lookup: {ex.Message}"); }
+            double cobieCompPct = 0;
+            try { cobieCompPct = ComplianceScan.Scan(doc)?.CompliancePercent ?? 0; }
+            catch (Exception ex) { StingLog.Warn($"COBie instruction compliance: {ex.Message}"); }
+            int instrRow = activePreset != null ? 7 : 5;
+            instructions.Add(new Dictionary<string, string>
+            {
+                ["SheetName"] = "Instruction", ["RowNumber"] = instrRow.ToString(),
+                ["Description"] = $"Source Revision: {(string.IsNullOrEmpty(sourceRev) ? "N/A" : sourceRev)}",
+                ["Notes"] = $"Tag Compliance: {cobieCompPct:F0}% | Export: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Model: {doc.Title}"
+            });
             data["Instruction"] = instructions;
+
+            // NTF-05: Notify team that COBie export is complete
+            try
+            {
+                NotificationDeliveryEngine.LoadConfig(doc);
+                NotificationDeliveryEngine.SendNotification(doc,
+                    "COBie Export Complete",
+                    $"COBie V2.4 data exported by {createdBy}.\n" +
+                    $"Revision: {sourceRev}\nCompliance: {cobieCompPct:F0}%",
+                    "MEDIUM", "COBIE_EXPORT");
+            }
+            catch (Exception ex) { StingLog.Warn($"COBie export notification: {ex.Message}"); }
 
             // ── Contact (from project_bep.json team data + fallback) ──
             var contacts = new List<Dictionary<string, string>>();
@@ -3298,7 +3389,8 @@ namespace StingTools.BIMManager
                         return $"[PDF file — {new FileInfo(item.FilePath).Length / 1024} KB]\n" +
                                $"Open externally: {item.FilePath}";
                     default:
-                        return File.ReadAllText(item.FilePath).Substring(0, Math.Min(File.ReadAllText(item.FilePath).Length, 5000));
+                        // H-09 FIX: Read file only once instead of twice
+                        { var content = File.ReadAllText(item.FilePath); return content.Substring(0, Math.Min(content.Length, 5000)); }
                 }
             }
             catch (Exception ex)
@@ -3999,6 +4091,19 @@ namespace StingTools.BIMManager
             issues.Add(issue);
             BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
+            // NTF-01: Send notification to assigned party on issue creation
+            try
+            {
+                NotificationDeliveryEngine.LoadConfig(doc);
+                string ntfTitle = $"New {issueType}: {autoTitle}";
+                string ntfBody = $"Priority: {priority}\nAssigned to: {assignee}\n" +
+                    $"Discipline: {discipline}\nElements: {selectedIds.Count}\n" +
+                    $"Due: {issue["date_due"]}\n\n{description}";
+                string ntfPriority = priority == "CRITICAL" ? "CRITICAL" : priority == "HIGH" ? "HIGH" : "MEDIUM";
+                NotificationDeliveryEngine.SendNotification(doc, ntfTitle, ntfBody, ntfPriority, nextId);
+            }
+            catch (Exception ex) { StingLog.Warn($"Issue creation notification: {ex.Message}"); }
+
             var report = new StringBuilder();
             report.AppendLine($"Issue Raised: {nextId}");
             report.AppendLine(new string('═', 40));
@@ -4341,6 +4446,16 @@ namespace StingTools.BIMManager
 
             if (updated > 0)
             {
+                // NTF-02: Notify on issue status change (especially reassignment and closure)
+                try
+                {
+                    NotificationDeliveryEngine.LoadConfig(doc);
+                    string ntfTitle = $"Issue Updated: {updated} issue(s) changed";
+                    string ntfBody = $"Updated by {Environment.UserName} at {DateTime.Now:HH:mm}";
+                    NotificationDeliveryEngine.SendNotification(doc, ntfTitle, ntfBody, "MEDIUM", "ISSUE_UPDATE");
+                }
+                catch (Exception ex) { StingLog.Warn($"Issue update notification: {ex.Message}"); }
+
                 BIMManagerEngine.SaveJsonFile(issuesPath, issues);
 
                 // Validate closed/accepted issues: check linked elements are tagged and compliant
@@ -5233,6 +5348,20 @@ namespace StingTools.BIMManager
                 _ => null
             };
             if (status == null) return Result.Cancelled;
+
+            // LOGIC-04: Enforce CDE state machine — validate transition before writing
+            string currentCDE = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
+            if (!string.IsNullOrEmpty(currentCDE) && currentCDE != status)
+            {
+                string transError = BIMManagerEngine.ValidateCDETransition(currentCDE, status);
+                if (transError != null)
+                {
+                    TaskDialog.Show("STING CDE Transition Invalid",
+                        $"Cannot change CDE status from {currentCDE} to {status}.\n\n{transError}\n\n" +
+                        "ISO 19650 requires one-way progression: WIP → SHARED → PUBLISHED → ARCHIVE");
+                    return Result.Failed;
+                }
+            }
 
             string suitCode = status == "PUBLISHED" ? "S6" : status == "SHARED" ? "S3" : "S0";
 

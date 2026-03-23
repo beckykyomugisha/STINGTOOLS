@@ -139,11 +139,53 @@ namespace StingTools.BIMManager
         }
 
         /// <summary>
+        /// GAP-BIM-001: Cross-validate token combinations (FUNC must be valid for SYS, PROD for DISC).
+        /// Returns error message or null if valid.
+        /// </summary>
+        internal static string ValidateTokenCrossRefs(string disc, string sys, string func, string prod)
+        {
+            // FUNC-SYS cross-validation: FUNC must be valid for the given SYS per CIBSE/Uniclass
+            if (!string.IsNullOrEmpty(sys) && !string.IsNullOrEmpty(func))
+            {
+                var validFuncs = ISO19650Validator.GetValidFuncsForSys(sys);
+                if (validFuncs != null && validFuncs.Count > 0 && !validFuncs.Contains(func))
+                    return $"FUNC '{func}' is not valid for SYS '{sys}'. Valid: {string.Join(", ", validFuncs)}";
+            }
+
+            // DISC-SYS cross-validation: SYS must belong to correct discipline
+            if (!string.IsNullOrEmpty(disc) && !string.IsNullOrEmpty(sys))
+            {
+                bool sysBelongsToDisc = false;
+                foreach (var kv in TagConfig.SysMap)
+                {
+                    if (kv.Key == sys)
+                    {
+                        // Check if any category in this SYS maps to the given DISC
+                        foreach (string cat in kv.Value)
+                        {
+                            if (TagConfig.DiscMap.TryGetValue(cat, out string catDisc) && catDisc == disc)
+                            { sysBelongsToDisc = true; break; }
+                        }
+                        break;
+                    }
+                }
+                // Only warn if we have data to validate against (some SYS codes are universal)
+                if (!sysBelongsToDisc && TagConfig.SysMap.ContainsKey(sys))
+                    return $"SYS '{sys}' does not typically belong to discipline '{disc}'";
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Validate all changes and return validation warnings.
+        /// Now includes cross-token validation for FUNC-SYS and DISC-SYS consistency.
         /// </summary>
         internal static List<ValidationWarning> ValidateChanges(List<ChangeRecord> changes)
         {
             var warnings = new List<ValidationWarning>();
+
+            // Phase 1: Individual token validation
             foreach (var change in changes.Where(c => c.Status == ChangeStatus.Changed))
             {
                 string error = ValidateValue(change.Column, change.NewValue);
@@ -159,6 +201,34 @@ namespace StingTools.BIMManager
                     change.ValidationError = error;
                 }
             }
+
+            // Phase 2: Cross-token validation (GAP-BIM-001)
+            // Group changes by element to validate token combinations
+            foreach (var group in changes.Where(c => c.Status == ChangeStatus.Changed)
+                .GroupBy(c => c.ElementId))
+            {
+                string disc = group.FirstOrDefault(c => c.Column == "DISC")?.NewValue;
+                string sys = group.FirstOrDefault(c => c.Column == "SYS")?.NewValue;
+                string func = group.FirstOrDefault(c => c.Column == "FUNC")?.NewValue;
+                string prod = group.FirstOrDefault(c => c.Column == "PROD")?.NewValue;
+
+                // Only cross-validate if at least 2 related tokens are being changed
+                if ((disc != null || sys != null) && (func != null || sys != null))
+                {
+                    string crossError = ValidateTokenCrossRefs(disc ?? "", sys ?? "", func ?? "", prod ?? "");
+                    if (crossError != null)
+                    {
+                        warnings.Add(new ValidationWarning
+                        {
+                            ElementId = group.Key,
+                            Column = "CROSS_VALIDATION",
+                            Value = $"DISC={disc},SYS={sys},FUNC={func}",
+                            Message = crossError
+                        });
+                    }
+                }
+            }
+
             return warnings;
         }
 
@@ -521,29 +591,40 @@ namespace StingTools.BIMManager
             }
 
             // Read header row to build column index map
+            // LOGIC-06: Case-insensitive header mapping — "Disc" matches "DISC"
             var headerMap = new Dictionary<int, string>();
             int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
             for (int c = 1; c <= lastCol; c++)
             {
-                string header = ws.Cell(1, c).GetString().Trim();
+                string header = ws.Cell(1, c).GetString()?.Trim() ?? "";
                 if (!string.IsNullOrEmpty(header))
-                    headerMap[c] = header;
+                    headerMap[c] = header.ToUpperInvariant();
             }
 
-            // Verify ElementId column exists
-            int? elementIdCol = headerMap.FirstOrDefault(kv => kv.Value == "ElementId").Key;
+            // Verify ElementId column exists (case-insensitive)
+            int? elementIdCol = headerMap.FirstOrDefault(kv =>
+                string.Equals(kv.Value, "ELEMENTID", StringComparison.OrdinalIgnoreCase)).Key;
             if (elementIdCol == null || elementIdCol == 0)
                 throw new InvalidOperationException("ElementId column not found in header row.");
 
-            // Read data rows
+            // EL-CRIT-01: Guard against oversized Excel files causing memory exhaustion
+            const int MaxImportRows = 10000;
             int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            int dataRows = lastRow - 1;
+            if (dataRows > MaxImportRows)
+            {
+                StingLog.Warn($"Excel import limited to {MaxImportRows} rows (file has {dataRows})");
+                lastRow = MaxImportRows + 1; // Clamp to max
+            }
+
+            // Read data rows
             for (int r = 2; r <= lastRow; r++)
             {
                 string idStr = ws.Cell(r, elementIdCol.Value).GetString().Trim();
                 if (string.IsNullOrEmpty(idStr)) continue;
                 if (!long.TryParse(idStr, out long elementId)) continue;
 
-                var rowData = new Dictionary<string, string>(StringComparer.Ordinal);
+                var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kvp in headerMap)
                 {
                     rowData[kvp.Value] = ws.Cell(r, kvp.Key).GetString();
@@ -598,6 +679,13 @@ namespace StingTools.BIMManager
 
                     excelValue = excelValue ?? "";
                     string modelValue = ParameterHelpers.GetString(el, paramName) ?? "";
+
+                    // C-04 FIX: Skip empty Excel cells when model already has data.
+                    // Prevents silent data loss when user exports, edits some cells,
+                    // then re-imports without touching other columns (empty ≠ intentional clear).
+                    // To intentionally clear a value, user must enter a placeholder like "CLEAR".
+                    if (string.IsNullOrEmpty(excelValue) && !string.IsNullOrEmpty(modelValue))
+                        continue;
 
                     if (!string.Equals(excelValue, modelValue, StringComparison.Ordinal))
                     {

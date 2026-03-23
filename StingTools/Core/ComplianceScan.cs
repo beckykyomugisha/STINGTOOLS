@@ -62,8 +62,16 @@ namespace StingTools.Core
             public Dictionary<string, int> EmptyTokenCounts { get; } = new Dictionary<string, int>
             {
                 ["DISC"]=0, ["LOC"]=0, ["ZONE"]=0, ["LVL"]=0,
-                ["SYS"]=0, ["FUNC"]=0, ["PROD"]=0, ["SEQ"]=0
+                ["SYS"]=0, ["FUNC"]=0, ["PROD"]=0, ["SEQ"]=0,
+                ["STATUS"]=0, ["REV"]=0
             };
+
+            /// <summary>Phase 48: Per-phase compliance breakdown for BIM coordinators tracking stage progress.</summary>
+            public Dictionary<string, PhaseComplianceData> ByPhase { get; set; } = new Dictionary<string, PhaseComplianceData>();
+
+            /// <summary>Phase 48: Count of elements with placeholder tokens (GEN/XX/ZZ/0000) —
+            /// "complete" but not production-ready.</summary>
+            public int PlaceholderCount { get; set; }
             public Dictionary<string, int> IssuesByType { get; set; } = new Dictionary<string, int>();
             public DateTime ScanTime { get; set; }
 
@@ -82,6 +90,12 @@ namespace StingTools.Core
             public double RevisionPercent =>
                 TotalElements > 0 ? RevisionComplete * 100.0 / TotalElements : 0;
 
+            /// <summary>LOGIC-003: Percentage of tagged elements that have all applicable containers populated.
+            /// Separate from CompliancePercent — an element can be "tagged" (TAG1 exists) but have empty
+            /// discipline containers, which breaks COBie export and platform deliverables.</summary>
+            public double ContainerCompletePct =>
+                TaggedComplete > 0 ? (TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
+
             /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
             {
@@ -97,9 +111,10 @@ namespace StingTools.Core
                 }
             }
 
-            /// <summary>Short summary for status bar display — includes revision, STATUS, and stale counts.</summary>
+            /// <summary>Short summary for status bar display — includes revision, STATUS, container, and stale counts.</summary>
             public string StatusBarText =>
                 $"{RAGStatus} {CompliancePercent:F0}% tagged | {RevisionPercent:F0}% REV | " +
+                $"{(ContainersMissing > 0 ? $"{ContainerCompletePct:F0}% containers | " : "")}" +
                 $"{(StatusMissing > 0 ? $"{StatusMissing} no-STATUS | " : "")}" +
                 $"{(StaleCount > 0 ? $"{StaleCount} stale | " : "")}" +
                 $"{(SheetsUntagged > 0 ? $"{SheetsUntagged}/{TotalSheets} sheets untagged | " : "")}" +
@@ -138,13 +153,23 @@ namespace StingTools.Core
                     return _cached;
             }
 
-            // LOGIC-01 + Phase 39: Atomic compare-exchange prevents concurrent scan race.
-            // Return stale cached result (never null) during scan to prevent dashboard flicker.
+            // C-06 FIX: Atomic compare-exchange prevents concurrent scan race.
+            // Return stale cached result during scan to prevent dashboard flicker.
+            // Previously returned empty ComplianceResult when _cached was null on first scan,
+            // causing 0% compliance RED flash. Now returns a "pending" result with -1 TotalElements
+            // so callers can detect "no data yet" vs "0% compliant".
             if (Interlocked.CompareExchange(ref _scanning, 1, 0) != 0)
             {
                 lock (_cacheLock)
                 {
-                    return _cached ?? new ComplianceResult { ScanTime = DateTime.Now };
+                    if (_cached != null) return _cached;
+                    // First scan still in progress — return a distinguishable "pending" result
+                    // with non-alarming defaults instead of 0/0 = RED
+                    return new ComplianceResult
+                    {
+                        ScanTime = DateTime.Now,
+                        TotalElements = -1 // sentinel: callers should treat -1 as "scan pending"
+                    };
                 }
             }
 
@@ -155,14 +180,15 @@ namespace StingTools.Core
 
                 try
                 {
+                    // PERF-06: Use lazy iterator instead of .ToList() — avoids allocating
+                    // a List<Element> of 10K+ elements. Revit's collector is natively lazy.
                     var scanColl = new FilteredElementCollector(doc)
                         .WhereElementIsNotElementType();
                     var scanCatEnums = SharedParamGuids.AllCategoryEnums;
                     if (scanCatEnums != null && scanCatEnums.Length > 0)
                         scanColl.WherePasses(new ElementMulticategoryFilter(
                             new List<BuiltInCategory>(scanCatEnums)));
-                    var allElements = scanColl.ToList();
-                    foreach (Element elem in allElements)
+                    foreach (Element elem in scanColl)
                     {
                         if (elem == null || !elem.IsValidObject) continue;
                         string cat = ParameterHelpers.GetCategoryName(elem);
@@ -205,6 +231,8 @@ namespace StingTools.Core
                                 dd.Tagged++;
                                 if (!hasPlaceholders)
                                     result.FullyResolved++;
+                                else
+                                    result.PlaceholderCount++;
 
                                 // Drill into specific token issues regardless of placeholder status
                                 if (parts[po + 1] == "XX") { AddIssue(result, "Missing LOC"); dd.MissingLoc++; }
@@ -240,6 +268,7 @@ namespace StingTools.Core
                         else
                         {
                             result.RevisionMissing++;
+                            result.EmptyTokenCounts["REV"]++;
                             AddIssue(result, "Missing REV");
                         }
 
@@ -248,6 +277,7 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(status))
                         {
                             result.StatusMissing++;
+                            result.EmptyTokenCounts["STATUS"]++;
                             AddIssue(result, "Missing STATUS");
                         }
                         else
@@ -257,29 +287,56 @@ namespace StingTools.Core
                             result.StatusDistribution[status]++;
                         }
 
-                        // A5: Container check with per-container tracking
+                        // Phase 48: Phase-based compliance breakdown
                         try
                         {
-                            var containers = ParamRegistry.ContainersForCategory(cat);
-                            if (containers != null && containers.Length > 0)
+                            string phaseName = "";
+                            var phaseParam = elem.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                            if (phaseParam != null)
                             {
-                                int emptyCount = 0;
-                                for (int ci = 0; ci < containers.Length; ci++)
-                                {
-                                    result.TotalContainerChecks++;
-                                    if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
-                                    {
-                                        emptyCount++;
-                                        string cName = containers[ci].ParamName;
-                                        if (!result.EmptyContainerCounts.ContainsKey(cName))
-                                            result.EmptyContainerCounts[cName] = 0;
-                                        result.EmptyContainerCounts[cName]++;
-                                    }
-                                }
-                                if (emptyCount > 0) result.ContainersMissing++;
+                                var phaseEl = doc.GetElement(phaseParam.AsElementId());
+                                if (phaseEl != null) phaseName = phaseEl.Name;
                             }
+                            if (string.IsNullOrEmpty(phaseName)) phaseName = "Unknown";
+                            if (!result.ByPhase.TryGetValue(phaseName, out var pd))
+                            {
+                                pd = new PhaseComplianceData();
+                                result.ByPhase[phaseName] = pd;
+                            }
+                            pd.Total++;
+                            if (!string.IsNullOrEmpty(tag)) pd.Tagged++;
+                            else pd.Untagged++;
                         }
-                        catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
+                        catch (Exception ex) { StingLog.Warn($"Phase compliance: {ex.Message}"); }
+
+                        // A5: Container check with per-container tracking
+                        // PERF-05: Skip expensive container check when TAG1 is empty — if the
+                        // element has no tag, containers are guaranteed empty (saves 50-70% scan time)
+                        if (!string.IsNullOrEmpty(tag))
+                        {
+                            try
+                            {
+                                var containers = ParamRegistry.ContainersForCategory(cat);
+                                if (containers != null && containers.Length > 0)
+                                {
+                                    int emptyCount = 0;
+                                    for (int ci = 0; ci < containers.Length; ci++)
+                                    {
+                                        result.TotalContainerChecks++;
+                                        if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, containers[ci].ParamName)))
+                                        {
+                                            emptyCount++;
+                                            string cName = containers[ci].ParamName;
+                                            if (!result.EmptyContainerCounts.ContainsKey(cName))
+                                                result.EmptyContainerCounts[cName] = 0;
+                                            result.EmptyContainerCounts[cName]++;
+                                        }
+                                    }
+                                    if (emptyCount > 0) result.ContainersMissing++;
+                                }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Container completeness check failed: {ex.Message}"); }
+                        }
 
                         try
                         {
@@ -423,6 +480,15 @@ namespace StingTools.Core
         public int MissingLoc { get; set; }
         public int MissingSys { get; set; }
         public int MissingProd { get; set; }
+        public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
+    }
+
+    /// <summary>Phase 48: Per-phase compliance data for stage tracking.</summary>
+    public class PhaseComplianceData
+    {
+        public int Total { get; set; }
+        public int Tagged { get; set; }
+        public int Untagged { get; set; }
         public double CompliancePct => Total > 0 ? Tagged * 100.0 / Total : 0;
     }
 }

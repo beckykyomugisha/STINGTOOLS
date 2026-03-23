@@ -170,14 +170,82 @@ namespace StingTools.Tags
         }
     }
 
-    /// <summary>Set the DISC (discipline) token on selected/view elements.</summary>
+    /// <summary>Set the DISC (discipline) token on selected/view elements.
+    /// GAP-TW-01: Also offers to update downstream SYS/FUNC to match new discipline,
+    /// preventing cross-discipline mismatches (e.g., DISC=M but SYS=LV).</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class SetDiscCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet el)
-            => TokenWriter.WriteToken(cmd, ParamRegistry.DISC, "Discipline (DISC)",
+        public Result Execute(ExternalCommandData commandData, ref string msg, ElementSet elements)
+        {
+            var result = TokenWriter.WriteToken(commandData, ParamRegistry.DISC, "Discipline (DISC)",
                 new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" });
+
+            if (result != Result.Succeeded) return result;
+
+            // GAP-TW-01: Offer to update SYS/FUNC when DISC changes
+            try
+            {
+                var uidoc = commandData.Application.ActiveUIDocument;
+                Document ctxDoc = uidoc?.Document;
+                if (ctxDoc == null || uidoc == null) return result;
+
+                var selectedIds = uidoc.Selection.GetElementIds();
+                if (selectedIds == null || selectedIds.Count == 0) return result;
+
+                // Check if any elements have mismatched SYS for their new DISC
+                int mismatchCount = 0;
+                foreach (ElementId id in selectedIds)
+                {
+                    Element el = ctxDoc.GetElement(id);
+                    if (el == null) continue;
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                    if (string.IsNullOrEmpty(disc) || string.IsNullOrEmpty(sys)) continue;
+                    // Check if SYS belongs to the new DISC
+                    string catName = ParameterHelpers.GetCategoryName(el);
+                    string expectedSys = TagConfig.GetSysCode(catName);
+                    if (!string.IsNullOrEmpty(expectedSys) && sys != expectedSys)
+                        mismatchCount++;
+                }
+
+                if (mismatchCount > 0)
+                {
+                    var dlg = new TaskDialog("STING — Update SYS/FUNC?");
+                    dlg.MainInstruction = $"{mismatchCount} element(s) have SYS codes that don't match the new discipline";
+                    dlg.MainContent = "Update SYS and FUNC tokens to match the new discipline?\n" +
+                        "This prevents cross-discipline tag mismatches.";
+                    dlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (dlg.Show() == TaskDialogResult.Yes)
+                    {
+                        using (Transaction tx = new Transaction(ctxDoc, "STING Update SYS/FUNC from DISC"))
+                        {
+                            tx.Start();
+                            int updated = 0;
+                            foreach (ElementId id in selectedIds)
+                            {
+                                Element el = ctxDoc.GetElement(id);
+                                if (el == null) continue;
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string newSys = TagConfig.GetMepSystemAwareSysCode(el, catName);
+                                if (!string.IsNullOrEmpty(newSys))
+                                    ParameterHelpers.SetString(el, ParamRegistry.SYS, newSys, overwrite: true);
+                                string newFunc = TagConfig.GetFuncCode(newSys);
+                                if (!string.IsNullOrEmpty(newFunc))
+                                    ParameterHelpers.SetString(el, ParamRegistry.FUNC, newFunc, overwrite: true);
+                                updated++;
+                            }
+                            tx.Commit();
+                            StingLog.Info($"SetDisc: updated SYS/FUNC on {updated} elements");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SetDisc downstream update: {ex.Message}"); }
+
+            return result;
+        }
     }
 
     [Transaction(TransactionMode.Manual)]

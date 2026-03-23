@@ -1587,6 +1587,10 @@ namespace StingTools.Core
         }
 
         /// <summary>AL-05: Check compliance gate after a batch tag operation. Shows warning dialog if below threshold.</summary>
+        /// <summary>
+        /// GAP-12: Enhanced compliance gate with per-discipline breakdown and suggested actions.
+        /// Shows which disciplines are below threshold and what actions to take.
+        /// </summary>
         public static void CheckComplianceGate(Document doc, string commandName)
         {
             if (ComplianceGatePct <= 0) return;
@@ -1595,11 +1599,38 @@ namespace StingTools.Core
                 var result = ComplianceScan.Scan(doc, forceRefresh: true);
                 if (result != null && result.CompliancePercent < ComplianceGatePct)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show($"STING Compliance Gate",
-                        $"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
-                        $"is below the configured gate ({ComplianceGatePct}%).\n\n" +
-                        $"Untagged: {result.Untagged} elements\n" +
-                        $"Run 'Pre-Tag Audit' or 'Resolve All Issues' to investigate.");
+                    double gap = ComplianceGatePct - result.CompliancePercent;
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"{commandName} complete but compliance ({result.CompliancePercent:F0}%) " +
+                        $"is below the configured gate ({ComplianceGatePct}%).");
+                    sb.AppendLine($"Gap: {gap:F0}% ({result.Untagged} untagged elements)");
+                    sb.AppendLine();
+
+                    // Per-discipline breakdown
+                    if (result.ByDisc != null && result.ByDisc.Count > 0)
+                    {
+                        sb.AppendLine("By discipline:");
+                        foreach (var kv in result.ByDisc.OrderBy(d => d.Value.CompliancePct))
+                        {
+                            string status = kv.Value.CompliancePct >= ComplianceGatePct ? "✓" : "✗";
+                            sb.AppendLine($"  {kv.Key}: {kv.Value.CompliancePct:F0}% {status} " +
+                                $"({kv.Value.Tagged}/{kv.Value.Total} tagged, " +
+                                $"{kv.Value.MissingProd} missing PROD)");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    // Suggested actions based on gap analysis
+                    sb.AppendLine("Suggested actions:");
+                    if (result.StaleCount > 0)
+                        sb.AppendLine($"  1. Run 'Retag Stale' — {result.StaleCount} stale elements detected");
+                    sb.AppendLine("  2. Run 'Pre-Tag Audit' to identify specific gaps");
+                    if (result.Untagged > 50)
+                        sb.AppendLine("  3. Run 'Batch Tag' to tag all untagged elements");
+                    else if (result.Untagged > 0)
+                        sb.AppendLine("  3. Run 'Resolve All Issues' for auto-fix");
+
+                    Autodesk.Revit.UI.TaskDialog.Show("STING Compliance Gate", sb.ToString());
                     StingLog.Warn($"ComplianceGate: {commandName} result {result.CompliancePercent:F0}% < gate {ComplianceGatePct}%");
                 }
             }
@@ -2051,9 +2082,11 @@ namespace StingTools.Core
                 loc = LocCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "BLD1";
             }
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            if (string.IsNullOrEmpty(zone) || zone == "XX")
+            // M-04 FIX: Also normalize "ZZ" placeholder (matching BuildTagIndexAndCounters
+            // which normalizes XX/ZZ→Z01) to prevent SEQ counter key mismatch
+            if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ")
             {
-                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "Z01";
+                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
             }
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
             // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
@@ -2102,26 +2135,16 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(func)) func = "GEN";
             if (string.IsNullOrEmpty(prod)) prod = "GEN";
 
-            // A3: In non-overwrite mode, use the element's actual stored token values for
-            // the seqKey so that the SEQ counter matches the group the element will end up in.
-            // SetIfEmpty preserves existing values, so derived values may differ from stored ones.
-            string seqLoc = loc, seqZone = zone, seqLvl = lvl, seqSys = sys;
-            if (!overwriteTokens)
-            {
-                string[] existingTokens = ParamRegistry.ReadTokenValues(el);
-                if (!string.IsNullOrEmpty(existingTokens[1]) && existingTokens[1] != "XX")
-                    seqLoc = existingTokens[1];
-                if (!string.IsNullOrEmpty(existingTokens[2]) && existingTokens[2] != "XX" && existingTokens[2] != "ZZ")
-                    seqZone = existingTokens[2];
-                if (!string.IsNullOrEmpty(existingTokens[3]) && existingTokens[3] != "L00")
-                    seqLvl = existingTokens[3];
-                if (!string.IsNullOrEmpty(existingTokens[4]))
-                    seqSys = existingTokens[4];
-            }
-
+            // LOGIC-CRIT-01: Always use DERIVED token values for seqKey, not stored values.
+            // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
+            // but the SEQ counter group MUST use the canonical derived values to prevent:
+            //   - Counter group mismatch when stored SYS="HWS" but derived SYS="DCW"
+            //   - Duplicate SEQ numbers across mismatched groups
+            //   - Counter drift between sessions
+            // The tag string itself will be rebuilt from actual stored values later (line 2234+).
             string seqKey = SeqIncludeZone
-                ? $"{disc}_{seqZone}_{seqSys}_{seqLvl}"
-                : $"{disc}_{seqSys}_{seqLvl}";
+                ? $"{disc}_{zone}_{sys}_{lvl}"
+                : $"{disc}_{sys}_{lvl}";
 
             // A1: Warn once per session when SEQ scheme has changed — counter keys may not
             // match existing tags, leading to duplicate or restarted sequences.
@@ -2191,12 +2214,15 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // Safety limit exhausted: tag collision could not be resolved
+                // LOGIC-CRIT-02: Safety limit exhausted — do NOT write a duplicate tag.
+                // Return false to skip this element rather than silently writing a collision.
                 if (collisionCount >= MaxCollisionDepth)
                 {
-                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — tag '{tag}' may still be a duplicate";
-                    StingLog.Warn(safetyMsg);
+                    string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent duplicate tag '{tag}'";
+                    StingLog.Error(safetyMsg);
                     stats?.RecordWarning(safetyMsg);
+                    sequenceCounters[seqKey] = preIncrementValue; // Rollback counter
+                    return false;
                 }
                 // Remove the element's old tag from index (it's being replaced)
                 // so stale entries don't cause false collisions for other elements
@@ -3271,9 +3297,11 @@ namespace StingTools.Core
                     string altKey = null;
                     if (SeqIncludeZone && parts.Length == 3)
                     {
-                        // Sidecar has old format (no zone), current format includes zone
-                        // Can't determine zone, so merge into all matching zone keys
-                        altKey = null; // No single translation; just add as-is
+                        // H-02 FIX: Sidecar has old format (no zone), current format includes zone.
+                        // Previously set altKey=null which caused old counters to be added as-is
+                        // with the wrong key format, effectively losing them and restarting SEQ from 1.
+                        // Now merge into default zone key so counters are preserved.
+                        altKey = $"{parts[0]}_Z01_{parts[1]}_{parts[2]}";
                     }
                     else if (!SeqIncludeZone && parts.Length == 4)
                     {

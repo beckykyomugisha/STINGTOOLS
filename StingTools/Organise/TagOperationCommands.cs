@@ -165,7 +165,9 @@ namespace StingTools.Organise
         {
             // Get element center for tag head position
             XYZ center = LeaderHelper.GetElementCenter(elem);
-            if (center == null) return;
+            // M-08 FIX: Also reject XYZ.Zero (returned when no location/bounding box found)
+            // to prevent tags clustering at project origin
+            if (center == null || center.IsAlmostEqualTo(XYZ.Zero)) return;
 
             // Verify element has a category
             Category cat = elem.Category;
@@ -1131,9 +1133,12 @@ namespace StingTools.Organise
                 return Result.Cancelled;
 
             int copied = 0;
-            // FIX-C02: Prepare tag index and SEQ counters for BuildAndWriteTag collision detection
-            Dictionary<string, int> seqCounters = null;
-            HashSet<string> existingTags = null;
+            // H-06 FIX: Build tag index + SEQ counters BEFORE the loop (not lazy inside loop).
+            // BuildTagIndexAndCounters always returns non-null tuple, but initializing
+            // before the loop is safer and avoids null seqCounters on first iteration.
+            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
+            var existingTags = indexResult.Item1 ?? new HashSet<string>();
+            var seqCounters = indexResult.Item2 ?? new Dictionary<string, int>();
 
             using (Transaction tx = new Transaction(doc, "STING Copy Tags"))
             {
@@ -1152,12 +1157,6 @@ namespace StingTools.Organise
                     try
                     {
                         string catName = ParameterHelpers.GetCategoryName(target);
-                        if (seqCounters == null)
-                        {
-                            var indexResult = TagConfig.BuildTagIndexAndCounters(doc);
-                            seqCounters = indexResult.Item2;
-                            existingTags = indexResult.Item1;
-                        }
                         TagConfig.BuildAndWriteTag(doc, target, seqCounters,
                             skipComplete: false, existingTags: existingTags,
                             collisionMode: TagCollisionMode.AutoIncrement);

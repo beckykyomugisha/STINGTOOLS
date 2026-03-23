@@ -302,8 +302,9 @@ namespace StingTools.Docs
         /// </summary>
         internal class ShelfPacker
         {
-            private readonly double _areaWidth;
-            private readonly double _areaHeight;
+            // SM-CRIT-01: Made internal so callers can pre-check oversized viewports
+            internal readonly double _areaWidth;
+            internal readonly double _areaHeight;
             private readonly XYZ _origin;  // bottom-left of drawable area
             private readonly double _gap;  // gap between viewports (feet)
 
@@ -422,8 +423,20 @@ namespace StingTools.Docs
             });
 
             // Place each slot
+            // SM-CRIT-01: Distinguish oversized viewports (can NEVER fit) from overflow (no room
+            // on THIS sheet). Oversized are skipped entirely to prevent infinite overflow loops.
+            int oversizedCount = 0;
             foreach (var slot in slots)
             {
+                // Pre-check: viewport larger than drawable zone = can never fit on any sheet
+                if (slot.PaperWidth > packer._areaWidth + 0.001 || slot.PaperHeight > packer._areaHeight + 0.001)
+                {
+                    oversizedCount++;
+                    StingLog.Warn($"ShelfPack: viewport '{slot.ViewName}' ({slot.PaperWidth:F2}x{slot.PaperHeight:F2}) " +
+                        $"exceeds drawable zone — skipped (not added to overflow)");
+                    continue; // Do NOT add to OverflowSlots — prevents infinite loop
+                }
+
                 var center = packer.TryPlace(slot.PaperWidth, slot.PaperHeight);
                 if (center != null)
                 {
@@ -439,9 +452,10 @@ namespace StingTools.Docs
 
             int placed = result.PlacedSlots.Count;
             int overflow = result.OverflowSlots.Count;
+            string oversizedMsg = oversizedCount > 0 ? $" {oversizedCount} views too large for any sheet." : "";
             result.Summary = overflow > 0
-                ? $"Placed {placed} viewports. {overflow} views did not fit — consider additional sheets or smaller scales."
-                : $"Placed {placed} viewports successfully.";
+                ? $"Placed {placed} viewports. {overflow} views did not fit — consider additional sheets or smaller scales.{oversizedMsg}"
+                : $"Placed {placed} viewports successfully.{oversizedMsg}";
 
             return result;
         }

@@ -243,6 +243,8 @@ namespace StingTools.Core
                         StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
                     if (TagConfig.AutoTaggerStaleMarker.HasValue)
                         StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                    // GAP-AT-03: Restore discipline filter from project config
+                    StingAutoTagger.RestoreDisciplineFilter();
                 }
                 catch (Exception atEx)
                 {
@@ -262,6 +264,29 @@ namespace StingTools.Core
                 catch (Exception arwEx)
                 {
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
+                }
+
+                // GAP-BIM-005: Check issue SLA violations on document open (morning SLA report)
+                try
+                {
+                    var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(e.Document);
+                    if (overdue.Count > 0)
+                    {
+                        int critCount = overdue.Count(o => o.priority == "CRITICAL");
+                        int highCount = overdue.Count(o => o.priority == "HIGH");
+                        string slaMsg = $"⚠ {overdue.Count} overdue issue(s) detected:";
+                        if (critCount > 0) slaMsg += $"\n  CRITICAL: {critCount} (SLA: 4 hrs)";
+                        if (highCount > 0) slaMsg += $"\n  HIGH: {highCount} (SLA: 24 hrs)";
+                        slaMsg += $"\n\nMost overdue: {overdue[0].issueId} — {overdue[0].title}";
+                        slaMsg += $"\n  ({overdue[0].hoursOverdue:F0} hours overdue)";
+                        slaMsg += "\n\nOpen Document Management Center → ISSUES tab to review.";
+                        StingLog.Warn($"SLA violations detected: {overdue.Count} overdue issues");
+                        Autodesk.Revit.UI.TaskDialog.Show("STING SLA Alert", slaMsg);
+                    }
+                }
+                catch (Exception slaEx)
+                {
+                    StingLog.Warn($"SLA check on document open: {slaEx.Message}");
                 }
             }
             catch (Exception ex)

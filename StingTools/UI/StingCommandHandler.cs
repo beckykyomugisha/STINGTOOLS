@@ -1175,6 +1175,35 @@ namespace StingTools.UI
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
+                    // Warnings Manager (Phase 46)
+                    case "WarningsDashboard": RunCommand<Core.WarningsDashboardCommand>(app); break;
+                    case "WarningsAutoFix": RunCommand<Core.WarningsAutoFixCommand>(app); break;
+                    case "WarningsExport": RunCommand<Core.WarningsExportCommand>(app); break;
+                    case "WarningsBaseline": RunCommand<Core.WarningsBaselineCommand>(app); break;
+                    case "WarningsSelect": RunCommand<Core.WarningsSelectElementsCommand>(app); break;
+                    case "WarningsSuppress": RunCommand<Core.WarningsSuppressCommand>(app); break;
+                    case "WarningsCompliance": RunCommand<Core.WarningsComplianceCommand>(app); break;
+                    case "WarningsMonitor": RunCommand<Core.WarningsMonitorCommand>(app); break;
+
+                    // Phase 47: BIM Coordination Center (unified dashboard)
+                    // Keep-dialog-open loop: re-open after each dispatched command
+                    case "BIMCoordinationCenter":
+                    {
+                        var ccDoc = app.ActiveUIDocument?.Document;
+                        if (ccDoc != null)
+                        {
+                            while (true)
+                            {
+                                var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
+                                if (ccData == null) break;
+                                string ccAction = UI.BIMCoordinationCenter.Show(ccData);
+                                if (string.IsNullOrEmpty(ccAction)) break; // User closed
+                                Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                            }
+                        }
+                        break;
+                    }
+
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;
                     case "FullComplianceDashboard": RunCommand<BIMManager.FullComplianceDashboardCommand>(app); break;
@@ -1236,6 +1265,150 @@ namespace StingTools.UI
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
+
+                    // Phase 48: Enhanced workflow dispatch
+                    case "RepeatLastWorkflow":
+                    {
+                        string last = Core.WorkflowEngine.LastWorkflowName;
+                        if (!string.IsNullOrEmpty(last))
+                        {
+                            SetExtraParam("WorkflowPresetName", last);
+                            RunCommand<Core.WorkflowPresetCommand>(app);
+                        }
+                        else
+                        {
+                            TaskDialog.Show("STING", "No previous workflow to repeat.\nRun a workflow first, then use 'Repeat Last'.");
+                        }
+                        break;
+                    }
+                    case "RunWorkflow_MorningHealthCheck":
+                    case "RunWorkflow_DailyQASync":
+                    case "RunWorkflow_HandoverReadiness":
+                    case "RunWorkflow_WeeklyDataDrop":
+                    case "RunWorkflow_ProjectKickoff":
+                    case "RunWorkflow_PostTaggingQA":
+                    case "RunWorkflow_DocumentPackage":
+                    case "RunWorkflow_BEPPackage":
+                    case "RunWorkflow_CoordinationMeetingPrep":
+                    case "RunWorkflow_ClashCoordination":
+                    case "RunWorkflow_EndOfStageGate":
+                    case "RunWorkflow_QuickFixCycle":
+                    {
+                        string wfName = _commandTag.Replace("RunWorkflow_", "")
+                            .Replace("Sync", " Sync").Replace("Health", " Health")
+                            .Replace("Data", " Data").Replace("Readiness", " Readiness")
+                            .Replace("Tagging", " Tagging").Replace("Kickoff", " Kickoff")
+                            .Replace("Package", " Package").Replace("Meeting", " Meeting")
+                            .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
+                            .Replace("Stage", " Stage").Replace("Gate", " Gate")
+                            .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
+                            .Replace("Clash", " Clash");
+                        SetExtraParam("WorkflowPresetName", wfName.Trim());
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "SaveExtendedBaseline":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null) { Core.WarningsEngine.SaveExtendedBaseline(d); TaskDialog.Show("STING", "Extended warning baseline saved."); }
+                        break;
+                    }
+
+                    // Phase 48b: Coordination Center drill-down actions
+                    case string s when s.StartsWith("SelectByDisc_"):
+                    {
+                        string disc = s.Substring("SelectByDisc_".Length);
+                        SetExtraParam("DiscFilter", disc);
+                        RunCommand<Organise.SelectByDisciplineCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectWarning_"):
+                    {
+                        // Format: SelectWarning_Category_Description
+                        RunCommand<Core.WarningsSelectElementsCommand>(app);
+                        break;
+                    }
+                    case string s when s.StartsWith("SelectIssue_"):
+                    {
+                        string issueId = s.Substring("SelectIssue_".Length);
+                        SetExtraParam("IssueId", issueId);
+                        RunCommand<BIMManager.SelectIssueElementsCommand>(app);
+                        break;
+                    }
+
+                    // Phase 49: Coordination log and deliverables actions
+                    case "ExportCoordLog":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null)
+                        {
+                            try
+                            {
+                                string logPath = System.IO.Path.Combine(
+                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                    ".sting_coord_log.json");
+                                if (System.IO.File.Exists(logPath))
+                                {
+                                    string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
+                                    var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BIMCoordinationCenter.CoordLogEntry>>(
+                                        System.IO.File.ReadAllText(logPath));
+                                    if (entries != null && entries.Count > 0)
+                                    {
+                                        var sb = new System.Text.StringBuilder();
+                                        sb.AppendLine("Timestamp,User,Category,Action,Detail,Impact");
+                                        foreach (var e in entries)
+                                            sb.AppendLine($"\"{e.Timestamp}\",\"{e.User}\",\"{e.Category}\",\"{e.Action}\",\"{e.Detail?.Replace("\"", "'")}\",\"{e.Impact}\"");
+                                        System.IO.File.WriteAllText(csvPath, sb.ToString());
+                                        TaskDialog.Show("STING", $"Coordination log exported:\n{csvPath}\n{entries.Count} entries");
+                                    }
+                                    else TaskDialog.Show("STING", "Coordination log is empty.");
+                                }
+                                else TaskDialog.Show("STING", "No coordination log found.");
+                            }
+                            catch (Exception ex) { TaskDialog.Show("STING", $"Export failed: {ex.Message}"); }
+                        }
+                        break;
+                    }
+                    case "ClearCoordLog":
+                    {
+                        var d = app.ActiveUIDocument?.Document;
+                        if (d != null)
+                        {
+                            var confirm = new TaskDialog("Clear Coordination Log");
+                            confirm.MainInstruction = "Clear the coordination log?";
+                            confirm.MainContent = "This will delete all coordination log entries. This action cannot be undone.";
+                            confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                            if (confirm.Show() == TaskDialogResult.Yes)
+                            {
+                                string logPath = System.IO.Path.Combine(
+                                    System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
+                                    ".sting_coord_log.json");
+                                if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
+                                TaskDialog.Show("STING", "Coordination log cleared.");
+                            }
+                        }
+                        break;
+                    }
+                    case string s when s.StartsWith("RunMorningCheck"):
+                    {
+                        SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "RunDailyQA":
+                    {
+                        SetExtraParam("WorkflowPresetName", "DailyQA");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "RunQuickFix":
+                    {
+                        SetExtraParam("WorkflowPresetName", "QuickFixCycle");
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
+                    case "ExportCOBie":
+                        RunCommand<BIMManager.COBieExportCommand>(app); break;
 
                     // IoT / Maintenance / Asset Condition (wired to IoTMaintenanceCommands.cs)
                     case "IoTSensorLink": RunCommand<Temp.AssetConditionCommand>(app); break;
@@ -1723,6 +1896,13 @@ namespace StingTools.UI
                     case "LANTeamDashboard": RunCommand<BIMManager.LANTeamDashboardCommand>(app); break;
                     case "LANChangeLog": RunCommand<BIMManager.LANChangeLogCommand>(app); break;
                     case "LANAutoSyncToggle": RunCommand<BIMManager.LANAutoSyncToggleCommand>(app); break;
+
+                    // ── Phase 42: Coordination Center Commands ──
+                    case "CoordinationCenter": RunCommand<BIMManager.CoordinationCenterCommand>(app); break;
+                    case "GenerateDashboard": RunCommand<BIMManager.GenerateDashboardCommand>(app); break;
+                    case "ToggleFileMonitor": RunCommand<BIMManager.ToggleFileMonitorCommand>(app); break;
+                    case "BroadcastNotification": RunCommand<BIMManager.BroadcastNotificationCommand>(app); break;
+                    case "AccessControl": RunCommand<BIMManager.AccessControlCommand>(app); break;
 
                     // ── Unmapped command tag ──
                     default:

@@ -1388,6 +1388,20 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Rev Clouds" Tag="RevisionCloudAuto" Click="Cmd_Click" ToolTip="Auto-place revision clouds on sheets with changed elements"/>
                             </WrapPanel>
                         </Border>
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="QUICK WORKFLOWS" Foreground="#6A1B9A"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <WrapPanel>
+                                <Button Style="{StaticResource GreenBtn}" Content="Morning Check" Tag="RunWorkflow_MorningHealthCheck" Click="Cmd_Click" ToolTip="Daily coordinator routine: stale fix, warnings, compliance (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Quick Fix" Tag="RunWorkflow_QuickFixCycle" Click="Cmd_Click" ToolTip="Rapid quality improvement: auto-fix, resolve, validate (6 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Daily QA" Tag="RunWorkflow_DailyQASync" Click="Cmd_Click" ToolTip="Adaptive daily sync: tag new, delta-sync, validate (13 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Meeting Prep" Tag="RunWorkflow_CoordinationMeetingPrep" Click="Cmd_Click" ToolTip="Prepare for coordination meeting: compliance, warnings, reports (7 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Clash Coord" Tag="RunWorkflow_ClashCoordination" Click="Cmd_Click" ToolTip="Cross-discipline clash detection and coordination (5 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Data Drop" Tag="RunWorkflow_WeeklyDataDrop" Click="Cmd_Click" ToolTip="ISO 19650 weekly information exchange (8 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Handover" Tag="RunWorkflow_HandoverReadiness" Click="Cmd_Click" ToolTip="Pre-handover validation and export (9 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Stage Gate" Tag="RunWorkflow_EndOfStageGate" Click="Cmd_Click" ToolTip="RIBA stage transition gate: full validation (11 steps)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Repeat Last" Tag="RepeatLastWorkflow" Click="Cmd_Click" ToolTip="Re-run the last executed workflow preset"/>
+                            </WrapPanel>
+                        </Border>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -2003,6 +2017,103 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- BIM COORDINATION CENTER — PRIMARY ENTRY POINT -->
+                        <Border BorderBrush="#1A237E" BorderThickness="2" CornerRadius="4" Margin="0,2,0,6" Padding="8"
+                                Background="#E8EAF6">
+                            <StackPanel>
+                                <TextBlock Text="★ BIM COORDINATION CENTER" FontWeight="Bold" FontSize="12" Foreground="#1A237E" Margin="0,0,0,4"/>
+                                <TextBlock Text="Unified dashboard: Model Health • Warnings • Issues • Revisions • Workflows • QA • 4D/5D" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <Button Tag="BIMCoordinationCenter" Click="Cmd_Click"
+                                        FontWeight="Bold" FontSize="12"
+                                        Background="#1A237E" Foreground="White" BorderBrush="#0D1642" BorderThickness="1"
+                                        ToolTip="Unified BIM Coordination Center: 9-tab dashboard with KPIs, compliance tracking, issues, revisions, warnings, workflows, QA and 4D/5D scheduling"
+                                        Cursor="Hand" HorizontalAlignment="Stretch">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="border" Background="#1A237E" BorderBrush="#0D1642" BorderThickness="1"
+                                                    CornerRadius="4" Padding="14,10">
+                                                <TextBlock Text="★  OPEN COORDINATION CENTER" FontWeight="Bold" FontSize="12"
+                                                           Foreground="White" HorizontalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#283593"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="border" Property="Background" Value="#0D1642"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- WARNINGS MANAGER — HIGH VISIBILITY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="⚠  WARNINGS MANAGER"/>
+                        <Border BorderBrush="#E65100" BorderThickness="2" CornerRadius="3" Margin="0,0,0,4" Padding="6"
+                                Background="#FFF3E0">
+                            <StackPanel>
+                                <TextBlock Text="Classify, auto-fix, track and export Revit warnings with SLA enforcement" FontSize="9" Foreground="#555" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                <WrapPanel Margin="0,0,0,4">
+                                    <Button Tag="WarningsDashboard" Click="Cmd_Click" FontWeight="Bold" FontSize="11" Cursor="Hand"
+                                            ToolTip="Warnings dashboard: severity/category/level/discipline breakdown, trend, SLA violations, hotspot elements">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="border" Background="#E65100" BorderBrush="#BF360C" BorderThickness="1"
+                                                        CornerRadius="3" Padding="10,6">
+                                                    <TextBlock Text="⚠  WARNINGS DASHBOARD" FontWeight="Bold" FontSize="11"
+                                                               Foreground="White" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#F4511E"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#BF360C"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Auto-Fix" Tag="WarningsAutoFix" Click="Cmd_Click"
+                                            ToolTip="Auto-fix: duplicate instances, room separation overlaps, duplicate marks, unjoined geometry" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="WarningsExport" Click="Cmd_Click"
+                                            ToolTip="Export all classified warnings to CSV for BIM360/Aconex tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Baseline" Tag="WarningsBaseline" Click="Cmd_Click"
+                                            ToolTip="Save warning count baseline for trend tracking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Select" Tag="WarningsSelect" Click="Cmd_Click"
+                                            ToolTip="Select elements by warning type in model"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppress" Tag="WarningsSuppress" Click="Cmd_Click"
+                                            ToolTip="Suppress warning types from dashboard (persisted to config)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance" Tag="WarningsCompliance" Click="Cmd_Click"
+                                            ToolTip="ISO 19650 / CIBSE / BS 7671 compliance mapping"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Monitor" Tag="WarningsMonitor" Click="Cmd_Click"
+                                            ToolTip="Track warning count before/after operations"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DOCUMENT MANAGEMENT CENTER -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="ISO 19650 project document control — folders, issues, revisions, clashes, CDE, handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
+                                            ToolTip="Open Document Management Center — browse all project documents, issues, revisions, clashes and CDE status with tree navigator" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Create Folders" Tag="CreateFolders" Click="Cmd_Click"
+                                            ToolTip="Create ISO 19650 project folder structure (20 folders: WIP, Shared, Published, Models, Drawings, COBie, Issues, Clashes, Handover, etc.)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Open Project Folder" Tag="OpenProjectFolder" Click="Cmd_Click"
+                                            ToolTip="Open the STING project folder root in Windows Explorer"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
+                                            ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- PROJECT OVERVIEW -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="PROJECT OVERVIEW"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
@@ -2173,24 +2284,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- DOCUMENT MANAGEMENT CENTER -->
-                        <TextBlock Style="{StaticResource SectionLabel}" Text="DOCUMENT MANAGEMENT CENTER"/>
-                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
-                            <StackPanel>
-                                <TextBlock Text="ISO 19650 project document control — folders, issues, revisions, clashes, CDE, handover" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
-                                <WrapPanel>
-                                    <Button Style="{StaticResource BlueBtn}" Content="Document Manager" Tag="DocumentManager" Click="Cmd_Click"
-                                            ToolTip="Open Document Management Center — browse all project documents, issues, revisions, clashes and CDE status with tree navigator" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Create Folders" Tag="CreateFolders" Click="Cmd_Click"
-                                            ToolTip="Create ISO 19650 project folder structure (20 folders: WIP, Shared, Published, Models, Drawings, COBie, Issues, Clashes, Handover, etc.)"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Open Project Folder" Tag="OpenProjectFolder" Click="Cmd_Click"
-                                            ToolTip="Open the STING project folder root in Windows Explorer"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Data Exchange" Tag="DataExchange" Click="Cmd_Click"
-                                            ToolTip="Export/Import data — categories, parameters, CSV/Excel/JSON with column mapping"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
-
                         <!-- ISSUE / RFI TRACKER -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="ISSUE / RFI TRACKER"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#E65100">
@@ -2296,6 +2389,7 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="Full Compliance" Tag="FullComplianceDashboard" Click="Cmd_Click"
                                             ToolTip="Combined compliance: tags + model health + sheets" FontWeight="Bold"/>
                                 </WrapPanel>
+                                <!-- BIM COORDINATION CENTER (see prominent button at top of BIM tab) -->
                             </StackPanel>
                         </Border>
 
@@ -2581,6 +2675,26 @@
                                             ToolTip="View change log history"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Auto-Sync" Tag="LANAutoSyncToggle" Click="Cmd_Click"
                                             ToolTip="Toggle auto-sync timer"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ── COORDINATION CENTER ── -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="4" Padding="8,6" Margin="0,0,0,6">
+                            <StackPanel>
+                                <TextBlock Text="COORDINATION CENTER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource HeaderFg}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Live coordination, notifications, access control, dashboards" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="★ Coord Center" Tag="CoordinationCenter" Click="Cmd_Click"
+                                            ToolTip="Open the full Coordination Center — notifications, file monitor, access control, dashboards"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="Dashboard" Tag="GenerateDashboard" Click="Cmd_Click"
+                                            ToolTip="Generate self-contained HTML dashboard for stakeholders (phone/tablet/desktop)"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="File Monitor" Tag="ToggleFileMonitor" Click="Cmd_Click"
+                                            ToolTip="Start/stop live file monitoring with push notifications"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Broadcast" Tag="BroadcastNotification" Click="Cmd_Click"
+                                            ToolTip="Send a broadcast notification to all team channels"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Access" Tag="AccessControl" Click="Cmd_Click"
+                                            ToolTip="Manage user roles, company access, and discipline filters"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

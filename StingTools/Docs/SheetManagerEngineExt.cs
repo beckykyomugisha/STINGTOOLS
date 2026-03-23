@@ -708,6 +708,33 @@ namespace StingTools.Docs
                 .OrderBy(s => s.SheetNumber)
                 .ToList();
 
+            // TS-02: Pre-flight conflict detection — check proposed numbers against ALL sheets
+            // (not just the ones being renumbered) to prevent partial-state failures.
+            var allExistingNumbers = new HashSet<string>(
+                new FilteredElementCollector(doc)
+                    .OfClass(typeof(ViewSheet))
+                    .Cast<ViewSheet>()
+                    .Where(s => !s.IsPlaceholder)
+                    .Select(s => s.SheetNumber),
+                StringComparer.OrdinalIgnoreCase);
+            // Remove the sheets we're renumbering from the existing set (they'll be changed)
+            foreach (var s in sheets) allExistingNumbers.Remove(s.SheetNumber);
+
+            var proposedNumbers = new List<string>();
+            int checkNum = startNumber;
+            foreach (var _ in sheets)
+            {
+                proposedNumbers.Add($"{discipline}-{checkNum:D3}");
+                checkNum += increment;
+            }
+            var conflicts = proposedNumbers.Where(n => allExistingNumbers.Contains(n)).ToList();
+            if (conflicts.Count > 0)
+            {
+                StingLog.Warn($"BatchRenumber conflict: proposed numbers {string.Join(", ", conflicts)} " +
+                    $"already exist on other sheets. Choose a different starting number.");
+                return -1; // Signal conflict to caller
+            }
+
             int num = startNumber;
             int renamed = 0;
 
