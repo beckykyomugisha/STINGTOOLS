@@ -1963,6 +1963,9 @@
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource BlueBtn}" Content="Door" Tag="ModelPlaceDoor" Click="Cmd_Click" ToolTip="Place door in selected wall"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Window" Tag="ModelPlaceWindow" Click="Cmd_Click" ToolTip="Place window in selected wall"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Opening" Tag="ArchCreateOpening" Click="Cmd_Click" ToolTip="Create wall/floor opening (900×2100mm)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Curtain Wall" Tag="ArchCurtainWall" Click="Cmd_Click" ToolTip="Create curtain wall facade — pick 2 points"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Stair Design" Tag="ArchStairDesign" Click="Cmd_Click" ToolTip="BS 5395 stair design: rise, going, 2R+G, pitch, compliance"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -2081,8 +2084,50 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Column+" Tag="StrSmartColumnFactory" Click="Cmd_Click" ToolTip="10-step intelligent column: grid-snap → level → stacking → clash → material → tags" FontWeight="Bold"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Beam+" Tag="StrSmartBeamFactory" Click="Cmd_Click" ToolTip="9-step intelligent beam: grid-snap → connection → auto-type → deflection → tags" FontWeight="Bold"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★★★ Diagnostics" Tag="StrDiagnostics" Click="Cmd_Click" ToolTip="ONE-CLICK health check: BIM + continuity + load paths + constraints + materials → RAG score" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Wall+" Tag="StrSmartWallFactory" Click="Cmd_Click" ToolTip="8-step intelligent wall: grid-snap → levels → type match → structural flag → tags" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Pad+" Tag="StrSmartFoundation" Click="Cmd_Click" ToolTip="Auto-sized pad footing: N/q bearing → depth → material → tags" FontWeight="Bold"/>
+                                </WrapPanel>
+                                <TextBlock Text="EC Code Checks" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fatigue" Tag="StrFatigueAssess" Click="Cmd_Click" ToolTip="EC3-1-9 fatigue: S-N curves, detail categories, Palmgren-Miner damage"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Torsion" Tag="StrTorsionDesign" Click="Cmd_Click" ToolTip="EC2 §6.3 torsion: thin-wall analogy, moment-torsion interaction"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Robustness" Tag="StrRobustness" Click="Cmd_Click" ToolTip="EC1-1-7 robustness: CC classes, tie forces, key elements"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Composite Slab" Tag="StrCompositeSlab" Click="Cmd_Click" ToolTip="EC4-1-1 composite slab: deck profiles, mesh, fire rating"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Partial Factors" Tag="StrPartialFactors" Click="Cmd_Click" ToolTip="Multi-code γ-factor comparison: EC/BS/ACI/AS"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★★ Code Compliance" Tag="StrCodeCompliance" Click="Cmd_Click" ToolTip="Full design code compliance report: vibration + crack + thermal + robustness + slab → RAG" FontWeight="Bold"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
+
+                        <!-- COVERINGS (Plaster + Paint) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="COVERINGS"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="Plaster, render, paint &amp; coatings — walls, beams, columns, floors" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★★ Smart Covering" Tag="CoveringSmartApply" Click="Cmd_Click" ToolTip="Intelligent pipeline: substrate detect → mix design → coverage → layer inject (walls) / param write (beams/columns) → QA → tags. Supports plaster + paint on ANY element." FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" ToolTip="Batch plaster ALL walls + beams + columns in project" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click" ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Style="{StaticResource ActionBtn}" Content="Materials" Tag="CoveringMaterialBrowser" Click="Cmd_Click" ToolTip="Browse plaster (BLE_MATERIALS.csv) + paint (BS 6150) database"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Substrate" Tag="CoveringSubstrateAnalyze" Click="Cmd_Click" ToolTip="Analyze ANY element substrate: walls, beams, columns, floors"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Paint System" Tag="CoveringPaintSystem" Click="Cmd_Click" ToolTip="Paint system design: DFT, coats, VOC, primer (BS 6150)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Coverage" Tag="CoveringCoverageCalc" Click="Cmd_Click" ToolTip="Element-agnostic coverage: area, bags/litres, cost, carbon"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="QA Checklist" Tag="CoveringQualityCheck" Click="Cmd_Click" ToolTip="Plaster QA (BS EN 13914) or Paint QA (BS 6150)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export CSV" Tag="CoveringScheduleExport" Click="Cmd_Click" ToolTip="Export covering schedule for all walls + beams + columns"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fire Rating" Tag="CoveringFireRating" Click="Cmd_Click" ToolTip="Hp/A fire protection calc for steel — intumescent DFT or board thickness"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Moisture Risk" Tag="CoveringMoistureRisk" Click="Cmd_Click" ToolTip="Interstitial condensation check (BS EN ISO 13788 Glaser method)"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- FULL AUTOMATION -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="FULL AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1B5E20">
+                            <WrapPanel>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★★★ Full Model Auto" Tag="FullModelAuto" Click="Cmd_Click" ToolTip="ONE-CLICK: Verify → Grid → Elements → Materials → Coverings → Room Finishes → Tags → Diagnostics" FontWeight="Bold"/>
+                            </WrapPanel>
                         </Border>
 
                         <!-- MEP -->

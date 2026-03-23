@@ -3198,4 +3198,511 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Error("StrDiagnostics", ex); message = ex.Message; return Result.Failed; }
         }
     }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FATIGUE ASSESSMENT (EC3-1-9)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrFatigueAssessCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Fatigue (EC3-1-9)");
+                dlg.MainContent = "Select detail category:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "DC 71 — Welded attachments L≤50mm");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "DC 112 — Butt welds, full penetration");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "DC 160 — Unwelded base metal");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "DC 50 — Cruciform joints, fillet welds");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                FatigueDetailCategory dc = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => FatigueDetailCategory.DC71,
+                    TaskDialogResult.CommandLink2 => FatigueDetailCategory.DC112,
+                    TaskDialogResult.CommandLink3 => FatigueDetailCategory.DC160,
+                    TaskDialogResult.CommandLink4 => FatigueDetailCategory.DC50,
+                    _ => (FatigueDetailCategory)0,
+                };
+                if ((int)dc == 0) return Result.Cancelled;
+
+                var result = FatigueAssessor.Assess(dc, 80, 2e6);
+                TaskDialog.Show("STRUCT — Fatigue (EC3-1-9)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrFatigueAssess", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // TORSION DESIGN (EC2 §6.3)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrTorsionDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var result = TorsionDesigner.Design(torsionKNm: 50, shearKN: 200,
+                    widthMm: 300, depthMm: 600);
+                TaskDialog.Show("STRUCT — Torsion (EC2 §6.3)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrTorsionDesign", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // ROBUSTNESS ANALYSIS (EC1-1-7 / EC2 §9.10)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrRobustnessCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Robustness");
+                dlg.MainContent = "Select consequence class:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "CC2a — Buildings ≤ 4 storeys (horizontal ties)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "CC2b — Buildings 5-15 storeys (full ties)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "CC3 — Buildings > 15 storeys (key elements)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                var (cc, ns) = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => (ConsequenceClass.CC2a, 4),
+                    TaskDialogResult.CommandLink2 => (ConsequenceClass.CC2b, 8),
+                    TaskDialogResult.CommandLink3 => (ConsequenceClass.CC3, 20),
+                    _ => ((ConsequenceClass)(-1), 0),
+                };
+                if (ns == 0) return Result.Cancelled;
+
+                var result = RobustnessAnalyzer.Analyze(ns, cc: cc);
+                TaskDialog.Show("STRUCT — Robustness (EC1-1-7)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrRobustness", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // COMPOSITE SLAB DESIGN (EC4-1-1)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCompositeSlabCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("STRUCT — Composite Slab (EC4)");
+                dlg.MainContent = "Select deck profile:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "ComFlor 51 (51mm depth, light spans)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "ComFlor 60 (60mm depth, typical)");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "ComFlor 80 (80mm depth, long spans)");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                DeckProfile profile = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => DeckProfile.ComFlor51,
+                    TaskDialogResult.CommandLink2 => DeckProfile.ComFlor60,
+                    TaskDialogResult.CommandLink3 => DeckProfile.ComFlor80,
+                    _ => (DeckProfile)(-1),
+                };
+                if ((int)profile < 0) return Result.Cancelled;
+
+                var result = CompositeSlabDesigner.Design(3.0, profile: profile);
+                TaskDialog.Show("STRUCT — Composite Slab (EC4-1-1)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrCompositeSlab", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // PARTIAL FACTOR COMPARISON
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrPartialFactorsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("DESIGN CODE PARTIAL FACTOR COMPARISON");
+                sb.AppendLine(new string('═', 50));
+
+                foreach (var code in new[] { DesignCodeFamily.Eurocode, DesignCodeFamily.BritishStandards,
+                    DesignCodeFamily.ACI, DesignCodeFamily.AustralianStandards })
+                {
+                    var factors = PartialFactorManager.GetFactors(code);
+                    sb.AppendLine($"\n{factors.Summary}");
+
+                    // Example: 100kN permanent + 50kN variable
+                    double factoredP = PartialFactorManager.FactoredLoad(code, LoadType.Permanent, 100);
+                    double factoredV = PartialFactorManager.FactoredLoad(code, LoadType.Variable, 50);
+                    sb.AppendLine($"  100kN(G)+50kN(Q) → {factoredP + factoredV:F0}kN ULS");
+
+                    double fcdC30 = PartialFactorManager.DesignStrength(code, StructuralMaterialType.Concrete, 30);
+                    double fydS355 = PartialFactorManager.DesignStrength(code, StructuralMaterialType.StructuralSteel, 355);
+                    sb.AppendLine($"  C30: fcd={fcdC30:F1}MPa, S355: fyd={fydS355:F1}MPa");
+                }
+
+                TaskDialog.Show("STRUCT — Partial Factors", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrPartialFactors", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SMART WALL FACTORY
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartWallFactoryCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var p1 = uidoc.Selection.PickPoint("Pick wall start");
+                var p2 = uidoc.Selection.PickPoint("Pick wall end");
+                var levels = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+                if (levels.Count < 2) { TaskDialog.Show("Error", "Need ≥2 levels"); return Result.Failed; }
+
+                var report = SmartWallFactory.CreateSmartWall(uidoc.Document, p1, p2, levels[0], levels[1]);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(report.Summary);
+                foreach (var s in report.Steps) sb.AppendLine(s);
+                foreach (var w in report.Warnings) sb.AppendLine(w);
+                TaskDialog.Show("STRUCT — Smart Wall", sb.ToString());
+                return report.Success ? Result.Succeeded : Result.Failed;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("StrSmartWallFactory", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // SMART FOUNDATION FACTORY
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrSmartFoundationCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var point = uidoc.Selection.PickPoint("Pick pad footing position");
+                var level = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).FirstOrDefault();
+
+                var report = SmartFoundationFactory.CreateSmartPadFooting(uidoc.Document, point, level);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(report.Summary);
+                foreach (var s in report.Steps) sb.AppendLine(s);
+                foreach (var w in report.Warnings) sb.AppendLine(w);
+                TaskDialog.Show("STRUCT — Smart Pad Footing", sb.ToString());
+                return report.Success ? Result.Succeeded : Result.Failed;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("StrSmartFoundation", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FULL DESIGN CODE COMPLIANCE CHECK
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class StrCodeComplianceCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var checks = DesignCodeComplianceReporter.RunAllChecks();
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("DESIGN CODE COMPLIANCE REPORT");
+                sb.AppendLine(new string('═', 50));
+
+                int pass = checks.Count(c => c.Pass);
+                int fail = checks.Count - pass;
+                double score = checks.Count > 0 ? 100.0 * pass / checks.Count : 0;
+                string rag = score >= 80 ? "GREEN" : score >= 50 ? "AMBER" : "RED";
+
+                sb.AppendLine($"\n{rag}: {score:F0}% ({pass}/{checks.Count} pass, {fail} fail)\n");
+
+                foreach (var c in checks)
+                {
+                    string icon = c.Pass ? "✓" : "✗";
+                    sb.AppendLine($"{icon} [{c.Code}] {c.Name}: util={c.Utilisation:F2} → {(c.Pass ? "OK" : "FAIL")}");
+                }
+
+                sb.AppendLine($"\n{PartialFactorManager.GetFactors(StructuralConfig.DesignCode).Summary}");
+
+                TaskDialog.Show($"STRUCT — Compliance ({rag})", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("StrCodeCompliance", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // STAIR DESIGN (BS 5395)
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ArchStairDesignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var levels = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                if (levels.Count < 2) { TaskDialog.Show("Error", "Need ≥2 levels"); return Result.Failed; }
+
+                double floorHeight = (levels[1].Elevation - levels[0].Elevation) * Units.FeetToMm;
+                var dlg = new TaskDialog("ARCH — Stair Design (BS 5395)");
+                dlg.MainContent = $"Floor-to-floor: {floorHeight:F0}mm. Select use type:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Private (house/flat) — 220mm rise max");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Common (office/commercial) — 190mm rise max");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Public (assembly/hospital) — 180mm rise max");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                var use = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => StairEngine.StairUseType.Private,
+                    TaskDialogResult.CommandLink2 => StairEngine.StairUseType.Common,
+                    TaskDialogResult.CommandLink3 => StairEngine.StairUseType.Public,
+                    _ => (StairEngine.StairUseType)(-1),
+                };
+                if ((int)use < 0) return Result.Cancelled;
+
+                var design = StairEngine.DesignStair(floorHeight, use);
+                TaskDialog.Show("ARCH — Stair Design", design.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("ArchStairDesign", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // CURTAIN WALL
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ArchCurtainWallCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var p1 = uidoc.Selection.PickPoint("Pick curtain wall start");
+                var p2 = uidoc.Selection.PickPoint("Pick curtain wall end");
+                var level = new FilteredElementCollector(uidoc.Document)
+                    .OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).FirstOrDefault();
+                if (level == null) return Result.Failed;
+
+                double lengthMm = Line.CreateBound(p1, p2).Length * Units.FeetToMm;
+                var spec = CurtainWallEngine.Design(lengthMm, 3600);
+
+                using (var tx = new Transaction(uidoc.Document, "STING Curtain Wall"))
+                {
+                    tx.Start();
+                    var id = CurtainWallEngine.Create(uidoc.Document, p1, p2, level, 3600);
+                    if (id != ElementId.InvalidElementId) tx.Commit(); else { tx.RollBack(); return Result.Failed; }
+                }
+
+                TaskDialog.Show("ARCH — Curtain Wall", spec.Summary);
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("ArchCurtainWall", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // WALL OPENING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ArchCreateOpeningCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var sel = uidoc.Selection.GetElementIds().Select(id => uidoc.Document.GetElement(id)).OfType<Wall>().FirstOrDefault();
+                if (sel == null) { TaskDialog.Show("ARCH", "Select a wall first."); return Result.Cancelled; }
+
+                var point = uidoc.Selection.PickPoint("Pick opening center");
+                using (var tx = new Transaction(uidoc.Document, "STING Wall Opening"))
+                {
+                    tx.Start();
+                    OpeningEngine.CreateWallOpening(uidoc.Document, sel, point, 900, 2100);
+                    tx.Commit();
+                }
+                TaskDialog.Show("ARCH", "Opening created: 900×2100mm");
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex) { StingLog.Error("ArchCreateOpening", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // COVERING FIRE RATING
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CoveringFireRatingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var dlg = new TaskDialog("COVERINGS — Fire Rating");
+                dlg.MainContent = "Select fire rating target:";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "30 min — intumescent on UB 406×178");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "60 min — intumescent on UB 406×178");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "60 min — board protection on UC 305×305");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+
+                var choice = dlg.Show();
+                CoveringFireRating.FireRatingResult result = choice switch
+                {
+                    TaskDialogResult.CommandLink1 => CoveringFireRating.Calculate(1200, 8560, 30, true, "intumescent"),
+                    TaskDialogResult.CommandLink2 => CoveringFireRating.Calculate(1200, 8560, 60, true, "intumescent"),
+                    TaskDialogResult.CommandLink3 => CoveringFireRating.Calculate(1220, 9850, 60, false, "board"),
+                    _ => null,
+                };
+                if (result == null) return Result.Cancelled;
+
+                TaskDialog.Show("COVERINGS — Fire Rating", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("CoveringFireRating", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // MOISTURE RISK ANALYSIS
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class CoveringMoistureRiskCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                // Typical external wall build-up (inside → outside)
+                var layers = new List<(string Name, double ThicknessMm, double Lambda)>
+                {
+                    ("Gypsum plaster", 13, 0.4),
+                    ("Dense blockwork", 100, 1.2),
+                    ("Insulation (mineral wool)", 100, 0.035),
+                    ("Cement render", 20, 0.8),
+                };
+
+                var result = CoveringMoistureRisk.Assess(layers);
+                TaskDialog.Show("COVERINGS — Moisture Risk (BS EN ISO 13788)", result.Summary);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("CoveringMoistureRisk", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    // FULL MODEL AUTOMATION — One-Click Chain
+    // ══════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class FullModelAutoCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+            if (uidoc?.Document == null) return Result.Failed;
+            try
+            {
+                var confirm = TaskDialog.Show("FULL MODEL AUTOMATION",
+                    "Run complete 8-step building automation?\n\n" +
+                    "1) Verify levels\n2) Grid layout\n3) Count elements\n" +
+                    "4) Apply materials\n5) Apply coverings\n6) Room finishes\n" +
+                    "7) STING tags\n8) Diagnostics",
+                    TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel);
+                if (confirm != TaskDialogResult.Ok) return Result.Cancelled;
+
+                var report = FullModelAutomation.RunFullChain(uidoc.Document);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(report.Summary);
+                sb.AppendLine();
+                foreach (var step in report.Log) sb.AppendLine(step);
+
+                TaskDialog.Show("FULL MODEL AUTOMATION", sb.ToString());
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { StingLog.Error("FullModelAuto", ex); message = ex.Message; return Result.Failed; }
+        }
+    }
 }
