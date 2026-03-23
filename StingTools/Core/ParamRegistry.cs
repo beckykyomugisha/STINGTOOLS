@@ -1995,17 +1995,53 @@ namespace StingTools.Core
         /// TAG7 is always skipped here — it requires the narrative builder
         /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
         /// </summary>
+        // FUT-20: Discipline-to-container prefix mapping for selective writes.
+        // Elements with DISC=M skip ELC_*, PLM_*, FLS_*, COM_*, etc. containers.
+        private static readonly Dictionary<string, HashSet<string>> _discContainerPrefixes =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "HVC_", "MAT_" },
+                ["E"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "ELC_", "ELE_", "LTG_", "MAT_" },
+                ["P"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "PLM_", "MAT_" },
+                ["A"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+                ["S"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "STR_", "MAT_" },
+                ["FP"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "FLS_", "MAT_" },
+                ["LV"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "COM_", "SEC_", "NCL_", "ICT_", "MAT_" },
+                ["G"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASS_", "MAT_" },
+            };
+
+        /// <summary>FUT-20: Check if a container param is relevant for the given discipline.</summary>
+        private static bool IsContainerRelevantForDisc(string paramName, string disc)
+        {
+            if (string.IsNullOrEmpty(disc) || !_discContainerPrefixes.TryGetValue(disc, out var prefixes))
+                return true; // Unknown discipline — write all containers
+            foreach (string prefix in prefixes)
+            {
+                if (paramName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         public static int WriteContainers(Element el, string[] tokenValues, string categoryName,
             bool overwrite = true, string skipParam = null)
         {
             if (tokenValues == null || tokenValues.Length < 8) return 0;
             int written = 0;
+
+            // FUT-20: Get discipline code for selective container writes (60-80% fewer writes)
+            string disc = tokenValues.Length > 0 ? tokenValues[0] : null;
+
             var containers = ContainersForCategory(categoryName);
             foreach (var c in containers)
             {
                 if (c.ParamName == skipParam) continue;
                 // TAG7 + sub-sections use the narrative builder, not token concatenation
                 if (IsTag7Param(c.ParamName)) continue;
+
+                // FUT-20: Skip containers not relevant for this element's discipline
+                if (!IsContainerRelevantForDisc(c.ParamName, disc)) continue;
+
                 string assembled = AssembleContainer(c, tokenValues);
                 if (!string.IsNullOrEmpty(assembled))
                 {

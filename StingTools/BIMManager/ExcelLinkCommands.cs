@@ -683,8 +683,10 @@ namespace StingTools.BIMManager
                     // C-04 FIX: Skip empty Excel cells when model already has data.
                     // Prevents silent data loss when user exports, edits some cells,
                     // then re-imports without touching other columns (empty ≠ intentional clear).
-                    // To intentionally clear a value, user must enter a placeholder like "CLEAR".
-                    if (string.IsNullOrEmpty(excelValue) && !string.IsNullOrEmpty(modelValue))
+                    // R4-B FIX: Handle "CLEAR" sentinel — user types CLEAR to intentionally empty a field.
+                    if (excelValue.Equals("CLEAR", StringComparison.OrdinalIgnoreCase))
+                        excelValue = "";
+                    else if (string.IsNullOrEmpty(excelValue) && !string.IsNullOrEmpty(modelValue))
                         continue;
 
                     if (!string.Equals(excelValue, modelValue, StringComparison.Ordinal))

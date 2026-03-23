@@ -87,6 +87,22 @@ namespace StingTools.Core
         public double AvgCriticalAgeHours { get; set; }
         /// <summary>Phase 48: Warning type groups for top-N display per category.</summary>
         public Dictionary<WarningCategory, List<(string Desc, int Count)>> TopWarningsByCategory { get; set; } = new();
+
+        /// <summary>R4-D A1: Root-cause groups — deduplicates identical warning descriptions into
+        /// groups with element counts. Reduces 200 "duplicate instances" warnings to 1 group of 200.</summary>
+        public List<RootCauseGroup> RootCauseGroups { get; set; } = new();
+    }
+
+    /// <summary>R4-D A1: A group of warnings sharing the same description (root cause).</summary>
+    internal class RootCauseGroup
+    {
+        public string Description { get; set; }
+        public WarningCategory Category { get; set; }
+        public WarningSeverity Severity { get; set; }
+        public int Count { get; set; }
+        public bool CanAutoFix { get; set; }
+        public List<ElementId> AllElements { get; set; } = new();
+        public string FixStrategy { get; set; }
     }
 
     /// <summary>Result of a batch auto-fix operation.</summary>
@@ -96,6 +112,8 @@ namespace StingTools.Core
         public int Fixed { get; set; }
         public int Skipped { get; set; }
         public int Failed { get; set; }
+        /// <summary>Phase 56: Net warning reduction after fix verification re-scan.</summary>
+        public int NetReduction { get; set; }
         public List<string> Details { get; set; } = new();
     }
 
@@ -192,6 +210,82 @@ namespace StingTools.Core
             ("underlay", WarningCategory.Annotation, WarningSeverity.Info, "Review underlay settings", false),
             ("grid", WarningCategory.Annotation, WarningSeverity.Low, "Fix grid head position", false),
             ("section", WarningCategory.Annotation, WarningSeverity.Low, "Review section marker", false),
+
+            // Phase 55: Extended classification for BIM coordinator daily workflow
+            // MEP system completeness
+            ("System classification is Undefined", WarningCategory.MEP, WarningSeverity.High, "Assign MEP system classification", false),
+            ("open connector", WarningCategory.MEP, WarningSeverity.High, "Cap or connect open connector", false),
+            ("Unconnected pipe", WarningCategory.MEP, WarningSeverity.High, "Connect pipe to system", false),
+            ("Unconnected duct", WarningCategory.MEP, WarningSeverity.High, "Connect duct to system", false),
+            ("Cross-fitting", WarningCategory.MEP, WarningSeverity.Medium, "Replace cross-fitting with tee arrangement", false),
+
+            // Structural integrity
+            ("sloped beam", WarningCategory.Structural, WarningSeverity.Low, "Verify sloped beam intent", false),
+            ("foundation", WarningCategory.Structural, WarningSeverity.High, "Check foundation bearing", false),
+            ("Structural Framing", WarningCategory.Structural, WarningSeverity.Medium, "Review framing connection", false),
+            ("load", WarningCategory.Structural, WarningSeverity.High, "Verify load path continuity", false),
+
+            // Data quality — auto-fixable
+            ("Room Tag is inside", WarningCategory.Spatial, WarningSeverity.Info, "Tag position is correct", false),
+            ("Copy/Monitor", WarningCategory.Data, WarningSeverity.Medium, "Review Copy/Monitor coordination", false),
+            ("Sketch-based", WarningCategory.Geometric, WarningSeverity.Medium, "Fix sketch boundary", false),
+
+            // Performance — auto-fixable
+            ("Detail group", WarningCategory.Performance, WarningSeverity.Low, "Review detail group usage", false),
+            ("Model group", WarningCategory.Performance, WarningSeverity.Low, "Review model group usage", false),
+            ("Linked model", WarningCategory.Performance, WarningSeverity.Info, "Linked model loaded", false),
+
+            // Compliance — BS/ISO standards
+            ("egress", WarningCategory.Compliance, WarningSeverity.Critical, "Verify escape route compliance", false),
+            ("corridor width", WarningCategory.Compliance, WarningSeverity.High, "Check corridor min width per BS 9991", false),
+            ("compartment", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire compartmentation", false),
+            ("disabled", WarningCategory.Compliance, WarningSeverity.High, "Check DDA/BS 8300 compliance", false),
+
+            // Phase 56 WM-008: Additional MEP common warnings
+            ("multi-connector", WarningCategory.MEP, WarningSeverity.High, "Resolve ambiguous connector routing", false),
+            ("reverse flow", WarningCategory.MEP, WarningSeverity.Medium, "Check flow direction setting", false),
+            ("size mismatch", WarningCategory.MEP, WarningSeverity.Medium, "Use correct reducer size", false),
+            ("isolated", WarningCategory.MEP, WarningSeverity.High, "Connect isolated pipe/duct segment to main system", false),
+
+            // Phase 63: Enhanced classification for BIM coordinator automation
+            // Architectural quality
+            ("offset from level", WarningCategory.Geometric, WarningSeverity.Medium, "Review level offset — may cause scheduling errors", false),
+            ("negative height", WarningCategory.Geometric, WarningSeverity.Critical, "Fix negative element height", false),
+            ("zero length", WarningCategory.Geometric, WarningSeverity.Critical, "Delete zero-length element", true),
+            ("self-intersecting", WarningCategory.Geometric, WarningSeverity.Critical, "Fix self-intersecting sketch", false),
+            ("identical profile", WarningCategory.Geometric, WarningSeverity.Medium, "Review duplicate profiles in sweep", false),
+
+            // MEP coordination — CIBSE compliance
+            ("velocity exceeds", WarningCategory.MEP, WarningSeverity.High, "Reduce velocity per CIBSE Guide C limits", false),
+            ("pressure drop", WarningCategory.MEP, WarningSeverity.Medium, "Check pressure drop calculation", false),
+            ("insulation", WarningCategory.MEP, WarningSeverity.Medium, "Add insulation per CIBSE/Part L requirements", false),
+            ("duct leakage", WarningCategory.MEP, WarningSeverity.High, "Duct leakage class per DW/144", false),
+            ("pipe gradient", WarningCategory.MEP, WarningSeverity.High, "Ensure gravity drain gradient per BS EN 12056", false),
+
+            // Structural — Eurocode compliance
+            ("deflection", WarningCategory.Structural, WarningSeverity.High, "Check deflection limit per EC2/EC3", false),
+            ("eccentricity", WarningCategory.Structural, WarningSeverity.High, "Review eccentric connection per EC3", false),
+            ("bearing", WarningCategory.Structural, WarningSeverity.Critical, "Verify bearing capacity per EC7", false),
+            ("fire rating", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire resistance per Approved Document B", false),
+            ("movement joint", WarningCategory.Structural, WarningSeverity.Medium, "Check movement joint spacing per BS EN 1996", false),
+
+            // Compliance — regulatory
+            ("Part L", WarningCategory.Compliance, WarningSeverity.High, "Review Part L energy compliance", false),
+            ("thermal bridge", WarningCategory.Compliance, WarningSeverity.High, "Check thermal bridge at junction per Part L", false),
+            ("acoustic", WarningCategory.Compliance, WarningSeverity.Medium, "Verify acoustic performance per Approved Document E", false),
+            ("access", WarningCategory.Compliance, WarningSeverity.High, "Review accessibility per Part M/BS 8300", false),
+            ("ventilation", WarningCategory.Compliance, WarningSeverity.High, "Check ventilation requirements per Part F/CIBSE Guide A", false),
+            ("drainage", WarningCategory.Compliance, WarningSeverity.High, "Check drainage design per Part H/BS EN 12056", false),
+
+            // Data quality — tagging
+            ("duplicate mark", WarningCategory.Data, WarningSeverity.High, "Auto-increment duplicate mark value", true),
+            ("missing parameter", WarningCategory.Data, WarningSeverity.Medium, "Bind missing shared parameter", false),
+            ("empty value", WarningCategory.Data, WarningSeverity.Low, "Populate empty parameter value", false),
+
+            // Coordination — worksharing
+            ("borrowed", WarningCategory.Data, WarningSeverity.Low, "Element borrowed by another user", false),
+            ("checked out", WarningCategory.Data, WarningSeverity.Info, "Element checked out for editing", false),
+            ("workset", WarningCategory.Performance, WarningSeverity.Low, "Review workset assignment", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -247,6 +341,12 @@ namespace StingTools.Core
             }
             return false;
         }
+
+        // ── HELPERS ──
+
+        /// <summary>Phase 56b LOGIC-WARN-01: Centralized null-safe FailureMessage description getter.</summary>
+        private static string GetWarningDesc(FailureMessage fm)
+            => fm?.GetDescriptionText()?.Trim() ?? "";
 
         // ── CLASSIFICATION ──
 
@@ -426,6 +526,36 @@ namespace StingTools.Core
             try { CheckWarningSLAViolations(doc, report); }
             catch (Exception ex) { StingLog.Warn($"SLA check: {ex.Message}"); }
 
+            // R4-C CS-GAP-02: Add stale elements as synthetic warnings so they appear
+            // in the unified warnings pipeline with SLA tracking and auto-fix
+            try
+            {
+                var compResult = ComplianceScan.Scan(doc);
+                if (compResult != null && compResult.StaleCount > 0)
+                {
+                    var syntheticStale = new ClassifiedWarning
+                    {
+                        Description = $"{compResult.StaleCount} elements have moved/changed but tags not updated",
+                        Category = WarningCategory.Data,
+                        Severity = WarningSeverity.High,
+                        CanAutoFix = true,
+                        FixStrategy = "Run RetagStale command to update tags on moved elements"
+                    };
+                    report.Warnings.Add(syntheticStale);
+                    report.Total++;
+                    report.AutoFixable++;
+                    if (!report.ByCategory.ContainsKey(WarningCategory.Data)) report.ByCategory[WarningCategory.Data] = 0;
+                    report.ByCategory[WarningCategory.Data]++;
+                    if (!report.BySeverity.ContainsKey(WarningSeverity.High)) report.BySeverity[WarningSeverity.High] = 0;
+                    report.BySeverity[WarningSeverity.High]++;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
+
+            // R4-D A1: Build root-cause groups (deduplicates identical warnings)
+            try { BuildRootCauseGroups(report); }
+            catch (Exception ex) { StingLog.Warn($"Root-cause grouping: {ex.Message}"); }
+
             return report;
         }
 
@@ -454,7 +584,7 @@ namespace StingTools.Core
                         foreach (ElementId id in cw.AdditionalElements)
                         {
                             try { doc.Delete(id); return true; }
-                            catch { }
+                            catch (Exception delEx) { StingLog.Warn($"AutoFix delete {id}: {delEx.Message}"); }
                         }
                     }
                     // Fallback: delete second failing element
@@ -490,7 +620,8 @@ namespace StingTools.Core
                     }
                 }
 
-                // Strategy 4: Duplicate mark value — auto-increment
+                // Strategy 4: Duplicate mark value — auto-increment with collision avoidance
+                // Phase 56 WM-001 fix: naive "_2" append could create new collisions
                 if (lower.Contains("duplicate mark value") || lower.Contains("duplicate type mark"))
                 {
                     var ids = cw.FailingElements.ToList();
@@ -503,8 +634,27 @@ namespace StingTools.Core
                             if (markParam != null && !markParam.IsReadOnly)
                             {
                                 string current = markParam.AsString() ?? "";
-                                // Append _2 suffix to make unique
-                                markParam.Set(current + "_2");
+                                // Build set of existing marks to avoid creating new collisions
+                                var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                try
+                                {
+                                    foreach (Element e in new FilteredElementCollector(doc)
+                                        .WhereElementIsNotElementType())
+                                    {
+                                        string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                        if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                    }
+                                }
+                                catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
+
+                                // Find unique mark by numeric increment
+                                string newMark = current;
+                                for (int attempt = 2; attempt < 1000; attempt++)
+                                {
+                                    newMark = $"{current}_{attempt}";
+                                    if (!existingMarks.Contains(newMark)) break;
+                                }
+                                markParam.Set(newMark);
                                 return true;
                             }
                         }
@@ -523,7 +673,143 @@ namespace StingTools.Core
                                 doc.GetElement(ids[0]), doc.GetElement(ids[1]));
                             return true;
                         }
-                        catch { }
+                        catch (Exception ex2) { StingLog.Warn($"Unjoin failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 6: Overlapping walls — join geometry
+                if (lower.Contains("highlighted walls overlap"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    if (ids.Count >= 2)
+                    {
+                        try
+                        {
+                            var e1 = doc.GetElement(ids[0]);
+                            var e2 = doc.GetElement(ids[1]);
+                            if (e1 != null && e2 != null && !JoinGeometryUtils.AreElementsJoined(doc, e1, e2))
+                            {
+                                JoinGeometryUtils.JoinGeometry(doc, e1, e2);
+                                return true;
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Wall join failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 7: Room tag outside boundary — move to room center
+                if (lower.Contains("room tag") && lower.Contains("outside"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(id);
+                            if (el is SpatialElementTag roomTag && roomTag.Room != null)
+                            {
+                                var room = roomTag.Room;
+                                var pt = room.get_BoundingBox(null);
+                                if (pt != null)
+                                {
+                                    var center = (pt.Min + pt.Max) / 2.0;
+                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
+                                    return true;
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Room tag move failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 55: Strategy 8: Elements slightly off axis — snap to nearest axis
+                if (lower.Contains("slightly off axis"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            var el = doc.GetElement(id);
+                            if (el?.Location is LocationCurve lc)
+                            {
+                                var line = lc.Curve as Line;
+                                if (line != null)
+                                {
+                                    var dir = line.Direction;
+                                    // Snap near-horizontal to horizontal, near-vertical to vertical
+                                    if (Math.Abs(dir.Y) < 0.01 && Math.Abs(dir.Y) > 0.0001)
+                                    {
+                                        var newEnd = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(0).Y, line.GetEndPoint(1).Z);
+                                        lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
+                                        return true;
+                                    }
+                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.X) > 0.0001)
+                                    {
+                                        var newEnd = new XYZ(line.GetEndPoint(0).X, line.GetEndPoint(1).Y, line.GetEndPoint(1).Z);
+                                        lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Axis snap failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 63: Strategy 9: Delete zero-length elements (walls, pipes, ducts)
+                if (lower.Contains("zero length") || lower.Contains("zero-length"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el?.Location is LocationCurve lc && lc.Curve.Length < 0.01) // < ~3mm
+                            {
+                                doc.Delete(id);
+                                return true;
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Zero-length delete: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 63: Strategy 10: Fix empty mark values (assign element ID as temporary mark)
+                if (lower.Contains("duplicate mark"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    if (ids.Count >= 2)
+                    {
+                        try
+                        {
+                            // Collect ALL existing marks to avoid creating new duplicates
+                            var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var checkId in ids)
+                            {
+                                var checkEl = doc.GetElement(checkId);
+                                string m = checkEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                            }
+                            // Change the second element's mark
+                            var secondEl = doc.GetElement(ids[1]);
+                            var markParam = secondEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
+                            if (markParam != null && !markParam.IsReadOnly)
+                            {
+                                string baseMark = markParam.AsString() ?? "";
+                                for (int suffix = 2; suffix < 1000; suffix++)
+                                {
+                                    string candidate = $"{baseMark}_{suffix}";
+                                    if (!existingMarks.Contains(candidate))
+                                    {
+                                        markParam.Set(candidate);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Duplicate mark fix: {ex2.Message}"); }
                     }
                 }
             }
@@ -592,7 +878,147 @@ namespace StingTools.Core
                 else
                     tx.RollBack();
             }
+
+            // Phase 56: Fix verification — re-scan warnings after auto-fix to confirm fixes worked
+            if (report.Fixed > 0)
+            {
+                try
+                {
+                    int postFixCount = doc.GetWarnings()?.Count ?? 0;
+                    int preFixCount = warnings.Count;
+                    int netReduction = preFixCount - postFixCount;
+                    report.Details.Add($"");
+                    report.Details.Add($"── Verification ──");
+                    report.Details.Add($"Before: {preFixCount} warnings, After: {postFixCount} warnings");
+                    if (netReduction > 0)
+                        report.Details.Add($"Net reduction: {netReduction} warnings resolved");
+                    else if (netReduction == 0)
+                        report.Details.Add($"Warning: no net reduction — fixes may have introduced new warnings");
+                    else
+                        report.Details.Add($"WARNING: {Math.Abs(netReduction)} NEW warnings introduced by fixes — review manually");
+                    report.NetReduction = netReduction;
+                }
+                catch (Exception ex) { StingLog.Warn($"Fix verification scan: {ex.Message}"); }
+            }
             return report;
+        }
+
+        // ── WARNING PRIORITY QUEUE ──
+
+        /// <summary>
+        /// Phase 56: Calculate weighted priority score for each warning.
+        /// Higher score = fix this warning first. Factors: severity, element count,
+        /// downstream impact (COBie, compliance), age, and auto-fixability.
+        /// </summary>
+        internal static List<(ClassifiedWarning Warning, double Score, string Reason)>
+            PrioritizeWarnings(List<ClassifiedWarning> warnings)
+        {
+            var scored = new List<(ClassifiedWarning, double, string)>();
+            foreach (var w in warnings)
+            {
+                double score = 0;
+                var reasons = new List<string>();
+
+                // Severity weight (0-50)
+                switch (w.Severity)
+                {
+                    case WarningSeverity.Critical: score += 50; reasons.Add("CRITICAL severity"); break;
+                    case WarningSeverity.High: score += 35; reasons.Add("HIGH severity"); break;
+                    case WarningSeverity.Medium: score += 20; break;
+                    case WarningSeverity.Low: score += 10; break;
+                    default: score += 5; break;
+                }
+
+                // Element count impact (0-20)
+                int elemCount = (w.FailingElements?.Count ?? 0) + (w.AdditionalElements?.Count ?? 0);
+                if (elemCount > 10) { score += 20; reasons.Add($"{elemCount} elements affected"); }
+                else if (elemCount > 5) score += 15;
+                else if (elemCount > 1) score += 10;
+                else score += 5;
+
+                // Category impact on downstream systems (0-20)
+                if (w.Category == WarningCategory.Spatial) { score += 20; reasons.Add("Affects room/area data"); }
+                else if (w.Category == WarningCategory.MEP) { score += 15; reasons.Add("Affects MEP systems"); }
+                else if (w.Category == WarningCategory.Data) { score += 15; reasons.Add("Affects tag/schedule data"); }
+                else if (w.Category == WarningCategory.Compliance) { score += 18; reasons.Add("Compliance impact"); }
+                else if (w.Category == WarningCategory.Structural) { score += 12; }
+
+                // Auto-fixable bonus (prioritize easy wins)
+                if (w.CanAutoFix) { score += 10; reasons.Add("Auto-fixable"); }
+
+                scored.Add((w, score, string.Join(", ", reasons)));
+            }
+
+            return scored.OrderByDescending(s => s.Item2).ToList();
+        }
+
+        // ── MODEL VALIDATION ENGINE ──
+
+        /// <summary>
+        /// Phase 56: Post-creation model validation. Checks geometry, spatial,
+        /// MEP system, and naming convention compliance.
+        /// Returns list of validation issues found.
+        /// </summary>
+        internal static List<string> ValidateModelElements(Document doc, List<ElementId> elementIds)
+        {
+            var issues = new List<string>();
+            if (doc == null || elementIds == null || elementIds.Count == 0) return issues;
+
+            foreach (var id in elementIds)
+            {
+                var el = doc.GetElement(id);
+                if (el == null) continue;
+
+                try
+                {
+                    // 1. Geometry validation — check for zero-length/area elements
+                    if (el.Location is LocationCurve lc)
+                    {
+                        if (lc.Curve.Length < 0.01) // ~3mm
+                            issues.Add($"Element {el.Id}: near-zero length ({lc.Curve.Length * 304.8:F0}mm)");
+                    }
+
+                    // 2. Bounding box validation — elements without geometry
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): no bounding box — may be invisible");
+                    else if ((bb.Max - bb.Min).GetLength() < 0.001)
+                        issues.Add($"Element {el.Id} ({el.Category?.Name}): zero-size bounding box");
+
+                    // 3. Level association — elements without a level
+                    var levelId = el.LevelId;
+                    if (levelId == null || levelId == ElementId.InvalidElementId)
+                    {
+                        // Only flag for elements that should have a level
+                        if (el is Wall || el is Floor || el is FamilyInstance fi && fi.Host == null)
+                            issues.Add($"Element {el.Id} ({el.Category?.Name}): not associated with a level");
+                    }
+
+                    // 4. MEP system validation — connectors should be connected
+                    if (el is FamilyInstance fam)
+                    {
+                        var connMgr = fam.MEPModel?.ConnectorManager;
+                        if (connMgr != null)
+                        {
+                            int unconnected = 0;
+                            foreach (Connector c in connMgr.Connectors)
+                                if (!c.IsConnected) unconnected++;
+                            if (unconnected > 0)
+                                issues.Add($"Element {el.Id} ({el.Category?.Name}): {unconnected} unconnected MEP connector(s)");
+                        }
+                    }
+
+                    // 5. Naming convention — elements with default names
+                    string mark = el.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                    if (string.IsNullOrEmpty(mark) && (el is Wall || el is Floor || el is FamilyInstance))
+                    {
+                        // Not critical but useful for BIM coordinators
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"ValidateModelElement {id}: {ex.Message}"); }
+            }
+
+            return issues;
         }
 
         // ── BASELINE / TREND ──
@@ -604,7 +1030,8 @@ namespace StingTools.Core
             return Path.ChangeExtension(docPath, ".sting_warnings_baseline.json");
         }
 
-        /// <summary>Save current warning count as baseline for trend tracking.</summary>
+        /// <summary>Save current warning count as baseline for trend tracking.
+        /// Phase 56b DATA-WARN-01: Uses atomic write pattern (temp + rename) to prevent corruption.</summary>
         internal static void SaveBaseline(Document doc)
         {
             try
@@ -612,11 +1039,23 @@ namespace StingTools.Core
                 string path = GetBaselinePath(doc);
                 if (path == null) return;
                 int count = doc.GetWarnings()?.Count ?? 0;
-                string json = $"{{\"total\":{count},\"date\":\"{DateTime.Now:o}\"}}";
-                File.WriteAllText(path, json, Encoding.UTF8);
+                string json = $"{{\"version\":2,\"total\":{count},\"date\":\"{DateTime.Now:o}\",\"user\":\"{Environment.UserName}\"}}";
+
+                // Atomic write: temp file then rename to prevent mid-write corruption
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, json, Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
                 StingLog.Info($"Warning baseline saved: {count} warnings");
             }
-            catch (Exception ex) { StingLog.Warn($"SaveBaseline: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveBaseline: {ex.Message}");
+                // Clean up temp file on failure
+                try { string tp = GetBaselinePath(doc) + ".tmp"; if (File.Exists(tp)) File.Delete(tp); }
+                catch { /* best effort cleanup */ }
+            }
         }
 
         /// <summary>Load previous baseline count. Returns null if no baseline exists.</summary>
@@ -1170,37 +1609,111 @@ namespace StingTools.Core
                 var warnings = doc.GetWarnings();
                 int count = warnings?.Count ?? 0;
 
-                // Build warning type array
-                var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // A2: Load existing first-seen timestamps so we don't overwrite them
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                string now = DateTime.Now.ToString("o");
+
+                // Build warning type array with per-type first-seen timestamps
+                var typeEntries = new List<string>();
                 if (warnings != null)
                 {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var fm in warnings)
                     {
                         string desc = fm.GetDescriptionText();
-                        if (!string.IsNullOrEmpty(desc)) types.Add(desc);
+                        if (string.IsNullOrEmpty(desc) || !seen.Add(desc)) continue;
+
+                        // Preserve existing first-seen date, or stamp new
+                        string firstSeenDate = firstSeen.ContainsKey(desc) ? firstSeen[desc] : now;
+                        string escaped = desc.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                        typeEntries.Add($"{{\"desc\":\"{escaped}\",\"first_seen\":\"{firstSeenDate}\",\"count\":1}}");
                     }
                 }
 
                 var sb = new StringBuilder();
                 sb.Append("{");
+                sb.Append($"\"version\":3,");
                 sb.Append($"\"total\":{count},");
-                sb.Append($"\"date\":\"{DateTime.Now:o}\",");
+                sb.Append($"\"date\":\"{now}\",");
                 sb.Append($"\"user\":\"{Environment.UserName ?? "unknown"}\",");
                 sb.Append("\"warning_types\":[");
-                bool first = true;
-                foreach (string t in types)
-                {
-                    if (!first) sb.Append(",");
-                    sb.Append($"\"{t.Replace("\"", "\\\"")}\"");
-                    first = false;
-                }
+                sb.Append(string.Join(",", typeEntries));
                 sb.Append("]");
                 sb.Append("}");
 
-                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-                StingLog.Info($"Extended warning baseline saved: {count} warnings, {types.Count} types");
+                // Atomic write
+                string tempPath = path + ".tmp";
+                File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
+                if (File.Exists(path)) File.Delete(path);
+                File.Move(tempPath, path);
+
+                StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }
             catch (Exception ex) { StingLog.Warn($"SaveExtendedBaseline: {ex.Message}"); }
+        }
+
+        /// <summary>A2: Load per-warning first-seen timestamps from existing baseline sidecar.</summary>
+        private static Dictionary<string, string> LoadFirstSeenTimestamps(string baselinePath)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (!File.Exists(baselinePath)) return result;
+                string json = File.ReadAllText(baselinePath);
+                var obj = JObject.Parse(json);
+                var types = obj["warning_types"] as JArray;
+                if (types == null) return result;
+                foreach (var item in types)
+                {
+                    if (item is JObject jObj)
+                    {
+                        string desc = jObj["desc"]?.ToString();
+                        string fs = jObj["first_seen"]?.ToString();
+                        if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(fs))
+                            result[desc] = fs;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadFirstSeenTimestamps: {ex.Message}"); }
+            return result;
+        }
+
+        /// <summary>A2: Check per-warning SLA violations using first-seen timestamps.
+        /// Returns list of warnings exceeding their SLA threshold based on individual age.</summary>
+        internal static List<(string Description, double AgeHours, double SLAHours, WarningSeverity Severity)>
+            CheckPerWarningSLAViolations(Document doc, WarningReport report)
+        {
+            var violations = new List<(string, double, double, WarningSeverity)>();
+            try
+            {
+                string path = GetBaselinePath(doc);
+                if (path == null || !File.Exists(path)) return violations;
+
+                var firstSeen = LoadFirstSeenTimestamps(path);
+                if (firstSeen.Count == 0) return violations;
+
+                var now = DateTime.Now;
+                foreach (var group in report.RootCauseGroups)
+                {
+                    if (!firstSeen.TryGetValue(group.Description, out string fsStr)) continue;
+                    if (!DateTime.TryParse(fsStr, out DateTime fsDate)) continue;
+
+                    double ageHours = (now - fsDate).TotalHours;
+                    double slaHours = group.Severity switch
+                    {
+                        WarningSeverity.Critical => 4,
+                        WarningSeverity.High => 24,
+                        WarningSeverity.Medium => 168,
+                        WarningSeverity.Low => 336,
+                        _ => 336
+                    };
+
+                    if (ageHours > slaHours)
+                        violations.Add((group.Description, ageHours, slaHours, group.Severity));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"CheckPerWarningSLAViolations: {ex.Message}"); }
+            return violations;
         }
 
         /// <summary>Phase 48: Build top-N warnings per category for drill-down tooltips.</summary>
@@ -1219,6 +1732,41 @@ namespace StingTools.Core
                     .Select(g => (g.Key.Length > 80 ? g.Key.Substring(0, 77) + "..." : g.Key, g.Count()))
                     .ToList();
                 report.TopWarningsByCategory[group.Key] = topDescs;
+            }
+        }
+
+        /// <summary>R4-D A1: Build root-cause groups — deduplicates warnings by description.
+        /// Reduces 200 "duplicate instances" warnings into 1 group with count=200.
+        /// Sorted by count descending so highest-impact groups appear first.</summary>
+        internal static void BuildRootCauseGroups(WarningReport report)
+        {
+            if (report?.Warnings == null || report.Warnings.Count == 0) return;
+            report.RootCauseGroups.Clear();
+
+            var grouped = report.Warnings
+                .GroupBy(w => w.Description ?? "", StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(g => g.Count());
+
+            foreach (var g in grouped)
+            {
+                var first = g.First();
+                var allElements = new List<ElementId>();
+                foreach (var w in g)
+                {
+                    if (w.FailingElements != null)
+                        allElements.AddRange(w.FailingElements);
+                }
+
+                report.RootCauseGroups.Add(new RootCauseGroup
+                {
+                    Description = first.Description ?? "",
+                    Category = first.Category,
+                    Severity = first.Severity,
+                    Count = g.Count(),
+                    CanAutoFix = first.CanAutoFix,
+                    FixStrategy = first.FixStrategy,
+                    AllElements = allElements.Distinct().ToList()
+                });
             }
         }
     }
@@ -1307,6 +1855,117 @@ namespace StingTools.Core
 
     // ══════════════════════════════════════════════════════════════════
     //  COMMANDS (8 IExternalCommand classes)
+        // ══════════════════════════════════════════════════════════════
+        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
+        // Cross-system automation: warning → issue pipeline
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
+        /// Checks for existing linked issues to avoid duplicates.
+        /// Returns count of newly created issues.
+        /// </summary>
+        internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
+            WarningSeverity minSeverity = WarningSeverity.Critical)
+        {
+            if (doc == null || report == null || report.Warnings.Count == 0) return 0;
+
+            int created = 0;
+            try
+            {
+                // Load existing issues to check for duplicates
+                string issuesPath = Path.Combine(
+                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    "_bim_manager", "issues.json");
+
+                var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (File.Exists(issuesPath))
+                {
+                    try
+                    {
+                        string json = File.ReadAllText(issuesPath);
+                        var arr = Newtonsoft.Json.Linq.JArray.Parse(json);
+                        foreach (var item in arr)
+                        {
+                            string desc = item["description"]?.ToString() ?? "";
+                            existingIssues.Add(desc);
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
+                }
+
+                // Filter warnings by minimum severity
+                var targetWarnings = report.Warnings.Where(w =>
+                    w.Severity <= minSeverity && // Critical=0, High=1, so <= works
+                    !string.IsNullOrEmpty(w.Description));
+
+                // Group by description to avoid creating 50 issues for same warning type
+                var grouped = targetWarnings
+                    .GroupBy(w => w.Description.Length > 80 ? w.Description.Substring(0, 80) : w.Description)
+                    .Take(20); // Cap at 20 issue types
+
+                var newIssues = new List<object>();
+                int nextId = existingIssues.Count + 1;
+
+                foreach (var group in grouped)
+                {
+                    string desc = $"[AUTO] {group.Key}";
+                    if (existingIssues.Contains(desc)) continue; // Already tracked
+
+                    var first = group.First();
+                    string issueType = first.Severity == WarningSeverity.Critical ? "NCR" : "SI";
+                    string priority = first.Severity == WarningSeverity.Critical ? "CRITICAL" : "HIGH";
+
+                    var elementIds = group.SelectMany(w => w.FailingElements ?? Enumerable.Empty<ElementId>())
+                        .Select(id => id.Value.ToString()).Distinct().Take(10).ToList();
+
+                    newIssues.Add(new
+                    {
+                        id = $"{issueType}-{nextId:D4}",
+                        title = desc,
+                        description = $"{group.Count()} warning(s): {group.Key}",
+                        type = issueType,
+                        priority = priority,
+                        status = "OPEN",
+                        discipline = first.Discipline ?? "GEN",
+                        assignee = "BIM Manager",
+                        created_date = DateTime.Now.ToString("o"),
+                        created_by = "STING Auto",
+                        auto_created = true,
+                        warning_category = first.Category.ToString(),
+                        affected_elements = elementIds,
+                        element_count = group.Sum(w => (w.FailingElements?.Count ?? 0))
+                    });
+                    nextId++;
+                    created++;
+                }
+
+                if (newIssues.Count > 0)
+                {
+                    // Append to issues.json
+                    string dir = Path.GetDirectoryName(issuesPath) ?? "";
+                    if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                    Newtonsoft.Json.Linq.JArray arr;
+                    if (File.Exists(issuesPath))
+                    {
+                        try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
+                        catch { arr = new Newtonsoft.Json.Linq.JArray(); }
+                    }
+                    else arr = new Newtonsoft.Json.Linq.JArray();
+
+                    foreach (var issue in newIssues)
+                        arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
+
+                    File.WriteAllText(issuesPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
+            return created;
+        }
+
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -1769,6 +2428,163 @@ namespace StingTools.Core
     //  Phase 47: BIM COORDINATION CENTER — Unified dashboard command
     // ══════════════════════════════════════════════════════════════════
 
+    // ══════════════════════════════════════════════════════════════════
+    //  Phase 63: MODEL HEALTH SCORING ENGINE
+    //  Comprehensive model quality assessment with weighted scoring
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>Phase 63: Comprehensive model health score (0-100) with per-category breakdown.
+    /// Combines warnings, compliance, data quality, performance, and standards into single metric.</summary>
+    internal static class ModelHealthScorer
+    {
+        public class HealthScore
+        {
+            public double Overall { get; set; }
+            public double Warnings { get; set; }       // 0-25: from WarningsEngine health
+            public double Compliance { get; set; }      // 0-25: from ComplianceScan
+            public double DataQuality { get; set; }     // 0-25: containers, TAG7, STATUS
+            public double Performance { get; set; }     // 0-25: model size, groups, links
+            public string RAG => Overall >= 80 ? "GREEN" : Overall >= 50 ? "AMBER" : "RED";
+            public List<string> Recommendations { get; set; } = new List<string>();
+        }
+
+        /// <summary>Calculate comprehensive model health score.</summary>
+        internal static HealthScore Calculate(Document doc)
+        {
+            var score = new HealthScore();
+
+            // 1. Warnings score (25 points)
+            try
+            {
+                var wr = WarningsEngine.ScanWarnings(doc);
+                double warnHealth = WarningsEngine.CalculateWarningHealthScore(wr);
+                score.Warnings = Math.Max(0, warnHealth / 4.0); // Scale 0-100 to 0-25
+                if (wr.Critical > 0)
+                    score.Recommendations.Add($"Fix {wr.Critical} critical warnings immediately");
+                if (wr.AutoFixable > 5)
+                    score.Recommendations.Add($"Auto-fix {wr.AutoFixable} warnings to improve score quickly");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore warnings: {ex.Message}"); }
+
+            // 2. Compliance score (25 points)
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                var comp = ComplianceScan.Scan(doc);
+                score.Compliance = comp.CompliancePercent / 4.0;
+                if (comp.Untagged > 50)
+                    score.Recommendations.Add($"Tag {comp.Untagged} untagged elements (Batch Tag)");
+                if (comp.StaleCount > 0)
+                    score.Recommendations.Add($"Retag {comp.StaleCount} stale elements (Retag Stale)");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore compliance: {ex.Message}"); }
+
+            // 3. Data quality score (25 points)
+            try
+            {
+                int totalTagged = 0, withContainers = 0, withTag7 = 0, withStatus = 0;
+                var elems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .ToList();
+
+                foreach (var el in elems.Take(5000)) // Sample for performance
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+                    totalTagged++;
+
+                    string tag2 = ParameterHelpers.GetString(el, "ASS_TAG_2_TXT");
+                    if (!string.IsNullOrEmpty(tag2)) withContainers++;
+
+                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7_TXT");
+                    if (!string.IsNullOrEmpty(tag7)) withTag7++;
+
+                    string status = ParameterHelpers.GetString(el, "ASS_STATUS_TXT");
+                    if (!string.IsNullOrEmpty(status)) withStatus++;
+                }
+
+                if (totalTagged > 0)
+                {
+                    double containerPct = withContainers * 100.0 / totalTagged;
+                    double tag7Pct = withTag7 * 100.0 / totalTagged;
+                    double statusPct = withStatus * 100.0 / totalTagged;
+                    score.DataQuality = (containerPct * 0.4 + tag7Pct * 0.3 + statusPct * 0.3) / 4.0;
+
+                    if (containerPct < 80)
+                        score.Recommendations.Add("Run Combine Parameters to populate discipline containers");
+                    if (statusPct < 50)
+                        score.Recommendations.Add("Set STATUS tokens (NEW/EXISTING/DEMOLISHED)");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore data quality: {ex.Message}"); }
+
+            // 4. Performance score (25 points)
+            try
+            {
+                double perfScore = 25.0;
+                int elementCount = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .GetElementCount();
+
+                // Penalty for very large models
+                if (elementCount > 500000) perfScore -= 5;
+                else if (elementCount > 200000) perfScore -= 2;
+
+                // Penalty for excessive model groups
+                int groups = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Group))
+                    .GetElementCount();
+                if (groups > 100) perfScore -= 3;
+
+                // Penalty for unresolved links
+                int links = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance))
+                    .GetElementCount();
+                if (links > 20) perfScore -= 2;
+
+                score.Performance = Math.Max(0, perfScore);
+                if (elementCount > 500000)
+                    score.Recommendations.Add("Consider splitting model — over 500K elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore performance: {ex.Message}"); }
+
+            score.Overall = score.Warnings + score.Compliance + score.DataQuality + score.Performance;
+            return score;
+        }
+    }
+
+    /// <summary>Phase 63: Comprehensive model health report with scoring.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ModelHealthScoreCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+
+            var score = ModelHealthScorer.Calculate(ctx.Doc);
+
+            var report = new StringBuilder();
+            report.AppendLine($"MODEL HEALTH SCORE: {score.Overall:F0}/100 ({score.RAG})\n");
+            report.AppendLine($"  Warnings:    {score.Warnings:F0}/25");
+            report.AppendLine($"  Compliance:  {score.Compliance:F0}/25");
+            report.AppendLine($"  Data Quality: {score.DataQuality:F0}/25");
+            report.AppendLine($"  Performance: {score.Performance:F0}/25\n");
+
+            if (score.Recommendations.Count > 0)
+            {
+                report.AppendLine("RECOMMENDATIONS:");
+                foreach (string r in score.Recommendations)
+                    report.AppendLine($"  → {r}");
+            }
+
+            TaskDialog.Show("STING Model Health", report.ToString());
+            return Result.Succeeded;
+        }
+    }
+
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -1803,6 +2619,165 @@ namespace StingTools.Core
         }
 
         /// <summary>Build CoordData for the unified WPF dialog. Can be called from StingCommandHandler loop.</summary>
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-01: SMART ACTION INFERENCE ENGINE
+        //  Analyses model state and suggests next actions for coordinator
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-01: Infers next best actions for BIM coordinator based on
+        /// current model state (compliance, warnings, stale, issues).</summary>
+        internal static List<(string Action, string Reason, string CommandTag, string Priority)>
+            InferNextActions(Document doc, ComplianceScan.ComplianceResult comp, WarningReport warnings, int openIssues)
+        {
+            var actions = new List<(string, string, string, string)>();
+
+            // Stale elements → retag first
+            if (comp.StaleCount > 0)
+                actions.Add(("Retag Stale Elements", $"{comp.StaleCount} elements moved since last tag", "RetagStale", "HIGH"));
+
+            // Critical warnings → fix immediately
+            if (warnings.Critical > 0)
+                actions.Add(("Fix Critical Warnings", $"{warnings.Critical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
+
+            // Low compliance → batch tag
+            if (comp.CompliancePercent < 80 && comp.Untagged > 10)
+                actions.Add(("Batch Tag Untagged", $"{comp.Untagged} untagged elements ({comp.CompliancePercent:F0}%)", "BatchTag", "HIGH"));
+
+            // Auto-fixable warnings → quick win
+            if (warnings.AutoFixable > 5)
+                actions.Add(("Auto-Fix Warnings", $"{warnings.AutoFixable} warnings can be auto-fixed", "WarningsAutoFix", "MEDIUM"));
+
+            // Placeholders → resolve
+            if (comp.PlaceholderCount > 20)
+                actions.Add(("Resolve Placeholders", $"{comp.PlaceholderCount} elements with GEN/XX/ZZ placeholders", "ResolveAllIssues", "MEDIUM"));
+
+            // High compliance → export ready
+            if (comp.CompliancePercent >= 90 && warnings.Critical == 0)
+                actions.Add(("Generate Weekly Report", "Model ready for coordination report", "WeeklyReport", "LOW"));
+
+            // Open issues → review
+            if (openIssues > 5)
+                actions.Add(("Review Open Issues", $"{openIssues} open issues require action", "IssueDashboard", "MEDIUM"));
+
+            // Containers incomplete → combine
+            if (comp.ContainerCompletePct < 80 && comp.TaggedComplete > 0)
+                actions.Add(("Run Combine Parameters", $"Container completion at {comp.ContainerCompletePct:F0}%", "CombineParameters", "HIGH"));
+
+            return actions.OrderByDescending(a => a.Priority == "CRITICAL" ? 4 :
+                a.Priority == "HIGH" ? 3 : a.Priority == "MEDIUM" ? 2 : 1).Take(5).ToList();
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-02: DOCUMENT-ISSUE CROSS-LINKING
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-02: Links documents to issues for ISO 19650 traceability.</summary>
+        internal static class DocumentIssueLinkEngine
+        {
+            private static string GetLinksPath(Document doc)
+            {
+                string docPath = doc?.PathName;
+                if (string.IsNullOrEmpty(docPath)) return null;
+                string dir = Path.Combine(Path.GetDirectoryName(docPath), "_bim_manager");
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "issue_doc_links.json");
+            }
+
+            /// <summary>Link a document to an issue.</summary>
+            internal static void LinkDocumentToIssue(Document doc, string issueId, string documentId, string linkType = "RESPONSE")
+            {
+                try
+                {
+                    string path = GetLinksPath(doc);
+                    if (path == null) return;
+
+                    JArray links = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
+                    links.Add(new JObject
+                    {
+                        ["issue_id"] = issueId,
+                        ["document_id"] = documentId,
+                        ["link_type"] = linkType,
+                        ["created_date"] = DateTime.Now.ToString("o"),
+                        ["created_by"] = Environment.UserName
+                    });
+                    File.WriteAllText(path, links.ToString(Formatting.Indented));
+                    StingLog.Info($"GAP-COORD-02: Linked {documentId} → {issueId} ({linkType})");
+                }
+                catch (Exception ex) { StingLog.Warn($"DocumentIssueLink: {ex.Message}"); }
+            }
+
+            /// <summary>Get all documents linked to an issue.</summary>
+            internal static List<string> GetDocumentsForIssue(Document doc, string issueId)
+            {
+                try
+                {
+                    string path = GetLinksPath(doc);
+                    if (path == null || !File.Exists(path)) return new List<string>();
+                    var links = JArray.Parse(File.ReadAllText(path));
+                    return links.Where(l => l["issue_id"]?.ToString() == issueId)
+                        .Select(l => l["document_id"]?.ToString()).Where(d => d != null).ToList();
+                }
+                catch { return new List<string>(); }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  GAP-COORD-03: CDE STATE VALIDATION BEFORE HANDOVER
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>GAP-COORD-03: Pre-handover CDE state validation.
+        /// Checks all documents are in correct state before deliverable export.</summary>
+        internal static (bool Pass, List<string> Issues) ValidateCDEHandoverReadiness(Document doc)
+        {
+            var issues = new List<string>();
+            try
+            {
+                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string docsPath = Path.Combine(docDir, "_bim_manager", "documents.json");
+                string issuesPath = Path.Combine(docDir, "_bim_manager", "issues.json");
+
+                // Check documents state
+                if (File.Exists(docsPath))
+                {
+                    var docs = JArray.Parse(File.ReadAllText(docsPath));
+                    int wipCount = 0, sharedCount = 0;
+                    foreach (JObject d in docs)
+                    {
+                        string cde = d["cde_status"]?.ToString() ?? "WIP";
+                        if (cde == "WIP") wipCount++;
+                        else if (cde == "SHARED") sharedCount++;
+                    }
+                    if (wipCount > 0) issues.Add($"{wipCount} documents still in WIP status (must be SHARED before handover)");
+                }
+
+                // Check open critical issues
+                if (File.Exists(issuesPath))
+                {
+                    var allIssues = JArray.Parse(File.ReadAllText(issuesPath));
+                    int critOpen = allIssues.Count(i =>
+                        i["status"]?.ToString() != "CLOSED" &&
+                        i["priority"]?.ToString() == "CRITICAL");
+                    if (critOpen > 0) issues.Add($"{critOpen} CRITICAL issues still open");
+                }
+
+                // Check compliance threshold
+                var comp = ComplianceScan.Scan(doc);
+                double minCompliance = TagConfig.GetConfigDouble("CDE_PUBLISHED_MIN_COMPLIANCE", 90);
+                if (comp.CompliancePercent < minCompliance)
+                    issues.Add($"Tag compliance {comp.CompliancePercent:F0}% below {minCompliance:F0}% threshold");
+
+                if (comp.StaleCount > 0)
+                    issues.Add($"{comp.StaleCount} stale elements need retagging");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ValidateCDEHandoverReadiness: {ex.Message}");
+                issues.Add($"Validation error: {ex.Message}");
+            }
+
+            return (issues.Count == 0, issues);
+        }
+
         internal static UI.BIMCoordinationCenter.CoordData BuildCoordData(Document doc)
         {
             try

@@ -349,6 +349,13 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(StingToolsApp.DataPath) || !Directory.Exists(StingToolsApp.DataPath))
                 issues.Add("STING data directory not found — template/schedule/material commands will fail");
 
+            // Phase 56b GAP-1: Validate all command tags resolve to actual commands
+            foreach (var step in preset.Steps)
+            {
+                if (ResolveCommand(step.CommandTag) == null)
+                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail");
+            }
+
             return (issues.Count == 0, issues);
         }
 
@@ -802,7 +809,15 @@ namespace StingTools.Core
             try
             {
                 double complianceAfter = 0;
-                try { ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext(); var scan = ComplianceScan.Scan(doc); complianceAfter = scan.CompliancePercent; }
+                try
+                {
+                    ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext();
+                    var scan = ComplianceScan.Scan(doc);
+                    complianceAfter = scan.CompliancePercent;
+
+                    // R4-C WF-GAP-04: Record trend snapshot after workflow, not just on document open
+                    ComplianceTrendTracker.RecordSnapshot(doc, scan);
+                }
                 catch (Exception ex) { StingLog.Warn($"Post-workflow compliance scan failed: {ex.Message}"); }
 
                 // Phase 39: Capture username from environment for audit trail
@@ -991,6 +1006,14 @@ namespace StingTools.Core
                 case "DrawingRegister": return new Docs.DrawingRegisterCommand();
                 case "AutoNumberSheets": return new Docs.AutoNumberSheetsCommand();
 
+                // Phase 63: New command resolutions
+                case "SpatialConnectivityAudit": return new Temp.SpatialConnectivityAuditCommand();
+                case "NamingAudit": return new Temp.NamingConventionAuditCommand();
+                case "CrossModelClash": return new Temp.CrossModelClashCommand();
+                case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
+                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
+                case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
+
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
@@ -1062,6 +1085,7 @@ namespace StingTools.Core
                 // Phase 47: Additional tagging and compliance commands
                 case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
                 case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
+                case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
                 // BIM Coordination Center dispatch targets
@@ -1109,6 +1133,20 @@ namespace StingTools.Core
                 case "MilestoneRegister":   return new BIMManager.MilestoneRegisterCommand();
                 case "PhaseSummary":        return new BIMManager.PhaseSummaryCommand();
 
+                // Phase 55: New workflow command resolutions
+                case "ScheduleAudit":           return new Temp.ScheduleAuditCommand();
+                case "SchemaValidate":          return new Temp.SchemaValidateCommand();
+                case "SheetComplianceCheck":    return new Docs.SheetComplianceCheckCommand();
+                case "SheetNamingCheck":        return new Docs.SheetNamingCheckCommand();
+                case "TemplateAudit":           return new Temp.TemplateAuditCommand();
+                case "TemplateComplianceScore": return new Temp.TemplateComplianceScoreCommand();
+                case "ClashDetection":          return new Temp.ClashDetectionCommand();
+                case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
+                case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
+                case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
+                case "GenerateBEP":             return new BIMManager.GenerateBEPCommand();
+                case "WarningsMonitor":         return new WarningsMonitorCommand();
+
                 default: return null;
             }
         }
@@ -1134,6 +1172,23 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("ClashCoordination"));
             presets.Add(GetBuiltInPreset("EndOfStageGate"));
             presets.Add(GetBuiltInPreset("QuickFixCycle"));
+            presets.Add(GetBuiltInPreset("ModelAuditDeep"));
+            presets.Add(GetBuiltInPreset("MEPCoordination"));
+            presets.Add(GetBuiltInPreset("CDE_Submission"));
+            presets.Add(GetBuiltInPreset("DesignReviewPrep"));
+            // WF-GAP-01: Discipline-specific presets
+            presets.Add(GetBuiltInPreset("Healthcare_NHS"));
+            presets.Add(GetBuiltInPreset("DataCentre"));
+            presets.Add(GetBuiltInPreset("CommercialOffice"));
+            presets.Add(GetBuiltInPreset("Residential"));
+            presets.Add(GetBuiltInPreset("Education"));
+            // Phase 63: BIM coordinator automation presets
+            presets.Add(GetBuiltInPreset("IssueResolution"));
+            presets.Add(GetBuiltInPreset("ClientReviewPrep"));
+            presets.Add(GetBuiltInPreset("RegulatoryScan"));
+
+            // Remove any null entries from failed lookups
+            presets.RemoveAll(p => p == null);
 
             // User-defined JSON files
             string dataDir = StingToolsApp.DataPath;
@@ -1422,9 +1477,271 @@ namespace StingTools.Core
                         }
                     };
 
+                // Phase 55: New BIM coordinator automation presets
+                case "ModelAuditDeep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Model Audit Deep",
+                        Description = "Comprehensive model health: warnings, templates, parameters, schedules, compliance",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "1. Warning analysis" },
+                            new WorkflowStep { CommandTag = "TemplateAudit", Label = "2. Template audit" },
+                            new WorkflowStep { CommandTag = "ValidateTemplate", Label = "3. Data pipeline validation (45 checks)" },
+                            new WorkflowStep { CommandTag = "ScheduleAudit", Label = "4. Schedule audit" },
+                            new WorkflowStep { CommandTag = "SchemaValidate", Label = "5. Material schema validation" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "6. Tag validation" },
+                            new WorkflowStep { CommandTag = "SheetComplianceCheck", Label = "7. Sheet compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "8. Full compliance dashboard" },
+                        }
+                    };
+
+                case "MEPCoordination":
+                    return new WorkflowPreset
+                    {
+                        Name = "MEP Coordination",
+                        Description = "MEP system validation: clashes, system integrity, sizing, tagging",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ClashDetection", Label = "1. Clash detection" },
+                            new WorkflowStep { CommandTag = "BatchSystemPush", Label = "2. MEP system push" },
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "3. Re-tag moved elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate tags" },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "5. Auto-fix warnings", Condition = "has_warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "6. Compliance check" },
+                        }
+                    };
+
+                case "CDE_Submission":
+                    return new WorkflowPreset
+                    {
+                        Name = "CDE Submission",
+                        Description = "ISO 19650 CDE submission package: validate, export, register, transmittal",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Fix stale elements", RequiresStaleElements = true, Optional = true },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "2. Resolve placeholders", MaxCompliancePct = 98, Optional = true },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Final tag validation" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "4. Sheet naming check" },
+                            new WorkflowStep { CommandTag = "ValidateDocNaming", Label = "5. Document naming check" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "6. Export tag register" },
+                            new WorkflowStep { CommandTag = "ExportSheetRegister", Label = "7. Export sheet register" },
+                            new WorkflowStep { CommandTag = "CreateTransmittal", Label = "8. Create transmittal" },
+                        }
+                    };
+
+                case "DesignReviewPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "Design Review Prep",
+                        Description = "Pre-design review: template check, view preparation, annotation cleanup",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "1. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix warnings", Condition = "has_warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "3. Sheet naming audit" },
+                            new WorkflowStep { CommandTag = "TemplateComplianceScore", Label = "4. Template compliance scores" },
+                            new WorkflowStep { CommandTag = "CompletenessDashboard", Label = "5. Tag completeness report" },
+                        }
+                    };
+
+                // ═══ WF-GAP-01: Discipline-specific workflow presets ═══
+
+                case "Healthcare_NHS":
+                    return new WorkflowPreset
+                    {
+                        Name = "Healthcare NHS",
+                        Description = "NHS/HTM compliance: medical gas tagging, infection zones, room data sheets, COBie for CAFM",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "BatchTag", Label = "2. Full batch tag (all disciplines)" },
+                            new WorkflowStep { CommandTag = "BatchSystemPush", Label = "3. MEP system parameter push (medical gas/LTHW/CHW)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "5. Room audit (infection zones, department, area)" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "6. COBie V2.4 export (NHS preset)" },
+                            new WorkflowStep { CommandTag = "AssetCondition", Label = "7. Asset condition survey (ISO 15686)", Optional = true },
+                            new WorkflowStep { CommandTag = "MaintenanceSchedule", Label = "8. Maintenance schedule (SFG20/HTM)", Optional = true },
+                            new WorkflowStep { CommandTag = "HandoverManual", Label = "9. FM handover manual" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "10. Full compliance dashboard" },
+                        }
+                    };
+
+                case "DataCentre":
+                    return new WorkflowPreset
+                    {
+                        Name = "Data Centre",
+                        Description = "Data centre: cable tray capacity, power distribution, cooling zones, Uptime Institute compliance",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "BatchTag", Label = "2. Full batch tag (MEP-focused)" },
+                            new WorkflowStep { CommandTag = "BatchSystemPush", Label = "3. MEP system push (power/cooling/data)" },
+                            new WorkflowStep { CommandTag = "ClashDetection", Label = "4. Clash detection (cable tray vs duct)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate tags" },
+                            new WorkflowStep { CommandTag = "MEPSizingCheck", Label = "6. MEP sizing check" },
+                            new WorkflowStep { CommandTag = "AutoCost5D", Label = "7. 5D cost estimate" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "8. COBie export (Data Centre preset)" },
+                            new WorkflowStep { CommandTag = "ExportModelHealth", Label = "9. Model health export" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "10. Compliance dashboard" },
+                        }
+                    };
+
+                case "CommercialOffice":
+                    return new WorkflowPreset
+                    {
+                        Name = "Commercial Office",
+                        Description = "Commercial office: BCO Guide compliance, BREEAM data, lease demise tagging, occupancy schedules",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "TagAndCombine", Label = "2. Tag & combine (full pipeline)" },
+                            new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "3. Room/space audit (BCO/NIA)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "AutoSchedule4D", Label = "5. 4D schedule generation" },
+                            new WorkflowStep { CommandTag = "AutoCost5D", Label = "6. 5D cost estimate" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "7. COBie export (Commercial preset)" },
+                            new WorkflowStep { CommandTag = "TagRegisterExport", Label = "8. Asset register export" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "9. Compliance dashboard" },
+                        }
+                    };
+
+                case "Residential":
+                    return new WorkflowPreset
+                    {
+                        Name = "Residential",
+                        Description = "Residential: dwelling units, building regs Part L/M/B, plot numbering, sales schedules",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "TagAndCombine", Label = "2. Tag & combine (full pipeline)" },
+                            new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "3. Room audit (dwelling areas, Part M)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate tags" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "5. Sheet naming compliance" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets by discipline" },
+                            new WorkflowStep { CommandTag = "BOQExport", Label = "7. BOQ export" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "8. Compliance dashboard" },
+                        }
+                    };
+
+                case "Education":
+                    return new WorkflowPreset
+                    {
+                        Name = "Education",
+                        Description = "Education: BB103 area data, DfE Output Specification, safeguarding zones, FF&E schedules",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "BatchTag", Label = "2. Full batch tag" },
+                            new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "3. Room audit (BB103 area compliance)" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate ISO 19650 compliance" },
+                            new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie export (Education preset)" },
+                            new WorkflowStep { CommandTag = "HandoverManual", Label = "6. FM handover manual" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "7. Compliance dashboard" },
+                        }
+                    };
+
+                // Phase 63: BIM coordinator automation presets
+                case "IssueResolution":
+                    return new WorkflowPreset
+                    {
+                        Name = "IssueResolution",
+                        Description = "Issue resolution cycle: retag stale → fix anomalies → resolve issues → validate → compliance gate",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "AnomalyAutoFix", Label = "3. Fix tag anomalies" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "4. Resolve all ISO issues" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Compliance dashboard" },
+                        }
+                    };
+
+                case "ClientReviewPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "ClientReviewPrep",
+                        Description = "Client review preparation: clean model → validate → naming → sheets → presentation → report",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "1. Auto-fix warnings" },
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "2. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "3. Sheet naming compliance" },
+                            new WorkflowStep { CommandTag = "BatchPrintSheets", Label = "4. Batch print sheets to PDF" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "5. Drawing register" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Final compliance" },
+                        }
+                    };
+
+                case "RegulatoryScan":
+                    return new WorkflowPreset
+                    {
+                        Name = "RegulatoryScan",
+                        Description = "Regulatory compliance scan: Part B fire + Part L energy + Part M access + BS standards",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "1. Tag compliance" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "2. Warning audit" },
+                            new WorkflowStep { CommandTag = "WarningsCompliance", Label = "3. Standards compliance report" },
+                            new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "4. Room connectivity (egress)" },
+                            new WorkflowStep { CommandTag = "TemplateComplianceScore", Label = "5. Template compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Full compliance" },
+                        }
+                    };
+
                 default:
-                    return new WorkflowPreset { Name = name, Description = "Unknown preset" };
+                    StingLog.Warn($"WorkflowEngine: Unknown built-in preset '{name}'");
+                    return null!;
             }
+        }
+
+        /// <summary>WF-GAP-01: Get workflow preset appropriate for the project type.
+        /// Reads PROJECT_TYPE from project_config.json. Returns discipline-specific preset
+        /// or falls back to DailyQA for unknown types.</summary>
+        public static WorkflowPreset GetWorkflowForProjectType(string projectType)
+        {
+            if (string.IsNullOrEmpty(projectType)) return GetBuiltInPreset("DailyQA");
+            string pt = projectType.Trim();
+
+            // Map project types to discipline-specific presets
+            if (pt.IndexOf("Health", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("NHS", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("Hospital", StringComparison.OrdinalIgnoreCase) >= 0)
+                return GetBuiltInPreset("Healthcare_NHS");
+
+            if (pt.IndexOf("Data Cent", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("DataCent", StringComparison.OrdinalIgnoreCase) >= 0)
+                return GetBuiltInPreset("DataCentre");
+
+            if (pt.IndexOf("Office", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("Commercial", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("Retail", StringComparison.OrdinalIgnoreCase) >= 0)
+                return GetBuiltInPreset("CommercialOffice");
+
+            if (pt.IndexOf("Residen", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("Housing", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("Dwelling", StringComparison.OrdinalIgnoreCase) >= 0)
+                return GetBuiltInPreset("Residential");
+
+            if (pt.IndexOf("Educat", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("School", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                pt.IndexOf("University", StringComparison.OrdinalIgnoreCase) >= 0)
+                return GetBuiltInPreset("Education");
+
+            return GetBuiltInPreset("DailyQA"); // fallback
         }
 
         // ── LOG-13: JSONL run record persistence with rotation ────────────

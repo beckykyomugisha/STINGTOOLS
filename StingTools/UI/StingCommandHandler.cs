@@ -313,6 +313,7 @@ namespace StingTools.UI
                     case "PinTags": RunCommand<Organise.PinTagsCommand>(app); break;
                     case "AttachLeader": RunCommand<Organise.AttachLeaderCommand>(app); break;
                     case "SelectTagsWithLeaders": RunCommand<Organise.SelectTagsWithLeadersCommand>(app); break;
+                    case "EqualizeLeaderLengths": RunCommand<Organise.EqualizeLeaderLengthsCommand>(app); break;
                     case "LeaderLength025": SetExtraParam("LeaderLength", "0.25"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength05": SetExtraParam("LeaderLength", "0.5"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
                     case "LeaderLength1": SetExtraParam("LeaderLength", "1.0"); RunCommand<Organise.SnapLeaderElbowCommand>(app); break;
@@ -1087,6 +1088,9 @@ namespace StingTools.UI
                     case "ModelPlaceDoor": RunCommand<Model.ModelPlaceDoorCommand>(app); break;
                     case "ModelPlaceWindow": RunCommand<Model.ModelPlaceWindowCommand>(app); break;
                     case "ModelBuildingShell": RunCommand<Model.ModelBuildingShellCommand>(app); break;
+                    case "ModelCreateRamp": RunCommand<Model.ModelCreateRampCommand>(app); break;
+                    case "ModelCreateCanopy": RunCommand<Model.ModelCreateCanopyCommand>(app); break;
+                    case "MEPRouteAnalysis": RunCommand<Model.MEPRouteAnalysisCommand>(app); break;
 
                     // ── Structural elements ──
                     case "ModelPlaceColumn": RunCommand<Model.ModelPlaceColumnCommand>(app); break;
@@ -1114,6 +1118,75 @@ namespace StingTools.UI
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
                     case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
                     case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
+                    case "StrClassifySystem": RunCommand<Model.StrClassifySystemCommand>(app); break;
+                    case "StrDeflectionCheck": RunCommand<Model.StrDeflectionCheckCommand>(app); break;
+                    case "StrPunchingShearCheck": RunCommand<Model.StrPunchingShearCheckCommand>(app); break;
+                    case "StrWindLoad": RunCommand<Model.StrWindLoadCommand>(app); break;
+                    case "StrConstructionSequence": RunCommand<Model.StrConstructionSequenceCommand>(app); break;
+                    case "StrFullReport": RunCommand<Model.StrFullReportCommand>(app); break;
+                    case "StrVoronoiAreas": RunCommand<Model.StrVoronoiAreasCommand>(app); break;
+                    case "StrClashPreCheck": RunCommand<Model.StrClashPreCheckCommand>(app); break;
+                    case "StrFrameAnalysis": RunCommand<Model.StrFrameAnalysisCommand>(app); break;
+                    case "StrSeismicAnalysis": RunCommand<Model.StrSeismicAnalysisCommand>(app); break;
+                    case "StrOptimizeGrid": RunCommand<Model.StrOptimizeGridCommand>(app); break;
+                    case "StrProgressiveCollapse": RunCommand<Model.StrProgressiveCollapseCommand>(app); break;
+                    case "StrAutoSize": RunCommand<Model.StrAutoSizeCommand>(app); break;
+                    case "StrFireResistance": RunCommand<Model.StrFireResistanceCommand>(app); break;
+                    case "StrAutoMaterials": RunCommand<Model.StrAutoMaterialsCommand>(app); break;
+                    case "StrSmartColumn": RunCommand<Model.StrSmartColumnCommand>(app); break;
+                    case "StrSmartBeam": RunCommand<Model.StrSmartBeamCommand>(app); break;
+                    case "StrBuildComplete": RunCommand<Model.StrBuildCompleteCommand>(app); break;
+                    case "StrModelScore": RunCommand<Model.StrModelScoreCommand>(app); break;
+                    case "StrCarbonAssessment": RunCommand<Model.StrCarbonAssessmentCommand>(app); break;
+                    case "StrRebarEstimate": RunCommand<Model.StrRebarEstimateCommand>(app); break;
+                    case "StrStabilityCheck": RunCommand<Model.StrStabilityCheckCommand>(app); break;
+                    case "StrBIMValidation": RunCommand<Model.StrBIMValidationCommand>(app); break;
+                    case "StrCompositeBeam": RunCommand<Model.StrCompositeBeamCommand>(app); break;
+                    case "StrTraceLoadPaths": RunCommand<Model.StrTraceLoadPathsCommand>(app); break;
+                    case "StrTopologyOptimize": RunCommand<Model.StrTopologyOptimizeCommand>(app); break;
+                    case "StrSSIAnalysis": RunCommand<Model.StrSSIAnalysisCommand>(app); break;
+                    case "StrRetainingWall": RunCommand<Model.StrRetainingWallCommand>(app); break;
+                    case "StrRebarDetail": RunCommand<Model.StrRebarDetailCommand>(app); break;
+                    case "StrBracingOptimize": RunCommand<Model.StrBracingOptimizeCommand>(app); break;
+                    case "StrConstraintCheck": RunCommand<Model.StrConstraintCheckCommand>(app); break;
+                    case "StrContinuityCheck": RunCommand<Model.StrContinuityCheckCommand>(app); break;
+                    case "StrAdaptiveSize": RunCommand<Model.StrAdaptiveSizeCommand>(app); break;
+                    case "StrConnectionDesign": RunCommand<Model.StrConnectionDesignCommand>(app); break;
+                    case "StrVibrationCheck": RunCommand<Model.StrVibrationCheckCommand>(app); break;
+                    case "StrCrackWidth": RunCommand<Model.StrCrackWidthCommand>(app); break;
+                    case "StrThermalMovement": RunCommand<Model.StrThermalMovementCommand>(app); break;
+                    case "StrDeepBeamSTM": RunCommand<Model.StrDeepBeamSTMCommand>(app); break;
+                    case "StrSmartColumnFactory": RunCommand<Model.StrSmartColumnFactoryCommand>(app); break;
+                    case "StrSmartBeamFactory": RunCommand<Model.StrSmartBeamFactoryCommand>(app); break;
+                    case "StrDiagnostics": RunCommand<Model.StrDiagnosticsCommand>(app); break;
+                    case "StrFatigueAssess": RunCommand<Model.StrFatigueAssessCommand>(app); break;
+                    case "StrTorsionDesign": RunCommand<Model.StrTorsionDesignCommand>(app); break;
+                    case "StrRobustness": RunCommand<Model.StrRobustnessCommand>(app); break;
+                    case "StrCompositeSlab": RunCommand<Model.StrCompositeSlabCommand>(app); break;
+                    case "StrPartialFactors": RunCommand<Model.StrPartialFactorsCommand>(app); break;
+                    case "StrSmartWallFactory": RunCommand<Model.StrSmartWallFactoryCommand>(app); break;
+                    case "StrSmartFoundation": RunCommand<Model.StrSmartFoundationCommand>(app); break;
+                    case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
+                    case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
+
+                    // ── Coverings (Plaster + Paint) ──
+                    case "CoveringMaterialBrowser": RunCommand<Model.CoveringMaterialBrowserCommand>(app); break;
+                    case "CoveringSubstrateAnalyze": RunCommand<Model.CoveringSubstrateAnalyzeCommand>(app); break;
+                    case "CoveringPaintSystem": RunCommand<Model.CoveringPaintSystemCommand>(app); break;
+                    case "CoveringCoverageCalc": RunCommand<Model.CoveringCoverageCalcCommand>(app); break;
+                    case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
+                    case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
+                    case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
+                    case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
+                    case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
+                    case "CoveringMoistureRisk": RunCommand<Model.CoveringMoistureRiskCommand>(app); break;
+
+                    // ── Architectural Creation ──
+                    case "ArchStairDesign": RunCommand<Model.ArchStairDesignCommand>(app); break;
+                    case "ArchCurtainWall": RunCommand<Model.ArchCurtainWallCommand>(app); break;
+                    case "ArchCreateOpening": RunCommand<Model.ArchCreateOpeningCommand>(app); break;
+                    case "FullModelAuto": RunCommand<Model.FullModelAutoCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;
@@ -1156,6 +1229,9 @@ namespace StingTools.UI
 
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
+                    case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;
+                    case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
+                    case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;
                     // HandoverManual already wired above
 
@@ -1195,6 +1271,7 @@ namespace StingTools.UI
 
                     // Model Health
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
+                    case "ModelHealthScore": RunCommand<Core.ModelHealthScoreCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // Warnings Manager (Phase 46)
@@ -1487,6 +1564,21 @@ namespace StingTools.UI
                     // Platform Integration (12 commands)
                     case "ACCPublish": RunCommand<BIMManager.ACCPublishCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
+                    case "ValidateCDEHandover":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var (pass, issues) = BIMCoordinationCenterCommand.ValidateCDEHandoverReadiness(doc);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(pass ? "CDE HANDOVER VALIDATION: PASS\n" : "CDE HANDOVER VALIDATION: FAIL\n");
+                            if (issues.Count > 0)
+                                foreach (string issue in issues) sb.AppendLine($"  ✘ {issue}");
+                            else sb.AppendLine("  All checks passed. Model is ready for CDE handover.");
+                            TaskDialog.Show("STING CDE Validation", sb.ToString());
+                        }
+                        break;
+                    }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
                     case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
@@ -1578,6 +1670,10 @@ namespace StingTools.UI
                     case "SwitchTagPos4": SwitchTagPositionInline(app, 4); break;
                     case "SwitchTagPos": RunCommand<Tags.SwitchTagPositionCommand>(app); break;
                     case "ExportTagPositions": RunCommand<Tags.ExportTagPositionsCommand>(app); break;
+
+                    // D1: Tag map export/import between projects
+                    case "ExportTagMap": RunCommand<BIMManager.ExportTagMapCommand>(app); break;
+                    case "ImportTagMap": RunCommand<BIMManager.ImportTagMapCommand>(app); break;
 
                     // TI-02: Tie-In status commands
                     case "SetTieInOpen": SetTieInStatus(app, "OPEN", 0); break;
@@ -1673,6 +1769,8 @@ namespace StingTools.UI
 
                     // ── Room & Space (RoomSpaceCommands.cs, StingTools.Temp) ──
                     case "RoomAudit": RunCommand<Temp.RoomAuditCommand>(app); break;
+                    case "SpatialConnectivityAudit": RunCommand<Temp.SpatialConnectivityAuditCommand>(app); break;
+                    case "DataDropReadiness": RunCommand<BIMManager.DataDropReadinessCommand>(app); break;
                     case "RoomSchedule": RunCommand<Temp.RoomScheduleCommand>(app); break;
                     case "RoomZoneAssign": RunCommand<Temp.RoomZoneAssignCommand>(app); break;
                     case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
@@ -1804,6 +1902,14 @@ namespace StingTools.UI
 
                     // ── Temp: Data Validation ──
                     case "ClashDetection": RunCommand<Temp.ClashDetectionCommand>(app); break;
+                    case "CrossModelClash": RunCommand<Temp.CrossModelClashCommand>(app); break;
+                    case "NamingAudit": RunCommand<Temp.NamingConventionAuditCommand>(app); break;
+                    case "MEPClearance": RunCommand<Temp.MEPClearanceValidationCommand>(app); break;
+                    case "IFCPropertyValidation": RunCommand<Temp.IFCPropertyValidationCommand>(app); break;
+                    case "UserProductivity": RunCommand<BIMManager.UserProductivityReportCommand>(app); break;
+                    case "NotificationPrefs": RunCommand<BIMManager.NotificationPreferencesCommand>(app); break;
+                    case "TaskAssignment": RunCommand<BIMManager.TaskAssignmentCommand>(app); break;
+                    case "GbXMLEnrichment": RunCommand<BIMManager.GbXMLEnrichmentCommand>(app); break;
                     case "ClashDetectionEnhanced": RunCommand<Temp.ClashDetectionEnhancedCommand>(app); break;
                     case "CrossValidateRegistry": RunCommand<Temp.CrossValidateRegistryCommand>(app); break;
                     case "DataIntegrityCheck": RunCommand<Temp.DataIntegrityCheckCommand>(app); break;

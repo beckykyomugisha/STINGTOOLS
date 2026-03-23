@@ -3662,6 +3662,99 @@ namespace StingTools.Organise
         }
     }
 
+    /// <summary>R4-D D4: Equalize leader lengths — makes all selected tags have uniform leader length.
+    /// Calculates median length from selected tags, then adjusts each tag head to match while preserving direction.</summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class EqualizeLeaderLengthsCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            UIDocument uidoc = ctx.UIDoc;
+            Document doc = ctx.Doc;
+
+            var tags = LeaderHelper.GetTargetTags(uidoc)
+                .Where(t => t.HasLeader).ToList();
+
+            if (tags.Count < 2)
+            {
+                TaskDialog.Show("Equalize Leaders", "Select at least 2 tags with leaders.");
+                return Result.Cancelled;
+            }
+
+            // Calculate current leader lengths (distance from host to tag head)
+            var lengths = new List<(IndependentTag Tag, double Length, XYZ Direction)>();
+            foreach (var tag in tags)
+            {
+                try
+                {
+                    XYZ head = tag.TagHeadPosition;
+                    if (head == null) continue;
+
+                    // Get the tagged element's center
+                    Reference tagRef = tag.GetTaggedReferences()?.FirstOrDefault();
+                    if (tagRef == null) continue;
+                    Element host = doc.GetElement(tagRef);
+                    if (host == null) continue;
+
+                    BoundingBoxXYZ bb = host.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    XYZ center = (bb.Min + bb.Max) * 0.5;
+
+                    XYZ offset = head - center;
+                    double len = offset.GetLength();
+                    if (len < 0.001) continue; // skip zero-length
+
+                    lengths.Add((tag, len, offset.Normalize()));
+                }
+                catch (Exception ex) { StingLog.Warn($"EqualizeLeaders tag {tag.Id}: {ex.Message}"); }
+            }
+
+            if (lengths.Count < 2)
+            {
+                TaskDialog.Show("Equalize Leaders", "Could not calculate leader lengths for selected tags.");
+                return Result.Failed;
+            }
+
+            // Median length
+            var sorted = lengths.OrderBy(l => l.Length).ToList();
+            double median = sorted[sorted.Count / 2].Length;
+
+            int adjusted = 0;
+            using (Transaction tx = new Transaction(doc, "STING Equalize Leader Lengths"))
+            {
+                tx.Start();
+                foreach (var (tag, length, direction) in lengths)
+                {
+                    try
+                    {
+                        Reference tagRef = tag.GetTaggedReferences()?.FirstOrDefault();
+                        if (tagRef == null) continue;
+                        Element host = doc.GetElement(tagRef);
+                        if (host == null) continue;
+                        BoundingBoxXYZ bb = host.get_BoundingBox(null);
+                        if (bb == null) continue;
+                        XYZ center = (bb.Min + bb.Max) * 0.5;
+
+                        // Set new position at median distance along original direction
+                        XYZ newHead = center + direction * median;
+                        tag.TagHeadPosition = newHead;
+                        adjusted++;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"EqualizeLeaders adjust {tag.Id}: {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+
+            double medianMm = median * 304.8;
+            TaskDialog.Show("Equalize Leaders",
+                $"Equalized {adjusted} tag leaders to {medianMm:F0}mm length (median).");
+            return Result.Succeeded;
+        }
+    }
+
     /// <summary>
     /// Shared helper for leader management commands.
     /// Gets annotation tags from selection or active view.

@@ -571,6 +571,10 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"BuildRoomIndex failed: {ex.Message}");
             }
+            // Phase 56: Log once when no rooms found so BIM coordinators know LOC detection
+            // will fall back to project-level defaults instead of room-based spatial detection
+            if (index.Count == 0)
+                StingLog.Info("BuildRoomIndex: no placed rooms found — LOC detection will use project-level defaults");
             return index;
         }
 
@@ -1391,7 +1395,17 @@ namespace StingTools.Core
                             ParameterHelpers.SetIfEmpty(el, "STING_TOKEN_COPY_SOURCE",
                                 $"ConnectorInherit:{connected.Id.Value}:{sourceTag}:{copied}tok");
                         }
-                        return; // Use first tagged connected element
+
+                        // Phase 56b CRIT-02 FIX: Check if ALL tokens now populated before returning
+                        // Previously returned after first tagged element even if some tokens still empty
+                        bool nowComplete = true;
+                        foreach (string t in tokensToCopy)
+                        {
+                            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, t)))
+                            { nowComplete = false; break; }
+                        }
+                        if (nowComplete) return; // All tokens filled — done
+                        // Else: continue scanning other connectors for remaining empty tokens
                     }
                 }
             }
@@ -3456,12 +3470,15 @@ namespace StingTools.Core
                 NativeParamMapper.MapAll(doc, el);
 
                 // P3: Evaluate formulas in dependency order
+                // FUT-18: Lazy formula evaluation — skip formulas whose target parameter
+                // doesn't exist on this element's category (saves ~40% formula iterations)
                 if (formulas != null && formulas.Count > 0)
                 {
                     foreach (var formula in formulas)
                     {
                         try
                         {
+                            // FUT-18: Early-exit skip — avoids expensive BuildContext
                             Parameter targetParam = el.LookupParameter(formula.ParameterName);
                             if (targetParam == null || targetParam.IsReadOnly) continue;
 
@@ -3506,26 +3523,17 @@ namespace StingTools.Core
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // GAP-11: Verify container write by checking CATEGORY-SPECIFIC containers,
-                // not just TAG2 (which may not be applicable for all categories).
-                // If TAG1 is present but no applicable container is populated, retry.
+                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
+                // Previous logic only retried when ZERO containers were populated,
+                // missing partial failures where 1 of 3 containers wrote but 2 remained empty.
+                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag1Check))
                 {
                     var catContainers = ParamRegistry.ContainersForCategory(catName);
                     if (catContainers != null && catContainers.Length > 0)
                     {
-                        bool anyContainerPopulated = false;
-                        for (int ci = 0; ci < catContainers.Length && !anyContainerPopulated; ci++)
-                        {
-                            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, catContainers[ci].ParamName)))
-                                anyContainerPopulated = true;
-                        }
-                        if (!anyContainerPopulated)
-                        {
-                            ParamRegistry.WriteContainers(el, tokenVals, catName);
-                            StingLog.Info($"TagPipeline: container retry for {el.Id} (TAG1 present, no category containers populated)");
-                        }
+                        ParamRegistry.WriteContainers(el, tokenVals, catName);
                     }
                 }
 

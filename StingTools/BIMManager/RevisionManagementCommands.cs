@@ -605,6 +605,31 @@ namespace StingTools.BIMManager
                 ComplianceScan.InvalidateCache();
                 StingAutoTagger.InvalidateContext();
 
+                // GAP-R9: Auto-propagate new REV to all tagged elements
+                // so tags reflect the current revision immediately
+                try
+                {
+                    int revUpdated = 0;
+                    using (var revTx = new Transaction(doc, "STING Propagate REV"))
+                    {
+                        revTx.Start();
+                        var allTagged = new FilteredElementCollector(doc)
+                            .WhereElementIsNotElementType()
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                            .ToList();
+                        foreach (var el in allTagged)
+                        {
+                            string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                            if (string.IsNullOrEmpty(tag1)) continue;
+                            if (ParameterHelpers.SetString(el, "ASS_REV_TXT", prefix, overwrite: true))
+                                revUpdated++;
+                        }
+                        revTx.Commit();
+                    }
+                    StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
+                }
+                catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
                 // NTF-03: Notify team that revision is open
                 try
                 {

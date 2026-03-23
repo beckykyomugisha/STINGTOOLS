@@ -138,9 +138,13 @@ namespace StingTools.Tags
 
             var (tagIndex, sequenceCounters) = TagConfig.BuildTagIndexAndCounters(doc);
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-            if (popCtx == null)
+            if (popCtx == null || !popCtx.IsValid())
             {
-                TaskDialog.Show("Batch Tag", "Failed to build population context.");
+                string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
+                StingLog.Error($"BatchTag: PopulationContext failed — {diag}");
+                TaskDialog.Show("Batch Tag",
+                    $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
+                    "Check: rooms placed? Levels defined? Shared parameters bound?");
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();

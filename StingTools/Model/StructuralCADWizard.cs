@@ -651,8 +651,10 @@ namespace StingTools.Model
             _pageTitle.Text = $"Step {_currentPage + 1} of {_pages.Count}: {PageTitles[_currentPage]}";
 
             _btnBack.IsEnabled = _currentPage > 0;
-            _btnNext.Visibility = _currentPage < _pages.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
-            _btnFinish.Visibility = _currentPage == _pages.Count - 1 ? Visibility.Visible : Visibility.Collapsed;
+            _btnNext.Visibility = _currentPage < _pages.Count - 1
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            _btnFinish.Visibility = _currentPage == _pages.Count - 1
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
             _statusText.Text = _currentPage < _pages.Count - 1
                 ? "Configure settings, then click Next →"
