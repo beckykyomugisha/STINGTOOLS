@@ -1268,6 +1268,7 @@ namespace StingTools.UI
 
                     // Model Health
                     case "ModelHealthDashboard": RunCommand<BIMManager.ModelHealthDashboardCommand>(app); break;
+                    case "ModelHealthScore": RunCommand<Core.ModelHealthScoreCommand>(app); break;
                     case "ExportModelHealth": RunCommand<BIMManager.ExportModelHealthCommand>(app); break;
 
                     // Warnings Manager (Phase 46)

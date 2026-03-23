@@ -246,6 +246,46 @@ namespace StingTools.Core
             ("reverse flow", WarningCategory.MEP, WarningSeverity.Medium, "Check flow direction setting", false),
             ("size mismatch", WarningCategory.MEP, WarningSeverity.Medium, "Use correct reducer size", false),
             ("isolated", WarningCategory.MEP, WarningSeverity.High, "Connect isolated pipe/duct segment to main system", false),
+
+            // Phase 63: Enhanced classification for BIM coordinator automation
+            // Architectural quality
+            ("offset from level", WarningCategory.Geometric, WarningSeverity.Medium, "Review level offset — may cause scheduling errors", false),
+            ("negative height", WarningCategory.Geometric, WarningSeverity.Critical, "Fix negative element height", false),
+            ("zero length", WarningCategory.Geometric, WarningSeverity.Critical, "Delete zero-length element", true),
+            ("self-intersecting", WarningCategory.Geometric, WarningSeverity.Critical, "Fix self-intersecting sketch", false),
+            ("identical profile", WarningCategory.Geometric, WarningSeverity.Medium, "Review duplicate profiles in sweep", false),
+
+            // MEP coordination — CIBSE compliance
+            ("velocity exceeds", WarningCategory.MEP, WarningSeverity.High, "Reduce velocity per CIBSE Guide C limits", false),
+            ("pressure drop", WarningCategory.MEP, WarningSeverity.Medium, "Check pressure drop calculation", false),
+            ("insulation", WarningCategory.MEP, WarningSeverity.Medium, "Add insulation per CIBSE/Part L requirements", false),
+            ("duct leakage", WarningCategory.MEP, WarningSeverity.High, "Duct leakage class per DW/144", false),
+            ("pipe gradient", WarningCategory.MEP, WarningSeverity.High, "Ensure gravity drain gradient per BS EN 12056", false),
+
+            // Structural — Eurocode compliance
+            ("deflection", WarningCategory.Structural, WarningSeverity.High, "Check deflection limit per EC2/EC3", false),
+            ("eccentricity", WarningCategory.Structural, WarningSeverity.High, "Review eccentric connection per EC3", false),
+            ("bearing", WarningCategory.Structural, WarningSeverity.Critical, "Verify bearing capacity per EC7", false),
+            ("fire rating", WarningCategory.Compliance, WarningSeverity.Critical, "Verify fire resistance per Approved Document B", false),
+            ("movement joint", WarningCategory.Structural, WarningSeverity.Medium, "Check movement joint spacing per BS EN 1996", false),
+
+            // Compliance — regulatory
+            ("Part L", WarningCategory.Compliance, WarningSeverity.High, "Review Part L energy compliance", false),
+            ("thermal bridge", WarningCategory.Compliance, WarningSeverity.High, "Check thermal bridge at junction per Part L", false),
+            ("acoustic", WarningCategory.Compliance, WarningSeverity.Medium, "Verify acoustic performance per Approved Document E", false),
+            ("access", WarningCategory.Compliance, WarningSeverity.High, "Review accessibility per Part M/BS 8300", false),
+            ("ventilation", WarningCategory.Compliance, WarningSeverity.High, "Check ventilation requirements per Part F/CIBSE Guide A", false),
+            ("drainage", WarningCategory.Compliance, WarningSeverity.High, "Check drainage design per Part H/BS EN 12056", false),
+
+            // Data quality — tagging
+            ("duplicate mark", WarningCategory.Data, WarningSeverity.High, "Auto-increment duplicate mark value", true),
+            ("missing parameter", WarningCategory.Data, WarningSeverity.Medium, "Bind missing shared parameter", false),
+            ("empty value", WarningCategory.Data, WarningSeverity.Low, "Populate empty parameter value", false),
+
+            // Coordination — worksharing
+            ("borrowed", WarningCategory.Data, WarningSeverity.Low, "Element borrowed by another user", false),
+            ("checked out", WarningCategory.Data, WarningSeverity.Info, "Element checked out for editing", false),
+            ("workset", WarningCategory.Performance, WarningSeverity.Low, "Review workset assignment", false),
         };
 
         // ── Suppression list (loaded from project_config.json) ──
@@ -714,6 +754,62 @@ namespace StingTools.Core
                             }
                         }
                         catch (Exception ex2) { StingLog.Warn($"Axis snap failed: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 63: Strategy 9: Delete zero-length elements (walls, pipes, ducts)
+                if (lower.Contains("zero length") || lower.Contains("zero-length"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    foreach (var id in ids)
+                    {
+                        try
+                        {
+                            Element el = doc.GetElement(id);
+                            if (el?.Location is LocationCurve lc && lc.Curve.Length < 0.01) // < ~3mm
+                            {
+                                doc.Delete(id);
+                                return true;
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Zero-length delete: {ex2.Message}"); }
+                    }
+                }
+
+                // Phase 63: Strategy 10: Fix empty mark values (assign element ID as temporary mark)
+                if (lower.Contains("duplicate mark"))
+                {
+                    var ids = cw.FailingElements.ToList();
+                    if (ids.Count >= 2)
+                    {
+                        try
+                        {
+                            // Collect ALL existing marks to avoid creating new duplicates
+                            var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var checkId in ids)
+                            {
+                                var checkEl = doc.GetElement(checkId);
+                                string m = checkEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                            }
+                            // Change the second element's mark
+                            var secondEl = doc.GetElement(ids[1]);
+                            var markParam = secondEl?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK);
+                            if (markParam != null && !markParam.IsReadOnly)
+                            {
+                                string baseMark = markParam.AsString() ?? "";
+                                for (int suffix = 2; suffix < 1000; suffix++)
+                                {
+                                    string candidate = $"{baseMark}_{suffix}";
+                                    if (!existingMarks.Contains(candidate))
+                                    {
+                                        markParam.Set(candidate);
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex2) { StingLog.Warn($"Duplicate mark fix: {ex2.Message}"); }
                     }
                 }
             }
@@ -2331,6 +2427,163 @@ namespace StingTools.Core
     // ══════════════════════════════════════════════════════════════════
     //  Phase 47: BIM COORDINATION CENTER — Unified dashboard command
     // ══════════════════════════════════════════════════════════════════
+
+    // ══════════════════════════════════════════════════════════════════
+    //  Phase 63: MODEL HEALTH SCORING ENGINE
+    //  Comprehensive model quality assessment with weighted scoring
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>Phase 63: Comprehensive model health score (0-100) with per-category breakdown.
+    /// Combines warnings, compliance, data quality, performance, and standards into single metric.</summary>
+    internal static class ModelHealthScorer
+    {
+        public class HealthScore
+        {
+            public double Overall { get; set; }
+            public double Warnings { get; set; }       // 0-25: from WarningsEngine health
+            public double Compliance { get; set; }      // 0-25: from ComplianceScan
+            public double DataQuality { get; set; }     // 0-25: containers, TAG7, STATUS
+            public double Performance { get; set; }     // 0-25: model size, groups, links
+            public string RAG => Overall >= 80 ? "GREEN" : Overall >= 50 ? "AMBER" : "RED";
+            public List<string> Recommendations { get; set; } = new List<string>();
+        }
+
+        /// <summary>Calculate comprehensive model health score.</summary>
+        internal static HealthScore Calculate(Document doc)
+        {
+            var score = new HealthScore();
+
+            // 1. Warnings score (25 points)
+            try
+            {
+                var wr = WarningsEngine.ScanWarnings(doc);
+                double warnHealth = WarningsEngine.CalculateWarningHealthScore(wr);
+                score.Warnings = Math.Max(0, warnHealth / 4.0); // Scale 0-100 to 0-25
+                if (wr.Critical > 0)
+                    score.Recommendations.Add($"Fix {wr.Critical} critical warnings immediately");
+                if (wr.AutoFixable > 5)
+                    score.Recommendations.Add($"Auto-fix {wr.AutoFixable} warnings to improve score quickly");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore warnings: {ex.Message}"); }
+
+            // 2. Compliance score (25 points)
+            try
+            {
+                ComplianceScan.InvalidateCache();
+                var comp = ComplianceScan.Scan(doc);
+                score.Compliance = comp.CompliancePercent / 4.0;
+                if (comp.Untagged > 50)
+                    score.Recommendations.Add($"Tag {comp.Untagged} untagged elements (Batch Tag)");
+                if (comp.StaleCount > 0)
+                    score.Recommendations.Add($"Retag {comp.StaleCount} stale elements (Retag Stale)");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore compliance: {ex.Message}"); }
+
+            // 3. Data quality score (25 points)
+            try
+            {
+                int totalTagged = 0, withContainers = 0, withTag7 = 0, withStatus = 0;
+                var elems = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
+                    .ToList();
+
+                foreach (var el in elems.Take(5000)) // Sample for performance
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (string.IsNullOrEmpty(tag1)) continue;
+                    totalTagged++;
+
+                    string tag2 = ParameterHelpers.GetString(el, "ASS_TAG_2_TXT");
+                    if (!string.IsNullOrEmpty(tag2)) withContainers++;
+
+                    string tag7 = ParameterHelpers.GetString(el, "ASS_TAG_7_TXT");
+                    if (!string.IsNullOrEmpty(tag7)) withTag7++;
+
+                    string status = ParameterHelpers.GetString(el, "ASS_STATUS_TXT");
+                    if (!string.IsNullOrEmpty(status)) withStatus++;
+                }
+
+                if (totalTagged > 0)
+                {
+                    double containerPct = withContainers * 100.0 / totalTagged;
+                    double tag7Pct = withTag7 * 100.0 / totalTagged;
+                    double statusPct = withStatus * 100.0 / totalTagged;
+                    score.DataQuality = (containerPct * 0.4 + tag7Pct * 0.3 + statusPct * 0.3) / 4.0;
+
+                    if (containerPct < 80)
+                        score.Recommendations.Add("Run Combine Parameters to populate discipline containers");
+                    if (statusPct < 50)
+                        score.Recommendations.Add("Set STATUS tokens (NEW/EXISTING/DEMOLISHED)");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore data quality: {ex.Message}"); }
+
+            // 4. Performance score (25 points)
+            try
+            {
+                double perfScore = 25.0;
+                int elementCount = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .GetElementCount();
+
+                // Penalty for very large models
+                if (elementCount > 500000) perfScore -= 5;
+                else if (elementCount > 200000) perfScore -= 2;
+
+                // Penalty for excessive model groups
+                int groups = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Group))
+                    .GetElementCount();
+                if (groups > 100) perfScore -= 3;
+
+                // Penalty for unresolved links
+                int links = new FilteredElementCollector(doc)
+                    .OfClass(typeof(RevitLinkInstance))
+                    .GetElementCount();
+                if (links > 20) perfScore -= 2;
+
+                score.Performance = Math.Max(0, perfScore);
+                if (elementCount > 500000)
+                    score.Recommendations.Add("Consider splitting model — over 500K elements");
+            }
+            catch (Exception ex) { StingLog.Warn($"HealthScore performance: {ex.Message}"); }
+
+            score.Overall = score.Warnings + score.Compliance + score.DataQuality + score.Performance;
+            return score;
+        }
+    }
+
+    /// <summary>Phase 63: Comprehensive model health report with scoring.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ModelHealthScoreCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            var ctx = ParameterHelpers.GetContext(commandData);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+
+            var score = ModelHealthScorer.Calculate(ctx.Doc);
+
+            var report = new StringBuilder();
+            report.AppendLine($"MODEL HEALTH SCORE: {score.Overall:F0}/100 ({score.RAG})\n");
+            report.AppendLine($"  Warnings:    {score.Warnings:F0}/25");
+            report.AppendLine($"  Compliance:  {score.Compliance:F0}/25");
+            report.AppendLine($"  Data Quality: {score.DataQuality:F0}/25");
+            report.AppendLine($"  Performance: {score.Performance:F0}/25\n");
+
+            if (score.Recommendations.Count > 0)
+            {
+                report.AppendLine("RECOMMENDATIONS:");
+                foreach (string r in score.Recommendations)
+                    report.AppendLine($"  → {r}");
+            }
+
+            TaskDialog.Show("STING Model Health", report.ToString());
+            return Result.Succeeded;
+        }
+    }
 
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]

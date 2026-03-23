@@ -1006,6 +1006,14 @@ namespace StingTools.Core
                 case "DrawingRegister": return new Docs.DrawingRegisterCommand();
                 case "AutoNumberSheets": return new Docs.AutoNumberSheetsCommand();
 
+                // Phase 63: New command resolutions
+                case "SpatialConnectivityAudit": return new Temp.SpatialConnectivityAuditCommand();
+                case "NamingAudit": return new Temp.NamingConventionAuditCommand();
+                case "CrossModelClash": return new Temp.CrossModelClashCommand();
+                case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
+                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
+                case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
+
                 // Data Pipeline
                 case "DynamicBindings": return new Temp.DynamicBindingsCommand();
                 case "BOQExport": return new Temp.BOQExportCommand();
@@ -1174,6 +1182,10 @@ namespace StingTools.Core
             presets.Add(GetBuiltInPreset("CommercialOffice"));
             presets.Add(GetBuiltInPreset("Residential"));
             presets.Add(GetBuiltInPreset("Education"));
+            // Phase 63: BIM coordinator automation presets
+            presets.Add(GetBuiltInPreset("IssueResolution"));
+            presets.Add(GetBuiltInPreset("ClientReviewPrep"));
+            presets.Add(GetBuiltInPreset("RegulatoryScan"));
 
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
@@ -1635,6 +1647,58 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie export (Education preset)" },
                             new WorkflowStep { CommandTag = "HandoverManual", Label = "6. FM handover manual" },
                             new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "7. Compliance dashboard" },
+                        }
+                    };
+
+                // Phase 63: BIM coordinator automation presets
+                case "IssueResolution":
+                    return new WorkflowPreset
+                    {
+                        Name = "IssueResolution",
+                        Description = "Issue resolution cycle: retag stale → fix anomalies → resolve issues → validate → compliance gate",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "RetagStale", Label = "1. Retag stale elements", Optional = true, RequiresStaleElements = true },
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "2. Auto-fix warnings", Optional = true },
+                            new WorkflowStep { CommandTag = "AnomalyAutoFix", Label = "3. Fix tag anomalies" },
+                            new WorkflowStep { CommandTag = "ResolveAllIssues", Label = "4. Resolve all ISO issues" },
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "5. Validate compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Compliance dashboard" },
+                        }
+                    };
+
+                case "ClientReviewPrep":
+                    return new WorkflowPreset
+                    {
+                        Name = "ClientReviewPrep",
+                        Description = "Client review preparation: clean model → validate → naming → sheets → presentation → report",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "WarningsAutoFix", Label = "1. Auto-fix warnings" },
+                            new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "2. Auto-assign view templates" },
+                            new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "3. Sheet naming compliance" },
+                            new WorkflowStep { CommandTag = "BatchPrintSheets", Label = "4. Batch print sheets to PDF" },
+                            new WorkflowStep { CommandTag = "DrawingRegister", Label = "5. Drawing register" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Final compliance" },
+                        }
+                    };
+
+                case "RegulatoryScan":
+                    return new WorkflowPreset
+                    {
+                        Name = "RegulatoryScan",
+                        Description = "Regulatory compliance scan: Part B fire + Part L energy + Part M access + BS standards",
+                        IsBuiltIn = true,
+                        Steps = new List<WorkflowStep>
+                        {
+                            new WorkflowStep { CommandTag = "ValidateTags", Label = "1. Tag compliance" },
+                            new WorkflowStep { CommandTag = "WarningsDashboard", Label = "2. Warning audit" },
+                            new WorkflowStep { CommandTag = "WarningsCompliance", Label = "3. Standards compliance report" },
+                            new WorkflowStep { CommandTag = "SpatialConnectivityAudit", Label = "4. Room connectivity (egress)" },
+                            new WorkflowStep { CommandTag = "TemplateComplianceScore", Label = "5. Template compliance" },
+                            new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "6. Full compliance" },
                         }
                     };
 
