@@ -1114,6 +1114,75 @@ namespace StingTools.UI
                     case "StrAutoFoundations": RunCommand<Model.StrAutoFoundationsCommand>(app); break;
                     case "StrColumnLoadTakedown": RunCommand<Model.StrColumnLoadTakedownCommand>(app); break;
                     case "StrSlabEdgeBeams": RunCommand<Model.StrSlabEdgeBeamsCommand>(app); break;
+                    case "StrClassifySystem": RunCommand<Model.StrClassifySystemCommand>(app); break;
+                    case "StrDeflectionCheck": RunCommand<Model.StrDeflectionCheckCommand>(app); break;
+                    case "StrPunchingShearCheck": RunCommand<Model.StrPunchingShearCheckCommand>(app); break;
+                    case "StrWindLoad": RunCommand<Model.StrWindLoadCommand>(app); break;
+                    case "StrConstructionSequence": RunCommand<Model.StrConstructionSequenceCommand>(app); break;
+                    case "StrFullReport": RunCommand<Model.StrFullReportCommand>(app); break;
+                    case "StrVoronoiAreas": RunCommand<Model.StrVoronoiAreasCommand>(app); break;
+                    case "StrClashPreCheck": RunCommand<Model.StrClashPreCheckCommand>(app); break;
+                    case "StrFrameAnalysis": RunCommand<Model.StrFrameAnalysisCommand>(app); break;
+                    case "StrSeismicAnalysis": RunCommand<Model.StrSeismicAnalysisCommand>(app); break;
+                    case "StrOptimizeGrid": RunCommand<Model.StrOptimizeGridCommand>(app); break;
+                    case "StrProgressiveCollapse": RunCommand<Model.StrProgressiveCollapseCommand>(app); break;
+                    case "StrAutoSize": RunCommand<Model.StrAutoSizeCommand>(app); break;
+                    case "StrFireResistance": RunCommand<Model.StrFireResistanceCommand>(app); break;
+                    case "StrAutoMaterials": RunCommand<Model.StrAutoMaterialsCommand>(app); break;
+                    case "StrSmartColumn": RunCommand<Model.StrSmartColumnCommand>(app); break;
+                    case "StrSmartBeam": RunCommand<Model.StrSmartBeamCommand>(app); break;
+                    case "StrBuildComplete": RunCommand<Model.StrBuildCompleteCommand>(app); break;
+                    case "StrModelScore": RunCommand<Model.StrModelScoreCommand>(app); break;
+                    case "StrCarbonAssessment": RunCommand<Model.StrCarbonAssessmentCommand>(app); break;
+                    case "StrRebarEstimate": RunCommand<Model.StrRebarEstimateCommand>(app); break;
+                    case "StrStabilityCheck": RunCommand<Model.StrStabilityCheckCommand>(app); break;
+                    case "StrBIMValidation": RunCommand<Model.StrBIMValidationCommand>(app); break;
+                    case "StrCompositeBeam": RunCommand<Model.StrCompositeBeamCommand>(app); break;
+                    case "StrTraceLoadPaths": RunCommand<Model.StrTraceLoadPathsCommand>(app); break;
+                    case "StrTopologyOptimize": RunCommand<Model.StrTopologyOptimizeCommand>(app); break;
+                    case "StrSSIAnalysis": RunCommand<Model.StrSSIAnalysisCommand>(app); break;
+                    case "StrRetainingWall": RunCommand<Model.StrRetainingWallCommand>(app); break;
+                    case "StrRebarDetail": RunCommand<Model.StrRebarDetailCommand>(app); break;
+                    case "StrBracingOptimize": RunCommand<Model.StrBracingOptimizeCommand>(app); break;
+                    case "StrConstraintCheck": RunCommand<Model.StrConstraintCheckCommand>(app); break;
+                    case "StrContinuityCheck": RunCommand<Model.StrContinuityCheckCommand>(app); break;
+                    case "StrAdaptiveSize": RunCommand<Model.StrAdaptiveSizeCommand>(app); break;
+                    case "StrConnectionDesign": RunCommand<Model.StrConnectionDesignCommand>(app); break;
+                    case "StrVibrationCheck": RunCommand<Model.StrVibrationCheckCommand>(app); break;
+                    case "StrCrackWidth": RunCommand<Model.StrCrackWidthCommand>(app); break;
+                    case "StrThermalMovement": RunCommand<Model.StrThermalMovementCommand>(app); break;
+                    case "StrDeepBeamSTM": RunCommand<Model.StrDeepBeamSTMCommand>(app); break;
+                    case "StrSmartColumnFactory": RunCommand<Model.StrSmartColumnFactoryCommand>(app); break;
+                    case "StrSmartBeamFactory": RunCommand<Model.StrSmartBeamFactoryCommand>(app); break;
+                    case "StrDiagnostics": RunCommand<Model.StrDiagnosticsCommand>(app); break;
+                    case "StrFatigueAssess": RunCommand<Model.StrFatigueAssessCommand>(app); break;
+                    case "StrTorsionDesign": RunCommand<Model.StrTorsionDesignCommand>(app); break;
+                    case "StrRobustness": RunCommand<Model.StrRobustnessCommand>(app); break;
+                    case "StrCompositeSlab": RunCommand<Model.StrCompositeSlabCommand>(app); break;
+                    case "StrPartialFactors": RunCommand<Model.StrPartialFactorsCommand>(app); break;
+                    case "StrSmartWallFactory": RunCommand<Model.StrSmartWallFactoryCommand>(app); break;
+                    case "StrSmartFoundation": RunCommand<Model.StrSmartFoundationCommand>(app); break;
+                    case "StrCodeCompliance": RunCommand<Model.StrCodeComplianceCommand>(app); break;
+                    case "StrPileDesign": RunCommand<Model.StrPileDesignCommand>(app); break;
+
+                    // ── Coverings (Plaster + Paint) ──
+                    case "CoveringMaterialBrowser": RunCommand<Model.CoveringMaterialBrowserCommand>(app); break;
+                    case "CoveringSubstrateAnalyze": RunCommand<Model.CoveringSubstrateAnalyzeCommand>(app); break;
+                    case "CoveringPaintSystem": RunCommand<Model.CoveringPaintSystemCommand>(app); break;
+                    case "CoveringCoverageCalc": RunCommand<Model.CoveringCoverageCalcCommand>(app); break;
+                    case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
+                    case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
+                    case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
+                    case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
+                    case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
+                    case "CoveringMoistureRisk": RunCommand<Model.CoveringMoistureRiskCommand>(app); break;
+
+                    // ── Architectural Creation ──
+                    case "ArchStairDesign": RunCommand<Model.ArchStairDesignCommand>(app); break;
+                    case "ArchCurtainWall": RunCommand<Model.ArchCurtainWallCommand>(app); break;
+                    case "ArchCreateOpening": RunCommand<Model.ArchCreateOpeningCommand>(app); break;
+                    case "FullModelAuto": RunCommand<Model.FullModelAutoCommand>(app); break;
 
                     // ── MEP elements ──
                     case "ModelCreateDuct": RunCommand<Model.ModelCreateDuctCommand>(app); break;

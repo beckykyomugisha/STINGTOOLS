@@ -222,7 +222,7 @@ namespace StingTools.Tags
                 int elementIsoErrors = elementErrors.Count;
                 if (elementIsoErrors > 0)
                 {
-                    if (tag1Status == "VALID") tag1Status = "ISO_INVALID";
+                    if (tag1Status == "RESOLVED") tag1Status = "ISO_INVALID";
                     IncrementDict(issuesByCategory, catName);
                     foreach (var err in elementErrors)
                         IncrementDict(isoIssueTypes, err.Message);
@@ -246,7 +246,7 @@ namespace StingTools.Tags
                 // + containers populated + ISO valid + STATUS populated + REV populated
                 bool hasStatus = !string.IsNullOrEmpty(statusVal);
                 bool hasRev = !string.IsNullOrEmpty(revVal);
-                if (tag1Status == "VALID" && elementResolved && emptyTokenCount == 0 &&
+                if (tag1Status == "RESOLVED" && elementResolved && emptyTokenCount == 0 &&
                     emptyContainers == 0 && elementIsoErrors == 0 && hasStatus && hasRev)
                     fullyValid++;
 
