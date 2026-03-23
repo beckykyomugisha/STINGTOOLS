@@ -1379,6 +1379,54 @@ namespace StingTools.UI
                     case "HandoverValidation": RunCommand<Core.HandoverValidationCommand>(app); break;
                     case "SustainabilityWorkflow": RunCommand<Core.SustainabilityWorkflowCommand>(app); break;
 
+                    // Phase 75: Workflow/Coordination Gap Implementations (29 gaps)
+                    case "WorkflowScheduler": RunCommand<Core.WorkflowSchedulerCommand>(app); break;
+                    case "WarningRootCause": RunCommand<Core.WarningRootCauseCommand>(app); break;
+                    case "SuppressionAudit": RunCommand<Core.SuppressionAuditCommand>(app); break;
+                    case "TeamActivity": RunCommand<Core.TeamActivityCommand>(app); break;
+                    case "ComplianceTrendView": RunCommand<Core.ComplianceTrendViewCommand>(app); break;
+                    case "MidDayCoordination": RunCommand<Core.MidDayCoordinationCommand>(app); break;
+                    case "DesignReviewPrep": RunCommand<Core.DesignReviewPrepCommand>(app); break;
+                    case "SLAViolationReport": RunCommand<Core.SLAViolationReportCommand>(app); break;
+                    case "FederatedPreFlight":
+                    {
+                        var fpDoc = app.ActiveUIDocument?.Document;
+                        if (fpDoc != null)
+                        {
+                            var presets = Core.WorkflowEngine.GetAvailablePresets();
+                            var preset = presets.FirstOrDefault() ?? new Core.WorkflowPreset { Name = "Default", Steps = new() };
+                            var (ok, issues) = Core.FederatedWorkflowSupport.PreFlightCheckFederated(fpDoc, preset);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(ok ? "✓ Federated pre-flight passed." : "⚠ Federated pre-flight issues:");
+                            foreach (var issue in issues) sb.AppendLine($"  • {issue}");
+                            TaskDialog.Show("Federated Pre-Flight", sb.ToString());
+                        }
+                        break;
+                    }
+                    case "TransmittalGateCheck":
+                    {
+                        var tgDoc = app.ActiveUIDocument?.Document;
+                        if (tgDoc != null)
+                        {
+                            var (ok, issues, pct) = Core.TransmittalGate.ValidateForTransmittal(tgDoc);
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(ok ? $"✓ Ready for transmittal ({pct:F1}% compliance)." : $"⚠ Not ready ({pct:F1}% compliance):");
+                            foreach (var issue in issues) sb.AppendLine($"  • {issue}");
+                            TaskDialog.Show("Transmittal Gate", sb.ToString());
+                        }
+                        break;
+                    }
+                    case "ContainerWarningCheck":
+                    {
+                        var cwDoc = app.ActiveUIDocument?.Document;
+                        if (cwDoc != null)
+                        {
+                            var (count, rec) = Core.ContainerWarningCrossValidator.Analyse(cwDoc);
+                            TaskDialog.Show("Container ↔ Warning Analysis", $"Container-related warnings: ~{count}\n\n{rec}");
+                        }
+                        break;
+                    }
+
                     // Phase 74: Deep Review Enhancements
                     case "DailyPlanner": RunCommand<Core.DailyPlannerCommand>(app); break;
                     case "DeliverableMatrix": RunCommand<Core.DeliverableMatrixCommand>(app); break;

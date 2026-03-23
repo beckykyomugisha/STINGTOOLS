@@ -2215,6 +2215,26 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- PHASE 75: WORKFLOW/COORDINATION ENHANCEMENTS (29 gaps) -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <StackPanel>
+                                <TextBlock Text="WORKFLOW &amp; COORDINATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scheduler" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Root Cause" Tag="WarningRootCause" Click="Cmd_Click" ToolTip="Warning root-cause analysis: identify source warnings that cascade"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppression Audit" Tag="SuppressionAudit" Click="Cmd_Click" ToolTip="Warning suppression audit trail: who, when, why, expiry"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Team Activity" Tag="TeamActivity" Click="Cmd_Click" ToolTip="Team worksharing activity: workset checkouts, issues, discipline edits"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Trends" Tag="ComplianceTrendView" Click="Cmd_Click" ToolTip="7-day compliance trend with per-discipline trajectory and ETA"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SLA Report" Tag="SLAViolationReport" Click="Cmd_Click" ToolTip="Issue SLA violation report (Critical=4h, High=24h, Medium=1wk)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mid-Day Check" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Quick coordination checkpoint before meetings (2-3 min)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Review Prep" Tag="DesignReviewPrep" Click="Cmd_Click" ToolTip="Prepare model for design review (retag, fix, validate, report)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fed. Pre-Flight" Tag="FederatedPreFlight" Click="Cmd_Click" ToolTip="Federated pre-flight: validate host + linked models for duplicate tags and compliance"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Transmittal Gate" Tag="TransmittalGateCheck" Click="Cmd_Click" ToolTip="Check compliance gate before creating transmittals"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerWarningCheck" Click="Cmd_Click" ToolTip="Cross-validate container completeness against warning patterns"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- PHASE 69: ACOUSTIC & SUSTAINABILITY -->
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
                             <StackPanel>
