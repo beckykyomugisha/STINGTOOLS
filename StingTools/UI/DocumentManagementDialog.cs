@@ -1296,6 +1296,13 @@ namespace StingTools.UI
             handWrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
             handWrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
             handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("REGISTERS & BOQ"));
+            handWrap.Children.Add(MakeDispatchBtn("BOQ Export", "BOQExport", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Sheet Register", "ExportSheetRegister", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Drawing Register", "DrawingRegisterSchedule", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Data Drop Check", "DataDropReadiness", BrAccent, win));
+            handWrap.Children.Add(MakeSep());
             handWrap.Children.Add(MakeSectionLabel("4D / 5D"));
             handWrap.Children.Add(MakeDispatchBtn("4D Timeline", "Export4DTimeline", BrPurple, win));
             handWrap.Children.Add(MakeDispatchBtn("5D Cost Data", "Export5DCostData", BrPurple, win));
