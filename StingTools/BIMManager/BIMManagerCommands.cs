@@ -789,16 +789,60 @@ namespace StingTools.BIMManager
         }
 
         /// <summary>
-        /// Auto-raise BIM issues from tag compliance scan results.
-        /// Creates issues for untagged elements exceeding a threshold.
-        /// Called after batch tagging or validation operations.
+        /// Phase 75: Auto-close compliance issues when compliance reaches GREEN.
+        /// Matches issues auto-raised by AutoRaiseComplianceIssues.
         /// </summary>
+        internal static int AutoCloseComplianceIssues(Document doc)
+        {
+            try
+            {
+                var scanResult = ComplianceScan.Scan(doc);
+                if (scanResult == null || scanResult.RAGStatus != "GREEN") return 0;
+
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                if (!File.Exists(issuesPath)) return 0;
+                var issues = LoadJsonArray(issuesPath);
+                int closed = 0;
+                foreach (var issue in issues)
+                {
+                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    string title = issue["title"]?.ToString() ?? "";
+                    if (title.Contains("Untagged Elements") || title.Contains("Incomplete Tags"))
+                    {
+                        issue["status"] = "CLOSED";
+                        issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                        issue["response"] = $"Auto-closed: compliance is now {scanResult.CompliancePercent:F1}% (GREEN)";
+                        issue["resolved_in_revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? "";
+                        issue["modified_by"] = Environment.UserName;
+                        issue["modified_date"] = DateTime.Now.ToString("o");
+                        closed++;
+                    }
+                }
+                if (closed > 0)
+                {
+                    SaveJsonFile(issuesPath, issues);
+                    StingLog.Info($"AutoCloseComplianceIssues: closed {closed} issues (compliance GREEN)");
+                }
+                return closed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoCloseComplianceIssues: {ex.Message}");
+                return 0;
+            }
+        }
+
         internal static int AutoRaiseComplianceIssues(Document doc)
         {
             try
             {
                 var scanResult = ComplianceScan.Scan(doc);
-                if (scanResult == null || scanResult.RAGStatus == "GREEN") return 0;
+                if (scanResult == null || scanResult.RAGStatus == "GREEN")
+                {
+                    // Phase 75: Auto-close any previously raised compliance issues
+                    AutoCloseComplianceIssues(doc);
+                    return 0;
+                }
 
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
                 var issues = LoadJsonArray(issuesPath);
@@ -2181,6 +2225,38 @@ namespace StingTools.BIMManager
                 ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
                 ["comments"] = new JArray()
             };
+        }
+
+        /// <summary>
+        /// Phase 75: Cross-link a transmittal ID to open issues that share element IDs.
+        /// Scans issues.json for OPEN issues with overlapping element_ids and appends the txId.
+        /// </summary>
+        internal static int LinkTransmittalToIssues(Document doc, string transmittalId, IEnumerable<string> transmittalDocNames)
+        {
+            try
+            {
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                if (!File.Exists(issuesPath)) return 0;
+                var issues = LoadJsonArray(issuesPath);
+                int linked = 0;
+                foreach (var issue in issues)
+                {
+                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    var linkedTx = issue["linked_transmittals"] as JArray;
+                    if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
+                    if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
+                    // Link if issue has element references (meaning it relates to model content being transmitted)
+                    var elemIds = issue["element_ids"] as JArray;
+                    if (elemIds != null && elemIds.Count > 0)
+                    {
+                        linkedTx.Add(transmittalId);
+                        linked++;
+                    }
+                }
+                if (linked > 0) SaveJsonFile(issuesPath, issues);
+                return linked;
+            }
+            catch (Exception ex) { StingLog.Warn($"LinkTransmittalToIssues: {ex.Message}"); return 0; }
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -5553,9 +5629,55 @@ namespace StingTools.BIMManager
                 tx.Commit();
             }
 
+            // Phase 75: Auto-create transmittal record on SHARED/PUBLISHED transitions
+            int txCreated = 0;
+            if (status == "SHARED" || status == "PUBLISHED")
+            {
+                try
+                {
+                    string txPath = GetBIMManagerFilePath(doc, "transmittals.json");
+                    var txArray = LoadJsonArray(txPath);
+                    string txId = $"TX-{(txArray.Count + 1):D4}";
+                    var txRec = new JObject
+                    {
+                        ["transmittal_id"] = txId,
+                        ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                        ["from"] = Environment.UserName,
+                        ["to"] = "",
+                        ["documents"] = new JArray(doc.Title),
+                        ["cde_state"] = status,
+                        ["suitability"] = suitCode,
+                        ["status"] = "DRAFT",
+                        ["status_history"] = new JArray(new JObject
+                        {
+                            ["timestamp"] = DateTime.Now.ToString("o"),
+                            ["old_cde"] = currentCDE ?? "",
+                            ["new_cde"] = status,
+                            ["suitability"] = suitCode,
+                            ["user"] = Environment.UserName
+                        })
+                    };
+                    txArray.Add(txRec);
+                    SaveJsonFile(txPath, txArray);
+                    txCreated = 1;
+                    StingLog.Info($"CDE auto-transmittal {txId} created for {currentCDE ?? "NEW"} → {status}");
+                }
+                catch (Exception ex) { StingLog.Warn($"CDE auto-transmittal: {ex.Message}"); }
+            }
+
+            // Phase 75: Log coordination action for CDE transition
+            try
+            {
+                WarningsEngine.LogCoordinationAction(doc,
+                    $"CDE transition: {currentCDE ?? "NEW"} → {status}",
+                    "CDE", $"Suitability: {suitCode}", "HIGH");
+            }
+            catch (Exception ex) { StingLog.Warn($"CDE coord log: {ex.Message}"); }
+
+            string txNote = txCreated > 0 ? "\n✓ Auto-transmittal record created" : "";
             TaskDialog.Show("STING CDE Status",
                 $"CDE Status: {status} ({BIMManagerEngine.CDEStates[status]})\n" +
-                $"Suitability: {suitCode}\n\n" +
+                $"Suitability: {suitCode}{txNote}\n\n" +
                 $"Stored in: ASS_CDE_STATUS_TXT, ASS_CDE_SUITABILITY_TXT");
 
             StingLog.Info($"CDE status: {status}");

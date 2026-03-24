@@ -1431,18 +1431,17 @@ namespace StingTools.UI
                     case "RunWorkflow_FederatedModelAudit":
                     case "RunWorkflow_PreMeetingPrep":
                     {
-                        string wfName = _commandTag.Replace("RunWorkflow_", "")
-                            .Replace("Sync", " Sync").Replace("Health", " Health")
-                            .Replace("Data", " Data").Replace("Readiness", " Readiness")
-                            .Replace("Tagging", " Tagging").Replace("Kickoff", " Kickoff")
-                            .Replace("Package", " Package").Replace("Meeting", " Meeting")
-                            .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
-                            .Replace("Stage", " Stage").Replace("Gate", " Gate")
-                            .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
-                            .Replace("Clash", " Clash").Replace("Federated", " Federated")
-                            .Replace("Model", " Model").Replace("Audit", " Audit")
-                            .Replace("Day", " Day").Replace("End Of", "End of");
-                        SetExtraParam("WorkflowPresetName", wfName.Trim());
+                        // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
+                        string rawName = tag.Substring("RunWorkflow_".Length);
+                        var sb = new System.Text.StringBuilder(rawName.Length + 10);
+                        for (int ci = 0; ci < rawName.Length; ci++)
+                        {
+                            char ch = rawName[ci];
+                            if (ci > 0 && char.IsUpper(ch) && !char.IsUpper(rawName[ci - 1]))
+                                sb.Append(' ');
+                            sb.Append(ch);
+                        }
+                        SetExtraParam("WorkflowPresetName", sb.ToString().Trim());
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
@@ -2433,10 +2432,16 @@ namespace StingTools.UI
                 TaskDialog.Show("Select Hosts", "No host elements found for selected tags.");
         }
 
+        // Phase 75: Track which document the memory slots belong to
+        private static string _memoryDocPath = "";
+
         private static void SaveSelectionMemory(UIApplication app, string slot)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
+            // Phase 75: Clear slots if document changed since last save
+            if (_memoryDocPath != curDoc) { _memorySlots.Clear(); _memoryDocPath = curDoc; }
             _memorySlots[slot] = uidoc.Selection.GetElementIds()
                 .Select(id => id).ToList();
             StingLog.Info($"Selection saved to {slot}: {_memorySlots[slot].Count} elements");
@@ -2446,6 +2451,15 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
+            // Phase 75: Reject load if document changed since slots were saved
+            if (_memoryDocPath != curDoc)
+            {
+                TaskDialog.Show("Memory", "Selection memory was saved in a different document.\nSlots have been cleared.");
+                _memorySlots.Clear();
+                _memoryDocPath = curDoc;
+                return;
+            }
             if (_memorySlots.TryGetValue(slot, out var ids))
             {
                 uidoc.Selection.SetElementIds(ids);

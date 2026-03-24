@@ -6,7 +6,10 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.Mechanical;
+using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 
 namespace StingTools.Docs
@@ -261,7 +264,136 @@ namespace StingTools.Docs
                     }
                 }
 
-                // Write all 12 COBie CSV files
+                // Phase 75: COBie V2.4 additional worksheets (Instruction, Connection, Assembly, Document, Coordinate, Impact, Spare)
+                var instructionLines = new List<string>();
+                instructionLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,Description");
+                instructionLines.Add($"COBie Export,STING Tools,{DateTime.Now:yyyy-MM-dd},Instruction,All," +
+                    $"\"COBie V2.4 handover export from STING Tools. Project: {Esc(doc.Title ?? "")}. Compliance: {ComplianceScan.Scan(doc)?.CompliancePercent ?? 0:F1}%\"");
+
+                var connectionLines = new List<string>();
+                connectionLines.Add("Name,CreatedBy,CreatedOn,ConnectionType,SheetName,RowName1,SheetName2,RowName2,Description");
+                // Connections derived from MEP connectors
+                var connSeen = new HashSet<string>();
+                foreach (Element el in allTaggedElements)
+                {
+                    try
+                    {
+                        if (el is Autodesk.Revit.DB.FamilyInstance fi)
+                        {
+                            var mgr = fi.MEPModel?.ConnectorManager;
+                            if (mgr == null) continue;
+                            foreach (Connector c in mgr.Connectors)
+                            {
+                                foreach (Connector other in c.AllRefs)
+                                {
+                                    if (other.Owner.Id.Value <= el.Id.Value) continue;
+                                    string key = $"{el.Id.Value}_{other.Owner.Id.Value}";
+                                    if (connSeen.Contains(key)) continue;
+                                    connSeen.Add(key);
+                                    string name1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                    string name2 = ParameterHelpers.GetString(other.Owner, ParamRegistry.TAG1);
+                                    if (string.IsNullOrEmpty(name1) || string.IsNullOrEmpty(name2)) continue;
+                                    connectionLines.Add($"{Esc(key)},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
+                                        $"{c.Domain},{Esc("Component")},{Esc(name1)},{Esc("Component")},{Esc(name2)},MEP connection");
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"COBie Connection: {ex.Message}"); }
+                }
+
+                var assemblyLines = new List<string>();
+                assemblyLines.Add("Name,CreatedBy,CreatedOn,SheetName,ParentName,ChildNames,Description");
+                // Assemblies from compound walls/floors
+                var assemblySeen = new HashSet<string>();
+                foreach (Element el in allTaggedElements)
+                {
+                    try
+                    {
+                        if (el is Wall wall && wall.WallType?.GetCompoundStructure() != null)
+                        {
+                            string typeName = wall.WallType.Name;
+                            if (assemblySeen.Contains(typeName)) continue;
+                            assemblySeen.Add(typeName);
+                            var cs = wall.WallType.GetCompoundStructure();
+                            var layerNames = new List<string>();
+                            foreach (var layer in cs.GetLayers())
+                            {
+                                var mat = doc.GetElement(layer.MaterialId) as Material;
+                                layerNames.Add(mat?.Name ?? "Unknown");
+                            }
+                            assemblyLines.Add($"{Esc(typeName)},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
+                                $"Type,{Esc(typeName)},{Esc(string.Join("; ", layerNames))},Wall assembly");
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"COBie Assembly: {ex.Message}"); }
+                }
+
+                var documentLines = new List<string>();
+                documentLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,RowName,Directory,File,Description");
+                // Document references from BIM Manager
+                try
+                {
+                    string docRegPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
+                    if (File.Exists(docRegPath))
+                    {
+                        var docArr = JArray.Parse(File.ReadAllText(docRegPath));
+                        foreach (var d in docArr)
+                        {
+                            string dName = d["title"]?.ToString() ?? d["file_name"]?.ToString() ?? "";
+                            if (string.IsNullOrEmpty(dName)) continue;
+                            documentLines.Add($"{Esc(dName)},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
+                                $"{Esc(d["type"]?.ToString() ?? "")},Facility,{Esc(doc.Title ?? "")}," +
+                                $"{Esc(d["path"]?.ToString() ?? "")},{Esc(d["file_name"]?.ToString() ?? "")},{Esc(d["description"]?.ToString() ?? "")}");
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"COBie Document: {ex.Message}"); }
+
+                var coordinateLines = new List<string>();
+                coordinateLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,RowName,CoordinateXAxis,CoordinateYAxis,CoordinateZAxis");
+                foreach (Element el in allTaggedElements)
+                {
+                    try
+                    {
+                        var loc = el.Location;
+                        XYZ pt2 = null;
+                        if (loc is LocationPoint lp) pt2 = lp.Point;
+                        else if (loc is LocationCurve lc) pt2 = lc.Curve.Evaluate(0.5, true);
+                        if (pt2 == null) continue;
+                        string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
+                        if (string.IsNullOrEmpty(tag1)) continue;
+                        coordinateLines.Add($"{Esc(tag1)},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
+                            $"point,Component,{Esc(tag1)},{pt2.X * 304.8:F0},{pt2.Y * 304.8:F0},{pt2.Z * 304.8:F0}");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"COBie Coordinate: {ex.Message}"); }
+                }
+
+                var spareLines = new List<string>();
+                spareLines.Add("Name,CreatedBy,CreatedOn,Category,TypeName,Suppliers,Description");
+                // Re-use resource/spare data
+                foreach (string spare in resSeen)
+                {
+                    spareLines.Add($"{Esc(spare)},STING Tools,{DateTime.Now:yyyy-MM-dd},Spare Part,,{Esc(spare)},{Esc(spare)}");
+                }
+
+                var impactLines = new List<string>();
+                impactLines.Add("Name,CreatedBy,CreatedOn,ImpactType,ImpactStage,SheetName,RowName,Value,ImpactUnit,Description");
+                // Environmental impact from material properties
+                foreach (Element el in allTaggedElements)
+                {
+                    try
+                    {
+                        string embodied = HandoverHelper.Gs(el, "BLE_EMBODIED_CARBON_TXT");
+                        if (string.IsNullOrEmpty(embodied)) continue;
+                        string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
+                        impactLines.Add($"{Esc(tag1 + "_carbon")},STING Tools,{DateTime.Now:yyyy-MM-dd}," +
+                            $"Embodied Energy,Construction,Component,{Esc(tag1)},{Esc(embodied)},kgCO2e/m2,Embodied carbon");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"COBie Impact: {ex.Message}"); }
+                }
+
+                // Write all 18 COBie CSV files
                 string facilityPath = Path.Combine(outputDir, $"{prefix}_Facility.csv");
                 string floorPath = Path.Combine(outputDir, $"{prefix}_Floor.csv");
                 string spacePath = Path.Combine(outputDir, $"{prefix}_Space.csv");
@@ -273,6 +405,13 @@ namespace StingTools.Docs
                 string attrPath = Path.Combine(outputDir, $"{prefix}_Attribute.csv");
                 string jobPath = Path.Combine(outputDir, $"{prefix}_Job.csv");
                 string resPath = Path.Combine(outputDir, $"{prefix}_Resource.csv");
+                string instrPath = Path.Combine(outputDir, $"{prefix}_Instruction.csv");
+                string connPath = Path.Combine(outputDir, $"{prefix}_Connection.csv");
+                string asmPath = Path.Combine(outputDir, $"{prefix}_Assembly.csv");
+                string docPath = Path.Combine(outputDir, $"{prefix}_Document.csv");
+                string coordPath = Path.Combine(outputDir, $"{prefix}_Coordinate.csv");
+                string sparePath = Path.Combine(outputDir, $"{prefix}_Spare.csv");
+                string impactPath = Path.Combine(outputDir, $"{prefix}_Impact.csv");
 
                 int filesWritten = 0;
                 var cobieFiles = new (string path, List<string> lines)[]
@@ -282,6 +421,9 @@ namespace StingTools.Docs
                     (compPath, compLines), (sysPath, sysLines),
                     (zonePath, zoneLines), (contactPath, contactLines),
                     (attrPath, attrLines), (jobPath, jobLines), (resPath, resLines),
+                    (instrPath, instructionLines), (connPath, connectionLines),
+                    (asmPath, assemblyLines), (docPath, documentLines),
+                    (coordPath, coordinateLines), (sparePath, spareLines), (impactPath, impactLines),
                 };
                 foreach (var (path, lines) in cobieFiles)
                 {

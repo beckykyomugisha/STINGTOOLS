@@ -934,14 +934,35 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                // Copy deliverables to package
+                // Phase 75: Create ISO 19650 CDE folder structure
+                var cdeFolders = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                foreach (var f in cdeFolders) Directory.CreateDirectory(Path.Combine(packageDir, f));
+                // Sub-folders per discipline
+                var discFolders = new[] { "MODELS", "DRAWINGS", "SCHEDULES", "COBie", "REPORTS" };
+                string cdeStatus = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT") ?? "WIP";
+                string targetCDE = cdeFolders.Contains(cdeStatus) ? cdeStatus : "WIP";
+                foreach (var sf in discFolders) Directory.CreateDirectory(Path.Combine(packageDir, targetCDE, sf));
+
+                // Copy deliverables to ISO 19650 folder structure
                 int copied = 0;
                 foreach (var d in deliverables)
                 {
                     if (!File.Exists(d.FilePath)) continue;
-                    string destFile = Path.Combine(packageDir, Path.GetFileName(d.FilePath));
+                    // Route by file extension/category to appropriate sub-folder
+                    string ext = Path.GetExtension(d.FilePath).ToLowerInvariant();
+                    string subFolder = ext switch
+                    {
+                        ".rvt" or ".ifc" or ".nwc" or ".nwd" => "MODELS",
+                        ".pdf" or ".dwg" or ".dxf" => "DRAWINGS",
+                        ".xlsx" or ".csv" when (d.Category ?? "").Contains("Schedule") => "SCHEDULES",
+                        ".xlsx" or ".csv" when (d.Category ?? "").Contains("COBie") => "COBie",
+                        _ => "REPORTS"
+                    };
+                    string destDir = Path.Combine(packageDir, targetCDE, subFolder);
+                    Directory.CreateDirectory(destDir);
+                    string destFile = Path.Combine(destDir, Path.GetFileName(d.FilePath));
                     if (File.Exists(destFile))
-                        destFile = Path.Combine(packageDir, $"{Path.GetFileNameWithoutExtension(d.FilePath)}_{copied}{Path.GetExtension(d.FilePath)}");
+                        destFile = Path.Combine(destDir, $"{Path.GetFileNameWithoutExtension(d.FilePath)}_{copied}{Path.GetExtension(d.FilePath)}");
                     File.Copy(d.FilePath, destFile, true);
                     copied++;
                 }
@@ -1138,8 +1159,44 @@ namespace StingTools.BIMManager
                         var vpDoc = PlatformLinkEngine.CreateBcfViewpoint(vpGuid);
                         vpDoc.Save(Path.Combine(topicDir, "viewpoint.bcfv"));
 
-                        // snapshot.png (placeholder)
-                        File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), placeholderPng);
+                        // snapshot.png — attempt active view export, fallback to placeholder
+                        // Note: Revit ExportImage requires active view context and is not
+                        // reliable in all scenarios (e.g., API-only context, family editor).
+                        bool snapshotCaptured = false;
+                        try
+                        {
+                            var activeView = doc.ActiveView;
+                            if (activeView != null)
+                            {
+                                string snapPath = Path.Combine(topicDir, "snapshot");
+                                var imgOpts = new ImageExportOptions
+                                {
+                                    FilePath = snapPath,
+                                    HLRandWFViewsFileType = ImageFileType.PNG,
+                                    ImageResolution = ImageResolution.DPI_150,
+                                    ZoomType = ZoomFitType.FitToPage,
+                                    PixelSize = 640,
+                                    ExportRange = ExportRange.CurrentView
+                                };
+                                doc.ExportImage(imgOpts);
+                                // ExportImage appends view name — find the generated file
+                                string snapDir = Path.GetDirectoryName(snapPath) ?? topicDir;
+                                var pngFiles = Directory.GetFiles(snapDir, "snapshot*.png");
+                                if (pngFiles.Length > 0)
+                                {
+                                    string target = Path.Combine(topicDir, "snapshot.png");
+                                    if (pngFiles[0] != target)
+                                    {
+                                        if (File.Exists(target)) File.Delete(target);
+                                        File.Move(pngFiles[0], target);
+                                    }
+                                    snapshotCaptured = true;
+                                }
+                            }
+                        }
+                        catch (Exception snapEx) { StingLog.Warn($"BCF snapshot capture: {snapEx.Message}"); }
+                        if (!snapshotCaptured)
+                            File.WriteAllBytes(Path.Combine(topicDir, "snapshot.png"), placeholderPng);
 
                         exported++;
                     }

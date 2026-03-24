@@ -60,6 +60,9 @@ namespace StingTools.UI
         private readonly StackPanel _navPanel;
         private Button _activeNav;
 
+        // Phase 75: Persist last-viewed tab across dialog reopens
+        private static string _lastViewedTab = "OVERVIEW";
+
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
 
@@ -396,8 +399,8 @@ namespace StingTools.UI
                 }
             };
 
-            // Default to Overview
-            NavigateTo("OVERVIEW");
+            // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
+            NavigateTo(_lastViewedTab ?? "OVERVIEW");
         }
 
         private string BuildStatusText()
@@ -550,6 +553,9 @@ namespace StingTools.UI
 
         private void NavigateTo(string tabName)
         {
+            // Phase 75: Remember tab for cross-reopen persistence
+            _lastViewedTab = tabName;
+
             // Reset all nav buttons
             foreach (var child in _navPanel.Children)
             {

@@ -563,6 +563,16 @@ namespace StingTools.Core
                             }
                             catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
                         }
+                        // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
+                        if (step.Condition == "has_overdue_issues")
+                        {
+                            try
+                            {
+                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
+                                if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
+                        }
 
                         if (step.Condition == "has_untagged")
                         {
@@ -1386,6 +1396,24 @@ namespace StingTools.Core
                         string iPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
                         if (!File.Exists(iPath)) return false;
                         return File.ReadAllText(iPath).Contains("\"OPEN\"");
+                    case "has_overdue_issues":
+                    {
+                        string oiPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        if (!File.Exists(oiPath)) return false;
+                        var slaHrs = new Dictionary<string, int>
+                            { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
+                        var oiArr = JArray.Parse(File.ReadAllText(oiPath));
+                        foreach (var oi in oiArr)
+                        {
+                            if (oi["status"]?.ToString() != "OPEN") continue;
+                            string pri = oi["priority"]?.ToString() ?? "MEDIUM";
+                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created"]?.ToString(), out var created)) continue;
+                            int ageH = (int)(DateTime.Now - created).TotalHours;
+                            int threshold = slaHrs.GetValueOrDefault(pri, 336);
+                            if (ageH > threshold) return true;
+                        }
+                        return false;
+                    }
                     case "has_untagged":
                         var cats = SharedParamGuids.AllCategoryEnums;
                         var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();

@@ -867,11 +867,13 @@ namespace StingTools.Core
                             if (el is SpatialElementTag roomTag && roomTag.Room != null)
                             {
                                 var room = roomTag.Room;
-                                var pt = room.get_BoundingBox(null);
-                                if (pt != null)
+                                var bb = room.get_BoundingBox(null);
+                                if (bb != null)
                                 {
-                                    var center = (pt.Min + pt.Max) / 2.0;
-                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
+                                    var center = (bb.Min + bb.Max) / 2.0;
+                                    var currentPoint = (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero;
+                                    var moveVector = center - currentPoint;
+                                    roomTag.Location.Move(moveVector);
                                     return true;
                                 }
                             }
