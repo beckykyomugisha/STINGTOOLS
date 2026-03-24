@@ -776,11 +776,8 @@ namespace StingTools.UI
                     case "ExcelLinkExport": RunCommand<Temp.ExcelLinkExportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
-                    // ── Theme ──
-                    case "CycleTheme":
-                        string next = UI.ThemeManager.CycleTheme();
-                        Autodesk.Revit.UI.TaskDialog.Show("Theme", $"Theme set to: {next}");
-                        break;
+                    // Phase 74c: CycleTheme handled directly in StingDockPanel.xaml.cs Cmd_Click()
+                    // which returns before dispatching to this handler. This case is dead code.
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
@@ -2312,34 +2309,15 @@ namespace StingTools.UI
             uidoc.ActiveView.HideElementsTemporary(ids);
         }
 
+        // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
+        // direct instance method in Revit 2025+ API (this plugin targets net8.0-windows).
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             try
             {
-                // EnableTemporaryViewMode is not available as a direct instance
-                // method on View in all Revit API versions — use reflection with
-                // proper exception unwrapping to avoid masking the real error.
-                var view = uidoc.ActiveView;
-                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
-                    new[] { typeof(TemporaryViewMode) });
-                if (method != null)
-                {
-                    try
-                    {
-                        method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
-                    }
-                    catch (System.Reflection.TargetInvocationException tie) when (tie.InnerException != null)
-                    {
-                        // Unwrap reflection wrapper to surface the real Revit exception
-                        throw tie.InnerException;
-                    }
-                }
-                else
-                {
-                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
-                }
+                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
