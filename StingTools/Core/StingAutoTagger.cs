@@ -982,6 +982,19 @@ namespace StingTools.Core
 
         private const int MaxElementsPerTrigger = 20;
 
+        // PERF-CRIT: Cached room index to avoid FilteredElementCollector on every trigger
+        private static Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> _cachedRoomIndex;
+        private static string _cachedProjectLoc;
+        private static DateTime _roomIndexCacheTime = DateTime.MinValue;
+
+        /// <summary>Clear cached room index (call on document close/switch).</summary>
+        internal static void ClearRoomIndexCache()
+        {
+            _cachedRoomIndex = null;
+            _cachedProjectLoc = null;
+            _roomIndexCacheTime = DateTime.MinValue;
+        }
+
         public void Execute(UpdaterData data)
         {
             if (!_enabled) return;
@@ -1003,14 +1016,26 @@ namespace StingTools.Core
                     return;
                 }
 
-                // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
-                // and prevent per-element room collector rebuilds inside an IUpdater
+                // PERF-CRIT: Cache room index across stale marker triggers to avoid rebuilding
+                // on every geometry change. Room index is expensive (FilteredElementCollector scan).
+                // TTL of 30 seconds — rooms don't change during normal geometry editing.
                 Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
                 string projectLoc = null;
                 try
                 {
-                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-                    projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                    if (_cachedRoomIndex != null && (DateTime.Now - _roomIndexCacheTime).TotalSeconds < 30)
+                    {
+                        roomIndex = _cachedRoomIndex;
+                        projectLoc = _cachedProjectLoc;
+                    }
+                    else
+                    {
+                        roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+                        projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                        _cachedRoomIndex = roomIndex;
+                        _cachedProjectLoc = projectLoc;
+                        _roomIndexCacheTime = DateTime.Now;
+                    }
                 }
                 catch (Exception riEx)
                 {

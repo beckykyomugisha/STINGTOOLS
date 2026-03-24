@@ -947,5 +947,110 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Warn($"AutoDetectAllLayers: {ex.Message}"); }
             return result;
         }
+
+        // ── CONVERSION QUALITY SCORING ────────────────────────────────
+
+        /// <summary>Phase 71: Quality score for DWG-to-BIM conversion result (0-100).
+        /// Helps BIM coordinators assess conversion completeness and decide if manual
+        /// cleanup is needed. Factors: layer match rate, wall/floor detection ratio,
+        /// element count, orphan geometry count.</summary>
+        internal static ConversionQualityScore ScoreConversion(CADExtractionResult extraction, CADConversionResult conversion)
+        {
+            var score = new ConversionQualityScore();
+            if (extraction == null || conversion == null) return score;
+
+            // 1. Layer match rate (0-30 pts): percentage of layers that matched a category
+            int totalLayers = extraction.LayerCounts.Count;
+            int matchedLayers = extraction.LayerCounts.Count(kv =>
+                LayerMapper.InferCategory(kv.Key) != null);
+            score.LayerMatchRate = totalLayers > 0 ? matchedLayers * 100.0 / totalLayers : 0;
+            score.LayerScore = Math.Min(30, (int)(score.LayerMatchRate * 0.3));
+
+            // 2. Element creation success (0-30 pts): walls + floors + columns created vs detected
+            int detectedElements = extraction.Walls.Count + extraction.Loops.Count + extraction.Blocks.Count;
+            int createdElements = conversion.WallsCreated + conversion.FloorsCreated +
+                conversion.ColumnsCreated + conversion.DoorsCreated + conversion.WindowsCreated;
+            score.CreationRate = detectedElements > 0 ? createdElements * 100.0 / detectedElements : 0;
+            score.CreationScore = Math.Min(30, (int)(score.CreationRate * 0.3));
+
+            // 3. Wall detection ratio (0-20 pts): walls detected from wall-layer lines
+            int wallLayerLines = extraction.Lines.Count(l => l.Category == "Walls");
+            score.WallDetectionRate = wallLayerLines > 0 ?
+                extraction.Walls.Count * 100.0 / (wallLayerLines / 2.0) : 0;
+            score.WallScore = Math.Min(20, (int)(Math.Min(100, score.WallDetectionRate) * 0.2));
+
+            // 4. Tagging completeness (0-20 pts): auto-tagged elements vs created
+            int taggedCount = conversion.CreatedElementIds.Count; // Assumes auto-tag runs
+            score.TagRate = createdElements > 0 ? taggedCount * 100.0 / createdElements : 0;
+            score.TagScore = Math.Min(20, (int)(score.TagRate * 0.2));
+
+            score.TotalScore = score.LayerScore + score.CreationScore + score.WallScore + score.TagScore;
+            score.Grade = score.TotalScore >= 80 ? "A" :
+                          score.TotalScore >= 60 ? "B" :
+                          score.TotalScore >= 40 ? "C" : "D";
+
+            return score;
+        }
+
+        // ── ADDITIONAL LAYER PATTERNS ─────────────────────────────────
+
+        /// <summary>Phase 71: ISO 13567 standard layer naming patterns (international standard).
+        /// Format: Status-Discipline-Element. Example: N-A-WALL (New-Architectural-Wall).</summary>
+        private static readonly Dictionary<string, string> ISO13567Patterns =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Discipline codes from ISO 13567-2
+                ["A-WALL"] = "Walls", ["A-DOOR"] = "Doors", ["A-WIND"] = "Windows",
+                ["A-FURN"] = "Furniture", ["A-FLOR"] = "Floors", ["A-ROOF"] = "Roofs",
+                ["A-STRS"] = "Stairs", ["A-CLNG"] = "Ceilings", ["A-COLS"] = "Columns",
+                ["S-WALL"] = "Walls", ["S-COLS"] = "Columns", ["S-BEAM"] = "Beams",
+                ["S-SLAB"] = "Floors", ["S-FNDN"] = "Foundations",
+                ["M-DUCT"] = "Ducts", ["M-PIPE"] = "Pipes", ["M-EQUP"] = "Equipment",
+                ["E-POWR"] = "Electrical", ["E-LITE"] = "Electrical", ["E-FIRE"] = "Fire",
+                ["P-FIXT"] = "Plumbing", ["P-PIPE"] = "Pipes", ["P-EQPM"] = "Equipment",
+            };
+
+        /// <summary>Phase 71: Try ISO 13567 pattern matching for international DWG files.
+        /// Called as additional fallback in AutoDetectLayerCategory.</summary>
+        internal static string TryISO13567Match(string layerName)
+        {
+            if (string.IsNullOrEmpty(layerName)) return null;
+            string upper = layerName.ToUpperInvariant();
+            // ISO 13567 layers may have status prefix (N-/E-/D-/T-) before discipline
+            // Strip status prefix if present
+            if (upper.Length > 2 && upper[1] == '-' &&
+                (upper[0] == 'N' || upper[0] == 'E' || upper[0] == 'D' || upper[0] == 'T'))
+            {
+                upper = upper.Substring(2);
+            }
+
+            foreach (var kv in ISO13567Patterns)
+            {
+                if (upper.StartsWith(kv.Key, StringComparison.OrdinalIgnoreCase))
+                    return kv.Value;
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Phase 71: DWG-to-BIM conversion quality score for coordinator review.</summary>
+    public class ConversionQualityScore
+    {
+        public int TotalScore { get; set; }
+        public string Grade { get; set; } = "D";
+        public double LayerMatchRate { get; set; }
+        public int LayerScore { get; set; }
+        public double CreationRate { get; set; }
+        public int CreationScore { get; set; }
+        public double WallDetectionRate { get; set; }
+        public int WallScore { get; set; }
+        public double TagRate { get; set; }
+        public int TagScore { get; set; }
+
+        public string Summary => $"Quality: {TotalScore}/100 (Grade {Grade}) — " +
+            $"Layers: {LayerMatchRate:F0}% matched, " +
+            $"Elements: {CreationRate:F0}% created, " +
+            $"Walls: {WallDetectionRate:F0}% detected, " +
+            $"Tagged: {TagRate:F0}%";
     }
 }

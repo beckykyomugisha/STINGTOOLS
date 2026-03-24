@@ -188,6 +188,11 @@ namespace StingTools.Core
                     if (scanCatEnums != null && scanCatEnums.Length > 0)
                         scanColl.WherePasses(new ElementMulticategoryFilter(
                             new List<BuiltInCategory>(scanCatEnums)));
+                    // PERF-CRIT: Scan timeout — abort after 8 seconds to prevent blocking
+                    // UI thread on very large models (50K+ elements). Partial results still useful.
+                    var scanStart = DateTime.Now;
+                    const int ScanTimeoutMs = 8000;
+
                     foreach (Element elem in scanColl)
                     {
                         if (elem == null || !elem.IsValidObject) continue;
@@ -195,6 +200,16 @@ namespace StingTools.Core
                         if (!known.Contains(cat)) continue;
 
                         result.TotalElements++;
+
+                        // PERF-CRIT: Check timeout every 500 elements to avoid DateTime overhead
+                        if (result.TotalElements % 500 == 0 &&
+                            (DateTime.Now - scanStart).TotalMilliseconds > ScanTimeoutMs)
+                        {
+                            StingLog.Warn($"ComplianceScan: timeout at {result.TotalElements} elements " +
+                                $"({(DateTime.Now - scanStart).TotalMilliseconds:F0}ms). " +
+                                "Results are partial — run manually for full scan.");
+                            break;
+                        }
                         string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
                         if (!result.ByDisc.TryGetValue(disc, out var dd))
                         {

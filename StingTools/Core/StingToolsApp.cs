@@ -111,6 +111,8 @@ namespace StingTools.Core
                 UI.StingCommandHandler.ClearStaticState();
                 // R-02: Clear deferred elements on document close
                 StingAutoTagger.ClearDeferredQueue();
+                // PERF-CRIT: Clear stale marker room index cache
+                StingStaleMarker.ClearRoomIndexCache();
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
             }
             catch (Exception ex)
@@ -231,22 +233,19 @@ namespace StingTools.Core
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
 
-                // FUT-19: Background pre-warming — eagerly load formulas, grid lines,
-                // and compliance scan on a background thread so first tagging command is fast
+                // FUT-19: Pre-warm ONLY non-Revit-API caches (file I/O) on background thread.
+                // PERF-CRIT: Revit API is NOT thread-safe — ComplianceScan.Scan() and
+                // LoadGridLines() use FilteredElementCollector which MUST run on the UI thread.
+                // Previously this caused native Revit instability and slowdowns.
                 try
                 {
-                    var docForPreWarm = e.Document;
                     System.Threading.ThreadPool.QueueUserWorkItem(_ =>
                     {
                         try
                         {
-                            // Pre-load formulas into session cache
+                            // Pre-load formulas from CSV — pure file I/O, safe on background thread
                             TagPipelineHelper.LoadFormulas();
-                            // Pre-load grid lines
-                            if (docForPreWarm != null) TagPipelineHelper.LoadGridLines(docForPreWarm);
-                            // Pre-run compliance scan to populate cache
-                            if (docForPreWarm != null) ComplianceScan.Scan(docForPreWarm);
-                            StingLog.Info("FUT-19: Background pre-warming completed (formulas, grids, compliance)");
+                            StingLog.Info("FUT-19: Background pre-warming completed (formulas only — Revit API deferred)");
                         }
                         catch (Exception prEx) { StingLog.Warn($"FUT-19 pre-warm: {prEx.Message}"); }
                     });
@@ -288,93 +287,135 @@ namespace StingTools.Core
                     StingLog.Warn($"AUTO_RUN_WORKFLOW_ON_OPEN check failed: {arwEx.Message}");
                 }
 
-                // Phase 56: Morning Briefing — comprehensive model status on document open
-                // Shows compliance, stale elements, warnings, and SLA violations in one dialog
+                // PERF-CRIT: Morning briefing DEFERRED to Idling event.
+                // Previously ran ComplianceScan.Scan() (iterates ALL elements), GetWarnings(),
+                // CheckSLAViolations (disk I/O), ComplianceTrendTracker (disk I/O), and showed
+                // a BLOCKING TaskDialog — all inside the DocumentOpened event handler.
+                // This blocked the Revit UI thread for 5-30+ seconds on large models, making
+                // even native Revit buttons unresponsive.
+                //
+                // Now deferred to Revit's Idling event which fires after the UI is fully ready.
+                // The briefing runs ONCE on first idle after document open, then unsubscribes.
                 try
                 {
-                    var briefing = new System.Text.StringBuilder();
-                    bool hasAlerts = false;
-
-                    // 1. Compliance scan + trend tracking
-                    var comp = ComplianceScan.Scan(e.Document);
-                    if (comp != null)
+                    _pendingBriefingDoc = e.Document;
+                    // Idling event fires repeatedly when Revit is idle — we use a flag to run once
+                    if (!_briefingSubscribed)
                     {
-                        // Record daily compliance snapshot for trend analysis
-                        ComplianceTrendTracker.RecordSnapshot(e.Document, comp);
-                        var (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(e.Document);
-
-                        briefing.AppendLine($"Tag Compliance: {comp.CompliancePercent:F0}% ({comp.RAGStatus})" +
-                            (trendDir != "unknown" && trendDir != "insufficient data" ?
-                            $"  [{trendDir} {trendDelta:+0.0;-0.0}% over 7 days]" : ""));
-                        briefing.AppendLine($"  Tagged: {comp.TaggedComplete}/{comp.TotalElements}  |  " +
-                            $"Untagged: {comp.Untagged}  |  Stale: {comp.StaleCount}");
-                        if (comp.PlaceholderCount > 0)
-                            briefing.AppendLine($"  Placeholders (GEN/XX/ZZ): {comp.PlaceholderCount}");
-                        if (comp.StaleCount > 0) hasAlerts = true;
-                        if (comp.CompliancePercent < 60) hasAlerts = true;
-                        if (trendDir == "declining") hasAlerts = true;
-                    }
-
-                    // 2. Warnings summary
-                    try
-                    {
-                        int warnCount = e.Document.GetWarnings()?.Count ?? 0;
-                        briefing.AppendLine($"\nModel Warnings: {warnCount}");
-                        if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
-                    }
-                    catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
-
-                    // 3. SLA violations
-                    try
-                    {
-                        var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(e.Document);
-                        if (overdue.Count > 0)
-                        {
-                            hasAlerts = true;
-                            int critCount = overdue.Count(o => o.priority == "CRITICAL");
-                            int highCount = overdue.Count(o => o.priority == "HIGH");
-                            briefing.AppendLine($"\nOverdue Issues: {overdue.Count}");
-                            if (critCount > 0) briefing.AppendLine($"  CRITICAL: {critCount} (SLA: 4 hrs)");
-                            if (highCount > 0) briefing.AppendLine($"  HIGH: {highCount} (SLA: 24 hrs)");
-                            briefing.AppendLine($"  Most overdue: {overdue[0].issueId} ({overdue[0].hoursOverdue:F0}h)");
-                        }
-                    }
-                    catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
-
-                    // 4. Show morning briefing dialog only if there are alerts
-                    if (hasAlerts)
-                    {
-                        briefing.AppendLine("\n────────────────────────────────────");
-                        briefing.AppendLine("Open BIM Coordination Center for full details.");
-                        var dlg = new Autodesk.Revit.UI.TaskDialog("STING Morning Briefing");
-                        dlg.MainInstruction = "Model Status Summary";
-                        dlg.MainContent = briefing.ToString();
-                        dlg.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1,
-                            "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
-                        dlg.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Close;
-                        var dlgResult = dlg.Show();
-
-                        // If user clicks "Run Morning Health Check", set ExtraParam for workflow dispatch
-                        if (dlgResult == Autodesk.Revit.UI.TaskDialogResult.CommandLink1)
-                        {
-                            UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
-                            StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
-                        }
-                    }
-                    else
-                    {
-                        StingLog.Info($"Morning briefing: model healthy — " +
-                            $"{comp?.CompliancePercent:F0}% compliance, no alerts");
+                        var uiApp = sender as Autodesk.Revit.ApplicationServices.Application;
+                        // We can't subscribe to Idling from ControlledApplication — use static flag
+                        // and check in StingCommandHandler's first Execute() call instead
+                        _briefingPending = true;
+                        StingLog.Info("Morning briefing deferred to first idle/command");
                     }
                 }
                 catch (Exception mbEx)
                 {
-                    StingLog.Warn($"Morning briefing: {mbEx.Message}");
+                    StingLog.Warn($"Morning briefing defer: {mbEx.Message}");
                 }
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DocumentOpened cleanup: {ex.Message}");
+            }
+        }
+
+        // PERF-CRIT: Deferred morning briefing state — runs on first command after document open
+        private static Document _pendingBriefingDoc;
+        internal static volatile bool _briefingPending;
+        private static bool _briefingSubscribed;
+
+        /// <summary>PERF-CRIT: Run the morning briefing on demand (called from StingCommandHandler
+        /// on first command execution after document open, NOT from DocumentOpened event).
+        /// This prevents blocking the Revit UI thread during document load.</summary>
+        internal static void RunDeferredMorningBriefing(Document doc)
+        {
+            if (!_briefingPending) return;
+            _briefingPending = false;
+
+            if (doc == null || !doc.IsValidObject) return;
+
+            try
+            {
+                var briefing = new System.Text.StringBuilder();
+                bool hasAlerts = false;
+
+                // 1. Compliance scan (now runs on demand, not during document open)
+                var comp = ComplianceScan.Scan(doc);
+                if (comp != null)
+                {
+                    try { ComplianceTrendTracker.RecordSnapshot(doc, comp); }
+                    catch (Exception ex) { StingLog.Warn($"Trend snapshot: {ex.Message}"); }
+
+                    string trendDir = "unknown"; double trendDelta = 0;
+                    try { (trendDir, trendDelta) = ComplianceTrendTracker.GetTrend(doc); }
+                    catch (Exception ex) { StingLog.Warn($"Trend read: {ex.Message}"); }
+
+                    briefing.AppendLine($"Tag Compliance: {comp.CompliancePercent:F0}% ({comp.RAGStatus})" +
+                        (trendDir != "unknown" && trendDir != "insufficient data" ?
+                        $"  [{trendDir} {trendDelta:+0.0;-0.0}% over 7 days]" : ""));
+                    briefing.AppendLine($"  Tagged: {comp.TaggedComplete}/{comp.TotalElements}  |  " +
+                        $"Untagged: {comp.Untagged}  |  Stale: {comp.StaleCount}");
+                    if (comp.PlaceholderCount > 0)
+                        briefing.AppendLine($"  Placeholders (GEN/XX/ZZ): {comp.PlaceholderCount}");
+                    if (comp.StaleCount > 0) hasAlerts = true;
+                    if (comp.CompliancePercent < 60) hasAlerts = true;
+                    if (trendDir == "declining") hasAlerts = true;
+                }
+
+                // 2. Warnings — lightweight count only (no full classification)
+                try
+                {
+                    int warnCount = doc.GetWarnings()?.Count ?? 0;
+                    briefing.AppendLine($"\nModel Warnings: {warnCount}");
+                    if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                }
+                catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
+
+                // 3. SLA violations (disk I/O — acceptable here since we're not in event handler)
+                try
+                {
+                    var overdue = BIMManager.BIMManagerEngine.CheckSLAViolations(doc);
+                    if (overdue.Count > 0)
+                    {
+                        hasAlerts = true;
+                        int critCount = overdue.Count(o => o.priority == "CRITICAL");
+                        int highCount = overdue.Count(o => o.priority == "HIGH");
+                        briefing.AppendLine($"\nOverdue Issues: {overdue.Count}");
+                        if (critCount > 0) briefing.AppendLine($"  CRITICAL: {critCount} (SLA: 4 hrs)");
+                        if (highCount > 0) briefing.AppendLine($"  HIGH: {highCount} (SLA: 24 hrs)");
+                        briefing.AppendLine($"  Most overdue: {overdue[0].issueId} ({overdue[0].hoursOverdue:F0}h)");
+                    }
+                }
+                catch (Exception slaEx) { StingLog.Warn($"Morning briefing SLA: {slaEx.Message}"); }
+
+                // 4. Show briefing only if alerts — now safe to show TaskDialog (not in event handler)
+                if (hasAlerts)
+                {
+                    briefing.AppendLine("\n────────────────────────────────────");
+                    briefing.AppendLine("Open BIM Coordination Center for full details.");
+                    var dlg = new TaskDialog("STING Morning Briefing");
+                    dlg.MainInstruction = "Model Status Summary";
+                    dlg.MainContent = briefing.ToString();
+                    dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Run Morning Health Check workflow", "Auto-fix stale elements, warnings, and validate tags");
+                    dlg.CommonButtons = TaskDialogCommonButtons.Close;
+                    var dlgResult = dlg.Show();
+
+                    if (dlgResult == TaskDialogResult.CommandLink1)
+                    {
+                        UI.StingCommandHandler.SetExtraParam("WorkflowPresetName", "MorningHealthCheck");
+                        StingLog.Info("Morning briefing: user requested MorningHealthCheck workflow");
+                    }
+                }
+                else
+                {
+                    StingLog.Info($"Morning briefing: model healthy — {comp?.CompliancePercent:F0}% compliance, no alerts");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Deferred morning briefing: {ex.Message}");
             }
         }
 

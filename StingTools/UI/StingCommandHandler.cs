@@ -87,6 +87,14 @@ namespace StingTools.UI
                 return;
             }
 
+            // PERF-CRIT: Run deferred morning briefing on first command after document open.
+            // This was previously in OnDocumentOpened where it blocked the UI thread for 5-30s.
+            if (Core.StingToolsApp._briefingPending)
+            {
+                try { Core.StingToolsApp.RunDeferredMorningBriefing(app.ActiveUIDocument.Document); }
+                catch (Exception mbEx) { Core.StingLog.Warn($"Deferred briefing: {mbEx.Message}"); }
+            }
+
             try
             {
                 switch (tag)
