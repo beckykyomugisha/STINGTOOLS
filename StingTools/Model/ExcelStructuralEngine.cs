@@ -383,7 +383,20 @@ namespace StingTools.Model
                 if (totalWidth <= widthMm)
                     return $"{count}H{size}";
             }
-            return $"{minCount}H32"; // Fallback
+
+            // SAFETY FIX (EXCEL-CRIT-01): Validate fallback bars actually fit.
+            // Previous code returned fallback "{minCount}H32" without checking fit,
+            // producing physically impossible bar arrangements (bars wider than beam).
+            double fallbackSize = 32;
+            double fallbackSpacing = Math.Max(fallbackSize, 25);
+            double fallbackWidth = minCount * fallbackSize + (minCount - 1) * fallbackSpacing + 2 * coverMm + 2 * 10;
+            if (fallbackWidth > widthMm)
+            {
+                StingLog.Warn($"RebarEngine.SelectBars: {minCount}H32 does not fit in {widthMm:F0}mm width " +
+                    $"(requires {fallbackWidth:F0}mm). Increase section width or check design.");
+                return $"{minCount}H32 [NO FIT — REVIEW]";
+            }
+            return $"{minCount}H32"; // Fallback fits
         }
 
         /// <summary>Export bar bending schedule to Excel per BS 8666.</summary>

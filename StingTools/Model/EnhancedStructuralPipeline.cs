@@ -91,11 +91,14 @@ namespace StingTools.Model
             {
                 // SAFETY-R1: Use actual cross-section area from mass/density instead of D*B (solid rectangle).
                 // D*B overestimates by ~7.6x for UC sections, leading to dangerously undersized columns.
-                // Area (cm²) = Mass (kg/m) / steel density (7.85 kg/dm³ = 0.00785 kg/cm³) / 100 cm/m
-                // Simplified: Area_cm2 = Mass / 0.785
+                // Area (cm²) = Mass (kg/m) / steel density (7.85 kg/dm³) → Area_cm2 = Mass / 0.785
+                // SAFETY-R2 FIX: Dimensional analysis corrected.
+                // nRd = Area_cm2 × (1 cm² = 100 mm²) × fy (N/mm²) / 1000 (N→kN) = Area_cm2 × 0.1 × fy
+                // Previous formula (areaCm2 × 0.01 × fy × 0.001) was 10,000× too small,
+                // making nRd tiny so ALL columns passed → lightest always selected (unsafe).
                 double areaCm2 = s.Mass / 0.785;
-                double nRd = areaCm2 * 0.01 * fy * 0.001; // Area (m²) × fy (MPa) = kN
-                double mRd = s.Sxx * fy * 0.001; // kNm (Sxx in cm³)
+                double nRd = areaCm2 * 0.1 * fy; // kN: Area(cm²) × 100(mm²/cm²) × fy(N/mm²) / 1000(N/kN)
+                double mRd = s.Sxx * fy * 0.001; // kNm: Sxx(cm³) × fy(N/mm²) × 1000(mm³/cm³) / 10^6(Nmm→kNm)
                 double util = nEdKN / nRd + mEdKNm / mRd;
                 if (util <= 1.0) return (s.Name, s.Mass);
             }

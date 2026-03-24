@@ -259,7 +259,24 @@ namespace StingTools.Model
             // Group elements
             var groups = GroupElements(doc, elements, config.Grouping);
 
+            // WIZ-HIGH-03 FIX: Build existing marks HashSet for collision detection.
+            // Prevents duplicate marks when numbering overlaps with pre-existing marks.
+            var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var allElements = new FilteredElementCollector(doc)
+                    .OfCategory(config.Category)
+                    .WhereElementIsNotElementType();
+                foreach (var existing in allElements)
+                {
+                    string mark = existing.LookupParameter(config.ParameterName)?.AsString();
+                    if (!string.IsNullOrEmpty(mark)) existingMarks.Add(mark);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"NumberingEngine mark scan: {ex.Message}"); }
+
             int numbered = 0;
+            int collisions = 0;
             int groupIndex = 1;
 
             using (var tx = new Transaction(doc, "STING Number Elements"))
@@ -271,10 +288,22 @@ namespace StingTools.Model
                     foreach (var el in group)
                     {
                         string tag = BuildNumberTag(config, groupIndex, elementIndex);
+
+                        // Collision detection: if mark already exists, increment until unique
+                        int attempts = 0;
+                        while (existingMarks.Contains(tag) && attempts < 100)
+                        {
+                            elementIndex += config.IncrementBy;
+                            tag = BuildNumberTag(config, groupIndex, elementIndex);
+                            attempts++;
+                            collisions++;
+                        }
+
                         var param = el.LookupParameter(config.ParameterName);
                         if (param != null && !param.IsReadOnly)
                         {
                             param.Set(tag);
+                            existingMarks.Add(tag); // Track newly assigned marks
                             numbered++;
                         }
                         elementIndex += config.IncrementBy;
@@ -283,6 +312,9 @@ namespace StingTools.Model
                 }
                 tx.Commit();
             }
+
+            if (collisions > 0)
+                StingLog.Info($"NumberingEngine: {collisions} collisions resolved by auto-increment");
 
             return numbered;
         }
