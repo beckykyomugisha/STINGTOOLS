@@ -2992,11 +2992,13 @@ namespace StingTools.Core
         {
             try
             {
-                // 1. Run compliance scan
-                ComplianceScan.InvalidateCache();
+                // PERF-CRIT: Use cached compliance result if fresh (30s TTL).
+                // Previously called InvalidateCache() + Scan() on EVERY dialog open/refresh,
+                // causing a full-model element scan (2-5s) each time. In the keep-dialog-open
+                // loop, this ran after every button click (5 clicks = 5 full scans = 10-25s).
                 var compliance = ComplianceScan.Scan(doc);
 
-                // 2. Scan warnings
+                // PERF: Use cached warning report (30s TTL added in Phase 71b)
                 var warningReport = WarningsEngine.ScanWarnings(doc);
                 int healthScore = WarningsEngine.CalculateWarningHealthScore(warningReport);
 
@@ -3023,9 +3025,10 @@ namespace StingTools.Core
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter issues load: {ex.Message}"); }
 
-                // 4. Load workflow history summary
+                // 4. Load workflow history — PERF: read file ONCE for both summary and rows
                 int workflowRuns = 0;
                 string lastWorkflow = "none";
+                var workflowHistoryRows = new List<UI.BIMCoordinationCenter.WorkflowRunRow>();
                 try
                 {
                     string docPath = doc.PathName;
@@ -3034,11 +3037,14 @@ namespace StingTools.Core
                         string logPath = Path.Combine(Path.GetDirectoryName(docPath), "STING_WORKFLOW_LOG.json");
                         if (File.Exists(logPath))
                         {
-                            string[] lines = File.ReadAllLines(logPath);
-                            workflowRuns = lines.Length;
-                            if (lines.Length > 0)
+                            // Single file read for both summary and detailed rows
+                            string[] logLines = File.ReadAllLines(logPath);
+                            workflowRuns = logLines.Length;
+
+                            // Extract last workflow name from last line
+                            if (logLines.Length > 0)
                             {
-                                string lastLine = lines[lines.Length - 1];
+                                string lastLine = logLines[logLines.Length - 1];
                                 int presetIdx = lastLine.IndexOf("\"preset\":\"");
                                 if (presetIdx >= 0)
                                 {
@@ -3047,22 +3053,9 @@ namespace StingTools.Core
                                     if (valEnd > valStart) lastWorkflow = lastLine.Substring(valStart, valEnd - valStart);
                                 }
                             }
-                        }
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow load: {ex.Message}"); }
 
-                // 4b. Load workflow execution history rows
-                var workflowHistoryRows = new List<UI.BIMCoordinationCenter.WorkflowRunRow>();
-                try
-                {
-                    string docPath4 = doc.PathName;
-                    if (!string.IsNullOrEmpty(docPath4))
-                    {
-                        string logPath4 = Path.Combine(Path.GetDirectoryName(docPath4), "STING_WORKFLOW_LOG.json");
-                        if (File.Exists(logPath4))
-                        {
-                            foreach (string line in File.ReadAllLines(logPath4).TakeLast(20).Reverse())
+                            // Parse last 20 rows for DataGrid
+                            foreach (string line in logLines.TakeLast(20).Reverse())
                             {
                                 try
                                 {
@@ -3087,7 +3080,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow history: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"BIMCoordCenter workflow load: {ex.Message}"); }
 
                 // 5. Warning regression delta
                 var (warnAdded, warnRemoved, warnUnchanged, newTypes) = WarningsEngine.CompareWithRevisionBaseline(doc);
