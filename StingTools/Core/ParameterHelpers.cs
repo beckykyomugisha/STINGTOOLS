@@ -3508,7 +3508,9 @@ namespace StingTools.Core
                     existingTags: tagIndex,
                     collisionMode: collisionMode,
                     stats: stats,
-                    cachedRev: ctx?.ProjectRev);
+                    cachedRev: ctx?.ProjectRev,
+                    cachedPhases: ctx?.CachedPhases,
+                    lastPhaseId: ctx?.LastPhaseId);
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");

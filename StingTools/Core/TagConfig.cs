@@ -964,7 +964,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
                 return fullTag;
 
-            string[] parts = fullTag.Split(ParamRegistry.Separator[0]);
+            char sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator[0] : '-';
+            string[] parts = fullTag.Split(sep);
             if (parts.Length < 8) return fullTag;
 
             var visible = new List<string>();
@@ -2128,7 +2129,9 @@ namespace StingTools.Core
             HashSet<string> existingTags = null,
             TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement,
             TaggingStats stats = null,
-            string cachedRev = null)
+            string cachedRev = null,
+            List<Phase> cachedPhases = null,
+            ElementId lastPhaseId = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
@@ -2295,7 +2298,7 @@ namespace StingTools.Core
                         string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                         StingLog.Warn(overflowMsg);
                         stats?.RecordWarning(overflowMsg);
-                        sequenceCounters[seqKey] = maxSeq;
+                        sequenceCounters[seqKey] = preIncrementValue; // Rollback to pre-collision value, not maxSeq
                         return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
@@ -2375,8 +2378,9 @@ namespace StingTools.Core
             // PERF-R11: Validate segment count by counting separators instead of allocating split array.
             // Previously: String.Split created 8-12 string array per element (50K = 400K+ allocations).
             int sepCount = 0;
+            char sepCh = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
             for (int ci = 0; ci < tag.Length; ci++)
-                if (tag[ci] == Separator[0]) sepCount++;
+                if (tag[ci] == sepCh) sepCount++;
             if (sepCount < 7) // 8 segments = 7 separators
             {
                 StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
@@ -2411,7 +2415,10 @@ namespace StingTools.Core
                 string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                 if (string.IsNullOrEmpty(existingStatus) || overwriteTokens)
                 {
-                    string status = PhaseAutoDetect.DetectStatus(doc, el);
+                    // PERF-003 FIX: Use cached phase list when available to avoid per-element FilteredElementCollector
+                    string status = (cachedPhases != null && lastPhaseId != null)
+                        ? PhaseAutoDetect.DetectStatusCached(doc, el, cachedPhases, lastPhaseId)
+                        : PhaseAutoDetect.DetectStatus(doc, el);
                     if (string.IsNullOrEmpty(status)) status = "NEW";
                     if (overwriteTokens)
                         ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true);

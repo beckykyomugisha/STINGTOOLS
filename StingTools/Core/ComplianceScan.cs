@@ -23,7 +23,8 @@ namespace StingTools.Core
         private static int _scanning = 0; // 0 = not scanning, 1 = scanning
 
         // PERF-R1: Static cached arrays to avoid per-element allocations in hot scan loop
-        private static readonly string[] _separatorArray = new[] { ParamRegistry.Separator };
+        // DI-001 FIX: Use mutable field so separator refreshes on cache invalidation
+        private static string[] _separatorArray = new[] { ParamRegistry.Separator };
         private static readonly string[] _tokenKeys = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
 
         /// <summary>
@@ -488,6 +489,8 @@ namespace StingTools.Core
                 _cached = null;
                 _cacheTime = DateTime.MinValue;
                 _incrementalCount = 0;
+                // DI-001 FIX: Refresh separator array so config changes are picked up
+                _separatorArray = new[] { ParamRegistry.Separator };
             }
         }
 
