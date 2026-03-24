@@ -1376,11 +1376,12 @@ namespace StingTools.Model
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
                 if (ctx == null) { StingLog.Warn("AutoTagCreatedElements: PopulationContext.Build returned null"); return 0; }
 
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.BuildTagIndexAndCounters(doc);
-                var formulas = Temp.FormulaEngine.LoadFormulas(doc);
-                var gridLines = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Grid)).Cast<Grid>().ToList();
+                // Phase 74d: Use BuildTagIndexAndCounters tuple (returns both tag index + SEQ counters)
+                // instead of separate BuildExistingTagIndex + BuildTagIndexAndCounters (was 2 full scans)
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                // Phase 74d: Use session-cached pipeline helpers instead of raw uncached loaders
+                var formulas = TagPipelineHelper.LoadFormulas();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
                 using (var tx = new Transaction(doc, "STING MODEL: Auto-Tag Created Elements"))
                 {

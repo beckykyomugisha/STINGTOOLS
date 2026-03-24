@@ -3274,6 +3274,15 @@ namespace StingTools.Core
     /// </summary>
     internal static class TagPipelineHelper
     {
+        // Phase 74d: Static token-param map — eliminates 2 Dictionary allocations per element in RunFullPipeline
+        private static readonly Dictionary<string, string> TokenParamMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DISC"] = ParamRegistry.DISC, ["LOC"] = ParamRegistry.LOC,
+            ["ZONE"] = ParamRegistry.ZONE, ["LVL"] = ParamRegistry.LVL,
+            ["SYS"] = ParamRegistry.SYS, ["FUNC"] = ParamRegistry.FUNC,
+            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+            ["REV"] = ParamRegistry.REV
+        };
         /// <summary>
         /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
         /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
@@ -3380,25 +3389,19 @@ namespace StingTools.Core
 
                 // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
                 // values are preserved, but BEFORE PopulateAll/overrides can change them
-                var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
+                Dictionary<string, string> lockedSnapshot = null;
                 try
                 {
                     string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
                     if (!string.IsNullOrWhiteSpace(preLockStr))
                     {
+                        lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                         string[] lockKeys = preLockStr.Split(',')
                             .Select(s => s.Trim().ToUpperInvariant()).ToArray();
-                        var tokenParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
-                            ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
-                            ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
-                            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
-                            ["REV"]  = ParamRegistry.REV
-                        };
                         foreach (string lockKey in lockKeys)
                         {
-                            if (tokenParamMap.TryGetValue(lockKey, out string paramName))
+                            if (TokenParamMap.TryGetValue(lockKey, out string paramName))
                             {
                                 string val = ParameterHelpers.GetString(el, paramName);
                                 if (!string.IsNullOrEmpty(val))
@@ -3442,19 +3445,12 @@ namespace StingTools.Core
                 }
 
                 // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
-                if (lockedSnapshot.Count > 0)
+                // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
+                if (lockedSnapshot != null && lockedSnapshot.Count > 0)
                 {
-                    var restoreParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
-                        ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
-                        ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
-                        ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
-                        ["REV"]  = ParamRegistry.REV
-                    };
                     foreach (var kvp in lockedSnapshot)
                     {
-                        if (restoreParamMap.TryGetValue(kvp.Key, out string paramName))
+                        if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
                         {
                             try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
                             catch (Exception lockEx)
