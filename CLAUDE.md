@@ -2637,3 +2637,19 @@ docker compose up -d
 709. **ModelEngine: Session-cached formulas and grid lines** — `AutoTagCreatedElements` now uses `TagPipelineHelper.LoadFormulas()` (5-min cache) and `LoadGridLines()` (2-min cache) instead of uncached `FormulaEngine.LoadFormulas(doc)` and raw `FilteredElementCollector`. Eliminates CSV parse + collector per model command.
 710. **RunFullPipeline: Static TokenParamMap** — Replaced 2 per-element `Dictionary<string,string>` allocations (token lock snapshot + restore) with static `TagPipelineHelper.TokenParamMap`. Eliminates 100K dictionary allocations on 50K-element batches.
 711. **RunFullPipeline: Lazy lockedSnapshot allocation** — `lockedSnapshot` dictionary only allocated when `ASS_TOKEN_LOCK_TXT` is non-empty (rare). Common case: zero allocation per element.
+
+#### Completed (Phase 75 — Gap Fix Implementation: BIM Coordination, Warnings, Dispatch & Data Exchange)
+
+712. **CDE auto-transmittal** — `CDEStatusCommand` now auto-creates transmittal record in `transmittals.json` on SHARED/PUBLISHED transitions with status history, suitability code, and user attribution. Coordination action logged via `WarningsEngine.LogCoordinationAction()`.
+713. **Auto-close compliance issues** — `AutoCloseComplianceIssues()` method closes OPEN compliance issues (title contains "Untagged Elements" or "Incomplete Tags") when `ComplianceScan` returns GREEN. Called from `AutoRaiseComplianceIssues()` when compliance is GREEN. Populates `resolved_in_revision` from `PhaseAutoDetect`.
+714. **Issue-to-transmittal linking** — `LinkTransmittalToIssues()` method scans `issues.json` for OPEN issues with element_ids and appends transmittal ID to `linked_transmittals` JArray. Enables ISO 19650 bidirectional traceability.
+715. **has_overdue_issues workflow condition** — New condition in `WorkflowEngine.EvaluateSingleCondition()` parses `issues.json`, checks OPEN issue ages against SLA thresholds (CRITICAL=4h, HIGH=24h, MEDIUM=168h, LOW=336h). Enables deadline-aware workflow gating.
+716. **BIM Coordination Center tab persistence** — Static `_lastViewedTab` preserves last-navigated tab name across dialog close/reopen cycles. Eliminates re-navigation overhead for BIM coordinators.
+717. **WorksetAssigner per-document cache** — `_wsIdCache` Dictionary caches workset name→ID mapping per document path. `FilteredWorksetCollector` called once per document instead of per-element. 25-column grid: 25 scans → 1 scan.
+718. **Room tag Strategy 7 clarity** — Replaced ambiguous operator precedence expression with explicit `currentPoint`/`moveVector` variables for maintainability.
+719. **PlaceColumnGrid progress dialog** — `StingProgressDialog.Show()` wraps column grid creation for UI feedback during 30-60 second batch operations.
+720. **RunWorkflow_ name reconstruction** — Replaced brittle 20-word `.Replace()` chain with generic uppercase-split algorithm that handles any future workflow preset names.
+721. **_memorySlots cross-document guard** — `_memoryDocPath` tracks source document of saved selections. Clears slots and warns user when document changes, preventing stale `ElementId` references.
+722. **CDE package ISO 19650 folder structure** — `CDEPackageCommand` creates WIP/SHARED/PUBLISHED/ARCHIVE root folders with MODELS/DRAWINGS/SCHEDULES/COBie/REPORTS sub-folders. Files routed by extension and category to appropriate sub-folder.
+723. **BCF viewpoint screenshot** — `BCFExportCommand` attempts `doc.ExportImage()` for active view snapshot before falling back to 1×1 placeholder PNG. Handles ExportImage's view-name-appended filename pattern.
+724. **COBie handover 18 worksheets** — Expanded from 11 to 18 COBie V2.4 worksheets: added Instruction (export metadata), Connection (MEP connector pairs), Assembly (compound wall layers), Document (from document_register.json), Coordinate (element XYZ positions in mm), Spare (from resource data), Impact (embodied carbon from BLE parameters).
