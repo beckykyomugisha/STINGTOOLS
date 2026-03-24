@@ -477,6 +477,8 @@ namespace StingTools.Model
         // ── Map To categories ──
         private static readonly string[] MapToCategories = {
             "", "Column", "Beam", "Wall", "Slab", "Foundation",
+            "Roof", "Stair", "Ramp", "PadFoundation", "Pile",
+            "RetainingWall", "Bracing",
             "Grid", "Annotation", "Dimension", "Other", "Skip"
         };
 
@@ -1293,9 +1295,17 @@ namespace StingTools.Model
             if (lower.Contains("beam") || lower.Contains("framing") || lower.Contains("lintel")) return "Beam";
             if (lower.Contains("wall") || lower.Contains("shear")) return "Wall";
             if (lower.Contains("slab") || lower.Contains("floor")) return "Slab";
-            if (lower.Contains("foundation") || lower.Contains("footing") || lower.Contains("pile")) return "Foundation";
+            if (lower.Contains("foundation") || lower.Contains("footing")) return "Foundation";
             if (lower.Contains("grid") || lower.Contains("axis")) return "Grid";
             if (lower.Contains("dimension") || lower.Contains("text") || lower.Contains("annotation")) return "Annotation";
+            // Phase 71: Additional structural element detection
+            if (lower.Contains("roof") || lower.Contains("truss")) return "Roof";
+            if (lower.Contains("stair") || lower.Contains("step") || lower.Contains("flight")) return "Stair";
+            if (lower.Contains("ramp") || lower.Contains("slope")) return "Ramp";
+            if (lower.Contains("pad") || lower.Contains("base")) return "PadFoundation";
+            if (lower.Contains("pile") || lower.Contains("bore")) return "Pile";
+            if (lower.Contains("retaining") || lower.Contains("retain")) return "RetainingWall";
+            if (lower.Contains("brace") || lower.Contains("bracing") || lower.Contains("diag")) return "Bracing";
             return "";
         }
 
@@ -1675,6 +1685,14 @@ namespace StingTools.Model
         public string SlabLayer { get; set; } = "";
         public string FoundationLayer { get; set; } = "";
         public string GridLayer { get; set; } = "";
+        // Phase 71: Additional structural element layer assignments
+        public string RoofLayer { get; set; } = "";
+        public string StairLayer { get; set; } = "";
+        public string RampLayer { get; set; } = "";
+        public string PadFoundationLayer { get; set; } = "";
+        public string PileLayer { get; set; } = "";
+        public string RetainingWallLayer { get; set; } = "";
+        public string BracingLayer { get; set; } = "";
 
         // Element creation flags
         public bool CreateColumns { get; set; } = true;
@@ -1683,6 +1701,14 @@ namespace StingTools.Model
         public bool CreateSlabs { get; set; } = true;
         public bool CreateFoundations { get; set; } = true;
         public bool CreateGrids { get; set; } = true;
+        // Phase 71: Additional structural element creation flags
+        public bool CreateRoofs { get; set; } = false;
+        public bool CreateStairs { get; set; } = false;
+        public bool CreateRamps { get; set; } = false;
+        public bool CreatePadFoundations { get; set; } = true;
+        public bool CreatePiles { get; set; } = false;
+        public bool CreateRetainingWalls { get; set; } = false;
+        public bool CreateBracing { get; set; } = false;
 
         // Levels
         public string BaseLevelName { get; set; }
@@ -1697,6 +1723,21 @@ namespace StingTools.Model
         public double WallThicknessMm { get; set; } = 200;
         public double SlabThicknessMm { get; set; } = 200;
         public double FoundationDepthMm { get; set; } = 600;
+        // Phase 71: Additional structural element dimensions
+        public double RoofThicknessMm { get; set; } = 250;
+        public double RoofPitchDegrees { get; set; } = 15;
+        public double StairRiserMm { get; set; } = 175;         // BS 5395 max 220mm
+        public double StairGoingMm { get; set; } = 250;         // BS 5395 min 220mm
+        public double StairWidthMm { get; set; } = 1000;        // BS 5395 min 800mm
+        public double RampGradient { get; set; } = 1.0 / 12.0;  // BS 8300 max 1:12
+        public double RampWidthMm { get; set; } = 1500;         // BS 8300 min 1500mm
+        public double PadFoundationWidthMm { get; set; } = 1200;
+        public double PadFoundationDepthMm { get; set; } = 600;
+        public double PileDepthMm { get; set; } = 12000;        // Typical bored pile
+        public double PileDiameterMm { get; set; } = 600;
+        public double RetainingWallHeightMm { get; set; } = 2500;
+        public double RetainingWallThicknessMm { get; set; } = 300;
+        public double BracingAngleDegrees { get; set; } = 45;
 
         // Construction logic
         public bool BeamsRestOnWalls { get; set; } = true;
