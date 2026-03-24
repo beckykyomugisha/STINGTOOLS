@@ -12,8 +12,7 @@ namespace StingTools.Docs
     //  Automated viewport layout, scale calculation, sheet cloning, and
     //  collision-free placement using shelf-packing algorithm.
     //
-    //  Inspired by Ideate SheetManager, All 1 Studio auto-arrange,
-    //  and Revit 2026 native view-to-sheet positioning.
+    //  STING Sheet Manager with auto-arrange and view-to-sheet positioning.
     //
     //  Key Revit API patterns:
     //    Viewport.Create(doc, sheetId, viewId, centerPoint)

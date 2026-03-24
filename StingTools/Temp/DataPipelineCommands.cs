@@ -3097,8 +3097,7 @@ namespace StingTools.Temp
 
     // ════════════════════════════════════════════════════════════════════════════
     //  Excel-to-Drafting View — Import spreadsheet tables into Revit views
-    //  Inspired by: Rushforth Loos Excel-to-Revit, DiRoots SheetLink,
-    //  Ideate Sticky for flexible data overlay.
+    //  Excel-to-Drafting View with flexible data overlay.
     // ════════════════════════════════════════════════════════════════════════════
 
     #region Excel to Drafting View
@@ -3483,7 +3482,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Batch import sticky notes from an Excel file. Each row maps a tag or element ID
     /// to a note text, enabling bulk QA annotation from external review spreadsheets.
-    /// Inspired by Ideate Sticky for Revit batch operations.
+    /// Bulk QA annotation from external review spreadsheets.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3614,7 +3613,7 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════════════
     //  EXCEL LINK EXPORT — BIMLink-style Category + Property Selector (P10)
     //  Lets users pick categories and properties, then exports to Excel.
-    //  Inspired by Ideate BIMLink: category multi-select → property columns → XLSX
+    //  Category multi-select → property columns → XLSX export
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>

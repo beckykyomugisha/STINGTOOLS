@@ -30,7 +30,7 @@
 20. [Workflow Automation for Tagging](#20-workflow-automation-for-tagging)
 21. [Cross-System Integration](#21-cross-system-integration)
 22. [Data Exchange (Excel/COBie)](#22-data-exchange-excelcobie)
-23. [Graitec-Style Numbering](#23-graitec-style-numbering)
+23. [Smart Numbering](#23-smart-numbering)
 24. [Tag Export/Import Between Projects](#24-tag-exportimport-between-projects)
 25. [Configuration Reference](#25-configuration-reference)
 26. [Troubleshooting](#26-troubleshooting)
@@ -1109,7 +1109,7 @@ Tags populate COBie worksheets:
 
 ---
 
-## 23. Graitec-Style Numbering
+## 23. Smart Numbering
 
 ### NumberingEngine
 

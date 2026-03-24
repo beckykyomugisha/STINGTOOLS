@@ -12,7 +12,7 @@ using StingTools.UI;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Naviate-style "Combine Parameters" command with interactive selection.
+    /// "Combine Parameters" command with interactive selection.
     ///
     /// Presents a multi-step dialog where the user:
     ///   Step 1: Chooses a mode (All Containers, Universal Only, Discipline Only, Pick Containers)

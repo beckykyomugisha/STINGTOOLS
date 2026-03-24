@@ -376,7 +376,7 @@ namespace StingTools.Docs
             // Suggest next sheet number
             string suggestedNum = SheetManagerEngine.GetNextSheetNumber(doc, "A");
 
-            // ── Show Naviate-style New Sheet dialog ──
+            // ── Show New Sheet dialog ──
             var rows = NewSheetDialog.Show(
                 tbNames, scopeBoxes, unplacedViews, viewTemplates,
                 out bool autoPlaceDependentViews,

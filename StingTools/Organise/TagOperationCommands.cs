@@ -6042,14 +6042,14 @@ namespace StingTools.Organise
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    //  Graitec-Style Element Numbering Command (standalone)
+    //  STING Smart Numbering Command (standalone)
     //  Wraps NumberingEngine from StructuralCADWizard with a WPF dialog
     //  for general-purpose element numbering across ALL categories.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
-    public class GraitecNumberingCommand : IExternalCommand
+    public class SmartNumberingCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
@@ -6059,7 +6059,7 @@ namespace StingTools.Organise
             var uidoc = ctx.UIDoc;
 
             // Show WPF numbering configuration dialog
-            var config = GraitecNumberingDialog.Show(doc, uidoc);
+            var config = SmartNumberingDialog.Show(doc, uidoc);
             if (config == null) return Result.Succeeded; // User cancelled
 
             // Resolve element IDs based on scope
@@ -6098,16 +6098,16 @@ namespace StingTools.Organise
                 $"Numbered {count} elements.\n\nParameter: {config.ParameterName}\n" +
                 $"Template: {string.Join(", ", Model.NumberingEngine.GeneratePreview(config, 3))}...");
 
-            StingLog.Info($"GraitecNumbering: {count} elements numbered, param={config.ParameterName}, prefix={config.Prefix}");
+            StingLog.Info($"SmartNumbering: {count} elements numbered, param={config.ParameterName}, prefix={config.Prefix}");
             return Result.Succeeded;
         }
     }
 
     /// <summary>
-    /// WPF dialog for Graitec-style element numbering configuration.
+    /// WPF dialog for STING smart element numbering configuration.
     /// Single-page dialog with category, parameter, template, grouping, and preview.
     /// </summary>
-    internal static class GraitecNumberingDialog
+    internal static class SmartNumberingDialog
     {
         public static Model.NumberingEngine.NumberingConfig Show(Document doc, UIDocument uidoc)
         {
@@ -6131,7 +6131,7 @@ namespace StingTools.Organise
             // ── Build WPF dialog ──
             var win = new System.Windows.Window
             {
-                Title = "STING Element Numbering (Graitec-Style)",
+                Title = "STING Smart Numbering",
                 Width = 580, Height = 660,
                 WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
                 ResizeMode = System.Windows.ResizeMode.NoResize,
@@ -6398,7 +6398,7 @@ namespace StingTools.Organise
                 var helper = new System.Windows.Interop.WindowInteropHelper(win);
                 helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch (Exception ex) { StingLog.Warn($"GraitecNumberingDialog owner: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"SmartNumberingDialog owner: {ex.Message}"); }
 
             bool? result = win.ShowDialog();
             if (result != true || !confirmed) return null;

@@ -30,8 +30,8 @@ namespace StingTools.BIMManager
     //  Data storage: JSON files in STING_BIM_MANAGER/ alongside .rvt file
     //  All data is portable and version-controllable.
     //
-    //  Briefcase: In-Revit reference document viewer inspired by Procore Briefcase
-    //  and Ideate Sticky. Allows users to access, read, and print reference
+    //  Briefcase: In-Revit reference document viewer. Allows users to access,
+    //  read, and print reference
     //  documents (BEP, standards, specs) without leaving Revit.
     // ════════════════════════════════════════════════════════════════════════════
 
@@ -6331,7 +6331,7 @@ namespace StingTools.BIMManager
     }
 
     // ════════════════════════════════════════════════════════════════════════════
-    //  STING BIM TOOLS — Procore Briefcase Export, Ideate-Style Sticky Notes,
+    //  STING BIM TOOLS — Briefcase Export, Sticky Notes,
     //  Model Health Dashboard, MIDP Tracker, 4D/5D Export, Compliance Integration
     // ════════════════════════════════════════════════════════════════════════════
 
@@ -6438,12 +6438,12 @@ namespace StingTools.BIMManager
 
     #endregion
 
-    #region Element Sticky Notes (Ideate-style)
+    #region Element Sticky Notes
 
     /// <summary>
     /// Element Sticky Notes: attach persistent text annotations to elements
     /// stored in shared parameters. Notes survive across sessions and can be
-    /// exported for QA reviews. Inspired by Ideate Sticky Notes for Revit.
+    /// exported for QA reviews.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]

@@ -12,7 +12,7 @@ using StingTools.Core;
 namespace StingTools.Select
 {
     /// <summary>
-    /// Color By Parameter system — Graitec/Naviate-inspired element coloring by any parameter value.
+    /// Color By Parameter system — element coloring by any parameter value.
     /// Provides 10 built-in palettes, custom presets, &lt;No Value&gt; detection, and view filter generation.
     /// </summary>
     internal static class ColorHelper

@@ -100,9 +100,9 @@ Column: S-BLD1-Z01-L01-STR-SUP-COL-0001
 Beam:   S-BLD1-Z01-L01-STR-SUP-BM-0001
 ```
 
-### 5. Element Numbering (Graitec-Style)
+### 5. Smart Element Numbering
 
-Inspired by **Graitec PowerPack Numbering Tool**, this section provides template-based numbering with group and element enumeration.
+Template-based numbering with group and element enumeration.
 
 **Configuration:**
 

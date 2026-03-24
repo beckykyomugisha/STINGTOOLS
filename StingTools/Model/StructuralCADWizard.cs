@@ -11,7 +11,7 @@
 //   4. CONSTRUCTION LOGIC & TAGGING — Construction relationships (beams on
 //      walls, beams connect to slabs, columns stop at slab soffit, structural
 //      wall checkbox), STING ISO 19650 tagging options
-//   5. NUMBERING — Graitec-style numbering with category, parameter, template,
+//   5. NUMBERING — Smart numbering with category, parameter, template,
 //      group/element enumeration, preview
 //
 // Fixes:
@@ -21,7 +21,7 @@
 //   - Structural wall checkbox added
 //   - Footing/slab configuration added
 //   - Columns stop at slab soffit (not slab level)
-//   - Graitec-style numbering engine
+//   - Smart numbering engine
 // ============================================================================
 
 using System;
@@ -75,10 +75,10 @@ namespace StingTools.Model
 
     #endregion
 
-    #region Numbering Engine (Graitec-style)
+    #region Numbering Engine
 
     /// <summary>
-    /// Element numbering engine inspired by Graitec PowerPack Numbering Tool.
+    /// STING element numbering engine with template-based numbering and grouping.
     /// Supports template-based numbering with group and element enumeration,
     /// multiple numbering styles, and live preview.
     /// </summary>
@@ -514,7 +514,7 @@ namespace StingTools.Model
         private TextBox _txtTagPrefix;
         private ComboBox _cboNumbering, _cboTagFamily;
 
-        // Numbering config (Graitec-style)
+        // Numbering config
         private ComboBox _cboNumCategory, _cboNumParameter;
         private TextBox _txtNumPrefix, _txtNumSeparator, _txtNumSuffix;
         private CheckBox _chkGroupEnum, _chkElementEnum;
@@ -1084,11 +1084,11 @@ namespace StingTools.Model
             return section;
         }
 
-        // ── Section 5: Numbering (Graitec-style) ─────────────────────────
+        // ── Section 5: Smart Numbering ──────────────────────────────────
 
         private FrameworkElement BuildSection5_Numbering()
         {
-            var section = MakeSection("ELEMENT NUMBERING (Graitec-Style)");
+            var section = MakeSection("ELEMENT NUMBERING");
             var stack = (StackPanel)((Border)section).Child;
 
             // Top row: Category + Parameter
