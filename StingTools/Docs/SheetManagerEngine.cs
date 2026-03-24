@@ -576,17 +576,25 @@ namespace StingTools.Docs
             var typeId = viewport.GetTypeId();
             var center = newCenter ?? viewport.GetBoxCenter();
 
+            // Delete the old viewport FIRST — Revit's CanAddViewToSheet returns false
+            // while the view is still placed on the source sheet, so we must remove it
+            // before checking or creating on the target.
+            doc.Delete(viewport.Id);
+
             if (!Viewport.CanAddViewToSheet(doc, targetSheet.Id, viewId))
             {
-                StingLog.Warn($"Cannot move viewport: view already on target sheet or invalid.");
+                StingLog.Warn($"Cannot move viewport: view cannot be placed on target sheet '{targetSheet.SheetNumber}'.");
                 return null;
             }
-
-            doc.Delete(viewport.Id);
 
             try
             {
                 var newVp = Viewport.Create(doc, targetSheet.Id, viewId, center);
+                if (newVp == null)
+                {
+                    StingLog.Warn($"Viewport.Create returned null for sheet '{targetSheet.SheetNumber}'.");
+                    return null;
+                }
                 if (typeId != ElementId.InvalidElementId)
                 {
                     try { newVp.ChangeTypeId(typeId); }
