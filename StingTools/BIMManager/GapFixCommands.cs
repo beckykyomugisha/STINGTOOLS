@@ -51,12 +51,18 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"LoadJsonObject failed: {ex.Message}"); return new JObject(); }
         }
 
+        /// <summary>Atomic JSON write using temp file + replace. GF-001 FIX:
+        /// Previous File.Delete→File.Move had crash window where target is deleted
+        /// but temp not yet moved, permanently losing the JSON file.</summary>
         internal static void SaveJson(string path, JToken data)
         {
             string tmp = path + ".tmp";
+            string backup = path + ".bak";
             File.WriteAllText(tmp, data.ToString(Formatting.Indented));
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(tmp, path);
+            if (File.Exists(path))
+                File.Replace(tmp, path, backup);
+            else
+                File.Move(tmp, path);
         }
 
         // ═══════════════════════════════════════════════════════════════════

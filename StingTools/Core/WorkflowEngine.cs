@@ -1447,8 +1447,10 @@ namespace StingTools.Core
                     case "has_sheets":
                         return new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount() > 0;
                     default:
-                        StingLog.Warn($"WorkflowEngine: unknown condition '{condition}'");
-                        return true; // Unknown conditions pass by default
+                        // WF-001 FIX: Unknown conditions now return false (fail-safe).
+                        // Previously returned true, silently executing gated steps on typos.
+                        StingLog.Warn($"WorkflowEngine: unknown condition '{condition}' — step will be SKIPPED (fail-safe)");
+                        return false;
                 }
             }
             catch (Exception ex)
