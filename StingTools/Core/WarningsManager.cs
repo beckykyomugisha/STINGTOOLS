@@ -1105,6 +1105,8 @@ namespace StingTools.Core
                     report.NetReduction = netReduction;
                 }
                 catch (Exception ex) { StingLog.Warn($"Fix verification scan: {ex.Message}"); }
+                // AUTO-R5: Invalidate cached report so dashboard shows post-fix state immediately
+                InvalidateReportCache();
             }
             return report;
         }
