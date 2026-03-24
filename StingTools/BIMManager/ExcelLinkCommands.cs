@@ -97,6 +97,14 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Validate a single value against known codes. Returns error message or null if valid.
         /// </summary>
+        // Phase 74: Cache validation sets — avoids 35K+ HashSet allocations per 5K-element import
+        private static HashSet<string> _cachedValidDisc;
+        private static HashSet<string> _cachedValidFunc;
+        private static HashSet<string> _cachedValidProd;
+        private static HashSet<string> EnsureValidDisc() => _cachedValidDisc ??= new HashSet<string>(TagConfig.DiscMap.Values, StringComparer.OrdinalIgnoreCase);
+        private static HashSet<string> EnsureValidFunc() => _cachedValidFunc ??= new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
+        private static HashSet<string> EnsureValidProd() => _cachedValidProd ??= new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
+
         internal static string ValidateValue(string column, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null; // empty is allowed
@@ -104,9 +112,8 @@ namespace StingTools.BIMManager
             switch (column)
             {
                 case "DISC":
-                    var validDisc = new HashSet<string>(TagConfig.DiscMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validDisc.Contains(value))
-                        return $"DISC '{value}' not in valid codes: {string.Join(", ", validDisc.OrderBy(v => v))}";
+                    if (!EnsureValidDisc().Contains(value))
+                        return $"DISC '{value}' not in valid codes: {string.Join(", ", EnsureValidDisc().OrderBy(v => v))}";
                     break;
                 case "SYS":
                     if (!TagConfig.SysMap.ContainsKey(value))
@@ -121,14 +128,12 @@ namespace StingTools.BIMManager
                         return $"ZONE '{value}' not in valid codes: {string.Join(", ", TagConfig.ZoneCodes)}";
                     break;
                 case "FUNC":
-                    var validFunc = new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validFunc.Contains(value))
-                        return $"FUNC '{value}' not in valid codes: {string.Join(", ", validFunc.OrderBy(v => v))}";
+                    if (!EnsureValidFunc().Contains(value))
+                        return $"FUNC '{value}' not in valid codes: {string.Join(", ", EnsureValidFunc().OrderBy(v => v))}";
                     break;
                 case "PROD":
-                    var validProd = new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validProd.Contains(value))
-                        return $"PROD '{value}' not in valid codes: {string.Join(", ", validProd.OrderBy(v => v).Take(20))}...";
+                    if (!EnsureValidProd().Contains(value))
+                        return $"PROD '{value}' not in valid codes: {string.Join(", ", EnsureValidProd().OrderBy(v => v).Take(20))}...";
                     break;
                 case "SEQ":
                     if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d{1,6}$"))

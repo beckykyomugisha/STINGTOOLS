@@ -502,8 +502,9 @@ namespace StingTools.BIMManager
                 byte[] hash = sha.ComputeHash(stream);
                 return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
             }
-            catch
+            catch (Exception ex)
             {
+                Core.StingLog.Warn($"SHA256 compute failed for {filePath}: {ex.Message}");
                 return "";
             }
         }
