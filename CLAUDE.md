@@ -2615,3 +2615,15 @@ docker compose up -d
 691. **SmartSort: Cached level elevation map** — Level elevation `FilteredElementCollector` cached per document instead of rebuilding on every sort invocation.
 692. **Default value warning throttle** — Per-element `RecordWarning` for LOC=BLD1/ZONE=Z01 replaced with aggregate `DefaultLocCount`/`DefaultZoneCount` on `TaggingStats`, eliminating 1000+ file I/O writes per batch.
 672. **GAP-BIM-04 FIX: Workflow log file read consolidated** — Merged two `File.ReadAllLines` calls for the same `STING_WORKFLOW_LOG.json` into a single read. Summary extraction and DataGrid row parsing now share the same `logLines` array. Eliminates redundant disk I/O.
+
+#### Completed (Phase 74 — 4-Agent Deep Review: Workflow, Warnings, Dispatch & Data Exchange)
+
+693. **WorkflowEngine: 4 missing command resolutions** — Added `RoomSpaceAudit`, `HandoverManual`, `MEPSizingCheck`, `EscalateOverdueActions` to `ResolveCommand()`. Healthcare/Education/DataCentre sector-specific presets were silently failing 2-3 steps each.
+694. **WorkflowEngine: Duplicate case removed** — Removed duplicate `"AutoAssignTemplates"` case (dead code from overlapping merge phases).
+695. **WorkflowEngine: previousStepSkipped cascade fix** — All 15+ single-condition skip paths now set `previousStepSkipped = true` and record `WorkflowStepResult` for audit trail. Extracted `RecordSkip()` local helper for DRY skip recording across all condition types.
+696. **StingCommandHandler: _commandTag race condition** — `WorkflowPreset_` dispatch uses local `tag` variable instead of instance `_commandTag` field vulnerable to racing WPF thread overwrites.
+697. **StingCommandHandler: Cross-document stale ElementIds** — Added `_clonedTagLayout`/`_clonedSourceViewName` cleanup to `ClearStaticState()`.
+698. **StingCommandHandler: ColorByHex cached solid fill** — Replaced inline `FilteredElementCollector(FillPatternElement)` with cached `GetSolidFillPattern()`.
+699. **WarningsManager: Pre-lowered classification patterns** — Pre-compute `_loweredPatterns[]` at static init. Eliminates ~150 `ToLowerInvariant()` allocations per warning classification (300K on 2000-warning model).
+700. **WarningsManager: 8 new classification rules** — Multiple walls joined, Roof/Wall join, slab edge gaps, Analytical Model inconsistent, Circular references, in-place families, duplicate Number.
+701. **DataPipelineCommands: DynamicBindings O(1) index** — Pre-build `Dictionary<string, ExternalDefinition>` from shared param file instead of O(groups×defs) linear scan per parameter.
