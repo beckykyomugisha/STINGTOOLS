@@ -474,6 +474,26 @@ namespace StingTools.Model
         public string Summary { get; set; }
     }
 
+    /// <summary>Punching shear reinforcement design result per EC2 §6.4.5.</summary>
+    public class PunchingReinforcementResult
+    {
+        public double EffectiveDepthMm { get; set; }
+        public double AppliedStressMPa { get; set; }
+        public double ConcreteResistanceMPa { get; set; }
+        public double MaxResistanceMPa { get; set; }
+        public double EffectiveYieldMPa { get; set; }
+        public double RadialSpacingMm { get; set; }
+        public double RequiredAsw { get; set; }
+        public int LegsRequired { get; set; }
+        public int BarDiameter { get; set; }
+        public double TangentialSpacing1Mm { get; set; }
+        public double TangentialSpacing2Mm { get; set; }
+        public double OuterPerimeterDistanceMm { get; set; }
+        public int NumberOfPerimeters { get; set; }
+        public bool Pass { get; set; }
+        public string Summary { get; set; }
+    }
+
     #endregion
 
     /// <summary>
