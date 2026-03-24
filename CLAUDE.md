@@ -2587,4 +2587,25 @@ docker compose up -d
 669. **WarningsManager: Scan cache invalidation** — Added `InvalidateReportCache()` for callers to clear after auto-fix operations.
 670. **StingAutoTagger: Pre-computed version hashes** — OnDocumentChanged stale marker computes hashes BEFORE transaction, reducing redundant param reads from 8 to 4 per element inside the transaction.
 671. **GAP-BIM-01 FIX: BuildCoordData no longer forces ComplianceScan invalidation** — Removed `ComplianceScan.InvalidateCache()` call before `Scan(doc)` in `BuildCoordData`. Was forcing a full-model element scan (2-5s) every time the BIM Coordination Center opened or refreshed. Now uses the 30-second cached result. In the keep-dialog-open loop, 5 button clicks no longer trigger 5 full model scans.
+
+#### Completed (Phase 72 — 6-Agent Deep Review: Performance & Automation Fixes)
+
+672. **ComplianceScan hot-loop optimized** — Static cached separator/token arrays eliminate ~20K allocations per scan. LINQ `Skip/Take/All` replaced with zero-allocation for-loop. `DateTime.UtcNow` vs `DateTime.Now` mismatch fixed (caused incremental cache to appear stale). Unnecessary `Interlocked` inside `lock` block removed.
+673. **FormatJsonToken O(n^2) fixed** — `sb.ToString().Split('\n')` (called per JSON property in BEP/config display) replaced with O(1) `ref int lineCount` parameter.
+674. **BuildCoordData forced cache invalidation removed** — `ComplianceScan.InvalidateCache()` before `Scan(doc)` in `GapFixCommands.BuildFullCoordData` was triggering 2-5s full model scans every dialog refresh.
+675. **SAFETY-CRITICAL: UC section capacity 7.6x overestimate fixed** — `SelectUCForAxialMoment` used `D*B` (solid rectangle) instead of actual cross-section area from `mass/density`. For UC 305x305x97, overestimated Npl,Rd from 4,381 kN to 33,380 kN — selecting dangerously undersized columns.
+676. **StingAutoTagger thread-safety fixes** — Stopped clearing `_elementVersionHash` in `InvalidateContext()` (was causing all elements to be re-marked stale on tag context changes). Added `lock` around `_recentlyProcessed.Clear()` in `Toggle()` to prevent `ConcurrentModificationException`.
+677. **18 structural commands auto-tagging** — All structural modeling commands (pad footing, strip footing, slab, wall, beam system, bracing, truss, full bay frame, grid frame, CAD-to-structural, etc.) now call `ModelEngine.AutoTagCreatedElements()` after element creation. Previously none had ISO 19650 tags, breaking COBie export.
+678. **TagConfig BuildAndWriteTag stats double-reads removed** — Replaced redundant `GetString` parameter reads in default-logging with local variables already holding derived values.
+
+#### Completed (Phase 73 — All 9 Remaining High-Priority Findings Fixed)
+
+679. **TagStyleEngine: Category filter added** — `ApplyDisciplineTagStyles` now uses `ElementMulticategoryFilter` instead of collecting ALL 50K+ instances without filter.
+680. **HandoverExport: 7 full-model scans consolidated to 1** — Type/Component/System/Zone/Attribute/Job/Resource sheets now iterate `allTaggedElements` list collected once with `ElementMulticategoryFilter`.
+681. **ClashDetection: Per-pair FilteredElementCollector eliminated** — Replaced with direct `BooleanOperationsUtils.ExecuteBooleanOperation` for solid-solid intersection. Eliminates N*M collector instantiations that each scanned the entire model.
+682. **LoadPath: O(n^2) → O(n) spatial grid** — All-pairs proximity check replaced with spatial grid partitioning (cell size = 2× max tolerance). 500 elements: from 125K to ~5K distance calculations.
+683. **WarningsManager: Hoisted mark scan** — Full-model mark scan for duplicate mark auto-fix pre-built ONCE in `BatchAutoFix` and passed via parameter. Cache updated in-place after each fix. 20 duplicate mark warnings no longer trigger 20 full scans.
+684. **CombineParameters: Progress dialog added** — `StingProgressDialog` with `EscapeChecker` cancellation for batch combine (50K+ elements with no previous feedback).
+685. **StructuralEngine CreateGridFrame: Progress dialog added** — `StingProgressDialog` for multi-storey frame creation (5×5 grid × 10 storeys = 1100+ beams with no previous feedback).
+686. **TemplateManager: Deduplicated fill pattern lookup** — 7 inline `FilteredElementCollector(FillPatternElement)` lookups replaced with cached `ParameterHelpers.GetSolidFillPattern(doc)` across 5 commands.
 672. **GAP-BIM-04 FIX: Workflow log file read consolidated** — Merged two `File.ReadAllLines` calls for the same `STING_WORKFLOW_LOG.json` into a single read. Summary extraction and DataGrid row parsing now share the same `logLines` array. Eliminates redundant disk I/O.
