@@ -57,6 +57,9 @@ namespace StingTools.UI
                 _param1 = param1 ?? "";
                 _param2 = param2 ?? "";
             }
+            // M-02 FIX: Clear stale ExtraParams from previous command to prevent
+            // unintended parameter bleed (e.g., AlignDirection from AlignTagsH affecting AutoTag)
+            ClearAllExtraParams();
         }
 
         public string GetName() => "STING Command Dispatcher";
@@ -274,8 +277,8 @@ namespace StingTools.UI
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":
-                    case "FlipTagsH":
-                    case "FlipTagsV": RunCommand<Organise.FlipTagsCommand>(app); break;
+                    case "FlipTagsH": SetExtraParam("FlipDirection", "H"); RunCommand<Organise.FlipTagsCommand>(app); break;
+                    case "FlipTagsV": SetExtraParam("FlipDirection", "V"); RunCommand<Organise.FlipTagsCommand>(app); break;
                     case "AlignTextLeft":
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
@@ -1558,8 +1561,10 @@ namespace StingTools.UI
                     // Standards / Compliance (wired to StandardsEngine.cs commands)
                     case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
                     case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
-                    case "COBieValidator": RunCommand<Temp.StandardsDashboardCommand>(app); break;
-                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    // H-02 FIX: Corrected dispatch mismatches (COBieValidator→COBieDataSummary, Uniclass not Unicode)
+                    case "COBieValidator": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+                    case "UniclassValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break; // Legacy alias
                     case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
                     case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
 
