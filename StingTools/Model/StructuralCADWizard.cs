@@ -371,7 +371,7 @@ namespace StingTools.Model
                 var lvl = doc.GetElement(el.LevelId) as Level;
                 return lvl?.Name ?? "No Level";
             }
-            catch { return "No Level"; }
+            catch (Exception ex) { StingLog.Warn($"NumberingEngine.GetLevelKey: {ex.Message}"); return "No Level"; }
         }
 
         private static string GetTypeKey(Element el)
@@ -382,7 +382,7 @@ namespace StingTools.Model
                 string type = ParameterHelpers.GetFamilySymbolName(el);
                 return $"{family}: {type}";
             }
-            catch { return "Unknown"; }
+            catch (Exception ex) { StingLog.Warn($"NumberingEngine.GetTypeKey: {ex.Message}"); return "Unknown"; }
         }
 
         private static string GetGridKey(Document doc, Element el)
@@ -411,7 +411,7 @@ namespace StingTools.Model
 
                 return nearest != null && minDist < 3.0 ? nearest.Name : "Off Grid";
             }
-            catch { return "Off Grid"; }
+            catch (Exception ex) { StingLog.Warn($"NumberingEngine.GetGridKey: {ex.Message}"); return "Off Grid"; }
         }
 
         /// <summary>
@@ -434,7 +434,7 @@ namespace StingTools.Model
                 int cellY = (int)Math.Floor(pt.Y / cellSize);
                 return $"Zone_{cellX}_{cellY}";
             }
-            catch { return "NoLocation"; }
+            catch (Exception ex) { StingLog.Warn($"NumberingEngine.GetLocationKey: {ex.Message}"); return "NoLocation"; }
         }
     }
 
