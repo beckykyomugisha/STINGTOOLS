@@ -109,7 +109,9 @@ namespace StingTools.Core
         {
             _contextInvalid = true;
             _tag7HashCache.Clear();
-            _elementVersionHash.Clear();
+            // PERF-R2: Do NOT clear _elementVersionHash here — it tracks geometry changes
+            // for stale detection, not tag state. Clearing it causes ALL previously-marked
+            // elements to be re-marked as stale on their next modification even if nothing changed.
             // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
             _consecutiveFailures = 0;
             WasAutoDisabled = false;
@@ -226,7 +228,13 @@ namespace StingTools.Core
                 _enabled = true;
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
-                _recentlyProcessed.Clear();
+                // PERF-R2: Acquire lock before clearing to prevent ConcurrentModificationException
+                lock (_recentlyProcessed)
+                {
+                    _recentlyProcessed.Clear();
+                    _recentlyProcessedQueue.Clear();
+                    _processedCount = 0;
+                }
                 StingLog.Info("StingAutoTagger: enabled (triggers active)");
             }
             return _enabled;

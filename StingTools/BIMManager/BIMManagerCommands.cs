@@ -3473,30 +3473,32 @@ namespace StingTools.BIMManager
             {
                 var obj = JToken.Parse(json);
                 var sb = new StringBuilder();
-                FormatJsonToken(obj, sb, 0, maxLines);
+                // PERF-R3: Use ref int lineCount instead of O(n^2) sb.ToString().Split('\n')
+                int lineCount = 0;
+                FormatJsonToken(obj, sb, 0, maxLines, ref lineCount);
                 return sb.ToString();
             }
             catch (Exception ex) { StingLog.Warn($"JSON formatting: {ex.Message}"); return json.Substring(0, Math.Min(json.Length, 5000)); }
         }
 
-        private static void FormatJsonToken(JToken token, StringBuilder sb, int indent, int maxLines)
+        private static void FormatJsonToken(JToken token, StringBuilder sb, int indent, int maxLines, ref int lineCount)
         {
-            if (sb.ToString().Split('\n').Length >= maxLines) return;
+            if (lineCount >= maxLines) return;
             string pad = new string(' ', indent * 2);
 
             if (token is JObject obj)
             {
                 foreach (var prop in obj.Properties())
                 {
-                    if (sb.ToString().Split('\n').Length >= maxLines) { sb.AppendLine($"{pad}..."); return; }
+                    if (lineCount >= maxLines) { sb.AppendLine($"{pad}..."); lineCount++; return; }
                     if (prop.Value is JObject || prop.Value is JArray)
                     {
-                        sb.AppendLine($"{pad}{prop.Name}:");
-                        FormatJsonToken(prop.Value, sb, indent + 1, maxLines);
+                        sb.AppendLine($"{pad}{prop.Name}:"); lineCount++;
+                        FormatJsonToken(prop.Value, sb, indent + 1, maxLines, ref lineCount);
                     }
                     else
                     {
-                        sb.AppendLine($"{pad}{prop.Name}: {prop.Value}");
+                        sb.AppendLine($"{pad}{prop.Name}: {prop.Value}"); lineCount++;
                     }
                 }
             }
@@ -3505,17 +3507,17 @@ namespace StingTools.BIMManager
                 int i = 0;
                 foreach (var item in arr)
                 {
-                    if (sb.ToString().Split('\n').Length >= maxLines) { sb.AppendLine($"{pad}... ({arr.Count - i} more)"); return; }
+                    if (lineCount >= maxLines) { sb.AppendLine($"{pad}... ({arr.Count - i} more)"); lineCount++; return; }
                     if (item is JObject itemObj)
                     {
                         var summary = string.Join(", ", itemObj.Properties().Take(3).Select(p => $"{p.Name}={p.Value}"));
-                        sb.AppendLine($"{pad}• {summary}");
+                        sb.AppendLine($"{pad}• {summary}"); lineCount++;
                     }
-                    else sb.AppendLine($"{pad}• {item}");
+                    else { sb.AppendLine($"{pad}• {item}"); lineCount++; }
                     i++;
                 }
             }
-            else sb.AppendLine($"{pad}{token}");
+            else { sb.AppendLine($"{pad}{token}"); lineCount++; }
         }
 
         private static string FormatCsvForDisplay(string path, int maxLines)

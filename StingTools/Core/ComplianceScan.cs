@@ -22,6 +22,10 @@ namespace StingTools.Core
         /// <summary>LOGIC-01: Use int + Interlocked for atomic scanning guard instead of volatile bool race.</summary>
         private static int _scanning = 0; // 0 = not scanning, 1 = scanning
 
+        // PERF-R1: Static cached arrays to avoid per-element allocations in hot scan loop
+        private static readonly string[] _separatorArray = new[] { ParamRegistry.Separator };
+        private static readonly string[] _tokenKeys = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+
         /// <summary>
         /// Quick compliance scan results.
         /// </summary>
@@ -228,11 +232,19 @@ namespace StingTools.Core
                         else
                         {
                             // Parse tag segments to determine completeness
-                            string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
+                            // PERF-R1: Use cached separator array; replace LINQ Skip/Take/All with for-loop
+                            string[] parts = tag.Split(_separatorArray, StringSplitOptions.None);
                             int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                             int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
-                            bool hasCorrectSegments = parts.Length >= 8 + po + so
-                                && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+                            bool hasCorrectSegments = parts.Length >= 8 + po + so;
+                            if (hasCorrectSegments)
+                            {
+                                for (int si = po; si < po + 8; si++)
+                                {
+                                    if (string.IsNullOrWhiteSpace(parts[si]))
+                                    { hasCorrectSegments = false; break; }
+                                }
+                            }
 
                             if (!hasCorrectSegments)
                             {
@@ -258,15 +270,15 @@ namespace StingTools.Core
                                 if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
                                 if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
 
-                                string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
-                                for (int ti = 0; ti < tokenKeys.Length && (ti + po) < parts.Length; ti++)
+                                // PERF-R1: Use static readonly token keys array instead of per-element allocation
+                                for (int ti = 0; ti < _tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
                                     string part = parts[ti + po];
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
                                         || part == "GEN" || part == "0000")
                                     {
-                                        if (result.EmptyTokenCounts.ContainsKey(tokenKeys[ti]))
-                                            result.EmptyTokenCounts[tokenKeys[ti]]++;
+                                        if (result.EmptyTokenCounts.ContainsKey(_tokenKeys[ti]))
+                                            result.EmptyTokenCounts[_tokenKeys[ti]]++;
                                     }
                                 }
                             }
@@ -491,7 +503,8 @@ namespace StingTools.Core
             lock (_cacheLock)
             {
                 if (_cached == null) return; // No cache to update
-                if (Interlocked.Increment(ref _incrementalCount) > MaxIncrementalUpdates)
+                // PERF-R1: Use plain increment inside lock (Interlocked unnecessary under lock)
+                if (++_incrementalCount > MaxIncrementalUpdates)
                 {
                     // Drift guard: force full rescan
                     _cached = null;
@@ -530,8 +543,8 @@ namespace StingTools.Core
                     else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
                 }
 
-                // Refresh cache timestamp so it stays valid
-                _cacheTime = DateTime.UtcNow;
+                // PERF-R1: Fix DateTime.UtcNow → DateTime.Now to match Scan() and cache staleness check
+                _cacheTime = DateTime.Now;
             }
         }
 

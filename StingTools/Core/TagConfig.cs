@@ -2205,12 +2205,13 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(prod))
                 prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
 
-            // Log when defaults are applied for LOC/ZONE
+            // PERF-R4: Use local variables instead of re-reading parameters from element
+            // (loc/zone already hold the derived values from lines above)
             if (stats != null)
             {
-                if (loc == "BLD1" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
+                if (loc == "BLD1")
                     stats.RecordWarning($"Element {el.Id}: LOC defaulted to BLD1");
-                if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
+                if (zone == "Z01")
                     stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
             }
 

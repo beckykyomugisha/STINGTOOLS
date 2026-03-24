@@ -162,7 +162,8 @@ namespace StingTools.BIMManager
             var sb = new StringBuilder();
             try
             {
-                ComplianceScan.InvalidateCache();
+                // PERF-R3: Removed InvalidateCache() — let the 30-second cache work as designed.
+                // Previously forced a full-model element scan (2-5s) every time BuildFullCoordData was called.
                 var scan = ComplianceScan.Scan(doc);
                 sb.AppendLine($"Tag Compliance: {scan?.CompliancePercent:F1}% ({scan?.Tagged}/{scan?.Total})");
                 sb.AppendLine($"Stale: {scan?.StaleCount}, Placeholders: {scan?.PlaceholderCount}");

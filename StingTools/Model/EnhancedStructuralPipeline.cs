@@ -89,8 +89,13 @@ namespace StingTools.Model
         {
             foreach (var s in UCSections.OrderBy(x => x.Mass))
             {
-                double nRd = s.D * s.B * 0.01 * fy * 0.001; // Approximate area × fy (kN)
-                double mRd = s.Sxx * fy * 0.001; // kNm
+                // SAFETY-R1: Use actual cross-section area from mass/density instead of D*B (solid rectangle).
+                // D*B overestimates by ~7.6x for UC sections, leading to dangerously undersized columns.
+                // Area (cm²) = Mass (kg/m) / steel density (7.85 kg/dm³ = 0.00785 kg/cm³) / 100 cm/m
+                // Simplified: Area_cm2 = Mass / 0.785
+                double areaCm2 = s.Mass / 0.785;
+                double nRd = areaCm2 * 0.01 * fy * 0.001; // Area (m²) × fy (MPa) = kN
+                double mRd = s.Sxx * fy * 0.001; // kNm (Sxx in cm³)
                 double util = nEdKN / nRd + mEdKNm / mRd;
                 if (util <= 1.0) return (s.Name, s.Mass);
             }
