@@ -1147,7 +1147,22 @@ Style: Numeric
 Omit Already Numbered: true
 ```
 
-Available in DWG-to-BIM wizard and Tag Studio.
+Available via:
+- **ORGANISE tab** → "★ Numbering" button (`SmartNumberingCommand`)
+- **MODEL tab** → "★ Numbering" button
+- **DWG-to-BIM wizard** → Section 5: Element Numbering
+- **Workflow Engine** → `SmartNumbering` command tag
+
+### Standalone Usage
+
+The Smart Numbering dialog provides:
+1. **Scope selection**: Selected elements, active view, or entire project
+2. **Parameter target**: Mark, SEQ, TAG1, Comments, or any custom parameter
+3. **Template preview**: Live preview updates as you configure prefix/style/grouping
+4. **Collision detection**: Checks existing marks and auto-increments to avoid duplicates
+5. **Skip already numbered**: Option to preserve existing numbering
+
+Works with ALL Revit element categories, not just structural/DWG elements.
 
 ---
 
@@ -1393,7 +1408,7 @@ TagConfig.SaveSeqSidecar(doc);
 
 | Symptom | Root Cause | Fix |
 |---------|-----------|-----|
-| Tags show 0% compliance after config change | ComplianceScan using stale separator | Run any tag command (triggers InvalidateCache) |
+| Tags show 0% compliance after config change | ComplianceScan using stale separator | ComplianceScan.InvalidateCache() now clears separator cache automatically |
 | Duplicate SEQ numbers after session restart | Sidecar not saved | Ensure SaveSeqSidecar runs after tx.Commit() |
 | Empty containers despite TAG1 populated | WriteContainers skipped | Run CombineParameters or Re-Tag |
 | Auto-tagger not tagging new elements | IUpdater disabled | Check AutoTaggerToggle status |
@@ -1401,6 +1416,45 @@ TagConfig.SaveSeqSidecar(doc);
 | FUNC always "GEN" for MEP elements | MEP system not connected | Connect to MEP system or use CopyTokensFromNearest |
 | TAG7 narrative incomplete | Empty FUNC token | Populate FUNC before TAG7 generation |
 | Token lock not working | Lock string format wrong | Use comma-separated token names: "DISC,SYS,PROD" |
+
+### 28.7 Selective WriteContainers by Discipline
+
+The `WriteContainers()` method filters by discipline prefix to avoid writing irrelevant containers:
+
+| Element DISC | Containers Written | Containers Skipped |
+|-------------|-------------------|-------------------|
+| M (Mechanical) | HVC_*, ASS_* | ELC_*, PLM_*, FLS_*, COM_* |
+| E (Electrical) | ELC_*, ELE_*, LTG_*, ASS_* | HVC_*, PLM_*, FLS_* |
+| P (Plumbing) | PLM_*, ASS_* | HVC_*, ELC_*, FLS_*, COM_* |
+| A (Architectural) | ASS_* only | All discipline-specific |
+| FP (Fire Protection) | FLS_*, ASS_* | HVC_*, ELC_*, PLM_* |
+
+This reduces container writes by 60-80% per element. Universal containers (ASS_TAG_1 through ASS_TAG_7) are always written regardless of discipline.
+
+### 28.8 Incremental ComplianceScan
+
+After tagging operations, `ComplianceScan.IncrementalUpdate()` provides O(1) cache adjustment instead of O(n) full rescan:
+
+```
+IncrementalUpdate(oldTag, newTag, disc)
+  → Adjusts tagged/untagged/complete counters in-place
+  → Updates per-discipline DiscComplianceData
+  → Drift guard: forces full rescan after 1000 incremental updates
+```
+
+This reduces post-tag compliance updates from ~3s to <1ms on 50K-element models.
+
+### 28.9 Warnings Manager Integration
+
+The Warnings Manager (150+ classification rules) integrates with the tagging pipeline:
+
+- **Stale elements** appear as synthetic HIGH-severity warnings
+- **Duplicate marks** trigger auto-fix via SEQ collision resolution
+- **Missing parameters** flag elements needing `LoadSharedParams`
+- **Warning health score** (0-100) gates workflow steps via `MinWarningHealthScore`
+- **Deliverable impact analysis** maps warnings to COBie/IFC/FM/Schedules/Clashes
+
+Run `WarningsDashboard` after batch tagging to verify no tag-related warnings were introduced.
 
 ---
 

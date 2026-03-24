@@ -51,7 +51,7 @@ namespace StingTools.UI
         private static readonly Color CAmber       = Color.FromRgb(0xF5, 0x7F, 0x17);
         private static readonly Color CRed         = Color.FromRgb(0xC6, 0x28, 0x28);
 
-        private static SolidColorBrush Br(Color c) => new SolidColorBrush(c);
+        private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
         // ── Data ──
         private CoordData _data;

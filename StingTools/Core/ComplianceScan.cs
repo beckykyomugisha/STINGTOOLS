@@ -24,7 +24,7 @@ namespace StingTools.Core
 
         // PERF-R1: Static cached arrays to avoid per-element allocations in hot scan loop
         // DI-001 FIX: Use mutable field so separator refreshes on cache invalidation
-        private static string[] _separatorArray = new[] { ParamRegistry.Separator };
+        private static string[] _separatorArray;
         private static readonly string[] _tokenKeys = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
 
         /// <summary>
@@ -234,6 +234,9 @@ namespace StingTools.Core
                         {
                             // Parse tag segments to determine completeness
                             // PERF-R1: Use cached separator array; replace LINQ Skip/Take/All with for-loop
+                            // DI-001: Rebuild separator array from ParamRegistry if null (first scan or after InvalidateCache)
+                            if (_separatorArray == null)
+                                _separatorArray = new[] { ParamRegistry.Separator };
                             string[] parts = tag.Split(_separatorArray, StringSplitOptions.None);
                             int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                             int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
@@ -489,8 +492,8 @@ namespace StingTools.Core
                 _cached = null;
                 _cacheTime = DateTime.MinValue;
                 _incrementalCount = 0;
-                // DI-001 FIX: Refresh separator array so config changes are picked up
-                _separatorArray = new[] { ParamRegistry.Separator };
+                // DI-001 FIX: Null out separator so it's re-read from ParamRegistry on next scan
+                _separatorArray = null;
             }
         }
 

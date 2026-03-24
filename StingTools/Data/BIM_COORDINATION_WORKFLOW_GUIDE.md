@@ -1886,6 +1886,135 @@ When training new BIM coordinators on STING Tools, cover these topics in order:
 - [ ] Set up auto-tagger with discipline filter
 - [ ] Create custom workflow JSON preset
 
+## 24. Deep Workflow Insights
+
+### 24.1 Cross-System Data Flow
+
+The STING platform connects 8 subsystems through shared data:
+
+```
+Tagging Pipeline ──→ ComplianceScan ──→ Morning Briefing
+       │                    │                   │
+       ▼                    ▼                   ▼
+ SEQ Sidecar          RAG Dashboard       Workflow Gating
+       │                    │                   │
+       ▼                    ▼                   ▼
+ COBie Export ←── Container Write ←── Issue Creation
+       │                    │                   │
+       ▼                    ▼                   ▼
+ CDE State Machine    Revision Snap      Transmittal Gen
+```
+
+**Key integration points:**
+- ComplianceScan results gate CDE transitions (WIP→SHARED requires ≥70%, SHARED→PUBLISHED requires ≥90%)
+- Issue creation auto-populates revision from `PhaseAutoDetect.DetectProjectRevision()`
+- COBie export pre-flight checks container staleness and offers inline `WriteContainers`
+- Workflow presets chain commands with per-step compliance gates
+
+### 24.2 JSON Sidecar File Architecture
+
+STING stores project-specific data in sidecar files alongside the `.rvt`:
+
+| File | Purpose | Persistence |
+|------|---------|-------------|
+| `.sting_seq.json` | SEQ counter state | Per-session, merged on load |
+| `_bim_manager/issues.json` | Issue tracker | Append-only with status history |
+| `_bim_manager/transmittals.json` | Transmittal records | Linked to issues |
+| `_bim_manager/meetings.json` | Meeting + action items | Per-meeting entries |
+| `_bim_manager/approvals.json` | Document approval workflow | Sign-off audit trail |
+| `_bim_manager/doc_versions.json` | CDE version history | Supersession chains |
+| `.sting_warnings_baseline.json` | Warning baseline + first-seen | Per-warning SLA tracking |
+| `.sting_compliance_trend.json` | Daily compliance snapshots | 90-day rolling window |
+| `.sting_data_hash.json` | Data file change detection | Skip unchanged operations |
+| `project_config.json` | Project settings | User-editable configuration |
+
+**All sidecar writes use atomic temp-file + rename** to prevent corruption on crash.
+
+### 24.3 Workflow Engine Internals
+
+The `WorkflowEngine` orchestrates multi-step command sequences:
+
+1. **Pre-flight check**: Validates all command tags resolve, checks element count thresholds
+2. **Condition evaluation**: 19+ condition types with AND/OR compound logic
+3. **Step execution**: Each step runs in its own `Transaction` within a `TransactionGroup`
+4. **Result tracking**: Per-step `WorkflowStepResult` with timing, status, error messages
+5. **Post-step cache invalidation**: Compliance + auto-tagger caches cleared after each step
+6. **Failure handling**: Optional rollback-on-failure, retry with exponential backoff, fallback commands
+7. **Persistence**: `WorkflowRunRecord` saved to JSONL log (capped at 100 records)
+
+**Unknown conditions return FALSE** (fail-safe) to prevent typos from executing gated steps.
+
+### 24.4 Compliance Engine Architecture
+
+Three-layer compliance measurement:
+
+| Layer | Metric | Weight | Description |
+|-------|--------|--------|-------------|
+| Tag compliance | `CompliancePercent` | 70% | % of taggable elements with non-empty TAG1 |
+| Revision compliance | `RevisionPercent` | 30% | % of elements with STATUS + REV populated |
+| Container compliance | `ContainerCompletePct` | Separate | % of tagged elements with all discipline containers |
+
+**RAG thresholds** (configurable):
+- GREEN: ≥80% weighted compliance
+- AMBER: 50-80%
+- RED: <50%
+
+**Phase-based compliance**: `ComplianceScan.ByPhase` tracks compliance per Revit phase (Phase 1 existing vs Phase 2 new construction), enabling stage-gated quality checks.
+
+### 24.5 Warnings Manager Deep Dive
+
+The WarningsManager classifies 150+ Revit warning patterns into 8 BIM categories:
+
+| Category | Examples | Auto-Fix Available |
+|----------|----------|-------------------|
+| Geometric | Zero-length walls, self-intersecting, coincident | Delete zero-length, join overlapping |
+| Spatial | Room not enclosed, room separation overlap | Delete shorter separation line |
+| MEP | Unconnected pipes, reverse flow, sizing mismatch | — (manual) |
+| Structural | Deflection exceeded, eccentricity, load path | — (manual) |
+| Annotation | Duplicate tags, overlapping text | Auto-increment duplicate marks |
+| Data | Missing parameters, duplicate marks | Collision-safe mark suffix |
+| Performance | Large groups, excessive links | — (manual) |
+| Compliance | Fire rating, thermal bridge, accessibility | — (manual) |
+
+**10 auto-fix strategies** operate in a single transaction with dry-run preview:
+1. Delete duplicate instances (same location + type)
+2. Delete shorter room separation line at overlaps
+3. Auto-increment duplicate marks with collision-safe suffix
+4. Unjoin non-intersecting geometry
+5. (Reserved)
+6. Join overlapping walls via `JoinGeometryUtils`
+7. Move room tags to room center
+8. Snap near-axis elements to nearest cardinal direction
+9. Delete zero-length elements (<3mm)
+10. Fix duplicate marks with full-model mark scan
+
+**Warning health score** (0-100): Base 100, deductions per warning severity (Critical=-20, High=-5, Medium=-2, Low=-1).
+
+**SLA thresholds** (configurable per project via `WARNING_SLA_*_HOURS` config keys):
+- CRITICAL: 4 hours
+- HIGH: 24 hours
+- MEDIUM: 168 hours (1 week)
+- LOW: 336 hours (2 weeks)
+
+### 24.6 Performance Guide
+
+| Operation | Optimization | Impact |
+|-----------|-------------|--------|
+| BatchTag 50K elements | Chunked 200-element transactions | Prevents Revit memory exhaustion |
+| ComplianceScan | 8-second timeout, 30-second cache | Prevents UI freeze on large models |
+| WriteContainers | Discipline-filtered (skip irrelevant) | 60-80% fewer writes per element |
+| AutoTagger | 5-second context TTL, deferred bulk queue | Prevents thundering herd |
+| StaleMarker | Room index 30-second cache, 20% LRU eviction | Prevents per-trigger room scan |
+| Formula evaluation | 5-minute session cache | Single CSV parse per session |
+| Grid reference | 2-minute document-scoped cache | Single collector per session |
+| Warning classification | First-word index for O(1) pattern lookup | 60-80% faster on 500+ warnings |
+
+**Critical performance rules:**
+1. Never call `FilteredElementCollector` inside a per-element loop
+2. Cache `GetSolidFillPattern()` — it's called 7+ times across commands
+3. Use `ElementMulticategoryFilter` to pre-filter before iteration
+4. Freeze all static `SolidColorBrush` instances for thread safety
+
 ---
 
 *This guide is maintained alongside the STING Tools codebase. For the latest version, check `Data/BIM_COORDINATION_WORKFLOW_GUIDE.md` in the repository.*

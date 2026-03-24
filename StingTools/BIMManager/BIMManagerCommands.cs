@@ -733,7 +733,12 @@ namespace StingTools.BIMManager
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(path, data.ToString(Formatting.Indented));
+                // Atomic write: write to temp file first, then move (overwrite) to target.
+                // File.Move with overwrite=true is atomic on NTFS, preventing corruption
+                // if the process crashes mid-write.
+                string tmpPath = path + ".tmp";
+                File.WriteAllText(tmpPath, data.ToString(Formatting.Indented));
+                File.Move(tmpPath, path, true);
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }
             catch (Exception ex)

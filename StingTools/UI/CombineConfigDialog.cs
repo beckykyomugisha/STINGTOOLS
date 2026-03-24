@@ -45,12 +45,13 @@ namespace StingTools.UI
         private static readonly Color DimFg = Color.FromRgb(0xA0, 0xA0, 0xA0);
         private static readonly Color BorderClr = Color.FromRgb(0x55, 0x55, 0x58);
 
-        private static readonly SolidColorBrush BgBrush = new(BgColor);
-        private static readonly SolidColorBrush PanelBrush = new(PanelBg);
-        private static readonly SolidColorBrush AccentBrush = new(AccentColor);
-        private static readonly SolidColorBrush FgBrush = new(FgColor);
-        private static readonly SolidColorBrush DimBrush = new(DimFg);
-        private static readonly new SolidColorBrush BorderBrush = new(BorderClr);
+        private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+        private static readonly SolidColorBrush BgBrush = FZ(new(BgColor));
+        private static readonly SolidColorBrush PanelBrush = FZ(new(PanelBg));
+        private static readonly SolidColorBrush AccentBrush = FZ(new(AccentColor));
+        private static readonly SolidColorBrush FgBrush = FZ(new(FgColor));
+        private static readonly SolidColorBrush DimBrush = FZ(new(DimFg));
+        private static readonly new SolidColorBrush BorderBrush = FZ(new(BorderClr));
 
         // ── Controls ─────────────────────────────────────────────────
         private readonly List<GroupItem> _allGroups;
