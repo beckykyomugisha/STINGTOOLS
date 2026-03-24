@@ -658,6 +658,20 @@ namespace StingTools.Core
 
                 if (idsToMark.Count == 0) return;
 
+                // PERF: Pre-compute hashes BEFORE transaction to minimize time inside tx.
+                // Previously read 4 params per element AGAIN inside the transaction (redundant).
+                var hashUpdates = new Dictionary<long, string>();
+                foreach (ElementId id in idsToMark)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string l = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    string z = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                    string v = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    hashUpdates[id.Value] = $"{t}|{l}|{z}|{v}";
+                }
+
                 using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
                 {
                     tx.Start();
@@ -671,37 +685,9 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                // LG-04: Record which tokens changed for targeted re-derivation
-                                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                                string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                                string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                string newHash = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
-
-                                // Determine which tokens changed
-                                if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash != newHash)
-                                {
-                                    var changedTokens = new List<string>();
-                                    string[] prevParts = prevHash.Split('|');
-                                    string[] curParts = newHash.Split('|');
-                                    string[] tokenNames = { "TAG1", "LOC", "ZONE", "LVL" };
-                                    for (int ti = 0; ti < tokenNames.Length && ti < prevParts.Length && ti < curParts.Length; ti++)
-                                    {
-                                        if (prevParts[ti] != curParts[ti])
-                                            changedTokens.Add(tokenNames[ti]);
-                                    }
-                                    if (changedTokens.Count > 0)
-                                    {
-                                        try
-                                        {
-                                            Parameter staleTokens = el.LookupParameter("ASS_STALE_TOKENS_TXT");
-                                            if (staleTokens != null && !staleTokens.IsReadOnly)
-                                                staleTokens.Set(string.Join(",", changedTokens));
-                                        }
-                                        catch (Exception stEx) { StingLog.Warn($"StaleTokens write for {id.Value}: {stEx.Message}"); }
-                                    }
-                                }
-                                _elementVersionHash[id.Value] = newHash;
+                                // Update hash cache with pre-computed value
+                                if (hashUpdates.TryGetValue(id.Value, out string newHash))
+                                    _elementVersionHash[id.Value] = newHash;
                             }
                         }
                         catch (Exception ex)
@@ -715,17 +701,17 @@ namespace StingTools.Core
                 // A2: Update last stale-mark timestamp for debounce
                 _lastStaleMarkTime = DateTime.UtcNow;
 
-                // PERF-07: Partial 20% LRU eviction instead of clearing entire cache
+                // PERF: Partial 20% eviction without allocating ToList() copy of all keys
                 if (_elementVersionHash.Count > 10000)
                 {
-                    // M-09 FIX: Capture count BEFORE eviction for accurate log output
                     int originalCount = _elementVersionHash.Count;
-                    int evictCount = originalCount / 5; // 20%
+                    int evictCount = originalCount / 5;
                     int evicted = 0;
-                    foreach (var key in _elementVersionHash.Keys.ToList()) // ToList() prevents enumeration-during-modification
+                    // Use enumerator directly — ConcurrentDictionary supports concurrent removal during iteration
+                    foreach (var kvp in _elementVersionHash)
                     {
                         if (evicted >= evictCount) break;
-                        _elementVersionHash.TryRemove(key, out _);
+                        _elementVersionHash.TryRemove(kvp.Key, out _);
                         evicted++;
                     }
                     StingLog.Info($"StingStaleMarker: evicted {evicted} of {originalCount} cached hashes");

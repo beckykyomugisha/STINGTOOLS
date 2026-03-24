@@ -528,13 +528,36 @@ namespace StingTools.Core
             };
         }
 
+        // ── SCAN CACHE ──
+
+        // PERF: Warning scan cache — unlike ComplianceScan, WarningsEngine had NO caching.
+        // Every call to ScanWarnings re-scanned all warnings from scratch (15+ callers).
+        private static WarningReport _cachedReport;
+        private static DateTime _reportCacheTime = DateTime.MinValue;
+        private static readonly TimeSpan ReportCacheLifetime = TimeSpan.FromSeconds(30);
+
+        /// <summary>Get cached warning report without triggering a new scan. Returns null if no cache.</summary>
+        internal static WarningReport GetCachedReport() => _cachedReport;
+
+        /// <summary>Invalidate warning report cache (call after auto-fix operations).</summary>
+        internal static void InvalidateReportCache()
+        {
+            _cachedReport = null;
+            _reportCacheTime = DateTime.MinValue;
+        }
+
         // ── FULL SCAN ──
 
         /// <summary>
         /// Comprehensive warning scan with categorisation, hotspot detection, and trend comparison.
+        /// Uses 30-second cache to prevent redundant re-scans from 15+ callers.
         /// </summary>
         internal static WarningReport ScanWarnings(Document doc)
         {
+            // PERF: Return cached report if recent (30-second TTL)
+            if (_cachedReport != null && (DateTime.Now - _reportCacheTime) < ReportCacheLifetime)
+                return _cachedReport;
+
             var report = new WarningReport();
             LoadSuppressions();
 
@@ -641,7 +664,9 @@ namespace StingTools.Core
             // in the unified warnings pipeline with SLA tracking and auto-fix
             try
             {
-                var compResult = ComplianceScan.Scan(doc);
+                // PERF: Use cached compliance result to avoid full-project scan inside ScanWarnings.
+                // Previously triggered a cascading ComplianceScan.Scan() on every ScanWarnings call.
+                var compResult = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
                 if (compResult != null && compResult.StaleCount > 0)
                 {
                     var syntheticStale = new ClassifiedWarning
@@ -670,6 +695,10 @@ namespace StingTools.Core
             // R4-D A1: Build root-cause groups (deduplicates identical warnings)
             try { BuildRootCauseGroups(report); }
             catch (Exception ex) { StingLog.Warn($"Root-cause grouping: {ex.Message}"); }
+
+            // PERF: Cache the report for 30 seconds to prevent redundant re-scans
+            _cachedReport = report;
+            _reportCacheTime = DateTime.Now;
 
             return report;
         }
