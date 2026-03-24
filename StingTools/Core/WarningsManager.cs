@@ -888,7 +888,8 @@ namespace StingTools.Core
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
                                         return true;
                                     }
-                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.Y) > 0.0001)
+                                    // WM-CRIT-01 FIX: Was dir.Y > 0.0001 — must be dir.X for near-vertical check
+                                    if (Math.Abs(dir.X) < 0.01 && Math.Abs(dir.X) > 0.0001)
                                     {
                                         var newEnd = new XYZ(line.GetEndPoint(0).X, line.GetEndPoint(1).Y, line.GetEndPoint(1).Z);
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);

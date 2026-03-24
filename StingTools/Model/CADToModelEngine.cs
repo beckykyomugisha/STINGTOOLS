@@ -30,21 +30,36 @@ namespace StingTools.Model
         private static readonly (string Pattern, string Category)[] Rules =
         {
             ("wall", "Walls"), ("wand", "Walls"), ("mur", "Walls"), ("partition", "Walls"),
+            ("cloison", "Walls"), // French: partition wall
             ("door", "Doors"), ("tur", "Doors"), ("porte", "Doors"), ("dr-", "Doors"),
+            ("puerta", "Doors"), // Spanish
             ("window", "Windows"), ("fenster", "Windows"), ("fenetre", "Windows"), ("wn-", "Windows"),
+            ("ventana", "Windows"), // Spanish
             ("column", "Columns"), ("col-", "Columns"), ("stutze", "Columns"),
+            ("columna", "Columns"), ("pilastro", "Columns"), // Spanish, Italian
             ("beam", "Beams"), ("trager", "Beams"), ("poutre", "Beams"),
+            ("viga", "Beams"), // Spanish
             ("slab", "Floors"), ("floor", "Floors"), ("dalle", "Floors"),
-            ("roof", "Roofs"), ("dach", "Roofs"),
-            ("stair", "Stairs"), ("treppe", "Stairs"),
+            ("roof", "Roofs"), ("dach", "Roofs"), ("truss", "Roofs"),
+            ("stair", "Stairs"), ("treppe", "Stairs"), ("ramp", "Stairs"),
+            ("railing", "Stairs"), ("handrail", "Stairs"), ("guard", "Stairs"),
             ("ceiling", "Ceilings"), ("decke", "Ceilings"),
             ("furniture", "Furniture"), ("furn", "Furniture"), ("mobel", "Furniture"),
             ("plumbing", "Plumbing"), ("plumb", "Plumbing"), ("sanit", "Plumbing"),
             ("duct", "Ducts"), ("hvac", "Ducts"), ("mech-", "Ducts"),
             ("pipe", "Pipes"), ("rohr", "Pipes"),
             ("elec", "Electrical"), ("cable", "Electrical"), ("light", "Electrical"),
+            ("cabletray", "Electrical"), ("tray", "Electrical"),
             ("grid", "Grids"), ("raster", "Grids"),
             ("dim", "Dimensions"), ("text", "Text"), ("anno", "Annotations"),
+            // Phase 71: Missing layer patterns from deep review
+            ("sprinkler", "Fire Protection"), ("firesup", "Fire Protection"),
+            ("alarm", "Fire Protection"), ("detection", "Fire Protection"),
+            ("found", "Foundations"), ("footing", "Foundations"), ("fdn", "Foundations"),
+            ("pile", "Foundations"), ("pad", "Foundations"),
+            ("curtain", "Curtain Walls"), ("glazing", "Curtain Walls"), ("cwl", "Curtain Walls"),
+            ("site", "Site"), ("land", "Site"), ("terrain", "Site"), ("topo", "Site"),
+            ("damper", "Ducts"), ("conduit", "Electrical"),
         };
 
         /// <summary>Counter for unmatched layer log throttling (first 10 per session).</summary>
@@ -305,6 +320,26 @@ namespace StingTools.Model
                     : "No elements created — check layer names match standard patterns (wall, door, window, etc.)";
 
                 StingLog.Info($"CADToModelEngine: {result.Summary}");
+
+                // DWG-CRIT-01 FIX: Auto-tag all created elements with ISO 19650 tags.
+                // Previously, elements created from DWG had no tags, containers, or TAG7 narrative.
+                if (result.CreatedElementIds.Count > 0)
+                {
+                    try
+                    {
+                        int taggedCount = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedElementIds);
+                        if (taggedCount > 0)
+                        {
+                            result.Summary += $" | {taggedCount} elements auto-tagged";
+                            StingLog.Info($"CADToModelEngine: auto-tagged {taggedCount}/{result.CreatedElementIds.Count} created elements");
+                        }
+                    }
+                    catch (Exception tagEx)
+                    {
+                        StingLog.Warn($"CADToModelEngine auto-tag: {tagEx.Message}");
+                        result.Warnings.Add($"Auto-tagging failed: {tagEx.Message}");
+                    }
+                }
             }
             catch (Exception ex)
             {
