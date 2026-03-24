@@ -135,10 +135,10 @@ namespace StingTools.Tags
             foreach (var g in activeGroups)
                 writesPerGroup[g.GroupCode] = 0;
 
-            // AUTO-R2: Count elements for progress dialog (quick pre-count via lazy iterator)
+            // PERF-006 FIX: Collect elements once, count from list instead of second collector
+            var elements = collector.ToList();
             int elementCount = 0;
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(combCatEnums ?? new BuiltInCategory[0]))))
+            foreach (var el in elements)
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (knownCategories.Contains(cat)) elementCount++;
@@ -150,7 +150,7 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
-                foreach (Element el in collector)
+                foreach (Element el in elements)
                 {
                     // GAP-WS-01: Skip elements on worksets owned by other users
                     if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
