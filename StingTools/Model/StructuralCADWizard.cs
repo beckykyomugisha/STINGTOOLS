@@ -351,6 +351,7 @@ namespace StingTools.Model
                     GroupingAlgorithm.ByLevel => GetLevelKey(doc, el),
                     GroupingAlgorithm.ByType => GetTypeKey(el),
                     GroupingAlgorithm.ByGridLine => GetGridKey(doc, el),
+                    GroupingAlgorithm.ByLocation => GetLocationKey(el),
                     GroupingAlgorithm.ByMark => ParameterHelpers.GetString(el, "Mark"),
                     _ => "ALL"
                 };
@@ -411,6 +412,29 @@ namespace StingTools.Model
                 return nearest != null && minDist < 3.0 ? nearest.Name : "Off Grid";
             }
             catch { return "Off Grid"; }
+        }
+
+        /// <summary>
+        /// Groups elements by spatial proximity using a grid-based clustering algorithm.
+        /// Divides the model space into cells (default 5m × 5m) and assigns elements
+        /// to their containing cell. Elements in the same cell are grouped together.
+        /// </summary>
+        private static string GetLocationKey(Element el)
+        {
+            try
+            {
+                XYZ pt = null;
+                if (el.Location is LocationPoint lp) pt = lp.Point;
+                else if (el.Location is LocationCurve lc) pt = lc.Curve.Evaluate(0.5, true);
+                if (pt == null) return "NoLocation";
+
+                // Grid cell size: 5m (~16.4 ft)
+                double cellSize = 16.4;
+                int cellX = (int)Math.Floor(pt.X / cellSize);
+                int cellY = (int)Math.Floor(pt.Y / cellSize);
+                return $"Zone_{cellX}_{cellY}";
+            }
+            catch { return "NoLocation"; }
         }
     }
 
