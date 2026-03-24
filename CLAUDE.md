@@ -2627,3 +2627,6 @@ docker compose up -d
 699. **WarningsManager: Pre-lowered classification patterns** — Pre-compute `_loweredPatterns[]` at static init. Eliminates ~150 `ToLowerInvariant()` allocations per warning classification (300K on 2000-warning model).
 700. **WarningsManager: 8 new classification rules** — Multiple walls joined, Roof/Wall join, slab edge gaps, Analytical Model inconsistent, Circular references, in-place families, duplicate Number.
 701. **DataPipelineCommands: DynamicBindings O(1) index** — Pre-build `Dictionary<string, ExternalDefinition>` from shared param file instead of O(groups×defs) linear scan per parameter.
+702. **RevisionManagement: Multi-category snapshot** — Replaced 22+ per-category `FilteredElementCollector` scans with single `ElementMulticategoryFilter`. Reduces `TakeTagSnapshot()` from ~15s to ~2s on 50K healthcare models.
+703. **PlatformLinkCommands: SHA-256 bare catch fix** — Added diagnostic `StingLog.Warn` to `ComputeFileSha256()` catch block for ISO 19650 audit traceability. Previously silently returned empty string on file access errors.
+704. **ExcelLinkCommands: Cached validation sets** — `ValidateValue()` now uses static lazy `_cachedValidDisc`/`_cachedValidFunc`/`_cachedValidProd` HashSets instead of allocating new HashSet per cell. Eliminates 35K+ allocations per 5K-element import.
