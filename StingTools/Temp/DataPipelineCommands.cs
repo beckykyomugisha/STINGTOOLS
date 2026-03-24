@@ -2506,16 +2506,31 @@ namespace StingTools.Temp
 
                     if (BoundingBoxesOverlap(mepBB, strBB))
                     {
-                        // Refined check with solid intersection
+                        // PERF-R8: Use direct BooleanOperationsUtils.ExecuteBooleanOperation instead of
+                        // per-pair FilteredElementCollector. Previously created a new collector for EVERY
+                        // bounding-box-overlapping pair, then scanned ALL model elements just to check one ID.
                         try
                         {
                             Solid mepSolid = GetSolid(mepEl);
-                            if (mepSolid != null)
+                            Solid strSolid = GetSolid(strEl);
+                            if (mepSolid != null && strSolid != null)
                             {
+                                // Direct solid-solid intersection check — no collector needed
+                                Solid intersection = BooleanOperationsUtils.ExecuteBooleanOperation(
+                                    mepSolid, strSolid, BooleanOperationsType.Intersect);
+                                if (intersection != null && intersection.Volume > 0)
+                                {
+                                    string mepCat = ParameterHelpers.GetCategoryName(mepEl);
+                                    string strCat = ParameterHelpers.GetCategoryName(strEl);
+                                    clashes.Add((mepEl, strEl, $"{mepCat} vs {strCat}"));
+                                }
+                            }
+                            else if (mepSolid != null)
+                            {
+                                // Fallback: use ElementIntersectsSolidFilter but with targeted ID set
                                 var intersectFilter = new ElementIntersectsSolidFilter(mepSolid);
-                                var hits = new FilteredElementCollector(doc)
+                                bool hits = new FilteredElementCollector(doc, new List<ElementId> { strEl.Id })
                                     .WherePasses(intersectFilter)
-                                    .Where(e => e.Id == strEl.Id)
                                     .Any();
                                 if (hits)
                                 {
@@ -2552,13 +2567,14 @@ namespace StingTools.Temp
                     {
                         try
                         {
+                            // PERF-R8: Use direct solid intersection instead of per-pair FilteredElementCollector
                             Solid mepSolid = GetSolid(mepEl);
-                            if (mepSolid != null)
+                            Solid otherSolid = GetSolid(otherMep);
+                            if (mepSolid != null && otherSolid != null)
                             {
-                                bool hits = new FilteredElementCollector(doc)
-                                    .WherePasses(new ElementIntersectsSolidFilter(mepSolid))
-                                    .Where(e => e.Id == otherMep.Id)
-                                    .Any();
+                                Solid xsect = BooleanOperationsUtils.ExecuteBooleanOperation(
+                                    mepSolid, otherSolid, BooleanOperationsType.Intersect);
+                                bool hits = xsect != null && xsect.Volume > 0;
                                 if (hits)
                                     clashes.Add((mepEl, otherMep, $"{mepCat} vs {otherCat} (cross-discipline)"));
                             }

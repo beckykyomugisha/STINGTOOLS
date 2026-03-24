@@ -135,6 +135,17 @@ namespace StingTools.Tags
             foreach (var g in activeGroups)
                 writesPerGroup[g.GroupCode] = 0;
 
+            // AUTO-R2: Count elements for progress dialog (quick pre-count via lazy iterator)
+            int elementCount = 0;
+            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(combCatEnums ?? new BuiltInCategory[0]))))
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (knownCategories.Contains(cat)) elementCount++;
+            }
+
+            var progress = UI.StingProgressDialog.Show("STING — Combine Parameters", elementCount);
+
             using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
             {
                 tx.Start();
@@ -170,6 +181,19 @@ namespace StingTools.Tags
                     }
 
                     totalElements++;
+
+                    // AUTO-R2: Progress reporting and cancellation
+                    if (progress != null)
+                    {
+                        progress.Increment($"Element {totalElements}: {cat}");
+                        if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
+                        {
+                            tx.RollBack();
+                            progress.Close();
+                            TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
+                            return Result.Cancelled;
+                        }
+                    }
 
                     // Bridge native params before reading tokens
                     try { NativeParamMapper.MapAll(doc, el); }
@@ -238,6 +262,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            progress?.Close(); // AUTO-R2: Close progress dialog
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

@@ -86,14 +86,27 @@ namespace StingTools.Docs
                     spaceLines.Add($"{Esc(roomNum + " " + roomName)},STING Tools,{DateTime.Now:yyyy-MM-dd},Room,{Esc(levelName)},{Esc(roomName)},{Esc(roomNum)},,{area:F2},");
                 }
 
+                // PERF-R6: Collect tagged elements ONCE instead of 7 separate FilteredElementCollector scans.
+                // Previously: 7 full-model scans (Type, Component, System, Zone, Attribute, Job, Resource).
+                // Now: 1 scan, cached list reused for all sheets.
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var singleScanCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (catEnums != null && catEnums.Length > 0)
+                    singleScanCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element el in singleScanCollector)
+                {
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (known.Contains(cat)) allTaggedElements.Add(el);
+                }
+
                 // ── Type sheet ──
                 var typeLines = new List<string>();
                 typeLines.Add("Name,CreatedBy,CreatedOn,Category,Description,Manufacturer,ModelNumber,Warranty,ReplacementCost,ExpectedLife,NominalLength,NominalWidth,NominalHeight");
                 var typesSeen = new HashSet<string>();
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string typeName = ParameterHelpers.GetFamilySymbolName(el);
                     string familyName = ParameterHelpers.GetFamilyName(el);
                     string typeKey = $"{familyName}:{typeName}";
@@ -115,10 +128,9 @@ namespace StingTools.Docs
                 var compLines = new List<string>();
                 compLines.Add("Name,CreatedBy,CreatedOn,TypeName,Space,Description,SerialNumber,InstallationDate,WarrantyStartDate,TagNumber,AssetIdentifier,SystemName");
                 int compCount = 0;
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     compCount++;
 
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
@@ -139,10 +151,9 @@ namespace StingTools.Docs
                 var sysLines = new List<string>();
                 sysLines.Add("Name,CreatedBy,CreatedOn,Category,Description,ComponentNames");
                 var systemGroups = new Dictionary<string, List<string>>();
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     if (string.IsNullOrEmpty(sys)) continue;
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
@@ -160,10 +171,9 @@ namespace StingTools.Docs
                 var zoneLines = new List<string>();
                 zoneLines.Add("Name,CreatedBy,CreatedOn,Category,Description,SpaceNames");
                 var zoneGroups = new Dictionary<string, HashSet<string>>();
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string zone = HandoverHelper.Gs(el, ParamRegistry.ZONE);
                     if (string.IsNullOrEmpty(zone)) continue;
                     string space = HandoverHelper.Gs(el, ParamRegistry.ROOM_NAME);
@@ -188,10 +198,9 @@ namespace StingTools.Docs
                 // ── Attribute sheet (COBie 2.4 — extended asset properties) ──
                 var attrLines = new List<string>();
                 attrLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,RowName,Value,Unit,Description,AllowedValues");
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
 
@@ -215,10 +224,9 @@ namespace StingTools.Docs
                 var jobLines = new List<string>();
                 jobLines.Add("Name,CreatedBy,CreatedOn,Category,Status,TypeName,Description,Duration,DurationUnit,Start,TaskStartUnit,Frequency,FrequencyUnit,Priors");
                 var jobsSeen = new HashSet<string>();
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     string typName = ParameterHelpers.GetFamilySymbolName(el);
@@ -239,10 +247,9 @@ namespace StingTools.Docs
                 var resLines = new List<string>();
                 resLines.Add("Name,CreatedBy,CreatedOn,Category,Description");
                 var resSeen = new HashSet<string>();
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
                     string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     var spares = HandoverHelper.GetSpareParts(disc, sys);
@@ -353,10 +360,9 @@ namespace StingTools.Docs
                 int total = 0;
                 var discCounts = new Dictionary<string, int>();
 
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
 
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
@@ -504,10 +510,9 @@ namespace StingTools.Docs
                 var assets = new Dictionary<string, Dictionary<string, List<AssetRecord>>>();
                 int totalAssets = 0;
 
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
 
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
@@ -725,10 +730,9 @@ namespace StingTools.Docs
                 int critical = 0;
                 var discScores = new Dictionary<string, List<int>>();
 
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
 
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;
@@ -906,10 +910,9 @@ namespace StingTools.Docs
                 // Map assets to rooms
                 int totalMapped = 0;
                 int unmapped = 0;
-                foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                foreach (Element el in allTaggedElements)
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
-                    if (!known.Contains(cat)) continue;
 
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
                     if (string.IsNullOrEmpty(tag1)) continue;

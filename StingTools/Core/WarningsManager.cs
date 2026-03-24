@@ -710,7 +710,7 @@ namespace StingTools.Core
         /// Handles: duplicate instances, redundant room separation lines, duplicate marks,
         /// unjoined elements, and duplicate type marks.
         /// </summary>
-        internal static bool AutoFixWarning(Document doc, ClassifiedWarning cw)
+        internal static bool AutoFixWarning(Document doc, ClassifiedWarning cw, HashSet<string> _cachedExistingMarks = null)
         {
             if (!cw.CanAutoFix || cw.FailingElements == null || cw.FailingElements.Count == 0)
                 return false;
@@ -921,7 +921,7 @@ namespace StingTools.Core
                     }
                 }
 
-                // Phase 63: Strategy 10: Fix duplicate mark values — scan ALL model marks for collision avoidance
+                // Phase 63: Strategy 10: Fix duplicate mark values — use pre-cached marks from BatchAutoFix
                 if (lower.Contains("duplicate mark"))
                 {
                     var ids = cw.FailingElements.ToList();
@@ -929,15 +929,17 @@ namespace StingTools.Core
                     {
                         try
                         {
-                            // Build HashSet from ALL elements in the model with ALL_MODEL_MARK (not just failing elements)
-                            var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            var allElements = new FilteredElementCollector(doc)
-                                .WhereElementIsNotElementType()
-                                .ToElements();
-                            foreach (var el in allElements)
+                            // PERF-R10: Use pre-cached mark set from BatchAutoFix instead of per-warning full scan.
+                            // Falls back to inline scan only when called outside BatchAutoFix context.
+                            var existingMarks = _cachedExistingMarks;
+                            if (existingMarks == null)
                             {
-                                string m = el?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
-                                if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                                {
+                                    string m = el?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                    if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                }
                             }
                             // Change the second element's mark with suffix increment against the full model set
                             var secondEl = doc.GetElement(ids[1]);
@@ -951,6 +953,7 @@ namespace StingTools.Core
                                     if (!existingMarks.Contains(candidate))
                                     {
                                         markParam.Set(candidate);
+                                        existingMarks.Add(candidate); // PERF-R10: Update cache for next fix in batch
                                         return true;
                                     }
                                 }
@@ -1033,6 +1036,25 @@ namespace StingTools.Core
                 return report;
             }
 
+            // PERF-R10: Pre-build existing marks HashSet ONCE for all duplicate mark fixes.
+            // Previously each duplicate mark warning triggered a full-model scan (50K+ elements).
+            HashSet<string> _cachedExistingMarks = null;
+            bool hasDuplicateMarkWarnings = fixable.Any(w =>
+                (w.Description ?? "").ToLowerInvariant().Contains("duplicate mark"));
+            if (hasDuplicateMarkWarnings)
+            {
+                _cachedExistingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        string m = el?.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                        if (!string.IsNullOrEmpty(m)) _cachedExistingMarks.Add(m);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Mark scan: {ex.Message}"); }
+                }
+            }
+
             using (Transaction tx = new Transaction(doc, "STING Auto-Fix Warnings"))
             {
                 tx.Start();
@@ -1040,7 +1062,7 @@ namespace StingTools.Core
                 {
                     try
                     {
-                        if (AutoFixWarning(doc, cw))
+                        if (AutoFixWarning(doc, cw, _cachedExistingMarks))
                         {
                             report.Fixed++;
                             report.Details.Add($"Fixed: {cw.Description}");
