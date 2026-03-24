@@ -6040,4 +6040,381 @@ namespace StingTools.Organise
                 .Replace("\t", "\\t");
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Graitec-Style Element Numbering Command (standalone)
+    //  Wraps NumberingEngine from StructuralCADWizard with a WPF dialog
+    //  for general-purpose element numbering across ALL categories.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class GraitecNumberingCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
+            var uidoc = ctx.UIDoc;
+
+            // Show WPF numbering configuration dialog
+            var config = GraitecNumberingDialog.Show(doc, uidoc);
+            if (config == null) return Result.Succeeded; // User cancelled
+
+            // Resolve element IDs based on scope
+            IList<ElementId> elementIds = null;
+            switch (config.Scope)
+            {
+                case Model.NumberingEngine.SelectionScope.SelectedElements:
+                    elementIds = uidoc.Selection.GetElementIds().ToList();
+                    if (elementIds.Count == 0)
+                    {
+                        TaskDialog.Show("Numbering", "No elements selected.");
+                        return Result.Succeeded;
+                    }
+                    break;
+                case Model.NumberingEngine.SelectionScope.AllFromActiveView:
+                    elementIds = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                        .OfCategory(config.Category)
+                        .WhereElementIsNotElementType()
+                        .ToElementIds().ToList();
+                    break;
+                case Model.NumberingEngine.SelectionScope.AllFromProject:
+                default:
+                    elementIds = null; // NumberingEngine handles project-wide
+                    break;
+            }
+
+            int count = Model.NumberingEngine.ApplyNumbering(doc, config, elementIds);
+
+            if (count > 0)
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
+
+            TaskDialog.Show("STING Numbering",
+                $"Numbered {count} elements.\n\nParameter: {config.ParameterName}\n" +
+                $"Template: {string.Join(", ", Model.NumberingEngine.GeneratePreview(config, 3))}...");
+
+            StingLog.Info($"GraitecNumbering: {count} elements numbered, param={config.ParameterName}, prefix={config.Prefix}");
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// WPF dialog for Graitec-style element numbering configuration.
+    /// Single-page dialog with category, parameter, template, grouping, and preview.
+    /// </summary>
+    internal static class GraitecNumberingDialog
+    {
+        public static Model.NumberingEngine.NumberingConfig Show(Document doc, UIDocument uidoc)
+        {
+            var config = new Model.NumberingEngine.NumberingConfig();
+            bool confirmed = false;
+
+            // ── Collect available categories from current view ──
+            var availableCategories = new List<(string Name, BuiltInCategory Bic)>();
+            var catSet = new HashSet<int>();
+            var viewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id)
+                .WhereElementIsNotElementType();
+            foreach (var el in viewCollector)
+            {
+                if (el.Category == null) continue;
+                int catId = el.Category.Id.IntegerValue;
+                if (catSet.Add(catId))
+                    availableCategories.Add((el.Category.Name, (BuiltInCategory)catId));
+            }
+            availableCategories = availableCategories.OrderBy(c => c.Name).ToList();
+
+            // ── Build WPF dialog ──
+            var win = new System.Windows.Window
+            {
+                Title = "STING Element Numbering (Graitec-Style)",
+                Width = 580, Height = 660,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F5F5F0"))
+            };
+
+            var mainStack = new System.Windows.Controls.StackPanel { Margin = new System.Windows.Thickness(16) };
+
+            // Header
+            var header = new System.Windows.Controls.TextBlock
+            {
+                Text = "ELEMENT NUMBERING",
+                FontSize = 16, FontWeight = System.Windows.FontWeights.Bold,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1A237E")),
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            mainStack.Children.Add(header);
+
+            // ── Category & Scope ──
+            mainStack.Children.Add(MakeLabel("Category:"));
+            var catCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            foreach (var c in availableCategories)
+                catCombo.Items.Add(c.Name);
+            if (catCombo.Items.Count > 0) catCombo.SelectedIndex = 0;
+            mainStack.Children.Add(catCombo);
+
+            mainStack.Children.Add(MakeLabel("Scope:"));
+            var scopeCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            scopeCombo.Items.Add("Selected Elements");
+            scopeCombo.Items.Add("Active View");
+            scopeCombo.Items.Add("Entire Project");
+            scopeCombo.SelectedIndex = (uidoc.Selection.GetElementIds().Count > 0) ? 0 : 1;
+            mainStack.Children.Add(scopeCombo);
+
+            mainStack.Children.Add(MakeLabel("Parameter to write:"));
+            var paramCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8), IsEditable = true };
+            paramCombo.Items.Add("Mark");
+            paramCombo.Items.Add(ParamRegistry.SEQ);
+            paramCombo.Items.Add(ParamRegistry.TAG1);
+            paramCombo.Items.Add("Comments");
+            paramCombo.SelectedIndex = 0;
+            mainStack.Children.Add(paramCombo);
+
+            // ── Template ──
+            var templateBorder = new System.Windows.Controls.Border
+            {
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkGray),
+                BorderThickness = new System.Windows.Thickness(1),
+                CornerRadius = new System.Windows.CornerRadius(4),
+                Padding = new System.Windows.Thickness(10),
+                Margin = new System.Windows.Thickness(0, 4, 0, 8)
+            };
+            var templateStack = new System.Windows.Controls.StackPanel();
+
+            templateStack.Children.Add(MakeLabel("PREFIX:"));
+            var prefixBox = new System.Windows.Controls.TextBox { Text = "GFC", Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(prefixBox);
+
+            templateStack.Children.Add(MakeLabel("SEPARATOR:"));
+            var sepBox = new System.Windows.Controls.TextBox { Text = "-", Width = 50, HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(sepBox);
+
+            templateStack.Children.Add(MakeLabel("SUFFIX:"));
+            var suffixBox = new System.Windows.Controls.TextBox { Text = "", Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            templateStack.Children.Add(suffixBox);
+
+            var groupCheck = new System.Windows.Controls.CheckBox { Content = "Use group enumeration", Margin = new System.Windows.Thickness(0, 4, 0, 2) };
+            templateStack.Children.Add(groupCheck);
+
+            templateStack.Children.Add(MakeLabel("Group Style:"));
+            var groupStyleCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            groupStyleCombo.Items.Add("A, B, C (Capital Letters)");
+            groupStyleCombo.Items.Add("1, 2, 3 (Numeric)");
+            groupStyleCombo.Items.Add("a, b, c (Lower Letters)");
+            groupStyleCombo.Items.Add("I, II, III (Roman)");
+            groupStyleCombo.Items.Add("i, ii, iii (Lower Roman)");
+            groupStyleCombo.SelectedIndex = 0;
+            templateStack.Children.Add(groupStyleCombo);
+
+            templateStack.Children.Add(MakeLabel("Element Style:"));
+            var elemStyleCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 4) };
+            elemStyleCombo.Items.Add("1, 2, 3 (Numeric)");
+            elemStyleCombo.Items.Add("A, B, C (Capital Letters)");
+            elemStyleCombo.Items.Add("a, b, c (Lower Letters)");
+            elemStyleCombo.Items.Add("I, II, III (Roman)");
+            elemStyleCombo.Items.Add("i, ii, iii (Lower Roman)");
+            elemStyleCombo.SelectedIndex = 0;
+            templateStack.Children.Add(elemStyleCombo);
+
+            // Start/Digits/Increment row
+            var numRow = new System.Windows.Controls.WrapPanel { Margin = new System.Windows.Thickness(0, 4, 0, 4) };
+            numRow.Children.Add(MakeLabel("Start: "));
+            var startBox = new System.Windows.Controls.TextBox { Text = "1", Width = 50, Margin = new System.Windows.Thickness(0, 0, 12, 0) };
+            numRow.Children.Add(startBox);
+            numRow.Children.Add(MakeLabel("Digits: "));
+            var digitsBox = new System.Windows.Controls.TextBox { Text = "2", Width = 50, Margin = new System.Windows.Thickness(0, 0, 12, 0) };
+            numRow.Children.Add(digitsBox);
+            numRow.Children.Add(MakeLabel("Step: "));
+            var stepBox = new System.Windows.Controls.TextBox { Text = "1", Width = 50 };
+            numRow.Children.Add(stepBox);
+            templateStack.Children.Add(numRow);
+
+            templateBorder.Child = templateStack;
+            mainStack.Children.Add(templateBorder);
+
+            // ── Grouping ──
+            mainStack.Children.Add(MakeLabel("Grouping:"));
+            var groupCombo = new System.Windows.Controls.ComboBox { Margin = new System.Windows.Thickness(0, 2, 0, 8) };
+            groupCombo.Items.Add("None (Sequential)");
+            groupCombo.Items.Add("By Level");
+            groupCombo.Items.Add("By Type");
+            groupCombo.Items.Add("By Nearest Grid");
+            groupCombo.Items.Add("By Spatial Proximity");
+            groupCombo.Items.Add("By Existing Mark");
+            groupCombo.SelectedIndex = 1;
+            mainStack.Children.Add(groupCombo);
+
+            var omitCheck = new System.Windows.Controls.CheckBox { Content = "Skip already-numbered elements", IsChecked = true, Margin = new System.Windows.Thickness(0, 4, 0, 8) };
+            mainStack.Children.Add(omitCheck);
+
+            // ── Preview ──
+            var previewLabel = new System.Windows.Controls.TextBlock
+            {
+                Text = "Preview: GFC-01, GFC-02, GFC-03 ...",
+                FontStyle = System.Windows.FontStyles.Italic,
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkSlateGray),
+                Margin = new System.Windows.Thickness(0, 0, 0, 12)
+            };
+            mainStack.Children.Add(previewLabel);
+
+            // Live preview update
+            void UpdatePreview()
+            {
+                try
+                {
+                    var previewConfig = BuildConfig();
+                    if (previewConfig != null)
+                    {
+                        var previews = Model.NumberingEngine.GeneratePreview(previewConfig, 5);
+                        previewLabel.Text = "Preview: " + string.Join(", ", previews) + " ...";
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Numbering preview: {ex.Message}"); }
+            }
+
+            Model.NumberingEngine.NumberingConfig BuildConfig()
+            {
+                var c = new Model.NumberingEngine.NumberingConfig
+                {
+                    Prefix = prefixBox.Text ?? "",
+                    Separator = sepBox.Text ?? "-",
+                    Suffix = suffixBox.Text ?? "",
+                    UseGroupEnum = groupCheck.IsChecked == true,
+                    UseElementEnum = true,
+                    OmitAlreadyNumbered = omitCheck.IsChecked == true,
+                    ParameterName = paramCombo.Text ?? "Mark"
+                };
+
+                // Category
+                if (catCombo.SelectedIndex >= 0 && catCombo.SelectedIndex < availableCategories.Count)
+                    c.Category = availableCategories[catCombo.SelectedIndex].Bic;
+
+                // Scope
+                c.Scope = scopeCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.SelectionScope.SelectedElements,
+                    1 => Model.NumberingEngine.SelectionScope.AllFromActiveView,
+                    2 => Model.NumberingEngine.SelectionScope.AllFromProject,
+                    _ => Model.NumberingEngine.SelectionScope.AllFromActiveView,
+                };
+
+                // Group style
+                c.GroupStyle = groupStyleCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                    1 => Model.NumberingEngine.EnumStyle.Numeric,
+                    2 => Model.NumberingEngine.EnumStyle.LowerLetters,
+                    3 => Model.NumberingEngine.EnumStyle.CapitalRoman,
+                    4 => Model.NumberingEngine.EnumStyle.LowerRoman,
+                    _ => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                };
+
+                // Element style
+                c.ElementStyle = elemStyleCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.EnumStyle.Numeric,
+                    1 => Model.NumberingEngine.EnumStyle.CapitalLetters,
+                    2 => Model.NumberingEngine.EnumStyle.LowerLetters,
+                    3 => Model.NumberingEngine.EnumStyle.CapitalRoman,
+                    4 => Model.NumberingEngine.EnumStyle.LowerRoman,
+                    _ => Model.NumberingEngine.EnumStyle.Numeric,
+                };
+
+                // Grouping
+                c.Grouping = groupCombo.SelectedIndex switch
+                {
+                    0 => Model.NumberingEngine.GroupingAlgorithm.None,
+                    1 => Model.NumberingEngine.GroupingAlgorithm.ByLevel,
+                    2 => Model.NumberingEngine.GroupingAlgorithm.ByType,
+                    3 => Model.NumberingEngine.GroupingAlgorithm.ByGridLine,
+                    4 => Model.NumberingEngine.GroupingAlgorithm.ByLocation,
+                    5 => Model.NumberingEngine.GroupingAlgorithm.ByMark,
+                    _ => Model.NumberingEngine.GroupingAlgorithm.ByLevel,
+                };
+
+                if (int.TryParse(startBox.Text, out int s)) c.StartFrom = s;
+                if (int.TryParse(digitsBox.Text, out int d)) c.NumberOfDigits = d;
+                if (int.TryParse(stepBox.Text, out int inc)) c.IncrementBy = inc;
+
+                return c;
+            }
+
+            // Wire up live preview on field changes
+            prefixBox.TextChanged += (s, e) => UpdatePreview();
+            sepBox.TextChanged += (s, e) => UpdatePreview();
+            suffixBox.TextChanged += (s, e) => UpdatePreview();
+            startBox.TextChanged += (s, e) => UpdatePreview();
+            digitsBox.TextChanged += (s, e) => UpdatePreview();
+            stepBox.TextChanged += (s, e) => UpdatePreview();
+            groupCheck.Checked += (s, e) => UpdatePreview();
+            groupCheck.Unchecked += (s, e) => UpdatePreview();
+            groupStyleCombo.SelectionChanged += (s, e) => UpdatePreview();
+            elemStyleCombo.SelectionChanged += (s, e) => UpdatePreview();
+
+            UpdatePreview(); // Initial preview
+
+            // ── Buttons ──
+            var btnPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new System.Windows.Thickness(0, 8, 0, 0)
+            };
+
+            var applyBtn = new System.Windows.Controls.Button
+            {
+                Content = "Apply Numbering",
+                Width = 140, Height = 32,
+                Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E8912D")),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.White),
+                FontWeight = System.Windows.FontWeights.Bold,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+            applyBtn.Click += (s, e) => { confirmed = true; win.DialogResult = true; win.Close(); };
+
+            var cancelBtn = new System.Windows.Controls.Button
+            {
+                Content = "Cancel", Width = 80, Height = 32,
+                Margin = new System.Windows.Thickness(0, 0, 0, 0)
+            };
+            cancelBtn.Click += (s, e) => { win.DialogResult = false; win.Close(); };
+
+            btnPanel.Children.Add(applyBtn);
+            btnPanel.Children.Add(cancelBtn);
+            mainStack.Children.Add(btnPanel);
+
+            win.Content = mainStack;
+
+            try
+            {
+                var helper = new System.Windows.Interop.WindowInteropHelper(win);
+                helper.Owner = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            }
+            catch (Exception ex) { StingLog.Warn($"GraitecNumberingDialog owner: {ex.Message}"); }
+
+            bool? result = win.ShowDialog();
+            if (result != true || !confirmed) return null;
+
+            return BuildConfig();
+        }
+
+        private static System.Windows.Controls.TextBlock MakeLabel(string text)
+        {
+            return new System.Windows.Controls.TextBlock
+            {
+                Text = text,
+                FontWeight = System.Windows.FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new System.Windows.Thickness(0, 2, 0, 0)
+            };
+        }
+    }
 }

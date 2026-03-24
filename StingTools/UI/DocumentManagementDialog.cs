@@ -1272,7 +1272,7 @@ namespace StingTools.UI
             coordWrap.Children.Add(MakeDispatchBtn("Element Summary", "ElementCountSummary", BrTeal, win));
             coordWrap.Children.Add(MakeSep());
             coordWrap.Children.Add(MakeSectionLabel("LIVE COORDINATION"));
-            coordWrap.Children.Add(MakeDispatchBtn("★ Coord Center", "CoordinationCenter", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("★ Coord Center", "BIMCoordinationCenter", BrAccent, win));
             coordWrap.Children.Add(MakeDispatchBtn("Dashboard", "GenerateDashboard", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("File Monitor", "ToggleFileMonitor", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Broadcast", "BroadcastNotification", BrAccent, win));
@@ -1349,7 +1349,7 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeSectionLabel("COORDINATION"));
             meetWrap.Children.Add(MakeActBtn("Send Reminder", BrAccent, (s, e) => SendMeetingReminder(doc)));
             meetWrap.Children.Add(MakeActBtn("Smart Agenda", BrGreen, (s, e) => GenerateSmartAgendaFromDialog(doc)));
-            meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "CoordinationCenter", BrAccent, win));
+            meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "BIMCoordinationCenter", BrAccent, win));
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // GAP-BIM-010: Restore last-used tab on reopen (saves navigation time)

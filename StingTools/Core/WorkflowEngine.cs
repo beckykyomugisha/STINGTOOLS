@@ -1204,6 +1204,7 @@ namespace StingTools.Core
                 case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
                 case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
                 case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
+                case "GraitecNumbering":     return new Organise.GraitecNumberingCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
                 // BIM Coordination Center dispatch targets

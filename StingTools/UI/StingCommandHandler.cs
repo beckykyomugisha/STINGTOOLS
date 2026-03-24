@@ -204,6 +204,7 @@ namespace StingTools.UI
                     case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "DeleteTags": RunCommand<Organise.DeleteTagsCommand>(app); break;
                     case "RenumberTags": RunCommand<Organise.RenumberTagsCommand>(app); break;
+                    case "GraitecNumbering": RunCommand<Organise.GraitecNumberingCommand>(app); break;
                     case "CopyTags": RunCommand<Organise.CopyTagsCommand>(app); break;
                     case "SwapTags": RunCommand<Organise.SwapTagsCommand>(app); break;
                     case "FixDuplicates": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;

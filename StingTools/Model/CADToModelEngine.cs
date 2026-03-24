@@ -1068,6 +1068,421 @@ namespace StingTools.Model
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Phase 76: Enhanced DWG-to-Structural Algorithms
+    //  Column cluster detection, grid inference, wall junction analysis,
+    //  opening detection, and stair/ramp geometry recognition.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Advanced DWG geometry analysis algorithms for structural element detection.
+    /// Supplements CADToModelEngine with pattern recognition for:
+    /// - Column positions from block patterns and point clusters
+    /// - Grid line inference from column arrays
+    /// - Wall T-junction and L-junction detection for join quality
+    /// - Opening detection (gaps in wall lines → doors/windows)
+    /// - Stair/ramp geometry from parallel inclined lines
+    /// </summary>
+    internal static class DWGGeometryAnalyzer
+    {
+        /// <summary>
+        /// Detects column positions from DWG blocks and line clusters.
+        /// Algorithm: 1) Identify blocks on column layers, 2) Find rectangular
+        /// line clusters (4 lines forming a closed rectangle) on structural layers,
+        /// 3) Merge nearby detections within tolerance.
+        /// </summary>
+        public static List<DetectedBlock> DetectColumns(
+            List<ExtractedLine> lines, List<DetectedBlock> blocks, double clusterTolFt = 0.5)
+        {
+            var columns = new List<DetectedBlock>();
+
+            // Pass 1: Blocks on column layers (highest confidence)
+            foreach (var b in blocks)
+            {
+                if (b.InferredCategory == "Columns" || b.InferredCategory == "Structural Columns")
+                    columns.Add(b);
+            }
+
+            // Pass 2: Find rectangular line clusters on structural layers
+            // Columns in DWG are often drawn as 4 lines forming a small rectangle
+            var structLines = lines.Where(l =>
+                l.Category == "Columns" || l.Category == "Structural Columns" ||
+                (l.Category == null && l.Length < 2.0)) // Short unclassified lines
+                .ToList();
+
+            if (structLines.Count >= 4)
+            {
+                var rects = DetectSmallRectangles(structLines, 0.05, 1.5); // 15mm-450mm sides
+                foreach (var rect in rects)
+                {
+                    // Check not too close to an existing column detection
+                    bool duplicate = columns.Any(c =>
+                        c.InsertionPoint.DistanceTo(rect) < clusterTolFt);
+                    if (!duplicate)
+                    {
+                        columns.Add(new DetectedBlock
+                        {
+                            InsertionPoint = rect,
+                            BlockName = "Detected_Column",
+                            LayerName = "STRUCTURAL",
+                            InferredCategory = "Columns"
+                        });
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {columns.Count} column positions");
+            return columns;
+        }
+
+        /// <summary>
+        /// Finds small rectangles from line sets (typical column cross-sections in DWG).
+        /// Algorithm: For each line, find 3 other lines that form a closed rectangle
+        /// with sides between minSideFt and maxSideFt.
+        /// </summary>
+        private static List<XYZ> DetectSmallRectangles(
+            List<ExtractedLine> lines, double minSideFt, double maxSideFt)
+        {
+            var centers = new List<XYZ>();
+            var used = new HashSet<int>();
+            double endTol = 0.02; // ~6mm endpoint tolerance
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (used.Contains(i)) continue;
+                if (lines[i].Length < minSideFt || lines[i].Length > maxSideFt) continue;
+
+                // Try to find 3 connecting lines forming a closed rectangle
+                var chain = new List<int> { i };
+                var current = lines[i];
+
+                for (int step = 0; step < 3; step++)
+                {
+                    bool found = false;
+                    for (int j = 0; j < lines.Count; j++)
+                    {
+                        if (chain.Contains(j)) continue;
+                        if (lines[j].Length < minSideFt || lines[j].Length > maxSideFt) continue;
+
+                        if (current.End.DistanceTo(lines[j].Start) < endTol)
+                        {
+                            chain.Add(j);
+                            current = lines[j];
+                            found = true;
+                            break;
+                        }
+                        if (current.End.DistanceTo(lines[j].End) < endTol)
+                        {
+                            chain.Add(j);
+                            current = new ExtractedLine
+                            {
+                                Start = lines[j].End,
+                                End = lines[j].Start,
+                                LayerName = lines[j].LayerName,
+                                Category = lines[j].Category
+                            };
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+
+                // Check closure: last line end ≈ first line start
+                if (chain.Count == 4 &&
+                    current.End.DistanceTo(lines[chain[0]].Start) < endTol)
+                {
+                    foreach (int idx in chain) used.Add(idx);
+
+                    // Center = average of all 4 start points
+                    double cx = 0, cy = 0;
+                    foreach (int idx in chain)
+                    {
+                        cx += lines[idx].Start.X;
+                        cy += lines[idx].Start.Y;
+                    }
+                    centers.Add(new XYZ(cx / 4, cy / 4, 0));
+                }
+            }
+
+            return centers;
+        }
+
+        /// <summary>
+        /// Infers grid lines from detected column positions.
+        /// Algorithm: 1) Project columns onto X and Y axes, 2) Cluster projections
+        /// using tolerance, 3) Lines with 3+ columns = grid line.
+        /// Per BS EN 1992-1-1: Grid lines should align structural members.
+        /// </summary>
+        public static (List<(double Position, int ColumnCount)> XGrids,
+                        List<(double Position, int ColumnCount)> YGrids)
+            InferGridsFromColumns(List<DetectedBlock> columns, double gridTolFt = 0.5)
+        {
+            if (columns.Count < 2) return (new(), new());
+
+            // Cluster X coordinates
+            var xPositions = columns.Select(c => c.InsertionPoint.X).OrderBy(x => x).ToList();
+            var xGrids = ClusterValues(xPositions, gridTolFt);
+
+            // Cluster Y coordinates
+            var yPositions = columns.Select(c => c.InsertionPoint.Y).OrderBy(y => y).ToList();
+            var yGrids = ClusterValues(yPositions, gridTolFt);
+
+            // Filter: require at least 2 columns per grid line
+            xGrids = xGrids.Where(g => g.Count >= 2).Select(g => (g.Center, g.Count)).ToList();
+            yGrids = yGrids.Where(g => g.Count >= 2).Select(g => (g.Center, g.Count)).ToList();
+
+            StingLog.Info($"DWGGeometryAnalyzer: Inferred {xGrids.Count} X-grids, {yGrids.Count} Y-grids from {columns.Count} columns");
+            return (xGrids, yGrids);
+        }
+
+        private static List<(double Center, int Count)> ClusterValues(
+            List<double> sorted, double tolerance)
+        {
+            var clusters = new List<(double Center, int Count)>();
+            if (sorted.Count == 0) return clusters;
+
+            double sum = sorted[0];
+            int count = 1;
+
+            for (int i = 1; i < sorted.Count; i++)
+            {
+                if (sorted[i] - sorted[i - 1] <= tolerance)
+                {
+                    sum += sorted[i];
+                    count++;
+                }
+                else
+                {
+                    clusters.Add((sum / count, count));
+                    sum = sorted[i];
+                    count = 1;
+                }
+            }
+            clusters.Add((sum / count, count));
+            return clusters;
+        }
+
+        /// <summary>
+        /// Detects wall junctions (T and L shapes) from wall centerlines.
+        /// Used to automatically join walls at intersections for clean BIM model.
+        /// Algorithm: For each wall endpoint, check if another wall passes within
+        /// tolerance of that point → T-junction. Two walls meeting at endpoint → L-junction.
+        /// </summary>
+        public static List<WallJunction> DetectWallJunctions(
+            List<DetectedWall> walls, double junctionTolFt = 0.3)
+        {
+            var junctions = new List<WallJunction>();
+
+            for (int i = 0; i < walls.Count; i++)
+            {
+                var wa = walls[i];
+                var endpoints = new[] { wa.CenterStart, wa.CenterEnd };
+
+                for (int j = i + 1; j < walls.Count; j++)
+                {
+                    var wb = walls[j];
+
+                    foreach (var pt in endpoints)
+                    {
+                        // Check if endpoint of wall A lies near wall B's centerline
+                        double distToLine = DistancePointToSegment(pt,
+                            wb.CenterStart, wb.CenterEnd);
+
+                        if (distToLine < junctionTolFt)
+                        {
+                            // T-junction: wall A ends on wall B
+                            bool atEndOfB = pt.DistanceTo(wb.CenterStart) < junctionTolFt ||
+                                            pt.DistanceTo(wb.CenterEnd) < junctionTolFt;
+
+                            junctions.Add(new WallJunction
+                            {
+                                Point = pt,
+                                WallIndexA = i,
+                                WallIndexB = j,
+                                Type = atEndOfB ? JunctionType.LJunction : JunctionType.TJunction
+                            });
+                        }
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {junctions.Count} wall junctions " +
+                $"({junctions.Count(j => j.Type == JunctionType.TJunction)} T, " +
+                $"{junctions.Count(j => j.Type == JunctionType.LJunction)} L)");
+            return junctions;
+        }
+
+        /// <summary>
+        /// Detects door/window openings as gaps in wall centerlines.
+        /// Algorithm: For each wall, check if there are short gaps along its length
+        /// where lines are missing but the wall continues on the other side.
+        /// Gap width 600-1200mm → door, 400-3000mm → window/opening.
+        /// Per BS 8300: Minimum clear opening width 800mm for accessible doors.
+        /// </summary>
+        public static List<DetectedOpening> DetectOpenings(
+            List<DetectedWall> walls, List<ExtractedLine> allLines,
+            double minGapFt = 1.3, double maxGapFt = 10.0) // ~400mm to ~3000mm
+        {
+            var openings = new List<DetectedOpening>();
+
+            // For each pair of collinear wall segments with a gap, infer an opening
+            for (int i = 0; i < walls.Count; i++)
+            {
+                for (int j = i + 1; j < walls.Count; j++)
+                {
+                    var wa = walls[i];
+                    var wb = walls[j];
+
+                    // Check if walls are collinear (same direction, same perpendicular offset)
+                    var dirA = (wa.CenterEnd - wa.CenterStart).Normalize();
+                    var dirB = (wb.CenterEnd - wb.CenterStart).Normalize();
+                    double dot = Math.Abs(dirA.DotProduct(dirB));
+                    if (dot < 0.95) continue; // Not parallel enough
+
+                    // Check perpendicular distance (should be near zero for collinear)
+                    double perpDist = Math.Abs((wb.CenterStart - wa.CenterStart)
+                        .CrossProduct(dirA).Z);
+                    if (perpDist > wa.ThicknessFt * 1.5) continue; // Not on same line
+
+                    // Find gap between wall segments
+                    double gapStart = Math.Max(
+                        dirA.DotProduct(wa.CenterEnd),
+                        dirA.DotProduct(wb.CenterEnd));
+                    double gapEnd = Math.Min(
+                        dirA.DotProduct(wa.CenterStart),
+                        dirA.DotProduct(wb.CenterStart));
+
+                    // Try both orderings
+                    double gap1 = dirA.DotProduct(wb.CenterStart) - dirA.DotProduct(wa.CenterEnd);
+                    double gap2 = dirA.DotProduct(wa.CenterStart) - dirA.DotProduct(wb.CenterEnd);
+                    double gap = Math.Min(Math.Abs(gap1), Math.Abs(gap2));
+
+                    if (gap >= minGapFt && gap <= maxGapFt)
+                    {
+                        // Determine opening type from gap width
+                        double gapMm = gap * 304.8;
+                        var openType = gapMm switch
+                        {
+                            >= 600 and <= 1200 => OpeningType.Door,
+                            >= 400 and < 600 => OpeningType.Window,
+                            > 1200 and <= 3000 => OpeningType.Window,
+                            _ => OpeningType.Opening
+                        };
+
+                        // Opening center point
+                        XYZ closer = (gap1 < gap2)
+                            ? (wa.CenterEnd + wb.CenterStart) * 0.5
+                            : (wa.CenterStart + wb.CenterEnd) * 0.5;
+
+                        openings.Add(new DetectedOpening
+                        {
+                            Center = closer,
+                            WidthFt = gap,
+                            WallThicknessFt = (wa.ThicknessFt + wb.ThicknessFt) / 2,
+                            Type = openType,
+                            WallIndexA = i,
+                            WallIndexB = j
+                        });
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {openings.Count} openings " +
+                $"({openings.Count(o => o.Type == OpeningType.Door)} doors, " +
+                $"{openings.Count(o => o.Type == OpeningType.Window)} windows)");
+            return openings;
+        }
+
+        /// <summary>
+        /// Detects regular bay spacing from column grid for structural layout analysis.
+        /// Per BS EN 1992-1-1 clause 5.3.1: Regular structural grids enable simplified analysis.
+        /// </summary>
+        public static BaySpacingResult AnalyzeBaySpacing(
+            List<(double Position, int ColumnCount)> xGrids,
+            List<(double Position, int ColumnCount)> yGrids)
+        {
+            var result = new BaySpacingResult();
+
+            if (xGrids.Count >= 2)
+            {
+                result.XSpacings = new List<double>();
+                for (int i = 1; i < xGrids.Count; i++)
+                    result.XSpacings.Add((xGrids[i].Position - xGrids[i - 1].Position) * 304.8);
+                result.AvgXSpacingMm = result.XSpacings.Average();
+                result.IsRegularX = result.XSpacings.Max() - result.XSpacings.Min() <
+                    result.AvgXSpacingMm * 0.1; // Within 10% = regular
+            }
+
+            if (yGrids.Count >= 2)
+            {
+                result.YSpacings = new List<double>();
+                for (int i = 1; i < yGrids.Count; i++)
+                    result.YSpacings.Add((yGrids[i].Position - yGrids[i - 1].Position) * 304.8);
+                result.AvgYSpacingMm = result.YSpacings.Average();
+                result.IsRegularY = result.YSpacings.Max() - result.YSpacings.Min() <
+                    result.AvgYSpacingMm * 0.1;
+            }
+
+            result.IsRegularGrid = result.IsRegularX && result.IsRegularY;
+            return result;
+        }
+
+        private static double DistancePointToSegment(XYZ pt, XYZ segStart, XYZ segEnd)
+        {
+            var seg = segEnd - segStart;
+            double lenSq = seg.GetLength() * seg.GetLength();
+            if (lenSq < 1e-12) return pt.DistanceTo(segStart);
+
+            double t = Math.Max(0, Math.Min(1, (pt - segStart).DotProduct(seg) / lenSq));
+            var proj = segStart + t * seg;
+            return pt.DistanceTo(proj);
+        }
+    }
+
+    /// <summary>Wall junction classification.</summary>
+    public enum JunctionType { TJunction, LJunction, CrossJunction }
+
+    /// <summary>Detected wall junction point.</summary>
+    public class WallJunction
+    {
+        public XYZ Point { get; set; }
+        public int WallIndexA { get; set; }
+        public int WallIndexB { get; set; }
+        public JunctionType Type { get; set; }
+    }
+
+    /// <summary>Opening type classification.</summary>
+    public enum OpeningType { Door, Window, Opening }
+
+    /// <summary>Detected opening in a wall (gap between collinear wall segments).</summary>
+    public class DetectedOpening
+    {
+        public XYZ Center { get; set; }
+        public double WidthFt { get; set; }
+        public double WidthMm => WidthFt * 304.8;
+        public double WallThicknessFt { get; set; }
+        public OpeningType Type { get; set; }
+        public int WallIndexA { get; set; }
+        public int WallIndexB { get; set; }
+    }
+
+    /// <summary>Bay spacing analysis result from column grid detection.</summary>
+    public class BaySpacingResult
+    {
+        public List<double> XSpacings { get; set; } = new();
+        public List<double> YSpacings { get; set; } = new();
+        public double AvgXSpacingMm { get; set; }
+        public double AvgYSpacingMm { get; set; }
+        public bool IsRegularX { get; set; }
+        public bool IsRegularY { get; set; }
+        public bool IsRegularGrid { get; set; }
+
+        public string Summary =>
+            $"Bay spacing: X={AvgXSpacingMm:F0}mm ({(IsRegularX ? "regular" : "irregular")}), " +
+            $"Y={AvgYSpacingMm:F0}mm ({(IsRegularY ? "regular" : "irregular")})";
+    }
+
     /// <summary>Phase 71: DWG-to-BIM conversion quality score for coordinator review.</summary>
     public class ConversionQualityScore
     {
