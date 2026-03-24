@@ -63,6 +63,10 @@ namespace StingTools.Core
         public int EmptyFuncCount { get; private set; }
         /// <summary>PERF-02: Inline count of elements with empty PROD after pipeline.</summary>
         public int EmptyProdCount { get; private set; }
+        /// <summary>PERF-R13: Count of elements that defaulted to LOC=BLD1 (throttled from per-element warnings).</summary>
+        public int DefaultLocCount { get; set; }
+        /// <summary>PERF-R13: Count of elements that defaulted to ZONE=Z01 (throttled from per-element warnings).</summary>
+        public int DefaultZoneCount { get; set; }
 
         /// <summary>PERF-02: Track empty FUNC/PROD inline during tagging loop to avoid post-loop re-scan.</summary>
         public void RecordEmptyTokens(string func, string prod)
@@ -2205,14 +2209,12 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(prod))
                 prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
 
-            // PERF-R4: Use local variables instead of re-reading parameters from element
-            // (loc/zone already hold the derived values from lines above)
+            // PERF-R13: Throttle default-value warnings — record count, not per-element message.
+            // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
             if (stats != null)
             {
-                if (loc == "BLD1")
-                    stats.RecordWarning($"Element {el.Id}: LOC defaulted to BLD1");
-                if (zone == "Z01")
-                    stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
+                if (loc == "BLD1") stats.DefaultLocCount++;
+                if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
             // GAP-025: Validate-before-write — guarantee all 7 tokens are non-empty
@@ -2370,12 +2372,15 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // Final validation: ensure tag has correct segment count before writing
-            string[] tagParts = tag.Split(new[] { Separator }, StringSplitOptions.None);
-            if (tagParts.Length < 8)
+            // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+            // Previously: String.Split created 8-12 string array per element (50K = 400K+ allocations).
+            int sepCount = 0;
+            for (int ci = 0; ci < tag.Length; ci++)
+                if (tag[ci] == Separator[0]) sepCount++;
+            if (sepCount < 7) // 8 segments = 7 separators
             {
-                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {tagParts.Length} segments (expected 8)");
-                stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
+                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
                 return false;
             }
             bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
@@ -5039,14 +5044,23 @@ namespace StingTools.Core
             }
 
             // TAG7A-TAG7F get plain section text for tag family labels
+            // PERF-R12: Track consecutive empties — once 2+ empty sections hit, skip rest
+            // (BuildTag7Sections populates in order; trailing empties are common)
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
+            int consecutiveEmpty = 0;
             for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
             {
                 if (!string.IsNullOrEmpty(sectionValues[i]))
                 {
+                    consecutiveEmpty = 0;
                     if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
                         written++;
+                }
+                else
+                {
+                    consecutiveEmpty++;
+                    if (consecutiveEmpty >= 2) break; // Skip remaining empty trailing sections
                 }
             }
 
