@@ -1,1291 +1,1306 @@
-# STING Tools — Complete Tagging Guide
+# STING Tools — Complete Tagging & Asset Management Guide
 
-## ISO 19650 Asset Tag Format
+**Version**: 7.0 | **Standard**: ISO 19650-1/2/3, CIBSE TM40, Uniclass 2015  
+**Last Updated**: 2026-03-24 | **Audience**: BIM Coordinators, Discipline Leads, All Team Members  
+**Elements Supported**: 22 Revit categories across 8 disciplines
 
-Every element in a STING-managed Revit project receives an **8-segment asset tag** compliant with **ISO 19650-3:2020**. The tag uniquely identifies each element by discipline, location, system, and sequence.
+---
+
+## Table of Contents
+
+1. [Introduction to ISO 19650 Asset Tagging](#1-introduction-to-iso-19650-asset-tagging)
+2. [Tag Format & Structure](#2-tag-format--structure)
+3. [Token Reference (All 8 Segments)](#3-token-reference-all-8-segments)
+4. [Tagging Pipeline (How Tags Are Built)](#4-tagging-pipeline-how-tags-are-built)
+5. [Tagging Commands Reference](#5-tagging-commands-reference)
+6. [One-Click Workflows](#6-one-click-workflows)
+7. [Token Management](#7-token-management)
+8. [Tag Collision Handling & SEQ Numbering](#8-tag-collision-handling--seq-numbering)
+9. [Tag Containers (53 Parameters)](#9-tag-containers-53-parameters)
+10. [TAG7 Rich Narrative](#10-tag7-rich-narrative)
+11. [Tag Validation & Compliance](#11-tag-validation--compliance)
+12. [Smart Tag Placement (Visual Annotations)](#12-smart-tag-placement-visual-annotations)
+13. [Tag Style Engine (128 Combinations)](#13-tag-style-engine-128-combinations)
+14. [Display Modes & Presentation](#14-display-modes--presentation)
+15. [Real-Time Auto-Tagging](#15-real-time-auto-tagging)
+16. [Stale Element Detection & Re-Tagging](#16-stale-element-detection--re-tagging)
+17. [Tag Operations (ORGANISE Tab)](#17-tag-operations-organise-tab)
+18. [Leader Management (14 Commands)](#18-leader-management-14-commands)
+19. [Legend Building](#19-legend-building)
+20. [Workflow Automation for Tagging](#20-workflow-automation-for-tagging)
+21. [Cross-System Integration](#21-cross-system-integration)
+22. [Data Exchange (Excel/COBie)](#22-data-exchange-excelcobie)
+23. [Graitec-Style Numbering](#23-graitec-style-numbering)
+24. [Tag Export/Import Between Projects](#24-tag-exportimport-between-projects)
+25. [Configuration Reference](#25-configuration-reference)
+26. [Troubleshooting](#26-troubleshooting)
+27. [Complete Command Reference (35+ Commands)](#27-complete-command-reference-35-commands)
+
+---
+
+## 1. Introduction to ISO 19650 Asset Tagging
+
+### What Is Asset Tagging?
+
+Asset tagging assigns a **unique, structured identifier** to every building element in your Revit model. These tags follow the **ISO 19650** standard for information management and enable:
+
+- **Asset tracking** throughout the building lifecycle (design → construction → operation)
+- **COBie data exchange** for facilities management handover
+- **Compliance reporting** against ISO 19650 information requirements
+- **Cross-discipline coordination** with consistent naming conventions
+- **FM/CAFM system integration** via unique asset identifiers
+
+### Why STING Tags?
+
+| Feature | Manual Tagging | STING Auto-Tagging |
+|---------|---------------|-------------------|
+| Speed | ~2 min/element | ~0.01 sec/element |
+| Consistency | Human error prone | 100% format compliance |
+| Coverage | Typically 60-70% | 95-100% achievable |
+| Maintenance | Manual update on changes | Auto-stale detection |
+| Containers | 1 parameter only | All 53 containers populated |
+| Validation | Visual inspection | 45+ automated checks |
+
+### Supported Categories (22)
+
+| Category | Discipline | PROD Code |
+|----------|-----------|-----------|
+| Air Terminals | M | AT |
+| Cable Trays | LV | CTR |
+| Ceilings | A | CLG |
+| Columns (Structural) | S | COL |
+| Conduits | E | CDT |
+| Doors | A | DR |
+| Duct Systems | M | DCT |
+| Electrical Equipment | E | DB |
+| Electrical Fixtures | E | EFX |
+| Floors | A | FLR |
+| Furniture | A | FUR |
+| Lighting Fixtures | E | LUM |
+| Mechanical Equipment | M | AHU/FCU/etc. |
+| Pipe Systems | P | PIP |
+| Plumbing Fixtures | P | SAN |
+| Roofs | A | RF |
+| Rooms | A | RM |
+| Sprinklers | FP | SPR |
+| Structural Framing | S | BM |
+| Walls | A | WL |
+| Windows | A | WN |
+| Generic Models | G | GEN |
+
+---
+
+## 2. Tag Format & Structure
+
+### The 8-Segment Tag
+
+Every tag follows this format:
 
 ```
- DISC - LOC  - ZONE - LVL - SYS  - FUNC - PROD - SEQ
-  M   - BLD1 - Z01  - L02 - HVAC - SUP  - AHU  - 0003
+DISC - LOC - ZONE - LVL - SYS - FUNC - PROD - SEQ
 ```
 
-| Pos | Segment | Parameter                  | Max | Description                        | Example        |
-|-----|---------|----------------------------|-----|------------------------------------|----------------|
-| 1   | DISC    | ASS_DISCIPLINE_COD_TXT     | 3   | Discipline code                    | M, E, P, A     |
-| 2   | LOC     | ASS_LOC_TXT                | 4   | Location / building code           | BLD1, EXT      |
-| 3   | ZONE    | ASS_ZONE_TXT               | 3   | Zone code                          | Z01, Z02       |
-| 4   | LVL     | ASS_LVL_COD_TXT            | 4   | Level code                         | L02, GF, B1    |
-| 5   | SYS     | ASS_SYSTEM_TYPE_TXT        | 4   | System type (CIBSE / Uniclass)     | HVAC, DCW, LV  |
-| 6   | FUNC    | ASS_FUNC_TXT               | 4   | Function code (CIBSE / Uniclass)   | SUP, HTG, PWR  |
-| 7   | PROD    | ASS_PRODCT_COD_TXT         | 4   | Product code                       | AHU, DB, DR    |
-| 8   | SEQ     | ASS_SEQ_NUM_TXT            | 4   | Zero-padded sequence number        | 0001, 0042     |
+Example: `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
 
-**Separator**: `-` (configurable via `project_config.json`)
-**Padding**: 4 digits for SEQ (configurable)
+Reading this tag:
+- **M** = Mechanical discipline
+- **BLD1** = Building 1
+- **Z01** = Zone 01
+- **L02** = Level 02 (second floor)
+- **HVAC** = HVAC system type
+- **SUP** = Supply function
+- **AHU** = Air Handling Unit product
+- **0003** = Third unit in this group
 
----
+### Tag Format Configuration
 
-## CREATE Tab — Panel Layout
+Configurable in `project_config.json`:
 
-The **CREATE** tab is the primary tagging interface. All buttons referenced in this guide are located here unless otherwise stated.
-
-### Header Controls
-
-| Button | What it does |
-|--------|-------------|
-| **Scope: View** | Toggle tagging scope: View → Selection → Project (click to cycle) |
-| **Overwrite: No** | Toggle overwrite mode: No (safe) → Yes (force re-derive all tokens) |
-
-### SETUP Section
-
-| Button | What it does |
-|--------|-------------|
-| **Load Shared Params** | Bind 200+ shared parameters to Revit categories (Step 1) |
-| **Project Config** | View/edit/save `project_config.json` (tag maps, codes, format) |
-| **Tag Config** | Display current tag lookup tables (DISC, SYS, PROD, FUNC maps) |
-| **Sync Schema** | Propagate PARAMETER_REGISTRY.json changes to project bindings |
-| **Audit Schema** | Verify parameter bindings match registry definitions |
-| **Add Remap** | Add a field deprecation remap (old param name → new param name) |
-| **Create Tag Families** | Generate Revit tag families (.rfa) for all 50 tagged categories |
-| **Configure Labels** | Set which parameters appear in tag family labels |
-| **Load** | Load tag families into the current project |
-| **Audit** | Audit tag family configuration against current parameter schema |
-
-### POPULATE TOKENS Section
-
-| Button | What it does |
-|--------|-------------|
-| **Auto Populate** | One-click full automation: tokens + dimensions + MEP + formulas + tags + combine |
-| **Assign Numbers** | Sequential SEQ numbering within DISC/SYS/LVL groups |
-| **[Brain] Smart Tokens** | Pre-populate all 7 derivable tokens using spatial + family intelligence (Step 2) |
-| **Build Tags** | Rebuild TAG1 from current token values on selected/view/project elements |
-| **T3 Tags** | Build TAG3 (location subset: LOC-ZONE-LVL) |
-| **Mat Tags** | Build material tag containers (MAT_TAG_1 through MAT_TAG_6) |
-| **Build ALL** | Build all tag containers (TAG1-TAG6 + discipline-specific + material) |
-
-**Manual token buttons** (13 individual tokens — click to set on selected elements):
-
-| PROJ | ORIG | VOL | LVL | DISC | LOC | ZONE | SYS | FUNC | PROD | SEQ | STATUS | REV |
-
-### QUALITY ASSURANCE Section
-
-| Button | What it does |
-|--------|-------------|
-| **Validate** | ISO 19650 compliance check on all tokens and tag format (Step 5) |
-| **Highlight** | Colour-code elements: red = missing tag, orange = incomplete tag |
-| **Clear Art** | Reset graphic overrides in active view (remove highlight colours) |
-| **Pre-Flight** | Dry-run combine: check what containers would be written without writing |
-| **Completeness %** | Per-discipline compliance dashboard with RAG percentage |
-| **Find Duplicates** | Locate elements sharing the same tag value |
-
-### PARAGRAPH & PRESENTATION Section
-
-| Button | What it does |
-|--------|-------------|
-| **Presentation Mode** | Switch all types between Compact/Technical/Full/Presentation/BOQ modes |
-| **Paragraph Depth** | Set TAG7 paragraph depth: State 1 (compact) / 2 (standard) / 3 (comprehensive) |
-| **Toggle Warnings** | Show/hide threshold warning text in tags (e.g., `[!U > 0.70]`) |
-| **View Label Spec** | Display current label specification for tag families |
-| **Export Label Guide** | Export label configuration as reference document |
-| **TAG7 Heading Style** | Configure TAG7 section heading appearance |
-
-### ISO COMPLETENESS DASHBOARD
-
-| Button | What it does |
-|--------|-------------|
-| **Load** | Scan project and populate the dashboard grid (Id, Cat, %, RAG, Missing) |
-| **Export** | Export dashboard data as CSV audit file |
-
-Filter controls: **Min %** slider (filter by minimum completeness) and **All** dropdown (filter by discipline).
-
-### EXPORT Section
-
-| Button | What it does |
-|--------|-------------|
-| **Export Tag Register** | Export comprehensive 40+ column asset register CSV |
-| **Combine Parameters** | Write assembled tag to all 36 discipline-specific containers (Step 6) |
-
-### TOKEN INSPECTOR Section
-
-| Button | What it does |
-|--------|-------------|
-| **[Find] Inspect Selection** | Dry-run audit: predict tags, collisions, ISO violations for selected elements (Step 3) |
-| **Resolve All Issues** | One-click ISO 19650 compliance resolution: fix missing tokens, duplicates, invalid codes |
-
----
-
-## ORGANISE Tab — Tagging Buttons
-
-The ORGANISE tab contains additional tagging commands for tag operations and annotation placement:
-
-| Button | What it does |
-|--------|-------------|
-| **Auto Tag** | Tag elements in active view with collision mode selection (Step 4) |
-| **Batch Tag** | Tag ALL elements in entire project with progress dialog |
-| **Tag+Combine** | One-click: populate tokens + tag + combine all 36 containers |
-| **Tag New** | Tag only new/untagged elements (incremental — skips already-tagged) |
-| **Pre-Audit** | Dry-run: predict tags, collisions, ISO violations before committing |
-| **Re-Tag** | Force re-derive and overwrite tags on selected elements |
-| **Copy Tags** | Copy tag values from first selected element to all others |
-| **Swap Tags** | Swap all tag values between exactly 2 selected elements |
-| **Tag Sel** | Tag selected elements only |
-| **Del Tags** | Clear all 15 tag parameters from selection (with confirmation) |
-| **Renumb** | Re-sequence tags within DISC/SYS/LVL groups |
-| **Fix Dups** | Auto-resolve duplicate tags by incrementing SEQ numbers |
-
----
-
-## VIEW Tab — Auto-Tagger
-
-| Button | What it does |
-|--------|-------------|
-| **Auto-Tagger** | Toggle real-time auto-tagging on/off (tags elements as they are placed) |
-
----
-
-## TEMP Tab — Full Automation
-
-| Button | What it does |
-|--------|-------------|
-| **Full AutoPop** | Same as CREATE > **Auto Populate** — full automation pipeline |
-
----
-
-## Tag Creation Pipeline — Step by Step
-
-The tagging process follows a 6-step pipeline. Each step maps to specific buttons on the CREATE tab.
-
-### Overview
-
-```
-Step 1: Load Shared Params     ─── Bind 200+ shared parameters to Revit categories
-Step 2: [Brain] Smart Tokens   ─── Auto-derive DISC/LOC/ZONE/LVL/SYS/FUNC/PROD
-Step 3: [Find] Inspect Selection ─ Dry-run: predict tags, find issues before committing
-Step 4: Auto Tag / Batch Tag   ─── Assign SEQ numbers, assemble 8-segment tags
-Step 5: Validate               ─── ISO 19650 compliance check
-Step 6: Combine Parameters     ─── Write tag to all 36 discipline-specific containers
+```json
+{
+    "TAG_FORMAT": {
+        "separator": "-",
+        "num_pad": 4,
+        "segment_order": ["DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"]
+    },
+    "TAG_PREFIX": "",
+    "TAG_SUFFIX": ""
+}
 ```
 
-Steps 2-6 are automatically combined by ORGANISE > **Tag+Combine** or CREATE > **Auto Populate** for one-click operation.
+- **separator**: Character between segments (default "-")
+- **num_pad**: SEQ zero-padding width (default 4 → "0001")
+- **segment_order**: Order of segments in assembled tag
+- **TAG_PREFIX/SUFFIX**: Optional prefix/suffix (e.g., "PRJ-" prefix)
 
 ---
 
-### Step 1: Load Shared Params
+## 3. Token Reference (All 8 Segments)
 
-**Button**: CREATE > SETUP > **Load Shared Params**
+### DISC — Discipline Code
 
-Binds all STING shared parameters to Revit categories so they can hold tag data.
+| Code | Discipline | Categories |
+|------|-----------|------------|
+| M | Mechanical | Mechanical Equipment, Air Terminals, Duct Systems |
+| E | Electrical | Electrical Equipment, Electrical Fixtures, Conduits |
+| P | Plumbing | Plumbing Fixtures, Pipe Systems |
+| A | Architectural | Walls, Doors, Windows, Floors, Ceilings, Roofs, Rooms, Furniture |
+| S | Structural | Structural Columns, Structural Framing |
+| FP | Fire Protection | Sprinklers, Fire Alarm devices |
+| LV | Low Voltage | Cable Trays, Communication devices |
+| G | General | Generic Models, uncategorized |
 
-**Two-pass binding**:
+**Auto-detection**: From element category via `TagConfig.DiscMap` (41 mappings).
 
-| Pass | Source | Scope | Parameters |
-|------|--------|-------|------------|
-| Pass 1 | `MR_PARAMETERS.txt` | Universal — all 53 taggable categories | 8 source tokens + TAG containers + identity + spatial |
-| Pass 2 | `CATEGORY_BINDINGS.csv` | Discipline-specific | 10,661 category-parameter bindings (e.g., HVC_EQP_TAG only to Mechanical Equipment) |
-
-**When to run**: Once per project (or after adding new categories). Already-bound parameters are skipped.
-
-**What happens**:
-1. Locates `MR_PARAMETERS.txt` in the Data folder
-2. Opens the shared parameter file as the definition source
-3. Creates `InstanceBinding` for each parameter to its target categories
-4. Reports: "Bound X parameters to Y categories"
-
----
-
-### Step 2: [Brain] Smart Tokens
-
-**Button**: CREATE > POPULATE TOKENS > **[Brain] Smart Tokens**
-
-Pre-populates all 7 derivable tokens on every element before tagging. Each token is derived automatically from element context.
-
-#### DISC — Discipline Code
-
-Derived from the element's **Revit category** using the Discipline Map (41 mappings):
-
-| Category | DISC | Category | DISC |
-|----------|------|----------|------|
-| Mechanical Equipment | M | Doors | A |
-| Ducts / Air Terminals | M | Windows | A |
-| Pipes / Pipe Fittings | M* | Walls / Floors / Ceilings | A |
-| Electrical Equipment | E | Roofs / Furniture | A |
-| Lighting Fixtures | E | Structural Columns / Framing | S |
-| Conduits / Cable Trays | E | Sprinklers | FP |
-| Plumbing Fixtures | P | Fire Alarm Devices | FP |
-| Communication Devices | LV | Generic Models | G |
-
-*\* Pipes default to M (Mechanical) but are auto-corrected at tag time based on connected system:*
-- Connected to DCW/SAN/RWD/DHW/GAS system → **P** (Plumbing)
-- Connected to FP system → **FP** (Fire Protection)
-- Connected to HVAC system → stays **M** (Mechanical)
-
-Or set manually: CREATE > POPULATE TOKENS > **DISC** button.
-
-#### LOC — Location Code
-
-Derived by `SpatialAutoDetect` using 3 sources (in priority order):
-
-1. **Room name** — scans the room containing the element for building keywords (e.g., "Building 1" → BLD1)
-2. **Room number prefix** — parses room number for location codes
-3. **Project Information** — falls back to project-level LOC setting
+### LOC — Location Code
 
 | Code | Meaning |
 |------|---------|
-| BLD1 | Building 1 (primary) |
+| BLD1 | Building 1 (main building) |
 | BLD2 | Building 2 |
 | BLD3 | Building 3 |
-| EXT  | External / site |
-| XX   | Unknown (placeholder — triggers validation warning) |
+| EXT | External / Site |
+| XX | Unknown (placeholder) |
 
-Or set manually: CREATE > POPULATE TOKENS > **LOC** button.
+**Auto-detection**: `SpatialAutoDetect.DetectLoc()` derives from:
+1. Room name/number patterns
+2. Project Information building name
+3. Custom rules in `project_config.json`
 
-#### ZONE — Zone Code
-
-Derived by `SpatialAutoDetect` from the **Room Department** field or room name patterns:
+### ZONE — Zone Code
 
 | Code | Meaning |
 |------|---------|
-| Z01  | Zone 1 |
-| Z02  | Zone 2 |
-| Z03  | Zone 3 |
-| Z04  | Zone 4 |
-| ZZ   | Unzoned area |
-| XX   | Unknown |
-
-Or set manually: CREATE > POPULATE TOKENS > **ZONE** button.
-
-#### LVL — Level Code
-
-Derived from the element's **Revit Level** name:
-
-| Pattern in Level Name | LVL Code | Example |
-|-----------------------|----------|---------|
-| Ground, GF, G/F, Level 0 | GF | Ground Floor → GF |
-| Basement, B1, B2... | B1, B2... | Basement Level 1 → B1 |
-| Level 01, Level 1, L01... | L01, L02... | Level 02 → L02 |
-| Roof | RF | Roof Level → RF |
-| Mezzanine | MZ | Mezzanine → MZ |
-| Plant | PL | Plant Room Level → PL |
-| Penthouse | PH | Penthouse → PH |
-| (no level / unresolved) | L00 | Guaranteed default |
-
-Or set manually: CREATE > POPULATE TOKENS > **LVL** button.
-
-#### SYS — System Type Code
-
-Derived using a **6-layer intelligence stack** (first match wins):
-
-| Layer | Source | What it checks | Example |
-|-------|--------|----------------|---------|
-| 1 | MEP Connector | Connected system name via connector API | Pipe connected to "Domestic Cold Water" → DCW |
-| 2 | System Type Param | Built-in duct/pipe system type parameter | Duct with Supply Air system → HVAC |
-| 3 | Electrical Circuit | Panel name analysis from circuit | Circuit on "DB-LTG-L01" → LV |
-| 4 | Family Name | Pattern matching on family name | "Exhaust Fan" → HVAC |
-| 5 | Room Type | Room name inference | Element in "Server Room" → ICT |
-| 6 | Category Fallback | Category → SYS via SysMap | Lighting Fixtures → LV |
-
-**System Codes (17)**:
-
-| Code | System | Discipline | Function Default |
-|------|--------|------------|------------------|
-| HVAC | Heating, Ventilation, Air Conditioning | M | SUP |
-| DCW  | Domestic Cold Water | P | DCW |
-| DHW  | Domestic Hot Water | P | DHW |
-| HWS  | Hot Water Service (heating) | M/P | HTG |
-| SAN  | Sanitary / Waste | P | SAN |
-| RWD  | Rainwater Drainage | P | RWD |
-| GAS  | Natural Gas | P | GAS |
-| FP   | Fire Protection (sprinklers, wet risers) | FP | FP |
-| LV   | Low Voltage / Power / Lighting | E | PWR |
-| FLS  | Fire Life Safety (alarms, detection) | FP | FLS |
-| COM  | Communications / Telephony | LV | COM |
-| ICT  | Information & Communications Technology | LV | ICT |
-| NCL  | Nurse Call | LV | NCL |
-| SEC  | Security (CCTV, access control) | LV | SEC |
-| ARC  | Architectural | A | FIT |
-| STR  | Structural | S | STR |
-| GEN  | General / Generic | G | GEN |
-
-**Discipline-based defaults** (when all 6 layers fail):
-M→HVAC, E→LV, P→DCW, A→ARC, S→STR, FP→FP, LV→LV, G→GEN
-
-Or set manually: CREATE > POPULATE TOKENS > **SYS** button.
-
-#### FUNC — Function Code
-
-Derived with sub-system awareness:
-
-**HVAC sub-functions** (from duct/pipe system name analysis):
-| Connected System Contains | FUNC |
-|---------------------------|------|
-| "Supply", "SUP" | SUP (Supply) |
-| "Return", "RTN" | RTN (Return) |
-| "Exhaust", "EXH" | EXH (Exhaust) |
-| "Fresh Air", "Outside", "FRA" | FRA (Fresh Air) |
-
-**HWS sub-functions**:
-| Connected System Contains | FUNC |
-|---------------------------|------|
-| "Heating", "LTHW", "Radiator" | HTG (Heating) |
-| "Domestic Hot", "DHW" | DHW (Dom. Hot Water) |
-
-**All other systems**: Uses the SYS→FUNC map (see System Codes table above).
-
-Or set manually: CREATE > POPULATE TOKENS > **FUNC** button.
-
-#### PROD — Product Code
-
-Inspects the **family name** for 35+ specific product codes before falling back to the category default.
-
-**Family name pattern matching examples**:
-
-| Family Name Contains | PROD | Category Default |
-|----------------------|------|------------------|
-| "Air Handling", "AHU" | AHU | (Mech. Equip.) |
-| "Fan Coil", "FCU" | FCU | AHU |
-| "VAV", "Variable Air" | VAV | AHU |
-| "Chiller" | CHL | AHU |
-| "Boiler" | BLR | AHU |
-| "Pump" | PMP | AHU |
-| "Distribution Board", "Switchboard" | DB | DB |
-| "Transformer" | TFR | DB |
-| "Panel", "Consumer Unit" | PNL | DB |
-| "Smoke Detector" | SMK | FAD |
-| "Heat Detector" | HTD | FAD |
-| "Basin", "Sink" | BSN | FIX |
-| "WC", "Toilet" | WC | FIX |
-| "Shower" | SHW | FIX |
-
-**Category-level defaults** (when family name doesn't match):
-
-| Category | Default PROD |
-|----------|-------------|
-| Mechanical Equipment | AHU |
-| Ducts | DU |
-| Pipes | PP |
-| Electrical Equipment | DB |
-| Lighting Fixtures | LUM |
-| Plumbing Fixtures | FIX |
-| Sprinklers | SPR |
-| Doors | DR |
-| Windows | WIN |
-| Walls | WL |
-| Floors | FL |
-| Ceilings | CLG |
-| Roofs | RF |
-| Furniture | FUR |
-| Generic Models | GEN |
-
-Or set manually: CREATE > POPULATE TOKENS > **PROD** button.
-
----
-
-### Step 3: [Find] Inspect Selection (Optional)
-
-**Button**: CREATE > TOKEN INSPECTOR > **[Find] Inspect Selection**
-Also available on ORGANISE tab as: **Pre-Audit**
-
-Performs a complete **dry-run** of the tagging process without writing anything. Predicts:
-
-- What tag each element would receive
-- Which elements would collide (duplicate tags)
-- Which tokens fail ISO 19650 validation
-- How LOC/ZONE were auto-detected
-- Family-aware PROD code assignments
-
-Outputs a detailed report to TaskDialog and optionally exports to CSV.
-
-**When to use**: Before running tagging on large projects (1000+ elements) to catch issues early.
-
----
-
-### Step 4: Tag
-
-**Buttons** (choose one — all on the ORGANISE tab):
-
-| Button | Scope | Best For |
-|--------|-------|----------|
-| **Auto Tag** | Active view only | Quick tagging of visible elements |
-| **Batch Tag** | Entire project | Full project tagging |
-| **Tag New** | Untagged elements only | Adding new elements to tagged project |
-| **Tag+Combine** | View/selection/project | One-click: populate + tag + combine |
-
-The **Scope: View** / **Overwrite: No** toggles on the CREATE tab header control the behaviour of all tagging commands.
-
-**What happens during tagging**:
-
-1. **Check existing tag**: Read ASS_TAG_1 from element
-2. **Collision mode decision** (controlled by **Overwrite** toggle):
-   - **Overwrite: No** + element has tag → Skip (leave untouched)
-   - **Overwrite: Yes** → Regenerate all tokens and replace tag
-   - **AutoIncrement** → If collision found, increment SEQ automatically
-3. **Derive all 8 tokens** using the intelligence layers described in Step 2
-4. **Generate SEQ number**:
-   - Group key = `DISC_SYS_LVL` (e.g., `M_HVAC_L02`)
-   - Counter increments within each group
-   - Starting value = highest existing SEQ in that group + 1
-   - Zero-padded to 4 digits (0001, 0002, ...)
-5. **Collision detection**: Check assembled tag against all existing tags in project
-   - If collision found: increment SEQ and retry (up to 100 attempts)
-   - Record collision depth in stats
-6. **Write tokens**: Set all 8 parameter values on the element
-7. **Assemble TAG1**: Join tokens with separator → `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003`
-8. **Write TAG1**: Set `ASS_TAG_1_TXT` with the full tag
-9. **Auto-populate STATUS**: Derive from Revit phase (NEW/EXISTING/DEMOLISHED/TEMPORARY)
-10. **Auto-populate REV**: Derive from project revision sequence (P01, P02...)
-11. **Write all 36 containers**: Automatically propagate to discipline-specific containers
-12. **Write TAG7**: Generate rich descriptive narrative (see [TAG7 Creation](#tag7--rich-descriptive-narrative-creation))
-
-#### Sequence Numbering Logic
-
-SEQ numbers are grouped by **DISC + SYS + LVL**:
-
-```
-Group: M_HVAC_L02     → AHU: 0001, 0002, 0003; FCU: 0004, 0005
-Group: E_LV_L02       → DB: 0001; LUM: 0002, 0003, 0004
-Group: P_DCW_GF       → FIX: 0001, 0002
-```
-
-Before tagging begins, the engine scans all elements to find the highest SEQ in each group, ensuring new tags continue from where existing numbering left off.
-
-The **Assign Numbers** button on the CREATE tab can also be used to renumber SEQ values independently.
-
----
-
-### Step 5: Validate
-
-**Button**: CREATE > QUALITY ASSURANCE > **Validate**
-
-Checks every tagged element for ISO 19650 compliance.
-
-**Validation checks**:
-
-| Check | Rule | Example Failure |
-|-------|------|-----------------|
-| DISC valid | Must be in {M, E, P, A, S, FP, LV, G} | DISC = "X" → FAIL |
-| LOC valid | Must be in configured LocCodes | LOC = "BLDG1" → FAIL (should be BLD1) |
-| ZONE valid | Must be in configured ZoneCodes | ZONE = "Zone1" → FAIL (should be Z01) |
-| LVL pattern | Must match level code pattern | LVL = "Floor 2" → FAIL (should be L02) |
-| SYS valid | Must be in ValidSysCodes list | SYS = "AIRCON" → FAIL (should be HVAC) |
-| FUNC valid | Must be in ValidFuncCodes list | FUNC = "SUPPLY" → FAIL (should be SUP) |
-| PROD format | 2-4 alphanumeric characters | PROD = "Air Handling Unit" → FAIL |
-| SEQ format | Positive integer, zero-padded | SEQ = "3" → FAIL (should be 0003) |
-| Tag complete | All 8 segments present | "M-BLD1-Z01--HVAC-SUP-AHU-0001" → FAIL (empty LVL) |
-| DISC/SYS cross-check | SYS must be valid for DISC | DISC=E with SYS=HVAC → WARNING |
-| DISC/Category cross-check | DISC must match element category | Lighting Fixture with DISC=M → WARNING |
-
-**Output**: Per-discipline compliance percentage and list of failing elements.
-
-**Related QA buttons**:
-- **Highlight** — visually colour-code elements by tag status (red = missing, orange = incomplete)
-- **Clear Art** — remove highlight colour overrides from the view
-- **Completeness %** — open the compliance dashboard with RAG percentages
-- **Find Duplicates** — locate and select elements with duplicate tag values
-
----
-
-### Step 6: Combine Parameters
-
-**Button**: CREATE > EXPORT > **Combine Parameters**
-
-Writes the assembled tag into all 36 discipline-specific container parameters.
-
-> **Note**: Step 4 (Auto Tag / Batch Tag / Tag+Combine) automatically writes containers, so a separate **Combine Parameters** step is only needed if tokens were manually edited after tagging using the individual token buttons.
-
-**Pre-flight check**: Use **Pre-Flight** (in QUALITY ASSURANCE) to preview what containers would be written without actually writing.
-
-#### Tag Container Parameters (36 total)
-
-**Universal containers** (written for ALL elements):
-
-| Parameter | Preset | Content | Example |
-|-----------|--------|---------|---------|
-| ASS_TAG_1_TXT | all (8 segments) | Full tag | M-BLD1-Z01-L02-HVAC-SUP-AHU-0003 |
-| ASS_TAG_2_TXT | short_id (DISC-PROD-SEQ) | Short reference | M-AHU-0003 |
-| ASS_TAG_3_TXT | location (LOC-ZONE-LVL) | Spatial reference | BLD1-Z01-L02 |
-| ASS_TAG_4_TXT | sys_ref (SYS-FUNC-PROD) | System reference | HVAC-SUP-AHU |
-| ASS_TAG_5_TXT | line1 (top half) | Multi-line top | M-BLD1-Z01-L02 |
-| ASS_TAG_6_TXT | line2 (bottom half) | Multi-line bottom | HVAC-SUP-AHU-0003 |
-
-**TAG7 — Rich descriptive narrative** (see [TAG7 Creation](#tag7--rich-descriptive-narrative-creation) section below for full details):
-
-| Parameter | Section | Content |
-|-----------|---------|---------|
-| ASS_TAG_7_TXT | Full | Complete narrative with markup tokens |
-| ASS_TAG_7A_TXT | A: Identity | Asset name, product code, manufacturer, model |
-| ASS_TAG_7B_TXT | B: System | System type, function code, serving context |
-| ASS_TAG_7C_TXT | C: Spatial | Room, department, grid reference |
-| ASS_TAG_7D_TXT | D: Lifecycle | Status, revision, origin, maintenance |
-| ASS_TAG_7E_TXT | E: Technical | Capacity, flow, voltage (discipline-specific) + dimensions |
-| ASS_TAG_7F_TXT | F: Classification | Uniformat, OmniClass, keynote, cost, ISO tag |
-
-**Discipline-specific containers** (written only to matching categories):
-
-| Container | Categories | Parameters |
-|-----------|-----------|------------|
-| HVC_EQP | Mechanical Equipment | HVC_EQP_TAG_01, _02, _03 |
-| HVC_DCT | Ducts, Air Terminals, Duct Fittings | HVC_DCT_TAG_01, _02, _03 |
-| HVC_FLX | Flex Ducts | HVC_FLX_TAG_01, _02, _03 |
-| ELC_EQP | Electrical Equipment | ELC_EQP_TAG_01, _02 |
-| ELE_FIX | Electrical Fixtures | ELE_FIX_TAG_01, _02 |
-| LTG_FIX | Lighting Fixtures/Devices | LTG_FIX_TAG_01, _02 |
-| PLM_EQP | Pipes, Plumbing Fixtures | PLM_EQP_TAG_01, _02 |
-| FLS_DEV | Sprinklers, Fire Alarm Devices | FLS_DEV_TAG_01, _02 |
-| COM_DEV | Communication Devices | COM_DEV_TAG_01 |
-| SEC_DEV | Security Devices | SEC_DEV_TAG_01 |
-| NCL_DEV | Nurse Call Devices | NCL_DEV_TAG_01 |
-| ICT_DEV | Data Devices | ICT_DEV_TAG_01 |
-| MAT_TAG | Walls, Floors, Ceilings, Roofs, Doors, Windows | MAT_TAG_1 through MAT_TAG_6 |
-
-**Additional container buttons**:
-- **Build Tags** — rebuild TAG1 only from current token values
-- **T3 Tags** — build TAG3 (location subset) only
-- **Mat Tags** — build material containers (MAT_TAG_1-6) only
-- **Build ALL** — build all containers at once
-
----
-
-## One-Click Automation Commands
-
-### Tag+Combine (Recommended for most users)
-
-**Button**: ORGANISE tab > **Tag+Combine**
-
-What it does in one click:
-
-1. Auto-detect LOC/ZONE from spatial data
-2. Populate all 7 derivable tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD)
-3. Tag all elements with SEQ assignment and collision detection
-4. Combine into all 36 containers
-5. Write TAG7 rich narrative
-6. Scope controlled by CREATE tab > **Scope: View** toggle
-
-### Auto Populate (Full Automation)
-
-**Button**: CREATE > POPULATE TOKENS > **Auto Populate**
-Also on TEMP tab as: **Full AutoPop**
-
-What it does in one click:
-
-1. Token population (all 7 tokens)
-2. Dimension mapping (width, height, area, volume from Revit)
-3. MEP data mapping (power, flow, voltage from built-in params)
-4. Formula evaluation (199 formulas: costs, areas, rates)
-5. Tag assembly and container writing
-6. Grid/spatial reference population
-
-### Resolve All Issues
-
-**Button**: CREATE > TOKEN INSPECTOR > **Resolve All Issues**
-
-One-click ISO 19650 compliance resolution:
-1. Fills missing tokens with guaranteed defaults
-2. Fixes duplicate tags by incrementing SEQ
-3. Corrects invalid codes to nearest valid match
-4. Rebuilds incomplete containers
-
----
-
-## Collision Handling
-
-When two elements would receive the same tag, STING offers three collision modes:
-
-| Mode | Behaviour | Use Case |
-|------|-----------|----------|
-| **AutoIncrement** (default) | Increment SEQ until unique tag found | Normal tagging — ensures every tag is unique |
-| **Skip** | Leave already-tagged elements untouched | Re-running on a partially tagged project |
-| **Overwrite** | Regenerate all tokens and replace existing tag | Fixing incorrect tags; re-tagging after changes |
-
-The **Overwrite: No** / **Overwrite: Yes** toggle on the CREATE tab header controls whether tagging commands skip or overwrite existing tags.
-
-**Collision detection**: Before writing, the tag is checked against all existing tags in the project. On collision:
-- SEQ increments (0003 → 0004 → 0005...) up to 100 attempts
-- If still colliding after 100 attempts, a warning is logged
-- The collision depth is tracked for reporting
-
----
-
-## Real-Time Auto-Tagging
-
-**Button**: VIEW tab > **Auto-Tagger**
-
-When enabled, newly placed elements are **automatically tagged in real-time** as they are added to the model. The auto-tagger:
-
-1. Monitors 22 taggable categories for element additions
-2. Triggers on element placement
-3. Runs the full token population + tag assembly pipeline
-4. Suppresses redundant triggers via processed element ID tracking
-
-**Performance**: Deduplication clears at 10,000 processed IDs. Designed for interactive use, not batch operations.
-
----
-
-## Manual Token Overrides
-
-Individual tokens can be set manually using the 13 token buttons in CREATE > POPULATE TOKENS:
-
-| Button | What it sets |
-|--------|-------------|
-| **DISC** | Discipline code (user picks from M/E/P/A/S/FP/LV/G) |
-| **LOC** | Location code (user picks from configured codes) |
-| **ZONE** | Zone code (user picks from configured codes) |
-| **LVL** | Level code |
-| **SYS** | System type code |
-| **FUNC** | Function code |
-| **PROD** | Product code |
-| **SEQ** | Sequence number (same as **Assign Numbers**) |
-| **STATUS** | Construction status (EXISTING/NEW/DEMOLISHED/TEMPORARY) |
-| **REV** | Revision code |
-| **PROJ** | Project code |
-| **ORIG** | Origin/source |
-| **VOL** | Volume reference |
-
-After setting tokens manually, use **Build Tags** or **Build ALL** to reassemble the tag containers from the updated values.
-
-Manually set tokens are **preserved** by the default tagging mode (Overwrite: No). Only **Overwrite: Yes** replaces manually-set values.
-
----
-
-## Configuration
-
-### Project Config
-
-**Button**: CREATE > SETUP > **Project Config**
-
-Tag configuration can be customised per-project via `project_config.json` (saved alongside the Revit model):
-
-```json
-{
-  "DISC_MAP": { "Mechanical Equipment": "M", "Ducts": "M", ... },
-  "SYS_MAP": { "HVAC": ["Air Terminals", "Ducts", ...], ... },
-  "PROD_MAP": { "Mechanical Equipment": "AHU", ... },
-  "FUNC_MAP": { "HVAC": "SUP", "DCW": "DCW", ... },
-  "LOC_CODES": ["BLD1", "BLD2", "BLD3", "EXT"],
-  "ZONE_CODES": ["Z01", "Z02", "Z03", "Z04"],
-  "TAG_FORMAT": {
-    "separator": "-",
-    "num_pad": 4,
-    "segment_order": ["DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ"]
-  }
-}
-```
-
-### Tag Config
-
-**Button**: CREATE > SETUP > **Tag Config**
-
-Displays the current tag lookup tables (read-only view). To edit, use **Project Config**.
-
-### What you can customise:
-
-- **Add/modify discipline mappings** (e.g., map "Specialty Equipment" to "M" instead of "G")
-- **Add/modify system codes** (e.g., add "CHP" for combined heat and power)
-- **Change location/zone codes** (e.g., "EAST", "WEST", "NORTH", "SOUTH" instead of BLD1-3)
-- **Change tag separator** (e.g., `_` instead of `-`)
-- **Change SEQ padding** (e.g., 5 digits for very large projects)
-- **Reorder segments** (e.g., put SYS before LOC)
-
-### Schema Management
-
-| Button | What it does |
-|--------|-------------|
-| **Sync Schema** | Push PARAMETER_REGISTRY.json changes to project parameter bindings |
-| **Audit Schema** | Verify all bindings match the registry (reports mismatches) |
-| **Add Remap** | Add field deprecation remap (old name → new name) |
-
----
-
-## QA & Analysis Commands
-
-All in CREATE > QUALITY ASSURANCE:
-
-| Button | What it does |
-|--------|-------------|
-| **Validate** | ISO 19650 compliance check on all tokens and tag format |
-| **Highlight** | Colour-code: red = missing tag, orange = incomplete tag |
-| **Clear Art** | Reset graphic overrides in active view |
-| **Pre-Flight** | Dry-run combine check (preview without writing) |
-| **Completeness %** | Per-discipline compliance dashboard with RAG status |
-| **Find Duplicates** | Locate elements sharing the same tag value |
-
-Additional in CREATE > ISO COMPLETENESS DASHBOARD:
-
-| Button | What it does |
-|--------|-------------|
-| **Load** | Scan project and populate dashboard grid |
-| **Export** | Export dashboard data to CSV |
-
-Additional in CREATE > EXPORT:
-
-| Button | What it does |
-|--------|-------------|
-| **Export Tag Register** | Comprehensive 40+ column asset register CSV |
-
-Additional on ORGANISE tab:
-
-| Button | What it does |
-|--------|-------------|
-| **Stats** | Quick tag counts by discipline/system/level |
-| **AuditCSV** | Export full tag audit to CSV file |
-| **Fix Dups** | Auto-resolve duplicate tags by incrementing SEQ |
-
----
-
-## Quick Reference: Which Button to Use
-
-| Situation | Button | Tab |
-|-----------|--------|-----|
-| First time setting up a project | **Load Shared Params** | CREATE > SETUP |
-| First time tagging a project | **Tag+Combine** | ORGANISE |
-| Complete automation (tags + data + formulas) | **Auto Populate** | CREATE > POPULATE TOKENS |
-| Adding new elements to tagged project | **Tag New** | ORGANISE |
-| Re-tagging after design changes | **Auto Tag** + Overwrite: Yes | ORGANISE + CREATE header |
-| Full project re-tag from scratch | **Batch Tag** + Overwrite: Yes | ORGANISE + CREATE header |
-| Check before committing tags | **[Find] Inspect Selection** | CREATE > TOKEN INSPECTOR |
-| Verify tag quality after tagging | **Validate** | CREATE > QA |
-| View compliance percentages | **Completeness %** or **Load** | CREATE > QA / DASHBOARD |
-| Fix all issues at once | **Resolve All Issues** | CREATE > TOKEN INSPECTOR |
-| Zero-touch real-time tagging | **Auto-Tagger** | VIEW |
-| Export asset register | **Export Tag Register** | CREATE > EXPORT |
-| Manually edit then rebuild tags | Token buttons + **Build ALL** | CREATE > POPULATE TOKENS |
-
----
-
-## TAG7 — Rich Descriptive Narrative Creation
-
-TAG7 is a comprehensive human-readable asset narrative that describes each element in natural language. Unlike TAG1-TAG6 which are structured code strings, TAG7 produces flowing prose suitable for asset registers, FM handover documents, and rich tag annotations.
-
-### Parameters
-
-| Parameter | Storage | Content |
-|-----------|---------|---------|
-| `ASS_TAG_7_TXT` | Marked-up full narrative | Contains `«H»`/`«L»`/`«V»` markup tokens for rich rendering |
-| `ASS_TAG_7A_TXT` | Plain text — Section A | Identity Header |
-| `ASS_TAG_7B_TXT` | Plain text — Section B | System & Function |
-| `ASS_TAG_7C_TXT` | Plain text — Section C | Spatial Context |
-| `ASS_TAG_7D_TXT` | Plain text — Section D | Lifecycle & Status |
-| `ASS_TAG_7E_TXT` | Plain text — Section E | Technical Specifications |
-| `ASS_TAG_7F_TXT` | Plain text — Section F | Classification & Reference |
-
-TAG7 (the main parameter) holds the **marked-up** narrative with embedded formatting tokens. TAG7A-TAG7F hold **plain text** sections for use in tag family labels (which cannot render markup).
-
-### When TAG7 is Written
-
-TAG7 is written automatically during Step 4 (tagging) as part of **Auto Tag**, **Batch Tag**, **Tag+Combine**, and **Auto Populate**. After assembling the 8-segment tag and writing TAG1-TAG6, the tagging engine generates all 6 sections and writes them.
-
-### Section A: Identity Header
-
-**Colour**: Blue (`#1565C0`) | **Style**: Bold + Underline
-
-Builds an asset identity statement from:
-
-| Source Parameter | Used For | Example |
-|------------------|----------|---------|
-| DISC token | Discipline description lookup | "M" → "Mechanical" |
-| PROD token | Product description lookup | "AHU" → "Air Handling Unit" |
-| Category name | Fallback if no PROD description | "Mechanical Equipment" |
-| `ASS_MFR_TXT` | Manufacturer name | "Daikin" |
-| `ASS_MODEL_NR_TXT` | Model number | "FXS125" |
-| `ASS_FAMILY_NAME_TXT` | Family name (if no mfr/model) | "M_FCU_Horizontal" |
-| `ASS_TYPE_NAME_TXT` | Type configuration | "1200mm - 4 Pipe" |
-| `ASS_DESC_TXT` | Description | "Ceiling-mounted FCU" |
-| `ASS_SIZE_TXT` | Size specification | "600x400mm" |
-
-**Example output**:
-> Mechanical Air Handling Unit (AHU) manufactured by Daikin Model FXS125, sized at 600x400mm
-
-**Without manufacturer data**:
-> Mechanical Air Handling Unit (AHU) from the M_AHU_Horizontal family configured as 2500 L/s
-
-### Section B: System & Function Context
-
-**Colour**: Green (`#2E7D32`) | **Style**: Italic
-
-Describes the engineering system context using description lookup tables:
-
-| Code | System Description | Function Description |
-|------|--------------------|----------------------|
-| HVAC | Heating Ventilation and Air Conditioning | SUP → Supply, RTN → Return, EXH → Exhaust, FRA → Fresh Air Intake |
-| DCW | Domestic Cold Water | DCW → Domestic Cold Water Distribution |
-| HWS | Hot Water Supply | HTG → Heating, DHW → Domestic Hot Water Distribution |
-| SAN | Sanitary Drainage | SAN → Sanitary Waste Disposal |
-| LV | Low Voltage Distribution | PWR → Power Distribution, LTG → Lighting |
-| FP | Fire Protection | FP → Fire Protection Suppression |
-| FLS | Fire Life Safety | FLS → Fire Detection and Alarm |
-| COM | Communications | COM → Voice and Data Communications |
-| ICT | Information and Communications Technology | ICT → Data Network and Infrastructure |
-| SEC | Security Systems | SEC → Security and Access Control |
-| NCL | Nurse Call Systems | NCL → Patient Nurse Call |
-| ARC | Architectural Fabric | FIT → Finishes and Fitout |
-| STR | Structural Elements | STR → Primary Structure |
-
-Includes the serving context: zone, level, and building from the element's token values.
-
-**Example output**:
-> Heating Ventilation and Air Conditioning providing Supply serving Zone Z01 on Level L02 within Building BLD1
-
-### Section C: Spatial Context
-
-**Colour**: Orange (`#E65100`) | **Style**: Normal
-
-Built from room and spatial data parameters:
-
-| Source Parameter | Used For | Example |
-|------------------|----------|---------|
-| `ASS_ROOM_NAME_TXT` | Room name | "Office 201" |
-| `ASS_ROOM_NUM_TXT` | Room number | "2.01" |
-| `ASS_DEPARTMENT_ASSIGNMENT_TXT` | Department | "Engineering" |
-| `ASS_GRID_REF_TXT` | Grid reference | "C4-D5" |
-| `BLE_ROOM_NAME_TXT` | BLE room name (fallback) | Used if ASS_ROOM_NAME is empty |
-| `BLE_ROOM_NUM_TXT` | BLE room number (fallback) | Used if ASS_ROOM_NUM is empty |
-
-**Example output**:
-> Located in Office 201 (Room 2.01) within the Engineering department near grid reference C4-D5
-
-### Section D: Lifecycle & Status
-
-**Colour**: Red (`#C62828`) | **Style**: Normal
-
-Built from lifecycle and project context parameters:
-
-| Source Parameter | Used For | Example |
-|------------------|----------|---------|
-| `ASS_STATUS_TXT` | Construction status | "NEW", "EXISTING" |
-| `ASS_REV_TXT` | Revision code | "P02" |
-| `ASS_ORIGIN_TXT` | Origin/source | "Design Intent" |
-| `ASS_PROJECT_TXT` | Project name | "Hospital Phase 2" |
-| `ASS_VOLUME_TXT` | Volume reference | "Vol 3" |
-| `ASS_MNT_TYPE_TXT` | Maintenance type | "Planned Preventative" |
-| `ASS_DETAIL_NUM_TXT` | Detail reference | "D-M-101" |
-
-**Example output**:
-> This element is new, currently at revision P02, originating from Design Intent within project Hospital Phase 2. Requires planned preventative maintenance, see detail D-M-101
-
-### Section E: Technical Specifications
-
-**Colour**: Purple (`#6A1B9A`) | **Style**: Bold
-
-Technical data is **discipline-specific** — the builder reads different parameters based on the element's discipline and category:
-
-#### Electrical Equipment / Fixtures (DISC = E)
-
-| Parameter | Narrative Template | Unit |
-|-----------|--------------------|------|
-| `ELC_POWER_TXT` | "rated at {0} kW" | kW |
-| `ELC_VOLTAGE_TXT` | "operating at {0} V" | V |
-| `ELC_CIRCUIT_NR_TXT` | "connected to circuit {0}" | — |
-| `ELC_PNL_NAME_TXT` | "supplied by panel {0}" | — |
-| `ELC_PHASES_TXT` | "configured for {0} phase supply" | — |
-| `ELC_PNL_FED_FROM_TXT` | "fed from {0}" | — |
-| `ELC_MAIN_BRK_TXT` | "protected by a {0} A main breaker" | A |
-| `ELC_WAYS_TXT` | "with {0} ways" | — |
-| `ELC_IP_RATING_TXT` | "sealed to IP {0}" | — |
-| `ELC_PNL_LOAD_TXT` | "carrying a connected load of {0} kW" | kW |
-
-#### Lighting Fixtures / Devices
-
-| Parameter | Narrative Template | Unit |
-|-----------|--------------------|------|
-| `LTG_WATTAGE_TXT` | "consuming {0} W" | W |
-| `LTG_LUMENS_TXT` | "delivering {0} lm of luminous output" | lm |
-| `LTG_EFFICACY_TXT` | "achieving an efficacy of {0} lm/W" | lm/W |
-| `LTG_LAMP_TYPE_TXT` | "using a {0} lamp" | — |
-| `ELC_CIRCUIT_NR_TXT` | "wired to circuit {0}" | — |
-
-#### Mechanical / HVAC (DISC = M, Ducts, Air Terminals)
-
-| Parameter | Narrative Template | Unit |
-|-----------|--------------------|------|
-| `HVC_AIRFLOW_TXT` | "delivering an airflow of {0} L/s" | L/s |
-| `HVC_DUCT_FLOW_TXT` | "with a duct flow of {0} CFM" | CFM |
-| `HVC_VELOCITY_TXT` | "at a velocity of {0} m/s" | m/s |
-| `HVC_PRESSURE_TXT` | "against a pressure drop of {0} Pa" | Pa |
-
-#### Plumbing (DISC = P, Pipes, Plumbing Fixtures)
-
-| Parameter | Narrative Template | Unit |
-|-----------|--------------------|------|
-| `PLM_PIPE_FLOW_TXT` | "conveying a flow of {0} L/s" | L/s |
-| `PLM_PIPE_SIZE_TXT` | "through {0} mm diameter pipework" | mm |
-| `PLM_VELOCITY_TXT` | "at a velocity of {0} m/s" | m/s |
-| `PLM_FLOW_RATE_TXT` | "with a design flow rate of {0} L/s" | L/s |
-| `PLM_PIPE_LENGTH_TXT` | "running {0} m in length" | m |
-
-#### Fire Protection (DISC = FP, Sprinklers, Fire Alarm Devices)
-
-| Parameter | Narrative Template | Unit |
-|-----------|--------------------|------|
-| `FIRE_RATING_TXT` | "providing {0} minutes of fire resistance" | min |
-
-#### Dimensional Data (BLE categories)
-
-After the discipline-specific data, Section E appends dimensional properties based on category:
-
-| Category | Parameters Read | Example Output |
-|----------|----------------|----------------|
-| Walls | Height, Length, Thickness, Area, Fire Rating, Structural Type | "standing 3000 mm high, spanning 5400 mm in length, with a thickness of 200 mm" |
-| Doors | Width, Height, Fire Rating | "measuring 900 mm wide, by 2100 mm high, with 60 minutes of fire resistance" |
-| Windows | Width, Height, Sill Height | "measuring 1200 mm wide, by 1500 mm high, set at a sill height of 900 mm" |
-| Floors | Thickness, Area, Structural Type, Fire Rating | "with a build-up of 350 mm thick, covering an area of 45 m²" |
-| Ceilings | Height, Area | "suspended at 2700 mm above floor level, covering an area of 30 m²" |
-| Roofs | Slope, Area | "pitched at 15 degrees, covering an area of 200 m²" |
-| Stairs | Tread, Rise, Width | "with treads 280 mm deep, risers of 170 mm, and a clear width of 1200 mm" |
-| Ramps | Slope, Width | "inclined at 8%, with a clear width of 1500 mm" |
-
-### Section F: Classification & Reference
-
-**Colour**: Grey (`#37474F`) | **Style**: Italic
-
-Built from classification and cost parameters:
-
-| Source Parameter | Narrative Template |
-|------------------|--------------------|
-| `ASS_UNIFORMAT_TXT` | "Uniformat code {0}" |
-| `ASS_UNIFORMAT_DESC_TXT` | Appended as "({description})" |
-| `ASS_OMNICLASS_TXT` | "with OmniClass reference {0}" |
-| `ASS_KEYNOTE_TXT` | "keynote {0}" |
-| `ASS_TYPE_MARK_TXT` | "identified as type mark {0}" |
-| `ASS_COST_TXT` | "with an estimated unit cost of {0}" |
-
-The ISO 19650 tag is always appended at the end:
-> Assigned ISO 19650 tag M-BLD1-Z01-L02-HVAC-SUP-AHU-0003
-
-### Narrative Assembly
-
-The 6 sections are joined into a single flowing paragraph with natural-language connectors:
-
-| From → To | Connector |
-|-----------|-----------|
-| A → B | ". This asset operates within the " |
-| B → C | ". It is " (Section C starts with "located in...") |
-| C → D | ". Regarding its lifecycle, " |
-| D → E | ". Technical specifications include " |
-| E → F | ". Classified under " |
-
-**Full example narrative** (for a distribution board):
-
-> **Electrical Distribution Board (DB)** manufactured by Schneider Electric Model Prisma P — *This asset operates within the* **Low Voltage Distribution** *providing* Power Distribution *serving* Zone Z01 *on* Level L02 *within* Building BLD1. *It is* located in Plant Room (Room 0.12) within the Electrical department near grid reference B3-C3. *Regarding its lifecycle,* this element is new, currently at revision P01. *Technical specifications include* rated at 125 kW, operating at 415 V, configured for 3 phase supply, protected by a 400 A main breaker, with 48 ways. *Classified under* Uniformat code D5010 (Electrical Service and Distribution), keynote 260000, with an estimated unit cost of £12,500. Assigned ISO 19650 tag E-BLD1-Z01-L02-LV-PWR-DB-0001
-
-### Markup Tokens
-
-TAG7 (the main parameter) embeds formatting tokens that are parsed by rich rendering surfaces:
-
-| Token | Meaning | TextNote Rendering | WPF Rendering | HTML Rendering |
-|-------|---------|-------------------|---------------|----------------|
-| `«H»text«/H»` | Header / emphasis | Bold + Underline | Bold | `<strong>` |
-| `«L»text«/L»` | Label text | Italic | Muted colour | `<em>` |
-| `«V»text«/V»` | Value text | Normal weight | Accent colour | Highlighted `<span>` |
-| `«S»text«/S»` | Section separator | Normal | Normal | Normal |
-
-TAG7A-TAG7F sub-parameters hold **plain text only** (no markup) for use in Revit tag family labels via the Edit Label dialog.
-
-### Display Presets
-
-TAG7 rendering can be styled per-element using display presets. Each preset maps a discriminator value to a colour scheme:
-
-| Preset | Discriminator | Example Styles |
-|--------|--------------|----------------|
-| **Discipline** (default) | DISC code | M=Blue, E=Yellow, P=Green, A=Grey, S=Red, FP=Orange, LV=Purple |
-| **Status** | STATUS value | NEW=Green, EXISTING=Blue, DEMOLISHED=Red, TEMPORARY=Orange |
-| **System** | SYS code | HVAC=Blue, DCW=Cyan, HWS=Red, SAN=Brown, LV=Yellow, FP=Orange |
-| **Compliance** | Tag completeness | COMPLETE=Green, PARTIAL=Yellow, INCOMPLETE=Red |
-| **Monochrome** | — | All elements: Black header on light grey |
-| **Accessible** | DISC code | Colorblind-safe palette (viridis-like) |
-| **Engineering Review** | — | All elements: Purple header on light purple |
-
-Each style defines: `HeaderColor`, `BackgroundTint`, `Label`, and `SectionColors[A-F]`.
-
-### Paragraph Depth Control
-
-**Button**: CREATE > PARAGRAPH & PRESENTATION > **Paragraph Depth**
-
-TAG7 tag family labels support **paragraph depth** — controlling how much detail is visible in annotation tags:
-
-| Depth | State Parameters | Content Shown |
-|-------|-----------------|---------------|
-| **Compact** (State 1) | PARA_STATE_1=Yes | Tier 1 only — basic identity and dimensions |
-| **Standard** (State 2) | PARA_STATE_1+2=Yes | Tiers 1+2 — adds materials, thermal, acoustic data |
-| **Comprehensive** (State 3) | PARA_STATE_1+2+3=Yes | Tiers 1+2+3 — full specification with regulatory, sustainability, QA |
-
-These are **Type parameters** (`TAG_PARA_STATE_1_BOOL` through `TAG_PARA_STATE_10_BOOL`) — all instances of the same type change together.
-
-**Related buttons**:
-- **Toggle Warnings** — show/hide threshold warning text in tags (e.g., `[!U > 0.70]`, `[!VD > 4%]`)
-- **TAG7 Heading Style** — configure section heading appearance
-
-### Presentation Modes
-
-**Button**: CREATE > PARAGRAPH & PRESENTATION > **Presentation Mode**
-
-Presentation modes combine paragraph depth + warning visibility into named presets for one-click switching:
-
-| Mode | States | Warnings | Use Case |
-|------|--------|----------|----------|
-| **Compact** | 1 only | OFF | Quick labels, drawing title blocks |
-| **Technical** | 1+2 | ON | Engineering documentation, design review |
-| **Full Specification** | 1+2+3 | ON | Detail sheets, specifications |
-| **Presentation** | 1+2 | OFF | Client presentations (clean, no warnings) |
-| **BOQ** | 1+2 | OFF | Cost schedules and quantity extraction |
-
-**Related buttons**:
-- **View Label Spec** — display current label specification for tag families
-- **Export Label Guide** — export label configuration as reference document
-
----
-
-## Data Files Referenced
-
-| File | Purpose |
+| Z01 | Zone 1 (typically ground floor public) |
+| Z02 | Zone 2 (upper floors) |
+| Z03 | Zone 3 (service/plant areas) |
+| Z04 | Zone 4 (restricted areas) |
+| ZZ | Unknown (placeholder) |
+
+**Auto-detection**: `SpatialAutoDetect.DetectZone()` derives from:
+1. Room Department parameter
+2. Room name patterns
+3. Custom rules in `project_config.json`
+
+### LVL — Level Code
+
+| Code | Meaning |
 |------|---------|
-| `PARAMETER_REGISTRY.json` | Master source of truth: token names, GUIDs, containers, tag format |
-| `MR_PARAMETERS.txt` | Revit shared parameter definitions (200+ params, 18 groups) |
-| `CATEGORY_BINDINGS.csv` | 10,661 parameter-to-category bindings for discipline-specific binding |
-| `TAG_GUIDE_V3.csv` | Tag format specification, validation rules, auto-population logic |
-| `LABEL_DEFINITIONS.json` | 3,623-line label/legend definition specs for tag display styles |
-| `project_config.json` | Per-project tag configuration overrides (user-editable) |
+| B1, B2, B3 | Basement levels |
+| GF | Ground floor |
+| L01-L99 | Upper levels |
+| RF | Roof level |
+| XX | Unknown |
+
+**Auto-detection**: `ParameterHelpers.GetLevelCode()` from element level name.
+
+### SYS — System Type Code (CIBSE TM40 / Uniclass 2015)
+
+| Code | System | Discipline |
+|------|--------|-----------|
+| HVAC | Heating, Ventilation, Air Conditioning | M |
+| DCW | Domestic Cold Water | P |
+| DHW | Domestic Hot Water | P |
+| HWS | Hot Water Service | P |
+| SAN | Sanitary/Drainage | P |
+| RWD | Rainwater Drainage | P |
+| GAS | Natural Gas | P |
+| FP | Fire Protection | FP |
+| LV | Low Voltage | LV |
+| FLS | Fire/Life Safety | FP |
+| COM | Communications | LV |
+| ICT | Information & Communications | LV |
+| NCL | Nurse Call / Low Voltage | LV |
+| SEC | Security | LV |
+| ARC | Architectural (non-MEP) | A |
+| STR | Structural | S |
+| GEN | General | G |
+
+**Auto-detection**: 6-layer derivation:
+1. Connected MEP system name → CIBSE code
+2. Element connector analysis
+3. Nearest tagged element inheritance
+4. Category fallback from `TagConfig.SysMap`
+5. CATEGORY_FORCE_SYS config overrides
+6. Default "GEN" if all else fails
+
+### FUNC — Function Code
+
+| Code | Function | Typical SYS |
+|------|----------|-------------|
+| SUP | Supply | HVAC, DCW, DHW |
+| RET | Return | HVAC |
+| EXH | Exhaust | HVAC |
+| HTG | Heating | HVAC, HWS |
+| CLG | Cooling | HVAC |
+| VNT | Ventilation | HVAC |
+| DCW | Domestic Cold Water | DCW |
+| DHW | Domestic Hot Water | DHW |
+| SAN | Sanitary | SAN |
+| PWR | Power | LV, E |
+| LTG | Lighting | E |
+| DTA | Data | ICT, COM |
+| DET | Detection | FLS, SEC |
+| SPR | Sprinkler | FP |
+| GEN | General | Any |
+
+**Auto-detection**: From SYS via `TagConfig.FuncMap`.
+
+### PROD — Product Code
+
+35+ family-name-aware mappings:
+
+| Code | Product | Family Name Pattern |
+|------|---------|-------------------|
+| AHU | Air Handling Unit | *Air Handling*, *AHU* |
+| FCU | Fan Coil Unit | *Fan Coil*, *FCU* |
+| VAV | Variable Air Volume | *VAV*, *Variable Air* |
+| CHR | Chiller | *Chiller*, *CHL* |
+| BLR | Boiler | *Boiler*, *BLR* |
+| PMP | Pump | *Pump*, *PMP* |
+| DB | Distribution Board | *Distribution Board*, *Panel* |
+| LUM | Luminaire | *Light*, *Luminaire*, *LED* |
+| DR | Door | (all door families) |
+| WN | Window | (all window families) |
+| WL | Wall | (all wall types) |
+| FLR | Floor | (all floor types) |
+| ... | ... | (35+ total mappings) |
+
+**Auto-detection**: `TagConfig.GetFamilyAwareProdCode()` inspects family name.
+
+### SEQ — Sequence Number
+
+4-digit zero-padded sequential number within each group:
+- Group key: `{DISC}_{SYS}_{FUNC}_{PROD}`
+- Auto-increments from highest existing number
+- Collision-safe: checks existing tags before assignment
+- Persists to `.sting_seq.json` sidecar file
+
+**Numbering schemes** (via `SetSeqScheme` command):
+- **Numeric**: 0001, 0002, 0003...
+- **Alpha**: A, B, C... AA, AB...
+- **ZonePrefix**: Z01-0001, Z02-0001...
+- **DiscPrefix**: M-0001, E-0001...
+
 
 ---
 
-## Workflow Automation for Tagging
+## 4. Tagging Pipeline (How Tags Are Built)
 
-### Automated Tagging Workflows
+### The 11-Step Pipeline
 
-STING provides pre-built workflow presets that chain tagging commands with conditional logic. These are the recommended way to tag a model rather than running individual commands.
-
-#### Recommended Workflow by Project Stage
-
-| Project Stage | Workflow Preset | What It Does |
-|---------------|----------------|-------------|
-| **Model Setup** | `ProjectKickoff` (26 steps) | Load params → materials → types → schedules → templates → filters → worksets → initial tag |
-| **Active Design** | `MorningHealthCheck` (10 steps) | Retag stale → audit → tag new → validate → health check |
-| **Daily QA** | `DailyQA` (11 steps) | Adaptive: skips steps based on compliance thresholds |
-| **Before Meeting** | `PreMeetingPrep` (7 steps) | Fix stale → warnings → validate → issues → revisions → HTML report |
-| **Data Drop** | `WeeklyDataDrop` (10 steps) | Full pipeline → COBie → Excel → registers |
-| **Handover** | `HandoverReadiness` (9 steps) | Full pipeline → templates → COBie → BOQ → BEP → revision |
-| **End of Day** | `EndOfDaySync` (8 steps) | Retag → validate → baseline → registers → health → revision |
-
-#### Running a Workflow
-
-1. **BIM tab** → Workflows section → Click the preset button
-2. Or **BIM Coordination Center** → WORKFLOWS tab → Quick buttons
-3. Progress dialog shows each step with timing and pass/fail
-4. On failure: option to keep partial results or rollback everything
-
-#### Custom Workflows
-
-Create `WORKFLOW_YourName.json` in the Data folder:
-
-```json
-{
-  "Name": "MyTaggingPipeline",
-  "Label": "Custom Tag Pipeline",
-  "Steps": [
-    { "CommandTag": "RetagStale", "Label": "Fix stale", "requiresStaleElements": true },
-    { "CommandTag": "BatchTag", "Label": "Tag all elements" },
-    { "CommandTag": "ValidateTags", "Label": "Validate", "minCompliancePct": 50 },
-    { "CommandTag": "TagRegisterExport", "Label": "Export register" }
-  ]
-}
-```
-
-### Real-Time Auto-Tagger
-
-**Button**: VIEW tab → **Auto-Tagger**
-
-When enabled, every element placed in Revit is automatically tagged:
-- Triggers on `Element.GetChangeTypeElementAddition()` for 22 categories
-- Runs the full 11-step `RunFullPipeline` per element
-- Optionally creates visual `IndependentTag` annotations
-- Discipline filter: restrict to specific DISC codes
-- Workset safety: skips elements on worksets not owned by current user
-
-**Configuration**:
-- **Toggle data auto-tagger**: VIEW → Auto-Tagger
-- **Toggle visual tag placement**: VIEW → Auto-Tagger Visual
-- **Set discipline filter**: VIEW → Auto-Tagger Config
-
-**Stale Detection**: `StingStaleMarker` IUpdater runs alongside auto-tagger:
-- Detects geometry changes, level changes, and MEP system reassignment
-- Marks affected elements with `STING_STALE_BOOL = 1`
-- Use CREATE → **Retag Stale** to fix stale elements
-
-### Incremental Tagging Strategy
-
-For large models (50,000+ elements), avoid re-tagging the entire model. Use incremental strategy:
-
-| Scenario | Command | What It Processes |
-|----------|---------|-------------------|
-| New elements added | **Tag New** | Only `ASS_TAG_1 = ""` elements |
-| Elements moved/changed | **Retag Stale** | Only `STING_STALE_BOOL = 1` elements |
-| Specific elements need fix | **Re-Tag** (selected) | Only selected elements |
-| Token values changed in config | **Build Tags** | Rebuilds TAG1 from current tokens |
-| Full project re-tag needed | **Batch Tag** | All elements (with progress dialog) |
-
-### Tag Collision Avoidance
-
-When two elements derive the same 8-segment tag, the SEQ collision system resolves it:
+Every element tagged by STING goes through `TagPipelineHelper.RunFullPipeline()`:
 
 ```
-Element A: M-BLD1-Z01-L01-HVAC-SUP-AHU-0001  (first occurrence)
-Element B: M-BLD1-Z01-L01-HVAC-SUP-AHU-0001  (collision detected!)
-  → AutoIncrement: M-BLD1-Z01-L01-HVAC-SUP-AHU-0002  (resolved)
+Step 1:  AUDIT TRAIL ────────→ Save previous tag + timestamp
+Step 2:  TOKEN LOCK CHECK ───→ Snapshot locked tokens (ASS_TOKEN_LOCK_TXT)
+Step 3:  TYPE INHERIT ───────→ Copy DISC/SYS/FUNC/PROD from family type
+Step 4:  POPULATE ALL ───────→ Auto-derive all 9 tokens from context
+Step 5:  CATEGORY FORCE SYS ─→ Override SYS per CATEGORY_FORCE_SYS config
+Step 6:  CATEGORY OVERRIDES ─→ Apply CATEGORY_TOKEN_OVERRIDES
+Step 7:  RESTORE LOCKS ──────→ Restore locked token values
+Step 8:  NATIVE PARAM MAP ───→ Map 30+ Revit built-in params to STING
+Step 9:  FORMULA ENGINE ─────→ Evaluate 199 formulas (cost/flow/area/env)
+Step 10: BUILD TAG ──────────→ Assemble 8-segment tag with collision detect
+Step 11: POST-TAG ───────────→ Write containers + TAG7 + grid reference
 ```
 
-**Collision modes** (selectable per command):
-- **Skip**: Keep existing tag, skip this element
-- **Overwrite**: Replace existing tag
-- **AutoIncrement** (default): Increment SEQ until unique (max 100 attempts)
+### Step Details
 
-**SEQ Counter Persistence**:
-- Counters saved to `.sting_seq.json` sidecar file alongside the `.rvt`
-- Merged on load via max-per-key strategy (handles workshared multi-user)
-- Counters survive Revit restart and project reopen
+#### Step 1: Audit Trail
+- Saves current `ASS_TAG_1` to `ASS_TAG_PREV_TXT`
+- Records timestamp in `ASS_TAG_MODIFIED_DT`
+- Enables "before/after" change tracking across revisions
+
+#### Step 2: Token Lock
+- Reads `ASS_TOKEN_LOCK_TXT` (e.g., "DISC,LOC" = lock these tokens)
+- Snapshots locked values BEFORE any pipeline changes
+- Restored AFTER all overrides (Step 7)
+
+#### Step 3: Type Token Inheritance
+- Checks element's family TYPE for non-empty DISC/SYS/FUNC/PROD
+- Copies to instance if instance values are empty
+- Enables type-level token configuration (set once on type, inherit to all instances)
+
+#### Step 4: Token Population
+- `TokenAutoPopulator.PopulateAll()` derives all 9 tokens:
+  - DISC from category
+  - LOC from room/project (SpatialAutoDetect)
+  - ZONE from room department (SpatialAutoDetect)
+  - LVL from element level
+  - SYS from MEP system (6-layer derivation)
+  - FUNC from SYS lookup
+  - PROD from family name (35+ patterns)
+  - STATUS from Revit phase
+  - REV from project revision
+- Includes `CopyTokensFromNearest` for SYS/FUNC when generic defaults detected
+
+#### Step 5-6: Configuration Overrides
+- `CATEGORY_FORCE_SYS`: Override SYS for specific categories (e.g., Sprinklers→FP)
+- `CATEGORY_TOKEN_OVERRIDES`: Per-category token enforcement (e.g., Structural Columns→DISC=S)
+- SKIP flag in overrides excludes categories entirely
+
+#### Step 7: Token Lock Restore
+- Restores locked token values captured in Step 2
+- Ensures user-specified values survive all auto-detection
+
+#### Step 8: Native Parameter Mapping
+- `NativeParamMapper.MapAll()` bridges 30+ Revit built-in parameters:
+  - Dimensions: Width, Height, Length, Area, Volume
+  - MEP: Flow, Pressure, Voltage, Circuit, Power
+  - Identity: Mark, Model, Manufacturer, Description
+
+#### Step 9: Formula Evaluation
+- 199 formulas from `FORMULAS_WITH_DEPENDENCIES.csv`
+- Dependency-ordered evaluation (levels 0-6, Kahn's topological sort)
+- Supports: arithmetic, conditionals, string concat, unit conversion
+- Includes cost calculations, environmental data, performance metrics
+
+#### Step 10: Tag Assembly
+- Assembles `DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ`
+- Applies TAG_PREFIX and TAG_SUFFIX
+- Collision detection via O(1) HashSet lookup
+- SEQ auto-increment on collision
+- Writes to `ASS_TAG_1` through `ASS_TAG_6`
+
+#### Step 11: Post-Tag Operations
+- `WriteContainers()`: Writes to all 53 discipline-specific containers
+  - Selective by discipline (DISC=M skips ELC_*, PLM_*, etc.)
+- `WriteTag7All()`: Builds TAG7 rich narrative (A-F sub-sections)
+- `GetGridRef()`: Auto-detects nearest grid intersection → `ASS_GRID_REF_TXT`
+
+---
+
+## 5. Tagging Commands Reference
+
+### Primary Tagging Commands
+
+| Command | Location | Scope | Description |
+|---------|----------|-------|-------------|
+| **Auto Tag** | CREATE → Auto Tag | Active view | Tag elements in current view |
+| **Batch Tag** | CREATE → Batch Tag | Entire project | Tag ALL elements in model |
+| **Tag & Combine** | CREATE → Tag & Combine | View/Selection/Project | Full pipeline + all containers |
+| **Tag New Only** | CREATE → More → Tag New Only | View/Project | Only untagged elements |
+| **Pre-Tag Audit** | CREATE → More → Pre-Tag Audit | View/Selection/Project | Dry-run prediction |
+| **Family-Stage Populate** | CREATE → More → Family-Stage Populate | Selection | Pre-populate 7 tokens |
+
+### Validation Commands
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| **Validate Tags** | CREATE → QA → Validate | 4-bucket compliance check |
+| **Completeness Dashboard** | CREATE → QA → Dashboard | Per-discipline RAG display |
+| **Quick Tag Preview** | CREATE → QA → Preview | Show predicted tag without changes |
+| **Find Duplicates** | ORGANISE → Analysis → Duplicates | Find duplicate tag values |
+| **Highlight Invalid** | ORGANISE → Analysis → Highlight | Color-code missing/incomplete tags |
+
+### Fix Commands
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| **Resolve All Issues** | CREATE → More → Resolve All | One-click full compliance fix |
+| **Fix Duplicates** | CREATE → More → Fix Duplicates | Auto-increment SEQ on duplicates |
+| **Repair Duplicate SEQ** | (dispatch) | Smart spatial proximity repair |
+| **Anomaly Auto-Fix** | (dispatch) | Detect and fix 8+ anomaly types |
+
+### Setup Commands
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| **Tag Config** | CREATE → Setup → Tag Config | View current configuration |
+| **Load Params** | CREATE → Setup → Load Params | Bind shared parameters (2-pass) |
+| **Configure** | CREATE → Setup → Configure | Edit project_config.json |
+| **Auto-Tagger Toggle** | CREATE → Setup → Auto-Tagger | Enable/disable real-time tagging |
+
+---
+
+## 6. One-Click Workflows
+
+### Recommended Workflow by Project Stage
+
+| Stage | Workflow | Commands | Time |
+|-------|----------|----------|------|
+| **Project Start** | Initial Setup | Master Setup → Tag & Combine | 5-10 min |
+| **During Design** | Incremental | Tag New Only (daily) | 30 sec |
+| **Pre-Coordination** | Full QA | Pre-Tag Audit → Validate → Resolve | 3-5 min |
+| **Pre-Handover** | Handover Prep | HandoverReadiness workflow | 5-8 min |
+| **Weekly QA** | Weekly Data Drop | WeeklyDataDrop workflow | 3-5 min |
+| **Daily Check** | Morning Health | MorningHealthCheck workflow | 3-5 min |
+
+### Workflow Automation Presets for Tagging
+
+| Preset | Steps | When to Use |
+|--------|-------|-------------|
+| **DailyQA** | RetagStale → PreTagAudit → BatchTag → Validate → Dashboard | Daily quality check |
+| **PostTaggingQA** | PreTagAudit → ValidateTags → Dashboard → TagRegister → ValidateTemplate | After major tagging |
+| **MorningHealthCheck** | RetagStale → WarningsAutoFix → TagNew → Audit → Validate → Templates → Sheets → RevCheck | Morning routine |
+| **HandoverReadiness** | RetagStale → FullTag → Validate → Templates → COBie → Register → BOQ → BEP → Revision | Pre-handover |
+
+### Running a Workflow
+
+1. BIM tab → Workflows section → Click preset button
+2. Or: BIM Coordination Center → WORKFLOWS tab → Quick Workflow
+3. Progress shown with ETA and cancel support
+4. Each step shows pass/fail status
+5. Compliance gate checked after completion
+
+---
+
+## 7. Token Management
+
+### Setting Individual Tokens
+
+| Command | Location | What It Sets |
+|---------|----------|-------------|
+| Set Discipline | CREATE → Tokens → Set Discipline | DISC code (M/E/P/A/S/FP/LV/G) |
+| Set Location | CREATE → Tokens → Set Location | LOC code (BLD1/BLD2/BLD3/EXT) |
+| Set Zone | CREATE → Tokens → Set Zone | ZONE code (Z01-Z04) |
+| Set Status | CREATE → Tokens → Set Status | STATUS (NEW/EXISTING/DEMOLISHED/TEMP) |
+| Assign Numbers | CREATE → Tokens → Assign Numbers | Sequential SEQ within groups |
+| Build Tags | CREATE → Tokens → Build Tags | Rebuild TAG1 from tokens |
+| Combine | CREATE → Tokens → Combine | Write to all containers |
+
+### Bulk Operations
+
+**Bulk Parameter Write** (SELECT tab → Bulk Param):
+- **Set Token**: Pick any token → pick value → apply to selection/view/project
+- **Auto-populate**: Run full token population
+- **Clear Tags**: Remove all 15 tag parameters
+- **Re-tag**: Force re-derive with overwrite
 
 ### Token Lock System
 
-Lock specific tokens to prevent the pipeline from overwriting user-set values:
+Lock specific tokens to prevent auto-detection from overwriting user-set values:
 
-1. Set `ASS_TOKEN_LOCK_TXT` parameter on element to comma-separated token names
-2. Example: `DISC,SYS` locks DISC and SYS tokens
-3. Pipeline reads lock before TypeTokenInherit, preserves locked values through all override steps
+1. Set `ASS_TOKEN_LOCK_TXT` on element (e.g., "DISC,LOC")
+2. Pipeline preserves locked values through all override steps
+3. Useful for elements with non-standard classification
 
-### Display Modes
+### Cross-Discipline Token Updates
 
-**Button**: CREATE → **Set Display Mode**
+When changing DISC (e.g., M→E), STING detects cross-discipline mismatches:
+- If SYS doesn't match new discipline, offers to auto-update
+- FUNC auto-derived from new SYS
+- Prevents invalid ISO 19650 tags (e.g., DISC=E but SYS=HVAC)
 
-Controls which segments appear in `ASS_DISPLAY_TXT`:
+---
 
-| Mode | Displayed Segments | Example |
-|------|-------------------|---------|
-| 1 | SEQ only | 0001 |
-| 2 | PROD-SEQ | AHU-0001 |
-| 3 | DISC-SYS-SEQ | M-HVAC-0001 |
-| 4 | DISC-PROD-SEQ | M-AHU-0001 |
-| 5 | Full 8-segment | M-BLD1-Z01-L01-HVAC-SUP-AHU-0001 |
+## 8. Tag Collision Handling & SEQ Numbering
 
-### Tag7 Rich Narrative
+### Collision Modes
 
-TAG7 is a comprehensive human-readable description with 6 colour-coded sections:
+| Mode | Behavior | When to Use |
+|------|----------|-------------|
+| **Skip** | Keep existing tag | Incremental tagging (Tag New Only) |
+| **Overwrite** | Replace with re-derived tag | Correcting mistakes |
+| **Auto-Increment** | Assign next available SEQ | Default — recommended for all tagging |
 
-| Section | Colour | Content | Example |
-|---------|--------|---------|---------|
-| **A: Identity** | Blue (Bold) | Asset name, product, manufacturer, model | "Electrical Distribution Board (DB) by Schneider Electric" |
-| **B: System** | Green (Italic) | System type, function, serving context | "Low Voltage Distribution providing Power Distribution serving Z01" |
-| **C: Spatial** | Orange | Room, department, grid reference | "Located in Plant Room (Room 0.12) near grid B3-C3" |
-| **D: Lifecycle** | Red | Status, revision, origin, maintenance | "New, revision P01, Design Intent" |
-| **E: Technical** | Purple (Bold) | Discipline-specific performance data | "Rated 125 kW, 415 V, 3-phase, 400 A, 48 ways" |
-| **F: Classification** | Grey (Italic) | Uniformat, OmniClass, keynote, cost, ISO tag | "Uniformat D5010, cost £12,500, tag E-BLD1-Z01-L02-LV-PWR-DB-0001" |
+### SEQ Counter Persistence
 
-### Tag Style Engine (128 Combinations)
+Sequence counters persist across sessions via `.sting_seq.json`:
 
-Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters:
-- **4 sizes**: 2mm, 2.5mm, 3mm, 3.5mm
-- **3 styles**: Normal, Bold, Italic
-- **8 colours**: Black, Blue, Green, Red, Yellow, Orange, Purple, White
+```json
+{
+    "M_HVAC_SUP_AHU": 47,
+    "E_LV_PWR_DB": 12,
+    "P_DCW_DCW_SAN": 8
+}
+```
 
-**Apply**: CREATE → Tag Style → **Apply Tag Style** (3-step: size → style → colour)
+- Saved after every tagging transaction
+- Merged with project parameters via max-per-key strategy
+- Survives Revit crashes (sidecar file alongside .rvt)
 
-**Colour Schemes** (8 built-in):
-| Scheme | Description |
-|--------|-------------|
-| Discipline | M=Blue, E=Yellow, P=Green, A=Grey, S=Red, FP=Orange |
-| Warm | Red → Orange → Yellow → Cream |
-| Cool | Navy → Blue → Cyan → Mint |
-| Monochrome | Black/Grey/White |
-| Dark | Deep saturated colours |
-| Red/Yellow/Blue | Single-colour families |
+### SEQ Range Allocation (Federated Models)
 
-### Element Numbering (Graitec-Style)
+For projects with multiple discipline models:
 
-**New Feature**: Template-based numbering engine inspired by Graitec PowerPack:
+```json
+{
+    "SEQ_RANGE_ALLOCATION": {
+        "M": [1, 9999],
+        "E": [10000, 19999],
+        "P": [20000, 29999],
+        "A": [30000, 39999],
+        "S": [40000, 49999]
+    }
+}
+```
 
-| Setting | Options | Description |
-|---------|---------|-------------|
-| Category | 11 Revit categories | Which elements to number |
-| Parameter | Mark, Comments, ASS_SEQ_NUM_TXT, ASS_TAG_1 | Target parameter |
-| Prefix | Free text | e.g., "GFC", "STR-COL" |
-| Separator | Free text | e.g., "-", "/" |
-| Group Enumeration | Capital/Lower Letters, Numeric, Capital/Lower Romans | Group identifier style |
-| Element Enumeration | Same 5 styles | Per-element sequence style |
-| Start From | Integer | First number (default 1) |
-| Digits | Integer | Zero-padding (default 2) |
-| Increment | Integer | Step between numbers (default 1) |
+Prevents duplicate asset tags when merging federated models for COBie handover.
 
-**Grouping Algorithms**: None, By Level, By Type, By Grid Line, By Location, By Mark
 
-**Preview**: `GFC-01   GFC-02   GFC-03   GFC-04   GFC-05`
+---
 
-### Smart Tag Placement (Annotation Tags)
+## 9. Tag Containers (53 Parameters)
 
-Visual annotation tags with collision avoidance:
+### Universal Containers
 
-| Command | What It Does |
+| Parameter | Content | Example |
+|-----------|---------|---------|
+| ASS_TAG_1 | Full 8-segment tag | M-BLD1-Z01-L02-HVAC-SUP-AHU-0003 |
+| ASS_TAG_2 | Top line (DISC-LOC-ZONE-LVL) | M-BLD1-Z01-L02 |
+| ASS_TAG_3 | Bottom line (SYS-FUNC-PROD-SEQ) | HVAC-SUP-AHU-0003 |
+| ASS_TAG_4 | Multi-line top | M-BLD1\nZ01-L02 |
+| ASS_TAG_5 | Multi-line middle | HVAC-SUP |
+| ASS_TAG_6 | Multi-line bottom | AHU-0003 |
+
+### Discipline-Specific Containers (30)
+
+| Discipline | Containers |
+|-----------|-----------|
+| HVAC | HVC_EQP_TAG, HVC_DCT_TAG, HVC_FLX_TAG |
+| Electrical | ELC_EQP_TAG, ELE_FIX_TAG, LTG_FIX_TAG, ELC_CDT_TAG, ELC_CTR_TAG |
+| Plumbing | PLM_EQP_TAG |
+| Fire/Safety | FLS_DEV_TAG |
+| Comms/LV | COM_DEV_TAG, SEC_DEV_TAG, NCL_DEV_TAG, ICT_DEV_TAG |
+| Material | MAT_TAG_1 through MAT_TAG_6 |
+
+### Selective Container Writing
+
+STING only writes containers relevant to the element's discipline:
+- DISC=M elements: Only HVC_* containers
+- DISC=E elements: Only ELC_*, ELE_*, LTG_* containers
+- DISC=P elements: Only PLM_* containers
+- This reduces container writes by 60-80% per element
+
+---
+
+## 10. TAG7 Rich Narrative
+
+### TAG7 Structure (6 Sub-Sections)
+
+TAG7 is a human-readable descriptive tag with 6 sections (A-F):
+
+| Parameter | Section | Content | Color |
+|-----------|---------|---------|-------|
+| ASS_TAG_7A_TXT | Identity Header | Asset name, PROD, manufacturer, model | Blue |
+| ASS_TAG_7B_TXT | System & Function | System description, function code | Green |
+| ASS_TAG_7C_TXT | Spatial Context | Room, department, grid reference | Orange |
+| ASS_TAG_7D_TXT | Lifecycle & Status | Status, revision, origin, maintenance | Red |
+| ASS_TAG_7E_TXT | Technical Specs | Capacity, flow, voltage, dimensions | Purple |
+| ASS_TAG_7F_TXT | Classification | Uniformat, OmniClass, keynote, cost, tag | Grey |
+| ASS_TAG_7_TXT | Full Narrative | All sections combined with delimiters | Multi |
+
+### Presentation Modes
+
+| Mode | Content | Use Case |
+|------|---------|----------|
+| Compact | Identity + System only | Plans |
+| Technical | Identity + System + Technical | Engineering drawings |
+| Full Specification | All 6 sections | Schedules |
+| Presentation | Identity + Spatial | Client presentations |
+| BOQ | Identity + Classification + Cost | Bill of Quantities |
+
+### Paragraph Depth Control
+
+TAG7 visibility controlled by `TAG_PARA_STATE_1/2/3_BOOL` parameters:
+- Tier 1: Basic (identity + system)
+- Tier 2: Extended (+ spatial + lifecycle)
+- Tier 3: Full (+ technical + classification)
+- Tiers 4-10: Custom depth levels
+
+Set via: CREATE → Presentation → Set Paragraph Depth
+
+---
+
+## 11. Tag Validation & Compliance
+
+### Four Compliance Buckets
+
+| Bucket | Color | Criteria | Weight |
+|--------|-------|----------|--------|
+| **RESOLVED** | Green | All 8 segments with valid ISO codes | 100% |
+| **COMPLETE_PLACEHOLDERS** | Amber | 8 segments but contains GEN/XX/ZZ/0000 | 70% |
+| **INCOMPLETE** | Orange | Fewer than 8 segments | 30% |
+| **UNTAGGED** | Red | No tag at all | 0% |
+
+### ISO 19650 Code Validation
+
+Each token is validated against ISO 19650/CIBSE/Uniclass code lists:
+
+| Token | Valid Codes | Custom Extension |
+|-------|-----------|-----------------|
+| DISC | M, E, P, A, S, FP, LV, G + custom | CUSTOM_VALID_DISC |
+| SYS | HVAC, DCW, DHW, HWS, SAN, RWD, GAS, FP, LV, FLS, COM, ICT, NCL, SEC, ARC, STR, GEN + custom | CUSTOM_VALID_SYS |
+| FUNC | SUP, RET, EXH, HTG, CLG, VNT, DCW, DHW, SAN, PWR, LTG, DTA, DET, SPR, GEN + custom | CUSTOM_VALID_FUNC |
+| LOC | BLD1-3, EXT, XX + custom | CUSTOM_VALID_LOC |
+| ZONE | Z01-Z04, ZZ, XX + custom | CUSTOM_VALID_ZONE |
+
+### Cross-Validation Rules
+
+STING validates token combinations:
+- **DISC ↔ SYS**: SYS=HVAC must be DISC=M (not E or P)
+- **SYS ↔ FUNC**: FUNC=PWR invalid for SYS=HVAC
+- **FUNC ↔ PROD**: FUNC=SUP incompatible with PROD=WC (sanitary fixture)
+
+### Compliance Gates
+
+| Gate | Threshold | When Checked |
+|------|-----------|-------------|
+| Post-tagging | COMPLIANCE_GATE_PCT (80%) | After any tagging command |
+| CDE SHARED | CDE_SHARED_MIN_COMPLIANCE (70%) | WIP → SHARED transition |
+| CDE PUBLISHED | CDE_PUBLISHED_MIN_COMPLIANCE (90%) | SHARED → PUBLISHED transition |
+| COBie export | 60% minimum | Before COBie generation |
+| Pre-revision | 80% recommended | Before revision creation |
+
+---
+
+## 12. Smart Tag Placement (Visual Annotations)
+
+### Overview
+
+Smart Tag Placement creates `IndependentTag` annotations in views — the visual tags that appear on drawings. This is separate from data tagging (which writes parameter values).
+
+### 16-Position Placement System
+
+```
+       P13  P5  P14
+    P12  P4  P1  P6  P15
+         P3  ●  P2
+    P16  P8  P7  P10 P9
+       P11
+```
+
+- Ring 1 (P1-P8): Close positions (cardinal + diagonal)
+- Ring 2 (P9-P16): Far positions for crowded areas
+- Scale-aware offsets (configurable per scale tier)
+
+### Commands
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| Smart Place Tags | TAGS → Placement | 16-position collision avoidance |
+| Arrange Tags | TAGS → Placement | Auto-arrange to grid |
+| Remove Tags | TAGS → Placement | Remove all annotation tags |
+| Batch Place | TAGS → Placement | Place across multiple views |
+| Learn Placement | TAGS → Placement | Analyze existing layouts |
+| Apply Template | TAGS → Placement | Apply saved placement rules |
+| Overlap Analysis | TAGS → Placement | Detect overlapping tags |
+| Batch Text Size | TAGS → Placement | Set text size for all tags |
+| Set Line Weight | TAGS → Placement | Category line weight control |
+| Align Tag Bands | TAGS → Placement | Grid-align by Y coordinate |
+| Switch Position | TAGS → Placement | 4-position switching |
+| Export Positions | TAGS → Placement | CSV export of tag positions |
+| Batch Linked | TAGS → Placement | Tags in linked model views |
+| Export Manifest | TAGS → Placement | Linked model token manifest |
+| Adjust Elbows | TAGS → Leader | Elbow angle control |
+| Set Arrowhead | TAGS → Leader | Arrowhead style control |
+
+### Collision Avoidance Algorithm
+
+1. Calculate element center and bounding box in view
+2. Generate 16 candidate positions (2 rings)
+3. Score each candidate:
+   - Distance from element (closer = better)
+   - Overlap with existing tags (penalty)
+   - Overlap with other elements (penalty)
+   - Grid alignment bonus
+   - Preferred side bias (per category)
+4. Place at highest-scoring position
+5. If all positions overlap, add leader and extend search
+6. Register placed tag for future collision checks
+
+---
+
+## 13. Tag Style Engine (128 Combinations)
+
+### Style Matrix
+
+Tag families contain label rows controlled by `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters:
+
+- **4 Sizes**: 2mm, 2.5mm, 3mm, 3.5mm text height
+- **3 Styles**: NOM (normal), BOLD, ITALIC
+- **8 Colors**: BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, BROWN, GREY
+
+Total: 4 × 3 × 8 = **96 combinations per tag** (with 32 additional extended styles = 128 total)
+
+### Built-In Color Schemes
+
+| Scheme | M | E | P | A | S | FP | LV | Use Case |
+|--------|---|---|---|---|---|----|----|----------|
+| Discipline | Blue | Gold | Green | Grey | Red | Orange | Purple | Standard |
+| Warm | Red | Orange | Yellow | Cream | Brown | Coral | Peach | Heat/load |
+| Cool | Navy | Blue | Cyan | Mint | Teal | Ice | Aqua | Cooling/flow |
+| Monochrome | Black | DkGrey | MdGrey | LtGrey | Charcoal | Slate | Silver | Print |
+| Red | All red tones | | | | | | | QA/checking |
+| Yellow | All yellow tones | | | | | | | Highlighting |
+| Blue | All blue tones | | | | | | | Presentation |
+| Dark | All dark tones | | | | | | | Dark backgrounds |
+
+### Commands
+
+| Command | Location | Description |
+|---------|----------|-------------|
+| Apply Tag Style | TAGS → Style | Size → Style → Color dialog |
+| Apply Color Scheme | TAGS → Style | Named scheme to active view |
+| Clear Color Scheme | TAGS → Style | Remove all overrides |
+| Tag Style Report | TAGS → Style | Current style per element type |
+| Switch by Discipline | TAGS → Style | Auto-apply discipline scheme |
+| Batch Apply Scheme | TAGS → Style | Apply across all views |
+| Color by Variable | TAGS → Style | Color by any parameter value |
+| Set Box Color | TAGS → Style | Individual box/border color |
+
+---
+
+## 14. Display Modes & Presentation
+
+### 5 Display Modes
+
+| Mode | Format | Example | Use Case |
+|------|--------|---------|----------|
+| 1 | SEQ only | 0003 | Clean plans, presentations |
+| 2 | PROD-SEQ | AHU-0003 | Standard working drawings |
+| 3 | DISC-SYS-SEQ | M-HVAC-0003 | Discipline coordination |
+| 4 | DISC-PROD-SEQ | M-AHU-0003 | Detailed coordination |
+| 5 | Full 8-segment | M-BLD1-Z01-L02-HVAC-SUP-AHU-0003 | Schedules, asset registers |
+
+Set via: ORGANISE → Display Mode  
+Result written to: `ASS_DISPLAY_TXT`
+
+### Per-View Tag Style Routing
+
+Set different color schemes per view via `STING_VIEW_TAG_STYLE`:
+- Discipline views → Discipline scheme
+- Coordination views → Monochrome scheme
+- Presentation views → Custom scheme
+
+Set via: Tag Studio → Style tab → Set View Tag Style
+
+---
+
+## 15. Real-Time Auto-Tagging
+
+### How It Works
+
+The `StingAutoTagger` is an `IUpdater` that monitors element creation in real-time:
+
+1. **Trigger**: Element added to model (22 categories monitored)
+2. **Check**: Workset ownership (skip if not owned in worksharing)
+3. **Check**: Discipline filter (skip if filtered out)
+4. **Pipeline**: Full 11-step `RunFullPipeline()` execution
+5. **Visual**: Optional `IndependentTag` annotation placement
+6. **Cache**: Performance via LRU eviction (10K entries)
+
+### Enable/Disable
+
+| Command | Location | What It Does |
+|---------|----------|-------------|
+| Auto-Tagger Toggle | CREATE → Setup | Enable/disable data auto-tagging |
+| Auto-Tagger Visual | CREATE → Setup | Enable/disable annotation placement |
+| Auto-Tagger Config | CREATE → Setup | Set discipline filter |
+
+### Discipline Filter
+
+Restrict auto-tagging to specific disciplines:
+- Set via `AUTO_TAGGER_DISC_FILTER` in project_config.json
+- Example: "M,E,P" — only tag Mechanical, Electrical, Plumbing
+- Empty string = tag all disciplines
+
+### Bulk Paste Queue
+
+When >50 elements are pasted at once, they're queued for deferred processing rather than dropped. Queue drains during next Revit idle or document sync.
+
+---
+
+## 16. Stale Element Detection & Re-Tagging
+
+### What Is "Stale"?
+
+An element is **stale** when its physical context has changed since it was last tagged:
+- Moved to a different level (LVL changed)
+- Moved to a different room (LOC/ZONE changed)
+- MEP system reassigned (SYS changed)
+- Geometry significantly modified
+
+### How Stale Detection Works
+
+`StingStaleMarker` (IUpdater) monitors geometry changes:
+1. Triggers on `Element.GetChangeTypeGeometry()` for 22 categories
+2. Compares current LVL/LOC/ZONE/SYS against stored values
+3. If mismatch detected → sets `STING_STALE_BOOL = 1`
+4. 500ms debounce timer prevents thundering-herd during bulk operations
+5. Stale elements appear in compliance dashboard and morning briefing
+
+### Re-Tagging Stale Elements
+
+**How**: CREATE → QA → Retag Stale (or via MorningHealthCheck workflow)
+
+1. Finds all elements with `STING_STALE_BOOL = 1`
+2. Runs full `RunFullPipeline()` on each
+3. Clears stale flag after successful re-tag
+4. Reports count and compliance improvement
+
+### Select Stale Elements
+
+**How**: SELECT → State → Select Stale
+
+Selects all stale elements for visual inspection before re-tagging.
+
+---
+
+## 17. Tag Operations (ORGANISE Tab)
+
+### Tag Operations (7 Commands)
+
+| Command | Description |
 |---------|-------------|
-| **Smart Place** | 8-position collision avoidance with scoring |
-| **Arrange** | Auto-arrange tags into aligned grid patterns |
-| **Batch Place** | Place across multiple views |
-| **Learn Placement** | Analyze existing tag positions to learn rules |
-| **Apply Template** | Apply saved placement template |
-| **Overlap Analysis** | Detect and report overlapping tags |
-| **Align Bands** | Grid-align tags by Y coordinate |
-| **Switch Position** | 4 positions: Above/Right/Below/Left |
+| Tag Selected | Tag selected elements only |
+| Delete Tags | Clear all 15 tag params (with confirmation) |
+| Renumber | Re-sequence within groups (spatial sort) |
+| Copy Tags | Copy from first selected to all others |
+| Swap Tags | Swap all values between 2 elements |
+| Re-Tag | Force re-derive with overwrite |
+| Fix Duplicates | Auto-increment SEQ on duplicates |
 
-### Cross-System Integration
+### Analysis (7 Commands)
 
-Tagging connects to other STING systems:
+| Command | Description |
+|---------|-------------|
+| Audit to CSV | Export 40+ column tag audit |
+| Find Duplicates | Locate duplicate tag values |
+| Highlight Invalid | Color-code missing (red) and incomplete (orange) |
+| Clear Overrides | Reset graphic overrides |
+| Select by Discipline | Select all elements of a discipline |
+| Tag Statistics | Counts by discipline/system/level |
+| Tag Register | Comprehensive asset register CSV |
 
-| System | Integration | How |
-|--------|-------------|-----|
-| **Warnings** | Stale elements appear as synthetic warnings | WarningsEngine includes stale in scan |
-| **Issues** | Invalid tags can auto-create NCR issues | WarningsEngine auto-escalation |
-| **COBie** | Tags populate Component/Type/System sheets | COBieExport reads STING parameters |
-| **Excel** | Tags exported/imported bidirectionally | ExcelLinkEngine maps all tokens |
-| **Compliance** | Tag completeness drives CDE state gates | ComplianceScan percentage thresholds |
-| **Revisions** | Tag changes tracked across revisions | RevisionEngine snapshot/compare |
-| **Workflows** | All workflow presets use tagging commands | WorkflowEngine command resolution |
-| **BEP** | Compliance feeds into BEP enrichment | BEP auto-enrichment from ComplianceScan |
+### Annotation Colors (5 Commands)
 
----
+| Command | Description |
+|---------|-------------|
+| Color by Discipline | Color-code annotation tags by discipline |
+| Set Tag Text Color | Set text color for selected tags |
+| Set Leader Color | Set leader line color |
+| Split Tag/Leader | Different colors for leader vs text |
+| Clear Colors | Remove all annotation color overrides |
 
-## Appendix: Complete Command Reference
+### Tag Appearance (5 Commands)
 
-### All Tagging Commands (Alphabetical)
-
-| Command | Class | Transaction | Location | Description |
-|---------|-------|-------------|----------|-------------|
-| Anomaly Auto-Fix | `AnomalyAutoFixCommand` | Manual | ORGANISE | Fix DISC/LOC/ZONE/LVL/SYS/FUNC/PROD anomalies + rebuild TAG1 |
-| Assign Numbers | `AssignNumbersCommand` | Manual | CREATE | Sequential SEQ numbering within groups |
-| Auto Populate | `FullAutoPopulateCommand` | Manual | TEMP/CREATE | Full pipeline: tokens → dims → MEP → formulas → tags → combine |
-| Auto Tag | `AutoTagCommand` | Manual | ORGANISE | Tag active view with collision mode |
-| Batch Tag | `BatchTagCommand` | Manual | ORGANISE | Tag entire project |
-| Build Tags | `BuildTagsCommand` | Manual | CREATE | Rebuild TAG1 from tokens |
-| Clear Overrides | `ClearOverridesCommand` | Manual | ORGANISE | Reset graphic overrides |
-| Combine Parameters | `CombineParametersCommand` | Manual | CREATE | Write to all 36 containers |
-| Completeness Dashboard | `CompletenessDashboardCommand` | ReadOnly | CREATE | Per-discipline compliance % |
-| Copy Tags | `CopyTagsCommand` | Manual | ORGANISE | Copy tags from first to others |
-| Delete Tags | `DeleteTagsCommand` | Manual | ORGANISE | Clear all tag params |
-| Family-Stage Populate | `FamilyStagePopulateCommand` | Manual | CREATE | Pre-populate 7 tokens |
-| Find Duplicates | `FindDuplicateTagsCommand` | ReadOnly | ORGANISE | Find duplicate tag values |
-| Fix Duplicates | `FixDuplicateTagsCommand` | Manual | ORGANISE | Auto-resolve via SEQ increment |
-| Highlight Invalid | `HighlightInvalidCommand` | Manual | ORGANISE | Red=missing, orange=incomplete |
-| Pre-Tag Audit | `PreTagAuditCommand` | ReadOnly | ORGANISE/CREATE | Dry-run prediction |
-| Renumber Tags | `RenumberTagsCommand` | Manual | ORGANISE | Re-sequence within groups |
-| Repair Duplicate SEQ | `RepairDuplicateSeqCommand` | Manual | CREATE | Smart SEQ repair with proximity |
-| Resolve All Issues | `ResolveAllIssuesCommand` | Manual | CREATE | One-click ISO fix |
-| Re-Tag | `ReTagCommand` | Manual | ORGANISE | Force re-derive selected |
-| Retag Stale | `RetagStaleCommand` | Manual | CREATE | Fix stale-flagged elements |
-| Set Discipline | `SetDiscCommand` | Manual | CREATE | Manual DISC token |
-| Set Location | `SetLocCommand` | Manual | CREATE | Manual LOC token |
-| Set Zone | `SetZoneCommand` | Manual | CREATE | Manual ZONE token |
-| Set Status | `SetStatusCommand` | Manual | CREATE | Manual STATUS token |
-| Swap Tags | `SwapTagsCommand` | Manual | ORGANISE | Swap between 2 elements |
-| Tag+Combine | `TagAndCombineCommand` | Manual | ORGANISE | One-click full pipeline |
-| Tag New Only | `TagNewOnlyCommand` | Manual | ORGANISE | Incremental (untagged only) |
-| Tag Selected | `TagSelectedCommand` | Manual | ORGANISE | Tag selection only |
-| Validate Tags | `ValidateTagsCommand` | ReadOnly | CREATE | ISO 19650 compliance check |
+| Command | Description |
+|---------|-------------|
+| Tag Appearance | Configure overall visual appearance |
+| Set Box Appearance | Tag box/border settings |
+| Quick Tag Style | Apply quick style presets |
+| Set Line Weight | Tag annotation line weight |
+| Color by Parameter | Color tags by any parameter value |
 
 ---
 
-*For BIM coordination workflows, see BIM_COORDINATION_WORKFLOW_GUIDE.md*
-*For DWG-to-BIM conversion, see DWG_TO_BIM_GUIDE.md*
-*For tag family creation, see TAG_FAMILY_CREATION_GUIDE.md*
+## 18. Leader Management (14 Commands)
+
+| Command | Description |
+|---------|-------------|
+| Toggle Leaders | Turn leaders on/off for selected tags |
+| Add Leaders | Add leaders to all selected tags |
+| Remove Leaders | Remove leaders from selected tags |
+| Align Tags | Align heads horizontally/vertically/row |
+| Reset Positions | Move tags back to element centers |
+| Toggle Orientation | Switch horizontal ↔ vertical |
+| Snap Elbows | Snap to 45° or 90° angles |
+| Auto-Align Text | Auto-align leader text positions |
+| Flip Tags | Mirror across element center |
+| Align Text | Left/center/right text alignment |
+| Pin/Unpin | Lock tags in place |
+| Nudge | Fine-adjust positions |
+| Attach/Free | Attach leader end to host or set free |
+| Select by Leader | Select tags with/without leaders |
+
+---
+
+## 19. Legend Building
+
+### Legend Types (31 Commands)
+
+| Legend | Description |
+|--------|-------------|
+| Discipline Legend | Color-coded discipline codes |
+| System Legend | System types with colors |
+| Tag Legend | Tag format explanation |
+| Color Legend | Active color scheme reference |
+| Material Legend | Material types with swatches |
+| Equipment Legend | Equipment types catalogue |
+| Fire Rating Legend | Fire rating classifications |
+| Template Legend | View template reference |
+| Master Pipeline | All legends in sequence |
+
+### Legend Engine
+
+Creates drafting view legends with:
+- FilledRegion color swatches
+- TextNote labels
+- Multi-column grid layout
+- Auto-sizing to content
+
+
+---
+
+## 20. Workflow Automation for Tagging
+
+### Recommended Tagging Workflows
+
+#### Initial Project Tagging
+
+```
+1. Master Setup (TEMP → Setup → Master Setup)
+   └── Binds parameters, creates materials/types/schedules/templates
+
+2. Tag & Combine (CREATE → Tag & Combine → Entire Project)
+   └── Full pipeline on all elements
+
+3. Validate Tags (CREATE → QA → Validate)
+   └── Check compliance, identify gaps
+
+4. Resolve All Issues (CREATE → More → Resolve All)
+   └── Fix remaining placeholders/invalids
+
+5. Validate Tags again (verify improvement)
+```
+
+#### Daily Incremental Tagging
+
+```
+1. Tag New Only (CREATE → More → Tag New Only)
+   └── Tags elements added since last session
+
+2. Retag Stale (CREATE → QA → Retag Stale)
+   └── Re-derives tags for moved elements
+
+3. Quick Validate (CREATE → QA → Dashboard)
+   └── Check compliance status
+```
+
+#### Pre-Handover Tagging QA
+
+```
+1. Pre-Tag Audit (CREATE → More → Pre-Tag Audit)
+   └── Dry-run to identify issues
+
+2. Auto-Fix (click auto-fix button in audit results)
+   └── AnomalyAutoFix → ResolveAllIssues
+
+3. Validate Tags (CREATE → QA → Validate)
+   └── Verify 4-bucket compliance
+
+4. Tag Register Export (ORGANISE → Analysis → Tag Register)
+   └── CSV for external review
+
+5. COBie Export (BIM → COBie Export)
+   └── Final deliverable
+```
+
+### Automated Workflow Presets
+
+| Preset | When | Steps |
+|--------|------|-------|
+| DailyQA | Every morning | RetagStale → PreTagAudit → TagNew → Validate → Dashboard |
+| PostTaggingQA | After major tagging | PreTagAudit → Validate → Dashboard → Register → ValidateTemplate |
+| MorningHealthCheck | Start of day | RetagStale → WarningsFix → TagNew → Audit → Validate → Templates → Sheets → RevCheck |
+| HandoverReadiness | Before handover | RetagStale → FullTag → Validate → Templates → COBie → Register → BOQ → BEP → Revision |
+| WeeklyDataDrop | Weekly | RetagStale → Resolve → Validate → Register → COBie → Sheets → Register → Revision |
+
+### Custom Workflow JSON
+
+Create custom workflows in `data/WORKFLOW_MyWorkflow.json`:
+
+```json
+{
+    "Name": "My Custom Tagging QA",
+    "Description": "Custom QA for this project",
+    "Steps": [
+        {
+            "CommandTag": "RetagStale",
+            "Label": "Fix stale elements",
+            "RequiresStaleElements": true
+        },
+        {
+            "CommandTag": "TagNewOnly",
+            "Label": "Tag new elements",
+            "Conditions": ["has_untagged"],
+            "ConditionLogic": "AND"
+        },
+        {
+            "CommandTag": "ValidateTags",
+            "Label": "Validate compliance"
+        },
+        {
+            "CommandTag": "WarningsAutoFix",
+            "Label": "Fix warnings",
+            "Conditions": ["has_warnings"],
+            "FallbackStep": "WarningsDashboard"
+        },
+        {
+            "CommandTag": "CompletenessDashboard",
+            "Label": "Show compliance dashboard",
+            "MinCompliancePct": 50
+        }
+    ],
+    "RollbackOnOptionalFailure": false
+}
+```
+
+---
+
+## 21. Cross-System Integration
+
+### Tagging → Other Systems
+
+| System | How Tags Integrate |
+|--------|-------------------|
+| **COBie** | All 8 tokens populate COBie Component fields |
+| **Warnings** | Stale elements appear as synthetic warnings |
+| **Issues** | Tags link elements to BCF issues |
+| **Revisions** | Tag snapshots track changes between revisions |
+| **Excel** | 30+ columns exported with full tag data |
+| **Schedules** | Tags populate schedule fields |
+| **Legends** | Tag data drives legend content |
+| **BEP** | Compliance % enriches BEP auto-generation |
+| **Transmittals** | Document naming from tag data |
+| **4D/5D** | Tags identify elements for scheduling/costing |
+
+### Compliance Scan Integration
+
+The real-time compliance scan:
+- Updates status bar every 30 seconds
+- Per-discipline breakdown
+- Container compliance tracking
+- Stale element counting
+- Phase-based compliance (per Revit phase)
+- Feeds into morning briefing, BEP enrichment, CDE gates
+
+---
+
+## 22. Data Exchange (Excel/COBie)
+
+### Excel Export Columns
+
+| Group | Columns |
+|-------|---------|
+| Tags | DISC, LOC, ZONE, LVL, SYS, FUNC, PROD, SEQ, TAG1 |
+| Identity | ElementId, UniqueId, Category, Family, Type, Mark |
+| Spatial | Level, Room, Grid Reference, Phase |
+| MEP | Flow, Pressure, Voltage, Circuit, Power, Connected Load |
+| Dimensions | Width, Height, Length, Area, Volume |
+| Status | STATUS, REV, Stale, Display Mode |
+| Classification | Uniformat, OmniClass, Keynote |
+| Cost | Estimated Cost, Unit Rate |
+
+### Excel Import Validation
+
+7-token validation pipeline:
+1. DISC against valid discipline codes
+2. LOC against valid location codes
+3. ZONE against valid zone codes
+4. SYS against valid system codes
+5. FUNC against valid function codes + SYS cross-check
+6. PROD against valid product codes + FUNC cross-check
+7. SEQ against numeric format
+
+CLEAR sentinel: Type "CLEAR" in any cell to intentionally empty a field.
+
+### COBie Integration
+
+Tags populate COBie worksheets:
+- **Component**: TAG1 → AssetIdentifier, tokens → Category fields
+- **Type**: Family + Type → Type fields, PROD → Category
+- **System**: SYS → SystemCategory, connected elements
+- **Space**: Room + LOC + ZONE → Floor/Space sheets
+- **Attribute**: 70+ STING parameters exported as attributes
+
+---
+
+## 23. Graitec-Style Numbering
+
+### NumberingEngine
+
+Template-based element numbering with 5 styles:
+
+| Style | Format | Example |
+|-------|--------|---------|
+| Numeric | 001, 002, 003 | C-001, C-002 |
+| Capital Letters | A, B, C, ... AA, AB | C-A, C-B |
+| Lower Letters | a, b, c, ... aa, ab | C-a, C-b |
+| Capital Romans | I, II, III, IV | C-I, C-II |
+| Lower Romans | i, ii, iii, iv | C-i, C-ii |
+
+### Grouping Algorithms
+
+| Algorithm | Groups By | Sort Within |
+|-----------|----------|------------|
+| None | No grouping | Spatial (X,Y) |
+| ByLevel | Level name | Spatial per level |
+| ByType | Family type | Spatial per type |
+| ByGridLine | Nearest grid | Along grid |
+| ByLocation | Room/Zone | Spatial per zone |
+| ByMark | Mark value | Spatial per mark |
+
+### Configuration
+
+```
+Prefix: C-
+Separator: -
+Suffix: (none)
+Start From: 1
+Digits: 3
+Increment: 1
+Style: Numeric
+Omit Already Numbered: true
+```
+
+Available in DWG-to-BIM wizard and Tag Studio.
+
+---
+
+## 24. Tag Export/Import Between Projects
+
+### Export Tag Map
+
+**How**: (dispatch: ExportTagMap)
+
+Exports all tagged elements to `.sting_tagmap.json`:
+- UniqueId, family, type
+- XYZ location coordinates
+- All 8 tokens + STATUS + REV
+- Used for cross-project tag transfer
+
+### Import Tag Map
+
+**How**: (dispatch: ImportTagMap)
+
+Matching strategy:
+1. **UniqueId match** (exact — same element across models)
+2. **Family + Type + Location** (fallback — 500mm radius tolerance)
+
+Use cases:
+- Transfer tags across linked models
+- Maintain tags through model splits
+- Carry tags forward to next project phase
+
+---
+
+## 25. Configuration Reference
+
+### project_config.json Keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| TAG_PREFIX | "" | Prefix added to all tags |
+| TAG_SUFFIX | "" | Suffix added to all tags |
+| TAG_FORMAT.separator | "-" | Separator between segments |
+| TAG_FORMAT.num_pad | 4 | SEQ zero-padding width |
+| CATEGORY_SKIP | [] | Categories to skip during tagging |
+| CATEGORY_FORCE_SYS | {} | Override SYS per category |
+| CATEGORY_TOKEN_OVERRIDES | {} | Per-category token enforcement |
+| SEQ_SCHEME | "Numeric" | Numbering scheme |
+| SEQ_INCLUDE_ZONE | false | Include zone in SEQ grouping |
+| COMPLIANCE_GATE_PCT | 80 | Post-tagging compliance gate |
+| PROXIMITY_RADIUS_FT | 10.0 | CopyTokensFromNearest radius |
+| CUSTOM_VALID_DISC | [] | Additional valid DISC codes |
+| CUSTOM_VALID_SYS | [] | Additional valid SYS codes |
+| CUSTOM_VALID_FUNC | [] | Additional valid FUNC codes |
+| CUSTOM_VALID_LOC | [] | Additional valid LOC codes |
+| CUSTOM_VALID_ZONE | [] | Additional valid ZONE codes |
+| AUTO_TAGGER_VISUAL | false | Visual tag placement on auto-tag |
+| AUTO_TAGGER_DISC_FILTER | "" | Discipline filter for auto-tagger |
+| SEQ_RANGE_ALLOCATION | {} | Per-discipline SEQ ranges |
+| DISCIPLINE_LEADS | {} | Discipline → lead name mapping |
+
+---
+
+## 26. Troubleshooting
+
+### Common Issues
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Tags show XX/ZZ/GEN | No rooms, missing Project Info | Place rooms, set building name in Project Info |
+| Tags show 0000 SEQ | SEQ sidecar missing | Run Assign Numbers to rebuild counters |
+| Containers empty | Parameters not bound | Run Load Params (TEMP → Setup) |
+| FUNC wrong for SYS | Cross-discipline mismatch | Run Resolve All Issues |
+| PROD shows GEN | Family name not recognized | Add family pattern to PROD mapping |
+| Stale elements not detected | StingStaleMarker disabled | Ensure auto-tagger is loaded (check OnStartup) |
+| Auto-tagger not firing | Disabled by default | CREATE → Setup → Auto-Tagger Toggle |
+| SEQ numbers restart at 1 | Sidecar file deleted | Run Tag & Combine to rebuild counters |
+| Tags overwritten unexpectedly | Collision mode = Overwrite | Use Skip or Auto-Increment mode |
+| Token lock not working | ASS_TOKEN_LOCK_TXT not set | Set parameter value (e.g., "DISC,LOC") |
+| Formula errors | Missing input parameters | Run NativeParamMapper first |
+| Grid reference empty | No grids in model | Place column grids |
+
+### Performance Tips
+
+- **Tag New Only** is 10x faster than Batch Tag on partially-tagged models
+- **View-scoped tagging** reduces element count on large models
+- **Formula session cache** (5-min TTL) prevents redundant CSV reads
+- **Grid line cache** (2-min TTL) prevents repeated collector scans
+- **Incremental ComplianceScan** provides O(1) post-tag updates
+- **Selective WriteContainers** skips irrelevant discipline containers
+
+---
+
+## 27. Complete Command Reference (35+ Commands)
+
+### CREATE Tab
+
+| # | Command | Class | Transaction | Description |
+|---|---------|-------|-------------|-------------|
+| 1 | Auto Tag | AutoTagCommand | Manual | Tag active view elements |
+| 2 | Batch Tag | BatchTagCommand | Manual | Tag entire project |
+| 3 | Tag & Combine | TagAndCombineCommand | Manual | Full pipeline + all containers |
+| 4 | Tag New Only | TagNewOnlyCommand | Manual | Only untagged elements |
+| 5 | Pre-Tag Audit | PreTagAuditCommand | ReadOnly | Dry-run prediction |
+| 6 | Family-Stage Populate | FamilyStagePopulateCommand | Manual | Pre-populate 7 tokens |
+| 7 | Set Discipline | SetDiscCommand | Manual | Set DISC code |
+| 8 | Set Location | SetLocCommand | Manual | Set LOC code |
+| 9 | Set Zone | SetZoneCommand | Manual | Set ZONE code |
+| 10 | Set Status | SetStatusCommand | Manual | Set STATUS |
+| 11 | Assign Numbers | AssignNumbersCommand | Manual | Sequential SEQ |
+| 12 | Build Tags | BuildTagsCommand | Manual | Rebuild TAG1 from tokens |
+| 13 | Combine Parameters | CombineParametersCommand | Manual | Write to containers |
+| 14 | Validate Tags | ValidateTagsCommand | ReadOnly | 4-bucket compliance |
+| 15 | Completeness Dashboard | CompletenessDashboardCommand | ReadOnly | Per-discipline RAG |
+| 16 | Resolve All Issues | ResolveAllIssuesCommand | Manual | One-click fix |
+| 17 | Fix Duplicates | FixDuplicateTagsCommand | Manual | Auto-increment SEQ |
+| 18 | Tag Config | TagConfigCommand | ReadOnly | View configuration |
+| 19 | Load Params | LoadSharedParamsCommand | Manual | Bind parameters |
+| 20 | Configure | ConfigEditorCommand | ReadOnly | Edit project_config |
+| 21 | Set SEQ Scheme | SetSeqSchemeCommand | Manual | Change numbering scheme |
+
+### ORGANISE Tab
+
+| # | Command | Description |
+|---|---------|-------------|
+| 22 | Tag Selected | Tag selected elements |
+| 23 | Delete Tags | Clear all tag parameters |
+| 24 | Renumber | Re-sequence within groups |
+| 25 | Copy Tags | Copy from first to all |
+| 26 | Swap Tags | Swap between 2 elements |
+| 27 | Re-Tag | Force re-derive |
+| 28 | Audit to CSV | Export tag audit |
+| 29 | Find Duplicates | Locate duplicates |
+| 30 | Highlight Invalid | Color-code invalid tags |
+| 31 | Tag Statistics | Counts by disc/sys/level |
+| 32 | Tag Register | 40+ column CSV export |
+| 33 | Anomaly Auto-Fix | Detect and fix 8+ anomaly types |
+| 34 | Retag Stale | Re-tag moved elements |
+| 35 | Discipline Compliance | Per-discipline report |
+
+### TAGS Tab (Tag Studio)
+
+| # | Command | Description |
+|---|---------|-------------|
+| 36 | Smart Place Tags | 16-position collision avoidance |
+| 37 | Arrange Tags | Auto-arrange to grid |
+| 38 | Batch Place Tags | Multi-view placement |
+| 39 | Apply Tag Style | Size/style/color dialog |
+| 40 | Apply Color Scheme | Named scheme to view |
+| 41 | Set Display Mode | 5 display mode options |
+| 42 | Set Paragraph Depth | TAG7 visibility tiers |
+
+---
+
+*This guide is maintained alongside the STING Tools codebase. For the latest version, check `Data/TAGGING_GUIDE.md`.*
+
+*Related guides:*
+- [BIM Coordination Workflow Guide](BIM_COORDINATION_WORKFLOW_GUIDE.md)
+- [DWG to BIM Guide](DWG_TO_BIM_GUIDE.md)
+- [Tag Family Creation Guide](TAG_FAMILY_CREATION_GUIDE.md)
