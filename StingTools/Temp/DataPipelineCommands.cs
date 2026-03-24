@@ -708,6 +708,13 @@ namespace StingTools.Temp
             int skipped = 0;
             int failed = 0;
 
+            // PERF-R15: Pre-build definition index to avoid O(groups×defs) per param lookup
+            var defIndex = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            foreach (DefinitionGroup grp in defFile.Groups)
+                foreach (Definition d in grp.Definitions)
+                    if (d is ExternalDefinition ed && !defIndex.ContainsKey(d.Name))
+                        defIndex[d.Name] = ed;
+
             using (Transaction tx = new Transaction(doc, "STING Dynamic Parameter Bindings"))
             {
                 tx.Start();
@@ -717,8 +724,8 @@ namespace StingTools.Temp
                     string paramName = kvp.Key;
                     var targets = kvp.Value;
 
-                    // Find definition in shared param file
-                    ExternalDefinition def = FindDefinition(defFile, paramName);
+                    // Find definition in pre-built index (O(1) instead of O(n))
+                    defIndex.TryGetValue(paramName, out ExternalDefinition def);
                     if (def == null)
                     {
                         skipped++;

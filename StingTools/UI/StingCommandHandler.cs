@@ -1396,7 +1396,8 @@ namespace StingTools.UI
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
                     {
-                        string presetName = _commandTag.Replace("WorkflowPreset_", "");
+                        // Phase 74: Use local `tag` not instance `_commandTag` to prevent race condition
+                        string presetName = tag.Replace("WorkflowPreset_", "");
                         SetExtraParam("WorkflowPresetName", presetName);
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
@@ -2288,6 +2289,9 @@ namespace StingTools.UI
             _conditions.Clear();
             _scopeIsView = true;
             _overwriteMode = false;
+            // Phase 74: Clear cross-document stale ElementId references
+            _clonedTagLayout = null;
+            _clonedSourceViewName = null;
         }
 
         private static void ViewIsolateSelected(UIApplication app)
@@ -3148,13 +3152,10 @@ namespace StingTools.UI
 
             Color color = new Color(r, g, b);
 
-            FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try { if (fpe.GetFillPattern().IsSolidFill) { solidFill = fpe; break; } }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
+            // Phase 74: Use cached solid fill pattern instead of redundant collector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? uidoc.Document.GetElement(solidFillId) as FillPatternElement : null;
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {

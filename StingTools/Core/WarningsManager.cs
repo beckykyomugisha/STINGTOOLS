@@ -356,19 +356,33 @@ namespace StingTools.Core
             ("COBie", WarningCategory.Compliance, WarningSeverity.High, "Fix COBie data issue before handover", false),
             ("IFC", WarningCategory.Compliance, WarningSeverity.Medium, "Review IFC export classification", false),
             ("classification", WarningCategory.Data, WarningSeverity.Medium, "Verify Uniclass/OmniClass classification code", false),
+
+            // Phase 74: Missing production-model patterns identified by deep review
+            ("Multiple walls are joined at one end", WarningCategory.Geometric, WarningSeverity.Low, "Review wall join conditions", false),
+            ("Roof and Wall join", WarningCategory.Geometric, WarningSeverity.Low, "Review roof/wall join condition", false),
+            ("slab edge is slightly off", WarningCategory.Geometric, WarningSeverity.Low, "Align slab edge to axis", false),
+            ("gap between highlighted slab edges", WarningCategory.Geometric, WarningSeverity.Medium, "Close slab edge gap", false),
+            ("Analytical Model is not consistent", WarningCategory.Structural, WarningSeverity.High, "Fix analytical model alignment", false),
+            ("Circular chain of references", WarningCategory.Data, WarningSeverity.Critical, "Break circular reference chain", false),
+            ("is an in-place family", WarningCategory.Performance, WarningSeverity.Medium, "Convert in-place family to loadable", false),
+            ("has duplicate Number value", WarningCategory.Data, WarningSeverity.Medium, "Auto-increment sheet/level number", true),
         };
 
         // PERF: Pre-build lookup dictionary for first-word matching to speed up classification.
         // Instead of O(n) linear scan through 120+ rules, first check if the warning's first
         // significant word matches any rule pattern prefix for O(1) average case.
         private static readonly Dictionary<string, List<int>> _ruleFirstWordIndex;
+        // Phase 74: Pre-lowered patterns — eliminates ~150 ToLowerInvariant() allocations per warning classification
+        private static readonly string[] _loweredPatterns;
 
         static WarningsEngine()
         {
+            _loweredPatterns = new string[ClassificationRules.Length];
             _ruleFirstWordIndex = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < ClassificationRules.Length; i++)
             {
-                string firstWord = ClassificationRules[i].pattern.Split(' ')[0].ToLowerInvariant();
+                _loweredPatterns[i] = ClassificationRules[i].pattern.ToLowerInvariant();
+                string firstWord = _loweredPatterns[i].Split(' ')[0];
                 if (!_ruleFirstWordIndex.TryGetValue(firstWord, out var list))
                 {
                     list = new List<int>();
@@ -460,7 +474,7 @@ namespace StingTools.Core
                     foreach (int idx in indices)
                     {
                         var rule = ClassificationRules[idx];
-                        if (lower.Contains(rule.pattern.ToLowerInvariant()))
+                        if (lower.Contains(_loweredPatterns[idx]))
                             return (rule.cat, rule.sev, rule.fix, rule.autoFix);
                     }
                 }

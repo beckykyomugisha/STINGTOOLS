@@ -469,6 +469,15 @@ namespace StingTools.Core
                 {
                     stepNum++;
 
+                    // Phase 74: Local helper — records skip with audit trail + cascade flag
+                    void RecordSkip(string reason)
+                    {
+                        skipped++;
+                        previousStepSkipped = true;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({reason})");
+                        stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                    }
+
                     if (EscapeChecker.IsEscapePressed())
                     {
                         report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
@@ -489,42 +498,36 @@ namespace StingTools.Core
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
                         if (step.Condition == "workshared" && !doc.IsWorkshared)
-                        {
-                            skipped++;
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
-                            continue;
-                        }
+                        { RecordSkip("not workshared"); continue; }
                         // GAP-02: Extended condition engine for workflow steps
                         if (step.Condition == "has_links")
                         {
                             bool hasLinks = new FilteredElementCollector(doc)
                                 .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
-                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                            if (!hasLinks) { RecordSkip("no linked models"); continue; }
                         }
                         if (step.Condition == "has_cad_imports")
                         {
                             bool hasCad = new FilteredElementCollector(doc)
                                 .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
-                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                            if (!hasCad) { RecordSkip("no CAD imports"); continue; }
                         }
                         if (step.Condition == "has_stale")
                         {
-                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                            if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
                         // Phase 39: WorkflowStep.RequiresWorksharedModel condition
                         if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        {
-                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
-                        }
+                        { RecordSkip("not workshared"); continue; }
                         // Phase 39: Element count range condition
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
                             int elemCount = new FilteredElementCollector(doc)
                                 .WhereElementIsNotElementType().GetElementCount();
                             if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            { RecordSkip($"{elemCount} elements < min {step.MinElementCount.Value}"); continue; }
                             if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                            { RecordSkip($"{elemCount} elements > max {step.MaxElementCount.Value}"); continue; }
                         }
 
                         // Phase 47: Warning-aware workflow conditions
@@ -533,7 +536,7 @@ namespace StingTools.Core
                             try
                             {
                                 int warnCount = doc.GetWarnings()?.Count ?? 0;
-                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                                if (warnCount == 0) { RecordSkip("no warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
                         }
@@ -543,7 +546,7 @@ namespace StingTools.Core
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
-                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                                if (critical == 0) { RecordSkip("no critical warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
                         }
@@ -553,10 +556,10 @@ namespace StingTools.Core
                             {
                                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                                 string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
-                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
                                 string raw = File.ReadAllText(issuesPath);
                                 int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
-                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
                         }
@@ -573,7 +576,7 @@ namespace StingTools.Core
                                 hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
                             }
                             catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
-                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                            if (!hasUntagged) { RecordSkip("no untagged elements"); continue; }
                         }
 
                         // Phase 66c: Additional workflow condition operators
@@ -593,7 +596,7 @@ namespace StingTools.Core
                                 });
                             }
                             catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
-                            if (!hasPlaceholders) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no placeholder tokens)"); continue; }
+                            if (!hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
                         if (step.Condition == "has_container_gaps")
                         {
@@ -602,7 +605,7 @@ namespace StingTools.Core
                                 var scan = ComplianceScan.Scan(doc);
                                 double containerPct = scan?.ContainerCompletePct ?? 100;
                                 if (containerPct >= 95)
-                                { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (containers {containerPct:F0}% complete)"); continue; }
+                                { RecordSkip($"containers {containerPct:F0}% complete"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
                         }
@@ -610,13 +613,13 @@ namespace StingTools.Core
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 90)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 90%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% ≥ 90%"); continue; }
                         }
                         if (step.Condition == "compliance_below_50")
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 50)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% ≥ 50%"); continue; }
                         }
                     }
 
@@ -1116,7 +1119,7 @@ namespace StingTools.Core
                 case "NamingAudit": return new Temp.NamingConventionAuditCommand();
                 case "CrossModelClash": return new Temp.CrossModelClashCommand();
                 case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
-                case "AutoAssignTemplates": return new Temp.AutoAssignTemplatesCommand();
+                // Phase 74: Removed duplicate "AutoAssignTemplates" case (already at line 1096)
                 case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
 
                 // Data Pipeline
@@ -1275,6 +1278,12 @@ namespace StingTools.Core
                 // Phase 67: Additional command tag resolutions
                 case "TagSelector":             return new Select.TagSelectorCommand();
                 case "ExportTagPositions":      return new Tags.ExportTagPositionsCommand();
+
+                // Phase 74: Missing resolutions that break sector-specific workflow presets
+                case "RoomSpaceAudit":          return new Temp.RoomSpaceAuditCommand();
+                case "HandoverManual":          return new Docs.HandoverManualCommand();
+                case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
+                case "EscalateOverdueActions":  return new BIMManager.EscalateOverdueActionsCommand();
 
                 default: return null;
             }
