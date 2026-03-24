@@ -259,6 +259,7 @@ namespace StingTools.Model
         private readonly Document _doc;
         private readonly StructuralTypeFactory _typeFactory;
         private readonly StructuralModelingEngine _structEngine;
+        private StructuralExtractionResult _extraction;
 
         // Configurable thresholds
         private const double MinColumnSizeMm = 150;
@@ -1535,6 +1536,430 @@ namespace StingTools.Model
                 return style?.GraphicsStyleCategory?.Name;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        // ── Enhanced Pipeline with DWGConversionConfig ───────────────────
+
+        /// <summary>
+        /// Runs the full pipeline using the enhanced DWGConversionConfig from the wizard.
+        /// Supports: column soffit height, foundation creation, structural walls,
+        /// construction relationships, and auto-tagging.
+        /// </summary>
+        public StructuralModelResult RunFullPipelineWithConfig(
+            ImportInstance importInstance, DWGConversionConfig config)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var totalResult = new StructuralModelResult { Success = true };
+
+            try
+            {
+                StingLog.Info("StructuralCADPipeline: Enhanced pipeline with config");
+
+                _typeFactory.BuildCatalog();
+
+                // Apply user layer selection to pipeline
+                SelectedLayers = config.SelectedLayers;
+                var extraction = ExtractStructuralGeometry(importInstance);
+                _extraction = extraction;
+                StingLog.Info($"  Extraction: {extraction.Summary}");
+
+                // Resolve levels
+                var resolver = new ModelFamilyResolver(_doc);
+                var baseLevel = resolver.ResolveLevel(config.BaseLevelName);
+                var topLevel = resolver.ResolveLevel(config.TopLevelName);
+
+                double baseLevelElev = baseLevel?.Elevation ?? 0;
+                double topLevelElev = topLevel?.Elevation ?? baseLevelElev + Units.Mm(config.ColumnHeightMm);
+
+                // Column height: if ColumnsStopAtSoffit, subtract slab thickness
+                double columnTopElev = topLevelElev;
+                if (config.ColumnsStopAtSoffit)
+                    columnTopElev = topLevelElev - Units.Mm(config.SlabThicknessMm);
+
+                double columnHeightFt = columnTopElev - baseLevelElev;
+                double columnHeightMm = columnHeightFt * Units.FeetToMm;
+
+                // Create elements in construction sequence order
+                // Foundation → Column → Beam → Wall → Slab → Grid
+
+                // 1. Foundations
+                if (config.CreateFoundations && extraction.FoundationBlocks.Count > 0)
+                {
+                    totalResult.FootingsCreated += CreateFoundationsFromBlocks(
+                        extraction.FoundationBlocks, baseLevel, config.FoundationDepthMm, totalResult);
+                }
+                // Also create pad foundations under detected columns
+                if (config.CreateFoundations && (extraction.Circles.Count > 0 || extraction.Rectangles.Count > 0))
+                {
+                    totalResult.FootingsCreated += CreatePadFoundations(
+                        extraction.Circles, extraction.Rectangles, baseLevel,
+                        config.FoundationDepthMm, totalResult);
+                }
+
+                // 2. Columns (with soffit adjustment)
+                if (config.CreateColumns && extraction.Circles.Count > 0)
+                    totalResult.ColumnsCreated += CreateColumnsWithHeight(
+                        extraction.Circles, null, baseLevel, topLevel,
+                        columnHeightMm, config.ColumnsStopAtSoffit, config.SlabThicknessMm, totalResult);
+
+                if (config.CreateColumns && extraction.Rectangles.Count > 0)
+                    totalResult.ColumnsCreated += CreateRectColumnsWithHeight(
+                        extraction.Rectangles, baseLevel, topLevel,
+                        columnHeightMm, config.ColumnsStopAtSoffit, config.SlabThicknessMm, totalResult);
+
+                // 3. Beams
+                if (config.CreateBeams && extraction.BeamLines.Count > 0)
+                    totalResult.BeamsCreated += CreateBeamsFromLines(
+                        extraction.BeamLines, baseLevel,
+                        config.BeamDepthMm, columnHeightMm, totalResult);
+
+                // 4. Walls (structural or architectural)
+                if (config.CreateWalls && extraction.Walls.Count > 0)
+                    totalResult.WallsCreated += CreateWallsWithConfig(
+                        extraction.Walls, baseLevel, config, totalResult);
+
+                // 5. Slabs
+                if (config.CreateSlabs && extraction.SlabBoundaries.Count > 0)
+                    totalResult.SlabsCreated += CreateSlabsFromBoundaries(
+                        extraction.SlabBoundaries, baseLevel, config.SlabThicknessMm, totalResult);
+
+                // 6. Grids
+                if (config.CreateGrids && extraction.GridLines.Count > 0)
+                    CreateGridLinesFromDetected(extraction.GridLines, totalResult);
+
+                // Post-pipeline connectivity audit
+                if (totalResult.TotalCreated > 0)
+                {
+                    var auditResult = _structEngine.AnalyzeLoadPaths();
+                    if (auditResult.Warnings.Count > 0)
+                    {
+                        totalResult.Warnings.Add("── Post-creation audit ──");
+                        totalResult.Warnings.AddRange(auditResult.Warnings);
+                    }
+                }
+
+                // Auto-tag created elements
+                if (config.AutoTag && totalResult.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        ModelEngine.AutoTagCreatedElements(_doc, totalResult.CreatedIds);
+                        StingLog.Info($"  Auto-tagged {totalResult.CreatedIds.Count} elements");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Auto-tag: {ex.Message}"); }
+                }
+
+                // Apply numbering
+                if (config.AutoSeqNumbers && config.NumberingConfig != null && totalResult.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        int numbered = NumberingEngine.ApplyNumbering(_doc,
+                            config.NumberingConfig, totalResult.CreatedIds);
+                        StingLog.Info($"  Numbered {numbered} elements");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Numbering: {ex.Message}"); }
+                }
+
+                sw.Stop();
+                totalResult.Duration = sw.Elapsed;
+
+                var parts = new List<string>();
+                if (totalResult.ColumnsCreated > 0) parts.Add($"{totalResult.ColumnsCreated} columns");
+                if (totalResult.BeamsCreated > 0) parts.Add($"{totalResult.BeamsCreated} beams");
+                if (totalResult.WallsCreated > 0) parts.Add($"{totalResult.WallsCreated} walls");
+                if (totalResult.SlabsCreated > 0) parts.Add($"{totalResult.SlabsCreated} slabs");
+                if (totalResult.FootingsCreated > 0) parts.Add($"{totalResult.FootingsCreated} foundations");
+
+                totalResult.Summary = parts.Count > 0
+                    ? $"Created {string.Join(", ", parts)} from DWG in {sw.Elapsed.TotalSeconds:F1}s"
+                    : "No structural elements created — check layer names and selection";
+
+                StingLog.Info($"StructuralCADPipeline: {totalResult.Summary}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("StructuralCADPipeline enhanced pipeline failed", ex);
+                totalResult.Success = false;
+                totalResult.Summary = $"Pipeline failed: {ex.Message}";
+            }
+
+            return totalResult;
+        }
+
+        // ── Column creation with base-to-top level and soffit adjustment ──
+
+        private int CreateColumnsWithHeight(List<DetectedCircle> circles,
+            List<DetectedRectangle> rects, Level baseLevel, Level topLevel,
+            double heightMm, bool stopAtSoffit, double slabThickMm,
+            StructuralModelResult result)
+        {
+            int count = 0;
+            var fh = new ModelFailureHandler();
+            using (var tx = new Transaction(_doc, "STING STRUCT: Columns (soffit)"))
+            {
+                var opts = tx.GetFailureHandlingOptions();
+                opts.SetFailuresPreprocessor(fh);
+                tx.SetFailureHandlingOptions(opts);
+                tx.Start();
+
+                foreach (var circle in circles ?? new List<DetectedCircle>())
+                {
+                    try
+                    {
+                        var typeMatch = _typeFactory.FindOrCreateColumnType(
+                            circle.DiameterMm, circle.DiameterMm);
+                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+
+                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
+                        if (symbol == null) continue;
+                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+
+                        var pt = new XYZ(circle.Center.X, circle.Center.Y,
+                            baseLevel?.Elevation ?? 0);
+                        var col = _doc.Create.NewFamilyInstance(
+                            pt, symbol, baseLevel, StructuralType.Column);
+
+                        // Set top level constraint if available
+                        if (topLevel != null)
+                        {
+                            var topParam = col.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM);
+                            if (topParam != null && !topParam.IsReadOnly)
+                                topParam.Set(topLevel.Id);
+
+                            // If stopping at soffit, set top offset = -slab thickness
+                            if (stopAtSoffit)
+                            {
+                                var topOffset = col.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
+                                if (topOffset != null && !topOffset.IsReadOnly)
+                                    topOffset.Set(-Units.Mm(slabThickMm));
+                            }
+                        }
+
+                        ModelWorksetAssigner.Assign(_doc, col);
+                        result.CreatedIds.Add(col.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Column (soffit): {ex.Message}"); }
+                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                }
+                tx.Commit();
+            }
+            result.Warnings.AddRange(fh.CapturedWarnings);
+            return count;
+        }
+
+        private int CreateRectColumnsWithHeight(List<DetectedRectangle> rects,
+            Level baseLevel, Level topLevel,
+            double heightMm, bool stopAtSoffit, double slabThickMm,
+            StructuralModelResult result)
+        {
+            int count = 0;
+            var fh = new ModelFailureHandler();
+            using (var tx = new Transaction(_doc, "STING STRUCT: Rect Columns (soffit)"))
+            {
+                var opts = tx.GetFailureHandlingOptions();
+                opts.SetFailuresPreprocessor(fh);
+                tx.SetFailureHandlingOptions(opts);
+                tx.Start();
+
+                foreach (var rect in rects)
+                {
+                    try
+                    {
+                        var typeMatch = _typeFactory.FindOrCreateColumnType(
+                            rect.WidthMm, rect.DepthMm);
+                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+
+                        var symbol = _doc.GetElement(typeMatch.TypeId) as FamilySymbol;
+                        if (symbol == null) continue;
+                        if (!symbol.IsActive) { symbol.Activate(); _doc.Regenerate(); }
+
+                        var pt = new XYZ(rect.Center.X, rect.Center.Y,
+                            baseLevel?.Elevation ?? 0);
+                        var col = _doc.Create.NewFamilyInstance(
+                            pt, symbol, baseLevel, StructuralType.Column);
+
+                        // Set top level and soffit offset
+                        if (topLevel != null)
+                        {
+                            var topParam = col.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM);
+                            if (topParam != null && !topParam.IsReadOnly)
+                                topParam.Set(topLevel.Id);
+
+                            if (stopAtSoffit)
+                            {
+                                var topOffset = col.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
+                                if (topOffset != null && !topOffset.IsReadOnly)
+                                    topOffset.Set(-Units.Mm(slabThickMm));
+                            }
+                        }
+
+                        if (Math.Abs(rect.Rotation) > 0.01)
+                        {
+                            var axis = Line.CreateBound(pt, pt + XYZ.BasisZ);
+                            ElementTransformUtils.RotateElement(_doc, col.Id, axis, rect.Rotation);
+                        }
+
+                        ModelWorksetAssigner.Assign(_doc, col);
+                        result.CreatedIds.Add(col.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Rect column (soffit): {ex.Message}"); }
+                }
+                tx.Commit();
+            }
+            result.Warnings.AddRange(fh.CapturedWarnings);
+            return count;
+        }
+
+        // ── Foundation creation ──────────────────────────────────────────
+
+        private int CreatePadFoundations(List<DetectedCircle> circles,
+            List<DetectedRectangle> rects, Level level, double depthMm,
+            StructuralModelResult result)
+        {
+            int count = 0;
+
+            // Find or create a foundation type
+            var foundationTypes = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>().ToList();
+
+            if (foundationTypes.Count == 0)
+            {
+                result.Warnings.Add("No structural foundation families loaded — skipping foundations.");
+                return 0;
+            }
+
+            var fdnSymbol = foundationTypes[0];
+            using (var tx = new Transaction(_doc, "STING STRUCT: Pad Foundations"))
+            {
+                tx.Start();
+
+                if (!fdnSymbol.IsActive) { fdnSymbol.Activate(); _doc.Regenerate(); }
+
+                // Place foundations under column locations
+                foreach (var circle in circles ?? new List<DetectedCircle>())
+                {
+                    try
+                    {
+                        var pt = new XYZ(circle.Center.X, circle.Center.Y,
+                            level?.Elevation ?? 0);
+                        var fdn = _doc.Create.NewFamilyInstance(
+                            pt, fdnSymbol, level, StructuralType.Footing);
+                        ModelWorksetAssigner.Assign(_doc, fdn);
+                        result.CreatedIds.Add(fdn.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Pad fdn: {ex.Message}"); }
+                }
+
+                foreach (var rect in rects ?? new List<DetectedRectangle>())
+                {
+                    try
+                    {
+                        var pt = new XYZ(rect.Center.X, rect.Center.Y,
+                            level?.Elevation ?? 0);
+                        var fdn = _doc.Create.NewFamilyInstance(
+                            pt, fdnSymbol, level, StructuralType.Footing);
+                        ModelWorksetAssigner.Assign(_doc, fdn);
+                        result.CreatedIds.Add(fdn.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Pad fdn: {ex.Message}"); }
+                }
+
+                tx.Commit();
+            }
+            return count;
+        }
+
+        private int CreateFoundationsFromBlocks(List<DetectedBlock> blocks,
+            Level level, double depthMm, StructuralModelResult result)
+        {
+            // Foundation blocks from DWG are placed as structural foundations
+            int count = 0;
+            var foundationTypes = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                .OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>().ToList();
+
+            if (foundationTypes.Count == 0)
+            {
+                result.Warnings.Add("No foundation families loaded.");
+                return 0;
+            }
+
+            var fdnSymbol = foundationTypes[0];
+            using (var tx = new Transaction(_doc, "STING STRUCT: Foundation Blocks"))
+            {
+                tx.Start();
+                if (!fdnSymbol.IsActive) { fdnSymbol.Activate(); _doc.Regenerate(); }
+
+                foreach (var block in blocks)
+                {
+                    try
+                    {
+                        var pt = new XYZ(block.InsertionPoint.X, block.InsertionPoint.Y,
+                            level?.Elevation ?? 0);
+                        var fdn = _doc.Create.NewFamilyInstance(
+                            pt, fdnSymbol, level, StructuralType.Footing);
+                        ModelWorksetAssigner.Assign(_doc, fdn);
+                        result.CreatedIds.Add(fdn.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Foundation block: {ex.Message}"); }
+                }
+
+                tx.Commit();
+            }
+            return count;
+        }
+
+        // ── Wall creation with structural/architectural flag ─────────────
+
+        private int CreateWallsWithConfig(List<DetectedWall> walls, Level level,
+            DWGConversionConfig config, StructuralModelResult result)
+        {
+            int count = 0;
+            var fh = new ModelFailureHandler();
+            using (var tx = new Transaction(_doc, "STING STRUCT: Walls from DWG"))
+            {
+                var opts = tx.GetFailureHandlingOptions();
+                opts.SetFailuresPreprocessor(fh);
+                tx.SetFailureHandlingOptions(opts);
+                tx.Start();
+
+                foreach (var wall in walls)
+                {
+                    if (wall.CenterStart.DistanceTo(wall.CenterEnd) < 0.01) continue;
+                    try
+                    {
+                        double thickMm = wall.ThicknessFt * Units.FeetToMm;
+                        var typeMatch = _typeFactory.FindOrCreateWallType(
+                            thickMm, config.CreateStructuralWalls);
+                        if (!typeMatch.Success) { result.Warnings.Add(typeMatch.Message); continue; }
+
+                        var line = Line.CreateBound(wall.CenterStart, wall.CenterEnd);
+                        var created = Wall.Create(_doc, line, typeMatch.TypeId,
+                            level?.Id ?? ElementId.InvalidElementId,
+                            Units.Mm(config.WallHeightMm), 0, false,
+                            config.CreateStructuralWalls);
+
+                        ModelWorksetAssigner.Assign(_doc, created);
+                        result.CreatedIds.Add(created.Id);
+                        count++;
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
+                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                }
+
+                tx.Commit();
+            }
+            result.Warnings.AddRange(fh.CapturedWarnings);
+            return count;
         }
     }
 

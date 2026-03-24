@@ -928,36 +928,31 @@ namespace StingTools.Model
 
             try
             {
-                var wizard = StructuralCADWizard.Show(doc);
+                // Show the new single-page DWG-to-BIM conversion dialog
+                var wizard = new StructuralCADWizard(doc);
+                wizard.ShowDialog();
                 if (!wizard.Confirmed) return Result.Cancelled;
 
-                if (wizard.SelectedImport == null)
+                var config = wizard.GetConfig();
+
+                // Find the selected DWG import
+                var imports = CADToModelEngine.FindImportInstances(doc);
+                if (imports.Count == 0)
                 {
-                    TaskDialog.Show("STRUCT — CAD Wizard", "No DWG import selected.");
-                    return Result.Cancelled;
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import found in the document.");
+                    return Result.Failed;
                 }
 
-                // Run the full pipeline with wizard settings + selected layers + tolerances
+                // Run the enhanced pipeline with full config
                 var pipeline = new StructuralCADPipeline(doc);
-                pipeline.SelectedLayers = wizard.GetSelectedLayers();
-                pipeline.EndpointToleranceFt = wizard.EndpointToleranceMm * Units.MmToFeet;
-                var result = pipeline.RunFullPipeline(
-                    wizard.SelectedImport,
-                    wizard.SelectedLevel,
-                    wizard.CreateColumns,
-                    wizard.CreateBeams,
-                    wizard.CreateSlabs,
-                    wizard.CreateGrids,
-                    wizard.DefaultBeamDepthMm,
-                    wizard.DefaultSlabThickMm,
-                    wizard.DefaultStoreyHeightMm);
+                var result = pipeline.RunFullPipelineWithConfig(imports[0], config);
 
                 var msg = result.Summary;
                 if (result.Warnings.Count > 0)
                     msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
                         string.Join("\n", result.Warnings.Take(15).Select(w => $"• {w}"));
 
-                TaskDialog.Show("STRUCT — CAD Wizard", msg);
+                TaskDialog.Show("STRUCT — DWG-to-BIM", msg);
 
                 if (result.CreatedIds.Count > 0)
                     uidoc.Selection.SetElementIds(result.CreatedIds);
