@@ -1697,6 +1697,197 @@ KPI metrics:
 
 ---
 
+## 23. Deep Insights: Understanding the BIM Coordination Engine
+
+This section provides deep technical knowledge for BIM Managers who want to understand, troubleshoot, or teach others about the internal systems.
+
+### 23.1 The Compliance Engine Architecture
+
+The compliance system operates in real-time with a multi-layer architecture:
+
+```
+Layer 1: ComplianceScan (30-second cache)
+  ├── Project-level scan: tagged/untagged/complete/incomplete counts
+  ├── Per-discipline breakdown: ByDisc dictionary
+  ├── Per-phase breakdown: ByPhase dictionary
+  ├── Container completeness: ContainerCompletePct
+  ├── Placeholder tracking: PlaceholderCount (GEN/XX/ZZ/0000)
+  └── Revision tracking: RevisionComplete/Missing/Percent
+
+Layer 2: ComplianceTrendTracker (daily snapshots)
+  ├── 90-day rolling window in .sting_compliance_trend.json
+  ├── 7-day trend direction (improving/stable/declining)
+  └── Snapshot after every workflow execution
+
+Layer 3: Compliance Gates (5 checkpoints)
+  ├── Post-tagging gate: COMPLIANCE_GATE_PCT in project_config.json
+  ├── CDE transition gate: 70% for SHARED, 90% for PUBLISHED
+  ├── COBie export gate: 60% minimum with override
+  ├── Pre-revision gate: 80% minimum with discipline breakdown
+  └── Data drop gate: DD1=30%, DD2=60%, DD3=85%, DD4=95%
+```
+
+**Key insight**: The compliance system uses TWO metrics:
+- **CompliancePercent** = tagged elements / total elements (includes placeholders)
+- **StrictPercent** = fully resolved elements / total elements (excludes placeholders)
+
+Always check StrictPercent for deliverable readiness; CompliancePercent for progress tracking.
+
+### 23.2 The CDE State Machine
+
+ISO 19650-2 defines a strict document lifecycle. STING enforces one-way transitions:
+
+```
+    WIP ──→ SHARED ──→ PUBLISHED ──→ ARCHIVE
+     ↑         │
+     └─────────┘  (rework path: SHARED → WIP only)
+
+    SUPERSEDED ←── (from PUBLISHED when replaced)
+    WITHDRAWN  ←── (from any state except ARCHIVE)
+    OBSOLETE   ←── (from ARCHIVE only)
+```
+
+**Suitability codes auto-mapped per transition**:
+- WIP → SHARED: Suitability = S3 (Suitable for review and comment)
+- SHARED → PUBLISHED: Suitability = S4 (Suitable for stage approval)
+- PUBLISHED → ARCHIVE: Suitability = S7 (Suitable for as-built/FM)
+
+**Compliance-gated transitions** (configurable via project_config.json):
+- WIP → SHARED requires `CDE_SHARED_MIN_COMPLIANCE` (default 70%)
+- SHARED → PUBLISHED requires `CDE_PUBLISHED_MIN_COMPLIANCE` (default 90%)
+
+### 23.3 Cross-System Data Flow
+
+The BIM coordination engine connects 8 systems. Understanding the data flow is critical:
+
+```
+Tagging ──→ Compliance ──→ CDE State Machine
+   │              │                 │
+   ├──→ COBie Export          ├──→ Transmittals
+   │              │                 │
+   ├──→ Excel Link            ├──→ BCF/Issues
+   │                                │
+   └──→ Revision Tracking ←────────┘
+              │
+              └──→ Warnings Manager ←── Model Changes
+```
+
+**Automation rules (cross-system triggers)**:
+1. **Stale → Auto-retag**: Geometry changes trigger StaleMarker IUpdater → elements queued for re-tagging
+2. **Tag change → Revision**: AutoRevisionOnTagChange creates revision snapshots
+3. **Compliance GREEN → Auto-close issues**: Open compliance issues auto-resolved
+4. **Warning CRITICAL → Auto-create NCR**: Critical warnings become issues with SLA tracking
+5. **Overdue action → Issue escalation**: Meeting actions past due become HIGH-priority NCRs
+6. **Compliance ≥80% → Transmittal trigger**: Auto-creates SHARED transmittal for CDE submission
+
+### 23.4 Workflow Engine Deep Dive
+
+The WorkflowEngine supports 30+ presets with intelligent step execution:
+
+**Condition types** (19 available):
+| Condition | Description | Example Use |
+|-----------|-------------|-------------|
+| `minCompliancePct` | Skip if compliance below threshold | Skip COBie if <60% |
+| `maxCompliancePct` | Skip if compliance above threshold | Skip tagging if >95% |
+| `requiresStaleElements` | Skip if no stale elements | Skip Retag if nothing moved |
+| `has_links` | Skip if no linked models | Skip federated audit |
+| `has_warnings` | Skip if no warnings | Skip auto-fix |
+| `has_open_issues` | Skip if no open issues | Skip issue review |
+| `has_placeholders` | Skip if no GEN/XX/ZZ tokens | Skip placeholder resolution |
+| `compliance_above_90` | Skip if already compliant | Skip validation |
+| `MinWarningHealthScore` | Skip if warnings healthy | Skip warning fix |
+| `MinDataDrop` | Skip if below DD level | Skip handover prep |
+| `TimeoutSeconds` | Abort step after N seconds | Prevent long-running steps |
+
+**Recommended daily workflow**:
+```
+Morning: Run "MorningHealthCheck" preset (8 steps, ~3 min)
+  → Retag stale → Auto-fix warnings → Tag new → Validate → Template audit
+
+Mid-day: Run "DailyQA" preset (11 steps, ~5 min)
+  → Pre-tag audit → Batch tag → Validate → Completeness → Sheet naming
+
+End of day: Run "EndOfDaySync" preset (8 steps, ~4 min)
+  → Validate → Save baseline → Export registers → Model health → Create revision
+```
+
+### 23.5 Warning Classification System
+
+The Warnings Manager classifies 150+ Revit warning types into 8 BIM categories:
+
+| Category | Examples | Auto-Fix Available |
+|----------|---------|-------------------|
+| **Geometric** | Overlapping walls, zero-length, coincident | Yes (join, delete, snap) |
+| **Spatial** | Room separation overlaps, no room | Yes (delete shorter line) |
+| **MEP** | Unconnected pipes, undefined system | No (requires design review) |
+| **Structural** | Beam deflection, eccentricity | No (requires engineering) |
+| **Annotation** | Duplicate marks, orphan tags | Yes (auto-increment mark) |
+| **Data** | Missing parameters, host deleted | Partial (parameter write) |
+| **Performance** | Large groups, many linked models | No (requires model cleanup) |
+| **Compliance** | Part B/L/M violations | No (requires design change) |
+
+**10 auto-fix strategies**:
+1. Delete duplicate instances (same location)
+2. Delete shorter room separation line
+3. Repair unjoined walls
+4. Auto-increment duplicate marks (collision-safe)
+5. Fix room tags outside boundary (move to center)
+6. Join overlapping walls
+7. Snap off-axis elements to cardinal direction
+8. Delete zero-length elements (<3mm)
+9. Fix duplicate marks with unique suffix
+10. Unjoin non-intersecting geometry
+
+### 23.6 Performance Guide for Large Models
+
+| Model Size | Recommended Approach | Estimated Time |
+|-----------|---------------------|---------------|
+| <5K elements | BatchTag + TagAndCombine | <30 sec |
+| 5K-20K elements | AutoTag per view + CombineAll | 2-5 min |
+| 20K-50K elements | TagNewOnly + chunked workflows | 5-15 min |
+| 50K+ elements | Discipline-filtered auto-tagger | Continuous |
+
+**Critical performance tips**:
+- Always use `TagNewOnly` for incremental work (skips already-tagged elements)
+- Enable auto-tagger with discipline filter for real-time tagging
+- ComplianceScan has 8-second timeout on very large models — partial results shown
+- Formula cache persists for 5 minutes — first tag command loads CSV, subsequent reuse
+- Avoid running BatchTag on >50K elements in single transaction — use workflow presets
+
+### 23.7 Teaching Checklist
+
+When training new BIM coordinators on STING Tools, cover these topics in order:
+
+**Week 1: Fundamentals**
+- [ ] Load shared parameters (Master Setup or Load Params)
+- [ ] Understand 8-segment tag format (DISC-LOC-ZONE-LVL-SYS-FUNC-PROD-SEQ)
+- [ ] Run AutoTag on a single view
+- [ ] Read the compliance dashboard (RAG status)
+- [ ] Use TagAndCombine for one-click tagging
+
+**Week 2: Quality Assurance**
+- [ ] Run ValidateTags and understand 4-bucket report
+- [ ] Use PreTagAudit before large tagging operations
+- [ ] Fix anomalies with AnomalyAutoFix
+- [ ] Export Tag Register for external review
+- [ ] Understand compliance gates and when they fire
+
+**Week 3: Document Management**
+- [ ] Open Document Management Center
+- [ ] Understand CDE state transitions (WIP → SHARED → PUBLISHED)
+- [ ] Create and track issues (RFI/NCR/SI)
+- [ ] Use revision management (snapshot → compare)
+- [ ] Generate COBie export with appropriate preset
+
+**Week 4: Automation**
+- [ ] Run MorningHealthCheck workflow
+- [ ] Configure project_config.json for project-specific settings
+- [ ] Use BIM Coordination Center for daily monitoring
+- [ ] Set up auto-tagger with discipline filter
+- [ ] Create custom workflow JSON preset
+
+---
+
 *This guide is maintained alongside the STING Tools codebase. For the latest version, check `Data/BIM_COORDINATION_WORKFLOW_GUIDE.md` in the repository.*
 
 *Related guides:*

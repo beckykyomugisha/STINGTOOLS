@@ -1298,6 +1298,112 @@ Use cases:
 
 ---
 
+## 28. Deep Insights: How the Tagging Engine Works Internally
+
+This section provides deep technical insights for advanced users who want to understand, troubleshoot, or teach others about the tagging engine internals.
+
+### 28.1 The 11-Step RunFullPipeline
+
+Every tagged element passes through exactly 11 steps in `TagPipelineHelper.RunFullPipeline()`:
+
+```
+Step 1: Category Filter    → Skip elements in CategorySkipList
+Step 2: Audit Trail        → Capture previous TAG1 value to ASS_TAG_PREV_TXT
+Step 3: TypeTokenInherit   → Copy DISC/SYS/FUNC/PROD from family TYPE to instance
+Step 4: PopulateAll        → Auto-derive all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
+Step 5: CategoryForceSys   → Override SYS for specific categories (from config)
+Step 6: CategoryOverrides  → Apply per-category token overrides (from config)
+Step 7: Token Lock         → Restore user-locked tokens that were overwritten
+Step 8: NativeParamMapper  → Map 30+ Revit built-in parameters to STING params
+Step 9: FormulaEngine      → Evaluate 199 dependency-ordered formulas
+Step 10: BuildAndWriteTag  → Assemble 8-segment tag with collision detection + write
+Step 11: WriteContainers   → Write to all 53 discipline-specific containers + TAG7
+```
+
+**Key insight**: Steps 3-7 are about TOKEN POPULATION (deriving values). Steps 8-9 are about DATA ENRICHMENT (native params + formulas). Steps 10-11 are about TAG ASSEMBLY (building the final tag string).
+
+### 28.2 Token Derivation Priority (How Each Token Gets Its Value)
+
+Each token follows a priority chain — first non-empty value wins:
+
+| Token | Priority 1 (Highest) | Priority 2 | Priority 3 | Priority 4 (Default) |
+|-------|---------------------|-----------|-----------|---------------------|
+| **DISC** | User-locked value | Type parameter | Category→DiscMap lookup | "GEN" |
+| **LOC** | User-locked value | Type parameter | SpatialAutoDetect.DetectLoc (room name/number) | "BLD1" |
+| **ZONE** | User-locked value | Type parameter | SpatialAutoDetect.DetectZone (room department) | "Z01" |
+| **LVL** | User-locked value | — | GetLevelCode (element level, GF/L01/B1/RF) | "XX" |
+| **SYS** | User-locked value | MEP System API name | ConnectorInherit (connected elements) | Category→SysMap lookup |
+| **FUNC** | User-locked value | SYS→FuncMap lookup | CopyTokensFromNearest (10ft radius) | "GEN" |
+| **PROD** | User-locked value | GetFamilyAwareProdCode (35+ family patterns) | Category→ProdMap lookup | "GEN" |
+| **SEQ** | — | — | Auto-increment per (DISC, SYS, FUNC, PROD) group | "0001" |
+
+### 28.3 SEQ Numbering Deep Dive
+
+SEQ numbers are managed by a counter system that persists across sessions:
+
+1. **Counter Key Format**: `{DISC}_{SYS}_{FUNC}_{PROD}` (e.g., `M_HVAC_SUP_AHU`)
+2. **Counter Storage**: `.sting_seq.json` sidecar file alongside the `.rvt`
+3. **Counter Merge**: On load, max-per-key between project params and sidecar
+4. **Collision Detection**: O(1) HashSet lookup of all existing TAG1 values
+5. **Collision Resolution**: Auto-increment SEQ until unique (max 10,000 attempts)
+6. **Range Allocation**: Optional per-discipline ranges via `SEQ_RANGE_ALLOCATION` config
+
+**Common pitfall**: If you change the SEQ scheme mid-project (e.g., Numeric → Alpha), existing counters under the old scheme are preserved but new elements start fresh. Use `SetSeqScheme` command to manage transitions.
+
+### 28.4 Performance Characteristics
+
+| Operation | 1K Elements | 10K Elements | 50K Elements |
+|-----------|------------|-------------|-------------|
+| AutoTag (view) | ~2 sec | ~15 sec | N/A (view-scoped) |
+| BatchTag (project) | ~5 sec | ~45 sec | ~4 min |
+| TagAndCombine | ~8 sec | ~60 sec | ~5 min |
+| ComplianceScan | ~0.5 sec | ~3 sec | ~8 sec (timeout) |
+| ValidateTags | ~1 sec | ~8 sec | ~30 sec |
+
+**Performance tips**:
+- Use `TagNewOnly` instead of `BatchTag` for incremental updates (10-100x faster)
+- Enable `PERF_TRACKING_ENABLED` in project_config.json for element-level profiling
+- The auto-tagger (IUpdater) has a 5-second context TTL to avoid constant rebuilds
+- Formula session cache has 5-minute TTL — first tag command loads, subsequent commands reuse
+- Grid line cache has 2-minute TTL per document
+
+### 28.5 Caching Architecture
+
+The tagging engine uses a multi-layer caching system:
+
+| Cache | Scope | TTL | Invalidation |
+|-------|-------|-----|--------------|
+| PopulationContext | Per-batch | Batch lifetime | Built fresh per command |
+| Formula CSV | Session | 5 minutes | InvalidateSessionCaches() |
+| Grid lines | Per-document | 2 minutes | InvalidateSessionCaches() |
+| ComplianceScan | Project | 30 seconds | InvalidateCache() |
+| AutoTagger context | IUpdater | 5 seconds | InvalidateContext() |
+| Parameter cache | Per-document | Session | ClearParamCache() on doc switch |
+| Spatial candidates | Per-batch | Batch lifetime | Built in PopulationContext.Build() |
+| SEQ sidecar | Persistent | File-based | SaveSeqSidecar() after commits |
+
+**Critical rule**: After ANY tagging operation, call ALL THREE invalidation methods:
+```
+ComplianceScan.InvalidateCache();
+StingAutoTagger.InvalidateContext();
+TagConfig.SaveSeqSidecar(doc);
+```
+
+### 28.6 Common Troubleshooting Patterns
+
+| Symptom | Root Cause | Fix |
+|---------|-----------|-----|
+| Tags show 0% compliance after config change | ComplianceScan using stale separator | Run any tag command (triggers InvalidateCache) |
+| Duplicate SEQ numbers after session restart | Sidecar not saved | Ensure SaveSeqSidecar runs after tx.Commit() |
+| Empty containers despite TAG1 populated | WriteContainers skipped | Run CombineParameters or Re-Tag |
+| Auto-tagger not tagging new elements | IUpdater disabled | Check AutoTaggerToggle status |
+| Stale elements not detected after move | StaleMarker overflow (>100 elements) | Elements now queued for deferred processing |
+| FUNC always "GEN" for MEP elements | MEP system not connected | Connect to MEP system or use CopyTokensFromNearest |
+| TAG7 narrative incomplete | Empty FUNC token | Populate FUNC before TAG7 generation |
+| Token lock not working | Lock string format wrong | Use comma-separated token names: "DISC,SYS,PROD" |
+
+---
+
 *This guide is maintained alongside the STING Tools codebase. For the latest version, check `Data/TAGGING_GUIDE.md`.*
 
 *Related guides:*
