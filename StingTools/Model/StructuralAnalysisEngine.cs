@@ -375,10 +375,12 @@ namespace StingTools.Model
             {
                 // Steel: δ = k × wL⁴ / (384 × E × I)
                 // k = 5 for simply supported, 1 for fixed-fixed, 48/5 for cantilever
+                // k factor for δ = k×wL⁴/(384×EI): simply_supported=5, fixed_fixed=1, continuous≈2.0, cantilever=48
                 double k = supportCondition switch
                 {
                     "simply_supported" => 5.0,
-                    "continuous" => 1.0,
+                    "fixed_fixed" => 1.0,
+                    "continuous" => 2.0, // Multi-span continuous beam (conservative approximation)
                     "cantilever" => 48.0,
                     _ => 5.0,
                 };

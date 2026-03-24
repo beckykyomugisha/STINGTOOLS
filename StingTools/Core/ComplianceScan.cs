@@ -99,7 +99,7 @@ namespace StingTools.Core
             /// Separate from CompliancePercent — an element can be "tagged" (TAG1 exists) but have empty
             /// discipline containers, which breaks COBie export and platform deliverables.</summary>
             public double ContainerCompletePct =>
-                TaggedComplete > 0 ? (TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
+                TaggedComplete > 0 ? Math.Max(0, TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
 
             /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
@@ -182,6 +182,11 @@ namespace StingTools.Core
             {
                 var result = new ComplianceResult { ScanTime = DateTime.Now };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                if (known.Count == 0)
+                {
+                    StingLog.Warn("ComplianceScan: DiscMap is empty — no categories to scan. Load TagConfig first.");
+                    return result;
+                }
 
                 try
                 {
@@ -457,8 +462,16 @@ namespace StingTools.Core
                         string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                         int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
-                        bool hasCorrectSegments = parts.Length >= 8 + po + so
-                            && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+                        // PERF-R10: Use for-loop instead of LINQ Skip/Take/All to match Scan() pattern
+                        bool hasCorrectSegments = false;
+                        if (parts.Length >= 8 + po + so)
+                        {
+                            hasCorrectSegments = true;
+                            for (int si = po; si < po + 8; si++)
+                            {
+                                if (string.IsNullOrWhiteSpace(parts[si])) { hasCorrectSegments = false; break; }
+                            }
+                        }
 
                         if (!hasCorrectSegments)
                             result.TaggedIncomplete++;
@@ -503,7 +516,9 @@ namespace StingTools.Core
 
         /// <summary>FUT-16: O(1) incremental compliance update instead of full O(n) rescan.
         /// Adjusts cached counters in-place when a single element's tag status changes.
-        /// Falls back to full rescan after 1000 incremental updates to prevent drift.</summary>
+        /// Falls back to full rescan after 1000 incremental updates to prevent drift.
+        /// NOTE: TotalElements is NOT adjusted — this method is only valid for status changes
+        /// on already-scanned elements. New elements require a full rescan.</summary>
         public static void IncrementalUpdate(string oldTag, string newTag, string disc)
         {
             lock (_cacheLock)
@@ -524,7 +539,8 @@ namespace StingTools.Core
                 bool wasComplete = wasTagged && TagConfig.TagIsComplete(oldTag);
                 bool isComplete = isTagged && TagConfig.TagIsComplete(newTag);
 
-                // Update untagged count
+                // CRIT-03: Guard all counter decrements to prevent negative values
+                // when IncrementalUpdate is called for new elements not in the original scan
                 if (!wasTagged && isTagged) _cached.Untagged = Math.Max(0, _cached.Untagged - 1);
                 else if (wasTagged && !isTagged) _cached.Untagged++;
 

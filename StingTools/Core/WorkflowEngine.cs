@@ -501,22 +501,24 @@ namespace StingTools.Core
 
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
-                        if (step.Condition == "workshared" && !doc.IsWorkshared)
+                        // Normalize condition to lowercase for case-insensitive matching
+                        string cond = step.Condition.Trim().ToLowerInvariant();
+                        if (cond == "workshared" && !doc.IsWorkshared)
                         { RecordSkip("not workshared"); continue; }
                         // GAP-02: Extended condition engine for workflow steps
-                        if (step.Condition == "has_links")
+                        if (cond == "has_links")
                         {
                             bool hasLinks = new FilteredElementCollector(doc)
                                 .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
                             if (!hasLinks) { RecordSkip("no linked models"); continue; }
                         }
-                        if (step.Condition == "has_cad_imports")
+                        if (cond == "has_cad_imports")
                         {
                             bool hasCad = new FilteredElementCollector(doc)
                                 .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
                             if (!hasCad) { RecordSkip("no CAD imports"); continue; }
                         }
-                        if (step.Condition == "has_stale")
+                        if (cond == "has_stale")
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
@@ -535,7 +537,7 @@ namespace StingTools.Core
                         }
 
                         // Phase 47: Warning-aware workflow conditions
-                        if (step.Condition == "has_warnings")
+                        if (cond == "has_warnings")
                         {
                             try
                             {
@@ -544,7 +546,7 @@ namespace StingTools.Core
                             }
                             catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_critical_warnings")
+                        if (cond == "has_critical_warnings")
                         {
                             try
                             {
@@ -554,7 +556,7 @@ namespace StingTools.Core
                             }
                             catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_open_issues")
+                        if (cond == "has_open_issues")
                         {
                             try
                             {
@@ -568,7 +570,7 @@ namespace StingTools.Core
                             catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
                         }
                         // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
-                        if (step.Condition == "has_overdue_issues")
+                        if (cond == "has_overdue_issues")
                         {
                             try
                             {
@@ -578,7 +580,7 @@ namespace StingTools.Core
                             catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
                         }
 
-                        if (step.Condition == "has_untagged")
+                        if (cond == "has_untagged")
                         {
                             bool hasUntagged = false;
                             try
@@ -594,7 +596,7 @@ namespace StingTools.Core
                         }
 
                         // Phase 66c: Additional workflow condition operators
-                        if (step.Condition == "has_placeholders")
+                        if (cond == "has_placeholders")
                         {
                             bool hasPlaceholders = false;
                             try
@@ -612,7 +614,7 @@ namespace StingTools.Core
                             catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
                             if (!hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
-                        if (step.Condition == "has_container_gaps")
+                        if (cond == "has_container_gaps")
                         {
                             try
                             {
@@ -623,13 +625,13 @@ namespace StingTools.Core
                             }
                             catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
                         }
-                        if (step.Condition == "compliance_above_90")
+                        if (cond == "compliance_above_90")
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 90)
                             { RecordSkip($"compliance {pct:F0}% ≥ 90%"); continue; }
                         }
-                        if (step.Condition == "compliance_below_50")
+                        if (cond == "compliance_below_50")
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 50)
