@@ -1432,7 +1432,20 @@ namespace StingTools.Core
                         return new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
                     case "compliance_above_90": return cachedCompliancePct() >= 90;
                     case "compliance_below_50": return cachedCompliancePct() < 50;
+                    case "compliance_above_80": return cachedCompliancePct() >= 80;
+                    case "compliance_below_70": return cachedCompliancePct() < 70;
                     case "workshared": return doc.IsWorkshared;
+                    case "has_high_severity_warnings":
+                        var wrHigh = WarningsEngine.ScanWarnings(doc);
+                        return wrHigh.BySeverity.GetValueOrDefault(WarningSeverity.Critical) > 0
+                            || wrHigh.BySeverity.GetValueOrDefault(WarningSeverity.High) > 0;
+                    case "has_cad_imports":
+                        return new FilteredElementCollector(doc).OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                    case "has_rooms":
+                        return new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
+                            .WhereElementIsNotElementType().GetElementCount() > 0;
+                    case "has_sheets":
+                        return new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount() > 0;
                     default:
                         StingLog.Warn($"WorkflowEngine: unknown condition '{condition}'");
                         return true; // Unknown conditions pass by default
