@@ -793,6 +793,45 @@ namespace StingTools.UI
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
+                    case "DisciplineProfiles":
+                    {
+                        var profiles = Core.TagConfig.DisciplineProfiles;
+                        if (profiles == null || profiles.Count == 0)
+                        {
+                            var td = new TaskDialog("STING Discipline Profiles");
+                            td.MainInstruction = "No discipline profiles configured";
+                            td.MainContent = "Add a DISCIPLINE_PROFILES section to project_config.json to define per-discipline token defaults and validation rules.\n\n"
+                                + "Example:\n\"DISCIPLINE_PROFILES\": {\n  \"M\": { \"AllowedSysCodes\": [\"HVAC\",\"CHW\"], \"DefaultProd\": \"EQP\" }\n}";
+                            td.Show();
+                        }
+                        else
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            foreach (var kvp in profiles)
+                            {
+                                sb.AppendLine($"DISC = {kvp.Key}:");
+                                var p = kvp.Value;
+                                if (p.AllowedSysCodes?.Count > 0)
+                                    sb.AppendLine($"  Allowed SYS: {string.Join(", ", p.AllowedSysCodes)}");
+                                if (p.AllowedFuncCodes?.Count > 0)
+                                    sb.AppendLine($"  Allowed FUNC: {string.Join(", ", p.AllowedFuncCodes)}");
+                                if (!string.IsNullOrEmpty(p.DefaultProd))
+                                    sb.AppendLine($"  Default PROD: {p.DefaultProd}");
+                                if (!string.IsNullOrEmpty(p.DefaultStatus))
+                                    sb.AppendLine($"  Default STATUS: {p.DefaultStatus}");
+                                if (p.ValidationStrictness)
+                                    sb.AppendLine($"  Strict validation: ON");
+                                if (p.RequiredTokens?.Count > 0)
+                                    sb.AppendLine($"  Required tokens: {string.Join(", ", p.RequiredTokens)}");
+                                sb.AppendLine();
+                            }
+                            var td = new TaskDialog("STING Discipline Profiles");
+                            td.MainInstruction = $"{profiles.Count} discipline profile(s) loaded";
+                            td.MainContent = sb.ToString();
+                            td.Show();
+                        }
+                        break;
+                    }
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
                     case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
                     case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;

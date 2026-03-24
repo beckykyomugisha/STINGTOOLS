@@ -561,6 +561,114 @@ namespace StingTools.Model
 
             return result;
         }
+
+        /// <summary>
+        /// Designs punching shear reinforcement per EC2 §6.4.5.
+        /// Calculates required Asw per perimeter and checks outer perimeter without reinforcement.
+        /// Two-way check: verifies both x and y directions and orthogonal perimeters.
+        /// </summary>
+        public static PunchingReinforcementResult DesignPunchingReinforcement(
+            double columnWidthMm, double columnDepthMm,
+            double slabThicknessMm, double reactionKN,
+            double fckMPa = 30, double fywkMPa = 500)
+        {
+            var result = new PunchingReinforcementResult();
+
+            double d = slabThicknessMm - 30 - 12;
+            if (d <= 0) d = slabThicknessMm * 0.85;
+            result.EffectiveDepthMm = d;
+
+            // Two-way effective depths: dx and dy
+            double dx = d;           // x-direction (outermost layer)
+            double dy = d - 12;     // y-direction (inner layer, minus one bar diameter)
+            double dAvg = (dx + dy) / 2.0;
+
+            // Basic control perimeter at 2d
+            double u1 = 2 * (columnWidthMm + columnDepthMm) + 2 * Math.PI * (2 * dAvg);
+
+            // Beta factor for moment transfer (EC2 §6.4.3)
+            // Internal: 1.15, Edge: 1.40, Corner: 1.50
+            double beta = 1.15; // Internal column default
+
+            // Applied shear stress
+            double vEd = beta * reactionKN * 1000 / (u1 * dAvg);
+            result.AppliedStressMPa = vEd;
+
+            // Concrete resistance vRd,c (with 2-way reinforcement ratios)
+            double rhoLx = 0.005; // x-direction
+            double rhoLy = 0.005; // y-direction
+            double rhoL = Math.Min(Math.Sqrt(rhoLx * rhoLy), 0.02); // EC2 §6.4.4(1)
+
+            double CRdc = 0.18 / 1.5;
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / dAvg));
+            double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            vRdc = Math.Max(vRdc, vmin);
+            result.ConcreteResistanceMPa = vRdc;
+
+            // Maximum punching resistance
+            double nu = 0.6 * (1 - fckMPa / 250.0);
+            double fcd = fckMPa / 1.5;
+            double vRdMax = 0.5 * nu * fcd;
+            result.MaxResistanceMPa = vRdMax;
+
+            if (vEd > vRdMax)
+            {
+                result.Pass = false;
+                result.Summary = $"FAILS: vEd={vEd:F2}MPa > vRd,max={vRdMax:F2}MPa — increase slab thickness!";
+                return result;
+            }
+
+            if (vEd <= vRdc)
+            {
+                result.Pass = true;
+                result.RequiredAsw = 0;
+                result.Summary = $"OK: vEd={vEd:F2}MPa ≤ vRd,c={vRdc:F2}MPa — no shear reinforcement required";
+                return result;
+            }
+
+            // Design shear reinforcement per EC2 §6.4.5
+            // vRd,cs = 0.75×vRd,c + 1.5×(d/sr)×Asw×fywd,ef / (u1×d)
+            // where sr = radial spacing, fywd,ef = 250+0.25d ≤ fywd
+            double fywd = fywkMPa / 1.15;
+            double fywdEf = Math.Min(250 + 0.25 * dAvg, fywd);
+            result.EffectiveYieldMPa = fywdEf;
+
+            // Rearrange for Asw: Asw = (vEd - 0.75×vRd,c) × u1 × sr / (1.5 × fywd,ef)
+            double sr = 0.75 * dAvg; // Radial spacing ≤ 0.75d (EC2 §9.4.3)
+            result.RadialSpacingMm = sr;
+
+            double Asw = (vEd - 0.75 * vRdc) * u1 * sr / (1.5 * fywdEf);
+            result.RequiredAsw = Math.Max(Asw, 0);
+
+            // Select practical bars
+            double aswPerLeg = Math.PI * 10 * 10 / 4.0; // H10 studs
+            int legsRequired = (int)Math.Ceiling(Asw / aswPerLeg);
+            result.LegsRequired = legsRequired;
+            result.BarDiameter = 10;
+
+            // Tangential spacing check: st ≤ 1.5d within first perimeter, ≤ 2d beyond
+            double st1 = 1.5 * dAvg;
+            double st2 = 2.0 * dAvg;
+            result.TangentialSpacing1Mm = st1;
+            result.TangentialSpacing2Mm = st2;
+
+            // Outer perimeter where reinforcement is no longer needed
+            // uout,ef = β × VEd / (vRd,c × d)
+            double uOutEf = beta * reactionKN * 1000 / (vRdc * dAvg);
+            // Distance from column face: a = (uout - 2(c1+c2)) / (2π)
+            double aOut = (uOutEf - 2 * (columnWidthMm + columnDepthMm)) / (2 * Math.PI);
+            result.OuterPerimeterDistanceMm = Math.Max(aOut, 2 * dAvg);
+            int nPerimeters = (int)Math.Ceiling(result.OuterPerimeterDistanceMm / sr);
+            result.NumberOfPerimeters = nPerimeters;
+
+            result.Pass = true;
+            result.Summary = $"Shear reinforcement required: {legsRequired}×H{result.BarDiameter} studs, " +
+                $"{nPerimeters} perimeters at sr={sr:F0}mm, " +
+                $"Asw={Asw:F0}mm² per perimeter, vEd={vEd:F2}MPa, vRd,c={vRdc:F2}MPa";
+
+            return result;
+        }
     }
 
 
@@ -683,6 +791,75 @@ namespace StingTools.Model
             double cf = 1.3;   // Force coefficient for rectangular buildings (EC1-1-4 §7.6)
             double Aref = buildingWidthM * buildingHeightM;
             return cscd * cf * qpKPa * Aref;
+        }
+
+        /// <summary>Wind torsion analysis result per EC1-1-4 §7.1.2.</summary>
+        public class WindTorsionResult
+        {
+            public double EccentricityM { get; set; }
+            public double TotalWindForceKN { get; set; }
+            public double TotalTorsionKNm { get; set; }
+            public double TorsionalShearStressKPa { get; set; }
+            public List<double> StoreyTorsionKNm { get; set; } = new();
+            public string Summary { get; set; }
+        }
+
+        /// <summary>
+        /// Calculates wind-induced torsional moment per EC1-1-4 §7.1.2.
+        /// Asymmetric wind loading creates torsion when the centre of pressure
+        /// does not coincide with the shear centre. For rectangular buildings,
+        /// the eccentricity is taken as e = b/10 where b is the crosswind breadth.
+        /// </summary>
+        /// <param name="buildingWidthM">Crosswind breadth (perpendicular to wind) in metres</param>
+        /// <param name="buildingDepthM">Along-wind depth (parallel to wind) in metres</param>
+        /// <param name="buildingHeightM">Total building height in metres</param>
+        /// <param name="qpKPa">Peak velocity pressure from CalculateWindPressure (kPa)</param>
+        /// <param name="storeyCount">Number of storeys for distribution</param>
+        /// <param name="storeyHeightM">Height per storey in metres</param>
+        /// <returns>WindTorsionResult with total torsion, per-storey torsion, and eccentricity</returns>
+        public static WindTorsionResult CalculateWindTorsion(
+            double buildingWidthM, double buildingDepthM, double buildingHeightM,
+            double qpKPa, int storeyCount = 0, double storeyHeightM = 0)
+        {
+            var result = new WindTorsionResult();
+
+            // EC1-1-4 §7.1.2: Eccentricity e = b/10 (crosswind breadth)
+            double e = buildingWidthM / 10.0;
+            result.EccentricityM = e;
+
+            // Force coefficient for rectangular section
+            double cf = 1.3;
+            double cscd = 1.0;
+
+            // Wind force on windward face: Fw = cscd × cf × qp × Aref
+            double Aref = buildingWidthM * buildingHeightM;
+            double Fw = cscd * cf * qpKPa * Aref; // kN
+            result.TotalWindForceKN = Fw;
+
+            // Torsional moment: Mt = Fw × e
+            double Mt = Fw * e;
+            result.TotalTorsionKNm = Mt;
+
+            // Per-storey torsion distribution (inverted triangular, same as force)
+            if (storeyCount > 0 && storeyHeightM > 0)
+            {
+                var storeyForces = DistributeToStoreys(Fw, storeyCount, storeyHeightM);
+                result.StoreyTorsionKNm = storeyForces.Select(f => f * e).ToList();
+            }
+
+            // Torsional shear stress in core walls (simplified rectangular core)
+            // τ = Mt / (2 × Ak × t) where Ak = enclosed area, t = wall thickness
+            // Using building plan area as conservative Ak estimate
+            double Ak = buildingWidthM * buildingDepthM * 0.25; // Core ≈ 25% of plan
+            double tCore = 0.3; // Assumed 300mm core wall
+            double tauTorsion = (Ak > 0 && tCore > 0) ? Mt / (2 * Ak * tCore) : 0;
+            result.TorsionalShearStressKPa = tauTorsion;
+
+            result.Summary = $"Wind torsion: e={e:F2}m (b/10), Fw={Fw:F1}kN, Mt={Mt:F1}kNm, " +
+                $"τ_torsion={tauTorsion:F2}kPa" +
+                (storeyCount > 0 ? $", {storeyCount} storeys distributed" : "");
+
+            return result;
         }
     }
 

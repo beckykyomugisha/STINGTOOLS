@@ -1646,6 +1646,41 @@ namespace StingTools.Core
                 }
             }
 
+            // Per-discipline profile defaults — apply after all detection to fill still-generic tokens
+            {
+                string curDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                var profile = TagConfig.GetDisciplineProfile(curDisc);
+                if (profile != null)
+                {
+                    // Apply DefaultProd when PROD is still generic (GEN/XX)
+                    if (!string.IsNullOrEmpty(profile.DefaultProd))
+                    {
+                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                        if (string.IsNullOrEmpty(curProd) || curProd == "GEN" || curProd == "XX")
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, profile.DefaultProd))
+                                result.TokensSet++;
+                            else if (overwrite && (curProd == "GEN" || curProd == "XX"))
+                            {
+                                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
+                                    result.TokensSet++;
+                            }
+                        }
+                    }
+
+                    // Apply DefaultStatus when STATUS is still empty
+                    if (!string.IsNullOrEmpty(profile.DefaultStatus))
+                    {
+                        string curStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(curStatus))
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, profile.DefaultStatus))
+                                result.TokensSet++;
+                        }
+                    }
+                }
+            }
+
             // STATUS — phase-aware (4-layer detection using cached phases for batch perf)
             string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
             if (string.IsNullOrEmpty(existingStatus) || overwrite)
@@ -3385,6 +3420,9 @@ namespace StingTools.Core
                     StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
                 }
 
+                // Plugin hook: notify third-party plugins before tagging
+                StingPluginHooks.FireBeforeTag(doc, el);
+
                 // P4: Inherit token values from family type before populating
                 TokenAutoPopulator.TypeTokenInherit(doc, el);
 
@@ -3525,6 +3563,9 @@ namespace StingTools.Core
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag modified date write: {dtEx.Message}"); }
+
+                // Plugin hook: notify third-party plugins after successful tagging
+                StingPluginHooks.FireAfterTag(doc, el, ParameterHelpers.GetString(el, ParamRegistry.TAG1));
 
                 // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
