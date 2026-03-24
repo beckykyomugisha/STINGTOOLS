@@ -2363,6 +2363,8 @@ namespace StingTools.Core
                 // Update collision index with actual tag
                 if (existingTags != null)
                     existingTags.Add(tag);
+                // LOGIC-003 FIX: Guard against actualTokens having fewer than 8 elements
+                if (actualTokens.Length < 8) return false;
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];

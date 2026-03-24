@@ -3370,14 +3370,15 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // AL-06: Capture previous tag value and timestamp for audit trail
+                // AL-06: Capture previous tag value for audit trail (timestamp written AFTER successful tag change)
+                // DI-004 FIX: Moved MODIFIED_DT write to after BuildAndWriteTag to prevent
+                // stale timestamps on partial pipeline failures
+                string _prevTag = null;
                 try
                 {
-                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(_prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
                 }
                 catch (Exception auditEx)
                 {
@@ -3516,6 +3517,14 @@ namespace StingTools.Core
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
                     return false;
                 }
+
+                // DI-004 FIX: Write modification timestamp AFTER successful tag change only
+                try
+                {
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                }
+                catch (Exception dtEx) { StingLog.Warn($"Tag modified date write: {dtEx.Message}"); }
 
                 // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values

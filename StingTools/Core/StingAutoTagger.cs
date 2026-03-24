@@ -633,13 +633,21 @@ namespace StingTools.Core
                 var modifiedIds = args.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
 
-                // R4-C AL-GAP-01: Process first 100 instead of dropping entire batch silently.
-                // Previously, moving 200+ elements caused ZERO stale marking.
+                // R4-C AL-GAP-01: Process first 100, enqueue overflow for deferred processing.
+                // PERF-009 FIX: Queue overflow instead of dropping — previously 400+ elements silently lost.
                 ICollection<ElementId> processIds = modifiedIds;
                 if (modifiedIds.Count > 100)
                 {
-                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing first 100, {modifiedIds.Count - 100} unchecked.");
-                    processIds = modifiedIds.Take(100).ToList();
+                    var allIds = modifiedIds.ToList();
+                    processIds = allIds.Take(100).ToList();
+                    // Enqueue overflow for processing on next sync/idle
+                    int enqueued = 0;
+                    foreach (var overflow in allIds.Skip(100))
+                    {
+                        EnqueueDeferred(overflow);
+                        enqueued++;
+                    }
+                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing 100, {enqueued} enqueued for deferred stale check.");
                 }
 
                 var idsToMark = new List<ElementId>();
