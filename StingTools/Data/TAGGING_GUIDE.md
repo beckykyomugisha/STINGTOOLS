@@ -1043,3 +1043,249 @@ Presentation modes combine paragraph depth + warning visibility into named prese
 | `TAG_GUIDE_V3.csv` | Tag format specification, validation rules, auto-population logic |
 | `LABEL_DEFINITIONS.json` | 3,623-line label/legend definition specs for tag display styles |
 | `project_config.json` | Per-project tag configuration overrides (user-editable) |
+
+---
+
+## Workflow Automation for Tagging
+
+### Automated Tagging Workflows
+
+STING provides pre-built workflow presets that chain tagging commands with conditional logic. These are the recommended way to tag a model rather than running individual commands.
+
+#### Recommended Workflow by Project Stage
+
+| Project Stage | Workflow Preset | What It Does |
+|---------------|----------------|-------------|
+| **Model Setup** | `ProjectKickoff` (26 steps) | Load params → materials → types → schedules → templates → filters → worksets → initial tag |
+| **Active Design** | `MorningHealthCheck` (10 steps) | Retag stale → audit → tag new → validate → health check |
+| **Daily QA** | `DailyQA` (11 steps) | Adaptive: skips steps based on compliance thresholds |
+| **Before Meeting** | `PreMeetingPrep` (7 steps) | Fix stale → warnings → validate → issues → revisions → HTML report |
+| **Data Drop** | `WeeklyDataDrop` (10 steps) | Full pipeline → COBie → Excel → registers |
+| **Handover** | `HandoverReadiness` (9 steps) | Full pipeline → templates → COBie → BOQ → BEP → revision |
+| **End of Day** | `EndOfDaySync` (8 steps) | Retag → validate → baseline → registers → health → revision |
+
+#### Running a Workflow
+
+1. **BIM tab** → Workflows section → Click the preset button
+2. Or **BIM Coordination Center** → WORKFLOWS tab → Quick buttons
+3. Progress dialog shows each step with timing and pass/fail
+4. On failure: option to keep partial results or rollback everything
+
+#### Custom Workflows
+
+Create `WORKFLOW_YourName.json` in the Data folder:
+
+```json
+{
+  "Name": "MyTaggingPipeline",
+  "Label": "Custom Tag Pipeline",
+  "Steps": [
+    { "CommandTag": "RetagStale", "Label": "Fix stale", "requiresStaleElements": true },
+    { "CommandTag": "BatchTag", "Label": "Tag all elements" },
+    { "CommandTag": "ValidateTags", "Label": "Validate", "minCompliancePct": 50 },
+    { "CommandTag": "TagRegisterExport", "Label": "Export register" }
+  ]
+}
+```
+
+### Real-Time Auto-Tagger
+
+**Button**: VIEW tab → **Auto-Tagger**
+
+When enabled, every element placed in Revit is automatically tagged:
+- Triggers on `Element.GetChangeTypeElementAddition()` for 22 categories
+- Runs the full 11-step `RunFullPipeline` per element
+- Optionally creates visual `IndependentTag` annotations
+- Discipline filter: restrict to specific DISC codes
+- Workset safety: skips elements on worksets not owned by current user
+
+**Configuration**:
+- **Toggle data auto-tagger**: VIEW → Auto-Tagger
+- **Toggle visual tag placement**: VIEW → Auto-Tagger Visual
+- **Set discipline filter**: VIEW → Auto-Tagger Config
+
+**Stale Detection**: `StingStaleMarker` IUpdater runs alongside auto-tagger:
+- Detects geometry changes, level changes, and MEP system reassignment
+- Marks affected elements with `STING_STALE_BOOL = 1`
+- Use CREATE → **Retag Stale** to fix stale elements
+
+### Incremental Tagging Strategy
+
+For large models (50,000+ elements), avoid re-tagging the entire model. Use incremental strategy:
+
+| Scenario | Command | What It Processes |
+|----------|---------|-------------------|
+| New elements added | **Tag New** | Only `ASS_TAG_1 = ""` elements |
+| Elements moved/changed | **Retag Stale** | Only `STING_STALE_BOOL = 1` elements |
+| Specific elements need fix | **Re-Tag** (selected) | Only selected elements |
+| Token values changed in config | **Build Tags** | Rebuilds TAG1 from current tokens |
+| Full project re-tag needed | **Batch Tag** | All elements (with progress dialog) |
+
+### Tag Collision Avoidance
+
+When two elements derive the same 8-segment tag, the SEQ collision system resolves it:
+
+```
+Element A: M-BLD1-Z01-L01-HVAC-SUP-AHU-0001  (first occurrence)
+Element B: M-BLD1-Z01-L01-HVAC-SUP-AHU-0001  (collision detected!)
+  → AutoIncrement: M-BLD1-Z01-L01-HVAC-SUP-AHU-0002  (resolved)
+```
+
+**Collision modes** (selectable per command):
+- **Skip**: Keep existing tag, skip this element
+- **Overwrite**: Replace existing tag
+- **AutoIncrement** (default): Increment SEQ until unique (max 100 attempts)
+
+**SEQ Counter Persistence**:
+- Counters saved to `.sting_seq.json` sidecar file alongside the `.rvt`
+- Merged on load via max-per-key strategy (handles workshared multi-user)
+- Counters survive Revit restart and project reopen
+
+### Token Lock System
+
+Lock specific tokens to prevent the pipeline from overwriting user-set values:
+
+1. Set `ASS_TOKEN_LOCK_TXT` parameter on element to comma-separated token names
+2. Example: `DISC,SYS` locks DISC and SYS tokens
+3. Pipeline reads lock before TypeTokenInherit, preserves locked values through all override steps
+
+### Display Modes
+
+**Button**: CREATE → **Set Display Mode**
+
+Controls which segments appear in `ASS_DISPLAY_TXT`:
+
+| Mode | Displayed Segments | Example |
+|------|-------------------|---------|
+| 1 | SEQ only | 0001 |
+| 2 | PROD-SEQ | AHU-0001 |
+| 3 | DISC-SYS-SEQ | M-HVAC-0001 |
+| 4 | DISC-PROD-SEQ | M-AHU-0001 |
+| 5 | Full 8-segment | M-BLD1-Z01-L01-HVAC-SUP-AHU-0001 |
+
+### Tag7 Rich Narrative
+
+TAG7 is a comprehensive human-readable description with 6 colour-coded sections:
+
+| Section | Colour | Content | Example |
+|---------|--------|---------|---------|
+| **A: Identity** | Blue (Bold) | Asset name, product, manufacturer, model | "Electrical Distribution Board (DB) by Schneider Electric" |
+| **B: System** | Green (Italic) | System type, function, serving context | "Low Voltage Distribution providing Power Distribution serving Z01" |
+| **C: Spatial** | Orange | Room, department, grid reference | "Located in Plant Room (Room 0.12) near grid B3-C3" |
+| **D: Lifecycle** | Red | Status, revision, origin, maintenance | "New, revision P01, Design Intent" |
+| **E: Technical** | Purple (Bold) | Discipline-specific performance data | "Rated 125 kW, 415 V, 3-phase, 400 A, 48 ways" |
+| **F: Classification** | Grey (Italic) | Uniformat, OmniClass, keynote, cost, ISO tag | "Uniformat D5010, cost £12,500, tag E-BLD1-Z01-L02-LV-PWR-DB-0001" |
+
+### Tag Style Engine (128 Combinations)
+
+Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters:
+- **4 sizes**: 2mm, 2.5mm, 3mm, 3.5mm
+- **3 styles**: Normal, Bold, Italic
+- **8 colours**: Black, Blue, Green, Red, Yellow, Orange, Purple, White
+
+**Apply**: CREATE → Tag Style → **Apply Tag Style** (3-step: size → style → colour)
+
+**Colour Schemes** (8 built-in):
+| Scheme | Description |
+|--------|-------------|
+| Discipline | M=Blue, E=Yellow, P=Green, A=Grey, S=Red, FP=Orange |
+| Warm | Red → Orange → Yellow → Cream |
+| Cool | Navy → Blue → Cyan → Mint |
+| Monochrome | Black/Grey/White |
+| Dark | Deep saturated colours |
+| Red/Yellow/Blue | Single-colour families |
+
+### Element Numbering (Graitec-Style)
+
+**New Feature**: Template-based numbering engine inspired by Graitec PowerPack:
+
+| Setting | Options | Description |
+|---------|---------|-------------|
+| Category | 11 Revit categories | Which elements to number |
+| Parameter | Mark, Comments, ASS_SEQ_NUM_TXT, ASS_TAG_1 | Target parameter |
+| Prefix | Free text | e.g., "GFC", "STR-COL" |
+| Separator | Free text | e.g., "-", "/" |
+| Group Enumeration | Capital/Lower Letters, Numeric, Capital/Lower Romans | Group identifier style |
+| Element Enumeration | Same 5 styles | Per-element sequence style |
+| Start From | Integer | First number (default 1) |
+| Digits | Integer | Zero-padding (default 2) |
+| Increment | Integer | Step between numbers (default 1) |
+
+**Grouping Algorithms**: None, By Level, By Type, By Grid Line, By Location, By Mark
+
+**Preview**: `GFC-01   GFC-02   GFC-03   GFC-04   GFC-05`
+
+### Smart Tag Placement (Annotation Tags)
+
+Visual annotation tags with collision avoidance:
+
+| Command | What It Does |
+|---------|-------------|
+| **Smart Place** | 8-position collision avoidance with scoring |
+| **Arrange** | Auto-arrange tags into aligned grid patterns |
+| **Batch Place** | Place across multiple views |
+| **Learn Placement** | Analyze existing tag positions to learn rules |
+| **Apply Template** | Apply saved placement template |
+| **Overlap Analysis** | Detect and report overlapping tags |
+| **Align Bands** | Grid-align tags by Y coordinate |
+| **Switch Position** | 4 positions: Above/Right/Below/Left |
+
+### Cross-System Integration
+
+Tagging connects to other STING systems:
+
+| System | Integration | How |
+|--------|-------------|-----|
+| **Warnings** | Stale elements appear as synthetic warnings | WarningsEngine includes stale in scan |
+| **Issues** | Invalid tags can auto-create NCR issues | WarningsEngine auto-escalation |
+| **COBie** | Tags populate Component/Type/System sheets | COBieExport reads STING parameters |
+| **Excel** | Tags exported/imported bidirectionally | ExcelLinkEngine maps all tokens |
+| **Compliance** | Tag completeness drives CDE state gates | ComplianceScan percentage thresholds |
+| **Revisions** | Tag changes tracked across revisions | RevisionEngine snapshot/compare |
+| **Workflows** | All workflow presets use tagging commands | WorkflowEngine command resolution |
+| **BEP** | Compliance feeds into BEP enrichment | BEP auto-enrichment from ComplianceScan |
+
+---
+
+## Appendix: Complete Command Reference
+
+### All Tagging Commands (Alphabetical)
+
+| Command | Class | Transaction | Location | Description |
+|---------|-------|-------------|----------|-------------|
+| Anomaly Auto-Fix | `AnomalyAutoFixCommand` | Manual | ORGANISE | Fix DISC/LOC/ZONE/LVL/SYS/FUNC/PROD anomalies + rebuild TAG1 |
+| Assign Numbers | `AssignNumbersCommand` | Manual | CREATE | Sequential SEQ numbering within groups |
+| Auto Populate | `FullAutoPopulateCommand` | Manual | TEMP/CREATE | Full pipeline: tokens → dims → MEP → formulas → tags → combine |
+| Auto Tag | `AutoTagCommand` | Manual | ORGANISE | Tag active view with collision mode |
+| Batch Tag | `BatchTagCommand` | Manual | ORGANISE | Tag entire project |
+| Build Tags | `BuildTagsCommand` | Manual | CREATE | Rebuild TAG1 from tokens |
+| Clear Overrides | `ClearOverridesCommand` | Manual | ORGANISE | Reset graphic overrides |
+| Combine Parameters | `CombineParametersCommand` | Manual | CREATE | Write to all 36 containers |
+| Completeness Dashboard | `CompletenessDashboardCommand` | ReadOnly | CREATE | Per-discipline compliance % |
+| Copy Tags | `CopyTagsCommand` | Manual | ORGANISE | Copy tags from first to others |
+| Delete Tags | `DeleteTagsCommand` | Manual | ORGANISE | Clear all tag params |
+| Family-Stage Populate | `FamilyStagePopulateCommand` | Manual | CREATE | Pre-populate 7 tokens |
+| Find Duplicates | `FindDuplicateTagsCommand` | ReadOnly | ORGANISE | Find duplicate tag values |
+| Fix Duplicates | `FixDuplicateTagsCommand` | Manual | ORGANISE | Auto-resolve via SEQ increment |
+| Highlight Invalid | `HighlightInvalidCommand` | Manual | ORGANISE | Red=missing, orange=incomplete |
+| Pre-Tag Audit | `PreTagAuditCommand` | ReadOnly | ORGANISE/CREATE | Dry-run prediction |
+| Renumber Tags | `RenumberTagsCommand` | Manual | ORGANISE | Re-sequence within groups |
+| Repair Duplicate SEQ | `RepairDuplicateSeqCommand` | Manual | CREATE | Smart SEQ repair with proximity |
+| Resolve All Issues | `ResolveAllIssuesCommand` | Manual | CREATE | One-click ISO fix |
+| Re-Tag | `ReTagCommand` | Manual | ORGANISE | Force re-derive selected |
+| Retag Stale | `RetagStaleCommand` | Manual | CREATE | Fix stale-flagged elements |
+| Set Discipline | `SetDiscCommand` | Manual | CREATE | Manual DISC token |
+| Set Location | `SetLocCommand` | Manual | CREATE | Manual LOC token |
+| Set Zone | `SetZoneCommand` | Manual | CREATE | Manual ZONE token |
+| Set Status | `SetStatusCommand` | Manual | CREATE | Manual STATUS token |
+| Swap Tags | `SwapTagsCommand` | Manual | ORGANISE | Swap between 2 elements |
+| Tag+Combine | `TagAndCombineCommand` | Manual | ORGANISE | One-click full pipeline |
+| Tag New Only | `TagNewOnlyCommand` | Manual | ORGANISE | Incremental (untagged only) |
+| Tag Selected | `TagSelectedCommand` | Manual | ORGANISE | Tag selection only |
+| Validate Tags | `ValidateTagsCommand` | ReadOnly | CREATE | ISO 19650 compliance check |
+
+---
+
+*For BIM coordination workflows, see BIM_COORDINATION_WORKFLOW_GUIDE.md*
+*For DWG-to-BIM conversion, see DWG_TO_BIM_GUIDE.md*
+*For tag family creation, see TAG_FAMILY_CREATION_GUIDE.md*
