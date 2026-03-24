@@ -865,6 +865,136 @@ namespace StingTools.Model
 
 
     // ════════════════════════════════════════════════════════════════
+    // SEISMIC SITE AMPLIFICATION (EC8-1-1)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>EC8 ground type classification.</summary>
+    public enum EC8GroundType { A, B, C, D, E }
+
+    /// <summary>Seismic site amplification result.</summary>
+    public class SeismicSiteResult
+    {
+        public EC8GroundType GroundType { get; set; }
+        public double SoilFactorS { get; set; }
+        public double TB { get; set; } // Lower limit of constant spectral acceleration (s)
+        public double TC { get; set; } // Upper limit of constant spectral acceleration (s)
+        public double TD { get; set; } // Beginning of constant displacement (s)
+        public double Ag { get; set; } // Design ground acceleration (g)
+        public double AgS { get; set; } // Ag × S
+        public double[] SpectrumPeriods { get; set; }
+        public double[] SpectrumAccelerations { get; set; }
+        public string Summary { get; set; }
+    }
+
+    /// <summary>
+    /// Seismic site amplification per EC8-1-1 §3.2.2.
+    /// Applies soil type correction factors to convert bedrock design spectra
+    /// to surface spectra accounting for local ground conditions.
+    /// </summary>
+    internal static class SeismicSiteAmplification
+    {
+        /// <summary>
+        /// Get EC8 site amplification parameters for a given ground type.
+        /// Values from EC8-1-1 Table 3.2 (Type 1 elastic response spectrum, recommended).
+        /// </summary>
+        public static (double S, double TB, double TC, double TD) GetSiteParameters(EC8GroundType groundType)
+        {
+            return groundType switch
+            {
+                EC8GroundType.A => (1.0,  0.15, 0.4,  2.0),
+                EC8GroundType.B => (1.2,  0.15, 0.5,  2.0),
+                EC8GroundType.C => (1.15, 0.20, 0.6,  2.0),
+                EC8GroundType.D => (1.35, 0.20, 0.8,  2.0),
+                EC8GroundType.E => (1.4,  0.15, 0.5,  2.0),
+                _ => (1.0, 0.15, 0.4, 2.0)
+            };
+        }
+
+        /// <summary>
+        /// Calculate the EC8 Type 1 elastic response spectrum with site amplification.
+        /// Se(T) = ag × S × η × spectral shape factor
+        /// where η = damping correction factor = √(10/(5+ξ)) ≥ 0.55
+        /// </summary>
+        /// <param name="agG">Design ground acceleration on type A ground (in g units)</param>
+        /// <param name="groundType">EC8 ground type (A-E)</param>
+        /// <param name="dampingPct">Viscous damping ratio (default 5%)</param>
+        /// <param name="importanceFactor">Importance factor γI (default 1.0)</param>
+        public static SeismicSiteResult CalculateSpectrum(
+            double agG, EC8GroundType groundType, double dampingPct = 5.0,
+            double importanceFactor = 1.0)
+        {
+            var (S, TB, TC, TD) = GetSiteParameters(groundType);
+
+            // Damping correction: η = √(10/(5+ξ)) ≥ 0.55
+            double eta = Math.Max(0.55, Math.Sqrt(10.0 / (5.0 + dampingPct)));
+
+            double ag = agG * importanceFactor;
+            double agS = ag * S;
+
+            // Generate spectrum at 50 periods from 0 to 4s
+            int nPts = 50;
+            double[] periods = new double[nPts];
+            double[] accelerations = new double[nPts];
+
+            for (int i = 0; i < nPts; i++)
+            {
+                double T = i * 4.0 / (nPts - 1);
+                periods[i] = T;
+
+                double Se;
+                if (T < TB)
+                {
+                    // EC8 Eq 3.2: Se = ag×S×[1 + T/TB×(η×2.5 - 1)]
+                    Se = ag * S * (1 + T / TB * (eta * 2.5 - 1));
+                }
+                else if (T <= TC)
+                {
+                    // EC8 Eq 3.3: Se = ag×S×η×2.5
+                    Se = ag * S * eta * 2.5;
+                }
+                else if (T <= TD)
+                {
+                    // EC8 Eq 3.4: Se = ag×S×η×2.5×(TC/T)
+                    Se = ag * S * eta * 2.5 * (TC / T);
+                }
+                else
+                {
+                    // EC8 Eq 3.5: Se = ag×S×η×2.5×(TC×TD/T²)
+                    Se = ag * S * eta * 2.5 * (TC * TD / (T * T));
+                }
+
+                accelerations[i] = Se;
+            }
+
+            return new SeismicSiteResult
+            {
+                GroundType = groundType,
+                SoilFactorS = S,
+                TB = TB, TC = TC, TD = TD,
+                Ag = ag, AgS = agS,
+                SpectrumPeriods = periods,
+                SpectrumAccelerations = accelerations,
+                Summary = $"Seismic EC8: Ground type {groundType}, S={S:F2}, ag={ag:F3}g, " +
+                    $"agS={agS:F3}g, TB={TB:F2}s, TC={TC:F2}s, TD={TD:F1}s, η={eta:F2}"
+            };
+        }
+
+        /// <summary>
+        /// Calculate equivalent static lateral force per EC8 §4.3.3.2.
+        /// Fb = Sd(T1) × m × λ  where λ = 0.85 for T1 ≤ 2TC, else 1.0
+        /// </summary>
+        public static double CalculateBaseLateralForce(
+            double sdT1G, double buildingMassKg, double fundamentalPeriodS,
+            EC8GroundType groundType)
+        {
+            var (_, _, TC, _) = GetSiteParameters(groundType);
+            double lambda = fundamentalPeriodS <= 2 * TC ? 0.85 : 1.0;
+            return sdT1G * 9.81 * buildingMassKg * lambda / 1000.0; // kN
+        }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // 6. STEEL SECTION DATABASE (SCI P363 Blue Book)
     // ════════════════════════════════════════════════════════════════
 

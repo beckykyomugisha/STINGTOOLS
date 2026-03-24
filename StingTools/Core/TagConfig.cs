@@ -798,14 +798,14 @@ namespace StingTools.Core
 
             if (profile.AllowedSysCodes != null && profile.AllowedSysCodes.Count > 0
                 && !string.IsNullOrEmpty(sys)
-                && !profile.AllowedSysCodes.Contains(sys, StringComparer.OrdinalIgnoreCase))
+                && !profile.AllowedSysCodes.Any(c => string.Equals(c, sys, StringComparison.OrdinalIgnoreCase)))
             {
                 errors.Add($"SYS '{sys}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedSysCodes)}");
             }
 
             if (profile.AllowedFuncCodes != null && profile.AllowedFuncCodes.Count > 0
                 && !string.IsNullOrEmpty(func)
-                && !profile.AllowedFuncCodes.Contains(func, StringComparer.OrdinalIgnoreCase))
+                && !profile.AllowedFuncCodes.Any(c => string.Equals(c, func, StringComparison.OrdinalIgnoreCase)))
             {
                 errors.Add($"FUNC '{func}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedFuncCodes)}");
             }
@@ -814,11 +814,11 @@ namespace StingTools.Core
             {
                 if (profile.RequiredTokens != null)
                 {
-                    if (profile.RequiredTokens.Contains("SYS", StringComparer.OrdinalIgnoreCase) && string.IsNullOrEmpty(sys))
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "SYS", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(sys))
                         errors.Add($"SYS is required for DISC '{disc}'");
-                    if (profile.RequiredTokens.Contains("FUNC", StringComparer.OrdinalIgnoreCase) && string.IsNullOrEmpty(func))
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "FUNC", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(func))
                         errors.Add($"FUNC is required for DISC '{disc}'");
-                    if (profile.RequiredTokens.Contains("PROD", StringComparer.OrdinalIgnoreCase) && string.IsNullOrEmpty(prod))
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "PROD", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(prod))
                         errors.Add($"PROD is required for DISC '{disc}'");
                 }
             }

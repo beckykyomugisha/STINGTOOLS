@@ -451,6 +451,7 @@ namespace StingTools.Core
         public Result OnShutdown(UIControlledApplication application)
         {
             StingLog.Info("STING Tools shutting down");
+            StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
             StingLog.Shutdown();
             return Result.Succeeded;

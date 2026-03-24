@@ -463,6 +463,10 @@ namespace StingTools.Core
 
             bool previousStepSkipped = false;  // Phase 48: Track if previous step was skipped
 
+            // Plugin hook: notify third-party plugins before workflow execution
+            try { StingPluginHooks.BeforeWorkflow?.Invoke(preset.Name); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.BeforeWorkflow: {ex.Message}"); }
+
             try
             {
                 foreach (var step in preset.Steps)
@@ -916,6 +920,10 @@ namespace StingTools.Core
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
+            // Plugin hook: notify third-party plugins after workflow completion
+            try { StingPluginHooks.AfterWorkflow?.Invoke(preset.Name, failed == 0 && !cancelled); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.AfterWorkflow: {ex.Message}"); }
+
             // Phase 48: Persist last-workflow memory for "Repeat Last" feature
             _lastWorkflowName = preset.Name;
             _lastWorkflowResult = $"{passed}/{preset.Steps.Count} OK, {failed} failed";
@@ -1046,6 +1054,22 @@ namespace StingTools.Core
             IExternalCommand cmd = ResolveCommand(tag);
             if (cmd == null)
             {
+                // Try plugin hook custom commands before failing
+                try
+                {
+                    var uiApp = data?.Application;
+                    if (uiApp != null)
+                    {
+                        var (found, result) = StingPluginHooks.TryExecuteCommand(tag, uiApp);
+                        if (found)
+                        {
+                            StingLog.Info($"WorkflowEngine: custom command '{tag}' executed via plugin hook: {result}");
+                            return result != null && result.StartsWith("Error:") ? Result.Failed : Result.Succeeded;
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"WorkflowEngine: plugin hook command '{tag}' lookup failed: {ex.Message}"); }
+
                 // M-05 FIX: Log error (not just warn) with clear diagnostic message
                 // so workflow preset JSON typos are immediately obvious
                 StingLog.Error($"WorkflowEngine: unknown command tag '{tag}' — check workflow preset JSON for typos. " +
