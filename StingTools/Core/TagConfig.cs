@@ -5053,8 +5053,8 @@ namespace StingTools.Core
             }
 
             // TAG7A-TAG7F get plain section text for tag family labels
-            // PERF-R12: Track consecutive empties — once 2+ empty sections hit, skip rest
-            // (BuildTag7Sections populates in order; trailing empties are common)
+            // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
+            // Threshold raised from 2 to 4 so sections D/E/F are still written when C is empty.
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
             int consecutiveEmpty = 0;
@@ -5069,7 +5069,7 @@ namespace StingTools.Core
                 else
                 {
                     consecutiveEmpty++;
-                    if (consecutiveEmpty >= 2) break; // Skip remaining empty trailing sections
+                    if (consecutiveEmpty >= 4) break; // Skip remaining empty trailing sections
                 }
             }
 
