@@ -2608,4 +2608,10 @@ docker compose up -d
 684. **CombineParameters: Progress dialog added** — `StingProgressDialog` with `EscapeChecker` cancellation for batch combine (50K+ elements with no previous feedback).
 685. **StructuralEngine CreateGridFrame: Progress dialog added** — `StingProgressDialog` for multi-storey frame creation (5×5 grid × 10 storeys = 1100+ beams with no previous feedback).
 686. **TemplateManager: Deduplicated fill pattern lookup** — 7 inline `FilteredElementCollector(FillPatternElement)` lookups replaced with cached `ParameterHelpers.GetSolidFillPattern(doc)` across 5 commands.
+687. **FullAutoPopulate: Progress dialog added** — `StingProgressDialog` with `EscapeChecker` cancellation for full auto-populate (was blocking UI 30-60s on 100K models with zero feedback). Log frequency reduced from 500 to 5000 elements.
+688. **WarningsManager BatchAutoFix: Cache invalidation** — `InvalidateReportCache()` called after fixes so warnings dashboard shows post-fix state immediately.
+689. **TagConfig BuildAndWriteTag: Split validation eliminated** — Replaced `String.Split()` (8-12 element array allocation per element) with O(n) separator counting for segment validation. Saves ~400K allocations per 50K-element batch.
+690. **WriteTag7All: Early-exit on empty sections** — Breaks loop after 2 consecutive empty TAG7 sections, saving 15-30K unnecessary `SetString` calls per large batch.
+691. **SmartSort: Cached level elevation map** — Level elevation `FilteredElementCollector` cached per document instead of rebuilding on every sort invocation.
+692. **Default value warning throttle** — Per-element `RecordWarning` for LOC=BLD1/ZONE=Z01 replaced with aggregate `DefaultLocCount`/`DefaultZoneCount` on `TaggingStats`, eliminating 1000+ file I/O writes per batch.
 672. **GAP-BIM-04 FIX: Workflow log file read consolidated** — Merged two `File.ReadAllLines` calls for the same `STING_WORKFLOW_LOG.json` into a single read. Summary extraction and DataGrid row parsing now share the same `logLines` array. Eliminates redundant disk I/O.
