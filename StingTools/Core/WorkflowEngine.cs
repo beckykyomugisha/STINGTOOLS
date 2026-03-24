@@ -298,6 +298,26 @@ namespace StingTools.Core
         /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
         [JsonProperty("minWarningHealthScore")]
         public int? MinWarningHealthScore { get; set; }
+
+        /// <summary>Phase 69: Fallback command if this step fails.</summary>
+        [JsonProperty("fallbackStep")]
+        public string FallbackStep { get; set; }
+
+        /// <summary>Phase 69: Condition logic for multiple conditions: "AND" (all must pass) or "OR" (any must pass).</summary>
+        [JsonProperty("conditionLogic")]
+        public string ConditionLogic { get; set; } = "AND";
+
+        /// <summary>Phase 69: Array of condition keys for compound condition evaluation.</summary>
+        [JsonProperty("conditions")]
+        public List<string> Conditions { get; set; }
+
+        /// <summary>Phase 69: Parallel execution group. Steps with same group number run concurrently.</summary>
+        [JsonProperty("parallelGroup")]
+        public int? ParallelGroup { get; set; }
+
+        /// <summary>Phase 69: Minimum data drop level required (1-4). Skip if current DD is below.</summary>
+        [JsonProperty("minDataDrop")]
+        public int? MinDataDrop { get; set; }
     }
 
     internal static class WorkflowEngine
@@ -597,6 +617,42 @@ namespace StingTools.Core
                             double pct = cachedCompliancePct();
                             if (pct >= 50)
                             { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
+                        }
+                    }
+
+                    // Phase 69: Compound condition evaluation (AND/OR logic)
+                    if (step.Conditions != null && step.Conditions.Count > 0)
+                    {
+                        bool isOr = string.Equals(step.ConditionLogic, "OR", StringComparison.OrdinalIgnoreCase);
+                        var results = new List<bool>();
+                        foreach (var cond in step.Conditions)
+                        {
+                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale));
+                        }
+
+                        bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
+                        if (!compoundResult)
+                        {
+                            skipped++;
+                            string logic = isOr ? "OR" : "AND";
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compound {logic}: {string.Join(", ", step.Conditions)})");
+                            previousStepSkipped = true;
+                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            continue;
+                        }
+                    }
+
+                    // Phase 69: Data drop level gate
+                    if (step.MinDataDrop.HasValue)
+                    {
+                        int currentDD = CalculateCurrentDataDrop(doc, cachedCompliancePct());
+                        if (currentDD < step.MinDataDrop.Value)
+                        {
+                            skipped++;
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (current DD{currentDD} < required DD{step.MinDataDrop.Value})");
+                            previousStepSkipped = true;
+                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            continue;
                         }
                     }
 
@@ -1301,6 +1357,81 @@ namespace StingTools.Core
 
         /// <summary>FIX-7.1: Public wrapper so NLPCommandProcessorCommand can call it.</summary>
         public static IExternalCommand ResolveCommandPublic(string tag) => ResolveCommand(tag);
+
+        // ── Phase 69: Compound condition evaluation ─────────────────────
+
+        /// <summary>Evaluate a single named condition against the current document state.</summary>
+        private static bool EvaluateSingleCondition(Document doc, string condition,
+            Func<double> cachedCompliancePct, Func<bool> cachedHasStale)
+        {
+            try
+            {
+                switch (condition)
+                {
+                    case "has_stale": return cachedHasStale();
+                    case "has_warnings": return (doc.GetWarnings()?.Count ?? 0) > 0;
+                    case "has_critical_warnings":
+                        var wr = WarningsEngine.ScanWarnings(doc);
+                        return wr.BySeverity.GetValueOrDefault(WarningSeverity.Critical) > 0;
+                    case "has_open_issues":
+                        string iPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        if (!File.Exists(iPath)) return false;
+                        return File.ReadAllText(iPath).Contains("\"OPEN\"");
+                    case "has_untagged":
+                        var cats = SharedParamGuids.AllCategoryEnums;
+                        var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                        if (cats != null && cats.Length > 0) coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats)));
+                        return coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                    case "has_placeholders":
+                        var cats2 = SharedParamGuids.AllCategoryEnums;
+                        var coll2 = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                        if (cats2 != null && cats2.Length > 0) coll2.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats2)));
+                        return coll2.Any(e => { string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1); return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t); });
+                    case "has_container_gaps":
+                        var scan = ComplianceScan.Scan(doc);
+                        return (scan?.ContainerCompletePct ?? 100) < 95;
+                    case "has_links":
+                        return new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                    case "compliance_above_90": return cachedCompliancePct() >= 90;
+                    case "compliance_below_50": return cachedCompliancePct() < 50;
+                    case "workshared": return doc.IsWorkshared;
+                    default:
+                        StingLog.Warn($"WorkflowEngine: unknown condition '{condition}'");
+                        return true; // Unknown conditions pass by default
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowEngine: condition '{condition}' failed: {ex.Message}");
+                return true; // On error, don't skip the step
+            }
+        }
+
+        /// <summary>
+        /// Calculate current ISO 19650 data drop level based on compliance percentage.
+        /// DD1=30%, DD2=60%, DD3=85%, DD4=95%.
+        /// </summary>
+        public static int CalculateCurrentDataDrop(Document doc, double compliancePct)
+        {
+            if (compliancePct >= 95) return 4; // DD4: Handover
+            if (compliancePct >= 85) return 3; // DD3: Detailed Design
+            if (compliancePct >= 60) return 2; // DD2: Concept Design
+            if (compliancePct >= 30) return 1; // DD1: Brief
+            return 0; // Pre-DD1
+        }
+
+        /// <summary>Get data drop compliance thresholds (configurable per project).</summary>
+        public static (int shared, int published) GetDataDropGates(int dataDrop)
+        {
+            return dataDrop switch
+            {
+                1 => (30, 50),
+                2 => (60, 75),
+                3 => (80, 90),
+                4 => (95, 98),
+                _ => (70, 90),
+            };
+        }
 
         /// <summary>Get all available presets (built-in + user JSON files).</summary>
         public static List<WorkflowPreset> GetAvailablePresets()
