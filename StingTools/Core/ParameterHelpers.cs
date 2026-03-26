@@ -119,6 +119,9 @@ namespace StingTools.Core
             NativeParamMapper.InvalidateBipCache();
             // PERF-CRIT-01: Clear spatial candidate cache
             TokenAutoPopulator.InvalidateSpatialCache();
+            // PERF: Clear cached last phase on document switch
+            _lastPhaseDocKey = null;
+            _lastPhaseCache = null;
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -464,6 +467,10 @@ namespace StingTools.Core
         }
 
         /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
+        // PERF: Cache last phase per document to avoid FilteredElementCollector per element in fallback
+        private static string _lastPhaseDocKey;
+        private static Phase _lastPhaseCache;
+
         private static Phase GetElementPhase(Document doc, Element el)
         {
             try
@@ -477,14 +484,21 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el?.Id}: {ex.Message}"); }
 
-            // Fallback: last phase in the project
+            // Fallback: last phase in the project (cached per document)
             try
             {
-                return new FilteredElementCollector(doc)
+                string docKey = GetStableDocKey(doc);
+                if (_lastPhaseCache != null && _lastPhaseDocKey == docKey && _lastPhaseCache.IsValidObject)
+                    return _lastPhaseCache;
+
+                var phase = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .OrderBy(p => p.Id.Value)
                     .LastOrDefault();
+                _lastPhaseDocKey = docKey;
+                _lastPhaseCache = phase;
+                return phase;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }

@@ -549,10 +549,9 @@ namespace StingTools.Core
 
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
         /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
-        private static string ValidateFuncProdPair(string func, string prod, string disc)
-        {
-            // Define incompatible FUNC→PROD pairs (function cannot produce these product types)
-            var incompatiblePairs = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
+        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
                 { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
@@ -568,7 +567,9 @@ namespace StingTools.Core
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
 
-            if (incompatiblePairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
                 return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
 
             return null;
@@ -895,16 +896,30 @@ namespace StingTools.Core
             return null;
         }
 
-        /// <summary>R4-B: Generic double config getter for project_config.json numeric values.</summary>
+        /// <summary>R4-B: Generic double config getter — reads from cached config, not disk.
+        /// Falls back to LoadFromFile-parsed values where possible.</summary>
+        private static Newtonsoft.Json.Linq.JObject _cachedConfigObj;
+        private static string _cachedConfigPath;
+        private static DateTime _cachedConfigModified;
+
         internal static double GetConfigDouble(string key, double defaultValue)
         {
             try
             {
                 string path = ConfigSource;
                 if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return defaultValue;
-                string json = System.IO.File.ReadAllText(path);
-                var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
-                var token = obj[key];
+
+                // Use cached JObject if file hasn't changed
+                var lastWrite = System.IO.File.GetLastWriteTimeUtc(path);
+                if (_cachedConfigObj == null || _cachedConfigPath != path || _cachedConfigModified != lastWrite)
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    _cachedConfigObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    _cachedConfigPath = path;
+                    _cachedConfigModified = lastWrite;
+                }
+
+                var token = _cachedConfigObj[key];
                 if (token == null) return defaultValue;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float) return (double)token;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return (long)token;
@@ -1143,7 +1158,7 @@ namespace StingTools.Core
         public static string RevDefault { get; internal set; }
 
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
-        private static Dictionary<string, List<string>> _reverseSysMap;
+        private static volatile Dictionary<string, List<string>> _reverseSysMap;
 
         static TagConfig()
         {
