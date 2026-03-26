@@ -5469,6 +5469,7 @@ namespace StingTools.Organise
             if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
 
             int cleared = 0;
+            Dictionary<ElementId, List<IndependentTag>> tagsByHost = null; // lazy-built in loop
             using (Transaction tx = new Transaction(doc, "STING Decluster Tags"))
             {
                 tx.Start();
@@ -5498,6 +5499,26 @@ namespace StingTools.Organise
                                 string posData = posPar.AsString();
                                 if (!string.IsNullOrEmpty(posData))
                                 {
+                                    // PERF-CRIT: Build tag-by-host index ONCE (was creating collector per entry)
+                                    if (tagsByHost == null)
+                                    {
+                                        tagsByHost = new Dictionary<ElementId, List<IndependentTag>>();
+                                        foreach (var itag in new FilteredElementCollector(doc, view.Id)
+                                            .OfClass(typeof(IndependentTag)).Cast<IndependentTag>())
+                                        {
+                                            try
+                                            {
+                                                foreach (var tid in itag.GetTaggedLocalElementIds())
+                                                {
+                                                    if (!tagsByHost.TryGetValue(tid, out var tlist))
+                                                    { tlist = new List<IndependentTag>(); tagsByHost[tid] = tlist; }
+                                                    tlist.Add(itag);
+                                                }
+                                            }
+                                            catch (Exception ex) { StingLog.Warn($"Tag index build: {ex.Message}"); }
+                                        }
+                                    }
+
                                     foreach (string entry in posData.Split('|'))
                                     {
                                         try
@@ -5512,20 +5533,15 @@ namespace StingTools.Organise
                                                 double.Parse(coords[1]),
                                                 double.Parse(coords[2]));
 
-                                            // Find IndependentTag for this host element in the view
+                                            // O(1) lookup instead of collector per entry
                                             var hostElId = new ElementId(hostId);
-                                            var tags = new FilteredElementCollector(doc, view.Id)
-                                                .OfClass(typeof(IndependentTag))
-                                                .Cast<IndependentTag>()
-                                                .Where(t =>
-                                                {
-                                                    try { return t.GetTaggedLocalElementIds().Contains(hostElId); }
-                                                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
-                                                });
-                                            foreach (var tag in tags)
+                                            if (tagsByHost.TryGetValue(hostElId, out var matchedTags))
                                             {
-                                                try { tag.TagHeadPosition = pos; }
-                                                catch (Exception ex2) { StingLog.Warn($"Restore tag position failed: {ex2.Message}"); }
+                                                foreach (var tag in matchedTags)
+                                                {
+                                                    try { tag.TagHeadPosition = pos; }
+                                                    catch (Exception ex2) { StingLog.Warn($"Restore tag position failed: {ex2.Message}"); }
+                                                }
                                             }
                                         }
                                         catch (Exception ex3) { StingLog.Warn($"Parse cluster member entry failed: {ex3.Message}"); }

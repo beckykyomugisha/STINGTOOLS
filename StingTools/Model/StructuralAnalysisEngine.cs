@@ -1733,30 +1733,39 @@ namespace StingTools.Model
                 });
             }
 
+            // PERF-CRIT: Collect all structural elements ONCE, group by level (was 4 collectors × N levels)
+            var allCols = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                .WhereElementIsNotElementType().ToList();
+            var allFraming = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .WhereElementIsNotElementType().ToList();
+            var allFloors = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Floors)
+                .WhereElementIsNotElementType().ToList();
+            var allWalls = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Walls)
+                .WhereElementIsNotElementType().ToList();
+
+            // Build per-level indexes
+            ElementId GetLevelParam(Element el, BuiltInParameter bip) {
+                var p = el.get_Parameter(bip); return p?.AsElementId() ?? ElementId.InvalidElementId; }
+            var colsByLevel = allCols.GroupBy(e => GetLevelParam(e, BuiltInParameter.FAMILY_BASE_LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var framingByLevel = allFraming.GroupBy(e => GetLevelParam(e, BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var floorsByLevel = allFloors.GroupBy(e => GetLevelParam(e, BuiltInParameter.LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var wallsByLevel = allWalls.GroupBy(e => GetLevelParam(e, BuiltInParameter.WALL_BASE_CONSTRAINT))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             // Per-level phases
             foreach (var level in levels)
             {
                 var levelId = level.Id;
 
-                // Columns on this level
-                var cols = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
-
-                // Beams on this level
-                var beams = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
+                var cols = colsByLevel.TryGetValue(levelId, out var cl) ? cl : new List<Element>();
+                var beams = framingByLevel.TryGetValue(levelId, out var bl) ? bl : new List<Element>();
 
                 // Separate braces from beams
                 var braces = beams.Where(b =>
@@ -1769,25 +1778,8 @@ namespace StingTools.Model
 
                 var pureBeams = beams.Except(braces).ToList();
 
-                // Floors on this level
-                var floors = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Floors)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
-
-                // Walls on this level
-                var walls = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Walls)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
+                var floors = floorsByLevel.TryGetValue(levelId, out var fl) ? fl : new List<Element>();
+                var walls = wallsByLevel.TryGetValue(levelId, out var wl) ? wl : new List<Element>();
 
                 // Skip empty levels
                 if (cols.Count == 0 && pureBeams.Count == 0 && floors.Count == 0 && walls.Count == 0)

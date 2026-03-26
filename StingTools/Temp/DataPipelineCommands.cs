@@ -4813,7 +4813,7 @@ namespace StingTools.Temp
                     var p = el.LookupParameter("IfcGUID") ?? el.LookupParameter("IFC GUID");
                     ifcGuid = p?.AsString();
                 }
-                catch { /* Not IFC-imported */ }
+                catch (Exception ex) { StingLog.Warn($"IFC GUID lookup: {ex.Message}"); }
 
                 if (string.IsNullOrEmpty(ifcGuid)) continue;
                 total++;

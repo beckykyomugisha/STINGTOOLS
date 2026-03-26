@@ -1203,7 +1203,7 @@ namespace StingTools.Model
                                 var slopeParam = ramp.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM);
                                 if (slopeParam != null) slopeParam.Set(0);
                             }
-                            catch { /* Some floor types don't support slope */ }
+                            catch (Exception ex) { StingLog.Warn($"Floor slope: {ex.Message}"); }
                         }
                     }
                     tx.Commit();
