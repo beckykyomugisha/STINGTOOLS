@@ -1976,7 +1976,8 @@ namespace StingTools.BIMManager
             int totalTagged = 0, totalUntagged = 0;
             try
             {
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                // PERF: Removed .ToList() — iterate lazily to avoid 50K-element List allocation
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(catName)) continue;
@@ -3881,8 +3882,9 @@ namespace StingTools.BIMManager
                 enrichment["top_issues"] = compliance.TopIssues;
 
                 // Per-discipline tag breakdown
+                // PERF: Removed .ToList() — iterate lazily
                 var discBreakdown = new JObject();
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(cat)) continue;
@@ -9938,7 +9940,7 @@ namespace StingTools.BIMManager
                             if (!string.IsNullOrEmpty(tag1)) taggedByUser++;
                         }
                     }
-                    catch { /* Non-workshared document */ }
+                    catch (Exception ex) { StingLog.Warn($"Worksharing check: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Productivity worksharing: {ex.Message}"); }
@@ -9974,7 +9976,7 @@ namespace StingTools.BIMManager
                                     weekRuns++;
                             }
                         }
-                        catch { /* Skip malformed lines */ }
+                        catch (Exception ex) { StingLog.Warn($"Skip malformed workflow log line: {ex.Message}"); }
                     }
                     report.AppendLine($"\nWorkflow executions (total): {workflowRuns}");
                     report.AppendLine($"Workflow executions (7-day): {weekRuns}");
