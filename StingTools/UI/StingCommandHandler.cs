@@ -88,17 +88,19 @@ namespace StingTools.UI
             // Guard: empty tag means no command was requested (cleared after previous run)
             if (string.IsNullOrEmpty(tag)) return;
 
-            // BUG-02 FIX: Track re-entrancy depth so inner Execute() calls
-            // (from wizard dispatch loops) skip the finally-block cleanup.
-            _executeDepth++;
-
-            // Guard: most commands require an open document
+            // Guard: most commands require an open document.
+            // CRITICAL FIX (Phase 79b): Must be BEFORE _executeDepth++ to avoid
+            // permanently leaking the depth counter on early return (no finally block).
             if (app.ActiveUIDocument == null)
             {
                 TaskDialog.Show("STING Tools",
                     "No document is open. Please open a Revit project first.");
                 return;
             }
+
+            // BUG-02 FIX: Track re-entrancy depth so inner Execute() calls
+            // (from wizard dispatch loops) skip the finally-block cleanup.
+            _executeDepth++;
 
             // PERF-CRIT: Run deferred morning briefing on first command after document open.
             // This was previously in OnDocumentOpened where it blocked the UI thread for 5-30s.

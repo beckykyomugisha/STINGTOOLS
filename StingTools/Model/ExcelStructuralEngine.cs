@@ -1216,14 +1216,44 @@ namespace StingTools.Model
                     if (locCurve != null) lenFt = locCurve.Curve.Length;
                     double spanM = lenFt * 0.3048;
 
-                    var design = RebarEngine.AutoDesignBeamRebar(spanM, 300, 600, 25, "C32/40", 30);
-                    sb.AppendLine($"  Beam [{el.Id.Value}]: Span={spanM:F1}m");
+                    // Phase 79b FIX (HIGH-04): Extract actual beam dimensions from element
+                    // instead of hardcoded 300×600. Fall back to typical values if unavailable.
+                    double bMm = 300, hMm = 600;
+                    try
+                    {
+                        var bParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH);
+                        var hParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_HEIGHT);
+                        if (bParam != null && bParam.AsDouble() > 0) bMm = bParam.AsDouble() * 304.8;
+                        if (hParam != null && hParam.AsDouble() > 0) hMm = hParam.AsDouble() * 304.8;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Beam dimension read failed: {ex.Message}"); }
+                    var design = RebarEngine.AutoDesignBeamRebar(spanM, bMm, hMm, 25, "C32/40", 30);
+                    sb.AppendLine($"  Beam [{el.Id.Value}]: Span={spanM:F1}m, b={bMm:F0}mm, h={hMm:F0}mm");
                     sb.AppendLine($"    Bottom: {design.BotRebar}, Top: {design.TopRebar}, Links: {design.Links}");
                     sb.AppendLine($"    {design.Summary}");
                 }
                 else if (catName.Contains("Column"))
                 {
-                    var design = RebarEngine.AutoDesignColumnRebar(3.0, 400, 1000, 100, "C32/40", 35);
+                    // Phase 79b FIX (HIGH-04): Extract actual column dimensions from element
+                    double colB = 400, colAxialKN = 1000, colMomentKNm = 100;
+                    try
+                    {
+                        var bParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH);
+                        if (bParam != null && bParam.AsDouble() > 0) colB = bParam.AsDouble() * 304.8;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column dimension read failed: {ex.Message}"); }
+                    double colH = 3.0;
+                    try
+                    {
+                        var locLine = el.Location as LocationPoint;
+                        if (locLine != null)
+                        {
+                            var bb = el.get_BoundingBox(null);
+                            if (bb != null) colH = (bb.Max.Z - bb.Min.Z) * 0.3048;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column height read failed: {ex.Message}"); }
+                    var design = RebarEngine.AutoDesignColumnRebar(colH, colB, colAxialKN, colMomentKNm, "C32/40", 35);
                     sb.AppendLine($"  Column [{el.Id.Value}]:");
                     sb.AppendLine($"    Main: {design.BotRebar}, Links: {design.Links}");
                     sb.AppendLine($"    {design.Summary}");

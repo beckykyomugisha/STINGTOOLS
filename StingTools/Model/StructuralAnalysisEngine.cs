@@ -276,7 +276,10 @@ namespace StingTools.Model
                     double distLeft = -imbalance * df[j, 0];
                     double distRight = -imbalance * df[j, 1];
 
-                    moments[j] = 0; // Balanced
+                    // Phase 79b CRITICAL FIX: Apply correction to accumulated moment (not zero it).
+                    // moments[j] must retain the sum of all distributed moments arriving at joint j.
+                    // The distributed amounts (-imbalance × df) sum to -imbalance, balancing this joint.
+                    moments[j] += -imbalance; // Apply full correction (distLeft + distRight = -imbalance)
                     carryOver[j] = 0;
 
                     // Carry-over factor = 0.5
@@ -2239,9 +2242,21 @@ namespace StingTools.Model
             var candidates = new List<int>();
             QueryRect(_root, queryBox, candidates);
 
-            // Filter by actual distance (circle, not rectangle)
+            // Phase 79b FIX (HIGH-02): Filter by actual circular distance, not just bounding square.
+            // Entries store bounding boxes; for point inserts the box center IS the point.
+            // Without circular filtering, corner entries at distance up to √2 × radius are included.
             double r2 = radiusFt * radiusFt;
-            return candidates; // Already filtered by rect; exact circle filtering would need entry positions
+            candidates.RemoveAll(id =>
+            {
+                var entry = FindEntry(_root, id);
+                if (entry == null) return false; // keep if entry not found (shouldn't happen)
+                double cx = (entry.Value.MinX + entry.Value.MaxX) * 0.5;
+                double cy = (entry.Value.MinY + entry.Value.MaxY) * 0.5;
+                double dx = cx - point.X;
+                double dy = cy - point.Y;
+                return dx * dx + dy * dy > r2;
+            });
+            return candidates;
         }
 
         /// <summary>Find all entries overlapping a rectangle.</summary>
@@ -2269,6 +2284,23 @@ namespace StingTools.Model
                 foreach (var child in node.Children)
                     QueryRect(child, query, results);
             }
+        }
+
+        /// <summary>Find entry bounding box by ID (for circular distance filtering).</summary>
+        private BoundingBox2D? FindEntry(RTreeNode node, int id)
+        {
+            if (node.IsLeaf)
+            {
+                foreach (var (entryId, box) in node.Entries)
+                    if (entryId == id) return box;
+                return null;
+            }
+            foreach (var child in node.Children)
+            {
+                var found = FindEntry(child, id);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>Total number of entries in the tree.</summary>
@@ -2567,12 +2599,17 @@ namespace StingTools.Model
                 m.MomentJKNm = (6 * EI_L2 * (uLocal[1] - uLocal[4]) +
                     2 * EI_L * uLocal[2] + 4 * EI_L * uLocal[5]) / 1e6;
 
+                // Phase 79b CRITICAL FIX: Compute J-end shear independently from stiffness matrix
+                // (not copy from I-end). For asymmetric frames, V_J ≠ V_I.
+                m.ShearForceJKN = -(12 * EI_L3 * (uLocal[1] - uLocal[4]) +
+                    6 * EI_L2 * (uLocal[2] + uLocal[5])) / 1000.0;
+
                 // Add fixed-end forces from UDL
                 if (Math.Abs(m.UdlKNPerM) > 1e-10)
                 {
                     double Lm = L / 1000.0;
                     m.ShearForceIKN += m.UdlKNPerM * Lm / 2.0;
-                    m.ShearForceJKN = m.ShearForceIKN;
+                    m.ShearForceJKN += m.UdlKNPerM * Lm / 2.0;
                     m.MomentIKNm += m.UdlKNPerM * Lm * Lm / 12.0;
                     m.MomentJKNm -= m.UdlKNPerM * Lm * Lm / 12.0;
                 }
@@ -3103,13 +3140,12 @@ namespace StingTools.Model
                 population = newPop;
                 result.GenerationsUsed = gen + 1;
 
-                // Early termination if converged (top 10 are similar)
-                var topN = population.Select((p, i) => (p, fitnesses.Count > i ? fitnesses[i] : 0))
-                    .OrderByDescending(x => x.Item2).Take(10).Select(x => x.p).ToList();
-                if (topN.Count >= 10)
+                // Phase 79b FIX: Check convergence using population spatial spread (not stale fitness).
+                // Previous code paired newPop with old-generation fitnesses — meaningless ordering.
+                if (population.Count >= 10)
                 {
-                    double rangeX = topN.Max(t => t.SpacingX) - topN.Min(t => t.SpacingX);
-                    double rangeY = topN.Max(t => t.SpacingY) - topN.Min(t => t.SpacingY);
+                    double rangeX = population.Max(t => t.SpacingX) - population.Min(t => t.SpacingX);
+                    double rangeY = population.Max(t => t.SpacingY) - population.Min(t => t.SpacingY);
                     if (rangeX < 500 && rangeY < 500) break;
                 }
             }

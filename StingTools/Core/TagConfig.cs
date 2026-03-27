@@ -2677,17 +2677,27 @@ namespace StingTools.Core
                 // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
                 // Remove the derived-value tag from collision index (it may differ from actual)
+                string removedTag = null;
                 if (existingTags != null && !string.IsNullOrEmpty(tag))
+                {
+                    removedTag = tag;
                     existingTags.Remove(tag);
+                }
                 tag = string.Join(Separator, actualTokens);
                 // TW-03: Re-apply prefix/suffix to re-read tag
                 if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
                 if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                // LOGIC-003 FIX: Guard against actualTokens having fewer than 8 elements.
+                // Re-add the removed tag to collision index on failure to prevent index leak.
+                if (actualTokens.Length < 8)
+                {
+                    if (existingTags != null && removedTag != null)
+                        existingTags.Add(removedTag);
+                    return false;
+                }
                 // Update collision index with actual tag
                 if (existingTags != null)
                     existingTags.Add(tag);
-                // LOGIC-003 FIX: Guard against actualTokens having fewer than 8 elements
-                if (actualTokens.Length < 8) return false;
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];
@@ -5377,20 +5387,16 @@ namespace StingTools.Core
             // Threshold raised from 2 to 4 so sections D/E/F are still written when C is empty.
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
-            int consecutiveEmpty = 0;
             for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
             {
                 if (!string.IsNullOrEmpty(sectionValues[i]))
                 {
-                    consecutiveEmpty = 0;
                     if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
                         written++;
                 }
-                else
-                {
-                    consecutiveEmpty++;
-                    if (consecutiveEmpty >= 4) break; // Skip remaining empty trailing sections
-                }
+                // FIX: Removed early-exit on consecutive empties (was silently dropping
+                // non-empty sections E/F when B/C/D were empty). Only 6 sections total —
+                // skipping 1-2 SetString calls is not worth risking data loss.
             }
 
             // ── Warning parameter population (v5.6) ────────────────────────

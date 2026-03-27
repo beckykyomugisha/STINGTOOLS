@@ -2201,6 +2201,8 @@ namespace StingTools.BIMManager
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
+            // FIX: Single timestamp for consistency across all date fields
+            var now = DateTime.Now;
             return new JObject
             {
                 ["issue_id"] = issueId,
@@ -2214,19 +2216,19 @@ namespace StingTools.BIMManager
                 ["discipline"] = discipline,
                 ["raised_by"] = Environment.UserName,
                 ["created_by"] = Environment.UserName,
-                ["created_date"] = DateTime.Now.ToString("o"),
+                ["created_date"] = now.ToString("o"),
                 ["modified_by"] = Environment.UserName,
-                ["modified_date"] = DateTime.Now.ToString("o"),
-                ["date_raised"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                ["date_due"] = priority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
-                               priority == "HIGH" ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
-                               priority == "MEDIUM" ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
-                               DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
+                ["modified_date"] = now.ToString("o"),
+                ["date_raised"] = now.ToString("yyyy-MM-dd HH:mm"),
+                ["date_due"] = priority == "CRITICAL" ? now.AddDays(1).ToString("yyyy-MM-dd") :
+                               priority == "HIGH" ? now.AddDays(3).ToString("yyyy-MM-dd") :
+                               priority == "MEDIUM" ? now.AddDays(7).ToString("yyyy-MM-dd") :
+                               now.AddDays(14).ToString("yyyy-MM-dd"),
                 ["date_closed"] = "",
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
+                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
                 ["comments"] = new JArray()
@@ -2251,9 +2253,19 @@ namespace StingTools.BIMManager
                     var linkedTx = issue["linked_transmittals"] as JArray;
                     if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
                     if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
-                    // Link if issue has element references (meaning it relates to model content being transmitted)
+                    // FIX: Only link issues whose title/description relates to transmitted documents,
+                    // or whose element references exist. Previously transmittalDocNames was ignored,
+                    // linking ALL open issues to every transmittal regardless of relevance.
                     var elemIds = issue["element_ids"] as JArray;
-                    if (elemIds != null && elemIds.Count > 0)
+                    bool hasElements = elemIds != null && elemIds.Count > 0;
+                    bool matchesDoc = false;
+                    if (transmittalDocNames != null)
+                    {
+                        string issueTitle = issue["title"]?.ToString() ?? "";
+                        matchesDoc = transmittalDocNames.Any(dn =>
+                            !string.IsNullOrEmpty(dn) && issueTitle.IndexOf(dn, StringComparison.OrdinalIgnoreCase) >= 0);
+                    }
+                    if (hasElements || matchesDoc)
                     {
                         linkedTx.Add(transmittalId);
                         linked++;
@@ -5145,7 +5157,7 @@ namespace StingTools.BIMManager
             // Phase 55: Export readiness gate — block COBie export below compliance threshold
             try
             {
-                ComplianceScan.InvalidateCache();
+                // Use cached ComplianceScan — no forced invalidation (avoids 2-5s full scan)
                 var compResult = ComplianceScan.Scan(doc);
                 if (compResult != null && compResult.CompliancePercent < 60)
                 {
@@ -5213,7 +5225,7 @@ namespace StingTools.BIMManager
                         if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, cn))) { allEmpty = false; break; }
                     }
                     if (allEmpty) staleContainerCount++;
-                    if (staleContainerCount >= 5) break; // sample check
+                    if (staleContainerCount >= 50) break; // Phase 79b: sample 50 for better diagnostic
                 }
             }
             catch (Exception scEx) { StingLog.Warn($"COBie stale container check: {scEx.Message}"); }

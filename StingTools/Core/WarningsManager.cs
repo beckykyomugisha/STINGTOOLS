@@ -554,12 +554,6 @@ namespace StingTools.Core
 
         // ── CLASSIFICATION ──
 
-        /// <summary>Phase 78 PERF-WARN: Precompiled lowercase patterns for O(1) string comparison.
-        /// Eliminates 150+ ToLowerInvariant() calls per warning by pre-lowering all patterns at class init.</summary>
-        private static readonly (string pattern, WarningCategory cat, WarningSeverity sev, string fix, bool autoFix)[]
-            _loweredRules = ClassificationRules.Select(r =>
-                (r.pattern.ToLowerInvariant(), r.cat, r.sev, r.fix, r.autoFix)).ToArray();
-
         /// <summary>Phase 78 EF-02: Warning classification cache — identical descriptions return cached result.</summary>
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (WarningCategory, WarningSeverity, string, bool)>
             _classificationCache = new();
@@ -695,7 +689,7 @@ namespace StingTools.Core
         internal static WarningReport ScanWarnings(Document doc)
         {
             // PERF: Return cached report if recent (30-second TTL)
-            if (_cachedReport != null && (DateTime.Now - _reportCacheTime) < ReportCacheLifetime)
+            if (_cachedReport != null && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
 
             var report = new WarningReport();
@@ -838,7 +832,7 @@ namespace StingTools.Core
 
             // PERF: Cache the report for 30 seconds to prevent redundant re-scans
             _cachedReport = report;
-            _reportCacheTime = DateTime.Now;
+            _reportCacheTime = DateTime.UtcNow;
 
             return report;
         }
@@ -873,7 +867,7 @@ namespace StingTools.Core
                     }
                     // Fallback: delete second failing element
                     var ids = cw.FailingElements.ToList();
-                    if (ids.Count >= 2)
+                    if (ids.Count >= 2 && doc.GetElement(ids[1]) != null)
                     {
                         doc.Delete(ids[1]);
                         return true;
@@ -888,13 +882,16 @@ namespace StingTools.Core
                     {
                         double len0 = GetCurveLength(doc, ids[0]);
                         double len1 = GetCurveLength(doc, ids[1]);
+                        // If either length is MaxValue (element not found/no curve), skip auto-fix
+                        if (len0 == double.MaxValue || len1 == double.MaxValue)
+                            return false;
                         doc.Delete(len0 <= len1 ? ids[0] : ids[1]);
                         return true;
                     }
                 }
 
-                // Strategy 3: Redundant elements — delete
-                if (lower.Contains("redundant"))
+                // Strategy 3: Redundant elements — delete (exclude room separation lines handled by Strategy 2)
+                if (lower.Contains("redundant") && !lower.Contains("room separation line"))
                 {
                     var ids = cw.FailingElements.ToList();
                     if (ids.Count >= 2)
@@ -1025,7 +1022,7 @@ namespace StingTools.Core
                                 {
                                     var dir = line.Direction;
                                     // Snap near-horizontal to horizontal, near-vertical to vertical
-                                    if (Math.Abs(dir.Y) < 0.01 && Math.Abs(dir.Y) > 0.0001)
+                                    if (Math.Abs(dir.Y) > 0.0001 && Math.Abs(dir.Y) < 0.01)
                                     {
                                         var newEnd = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(0).Y, line.GetEndPoint(1).Z);
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
@@ -1065,7 +1062,8 @@ namespace StingTools.Core
                 }
 
                 // Phase 63: Strategy 10: Fix duplicate mark values — use pre-cached marks from BatchAutoFix
-                if (lower.Contains("duplicate mark"))
+                // Exclude "duplicate mark value" which is handled by Strategy 4
+                if (lower.Contains("duplicate mark") && !lower.Contains("duplicate mark value") && !lower.Contains("duplicate type mark"))
                 {
                     var ids = cw.FailingElements.ToList();
                     if (ids.Count >= 2)
@@ -1116,16 +1114,19 @@ namespace StingTools.Core
                             var roomTag = doc.GetElement(id) as Autodesk.Revit.DB.Architecture.RoomTag;
                             if (roomTag?.Room != null)
                             {
-                                XYZ roomCenter = roomTag.Room.get_BoundingBox(null)?.Min;
-                                if (roomCenter != null)
+                                var roomBB = roomTag.Room.get_BoundingBox(null);
+                                if (roomBB != null)
                                 {
-                                    var roomBB = roomTag.Room.get_BoundingBox(null);
                                     var center = new XYZ(
                                         (roomBB.Min.X + roomBB.Max.X) / 2,
                                         (roomBB.Min.Y + roomBB.Max.Y) / 2,
                                         roomBB.Min.Z);
-                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint).Point);
-                                    return true;
+                                    var locPt = roomTag.Location as LocationPoint;
+                                    if (locPt != null)
+                                    {
+                                        roomTag.Location.Move(center - locPt.Point);
+                                        return true;
+                                    }
                                 }
                             }
                         }

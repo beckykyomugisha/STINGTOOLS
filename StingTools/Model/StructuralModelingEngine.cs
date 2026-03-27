@@ -2229,6 +2229,10 @@ namespace StingTools.Model
                     totalResult.Warnings.Add($"Column grid: {colResult.Message}");
                 }
 
+                // Phase 79b FIX (HIGH-03): Warn if columns failed — beams may be unsupported
+                if (!colResult.Success || totalResult.ColumnsCreated == 0)
+                    StingLog.Warn("CreateGridFrame: Column creation failed or zero columns — beams may lack support");
+
                 // Step 2: Beams along each grid line for each storey
                 var beamTypeResult = _resolver.ResolveFamilySymbol(
                     BuiltInCategory.OST_StructuralFraming, beamTypeName);

@@ -122,6 +122,9 @@ namespace StingTools.Core
             // PERF: Clear cached last phase on document switch
             _lastPhaseDocKey = null;
             _lastPhaseCache = null;
+            // Phase 79b: Reset read-only skip counter on document switch
+            // to prevent stale counts from previous document leaking through
+            _readOnlySkipCount = 0;
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -1440,7 +1443,13 @@ namespace StingTools.Core
 
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+            {
+                // Phase 79b: Log once per unknown category to aid debugging
+                // (e.g., custom families placed in unexpected categories)
+                if (!string.IsNullOrEmpty(catName))
+                    StingLog.Info($"PopulateAll: skipping unknown category '{catName}' for element {el.Id}");
                 return result;
+            }
 
             // FIX-B05: Only run MEP connector traversal for MEP categories
             bool isMepCategory = _mepConnectorCategories.Contains(catName);
@@ -1928,6 +1937,9 @@ namespace StingTools.Core
         /// <summary>Invalidate spatial candidate cache (call after batch tagging completes).</summary>
         public static void InvalidateSpatialCache() { _spatialCandidateCache.Clear(); }
 
+        /// <summary>Phase 79b: Throttle counter for CopyTokensFromNearest logging.</summary>
+        [ThreadStatic] internal static int _copyTokensLogCount;
+
         /// <summary>
         /// Copies specified token values from the nearest already-tagged element of the same
         /// category within a configurable radius (TagConfig.ProximityRadiusFt, default 10 ft).
@@ -1984,13 +1996,17 @@ namespace StingTools.Core
                 else
                 {
                     // Fast path: use spatial candidate cache (pre-built, no collector needed)
+                    // Phase 79b: Skip fast path for null-category elements (key 0 is a junk bucket)
                     long catKey = el.Category?.Id?.Value ?? 0;
-                    if (_spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
+                    if (catKey != 0 && _spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
                     {
                         ElementId nearestId = null;
-                        foreach (var (cId, cCenter, _) in cached)
+                        foreach (var (cId, cCenter, cTag1) in cached)
                         {
                             if (cId == el.Id) continue;
+                            // Cache already pre-filters to tagged elements (line 1910),
+                            // but guard against stale cache with empty TAG1
+                            if (string.IsNullOrEmpty(cTag1)) continue;
                             double dist = point.DistanceTo(cCenter);
                             if (dist < minDist && dist <= radiusFt) { minDist = dist; nearestId = cId; }
                         }
@@ -2034,7 +2050,13 @@ namespace StingTools.Core
                 }
 
                 if (copied > 0)
-                    StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+                {
+                    // Phase 79b: Throttle logging — log first 10 + every 100th to avoid
+                    // 5K+ log lines on large batches
+                    _copyTokensLogCount++;
+                    if (_copyTokensLogCount <= 10 || _copyTokensLogCount % 100 == 0)
+                        StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+                }
 
                 return copied;
             }
@@ -3639,6 +3661,8 @@ namespace StingTools.Core
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    // Phase 79b: Balanced hook call — notify plugins that tagging failed (null tag)
+                    StingPluginHooks.FireAfterTag(doc, el, null);
                     return false;
                 }
 
@@ -3783,6 +3807,7 @@ namespace StingTools.Core
             _gridCacheDocKey = null;
             _noGridsLoggedThisSession = false; // LOGIC-010: Reset per-session flag
             _lockedTokenRestoreCount = 0; // Finding-5: Reset throttle counter
+            TokenAutoPopulator._copyTokensLogCount = 0; // Phase 79b: Reset log throttle
         }
 
         // ══════════════════════════════════════════════════════════════════
