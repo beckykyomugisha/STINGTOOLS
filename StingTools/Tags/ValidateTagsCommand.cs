@@ -40,7 +40,8 @@ namespace StingTools.Tags
             "NEW", "EXISTING", "DEMOLISHED", "TEMPORARY"
         };
 
-        private static string[] UniversalContainers => new[]
+        // PERF: static readonly field — was expression-bodied property allocating new array per access
+        private static readonly string[] UniversalContainers = new[]
         {
             ParamRegistry.TAG1, ParamRegistry.TAG2, ParamRegistry.TAG3,
             ParamRegistry.TAG4, ParamRegistry.TAG5, ParamRegistry.TAG6,

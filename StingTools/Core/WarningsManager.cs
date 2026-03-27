@@ -481,11 +481,14 @@ namespace StingTools.Core
                 if (descWords.Length > 5) break; // Only check first 5 words for efficiency
             }
 
-            // Full scan fallback for rules where first word doesn't match any description word
-            foreach (var rule in ClassificationRules)
+            // Full scan fallback — use pre-computed _loweredPatterns[] instead of per-call ToLowerInvariant()
+            for (int i = 0; i < ClassificationRules.Length; i++)
             {
-                if (lower.Contains(rule.pattern.ToLowerInvariant()))
+                if (lower.Contains(_loweredPatterns[i]))
+                {
+                    var rule = ClassificationRules[i];
                     return (rule.cat, rule.sev, rule.fix, rule.autoFix);
+                }
             }
             return (WarningCategory.Unknown, WarningSeverity.Info, "Review manually", false);
         }
@@ -655,7 +658,7 @@ namespace StingTools.Core
                         Element el = doc.GetElement(new ElementId(kv.Key));
                         name = el != null ? $"{ParameterHelpers.GetCategoryName(el)} [{el.Id.Value}]" : $"[{kv.Key}]";
                     }
-                    catch { name = $"[{kv.Key}]"; }
+                    catch (Exception ex) { StingLog.Warn($"Hotspot element name: {ex.Message}"); name = $"[{kv.Key}]"; }
                     return (new ElementId(kv.Key), name, kv.Value);
                 })
                 .ToList();

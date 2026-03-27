@@ -420,6 +420,8 @@ namespace StingTools.Core
 
             // PERF-03: Cache stale-element check — avoid full scan per step
             bool? _cachedHasStale = null;
+            // PERF: Cache element count — doesn't change between workflow steps
+            int? cachedElemCount = null;
             bool cachedHasStale()
             {
                 if (_cachedHasStale.HasValue) return _cachedHasStale.Value;
@@ -525,11 +527,12 @@ namespace StingTools.Core
                         // Phase 39: WorkflowStep.RequiresWorksharedModel condition
                         if (step.RequiresWorksharedModel && !doc.IsWorkshared)
                         { RecordSkip("not workshared"); continue; }
-                        // Phase 39: Element count range condition
+                        // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
-                            int elemCount = new FilteredElementCollector(doc)
+                            cachedElemCount ??= new FilteredElementCollector(doc)
                                 .WhereElementIsNotElementType().GetElementCount();
+                            int elemCount = cachedElemCount.Value;
                             if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
                             { RecordSkip($"{elemCount} elements < min {step.MinElementCount.Value}"); continue; }
                             if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
@@ -1483,7 +1486,7 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"WorkflowEngine: condition '{condition}' failed: {ex.Message}");
-                return true; // On error, don't skip the step
+                return false; // Fail-safe: skip step on condition evaluation error (consistent with WF-001)
             }
         }
 

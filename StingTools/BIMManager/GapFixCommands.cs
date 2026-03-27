@@ -223,9 +223,12 @@ namespace StingTools.BIMManager
                 if (lastRow > 10000)
                     return $"COBie file has {lastRow} rows (safety limit: 10,000). Process in batches.";
 
-                // Build element lookup
-                var collector = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType().ToList();
+                // Build element lookup (filtered to taggable categories)
+                var importCatEnums = SharedParamGuids.AllCategoryEnums;
+                var importColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (importCatEnums != null && importCatEnums.Length > 0)
+                    importColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(importCatEnums)));
+                var collector = importColl.ToList();
                 var byUniqueId = collector.ToDictionary(e => e.UniqueId, e => e);
                 var byTag = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
                 foreach (var el in collector)
