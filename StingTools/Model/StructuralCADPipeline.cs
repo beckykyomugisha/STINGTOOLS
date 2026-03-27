@@ -847,8 +847,18 @@ namespace StingTools.Model
                         used.Add(i);
                         used.Add(bestJ);
                         var lineB = beamCandidates[bestJ];
-                        var centerStart = (lineA.Start + lineB.Start) * 0.5;
-                        var centerEnd = (lineA.End + lineB.End) * 0.5;
+
+                        // CAD-CRIT-01: Fix anti-parallel line pairs — if lines run in opposite
+                        // directions, swap b endpoints so midpoints connect corresponding ends.
+                        var bStartB = lineB.Start;
+                        var bEndB = lineB.End;
+                        if (lineA.Start.DistanceTo(bEndB) < lineA.Start.DistanceTo(bStartB))
+                        {
+                            bStartB = lineB.End;
+                            bEndB = lineB.Start;
+                        }
+                        var centerStart = (lineA.Start + bStartB) * 0.5;
+                        var centerEnd = (lineA.End + bEndB) * 0.5;
 
                         result.BeamLines.Add(new DetectedBeam
                         {
@@ -1782,8 +1792,54 @@ namespace StingTools.Model
 
                 // 4. Walls (structural or architectural)
                 if (config.CreateWalls && extraction.Walls.Count > 0)
+                {
                     totalResult.WallsCreated += CreateWallsWithConfig(
                         extraction.Walls, baseLevel, config, totalResult);
+
+                    // CAD-HIGH-06: Join walls with overlapping bounding boxes
+                    if (config.AutoJoinWalls && totalResult.WallsCreated > 1)
+                    {
+                        try
+                        {
+                            var wallIds = totalResult.CreatedIds
+                                .Select(id => _doc.GetElement(id))
+                                .OfType<Wall>().ToList();
+                            if (wallIds.Count > 1)
+                            {
+                                int joined = 0;
+                                using (var tx = new Transaction(_doc, "STING STRUCT: Join Walls"))
+                                {
+                                    tx.Start();
+                                    for (int wi = 0; wi < wallIds.Count; wi++)
+                                    {
+                                        var bbI = wallIds[wi].get_BoundingBox(null);
+                                        if (bbI == null) continue;
+                                        for (int wj = wi + 1; wj < wallIds.Count; wj++)
+                                        {
+                                            var bbJ = wallIds[wj].get_BoundingBox(null);
+                                            if (bbJ == null) continue;
+                                            // Check bounding box overlap
+                                            if (bbI.Max.X < bbJ.Min.X || bbJ.Max.X < bbI.Min.X) continue;
+                                            if (bbI.Max.Y < bbJ.Min.Y || bbJ.Max.Y < bbI.Min.Y) continue;
+                                            try
+                                            {
+                                                if (!JoinGeometryUtils.AreElementsJoined(_doc, wallIds[wi], wallIds[wj]))
+                                                {
+                                                    JoinGeometryUtils.JoinGeometry(_doc, wallIds[wi], wallIds[wj]);
+                                                    joined++;
+                                                }
+                                            }
+                                            catch (Exception ex) { StingLog.Warn($"Wall join: {ex.Message}"); }
+                                        }
+                                    }
+                                    tx.Commit();
+                                }
+                                if (joined > 0) StingLog.Info($"  Joined {joined} wall pairs");
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Wall joining step: {ex.Message}"); }
+                    }
+                }
 
                 // 5. Slabs
                 if (config.CreateSlabs && extraction.SlabBoundaries.Count > 0)
@@ -1797,6 +1853,11 @@ namespace StingTools.Model
                 // 7. Repeat structural elements to additional levels
                 if (config.RepeatToLevelNames != null && config.RepeatToLevelNames.Count > 0)
                 {
+                    // CAD-HIGH-03: Collect all levels once before the loop
+                    var allLevelsOrdered = new FilteredElementCollector(_doc)
+                        .OfClass(typeof(Level)).Cast<Level>()
+                        .OrderBy(l => l.Elevation).ToList();
+
                     int levelsRepeated = 0;
                     foreach (var repeatLevelName in config.RepeatToLevelNames)
                     {
@@ -1808,12 +1869,9 @@ namespace StingTools.Model
                         }
 
                         // Find next level above for top constraint
-                        var allLevels = new FilteredElementCollector(_doc)
-                            .OfClass(typeof(Level)).Cast<Level>()
-                            .OrderBy(l => l.Elevation).ToList();
-                        int idx = allLevels.FindIndex(l => l.Id == repeatLevel.Id);
-                        Level repeatTopLevel = (idx >= 0 && idx + 1 < allLevels.Count)
-                            ? allLevels[idx + 1] : null;
+                        int idx = allLevelsOrdered.FindIndex(l => l.Id == repeatLevel.Id);
+                        Level repeatTopLevel = (idx >= 0 && idx + 1 < allLevelsOrdered.Count)
+                            ? allLevelsOrdered[idx + 1] : null;
 
                         double repeatColumnTopElev = repeatTopLevel?.Elevation
                             ?? (repeatLevel.Elevation + Units.Mm(config.ColumnHeightMm));

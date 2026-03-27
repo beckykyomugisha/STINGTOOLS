@@ -1283,6 +1283,9 @@ namespace StingTools.Model
                 var end = current.End;
 
                 bool didMerge;
+                // DWG-MED-01: Add convergence limit to prevent infinite merge loops
+                int maxPasses = 10;
+                int pass = 0;
                 do
                 {
                     didMerge = false;
@@ -1321,7 +1324,8 @@ namespace StingTools.Model
                             didMerge = true;
                         }
                     }
-                } while (didMerge);
+                    pass++;
+                } while (didMerge && pass < maxPasses);
 
                 used.Add(i);
                 merged.Add(new DetectedWallSegment
@@ -1441,21 +1445,59 @@ namespace StingTools.Model
             // Mark as used
             foreach (int idx in candidates) used.Add(idx);
 
-            // Calculate center and dimensions
+            // DWG-HIGH-03: Compute oriented bounding box using direction of longest side
             var allPts = new List<XYZ>();
             foreach (int idx in candidates) { allPts.Add(lines[idx].Start); allPts.Add(lines[idx].End); }
             double cx = allPts.Average(p => p.X);
             double cy = allPts.Average(p => p.Y);
 
-            double minX = allPts.Min(p => p.X), maxX = allPts.Max(p => p.X);
-            double minY = allPts.Min(p => p.Y), maxY = allPts.Max(p => p.Y);
+            // Find longest side to determine rotation
+            double maxLen = 0;
+            XYZ longestDir = XYZ.BasisX;
+            foreach (int idx in candidates)
+            {
+                var seg = lines[idx];
+                double len = seg.Start.DistanceTo(seg.End);
+                if (len > maxLen)
+                {
+                    maxLen = len;
+                    longestDir = (seg.End - seg.Start).Normalize();
+                }
+            }
+
+            // Compute rotation angle from X-axis
+            double rotation = Math.Atan2(longestDir.Y, longestDir.X);
+
+            // Project all points onto the oriented axes to get true width/height
+            var perpDir = new XYZ(-longestDir.Y, longestDir.X, 0);
+            double minAlongMain = double.MaxValue, maxAlongMain = double.MinValue;
+            double minAlongPerp = double.MaxValue, maxAlongPerp = double.MinValue;
+            foreach (var pt in allPts)
+            {
+                double projMain = pt.X * longestDir.X + pt.Y * longestDir.Y;
+                double projPerp = pt.X * perpDir.X + pt.Y * perpDir.Y;
+                if (projMain < minAlongMain) minAlongMain = projMain;
+                if (projMain > maxAlongMain) maxAlongMain = projMain;
+                if (projPerp < minAlongPerp) minAlongPerp = projPerp;
+                if (projPerp > maxAlongPerp) maxAlongPerp = projPerp;
+            }
+
+            double width = maxAlongMain - minAlongMain;
+            double height = maxAlongPerp - minAlongPerp;
+
+            // Ensure width >= height (width is along the longest side)
+            if (height > width)
+            {
+                var tmp = width; width = height; height = tmp;
+                rotation += Math.PI / 2;
+            }
 
             return new RectResult
             {
                 Center = new XYZ(cx, cy, 0),
-                Width = maxX - minX,
-                Height = maxY - minY,
-                Rotation = 0,
+                Width = width,
+                Height = height,
+                Rotation = rotation,
             };
         }
 
@@ -1472,7 +1514,8 @@ namespace StingTools.Model
                 for (int j = i + 1; j < columns.Count; j++)
                 {
                     if (used.Contains(j)) continue;
-                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 3)
+                    // DWG-HIGH-04: Reduced from tol*3 to tol*1.5 to avoid merging distinct columns
+                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 1.5)
                     {
                         // Keep the one with larger area (more accurate detection)
                         if (columns[j].WidthFt * columns[j].DepthFt > best.WidthFt * best.DepthFt)

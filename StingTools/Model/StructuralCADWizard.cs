@@ -99,6 +99,10 @@ namespace StingTools.Model
     /// </summary>
     public static class NumberingEngine
     {
+        // CAD-HIGH-04: Cache grid collection per document to avoid FilteredElementCollector per element
+        private static string _cachedGridDocPath;
+        private static List<Autodesk.Revit.DB.Grid> _cachedGrids;
+
         /// <summary>Enumeration style for numbering sequences.</summary>
         public enum EnumStyle
         {
@@ -439,9 +443,16 @@ namespace StingTools.Model
                 var pt = (el.Location as LocationPoint)?.Point;
                 if (pt == null) return "Off Grid";
 
-                var grids = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Grid))
-                    .Cast<Autodesk.Revit.DB.Grid>().ToList();
+                // CAD-HIGH-04: Use cached grid collection instead of per-element collector
+                string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+                if (_cachedGrids == null || _cachedGridDocPath != docKey)
+                {
+                    _cachedGrids = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Grid))
+                        .Cast<Autodesk.Revit.DB.Grid>().ToList();
+                    _cachedGridDocPath = docKey;
+                }
+                var grids = _cachedGrids;
 
                 Autodesk.Revit.DB.Grid nearest = null;
                 double minDist = double.MaxValue;
@@ -1860,6 +1871,7 @@ namespace StingTools.Model
         public bool BeamsConnectToSlabs { get; set; } = true;
         public bool ColumnsStopAtSoffit { get; set; } = true;
         public bool CreateStructuralWalls { get; set; } = true;
+        public bool AutoJoinWalls { get; set; } = true;
 
         // Tagging
         public bool AutoTag { get; set; } = true;

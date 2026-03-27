@@ -1261,8 +1261,11 @@ namespace StingTools.Model
 
         private string GetComboText(string key, string fallback)
         {
-            if (_propCombos.TryGetValue(key, out var combo) && combo.SelectedItem is ComboBoxItem item)
-                return item.Content?.ToString() ?? fallback;
+            if (!_propCombos.TryGetValue(key, out var combo) || combo.SelectedItem == null)
+                return fallback;
+            // DWG-CRIT-01: Handle both raw string items and ComboBoxItem wrappers
+            if (combo.SelectedItem is string s) return s;
+            if (combo.SelectedItem is ComboBoxItem item) return item.Content?.ToString() ?? fallback;
             return fallback;
         }
 
