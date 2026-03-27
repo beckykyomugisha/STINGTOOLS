@@ -1481,6 +1481,11 @@ namespace StingTools.Model
     /// </summary>
     internal static class StructuralSystemClassifier
     {
+        /// <summary>Minimum vertical direction component for brace classification (~8.6° from horizontal).</summary>
+        private const double BraceMinVerticalComponent = 0.15;
+        /// <summary>Maximum vertical direction component for brace classification (~71.8° — beyond is a column).</summary>
+        private const double BraceMaxVerticalComponent = 0.95;
+
         public static StructuralSystemResult ClassifySystem(Document doc)
         {
             var result = new StructuralSystemResult();
@@ -1519,7 +1524,7 @@ namespace StingTools.Model
                 if (loc?.Curve == null) return false;
                 var dir = (loc.Curve.GetEndPoint(1) - loc.Curve.GetEndPoint(0)).Normalize();
                 double verticalComponent = Math.Abs(dir.Z);
-                return verticalComponent > 0.15 && verticalComponent < 0.95;
+                return verticalComponent > BraceMinVerticalComponent && verticalComponent < BraceMaxVerticalComponent;
             });
 
             result.HasBracing = result.TotalBraces > 0;
@@ -3218,6 +3223,9 @@ namespace StingTools.Model
     internal static class ProgressiveCollapseChecker
     {
         private const double DCR_Limit = 2.0; // GSA acceptance criterion
+        /// <summary>Beam-column connection proximity tolerance in feet (~450mm).
+        /// Per EC3 §6.2.5 connection zone for simple beam-to-column joints.</summary>
+        private const double ConnectionToleranceFt = 1.5;
 
         /// <summary>
         /// Checks structural robustness by removing each column systematically.
@@ -3251,7 +3259,7 @@ namespace StingTools.Model
                 if (loc != null) colPositions[col.Id] = loc.Point;
             }
 
-            double connectionTol = 1.5; // feet (~450mm)
+            double connectionTol = ConnectionToleranceFt;
             var colBeamConnections = new Dictionary<ElementId, List<ElementId>>();
 
             foreach (var col in columns)
@@ -3414,6 +3422,9 @@ namespace StingTools.Model
 
             double totalLoad = liveLoadKPa + deadLoadKPa;
 
+            // PERF: Cache type lookups — types don't change during sizing analysis
+            var typeCache = new Dictionary<ElementId, Element>();
+
             for (int iter = 0; iter < MaxIterations; iter++)
             {
                 result.IterationsUsed = iter + 1;
@@ -3427,8 +3438,10 @@ namespace StingTools.Model
                     double spanMm = loc.Curve.Length * Units.FeetToMm;
                     double spanM = spanMm / 1000.0;
 
-                    // Get current dimensions
-                    var type = doc.GetElement(beam.GetTypeId());
+                    // Get current dimensions (cached per type)
+                    var typeId = beam.GetTypeId();
+                    if (!typeCache.TryGetValue(typeId, out var type))
+                    { type = doc.GetElement(typeId); typeCache[typeId] = type; }
                     string currentName = type?.Name ?? "Unknown";
                     double currentDepth = 0, currentWidth = 0;
                     if (type != null)

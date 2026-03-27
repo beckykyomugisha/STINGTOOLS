@@ -2419,15 +2419,17 @@ namespace StingTools.BIMManager
             }
             data["Floor"] = floors;
 
-            // ── Space (from Rooms) ──
+            // ── Space (from Rooms) + Zone grouping (single pass) ──
             var spaces = new List<Dictionary<string, string>>();
+            var zoneSpaceMap = new Dictionary<string, List<string>>();
             foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType())
             {
                 var room = el as Room;
                 if (room == null || room.Area <= 0) continue;
+                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name;
                 spaces.Add(new Dictionary<string, string>
                 {
-                    ["Name"] = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name,
+                    ["Name"] = roomName,
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Room",
                     ["FloorName"] = room.Level?.Name ?? "",
@@ -2440,25 +2442,19 @@ namespace StingTools.BIMManager
                     // (standard 5% deduction for internal wall area per BS 1192-4)
                     ["NetArea"] = Math.Round(room.Area * 0.092903 * 0.95, 2).ToString()
                 });
-            }
-            data["Space"] = spaces;
 
-            // ── Zone (from STING ZONE parameter on rooms, fallback to Department) ──
-            var zones = new List<Dictionary<string, string>>();
-            // Build zone grouping: prefer ASS_ZONE_TXT from room elements, fallback to Department
-            var zoneSpaceMap = new Dictionary<string, List<string>>();
-            foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType())
-            {
-                var room = el as Room;
-                if (room == null || room.Area <= 0) continue;
+                // Collect zone grouping inline (was a second room collector scan)
                 string zoneCode = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(zoneCode))
                     zoneCode = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unassigned";
-                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name;
                 if (!zoneSpaceMap.ContainsKey(zoneCode))
                     zoneSpaceMap[zoneCode] = new List<string>();
                 zoneSpaceMap[zoneCode].Add(roomName);
             }
+            data["Space"] = spaces;
+
+            // ── Zone (built from room data collected above) ──
+            var zones = new List<Dictionary<string, string>>();
             foreach (var kvp in zoneSpaceMap.OrderBy(k => k.Key))
             {
                 zones.Add(new Dictionary<string, string>
@@ -3312,11 +3308,16 @@ namespace StingTools.BIMManager
             dashboard["tag_completeness_pct"] = totalElements > 0 ? Math.Round(100.0 * tagged / totalElements, 1) : 0;
             dashboard["discipline_breakdown"] = JObject.FromObject(discCounts.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value));
 
+            // PERF: Count non-template views without materializing all View objects
+            int viewCount = 0;
+            foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)))
+            { if (!v.IsTemplate) viewCount++; }
+
             var modelStats = new JObject
             {
                 ["levels"] = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount(),
                 ["rooms"] = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount(),
-                ["views"] = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Count(v => !v.IsTemplate),
+                ["views"] = viewCount,
                 ["sheets"] = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount(),
                 ["linked_models"] = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).GetElementCount(),
                 ["is_workshared"] = doc.IsWorkshared
