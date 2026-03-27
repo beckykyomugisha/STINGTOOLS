@@ -1263,6 +1263,13 @@ namespace StingTools.Model
                     : "No structural elements created — check layer names and selection";
 
                 StingLog.Info($"StructuralCADPipeline v2: {totalResult.Summary}");
+
+                // Invalidate caches so dashboards reflect new structural elements
+                if (totalResult.TotalCreated > 0)
+                {
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
+                }
             }
             catch (Exception ex)
             {
@@ -1312,7 +1319,7 @@ namespace StingTools.Model
                     {
                         result.Warnings.Add($"Round column: {ex.Message}");
                     }
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
                 }
                 tx.Commit();
             }
@@ -1492,7 +1499,7 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
 
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
                 }
 
                 tx.Commit();

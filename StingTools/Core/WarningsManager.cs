@@ -7,6 +7,7 @@ using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using StingTools.Tags;
 
 namespace StingTools.Core
@@ -720,14 +721,16 @@ namespace StingTools.Core
                         try
                         {
                             var el = doc.GetElement(id);
-                            if (el is SpatialElementTag roomTag && roomTag.Room != null)
+                            if (el is IndependentTag indTag)
                             {
-                                var room = roomTag.Room;
+                                var taggedIds = indTag.GetTaggedLocalElementIds();
+                                if (taggedIds == null || taggedIds.Count == 0) continue;
+                                var room = doc.GetElement(taggedIds.First());
                                 var pt = room.get_BoundingBox(null);
                                 if (pt != null)
                                 {
                                     var center = (pt.Min + pt.Max) / 2.0;
-                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
+                                    indTag.Location.Move(center - (indTag.Location as LocationPoint)?.Point ?? XYZ.Zero);
                                     return true;
                                 }
                             }
@@ -1930,17 +1933,14 @@ namespace StingTools.Core
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  COMMANDS (8 IExternalCommand classes)
-        // ══════════════════════════════════════════════════════════════
-        // Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
-        // Cross-system automation: warning → issue pipeline
-        // ══════════════════════════════════════════════════════════════
+    //  Phase 55: AUTO-ISSUE CREATION FROM CRITICAL WARNINGS
+    // ══════════════════════════════════════════════════════════════════
 
+    internal static class WarningsIssueBridge
+    {
         /// <summary>
-        /// Phase 55: Auto-create issues from CRITICAL/HIGH severity warnings.
+        /// Auto-create issues from CRITICAL/HIGH severity warnings.
         /// Bridges the gap between Revit warnings (alerts) and STING issues (work orders).
-        /// Checks for existing linked issues to avoid duplicates.
-        /// Returns count of newly created issues.
         /// </summary>
         internal static int AutoCreateIssuesFromWarnings(Document doc, WarningReport report,
             WarningSeverity minSeverity = WarningSeverity.Critical)
@@ -2041,7 +2041,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"AutoCreateIssuesFromWarnings: {ex.Message}"); }
             return created;
         }
+    }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  COMMANDS (8 IExternalCommand classes)
     // ══════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -2535,8 +2538,9 @@ namespace StingTools.Core
                 var wr = WarningsEngine.ScanWarnings(doc);
                 double warnHealth = WarningsEngine.CalculateWarningHealthScore(wr);
                 score.Warnings = Math.Max(0, warnHealth / 4.0); // Scale 0-100 to 0-25
-                if (wr.Critical > 0)
-                    score.Recommendations.Add($"Fix {wr.Critical} critical warnings immediately");
+                int wrCritical = wr.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+                if (wrCritical > 0)
+                    score.Recommendations.Add($"Fix {wrCritical} critical warnings immediately");
                 if (wr.AutoFixable > 5)
                     score.Recommendations.Add($"Auto-fix {wr.AutoFixable} warnings to improve score quickly");
             }
@@ -2712,8 +2716,9 @@ namespace StingTools.Core
                 actions.Add(("Retag Stale Elements", $"{comp.StaleCount} elements moved since last tag", "RetagStale", "HIGH"));
 
             // Critical warnings → fix immediately
-            if (warnings.Critical > 0)
-                actions.Add(("Fix Critical Warnings", $"{warnings.Critical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
+            int warnCritical = warnings.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
+            if (warnCritical > 0)
+                actions.Add(("Fix Critical Warnings", $"{warnCritical} critical warnings need attention", "WarningsAutoFix", "CRITICAL"));
 
             // Low compliance → batch tag
             if (comp.CompliancePercent < 80 && comp.Untagged > 10)
@@ -2728,7 +2733,7 @@ namespace StingTools.Core
                 actions.Add(("Resolve Placeholders", $"{comp.PlaceholderCount} elements with GEN/XX/ZZ placeholders", "ResolveAllIssues", "MEDIUM"));
 
             // High compliance → export ready
-            if (comp.CompliancePercent >= 90 && warnings.Critical == 0)
+            if (comp.CompliancePercent >= 90 && warnings.BySeverity.GetValueOrDefault(WarningSeverity.Critical) == 0)
                 actions.Add(("Generate Weekly Report", "Model ready for coordination report", "WeeklyReport", "LOW"));
 
             // Open issues → review
@@ -2739,8 +2744,8 @@ namespace StingTools.Core
             if (comp.ContainerCompletePct < 80 && comp.TaggedComplete > 0)
                 actions.Add(("Run Combine Parameters", $"Container completion at {comp.ContainerCompletePct:F0}%", "CombineParameters", "HIGH"));
 
-            return actions.OrderByDescending(a => a.Priority == "CRITICAL" ? 4 :
-                a.Priority == "HIGH" ? 3 : a.Priority == "MEDIUM" ? 2 : 1).Take(5).ToList();
+            return actions.OrderByDescending(a => a.Item4 == "CRITICAL" ? 4 :
+                a.Item4 == "HIGH" ? 3 : a.Item4 == "MEDIUM" ? 2 : 1).Take(5).ToList();
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -2776,7 +2781,7 @@ namespace StingTools.Core
                         ["created_date"] = DateTime.Now.ToString("o"),
                         ["created_by"] = Environment.UserName
                     });
-                    File.WriteAllText(path, links.ToString(Formatting.Indented));
+                    File.WriteAllText(path, links.ToString(Newtonsoft.Json.Formatting.Indented));
                     StingLog.Info($"GAP-COORD-02: Linked {documentId} → {issueId} ({linkType})");
                 }
                 catch (Exception ex) { StingLog.Warn($"DocumentIssueLink: {ex.Message}"); }

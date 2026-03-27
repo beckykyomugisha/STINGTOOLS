@@ -929,11 +929,17 @@ namespace StingTools.Model
             try
             {
                 var dlg = StructuralDWGDialog.Show(doc);
-                if (!dlg.Confirmed) return Result.Cancelled;
+                if (dlg == null || !dlg.Confirmed) return Result.Cancelled;
 
                 if (dlg.SelectedImport == null)
                 {
                     TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import selected.");
+                    return Result.Cancelled;
+                }
+
+                if (dlg.SelectedLayers == null || dlg.SelectedLayers.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No layers selected. Run 'Analyze' first and select layers.");
                     return Result.Cancelled;
                 }
 
@@ -968,10 +974,16 @@ namespace StingTools.Model
                     try
                     {
                         ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                        var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
                         result.Summary += $" | Auto-tagged {result.CreatedIds.Count} elements";
                     }
                     catch (Exception ex) { StingLog.Warn($"Auto-tag after DWG: {ex.Message}"); }
                 }
+
+                // Invalidate caches so dashboards and auto-tagger reflect new elements
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 var msg = result.Summary;
                 if (result.Warnings.Count > 0)
@@ -1532,7 +1544,7 @@ namespace StingTools.Model
                 TaskDialog.Show("STRUCT — Full Analysis Report", summary);
 
                 // Export full report to file
-                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport");
+                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport", ".txt");
                 try
                 {
                     var filePath = System.IO.Path.Combine(

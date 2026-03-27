@@ -20,11 +20,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using Binding = System.Windows.Data.Binding;
 using Color = System.Windows.Media.Color;
 using Grid = System.Windows.Controls.Grid;
 
@@ -152,8 +152,10 @@ namespace StingTools.Model
             _pipeline = new StructuralCADPipeline(doc);
 
             Title = "STING Structural DWG-to-BIM";
-            Width = 920; Height = 740;
+            Width = 960; Height = 780;
             MinWidth = 800; MinHeight = 600;
+            MaxHeight = SystemParameters.WorkArea.Height * 0.92;
+            MaxWidth = SystemParameters.WorkArea.Width * 0.85;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
             Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF6, 0xFA));
@@ -310,7 +312,7 @@ namespace StingTools.Model
             // Columns
             var selCol = new DataGridCheckBoxColumn
             {
-                Header = "", Binding = new Binding("Selected") { Mode = BindingMode.TwoWay },
+                Header = "", Binding = new Binding("Selected") { Mode = System.Windows.Data.BindingMode.TwoWay },
                 Width = 28
             };
             _layerGrid.Columns.Add(selCol);
@@ -326,7 +328,7 @@ namespace StingTools.Model
             {
                 Header = "Map To",
                 Width = 100,
-                SelectedItemBinding = new Binding("MapTo") { Mode = BindingMode.TwoWay },
+                SelectedItemBinding = new Binding("MapTo") { Mode = System.Windows.Data.BindingMode.TwoWay },
                 ItemsSource = new[] { "", "Column", "Beam", "Wall", "Slab", "Foundation", "Grid" }
             };
             _layerGrid.Columns.Add(mapCol);
@@ -1072,10 +1074,17 @@ namespace StingTools.Model
                     SelectedLayers.Add(name);
             }
 
-            if (SelectedLayers.Count == 0 && !CreateColumns && !CreateBeams &&
-                !CreateWalls && !CreateSlabs && !CreateFoundations && !CreateGrids)
+            if (SelectedLayers.Count == 0)
             {
-                _txtStatus.Text = "Select at least one layer or element type";
+                _txtStatus.Text = "No layers selected — run Analyze and select layers first";
+                _txtStatus.Foreground = Brushes.Red;
+                return;
+            }
+
+            if (!CreateColumns && !CreateBeams && !CreateWalls &&
+                !CreateSlabs && !CreateFoundations && !CreateGrids)
+            {
+                _txtStatus.Text = "Enable at least one element type to create";
                 _txtStatus.Foreground = Brushes.Red;
                 return;
             }
@@ -1303,7 +1312,8 @@ namespace StingTools.Model
         private static StackPanel MakeMiniField(string label, string defaultVal, out TextBox tb)
         {
             tb = new TextBox { Text = defaultVal, Width = 50, FontSize = 10, Height = 20 };
-            tb.TextChanged += (s, e) => ValidateNumericInput(tb);
+            TextBox localTb = tb;
+            localTb.TextChanged += (s, e) => ValidateNumericInput(localTb);
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 0) };
             panel.Children.Add(new TextBlock
             {

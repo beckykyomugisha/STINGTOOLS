@@ -1335,7 +1335,7 @@ namespace StingTools.Model
             result.Selected.AddRange(yBays.Take(yCount));
 
             // Calculate centre of stiffness from selected bays
-            double stiffSumX = 0, stiffSumY = 0, stiffTotal = 0;
+            double stiffTotal = 0;
             // Simplified: use bay positions weighted by stiffness
             foreach (var sel in result.Selected)
             {

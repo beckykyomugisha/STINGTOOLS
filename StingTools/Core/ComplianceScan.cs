@@ -598,7 +598,7 @@ namespace StingTools.Core
                         var linkType = hostDoc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
                         if (linkType == null) continue;
 
-                        Document linkedDoc = linkType.GetLinkedDocument();
+                        Document linkedDoc = linkInst.GetLinkDocument();
                         if (linkedDoc == null) continue;
 
                         // Quick compliance scan of linked document
@@ -651,7 +651,7 @@ namespace StingTools.Core
         private const int MaxDays = 90;
 
         /// <summary>Record today's compliance snapshot.</summary>
-        public static void RecordSnapshot(Document doc, ComplianceResult result)
+        public static void RecordSnapshot(Document doc, ComplianceScan.ComplianceResult result)
         {
             if (doc == null || result == null || string.IsNullOrEmpty(doc.PathName)) return;
             try

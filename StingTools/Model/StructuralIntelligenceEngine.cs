@@ -487,10 +487,10 @@ namespace StingTools.Model
                 if (snapToGrid)
                 {
                     var snapped = SnapToNearestGrid(doc, xFt, yFt);
-                    if (snapped.HasValue)
+                    if (snapped != null)
                     {
-                        xFt = snapped.Value.X;
-                        yFt = snapped.Value.Y;
+                        xFt = snapped.X;
+                        yFt = snapped.Y;
                         result.AlignmentsCorrected++;
                     }
                 }
@@ -830,7 +830,7 @@ namespace StingTools.Model
 
         // ── Helpers ──
 
-        private static XYZ? SnapToNearestGrid(Document doc, double xFt, double yFt)
+        private static XYZ SnapToNearestGrid(Document doc, double xFt, double yFt)
         {
             var grids = new FilteredElementCollector(doc)
                 .OfClass(typeof(Grid)).Cast<Grid>().ToList();

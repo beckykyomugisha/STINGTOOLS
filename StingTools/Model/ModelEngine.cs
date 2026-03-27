@@ -1376,9 +1376,8 @@ namespace StingTools.Model
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
                 if (ctx == null) { StingLog.Warn("AutoTagCreatedElements: PopulationContext.Build returned null"); return 0; }
 
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
-                var seqCounters = TagConfig.BuildTagIndexAndCounters(doc);
-                var formulas = Temp.FormulaEngine.LoadFormulas(doc);
+                var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = new FilteredElementCollector(doc)
                     .OfClass(typeof(Grid)).Cast<Grid>().ToList();
 

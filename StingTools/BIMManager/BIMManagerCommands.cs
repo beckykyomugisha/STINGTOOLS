@@ -9337,7 +9337,7 @@ namespace StingTools.BIMManager
 
             // Compliance trend
             html.AppendLine("<h2>Compliance Trend (7-day)</h2>");
-            html.AppendLine($"<p>Direction: <strong>{trend.Direction}</strong> ({trend.DeltaPct:+0.0;-0.0;0}%)</p>");
+            html.AppendLine($"<p>Direction: <strong>{trend.direction}</strong> ({trend.delta:+0.0;-0.0;0}%)</p>");
             html.AppendLine($"<div class='rag-bar' style='background:linear-gradient(to right,#E8912D {comp.CompliancePercent}%,#eee {comp.CompliancePercent}%);width:100%'></div>");
 
             // Per-discipline table
