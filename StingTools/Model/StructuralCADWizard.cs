@@ -99,6 +99,10 @@ namespace StingTools.Model
     /// </summary>
     public static class NumberingEngine
     {
+        // CAD-HIGH-04: Cache grid collection per document to avoid FilteredElementCollector per element
+        private static string _cachedGridDocPath;
+        private static List<Autodesk.Revit.DB.Grid> _cachedGrids;
+
         /// <summary>Enumeration style for numbering sequences.</summary>
         public enum EnumStyle
         {
@@ -439,9 +443,16 @@ namespace StingTools.Model
                 var pt = (el.Location as LocationPoint)?.Point;
                 if (pt == null) return "Off Grid";
 
-                var grids = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Autodesk.Revit.DB.Grid))
-                    .Cast<Autodesk.Revit.DB.Grid>().ToList();
+                // CAD-HIGH-04: Use cached grid collection instead of per-element collector
+                string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+                if (_cachedGrids == null || _cachedGridDocPath != docKey)
+                {
+                    _cachedGrids = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Autodesk.Revit.DB.Grid))
+                        .Cast<Autodesk.Revit.DB.Grid>().ToList();
+                    _cachedGridDocPath = docKey;
+                }
+                var grids = _cachedGrids;
 
                 Autodesk.Revit.DB.Grid nearest = null;
                 double minDist = double.MaxValue;
@@ -514,6 +525,8 @@ namespace StingTools.Model
         // Level config
         private ComboBox _cboBaseLevel, _cboTopLevel;
         private CheckBox _chkAutoDetectSizes;
+        private readonly List<CheckBox> _repeatLevelCheckboxesCad = new();
+        private CheckBox _chkColumnsContinuousCad;
 
         // Column/Beam dimensions
         private TextBox _txtColHeight, _txtBeamDepth, _txtBeamWidth;
@@ -917,6 +930,33 @@ namespace StingTools.Model
                 FontSize = 11,
             };
             levelStack.Children.Add(_chkAutoDetectSizes);
+
+            // Repeat to other levels
+            levelStack.Children.Add(new TextBlock
+            {
+                Text = "REPEAT TO OTHER LEVELS",
+                FontWeight = FontWeights.Bold, FontSize = 10,
+                Foreground = DarkBlue, Margin = new Thickness(0, 12, 0, 4),
+            });
+            _repeatLevelCheckboxesCad.Clear();
+            var repeatWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var lvl in levels)
+            {
+                var cb = new CheckBox
+                {
+                    Content = lvl.Name, Tag = lvl.Name,
+                    Margin = new Thickness(0, 0, 8, 4), FontSize = 10,
+                };
+                _repeatLevelCheckboxesCad.Add(cb);
+                repeatWrap.Children.Add(cb);
+            }
+            levelStack.Children.Add(repeatWrap);
+            _chkColumnsContinuousCad = new CheckBox
+            {
+                Content = "Columns continuous through repeat levels",
+                Margin = new Thickness(0, 0, 0, 0), FontSize = 10,
+            };
+            levelStack.Children.Add(_chkColumnsContinuousCad);
 
             Grid.SetColumn(levelStack, 0);
             mainGrid.Children.Add(levelStack);
@@ -1588,6 +1628,18 @@ namespace StingTools.Model
             config.TopLevelName = _cboTopLevel?.SelectedItem?.ToString();
             config.AutoDetectSizes = _chkAutoDetectSizes?.IsChecked == true;
 
+            // Repeat levels
+            config.RepeatToLevelNames.Clear();
+            foreach (var cb in _repeatLevelCheckboxesCad)
+            {
+                if (cb.IsChecked == true && cb.Tag is string lvlName)
+                {
+                    if (lvlName != config.BaseLevelName)
+                        config.RepeatToLevelNames.Add(lvlName);
+                }
+            }
+            config.ColumnsContinuousThrough = _chkColumnsContinuousCad?.IsChecked == true;
+
             // Dimensions
             double.TryParse(_txtColHeight?.Text, out double colH);
             config.ColumnHeightMm = colH > 0 ? colH : 3000;
@@ -1789,6 +1841,10 @@ namespace StingTools.Model
         public string TopLevelName { get; set; }
         public bool AutoDetectSizes { get; set; } = true;
 
+        // Repeat/copy to other levels
+        public List<string> RepeatToLevelNames { get; set; } = new();
+        public bool ColumnsContinuousThrough { get; set; } = false;
+
         // Dimensions
         public double ColumnHeightMm { get; set; } = 3000;
         public double BeamDepthMm { get; set; } = 450;
@@ -1818,6 +1874,7 @@ namespace StingTools.Model
         public bool BeamsConnectToSlabs { get; set; } = true;
         public bool ColumnsStopAtSoffit { get; set; } = true;
         public bool CreateStructuralWalls { get; set; } = true;
+        public bool AutoJoinWalls { get; set; } = true;
 
         // Tagging
         public bool AutoTag { get; set; } = true;

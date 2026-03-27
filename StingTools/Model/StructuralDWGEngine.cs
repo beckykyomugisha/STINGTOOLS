@@ -52,6 +52,8 @@ namespace StingTools.Model
             public int JoinsPerformed { get; set; }
             public int TypesCreated { get; set; }
             public int ElementsTagged { get; set; }
+            public int LevelsRepeated { get; set; }
+            public int BeamPairsDetected { get; set; }
             public int Errors { get; set; }
             public List<string> Warnings { get; set; } = new();
             public List<ElementId> CreatedElementIds { get; set; } = new();
@@ -75,6 +77,8 @@ namespace StingTools.Model
                 sb.AppendLine($"  Joins:        {JoinsPerformed}");
                 sb.AppendLine($"  Types:        {TypesCreated} new");
                 sb.AppendLine($"  Tagged:       {ElementsTagged}");
+                if (LevelsRepeated > 0) sb.AppendLine($"  Levels:       {LevelsRepeated} repeated");
+                if (BeamPairsDetected > 0) sb.AppendLine($"  Beam Pairs:   {BeamPairsDetected} (width auto-detected)");
                 if (Errors > 0) sb.AppendLine($"  Errors:       {Errors}");
                 sb.AppendLine($"  Duration:     {Duration.TotalSeconds:F1}s");
                 if (Warnings.Count > 0)
@@ -120,11 +124,13 @@ namespace StingTools.Model
             public string LayerName { get; set; }
         }
 
-        /// <summary>Detected beam from lines on beam layers connecting columns.</summary>
+        /// <summary>Detected beam from parallel line pairs or single lines on beam layers.</summary>
         private class DetectedBeamLine
         {
             public XYZ Start { get; set; }
             public XYZ End { get; set; }
+            public double WidthFt { get; set; }
+            public bool WidthDetected { get; set; }
             public string LayerName { get; set; }
         }
 
@@ -172,7 +178,8 @@ namespace StingTools.Model
                 var beams = DetectBeams(mappedLines, config, result);
                 var slabs = DetectSlabs(mappedLines, config, result);
 
-                StingLog.Info($"Detected: {walls.Count} walls, {columns.Count} columns, {beams.Count} beams, {slabs.Count} slabs");
+                result.BeamPairsDetected = beams.Count(b => b.WidthDetected);
+                StingLog.Info($"Detected: {walls.Count} walls, {columns.Count} columns, {beams.Count} beams ({result.BeamPairsDetected} paired), {slabs.Count} slabs");
 
                 // 3. Pre-processing: merge collinear walls, snap to grid
                 if (config.MergeCollinearWalls)
@@ -234,6 +241,55 @@ namespace StingTools.Model
                     tx.Commit();
                 }
 
+                // 6b. Repeat/copy structural layout to additional levels
+                if (config.RepeatToLevelIds != null && config.RepeatToLevelIds.Count > 0)
+                {
+                    var allLevels = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level)).Cast<Level>()
+                        .ToDictionary(l => l.Id);
+
+                    foreach (var levelId in config.RepeatToLevelIds)
+                    {
+                        if (levelId == null || levelId == config.BaseLevelId) continue;
+                        if (!allLevels.TryGetValue(levelId, out var repeatLevel)) continue;
+
+                        // Find the next level above this one for top constraint
+                        Level repeatTopLevel = null;
+                        if (topLevel != null)
+                        {
+                            double targetTop = repeatLevel.Elevation + (topLevel.Elevation - baseLevel.Elevation);
+                            repeatTopLevel = allLevels.Values
+                                .Where(l => l.Elevation > repeatLevel.Elevation)
+                                .OrderBy(l => Math.Abs(l.Elevation - targetTop))
+                                .FirstOrDefault();
+                        }
+
+                        StingLog.Info($"Repeating structural layout to level: {repeatLevel.Name}");
+
+                        using (var tx = new Transaction(doc, $"STING Repeat Structure to {repeatLevel.Name}"))
+                        {
+                            tx.Start();
+                            var failOpts = tx.GetFailureHandlingOptions();
+                            failOpts.SetFailuresPreprocessor(new SilentWarningDismisser());
+                            tx.SetFailureHandlingOptions(failOpts);
+
+                            var repeatWalls = CreateWalls(doc, walls, config, repeatLevel, repeatTopLevel, result);
+                            var repeatCols = CreateColumns(doc, columns, config, repeatLevel, repeatTopLevel, result);
+                            CreateBeams(doc, beams, config, repeatLevel, result);
+                            CreateSlabs(doc, slabs, config, repeatLevel, result);
+
+                            if (config.AutoJoinWalls)
+                                JoinWalls(doc, repeatWalls, result);
+                            if (config.AutoJoinColumns)
+                                JoinColumnsToWalls(doc, repeatCols, repeatWalls, result);
+
+                            tx.Commit();
+                        }
+
+                        result.LevelsRepeated++;
+                    }
+                }
+
                 // 7. Auto-tag created elements
                 if (config.AutoTag && result.CreatedElementIds.Count > 0)
                     AutoTagElements(doc, result);
@@ -269,6 +325,8 @@ namespace StingTools.Model
                         ["joins"] = result.JoinsPerformed,
                         ["types"] = result.TypesCreated,
                         ["tagged"] = result.ElementsTagged,
+                        ["levels_repeated"] = result.LevelsRepeated,
+                        ["beam_pairs_detected"] = result.BeamPairsDetected,
                         ["errors"] = result.Errors,
                         ["duration_s"] = result.Duration.TotalSeconds,
                         ["total_elements"] = result.CreatedElementIds.Count,
@@ -422,8 +480,17 @@ namespace StingTools.Model
                     if (overlap < minLen * 0.5) continue;
 
                     // Found a wall pair
-                    var mid1 = (a.Start + b.Start) * 0.5;
-                    var mid2 = (a.End + b.End) * 0.5;
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartW = b.Start;
+                    var bEndW = b.End;
+                    if (a.Start.DistanceTo(bEndW) < a.Start.DistanceTo(bStartW))
+                    {
+                        bStartW = b.End;
+                        bEndW = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartW) * 0.5;
+                    var mid2 = (a.End + bEndW) * 0.5;
 
                     // Determine if it's a shear wall by thickness
                     bool isShear = a.ElementType == "Shear Wall" ||
@@ -520,24 +587,104 @@ namespace StingTools.Model
             return columns;
         }
 
-        /// <summary>Detect beams from lines on beam layers.</summary>
+        /// <summary>
+        /// Detect beams from parallel line pairs on beam layers.
+        /// In AutoCAD, beams are represented by TWO parallel lines — the distance
+        /// between the lines is the beam width. This method pairs parallel lines,
+        /// measures the perpendicular distance (beam width), and uses the centerline
+        /// as the beam placement line. Falls back to single-line with default width
+        /// for unpaired lines.
+        /// </summary>
         private static List<DetectedBeamLine> DetectBeams(
             List<MappedLine> lines, StructuralDWGConfig config, ConversionResult result)
         {
             var beams = new List<DetectedBeamLine>();
             var beamLines = lines.Where(l => l.ElementType == "Beam").ToList();
             double minLen = config.MinBeamLengthMm * MmToFeet;
+            double defaultWidthFt = config.BeamWidthMm * MmToFeet;
 
-            foreach (var line in beamLines)
+            // Beam width range: 100mm to 600mm (typical RC/steel beam widths)
+            double minBeamWidthFt = 100 * MmToFeet;
+            double maxBeamWidthFt = 600 * MmToFeet;
+
+            var used = new HashSet<int>();
+
+            // Phase 1: Find parallel line pairs (accurate beam width detection)
+            for (int i = 0; i < beamLines.Count; i++)
             {
-                if (line.Length < minLen) continue;
-                beams.Add(new DetectedBeamLine
+                if (used.Contains(i)) continue;
+                var a = beamLines[i];
+                if (a.Length < minLen) continue;
+
+                var dirA = (a.End - a.Start).Normalize();
+                bool foundPair = false;
+
+                for (int j = i + 1; j < beamLines.Count; j++)
                 {
-                    Start = line.Start,
-                    End = line.End,
-                    LayerName = line.LayerName,
-                });
+                    if (used.Contains(j)) continue;
+                    var b = beamLines[j];
+                    if (b.Length < minLen) continue;
+
+                    // Check parallelism (dot product of normalized directions)
+                    var dirB = (b.End - b.Start).Normalize();
+                    double dot = Math.Abs(dirA.DotProduct(dirB));
+                    if (dot < 0.98) continue; // Not parallel enough
+
+                    // Measure perpendicular distance = beam width
+                    double dist = PointToLineDistance(a.Start, a.End, b.Start);
+                    if (dist < minBeamWidthFt || dist > maxBeamWidthFt) continue;
+
+                    // Check longitudinal overlap (paired lines must overlap significantly)
+                    double overlap = CalculateOverlap(a.Start, a.End, b.Start, b.End);
+                    if (overlap < minLen * 0.5) continue;
+
+                    // Found a beam pair — compute centerline from midpoints
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartB = b.Start;
+                    var bEndB = b.End;
+                    if (a.Start.DistanceTo(bEndB) < a.Start.DistanceTo(bStartB))
+                    {
+                        bStartB = b.End;
+                        bEndB = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartB) * 0.5;
+                    var mid2 = (a.End + bEndB) * 0.5;
+
+                    beams.Add(new DetectedBeamLine
+                    {
+                        Start = ProjectOntoLine(a.Start, a.End, mid1),
+                        End = ProjectOntoLine(a.Start, a.End, mid2),
+                        WidthFt = dist,
+                        WidthDetected = true,
+                        LayerName = a.LayerName,
+                    });
+
+                    used.Add(i);
+                    used.Add(j);
+                    foundPair = true;
+                    break;
+                }
+
+                // Phase 2: Single line fallback (use default beam width from config)
+                if (!foundPair && !used.Contains(i))
+                {
+                    beams.Add(new DetectedBeamLine
+                    {
+                        Start = a.Start,
+                        End = a.End,
+                        WidthFt = defaultWidthFt,
+                        WidthDetected = false,
+                        LayerName = a.LayerName,
+                    });
+                    used.Add(i);
+                }
             }
+
+            int pairedCount = beams.Count(b => b.WidthDetected);
+            int singleCount = beams.Count - pairedCount;
+            if (pairedCount > 0)
+                StingLog.Info($"DetectBeams: {pairedCount} beam pairs detected (width measured), {singleCount} single-line fallbacks");
 
             return beams;
         }
@@ -703,23 +850,35 @@ namespace StingTools.Model
             return created;
         }
 
-        /// <summary>Create Revit structural beams.</summary>
+        /// <summary>Create Revit structural beams, using detected width when available.</summary>
         private static void CreateBeams(Document doc, List<DetectedBeamLine> beams,
             StructuralDWGConfig config, Level level, ConversionResult result)
         {
-            var beamSymbol = FindOrCreateBeamType(doc, config, result);
-            if (beamSymbol == null)
-            {
-                result.Warnings.Add("No beam family found. Beams will be skipped.");
-                return;
-            }
-
-            if (!beamSymbol.IsActive) beamSymbol.Activate();
+            // Cache beam types by width to avoid duplicate type creation
+            var typeCache = new Dictionary<string, FamilySymbol>();
 
             foreach (var beam in beams)
             {
                 try
                 {
+                    // Use detected width if available, otherwise config default
+                    double widthMm = beam.WidthDetected
+                        ? beam.WidthFt / MmToFeet
+                        : config.BeamWidthMm;
+
+                    string typeKey = $"{widthMm:F0}x{config.BeamDepthMm:F0}";
+                    if (!typeCache.TryGetValue(typeKey, out var beamSymbol))
+                    {
+                        beamSymbol = FindOrCreateBeamType(doc, config, widthMm, result);
+                        if (beamSymbol == null)
+                        {
+                            result.Warnings.Add("No beam family found. Beams will be skipped.");
+                            return;
+                        }
+                        if (!beamSymbol.IsActive) beamSymbol.Activate();
+                        typeCache[typeKey] = beamSymbol;
+                    }
+
                     var line = Line.CreateBound(
                         new XYZ(beam.Start.X, beam.Start.Y, level.Elevation + config.WallHeightMm * MmToFeet),
                         new XYZ(beam.End.X, beam.End.Y, level.Elevation + config.WallHeightMm * MmToFeet));
@@ -974,9 +1133,9 @@ namespace StingTools.Model
             }
         }
 
-        private static FamilySymbol FindOrCreateBeamType(Document doc, StructuralDWGConfig config, ConversionResult result)
+        private static FamilySymbol FindOrCreateBeamType(Document doc, StructuralDWGConfig config, double widthMm, ConversionResult result)
         {
-            string typeName = $"{config.TypeNamingPrefix} {config.BeamMaterial} Beam {config.BeamWidthMm:F0}x{config.BeamDepthMm:F0}";
+            string typeName = $"{config.TypeNamingPrefix} {config.BeamMaterial} Beam {widthMm:F0}x{config.BeamDepthMm:F0}";
 
             var existing = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_StructuralFraming)
@@ -1003,7 +1162,7 @@ namespace StingTools.Model
                     try
                     {
                         var wParam = newType.LookupParameter("b") ?? newType.LookupParameter("Width");
-                        wParam?.Set(config.BeamWidthMm * MmToFeet);
+                        wParam?.Set(widthMm * MmToFeet);
                         var dParam = newType.LookupParameter("h") ?? newType.LookupParameter("Depth");
                         dParam?.Set(config.BeamDepthMm * MmToFeet);
                     }
@@ -1124,6 +1283,9 @@ namespace StingTools.Model
                 var end = current.End;
 
                 bool didMerge;
+                // DWG-MED-01: Add convergence limit to prevent infinite merge loops
+                int maxPasses = 10;
+                int pass = 0;
                 do
                 {
                     didMerge = false;
@@ -1162,7 +1324,8 @@ namespace StingTools.Model
                             didMerge = true;
                         }
                     }
-                } while (didMerge);
+                    pass++;
+                } while (didMerge && pass < maxPasses);
 
                 used.Add(i);
                 merged.Add(new DetectedWallSegment
@@ -1282,21 +1445,59 @@ namespace StingTools.Model
             // Mark as used
             foreach (int idx in candidates) used.Add(idx);
 
-            // Calculate center and dimensions
+            // DWG-HIGH-03: Compute oriented bounding box using direction of longest side
             var allPts = new List<XYZ>();
             foreach (int idx in candidates) { allPts.Add(lines[idx].Start); allPts.Add(lines[idx].End); }
             double cx = allPts.Average(p => p.X);
             double cy = allPts.Average(p => p.Y);
 
-            double minX = allPts.Min(p => p.X), maxX = allPts.Max(p => p.X);
-            double minY = allPts.Min(p => p.Y), maxY = allPts.Max(p => p.Y);
+            // Find longest side to determine rotation
+            double maxLen = 0;
+            XYZ longestDir = XYZ.BasisX;
+            foreach (int idx in candidates)
+            {
+                var seg = lines[idx];
+                double len = seg.Start.DistanceTo(seg.End);
+                if (len > maxLen)
+                {
+                    maxLen = len;
+                    longestDir = (seg.End - seg.Start).Normalize();
+                }
+            }
+
+            // Compute rotation angle from X-axis
+            double rotation = Math.Atan2(longestDir.Y, longestDir.X);
+
+            // Project all points onto the oriented axes to get true width/height
+            var perpDir = new XYZ(-longestDir.Y, longestDir.X, 0);
+            double minAlongMain = double.MaxValue, maxAlongMain = double.MinValue;
+            double minAlongPerp = double.MaxValue, maxAlongPerp = double.MinValue;
+            foreach (var pt in allPts)
+            {
+                double projMain = pt.X * longestDir.X + pt.Y * longestDir.Y;
+                double projPerp = pt.X * perpDir.X + pt.Y * perpDir.Y;
+                if (projMain < minAlongMain) minAlongMain = projMain;
+                if (projMain > maxAlongMain) maxAlongMain = projMain;
+                if (projPerp < minAlongPerp) minAlongPerp = projPerp;
+                if (projPerp > maxAlongPerp) maxAlongPerp = projPerp;
+            }
+
+            double width = maxAlongMain - minAlongMain;
+            double height = maxAlongPerp - minAlongPerp;
+
+            // Ensure width >= height (width is along the longest side)
+            if (height > width)
+            {
+                var tmp = width; width = height; height = tmp;
+                rotation += Math.PI / 2;
+            }
 
             return new RectResult
             {
                 Center = new XYZ(cx, cy, 0),
-                Width = maxX - minX,
-                Height = maxY - minY,
-                Rotation = 0,
+                Width = width,
+                Height = height,
+                Rotation = rotation,
             };
         }
 
@@ -1313,7 +1514,8 @@ namespace StingTools.Model
                 for (int j = i + 1; j < columns.Count; j++)
                 {
                     if (used.Contains(j)) continue;
-                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 3)
+                    // DWG-HIGH-04: Reduced from tol*3 to tol*1.5 to avoid merging distinct columns
+                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 1.5)
                     {
                         // Keep the one with larger area (more accurate detection)
                         if (columns[j].WidthFt * columns[j].DepthFt > best.WidthFt * best.DepthFt)
