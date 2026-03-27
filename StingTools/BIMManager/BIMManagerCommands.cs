@@ -5017,6 +5017,25 @@ namespace StingTools.BIMManager
             }
             catch (Exception gateEx) { StingLog.Warn($"COBie compliance gate check: {gateEx.Message}"); }
 
+            // GAP-07: Warning quality gate — block if critical data warnings affect COBie
+            try
+            {
+                var (warnPass, warnReason) = GapAnalysisEngine.CheckCOBieWarningQuality(doc);
+                if (!warnPass)
+                {
+                    var warnGateDlg = new TaskDialog("COBie Export — Warning Quality Gate");
+                    warnGateDlg.MainInstruction = "Data quality warnings may affect COBie output";
+                    warnGateDlg.MainContent = warnReason +
+                        "\n\nRecommended: run 'Warnings Auto-Fix' before COBie export.";
+                    warnGateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Export anyway", "Some COBie data may be inaccurate");
+                    warnGateDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    if (warnGateDlg.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
+                    StingLog.Warn($"COBie export proceeding despite warning quality gate: {warnReason}");
+                }
+            }
+            catch (Exception wqEx) { StingLog.Warn($"COBie warning quality gate: {wqEx.Message}"); }
+
             // Launch the COBie Export Wizard for interactive configuration
             var settings = COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
