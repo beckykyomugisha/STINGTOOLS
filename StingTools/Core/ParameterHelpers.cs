@@ -3575,12 +3575,14 @@ namespace StingTools.Core
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
         private static DateTime _formulaCacheTime;
-        private static readonly TimeSpan FormulaCacheTTL = TimeSpan.FromMinutes(5);
+        // GAP-FIX: Use configurable TTL from TagConfig instead of hardcoded value
+        private static TimeSpan FormulaCacheTTL => TimeSpan.FromMinutes(TagConfig.FormulaCacheTTLMinutes);
 
         private static List<Grid> _cachedGridLines;
         private static string _gridCacheDocKey;
         private static DateTime _gridCacheTime;
-        private static readonly TimeSpan GridCacheTTL = TimeSpan.FromMinutes(2);
+        // GAP-FIX: Use configurable TTL from TagConfig instead of hardcoded value
+        private static TimeSpan GridCacheTTL => TimeSpan.FromMinutes(TagConfig.GridCacheTTLMinutes);
 
         /// <summary>
         /// Build context objects required by RunFullPipeline. Call once before the element loop.

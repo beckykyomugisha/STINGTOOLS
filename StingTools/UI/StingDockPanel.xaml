@@ -2534,6 +2534,27 @@
                                             ToolTip="RIBA stage-gated compliance check — verifies tag completeness meets stage requirements"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Set Output Dir" Tag="SetOutputDirectory" Click="Cmd_Click"
                                             ToolTip="Set preferred output directory for all STING exports (CSV, XLSX, HTML, JSON)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Extended Import" Tag="COBieExtendedImport" Click="Cmd_Click"
+                                            ToolTip="GAP-03: Import COBie Type, System, Job + Component worksheets for full round-trip"/>
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <!-- GAP ANALYSIS FIXES — Phase 68 -->
+                            <StackPanel>
+                                <TextBlock Text="GAP ANALYSIS — AUTOMATION" Foreground="{DynamicResource PanelFg}" FontWeight="Bold" FontSize="10" Margin="0,6,0,3"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard Export" Tag="ExportDashboardHTML" Click="Cmd_Click"
+                                            ToolTip="GAP-04: Export BIM dashboard as self-contained HTML report for stakeholder sharing"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="BEP Stage Check" Tag="BEPStageValidation" Click="Cmd_Click"
+                                            ToolTip="GAP-05: Validate model compliance against RIBA stage requirements from BEP"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Issue→Revision Link" Tag="IssueRevisionLink" Click="Cmd_Click"
+                                            ToolTip="GAP-06: Auto-link closed issues to revision snapshots for ISO 19650 audit trail"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Minutes" Tag="AutoMeetingMinutes" Click="Cmd_Click"
+                                            ToolTip="GAP-08: Auto-generate meeting minutes from recent issue activity and compliance changes"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Tag Rev Diff" Tag="TagRevisionDiff" Click="Cmd_Click"
+                                            ToolTip="GAP-09: Compare tag snapshots between revisions — shows added/changed/removed tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Schedule Meetings" Tag="AutoScheduleMeetings" Click="Cmd_Click"
+                                            ToolTip="GAP-10: Auto-create recurring meetings from BEP meeting schedule"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

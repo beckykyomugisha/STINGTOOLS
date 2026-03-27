@@ -1259,6 +1259,15 @@ namespace StingTools.UI
                     // COBie & Handover
                     case "COBieExport": RunCommand<BIMManager.COBieExportCommand>(app); break;
                     case "COBieImport": RunCommand<BIMManager.COBieImportCommand>(app); break;
+                    case "COBieExtendedImport": RunCommand<BIMManager.COBieExtendedImportCommand>(app); break;
+
+                    // GAP Analysis Fix Commands (Phase 68)
+                    case "ExportDashboardHTML": RunCommand<BIMManager.ExportDashboardHTMLCommand>(app); break;
+                    case "BEPStageValidation": RunCommand<BIMManager.BEPStageValidationCommand>(app); break;
+                    case "IssueRevisionLink": RunCommand<BIMManager.IssueRevisionLinkCommand>(app); break;
+                    case "AutoMeetingMinutes": RunCommand<BIMManager.AutoMeetingMinutesCommand>(app); break;
+                    case "TagRevisionDiff": RunCommand<BIMManager.TagRevisionDiffCommand>(app); break;
+                    case "AutoScheduleMeetings": RunCommand<BIMManager.AutoScheduleMeetingsCommand>(app); break;
                     case "WeeklyReport": RunCommand<BIMManager.WeeklyCoordinatorReportCommand>(app); break;
                     case "COBieHandoverExport": RunCommand<Docs.COBieHandoverExportCommand>(app); break;
                     case "BulkBIMExport": RunCommand<BIMManager.BulkBIMExportCommand>(app); break;

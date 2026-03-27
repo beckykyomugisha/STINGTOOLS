@@ -1597,7 +1597,30 @@ namespace StingTools.Core
 
         // ── Phase 48: SLA ENFORCEMENT ──
 
-        /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).</summary>
+        /// <summary>ISO 19650-aligned SLA thresholds per warning severity (hours).
+        /// GAP-FIX: Now uses configurable values from TagConfig.SLAThresholdsHours when available.</summary>
+        internal static Dictionary<WarningSeverity, double> GetSLAThresholds()
+        {
+            var thresholds = new Dictionary<WarningSeverity, double>
+            {
+                { WarningSeverity.Critical, 4 },
+                { WarningSeverity.High, 24 },
+                { WarningSeverity.Medium, 168 },
+                { WarningSeverity.Low, 336 },
+                { WarningSeverity.Info, double.MaxValue }
+            };
+            // Override from configurable SLA thresholds
+            var cfg = TagConfig.SLAThresholdsHours;
+            if (cfg != null)
+            {
+                if (cfg.TryGetValue("CRITICAL", out double c)) thresholds[WarningSeverity.Critical] = c;
+                if (cfg.TryGetValue("HIGH", out double h)) thresholds[WarningSeverity.High] = h;
+                if (cfg.TryGetValue("MEDIUM", out double m)) thresholds[WarningSeverity.Medium] = m;
+                if (cfg.TryGetValue("LOW", out double l)) thresholds[WarningSeverity.Low] = l;
+            }
+            return thresholds;
+        }
+
         internal static readonly Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
         {
             { WarningSeverity.Critical, 4 },     // 4 hours
@@ -1635,11 +1658,13 @@ namespace StingTools.Core
                 }
 
                 double hoursOld = (DateTime.Now - baselineTime).TotalHours;
+                // GAP-FIX: Use configurable SLA thresholds
+                var slaLimits = GetSLAThresholds();
                 foreach (var sev in new[] { WarningSeverity.Critical, WarningSeverity.High, WarningSeverity.Medium, WarningSeverity.Low })
                 {
                     if (report.BySeverity.TryGetValue(sev, out int count) && count > 0)
                     {
-                        if (hoursOld > SLAThresholdsHours[sev])
+                        if (slaLimits.TryGetValue(sev, out double limit) && hoursOld > limit)
                             violations += count;
                     }
                 }

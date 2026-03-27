@@ -104,6 +104,21 @@ namespace StingTools.Core
         {
             try
             {
+                // GAP-FIX: Auto-save warning baseline on document close
+                if (TagConfig.AutoSaveWarningBaseline)
+                {
+                    try
+                    {
+                        var doc = e.Document;
+                        if (doc != null && !doc.IsFamilyDocument)
+                        {
+                            WarningsManager.WarningsEngine.SaveBaseline(doc);
+                            StingLog.Info("DocumentClosing: auto-saved warning baseline");
+                        }
+                    }
+                    catch (Exception wex) { StingLog.Warn($"Auto-save warning baseline: {wex.Message}"); }
+                }
+
                 ParameterHelpers.ClearParamCache();
                 ParameterHelpers.InvalidateSessionCaches();
                 ComplianceScan.InvalidateCache();

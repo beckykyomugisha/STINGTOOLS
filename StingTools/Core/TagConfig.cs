@@ -36,6 +36,68 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// GAP-FIX: Per-discipline tagging profile. Allows each discipline to have different
+    /// collision handling, SEQ scheme, and default token values.
+    /// Loaded from DISCIPLINE_PROFILES in project_config.json.
+    /// </summary>
+    public class DisciplineProfile
+    {
+        /// <summary>Collision mode override for this discipline (Skip/Overwrite/AutoIncrement). Null = use global.</summary>
+        public TagCollisionMode? CollisionMode { get; set; }
+
+        /// <summary>SEQ scheme override (Numeric/Alpha/ZonePrefix/DiscPrefix). Null = use global.</summary>
+        public SeqScheme? SeqScheme { get; set; }
+
+        /// <summary>Default ZONE code for this discipline. Null = use auto-detect.</summary>
+        public string DefaultZone { get; set; }
+
+        /// <summary>Default LOC code for this discipline. Null = use auto-detect.</summary>
+        public string DefaultLoc { get; set; }
+
+        /// <summary>Default STATUS for this discipline. Null = use global.</summary>
+        public string DefaultStatus { get; set; }
+
+        /// <summary>Whether to include zone in SEQ key for this discipline. Null = use global.</summary>
+        public bool? SeqIncludeZone { get; set; }
+
+        /// <summary>Custom SEQ pad width for this discipline (e.g., 3 for 001, 5 for 00001). Null = use global.</summary>
+        public int? SeqPadWidth { get; set; }
+
+        /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
+        public static DisciplineProfile FromDict(Dictionary<string, object> dict)
+        {
+            var p = new DisciplineProfile();
+            if (dict == null) return p;
+
+            if (dict.TryGetValue("collision_mode", out object cm) && cm is string cms)
+            {
+                if (Enum.TryParse<TagCollisionMode>(cms, true, out var parsed)) p.CollisionMode = parsed;
+            }
+            if (dict.TryGetValue("seq_scheme", out object ss) && ss is string sss)
+            {
+                if (Enum.TryParse<Tags.SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
+            }
+            if (dict.TryGetValue("default_zone", out object dz) && dz is string dzs && !string.IsNullOrWhiteSpace(dzs))
+                p.DefaultZone = dzs;
+            if (dict.TryGetValue("default_loc", out object dl) && dl is string dls && !string.IsNullOrWhiteSpace(dls))
+                p.DefaultLoc = dls;
+            if (dict.TryGetValue("default_status", out object ds) && ds is string dss && !string.IsNullOrWhiteSpace(dss))
+                p.DefaultStatus = dss;
+            if (dict.TryGetValue("seq_include_zone", out object siz))
+            {
+                if (siz is bool b) p.SeqIncludeZone = b;
+                else if (siz is string sizs) p.SeqIncludeZone = sizs.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
+            if (dict.TryGetValue("seq_pad_width", out object spw))
+            {
+                if (spw is long l) p.SeqPadWidth = (int)l;
+                else if (int.TryParse(spw?.ToString(), out int iv)) p.SeqPadWidth = iv;
+            }
+            return p;
+        }
+    }
+
+    /// <summary>
     /// Tracks tagging operation statistics across a batch for rich post-operation reporting.
     /// Captures per-category counts, collision details, skipped elements, warnings, and
     /// discipline/system/level breakdowns. Thread-safe for single-transaction use.
@@ -780,6 +842,48 @@ namespace StingTools.Core
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
 
+        // ── GAP-FIX: Per-discipline tagging profiles ──
+
+        /// <summary>Per-discipline tagging profile overrides. Loaded from DISCIPLINE_PROFILES in project_config.json.
+        /// Format: { "M": { "collision_mode": "AutoIncrement", "seq_scheme": "Numeric", "default_zone": "Z01" }, ... }
+        /// Allows each discipline to have different collision handling, SEQ schemes, and token defaults.</summary>
+        public static Dictionary<string, DisciplineProfile> DisciplineProfiles { get; internal set; }
+            = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Get the discipline profile for a given DISC code, or null if no profile defined.</summary>
+        public static DisciplineProfile GetDisciplineProfile(string disc)
+        {
+            if (string.IsNullOrEmpty(disc) || DisciplineProfiles.Count == 0) return null;
+            DisciplineProfiles.TryGetValue(disc, out var profile);
+            return profile;
+        }
+
+        // ── GAP-FIX: Configurable formula cache TTL ──
+
+        /// <summary>Formula cache TTL in minutes. Loaded from FORMULA_CACHE_TTL_MINUTES in project_config.json.
+        /// Default 5 minutes. Auto-scales: models with 50K+ elements get 10 min, 100K+ get 15 min.</summary>
+        public static int FormulaCacheTTLMinutes { get; internal set; } = 5;
+
+        /// <summary>Grid line cache TTL in minutes. Loaded from GRID_CACHE_TTL_MINUTES in project_config.json. Default 2.</summary>
+        public static int GridCacheTTLMinutes { get; internal set; } = 2;
+
+        // ── GAP-FIX: Configurable SLA thresholds ──
+
+        /// <summary>Configurable SLA thresholds in hours per priority level.
+        /// Loaded from SLA_THRESHOLDS in project_config.json.
+        /// Format: { "CRITICAL": 4, "HIGH": 24, "MEDIUM": 168, "LOW": 336 }.</summary>
+        public static Dictionary<string, double> SLAThresholdsHours { get; internal set; }
+            = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336, ["INFO"] = 0
+            };
+
+        /// <summary>Whether to auto-save warning baseline on document close. Default true.</summary>
+        public static bool AutoSaveWarningBaseline { get; internal set; } = true;
+
+        /// <summary>Whether to auto-save warning baseline on revision creation. Default true.</summary>
+        public static bool AutoSaveBaselineOnRevision { get; internal set; } = true;
+
         /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
         /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
         public static (int Min, int Max) GetSeqRange(string modelDiscipline)
@@ -1119,7 +1223,11 @@ namespace StingTools.Core
                     "COST_PRELIMINARIES_PCT","COST_CONTINGENCY_PCT","COST_OVERHEAD_PROFIT_PCT",
                     "TRADE_DURATION_OVERRIDES","SEQ_RANGE_ALLOCATION",
                     "CDE_SHARED_MIN_COMPLIANCE","CDE_PUBLISHED_MIN_COMPLIANCE",
-                    "DD_SCHEDULE","DD_REQUIREMENTS"
+                    "DD_SCHEDULE","DD_REQUIREMENTS",
+                    "DISCIPLINE_PROFILES","FORMULA_CACHE_TTL_MINUTES","GRID_CACHE_TTL_MINUTES",
+                    "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
+                    "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
+                    "USER_ROLE","PROJECT_TYPE","LAST_WORKFLOW_NAME"
                 };
                 var unknownKeys = data.Keys.Where(k => !knownKeys.Contains(k)).ToList();
                 if (unknownKeys.Count > 0)
@@ -1363,6 +1471,70 @@ namespace StingTools.Core
                     AutoTaggerStaleMarker = atsmVal;
                 }
                 else { AutoTaggerStaleMarker = null; }
+
+                // GAP-FIX: Load per-discipline tagging profiles
+                DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+                if (data.TryGetValue("DISCIPLINE_PROFILES", out object dpObj) && dpObj != null)
+                {
+                    try
+                    {
+                        var dpDict = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(
+                            JsonConvert.SerializeObject(dpObj));
+                        if (dpDict != null)
+                        {
+                            foreach (var kvp in dpDict)
+                                DisciplineProfiles[kvp.Key] = DisciplineProfile.FromDict(kvp.Value);
+                            if (DisciplineProfiles.Count > 0)
+                                StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profiles");
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse DISCIPLINE_PROFILES: {ex.Message}"); }
+                }
+
+                // GAP-FIX: Load configurable formula/grid cache TTL
+                FormulaCacheTTLMinutes = 5;
+                if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
+                {
+                    if (fctObj is long fcl) FormulaCacheTTLMinutes = (int)fcl;
+                    else if (int.TryParse(fctObj?.ToString(), out int fci)) FormulaCacheTTLMinutes = fci;
+                    FormulaCacheTTLMinutes = Math.Max(1, Math.Min(60, FormulaCacheTTLMinutes));
+                }
+                GridCacheTTLMinutes = 2;
+                if (data.TryGetValue("GRID_CACHE_TTL_MINUTES", out object gctObj))
+                {
+                    if (gctObj is long gcl) GridCacheTTLMinutes = (int)gcl;
+                    else if (int.TryParse(gctObj?.ToString(), out int gci)) GridCacheTTLMinutes = gci;
+                    GridCacheTTLMinutes = Math.Max(1, Math.Min(30, GridCacheTTLMinutes));
+                }
+
+                // GAP-FIX: Load configurable SLA thresholds
+                SLAThresholdsHours = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+                    { ["CRITICAL"] = 4, ["HIGH"] = 24, ["MEDIUM"] = 168, ["LOW"] = 336, ["INFO"] = 0 };
+                if (data.TryGetValue("SLA_THRESHOLDS", out object slaObj) && slaObj != null)
+                {
+                    try
+                    {
+                        var slaDict = JsonConvert.DeserializeObject<Dictionary<string, double>>(
+                            JsonConvert.SerializeObject(slaObj));
+                        if (slaDict != null)
+                            foreach (var kvp in slaDict) SLAThresholdsHours[kvp.Key.ToUpper()] = kvp.Value;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SLA_THRESHOLDS: {ex.Message}"); }
+                }
+
+                // GAP-FIX: Auto-save warning baseline settings
+                AutoSaveWarningBaseline = true;
+                if (data.TryGetValue("AUTO_SAVE_WARNING_BASELINE", out object aswbObj))
+                {
+                    if (aswbObj is bool aswbb) AutoSaveWarningBaseline = aswbb;
+                    else if (aswbObj is string aswbs) AutoSaveWarningBaseline = aswbs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+                AutoSaveBaselineOnRevision = true;
+                if (data.TryGetValue("AUTO_SAVE_BASELINE_ON_REVISION", out object asbrObj))
+                {
+                    if (asbrObj is bool asbrb) AutoSaveBaselineOnRevision = asbrb;
+                    else if (asbrObj is string asbrs) AutoSaveBaselineOnRevision = asbrs.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
 
                 ConfigSource = path;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
