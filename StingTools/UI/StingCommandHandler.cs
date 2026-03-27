@@ -62,9 +62,10 @@ namespace StingTools.UI
                 _param1 = param1 ?? "";
                 _param2 = param2 ?? "";
             }
-            // M-02 FIX: Clear stale ExtraParams from previous command to prevent
-            // unintended parameter bleed (e.g., AlignDirection from AlignTagsH affecting AutoTag)
-            ClearAllExtraParams();
+            // M-02 / BUG-04 FIX: ExtraParams are cleared in Execute() finally block
+            // (line 2464) AFTER the command runs. Do NOT clear here — Cmd_Click
+            // sets ExtraParams BEFORE calling SetCommand(), so clearing here wipes
+            // Tag Studio slider/radio values (ElbowMode, TagTextSize, PreferredTagPos, etc.).
         }
 
         public string GetName() => "STING Command Dispatcher";
@@ -2585,6 +2586,10 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
+        // BUG-05 FIX: Static reusable ElementSet — allocated once, never read by Revit
+        // since commandData is null. Eliminates per-call heap allocation.
+        private static readonly ElementSet _emptyElementSet = new ElementSet();
+
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             try
@@ -2595,13 +2600,12 @@ namespace StingTools.UI
 
                 var cmd = new T();
                 string message = "";
-                var elements = new ElementSet();
 
                 // Pass null for ExternalCommandData — commands use
                 // StingCommandHandler.CurrentApp as fallback.
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
-                cmd.Execute(null, ref message, elements);
+                cmd.Execute(null, ref message, _emptyElementSet);
 
                 StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }
