@@ -25,6 +25,11 @@ namespace StingTools.UI
         private string _param1 = "";
         private string _param2 = "";
 
+        // BUG-02 FIX: Re-entrancy depth counter prevents inner Execute() calls
+        // (from wizard dialog dispatch loops) from running the finally cleanup,
+        // which would clear ExtraParams and _commandTag needed by the outer caller.
+        private int _executeDepth;
+
         // ── Named extra-param store (thread-safe) ─────────────────────────────
         // Allows WPF UI controls to pass named values to commands without
         // changing the SetCommand signature.  Usage:
@@ -81,6 +86,10 @@ namespace StingTools.UI
 
             // Guard: empty tag means no command was requested (cleared after previous run)
             if (string.IsNullOrEmpty(tag)) return;
+
+            // BUG-02 FIX: Track re-entrancy depth so inner Execute() calls
+            // (from wizard dispatch loops) skip the finally-block cleanup.
+            _executeDepth++;
 
             // Guard: most commands require an open document
             if (app.ActiveUIDocument == null)
@@ -1661,7 +1670,9 @@ namespace StingTools.UI
                     case "RunWorkflow_SpatialQA":
                     {
                         // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
-                        string rawName = _commandTag.Replace("RunWorkflow_", "");
+                        // SCH-CRIT-01 FIX: Use local `tag` snapshot (captured under lock at line 77),
+                        // NOT instance field `_commandTag` which can be overwritten by WPF thread
+                        string rawName = tag.Replace("RunWorkflow_", "");
                         var sb = new System.Text.StringBuilder(rawName.Length + 10);
                         for (int ci = 0; ci < rawName.Length; ci++)
                         {
@@ -2218,12 +2229,13 @@ namespace StingTools.UI
                         var dlgResult = UI.ModelCreationDialog.Show();
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.ElementType))
                         {
-                            // Store dimensions/options as ExtraParams then dispatch
+                            // SCH-HIGH-01 FIX: SetCommand FIRST (which clears ExtraParams via M-02),
+                            // THEN set ExtraParams so they survive for the dispatched command.
+                            SetCommand(dlgResult.ElementType);
                             foreach (var kv in dlgResult.Dimensions)
                                 SetExtraParam(kv.Key, kv.Value.ToString("F1"));
                             foreach (var kv in dlgResult.Options)
                                 SetExtraParam(kv.Key, kv.Value);
-                            SetCommand(dlgResult.ElementType);
                             Execute(app);
                         }
                         break;
@@ -2428,25 +2440,36 @@ namespace StingTools.UI
             }
             finally
             {
-                // CRASH FIX: Clear command tag after execution to prevent
-                // re-entrancy if ExternalEvent fires again without SetCommand().
-                lock (_lock)
+                _executeDepth--;
+
+                // BUG-02 FIX: Only run cleanup at outermost depth. Inner recursive
+                // calls (from wizard dialog dispatch loops like DocumentManager,
+                // DocWizard, ModelWizard, ScheduleWizard) must NOT clear state
+                // that the outer Execute() still needs.
+                if (_executeDepth <= 0)
                 {
-                    _commandTag = "";
-                    _param1 = "";
-                    _param2 = "";
+                    _executeDepth = 0; // safety clamp
+
+                    // CRASH FIX: Clear command tag after execution to prevent
+                    // re-entrancy if ExternalEvent fires again without SetCommand().
+                    lock (_lock)
+                    {
+                        _commandTag = "";
+                        _param1 = "";
+                        _param2 = "";
+                    }
+
+                    // Clear ExtraParams to prevent cross-command state pollution
+                    // (e.g., ElbowMode from tag command bleeding into next selection command)
+                    ClearAllExtraParams();
+
+                    // FIX-UI03: Notify panel that command completed so Tag Studio
+                    // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
+                    // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
+                    // was never called after execution.
+                    try { StingDockPanel.NotifyCommandComplete(); }
+                    catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
                 }
-
-                // Clear ExtraParams to prevent cross-command state pollution
-                // (e.g., ElbowMode from tag command bleeding into next selection command)
-                ClearAllExtraParams();
-
-                // FIX-UI03: Notify panel that command completed so Tag Studio
-                // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
-                // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
-                // was never called after execution.
-                try { StingDockPanel.NotifyCommandComplete(); }
-                catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.

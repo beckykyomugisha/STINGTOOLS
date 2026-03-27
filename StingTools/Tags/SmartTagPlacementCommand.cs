@@ -77,7 +77,10 @@ namespace StingTools.Tags
                 int maxCx = (int)Math.Floor(candidate.MaxX / _cellSize);
                 int maxCy = (int)Math.Floor(candidate.MaxY / _cellSize);
 
-                var checked_ = new HashSet<int>(); // avoid double-checking same box
+                // GAP-STP-01 FIX: Use HashSet<Box2D> with value equality instead of HashSet<int>
+                // with GetHashCode(). Two distinct Box2D values can hash to the same int,
+                // causing missed overlap checks and overlapping placed tags.
+                var checked_ = new HashSet<Box2D>();
                 for (int cx = minCx; cx <= maxCx; cx++)
                 {
                     for (int cy = minCy; cy <= maxCy; cy++)
@@ -86,8 +89,7 @@ namespace StingTools.Tags
                         if (!_cells.TryGetValue(key, out var list)) continue;
                         for (int i = 0; i < list.Count; i++)
                         {
-                            int hash = list[i].GetHashCode();
-                            if (!checked_.Add(hash)) continue;
+                            if (!checked_.Add(list[i])) continue;
                             if (candidate.Overlaps(list[i]))
                                 return true;
                         }
@@ -104,7 +106,7 @@ namespace StingTools.Tags
                 int maxCx = (int)Math.Floor(candidate.MaxX / _cellSize);
                 int maxCy = (int)Math.Floor(candidate.MaxY / _cellSize);
 
-                var checked_ = new HashSet<int>();
+                var checked_ = new HashSet<Box2D>();
                 for (int cx = minCx; cx <= maxCx; cx++)
                 {
                     for (int cy = minCy; cy <= maxCy; cy++)
@@ -113,8 +115,7 @@ namespace StingTools.Tags
                         if (!_cells.TryGetValue(key, out var list)) continue;
                         for (int i = 0; i < list.Count; i++)
                         {
-                            int hash = list[i].GetHashCode();
-                            if (!checked_.Add(hash)) continue;
+                            if (!checked_.Add(list[i])) continue;
                             if (candidate.Overlaps(list[i]))
                                 count++;
                         }
@@ -496,17 +497,31 @@ namespace StingTools.Tags
         /// Find a tag family type for the given element category.
         /// Priority: STING family > category name match > multi-category/generic.
         /// </summary>
+        // GAP-STP-02 FIX: Cache annotation tag types per document to avoid
+        // FilteredElementCollector scan per element (500 elements = 500 scans → 1 scan)
+        private static string _tagTypeCacheDocKey;
+        private static List<FamilySymbol> _tagTypeCache;
+
+        /// <summary>Clear cached tag types on document close/switch.</summary>
+        public static void ClearTagTypeCache() { _tagTypeCache = null; _tagTypeCacheDocKey = null; }
+
         public static FamilySymbol FindTagType(Document doc, Category elementCategory)
         {
             if (elementCategory == null) return null;
             string catName = elementCategory.Name ?? "";
 
-            var tagTypes = new FilteredElementCollector(doc)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .Where(fs => fs.Category != null &&
-                    fs.Category.CategoryType == CategoryType.Annotation)
-                .ToList();
+            string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+            if (_tagTypeCache == null || _tagTypeCacheDocKey != docKey)
+            {
+                _tagTypeCache = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .Where(fs => fs.Category != null &&
+                        fs.Category.CategoryType == CategoryType.Annotation)
+                    .ToList();
+                _tagTypeCacheDocKey = docKey;
+            }
+            var tagTypes = _tagTypeCache;
 
             // Pass 1: STING tag family
             string stingName = GetStingFamilyName(elementCategory);

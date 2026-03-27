@@ -3487,18 +3487,20 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // AL-06: Capture previous tag value for audit trail
-                // DI-004 / CRIT-PH-02: MODIFIED_DT + MODIFIED_BY written AFTER successful BuildAndWriteTag only
+                // Early SKIP check from CategoryTokenOverrides — before expensive TypeTokenInherit/PopulateAll
+                if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var earlyOverrides)
+                    && earlyOverrides.TryGetValue("SKIP", out string earlySkipVal)
+                    && earlySkipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // AL-06: Capture previous tag value for audit trail (READ only — write deferred to after BuildAndWriteTag)
+                // DI-004 / CRIT-PH-02: All audit trail writes (PREV_TXT, MODIFIED_DT, MODIFIED_BY)
+                // happen AFTER successful BuildAndWriteTag only, preventing false audit trail on failure
                 string _prevTag = null;
-                try
-                {
-                    _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(_prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
-                }
+                try { _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1); }
                 catch (Exception auditEx)
                 {
-                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
+                    StingLog.Warn($"Tag history read on {el?.Id}: {auditEx.Message}");
                 }
 
                 // Plugin hook: notify third-party plugins before tagging
@@ -3579,7 +3581,10 @@ namespace StingTools.Core
                             }
                         }
                     }
-                    StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)}");
+                    // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
+                    _lockedTokenRestoreCount++;
+                    if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
+                        StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
                 }
 
                 // P2: Bridge Revit native params → STING shared params
@@ -3637,46 +3642,48 @@ namespace StingTools.Core
                     return false;
                 }
 
-                // DI-004 / CRIT-PH-02: Write modification timestamp + username AFTER successful tag change only
+                // DI-004 / CRIT-PH-02: Write ALL audit trail AFTER successful tag change only
                 try
                 {
+                    if (!string.IsNullOrEmpty(_prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
                 }
-                catch (Exception dtEx) { StingLog.Warn($"Tag modified date/user write: {dtEx.Message}"); }
-
-                // Plugin hook: notify third-party plugins after successful tagging
-                StingPluginHooks.FireAfterTag(doc, el, ParameterHelpers.GetString(el, ParamRegistry.TAG1));
+                catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 
                 // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
-                // Previous logic only retried when ZERO containers were populated,
-                // missing partial failures where 1 of 3 containers wrote but 2 remained empty.
-                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
+                // Read TAG1 once — reused for hook, container guard, and downstream checks
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                // Plugin hook: notify third-party plugins after successful tagging
+                StingPluginHooks.FireAfterTag(doc, el, tag1Check);
+
+                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
+                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
+                // WriteContainers guards internally via ContainersForCategory — no need for redundant outer check
                 if (!string.IsNullOrEmpty(tag1Check))
                 {
-                    var catContainers = ParamRegistry.ContainersForCategory(catName);
-                    if (catContainers != null && catContainers.Length > 0)
-                    {
-                        ParamRegistry.WriteContainers(el, tokenVals, catName);
-                    }
+                    ParamRegistry.WriteContainers(el, tokenVals, catName);
                 }
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
                 // LOGIC-010: Log once per session when no grids exist in document
-                if (gridLines != null && gridLines.Count > 0
-                    && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
+                if (gridLines != null && gridLines.Count > 0)
                 {
-                    string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
-                    if (!string.IsNullOrEmpty(gridRef))
-                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                    string existingRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+                    if (string.IsNullOrEmpty(existingRef))
+                    {
+                        string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
+                        if (!string.IsNullOrEmpty(gridRef))
+                            ParameterHelpers.SetString(el, ParamRegistry.GRID_REF, gridRef, overwrite: false);
+                    }
                 }
                 else if ((gridLines == null || gridLines.Count == 0) && !_noGridsLoggedThisSession)
                 {
@@ -3684,10 +3691,10 @@ namespace StingTools.Core
                     StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
                 }
 
-                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
-                stats?.RecordEmptyTokens(
-                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
-                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
+                // PERF-02: Inline FUNC/PROD empty tracking from tokenVals (avoids 2 GetString calls per element)
+                // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
+                if (stats != null && tokenVals != null && tokenVals.Length >= 7)
+                    stats.RecordEmptyTokens(tokenVals[5], tokenVals[6]);
 
                 return true;
             }
@@ -3701,6 +3708,9 @@ namespace StingTools.Core
 
         // ── LOGIC-010: Track whether "no grids" info has been logged this session ──
         private static bool _noGridsLoggedThisSession;
+
+        // ── Finding-5: Throttle counter for locked token restoration logging ──
+        private static int _lockedTokenRestoreCount;
 
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
@@ -3772,6 +3782,7 @@ namespace StingTools.Core
             _cachedGridLines = null;
             _gridCacheDocKey = null;
             _noGridsLoggedThisSession = false; // LOGIC-010: Reset per-session flag
+            _lockedTokenRestoreCount = 0; // Finding-5: Reset throttle counter
         }
 
         // ══════════════════════════════════════════════════════════════════

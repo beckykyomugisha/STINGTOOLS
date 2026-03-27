@@ -156,7 +156,7 @@ namespace StingTools.Core
             lock (_cacheLock)
             {
                 if (!forceRefresh && _cached != null &&
-                    (DateTime.Now - _cacheTime) < CacheLifetime)
+                    (DateTime.UtcNow - _cacheTime) < CacheLifetime)
                     return _cached;
             }
 
@@ -167,7 +167,8 @@ namespace StingTools.Core
             // so callers can detect "no data yet" vs "0% compliant".
             // Phase 78: Timeout recovery — if scanning flag stuck for >60s (Revit hang/crash mid-scan),
             // auto-reset to allow new scans. Prevents permanent lock-out of compliance dashboard.
-            if (_scanning == 1 && (DateTime.Now - _lastScanStart).TotalSeconds > 60)
+            // CS-01 FIX: Use UtcNow for all cache math to prevent DST fall-back freezing cache for 1 hour
+            if (_scanning == 1 && (DateTime.UtcNow - _lastScanStart).TotalSeconds > 60)
             {
                 StingLog.Warn("ComplianceScan: scanning flag stuck >60s — auto-resetting");
                 Interlocked.Exchange(ref _scanning, 0);
@@ -190,8 +191,8 @@ namespace StingTools.Core
 
             try
             {
-                _lastScanStart = DateTime.Now;
-                var result = new ComplianceResult { ScanTime = DateTime.Now };
+                _lastScanStart = DateTime.UtcNow;
+                var result = new ComplianceResult { ScanTime = DateTime.UtcNow };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
                 if (known.Count == 0)
                 {
@@ -427,7 +428,7 @@ namespace StingTools.Core
                 lock (_cacheLock)
                 {
                     _cached = result;
-                    _cacheTime = DateTime.Now;
+                    _cacheTime = DateTime.UtcNow;
                 }
                 return result;
             }
@@ -576,8 +577,8 @@ namespace StingTools.Core
                     else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
                 }
 
-                // PERF-R1: Fix DateTime.UtcNow → DateTime.Now to match Scan() and cache staleness check
-                _cacheTime = DateTime.Now;
+                // CS-01 FIX: Use UtcNow consistently for cache staleness (DST-safe)
+                _cacheTime = DateTime.UtcNow;
             }
         }
 

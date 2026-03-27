@@ -767,7 +767,7 @@ namespace StingTools.BIMManager
                 bool exists = register.Any(r => r["file_name"]?.ToString() == fileName);
                 if (exists) return;
 
-                string nextId = $"DOC-{(register.Count + 1):D4}";
+                string nextId = NextIdFromArray(register, "DOC", "document_id");
                 var entry = new JObject
                 {
                     ["document_id"] = nextId,
@@ -3658,6 +3658,23 @@ namespace StingTools.BIMManager
             string key = $"{prefix}_";
             _seqCounters[key] = max;
         }
+
+        /// <summary>
+        /// BIM-HIGH-01 FIX: Scan JArray for max numeric suffix of IDs matching prefix,
+        /// return next ID string. Prevents ID collision after deletions (Count+1 is non-monotonic).
+        /// </summary>
+        internal static string NextIdFromArray(JArray arr, string prefix, string idField)
+        {
+            int max = 0;
+            foreach (var item in arr)
+            {
+                string id = item[idField]?.ToString() ?? "";
+                if (id.StartsWith(prefix + "-") &&
+                    int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
+                    max = n;
+            }
+            return $"{prefix}-{(max + 1):D4}";
+        }
     }
 
     internal class BriefcaseItem
@@ -5664,7 +5681,7 @@ namespace StingTools.BIMManager
                 {
                     string txPath = GetBIMManagerFilePath(doc, "transmittals.json");
                     var txArray = LoadJsonArray(txPath);
-                    string txId = $"TX-{(txArray.Count + 1):D4}";
+                    string txId = NextIdFromArray(txArray, "TX", "transmittal_id");
                     var txRec = new JObject
                     {
                         ["transmittal_id"] = txId,
@@ -9736,7 +9753,7 @@ namespace StingTools.BIMManager
                 else
                     approvals = new JArray();
 
-                string approvalId = $"APR-{(approvals.Count + 1):D4}";
+                string approvalId = NextIdFromArray(approvals, "APR", "approval_id");
                 var pending = new JArray();
                 foreach (string approver in requiredApprovers)
                     pending.Add(new JObject { ["user"] = approver, ["status"] = "PENDING", ["date"] = "" });
@@ -10116,7 +10133,7 @@ namespace StingTools.BIMManager
                 var selectedIds = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => id.Value.ToString()).ToArray()
                     ?? Array.Empty<string>();
 
-                string taskId = $"TASK-{(tasks.Count + 1):D4}";
+                string taskId = NextIdFromArray(tasks, "TASK", "task_id");
                 var task = new JObject
                 {
                     ["task_id"] = taskId,
