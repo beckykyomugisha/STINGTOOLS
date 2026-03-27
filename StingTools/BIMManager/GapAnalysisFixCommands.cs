@@ -413,7 +413,7 @@ namespace StingTools.BIMManager
                 html.AppendLine("<div class='kpi-row'>");
                 html.AppendLine($"<div class='kpi'><div class='label'>Total Elements</div><div class='value'>{comp?.TotalElements ?? 0}</div></div>");
                 html.AppendLine($"<div class='kpi'><div class='label'>Tag Compliance</div><div class='value {ragClass}'>{comp?.CompliancePercent ?? 0:F0}%</div></div>");
-                html.AppendLine($"<div class='kpi'><div class='label'>Warnings</div><div class='value'>{warnings?.TotalWarnings ?? 0}</div></div>");
+                html.AppendLine($"<div class='kpi'><div class='label'>Warnings</div><div class='value'>{warnings?.Total ?? 0}</div></div>");
                 html.AppendLine($"<div class='kpi'><div class='label'>Stale Elements</div><div class='value'>{comp?.StaleCount ?? 0}</div></div>");
                 html.AppendLine($"<div class='kpi'><div class='label'>Placeholders</div><div class='value'>{comp?.PlaceholderCount ?? 0}</div></div>");
                 html.AppendLine("</div>");
@@ -436,7 +436,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Warning summary
-                if (warnings != null && warnings.TotalWarnings > 0)
+                if (warnings != null && warnings.Total > 0)
                 {
                     html.AppendLine("<div class='section'><h2>Warning Summary</h2>");
                     html.AppendLine("<table><tr><th>Category</th><th>Count</th><th>Auto-Fixable</th></tr>");
@@ -444,9 +444,9 @@ namespace StingTools.BIMManager
                     {
                         foreach (var kv in warnings.ByCategory.OrderByDescending(x => x.Value))
                         {
-                            int fixable = warnings.ClassifiedWarnings?
-                                .Count(w => w.Category.ToString() == kv.Key && w.CanAutoFix) ?? 0;
-                            html.AppendLine($"<tr><td>{EscapeHtml(kv.Key)}</td><td>{kv.Value}</td><td>{fixable}</td></tr>");
+                            int fixable = warnings.Warnings?
+                                .Count(w => w.Category == kv.Key && w.CanAutoFix) ?? 0;
+                            html.AppendLine($"<tr><td>{EscapeHtml(kv.Key.ToString())}</td><td>{kv.Value}</td><td>{fixable}</td></tr>");
                         }
                     }
                     html.AppendLine("</table></div>");
@@ -736,8 +736,6 @@ namespace StingTools.BIMManager
 
                 // Let user pick two snapshots
                 var pickerItems = snapshots.Select(s => s.Label + $" ({s.Date:yyyy-MM-dd HH:mm})").ToList();
-                string picked1 = null, picked2 = null;
-
                 var td1 = new TaskDialog("STING Tag Diff — Select Base Snapshot");
                 td1.MainInstruction = "Select the BASE (older) snapshot:";
                 var opts = new StringBuilder();
@@ -883,19 +881,17 @@ namespace StingTools.BIMManager
             try
             {
                 var warnings = WarningsEngine.ScanWarnings(doc);
-                if (warnings == null || warnings.TotalWarnings == 0)
+                if (warnings == null || warnings.Total == 0)
                     return (true, "No warnings detected");
 
-                var impact = WarningsEngine.AnalyseDeliverableImpact(warnings.ClassifiedWarnings);
+                var impact = WarningsEngine.AnalyseDeliverableImpact(warnings.Warnings);
                 if (impact == null)
                     return (true, "No deliverable impact detected");
 
-                int cobieImpact = 0;
-                if (impact.ImpactByCOBie != null)
-                    impact.ImpactByCOBie.TryGetValue("COBie", out cobieImpact);
+                int cobieImpact = impact.AffectsCOBie;
 
                 // Also check for critical/high warnings in data quality and spatial categories
-                int criticalDataWarnings = warnings.ClassifiedWarnings?
+                int criticalDataWarnings = warnings.Warnings?
                     .Count(w => (w.Category == WarningCategory.Data ||
                                  w.Category == WarningCategory.Spatial) &&
                                 (w.Severity == WarningSeverity.Critical ||
@@ -1008,13 +1004,13 @@ namespace StingTools.BIMManager
             try
             {
                 var warnings = WarningsEngine.ScanWarnings(doc);
-                if (warnings != null && warnings.TotalWarnings > 0)
+                if (warnings != null && warnings.Total > 0)
                 {
                     sb.AppendLine("4. WARNING SUMMARY");
                     sb.AppendLine("──────────────────");
-                    sb.AppendLine($"  Total: {warnings.TotalWarnings}");
-                    sb.AppendLine($"  Auto-fixable: {warnings.AutoFixableCount}");
-                    sb.AppendLine($"  Health Score: {warnings.HealthScore:F0}/100");
+                    sb.AppendLine($"  Total: {warnings.Total}");
+                    sb.AppendLine($"  Auto-fixable: {warnings.AutoFixable}");
+                    sb.AppendLine($"  Health Score: {WarningsEngine.CalculateWarningHealthScore(warnings):F0}/100");
                     if (warnings.RootCauseGroups != null)
                     {
                         sb.AppendLine("  Top issues:");

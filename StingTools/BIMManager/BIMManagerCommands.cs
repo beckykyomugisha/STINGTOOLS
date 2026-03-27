@@ -4219,7 +4219,7 @@ namespace StingTools.BIMManager
                     foreach (var id in selectedIds)
                     {
                         var el = doc.GetElement(id);
-                        if (el?.Category != null && taggableCats.Contains(el.Category.Id.IntegerValue))
+                        if (el?.Category != null && taggableCats.Contains((int)el.Category.Id.Value))
                             filtered.Add(id);
                         else
                             removedCount++;
