@@ -73,19 +73,8 @@ namespace StingTools.Tags
         [Obsolete("Replaced by CombineConfigDialog. Retained as backup.")]
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
-            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var catCounts = new Dictionary<string, int>();
-            var gpColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            var gpCatEnums = SharedParamGuids.AllCategoryEnums;
-            if (gpCatEnums != null && gpCatEnums.Length > 0)
-                gpColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(gpCatEnums)));
-            foreach (Element el in gpColl)
-            {
-                string cat = ParameterHelpers.GetCategoryName(el);
-                if (!knownCategories.Contains(cat)) continue;
-                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
-                else catCounts[cat] = 1;
-            }
+            // Reuse BuildCategoryCounts to avoid duplicate FilteredElementCollector scan
+            var catCounts = BuildCategoryCounts(doc);
 
             var groupItems = allGroups.Select(g =>
             {

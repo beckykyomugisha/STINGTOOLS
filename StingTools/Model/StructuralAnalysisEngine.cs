@@ -577,7 +577,11 @@ namespace StingTools.Model
             var result = new PunchingReinforcementResult();
 
             double d = slabThicknessMm - 30 - 12;
-            if (d <= 0) d = slabThicknessMm * 0.85;
+            if (d <= 0)
+            {
+                d = slabThicknessMm * 0.85;
+                StingLog.Warn($"PunchingShear: Effective depth d={slabThicknessMm - 42:F0}mm ≤ 0 for slab thickness {slabThicknessMm:F0}mm. Using fallback d={d:F0}mm.");
+            }
             result.EffectiveDepthMm = d;
 
             // Two-way effective depths: dx and dy
@@ -1090,7 +1094,7 @@ namespace StingTools.Model
             return _sections
                 .Where(s => s.WplxCm3 >= requiredWplCm3)
                 .OrderBy(s => s.MassKgPerM)
-                .FirstOrDefault() ?? _sections.Last();
+                .FirstOrDefault() ?? (_sections.Any() ? _sections.Last() : null);
         }
 
         /// <summary>
@@ -1124,7 +1128,7 @@ namespace StingTools.Model
                 if (Nbrd >= axialLoadKN) return section;
             }
 
-            return _sections.Where(s => s.Series == "UC").LastOrDefault() ?? _sections.Last();
+            return _sections.Where(s => s.Series == "UC").LastOrDefault() ?? (_sections.Any() ? _sections.Last() : null);
         }
 
         /// <summary>Returns all sections in the database.</summary>

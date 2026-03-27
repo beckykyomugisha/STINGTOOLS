@@ -619,10 +619,6 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
-                // Invalidate compliance cache so dashboard reflects new revision
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
-
                 // GAP-FIX: Auto-save warning baseline on revision creation
                 if (TagConfig.AutoSaveBaselineOnRevision)
                 {
@@ -642,10 +638,11 @@ namespace StingTools.BIMManager
                     using (var revTx = new Transaction(doc, "STING Propagate REV"))
                     {
                         revTx.Start();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
                         var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType()
-                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
-                            .ToList();
+                            .WhereElementIsNotElementType();
+                        if (catEnums != null && catEnums.Length > 0)
+                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
                         foreach (var el in allTagged)
                         {
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -658,6 +655,10 @@ namespace StingTools.BIMManager
                     StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                 }
                 catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
+                // Invalidate compliance cache ONCE after all rev-related transactions
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 // NTF-03: Notify team that revision is open
                 try

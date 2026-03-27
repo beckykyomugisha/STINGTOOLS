@@ -94,8 +94,21 @@ namespace StingTools.Tags
 
             csvRows.Add("ElementId,Category,TAG_1_Status,FullyResolved,EmptyTokens,EmptyContainers,ISOErrors,CrossValErrors,STATUS,REV,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
+            int scanCount = 0;
             foreach (Element el in collector)
             {
+                // Progress feedback every 2000 elements + cancellation support
+                scanCount++;
+                if (scanCount % 2000 == 0)
+                {
+                    if (Core.StingLog.EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"ValidateTags: cancelled by user at {scanCount} elements ({total} taggable)");
+                        break;
+                    }
+                    StingLog.Info($"ValidateTags: scanning... {scanCount} elements processed ({total} taggable so far)");
+                }
+
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                     continue;

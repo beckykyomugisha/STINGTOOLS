@@ -61,7 +61,7 @@ namespace StingTools.Tags
             var result = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
 
             string path = StingToolsApp.FindDataFile("TAG_STYLE_RULES.json");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            if (string.IsNullOrEmpty(path))
             {
                 StingLog.Warn("TagStyleEngine: TAG_STYLE_RULES.json not found");
                 return result;

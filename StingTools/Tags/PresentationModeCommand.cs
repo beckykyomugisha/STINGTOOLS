@@ -721,7 +721,7 @@ namespace StingTools.Tags
         public static JObject LoadDocument()
         {
             string path = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            if (string.IsNullOrEmpty(path))
                 return null;
 
             if (_cached != null && _cachedPath == path)

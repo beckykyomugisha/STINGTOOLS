@@ -1527,7 +1527,7 @@ namespace StingTools.Core
                 StingLog.Warn($"SaveBaseline: {ex.Message}");
                 // Clean up temp file on failure
                 try { string tp = GetBaselinePath(doc) + ".tmp"; if (File.Exists(tp)) File.Delete(tp); }
-                catch { /* best effort cleanup */ }
+                catch (Exception cleanupEx) { StingLog.Warn($"SaveBaseline cleanup: {cleanupEx.Message}"); }
             }
         }
 
@@ -1547,7 +1547,7 @@ namespace StingTools.Core
                 if (endIdx > 0) numStr = numStr.Substring(0, endIdx);
                 return int.TryParse(numStr, out int val) ? val : null;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"LoadBaseline: {ex.Message}"); return null; }
         }
 
         // ── EXPORT ──
@@ -1969,7 +1969,7 @@ namespace StingTools.Core
                         entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
                             File.ReadAllText(logPath)) ?? new List<UI.BIMCoordinationCenter.CoordLogEntry>();
                     }
-                    catch { entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>(); }
+                    catch (Exception ex) { StingLog.Warn($"LoadCoordLog: {ex.Message}"); entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>(); }
                 }
                 else
                 {
@@ -2622,7 +2622,7 @@ namespace StingTools.Core
                     if (File.Exists(issuesPath))
                     {
                         try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
-                        catch { arr = new Newtonsoft.Json.Linq.JArray(); }
+                        catch (Exception ex) { StingLog.Warn($"ParseJArray: {ex.Message}"); arr = new Newtonsoft.Json.Linq.JArray(); }
                     }
                     else arr = new Newtonsoft.Json.Linq.JArray();
 
@@ -3061,7 +3061,7 @@ namespace StingTools.Core
         internal static void SnapshotBefore(Document doc)
         {
             try { _preCommandCount = doc?.GetWarnings()?.Count; }
-            catch { _preCommandCount = null; }
+            catch (Exception ex) { StingLog.Warn($"WarningSnapshot: {ex.Message}"); _preCommandCount = null; }
         }
 
         /// <summary>Call after a command — shows alert if warnings increased.</summary>
@@ -3393,7 +3393,7 @@ namespace StingTools.Core
                     return links.Where(l => l["issue_id"]?.ToString() == issueId)
                         .Select(l => l["document_id"]?.ToString()).Where(d => d != null).ToList();
                 }
-                catch { return new List<string>(); }
+                catch (Exception ex) { StingLog.Warn($"LoadSuppression: {ex.Message}"); return new List<string>(); }
             }
         }
 

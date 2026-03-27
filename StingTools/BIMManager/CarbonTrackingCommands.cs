@@ -39,7 +39,7 @@ namespace StingTools.BIMManager
                 try
                 {
                     string file = StingToolsApp.FindDataFile("MATERIAL_LOOKUP.csv");
-                    if (string.IsNullOrEmpty(file) || !File.Exists(file)) return;
+                    if (string.IsNullOrEmpty(file)) return;
 
                     var lines = File.ReadAllLines(file);
                     if (lines.Length < 2) return;

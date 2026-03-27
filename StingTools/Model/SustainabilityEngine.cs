@@ -409,16 +409,19 @@ namespace StingTools.Model
                     double massKg = volumeM3 * iceEntry.Density;
                     totalMassKg += massKg;
 
-                    // A1-A3: Product stage
-                    double a1a3 = massKg * iceEntry.CarbonFactor;
+                    // A1-A3: Product stage — adjust for recycled content (recycled steel/aluminium has lower embodied carbon)
+                    double recycledReduction = iceEntry.RecycledPct > 0 ? iceEntry.RecycledPct * 0.4 : 0; // ~40% lower for recycled feedstock
+                    double effectiveCarbonFactor = iceEntry.CarbonFactor * (1.0 - recycledReduction);
+                    double a1a3 = massKg * effectiveCarbonFactor;
                     totalA1A3 += a1a3;
 
                     // A4: Transport to site
                     double a4 = (massKg / 1000.0) * _roadTransportKgCO2PerTonneKm * _avgTransportDistanceKm;
                     totalA4 += a4;
 
-                    // A5: Construction (3-5% of A1-A3 typical)
-                    double a5 = Math.Abs(a1a3) * 0.04;
+                    // A5: Construction — material-specific waste factors per WRAP benchmarks
+                    double a5Factor = iceKey.StartsWith("concrete") ? 0.05 : iceKey.StartsWith("steel") ? 0.02 : iceKey.StartsWith("timber") ? 0.10 : 0.04;
+                    double a5 = Math.Abs(a1a3) * a5Factor;
                     totalA5 += a5;
 
                     // C1-C4: End of life (demolition + processing + disposal)

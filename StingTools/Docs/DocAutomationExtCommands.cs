@@ -790,7 +790,7 @@ namespace StingTools.Docs
             FamilySymbol titleBlock = titleBlocks[0];
             if (!titleBlock.IsActive)
             {
-                using (Transaction activateTx = new Transaction(doc, "Activate Title Block"))
+                using (Transaction activateTx = new Transaction(doc, "STING Activate Title Block"))
                 {
                     activateTx.Start();
                     titleBlock.Activate();

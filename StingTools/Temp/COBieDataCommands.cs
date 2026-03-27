@@ -1116,7 +1116,7 @@ namespace StingTools.Temp
         internal static List<COBieTypeRecord> LoadTypeMap()
         {
             string path = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieTypeRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieTypeRecord>();
 
             var result = new List<COBieTypeRecord>();
             bool first = true;
@@ -1169,7 +1169,7 @@ namespace StingTools.Temp
         internal static List<COBiePickListEntry> LoadPickLists()
         {
             string path = StingToolsApp.FindDataFile("COBIE_PICKLISTS.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBiePickListEntry>();
+            if (string.IsNullOrEmpty(path)) return new List<COBiePickListEntry>();
 
             var result = new List<COBiePickListEntry>();
             bool first = true;
@@ -1194,7 +1194,7 @@ namespace StingTools.Temp
         internal static List<COBieJobRecord> LoadJobTemplates()
         {
             string path = StingToolsApp.FindDataFile("COBIE_JOB_TEMPLATES.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieJobRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieJobRecord>();
 
             var result = new List<COBieJobRecord>();
             bool first = true;
@@ -1237,7 +1237,7 @@ namespace StingTools.Temp
         internal static List<COBieSpareRecord> LoadSpareParts()
         {
             string path = StingToolsApp.FindDataFile("COBIE_SPARE_PARTS.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieSpareRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieSpareRecord>();
 
             var result = new List<COBieSpareRecord>();
             bool first = true;
@@ -1266,7 +1266,7 @@ namespace StingTools.Temp
         internal static List<COBieAttributeTemplate> LoadAttributeTemplates()
         {
             string path = StingToolsApp.FindDataFile("COBIE_ATTRIBUTE_TEMPLATES.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieAttributeTemplate>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieAttributeTemplate>();
 
             var result = new List<COBieAttributeTemplate>();
             bool first = true;
@@ -1295,7 +1295,7 @@ namespace StingTools.Temp
         internal static List<COBieZoneTypeRecord> LoadZoneTypes()
         {
             string path = StingToolsApp.FindDataFile("COBIE_ZONE_TYPES.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieZoneTypeRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieZoneTypeRecord>();
 
             var result = new List<COBieZoneTypeRecord>();
             bool first = true;
@@ -1324,7 +1324,7 @@ namespace StingTools.Temp
         internal static List<COBieSystemRecord> LoadSystemMap()
         {
             string path = StingToolsApp.FindDataFile("COBIE_SYSTEM_MAP.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieSystemRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieSystemRecord>();
 
             var result = new List<COBieSystemRecord>();
             bool first = true;
@@ -1365,7 +1365,7 @@ namespace StingTools.Temp
         internal static List<COBieDocumentTypeRecord> LoadDocumentTypes()
         {
             string path = StingToolsApp.FindDataFile("COBIE_DOCUMENT_TYPES.csv");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new List<COBieDocumentTypeRecord>();
+            if (string.IsNullOrEmpty(path)) return new List<COBieDocumentTypeRecord>();
 
             var result = new List<COBieDocumentTypeRecord>();
             bool first = true;
