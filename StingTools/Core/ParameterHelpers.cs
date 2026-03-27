@@ -1896,15 +1896,15 @@ namespace StingTools.Core
         // Built once per batch in PopulationContext, reused for all CopyTokensFromNearest calls.
         private static readonly Dictionary<long, List<(ElementId Id, XYZ Center, string Tag1)>>
             _spatialCandidateCache = new Dictionary<long, List<(ElementId, XYZ, string)>>();
-        private static int _spatialCacheDocHash;
+        private static string _spatialCacheDocKey;
 
         /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
         public static void BuildSpatialCandidateCache(Document doc)
         {
-            int docHash = (doc.PathName ?? doc.Title ?? "").GetHashCode();
-            if (_spatialCacheDocHash == docHash && _spatialCandidateCache.Count > 0) return;
+            string docKey = GetStableDocKey(doc);
+            if (_spatialCacheDocKey == docKey && _spatialCandidateCache.Count > 0) return;
             _spatialCandidateCache.Clear();
-            _spatialCacheDocHash = docHash;
+            _spatialCacheDocKey = docKey;
             try
             {
                 var catEnums = SharedParamGuids.AllCategoryEnums;
@@ -2389,23 +2389,22 @@ namespace StingTools.Core
         // PERF-03: BIP availability cache per category — avoids calling el.get_Parameter(bip)
         // for BuiltInParameters that don't exist on that category. Each category is checked once;
         // subsequent elements of the same category skip the Revit API call entirely.
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<BuiltInParameter>>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<BuiltInParameter, byte>>
             _bipMissingByCategory = new();
 
         private static bool IsBipKnownMissing(Element el, BuiltInParameter bip)
         {
             string catKey = el.Category?.Name ?? "";
             if (string.IsNullOrEmpty(catKey)) return false;
-            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.Contains(bip);
+            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.ContainsKey(bip);
         }
 
         private static void MarkBipMissing(Element el, BuiltInParameter bip)
         {
             string catKey = el.Category?.Name ?? "";
             if (string.IsNullOrEmpty(catKey)) return;
-            _bipMissingByCategory.AddOrUpdate(catKey,
-                _ => new HashSet<BuiltInParameter> { bip },
-                (_, existing) => { existing.Add(bip); return existing; });
+            var set = _bipMissingByCategory.GetOrAdd(catKey, _ => new System.Collections.Concurrent.ConcurrentDictionary<BuiltInParameter, byte>());
+            set.TryAdd(bip, 0);
         }
 
         /// <summary>Invalidate BIP availability cache (call on document switch).</summary>

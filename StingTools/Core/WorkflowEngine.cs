@@ -495,9 +495,7 @@ namespace StingTools.Core
                     // Phase 48: skipIfPreviousSkipped condition
                     if (step.SkipIfPreviousSkipped && previousStepSkipped)
                     {
-                        skipped++;
-                        previousStepSkipped = true;
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (previous step was skipped)");
+                        RecordSkip("previous step was skipped");
                         continue;
                     }
 
@@ -821,7 +819,8 @@ namespace StingTools.Core
                         }
 
                         string status = stepResult == Result.Succeeded ? "OK" :
-                                         stepResult == Result.Cancelled ? "SKIP" : "WARN";
+                                         stepResult == Result.Cancelled ? "SKIP" :
+                                         stepResult == Result.Failed ? "FAIL" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
                         // Phase 39: Record per-step result for audit trail
@@ -973,7 +972,6 @@ namespace StingTools.Core
                 double complianceAfter = 0;
                 try
                 {
-                    ComplianceScan.InvalidateCache(); StingAutoTagger.InvalidateContext();
                     var scan = ComplianceScan.Scan(doc);
                     complianceAfter = scan.CompliancePercent;
 
@@ -2241,7 +2239,7 @@ namespace StingTools.Core
 
                 default:
                     StingLog.Warn($"WorkflowEngine: Unknown built-in preset '{name}'");
-                    return null!;
+                    return new WorkflowPreset { Name = name, Description = $"Unknown preset: {name}", Steps = new List<WorkflowStep>() };
             }
         }
 

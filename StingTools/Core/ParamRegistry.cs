@@ -731,8 +731,9 @@ namespace StingTools.Core
         /// <summary>TAG7 Section F: Classification &amp; Reference — codes, cost, ISO tag.</summary>
         public static string TAG7F { get; private set; } = "ASS_TAG_7F_TXT";
 
+        private static string[] _tag7Sections;
         /// <summary>All TAG7 sub-section parameter names in order (A-F).</summary>
-        public static string[] TAG7Sections => new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
+        public static string[] TAG7Sections => _tag7Sections ??= new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
 
         /// <summary>Check if a parameter is any TAG7 variant (main or sub-section).</summary>
         public static bool IsTag7Param(string paramName)

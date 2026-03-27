@@ -576,6 +576,7 @@ namespace StingTools.Core
             // Reduces classification time by 60-80% on models with 500+ warnings.
             string[] descWords = lower.Split(new[] { ' ', ',', '.', ':', ';', '-' },
                 StringSplitOptions.RemoveEmptyEntries);
+            int wordCount = 0;
             foreach (string word in descWords)
             {
                 if (_ruleFirstWordIndex.TryGetValue(word, out var indices))
@@ -591,7 +592,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                if (descWords.Length > 5) break; // Only check first 5 words for efficiency
+                if (++wordCount >= 5) break;
             }
 
             // Full scan fallback — use pre-computed _loweredPatterns[] instead of per-call ToLowerInvariant()
@@ -668,6 +669,7 @@ namespace StingTools.Core
         // Every call to ScanWarnings re-scanned all warnings from scratch (15+ callers).
         private static WarningReport _cachedReport;
         private static DateTime _reportCacheTime = DateTime.MinValue;
+        private static string _cachedReportDocKey;
         private static readonly TimeSpan ReportCacheLifetime = TimeSpan.FromSeconds(30);
 
         /// <summary>Get cached warning report without triggering a new scan. Returns null if no cache.</summary>
@@ -678,6 +680,7 @@ namespace StingTools.Core
         {
             _cachedReport = null;
             _reportCacheTime = DateTime.MinValue;
+            _cachedReportDocKey = null;
         }
 
         // ── FULL SCAN ──
@@ -688,8 +691,9 @@ namespace StingTools.Core
         /// </summary>
         internal static WarningReport ScanWarnings(Document doc)
         {
-            // PERF: Return cached report if recent (30-second TTL)
-            if (_cachedReport != null && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
+            // PERF: Return cached report if recent (30-second TTL) and same document
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            if (_cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
 
             var report = new WarningReport();
@@ -833,6 +837,7 @@ namespace StingTools.Core
             // PERF: Cache the report for 30 seconds to prevent redundant re-scans
             _cachedReport = report;
             _reportCacheTime = DateTime.UtcNow;
+            _cachedReportDocKey = docKey;
 
             return report;
         }
@@ -1101,36 +1106,6 @@ namespace StingTools.Core
                             }
                         }
                         catch (Exception ex2) { StingLog.Warn($"Duplicate mark fix: {ex2.Message}"); }
-                    }
-                }
-
-                // Phase 67: Strategy 11: Fix room tags outside room boundary
-                if (lower.Contains("room tag") && lower.Contains("outside"))
-                {
-                    foreach (var id in cw.FailingElements)
-                    {
-                        try
-                        {
-                            var roomTag = doc.GetElement(id) as Autodesk.Revit.DB.Architecture.RoomTag;
-                            if (roomTag?.Room != null)
-                            {
-                                var roomBB = roomTag.Room.get_BoundingBox(null);
-                                if (roomBB != null)
-                                {
-                                    var center = new XYZ(
-                                        (roomBB.Min.X + roomBB.Max.X) / 2,
-                                        (roomBB.Min.Y + roomBB.Max.Y) / 2,
-                                        roomBB.Min.Z);
-                                    var locPt = roomTag.Location as LocationPoint;
-                                    if (locPt != null)
-                                    {
-                                        roomTag.Location.Move(center - locPt.Point);
-                                        return true;
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception exRT) { StingLog.Warn($"Room tag fix: {exRT.Message}"); }
                     }
                 }
 

@@ -9784,7 +9784,9 @@ namespace StingTools.BIMManager
                 };
 
                 approvals.Add(record);
-                File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                string tmpPath1 = path + ".tmp";
+                File.WriteAllText(tmpPath1, approvals.ToString(Formatting.Indented));
+                File.Move(tmpPath1, path, overwrite: true);
                 StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
                 return approvalId;
             }
@@ -9825,7 +9827,9 @@ namespace StingTools.BIMManager
                     if (allApproved || anyRejected)
                         record["completion_date"] = DateTime.Now.ToString("o");
 
-                    File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                    string tmpPath2 = path + ".tmp";
+                    File.WriteAllText(tmpPath2, approvals.ToString(Formatting.Indented));
+                    File.Move(tmpPath2, path, overwrite: true);
                     StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
                     return true;
                 }
@@ -10159,7 +10163,9 @@ namespace StingTools.BIMManager
                     ["priority"] = "MEDIUM"
                 };
                 tasks.Add(task);
-                File.WriteAllText(tasksPath, tasks.ToString(Formatting.Indented));
+                string tmpTaskPath = tasksPath + ".tmp";
+                File.WriteAllText(tmpTaskPath, tasks.ToString(Formatting.Indented));
+                File.Move(tmpTaskPath, tasksPath, overwrite: true);
                 TaskDialog.Show("STING", $"Task {taskId} created with {selectedIds.Length} elements.");
             }
             else if (result == TaskDialogResult.CommandLink2)

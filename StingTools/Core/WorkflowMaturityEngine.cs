@@ -405,7 +405,7 @@ namespace StingTools.Core
                     }).ToList()
                 };
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entry, Newtonsoft.Json.Formatting.Indented);
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entry, Newtonsoft.Json.Formatting.None);
 
                 // Append to JSONL
                 File.AppendAllText(path, json + "\n");

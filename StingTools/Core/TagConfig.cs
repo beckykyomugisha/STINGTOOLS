@@ -2632,9 +2632,13 @@ namespace StingTools.Core
                 }
                 if (collisionCount > 0)
                     stats?.RecordCollision(tag, collisionCount);
-                // LOGIC-CRIT-02: Safety limit exhausted — do NOT write a duplicate tag.
-                // Return false to skip this element rather than silently writing a collision.
-                if (collisionCount >= MaxCollisionDepth)
+                // SEQ-CRIT-01: Check whether we actually exhausted the safety limit without
+                // finding a unique tag. The old check (collisionCount >= MaxCollisionDepth)
+                // incorrectly rejected tags that resolved on the very last iteration (when
+                // safetyLimit reaches 0 but the loop exits because existingTags no longer
+                // contains the tag). Only fail when the counter is truly exhausted AND the
+                // current tag is still a duplicate.
+                if (safetyLimit <= 0 && existingTags != null && existingTags.Contains(tag))
                 {
                     string safetyMsg = $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent duplicate tag '{tag}'";
                     StingLog.Error(safetyMsg);
@@ -2676,6 +2680,8 @@ namespace StingTools.Core
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                if (actualTokens.Length < 8)
+                    return false;
                 // Remove the derived-value tag from collision index (it may differ from actual)
                 string removedTag = null;
                 if (existingTags != null && !string.IsNullOrEmpty(tag))
@@ -2687,14 +2693,6 @@ namespace StingTools.Core
                 // TW-03: Re-apply prefix/suffix to re-read tag
                 if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
                 if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
-                // LOGIC-003 FIX: Guard against actualTokens having fewer than 8 elements.
-                // Re-add the removed tag to collision index on failure to prevent index leak.
-                if (actualTokens.Length < 8)
-                {
-                    if (existingTags != null && removedTag != null)
-                        existingTags.Add(removedTag);
-                    return false;
-                }
                 // Update collision index with actual tag
                 if (existingTags != null)
                     existingTags.Add(tag);

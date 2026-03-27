@@ -492,6 +492,9 @@ namespace StingTools.Docs
 
             try
             {
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
+
                 var sb = new StringBuilder();
                 sb.Append('\uFEFF');
                 sb.AppendLine("AssetTag,Category,FamilyName,TypeName,Discipline,System,Function,Product," +
@@ -647,6 +650,9 @@ namespace StingTools.Docs
                 sb.AppendLine($"  Generated:   {DateTime.Now:yyyy-MM-dd HH:mm}");
                 sb.AppendLine($"  Generator:   STING Tools BIM Automation");
                 sb.AppendLine();
+
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
 
                 // ── Collect all assets by discipline → system ──
                 var assets = new Dictionary<string, Dictionary<string, List<AssetRecord>>>();
@@ -859,6 +865,9 @@ namespace StingTools.Docs
 
             try
             {
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
+
                 var sb = new StringBuilder();
                 sb.Append('\uFEFF');
                 sb.AppendLine("AssetTag,Category,FamilyName,TypeName,Discipline,System,Level,Room," +
@@ -1049,6 +1058,9 @@ namespace StingTools.Docs
                     }
                 }
 
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
+
                 // Map assets to rooms
                 int totalMapped = 0;
                 int unmapped = 0;
@@ -1174,6 +1186,22 @@ namespace StingTools.Docs
     /// </summary>
     internal static class HandoverHelper
     {
+        /// <summary>Collect all tagged elements in the model using a single FilteredElementCollector scan.</summary>
+        internal static List<Element> CollectTaggedElements(Document doc, HashSet<string> knownCategories)
+        {
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var result = new List<Element>();
+            foreach (Element el in collector)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (knownCategories.Contains(cat)) result.Add(el);
+            }
+            return result;
+        }
+
         /// <summary>Read STING shared parameter as string.</summary>
         internal static string Gs(Element el, string paramName)
         {

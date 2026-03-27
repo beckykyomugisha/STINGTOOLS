@@ -292,13 +292,14 @@ namespace StingTools.Core
                 bool fallen = _lastCompliancePct > 0 && currentPct < _lastCompliancePct - 2.0; // >2% drop
                 int newStale = Math.Max(0, currentStale - _lastStaleCount);
 
+                double previousPct = _lastCompliancePct;
                 var retVal = (fallen, currentPct, _lastCompliancePct, newStale);
 
                 _lastCompliancePct = currentPct;
                 _lastStaleCount = currentStale;
 
                 if (fallen)
-                    StingLog.Warn($"ComplianceFall: {_lastCompliancePct:F1}% → {currentPct:F1}% ({newStale} new stale elements)");
+                    StingLog.Warn($"ComplianceFall: {previousPct:F1}% → {currentPct:F1}% ({newStale} new stale elements)");
 
                 return retVal;
             }
