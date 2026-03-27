@@ -5449,6 +5449,7 @@ namespace StingTools.Organise
                 }
                 catch (Exception ex)
                 {
+                    StingLog.Error("CSV export failed", ex);
                     TaskDialog.Show("STING", $"Export failed: {ex.Message}");
                 }
             }

@@ -104,6 +104,7 @@ namespace StingTools.Tags
 
             // Read existing bindings
             var existingLines = File.ReadAllLines(path).ToList();
+            if (existingLines.Count == 0) { StingLog.Warn("CATEGORY_BINDINGS.csv is empty"); return Result.Failed; }
             var header = existingLines.FirstOrDefault(l => !l.StartsWith("#") && l.Contains("Parameter_Name"));
             var commentLines = existingLines.Where(l => l.StartsWith("#")).ToList();
             var dataLines = existingLines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();
@@ -200,6 +201,7 @@ namespace StingTools.Tags
             report.AppendLine("[MR_PARAMETERS.csv]");
 
             var lines = File.ReadAllLines(path).ToList();
+            if (lines.Count == 0) { StingLog.Warn("MR_PARAMETERS.csv is empty"); return Result.Failed; }
             var commentLines = lines.Where(l => l.StartsWith("#")).ToList();
             var header = lines.FirstOrDefault(l => !l.StartsWith("#") && l.Contains("Parameter_Name"));
             var dataLines = lines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();

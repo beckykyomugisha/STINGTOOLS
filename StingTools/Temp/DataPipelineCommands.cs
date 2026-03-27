@@ -2567,6 +2567,7 @@ namespace StingTools.Temp
                 foreach (var otherMep in mepElements)
                 {
                     if (otherMep.Id.Value <= mepEl.Id.Value) continue; // Avoid duplicates
+                    checked_count++;
                     BoundingBoxXYZ otherBB = otherMep.get_BoundingBox(null);
                     if (otherBB == null) continue;
 
@@ -2968,11 +2969,15 @@ namespace StingTools.Temp
 
             // Build element index by tag
             var tagIndex = new Dictionary<string, Element>();
+            int boqIndexCount = 0;
             foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(t) && !tagIndex.ContainsKey(t))
                     tagIndex[t] = el;
+                boqIndexCount++;
+                if (boqIndexCount % 5000 == 0)
+                    StingLog.Info($"BOQImport: indexing elements... {boqIndexCount}");
             }
 
             // Confirm
@@ -3522,6 +3527,7 @@ namespace StingTools.Temp
                 // Build tag-to-element index
                 var tagIndex = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                int stickyIndexCount = 0;
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
@@ -3529,6 +3535,9 @@ namespace StingTools.Temp
                     string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(tag) && !tagIndex.ContainsKey(tag))
                         tagIndex[tag] = el;
+                    stickyIndexCount++;
+                    if (stickyIndexCount % 5000 == 0)
+                        StingLog.Info($"StickyImport: indexing elements... {stickyIndexCount}");
                 }
 
                 // Read notes from file
@@ -4014,6 +4023,11 @@ namespace StingTools.Temp
                     }
                 }
                 row++;
+                if ((row - 2) % 500 == 0 && EscapeChecker.IsEscapePressed())
+                {
+                    StingLog.Info($"ExcelExport: cancelled by user after {row - 2} rows");
+                    break;
+                }
             }
 
             // Auto-fit columns (cap at 40 chars wide)
@@ -4702,8 +4716,11 @@ namespace StingTools.Temp
 
             var violations = new List<(Element El, double ActualClearanceMm, double RequiredMm, string Direction)>();
 
+            int clearanceChecked = 0;
+            bool clearanceCancelled = false;
             foreach (var kv in MinClearanceFt)
             {
+                if (clearanceCancelled) break;
                 var elems = new FilteredElementCollector(doc)
                     .OfCategory(kv.Key)
                     .WhereElementIsNotElementType()
@@ -4755,6 +4772,18 @@ namespace StingTools.Temp
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"MEPClearance {el.Id}: {ex.Message}"); }
+
+                    clearanceChecked++;
+                    if (clearanceChecked % 500 == 0)
+                    {
+                        StingLog.Info($"MEPClearance: checked {clearanceChecked} elements, {violations.Count} violations so far");
+                        if (EscapeChecker.IsEscapePressed())
+                        {
+                            StingLog.Info("MEPClearance: cancelled by user");
+                            clearanceCancelled = true;
+                            break;
+                        }
+                    }
                 }
             }
 

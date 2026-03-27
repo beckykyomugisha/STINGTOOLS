@@ -225,6 +225,11 @@ namespace StingTools.Temp
                 }
 
                 var lines = File.ReadAllLines(path);
+                if (lines.Length == 0)
+                {
+                    TaskDialog.Show("STING", "PARAMETER__CATEGORIES.csv is empty.");
+                    return Result.Failed;
+                }
                 var header = StingToolsApp.ParseCsvLine(lines[0]);
 
                 var sb = new StringBuilder();
