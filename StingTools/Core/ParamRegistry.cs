@@ -1039,7 +1039,7 @@ namespace StingTools.Core
         {
             StingLog.Info("ParamRegistry.LoadFromFile: starting");
             string path = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
-            if (path == null || !File.Exists(path))
+            if (path == null)
             {
                 StingLog.Warn("PARAMETER_REGISTRY.json not found — using compiled defaults");
                 LoadDefaults();
@@ -1295,7 +1295,7 @@ namespace StingTools.Core
                 try
                 {
                     string _mrFile = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
-                    if (!string.IsNullOrEmpty(_mrFile) && File.Exists(_mrFile))
+                    if (!string.IsNullOrEmpty(_mrFile))
                     {
                         if (_guidByName == null)
                             _guidByName = new Dictionary<string, Guid>(StringComparer.Ordinal);

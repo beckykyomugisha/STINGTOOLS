@@ -1795,7 +1795,7 @@ namespace StingTools.Core
             try
             {
                 string path = StingToolsApp.FindDataFile("LABEL_DEFINITIONS.json");
-                if (path == null || !System.IO.File.Exists(path)) return;
+                if (path == null) return;
 
                 string json = System.IO.File.ReadAllText(path);
                 var root = Newtonsoft.Json.Linq.JObject.Parse(json);
@@ -1871,7 +1871,7 @@ namespace StingTools.Core
                 try
                 {
                     string path = StingToolsApp.FindDataFile(fileName);
-                    if (path == null || !System.IO.File.Exists(path)) continue;
+                    if (path == null) continue;
 
                     string[] lines = System.IO.File.ReadAllLines(path);
                     string currentCategory = null;
@@ -4613,17 +4613,9 @@ namespace StingTools.Core
                 string configPath = StingToolsApp.FindDataFile("project_config.json");
                 if (string.IsNullOrEmpty(configPath)) return;
 
-                Dictionary<string, object> data;
-                if (File.Exists(configPath))
-                {
-                    string json = File.ReadAllText(configPath);
-                    data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                        ?? new Dictionary<string, object>();
-                }
-                else
-                {
-                    data = new Dictionary<string, object>();
-                }
+                string json = File.ReadAllText(configPath);
+                Dictionary<string, object> data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                    ?? new Dictionary<string, object>();
                 data["ACTIVE_PRESET"] = presetName;
                 File.WriteAllText(configPath, JsonConvert.SerializeObject(data, Formatting.Indented));
             }

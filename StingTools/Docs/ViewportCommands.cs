@@ -228,7 +228,7 @@ namespace StingTools.Docs
                 .ToList();
 
             int num = 1;
-            using (Transaction tx = new Transaction(doc, "Renumber Viewports"))
+            using (Transaction tx = new Transaction(doc, "STING Renumber Viewports"))
             {
                 tx.Start();
 
@@ -301,7 +301,7 @@ namespace StingTools.Docs
             var result = td.Show();
             if (result == TaskDialogResult.Cancel) return Result.Cancelled;
 
-            using (Transaction tx = new Transaction(doc, "Text Case Conversion"))
+            using (Transaction tx = new Transaction(doc, "STING Text Case Conversion"))
             {
                 tx.Start();
                 foreach (var note in textNotes)

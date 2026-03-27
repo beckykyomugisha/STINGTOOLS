@@ -2252,7 +2252,7 @@ namespace StingTools.Tags
                     bool changed = false;
 
                     // Find all TextNoteType elements and change TEXT_SIZE
-                    using (Transaction ft = new Transaction(famDoc, "Change Text Size"))
+                    using (Transaction ft = new Transaction(famDoc, "STING Change Text Size"))
                     {
                         ft.Start();
                         var textTypes = new FilteredElementCollector(famDoc)

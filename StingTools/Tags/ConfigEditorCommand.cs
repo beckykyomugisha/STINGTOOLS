@@ -370,7 +370,7 @@ namespace StingTools.Tags
             if (def.file == null) return Result.Cancelled;
 
             string path = StingToolsApp.FindDataFile(def.file);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            if (string.IsNullOrEmpty(path))
             {
                 string pd = Path.GetDirectoryName(doc.PathName ?? "");
                 if (!string.IsNullOrEmpty(pd)) path = Path.Combine(pd, def.file);

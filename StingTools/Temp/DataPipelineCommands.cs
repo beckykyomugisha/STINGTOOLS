@@ -187,7 +187,7 @@ namespace StingTools.Temp
             foreach (string f in requiredFiles)
             {
                 string path = StingToolsApp.FindDataFile(f);
-                if (path != null && File.Exists(path))
+                if (path != null)
                     found++;
                 else
                     missing.Add(f);
@@ -1111,8 +1111,14 @@ namespace StingTools.Temp
             int warnings = 0;
             int zeroCostCount = 0;
             int noDescCount = 0;
+            int processed = 0;
             foreach (Element el in allElems)
             {
+                if (++processed % 500 == 0)
+                {
+                    if (EscapeChecker.IsEscapePressed()) { StingLog.Info("BOQ export cancelled by user."); break; }
+                    StingLog.Info($"BOQ export: processed {processed} elements...");
+                }
                 try
                 {
                     string catName = el.Category?.Name ?? "Uncategorised";
@@ -1892,7 +1898,7 @@ namespace StingTools.Temp
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
-                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                if (string.IsNullOrEmpty(csvPath))
                     return rates;
 
                 bool inRateSection = false;
@@ -2198,7 +2204,7 @@ namespace StingTools.Temp
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
             string regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
-            if (string.IsNullOrEmpty(regPath) || !File.Exists(regPath))
+            if (string.IsNullOrEmpty(regPath))
             {
                 TaskDialog.Show("IFC Property Map", "PARAMETER_REGISTRY.json not found.");
                 return Result.Failed;
@@ -2316,7 +2322,7 @@ namespace StingTools.Temp
             {
                 // Fallback: check data directory for legacy BEP files
                 string fallback = StingToolsApp.FindDataFile("project_bep.json");
-                if (!string.IsNullOrEmpty(fallback) && File.Exists(fallback))
+                if (!string.IsNullOrEmpty(fallback))
                     bepPath = fallback;
             }
             if (!File.Exists(bepPath))
@@ -2366,9 +2372,14 @@ namespace StingTools.Temp
                 ["LOC"] = 0, ["ZONE"] = 0, ["DISC"] = 0
             };
             var sampleViolations = new List<string>();
+            int processed = 0;
 
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
+                if (++processed % 500 == 0)
+                {
+                    if (EscapeChecker.IsEscapePressed()) { StingLog.Info("BEP validation cancelled by user."); break; }
+                }
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!known.Contains(cat)) continue;
 
@@ -4119,7 +4130,7 @@ namespace StingTools.Temp
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
-                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath)) return;
+                if (string.IsNullOrEmpty(csvPath)) return;
 
                 string currentSection = "";
                 bool headerSkipped = false;
@@ -4804,8 +4815,15 @@ namespace StingTools.Temp
                 .WhereElementIsNotElementType()
                 .ToList();
 
+            int processed = 0;
             foreach (var el in allElems)
             {
+                if (++processed % 500 == 0 && EscapeChecker.IsEscapePressed())
+                {
+                    StingLog.Info("IFC validation cancelled by user.");
+                    break;
+                }
+
                 // Check if element has IFC properties
                 string ifcGuid = null;
                 try

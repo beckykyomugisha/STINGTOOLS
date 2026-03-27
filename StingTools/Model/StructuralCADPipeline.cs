@@ -1387,7 +1387,7 @@ namespace StingTools.Model
             if (symbol == null) return 0;
             if (!symbol.IsActive)
             {
-                using (var tx = new Transaction(_doc, "Activate Beam"))
+                using (var tx = new Transaction(_doc, "STING Activate Beam"))
                 { tx.Start(); symbol.Activate(); _doc.Regenerate(); tx.Commit(); }
             }
 

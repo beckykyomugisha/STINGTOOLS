@@ -576,7 +576,7 @@ namespace StingTools.Model
                     tg.Start();
 
                     // Transaction 1: Create 4 walls
-                    using (var tx = new Transaction(_doc, "Create Walls"))
+                    using (var tx = new Transaction(_doc, "STING Create Walls"))
                     {
                         AttachFailureHandler(tx, fh);
                         tx.Start();
@@ -602,7 +602,7 @@ namespace StingTools.Model
                     }
 
                     // Transaction 2: Join wall corners
-                    using (var tx = new Transaction(_doc, "Join Corners"))
+                    using (var tx = new Transaction(_doc, "STING Join Corners"))
                     {
                         tx.Start();
                         try
@@ -618,7 +618,7 @@ namespace StingTools.Model
                     // Transaction 3: Place room element
                     if (placeRoom)
                     {
-                        using (var tx = new Transaction(_doc, "Place Room"))
+                        using (var tx = new Transaction(_doc, "STING Place Room"))
                         {
                             tx.Start();
                             try

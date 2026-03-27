@@ -1857,7 +1857,7 @@ namespace StingTools.UI
             {
                 // Try loading from bundled template
                 string templatePath = StingToolsApp.FindDataFile("PROJECT_TEAM_TEMPLATE.json");
-                if (!string.IsNullOrEmpty(templatePath) && File.Exists(templatePath))
+                if (!string.IsNullOrEmpty(templatePath))
                 {
                     try
                     {

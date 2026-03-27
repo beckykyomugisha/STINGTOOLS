@@ -36,7 +36,7 @@ namespace StingTools.Docs
                 return Result.Succeeded;
             }
 
-            using (Transaction tx = new Transaction(doc, "Create Sheet Index"))
+            using (Transaction tx = new Transaction(doc, "STING Create Sheet Index"))
             {
                 tx.Start();
 

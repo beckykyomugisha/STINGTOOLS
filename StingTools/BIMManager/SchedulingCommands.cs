@@ -2465,7 +2465,7 @@ namespace StingTools.BIMManager
             // Phase 40: Use configurable cost rates filename from project_config.json
             string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
             string path = StingToolsApp.FindDataFile(costFile);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+            if (string.IsNullOrEmpty(path)) return rates;
 
             try
             {
