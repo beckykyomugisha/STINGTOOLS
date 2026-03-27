@@ -838,16 +838,18 @@ namespace StingTools.Temp
                     "Export all project material names to CSV.");
                 dlg.CommonButtons = TaskDialogCommonButtons.Close;
 
+                // PERF: Collect materials once — reused by browse and export branches
+                var materials = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Material))
+                    .Cast<Material>()
+                    .OrderBy(m => m.Name)
+                    .ToList();
+
                 var result = dlg.Show();
 
                 if (result == TaskDialogResult.CommandLink1)
                 {
                     // Browse materials
-                    var materials = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .OrderBy(m => m.Name)
-                        .ToList();
 
                     var sb = new StringBuilder();
                     sb.AppendLine($"Total materials: {materials.Count}\n");
@@ -896,13 +898,7 @@ namespace StingTools.Temp
                 }
                 else if (result == TaskDialogResult.CommandLink4)
                 {
-                    // Export material list to CSV
-                    var materials = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Material))
-                        .Cast<Material>()
-                        .OrderBy(m => m.Name)
-                        .ToList();
-
+                    // Export material list to CSV (reuses materials collected above)
                     string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
                     string filePath = Path.Combine(outputDir, "STING_MATERIALS_EXPORT.csv");
 

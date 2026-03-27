@@ -1286,18 +1286,15 @@ namespace StingTools.Model
             int totalStructural = colCount + beamCount + slabCount + fdnCount;
             if (totalStructural > 0)
             {
+                // PERF: Use ElementMulticategoryFilter instead of scanning ALL elements
                 int withMaterial = 0;
-                var allStructural = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType().ToList();
-
-                foreach (var el in allStructural)
+                var strCats = new List<BuiltInCategory> {
+                    BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming,
+                    BuiltInCategory.OST_Floors, BuiltInCategory.OST_StructuralFoundation };
+                foreach (var el in new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(strCats)))
                 {
-                    var cat = el.Category?.BuiltInCategory;
-                    if (cat != BuiltInCategory.OST_StructuralColumns &&
-                        cat != BuiltInCategory.OST_StructuralFraming &&
-                        cat != BuiltInCategory.OST_Floors &&
-                        cat != BuiltInCategory.OST_StructuralFoundation) continue;
-
                     var matParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
                     if (matParam != null && matParam.AsElementId() != ElementId.InvalidElementId)
                         withMaterial++;

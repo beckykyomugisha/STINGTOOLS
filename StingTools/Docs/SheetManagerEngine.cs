@@ -12,8 +12,7 @@ namespace StingTools.Docs
     //  Automated viewport layout, scale calculation, sheet cloning, and
     //  collision-free placement using shelf-packing algorithm.
     //
-    //  Inspired by Ideate SheetManager, All 1 Studio auto-arrange,
-    //  and Revit 2026 native view-to-sheet positioning.
+    //  STING Sheet Manager with auto-arrange and view-to-sheet positioning.
     //
     //  Key Revit API patterns:
     //    Viewport.Create(doc, sheetId, viewId, centerPoint)
@@ -96,6 +95,18 @@ namespace StingTools.Docs
         public static TitleBlockMargins ISO_A3 => new TitleBlockMargins { LeftMm = 15, RightMm = 45, TopMm = 10, BottomMm = 12, GapMm = 8 };
         public static TitleBlockMargins Compact => new TitleBlockMargins { LeftMm = 10, RightMm = 40, TopMm = 8, BottomMm = 10, GapMm = 5 };
         public static TitleBlockMargins Default => new TitleBlockMargins();
+
+        /// <summary>
+        /// Creates margins from TagConfig settings (loaded from project_config.json SHEET_MARGINS).
+        /// </summary>
+        public static TitleBlockMargins FromConfig => new TitleBlockMargins
+        {
+            LeftMm = Core.TagConfig.SheetMarginLeftMm,
+            RightMm = Core.TagConfig.SheetMarginRightMm,
+            TopMm = Core.TagConfig.SheetMarginTopMm,
+            BottomMm = Core.TagConfig.SheetMarginBottomMm,
+            GapMm = Core.TagConfig.SheetMarginGapMm
+        };
     }
 
     /// <summary>
@@ -153,13 +164,26 @@ namespace StingTools.Docs
         /// </summary>
         internal static DrawableZone GetDrawableZone(Document doc, ViewSheet sheet, TitleBlockMargins margins = null)
         {
-            if (margins == null) margins = TitleBlockMargins.Default;
+            if (margins == null) margins = TitleBlockMargins.FromConfig;
 
             // Find title block on this sheet
-            var titleBlock = new FilteredElementCollector(doc, sheet.Id)
+            var allTitleBlocks = new FilteredElementCollector(doc, sheet.Id)
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .Cast<FamilyInstance>()
-                .FirstOrDefault();
+                .ToList();
+
+            FamilyInstance titleBlock = null;
+            // Phase 77: Prefer configured title block family if specified
+            string preferredFamily = Core.TagConfig.PreferredTitleBlockFamily;
+            if (!string.IsNullOrEmpty(preferredFamily) && allTitleBlocks.Count > 0)
+            {
+                titleBlock = allTitleBlocks.FirstOrDefault(tb =>
+                    tb.Symbol?.FamilyName != null &&
+                    tb.Symbol.FamilyName.Equals(preferredFamily, StringComparison.OrdinalIgnoreCase));
+            }
+            // Fall back to first title block if preferred not found
+            if (titleBlock == null)
+                titleBlock = allTitleBlocks.FirstOrDefault();
 
             double sheetW, sheetH;
 
@@ -576,17 +600,25 @@ namespace StingTools.Docs
             var typeId = viewport.GetTypeId();
             var center = newCenter ?? viewport.GetBoxCenter();
 
+            // Delete the old viewport FIRST — Revit's CanAddViewToSheet returns false
+            // while the view is still placed on the source sheet, so we must remove it
+            // before checking or creating on the target.
+            doc.Delete(viewport.Id);
+
             if (!Viewport.CanAddViewToSheet(doc, targetSheet.Id, viewId))
             {
-                StingLog.Warn($"Cannot move viewport: view already on target sheet or invalid.");
+                StingLog.Warn($"Cannot move viewport: view cannot be placed on target sheet '{targetSheet.SheetNumber}'.");
                 return null;
             }
-
-            doc.Delete(viewport.Id);
 
             try
             {
                 var newVp = Viewport.Create(doc, targetSheet.Id, viewId, center);
+                if (newVp == null)
+                {
+                    StingLog.Warn($"Viewport.Create returned null for sheet '{targetSheet.SheetNumber}'.");
+                    return null;
+                }
                 if (typeId != ElementId.InvalidElementId)
                 {
                     try { newVp.ChangeTypeId(typeId); }

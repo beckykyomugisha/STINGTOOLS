@@ -93,20 +93,21 @@ namespace StingTools.UI
 
     internal static class DocumentManagementDialog
     {
-        // ── Theme ─────────────────────────────────────────────────────
-        private static readonly SolidColorBrush BrHeader  = new(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly SolidColorBrush BrAccent  = new(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush BrBg      = new(Color.FromRgb(0xF5, 0xF5, 0xF5));
+        // ── Theme (frozen for thread safety) ─────────────────────────
+        private static SolidColorBrush FZ(byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromRgb(r, g, b)); br.Freeze(); return br; }
+        private static readonly SolidColorBrush BrHeader  = FZ(0x1A, 0x23, 0x7E);
+        private static readonly SolidColorBrush BrAccent  = FZ(0xE8, 0x91, 0x2D);
+        private static readonly SolidColorBrush BrBg      = FZ(0xF5, 0xF5, 0xF5);
         private static readonly SolidColorBrush BrWhite   = Brushes.White;
-        private static readonly SolidColorBrush BrFgDark  = new(Color.FromRgb(0x22, 0x22, 0x22));
-        private static readonly SolidColorBrush BrFgSub   = new(Color.FromRgb(0x88, 0x88, 0x88));
-        private static readonly SolidColorBrush BrBorder  = new(Color.FromRgb(0xD0, 0xD0, 0xD0));
-        private static readonly SolidColorBrush BrGreen   = new(Color.FromRgb(0x2E, 0x7D, 0x32));
-        private static readonly SolidColorBrush BrOrange  = new(Color.FromRgb(0xE6, 0x51, 0x00));
-        private static readonly SolidColorBrush BrRed     = new(Color.FromRgb(0xC6, 0x28, 0x28));
-        private static readonly SolidColorBrush BrPurple  = new(Color.FromRgb(0x6A, 0x1B, 0x9A));
-        private static readonly SolidColorBrush BrTeal    = new(Color.FromRgb(0x00, 0x69, 0x5C));
-        private static readonly SolidColorBrush BrAmber   = new(Color.FromRgb(0xFF, 0x8F, 0x00));
+        private static readonly SolidColorBrush BrFgDark  = FZ(0x22, 0x22, 0x22);
+        private static readonly SolidColorBrush BrFgSub   = FZ(0x88, 0x88, 0x88);
+        private static readonly SolidColorBrush BrBorder  = FZ(0xD0, 0xD0, 0xD0);
+        private static readonly SolidColorBrush BrGreen   = FZ(0x2E, 0x7D, 0x32);
+        private static readonly SolidColorBrush BrOrange  = FZ(0xE6, 0x51, 0x00);
+        private static readonly SolidColorBrush BrRed     = FZ(0xC6, 0x28, 0x28);
+        private static readonly SolidColorBrush BrPurple  = FZ(0x6A, 0x1B, 0x9A);
+        private static readonly SolidColorBrush BrTeal    = FZ(0x00, 0x69, 0x5C);
+        private static readonly SolidColorBrush BrAmber   = FZ(0xFF, 0x8F, 0x00);
 
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
@@ -1272,7 +1273,7 @@ namespace StingTools.UI
             coordWrap.Children.Add(MakeDispatchBtn("Element Summary", "ElementCountSummary", BrTeal, win));
             coordWrap.Children.Add(MakeSep());
             coordWrap.Children.Add(MakeSectionLabel("LIVE COORDINATION"));
-            coordWrap.Children.Add(MakeDispatchBtn("★ Coord Center", "CoordinationCenter", BrAccent, win));
+            coordWrap.Children.Add(MakeDispatchBtn("★ Coord Center", "BIMCoordinationCenter", BrAccent, win));
             coordWrap.Children.Add(MakeDispatchBtn("Dashboard", "GenerateDashboard", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("File Monitor", "ToggleFileMonitor", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Broadcast", "BroadcastNotification", BrAccent, win));
@@ -1295,6 +1296,13 @@ namespace StingTools.UI
             handWrap.Children.Add(MakeDispatchBtn("ACC Publish", "ACCPublish", BrAccent, win));
             handWrap.Children.Add(MakeDispatchBtn("SharePoint", "SharePointExport", BrAccent, win));
             handWrap.Children.Add(MakeDispatchBtn("Export Health", "ExportModelHealth", BrGreen, win));
+            handWrap.Children.Add(MakeSep());
+            handWrap.Children.Add(MakeSectionLabel("REGISTERS & BOQ"));
+            handWrap.Children.Add(MakeDispatchBtn("BOQ Export", "BOQExport", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Tag Register", "TagRegisterExport", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Sheet Register", "ExportSheetRegister", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Drawing Register", "DrawingRegisterSchedule", BrGreen, win));
+            handWrap.Children.Add(MakeDispatchBtn("Data Drop Check", "DataDropReadiness", BrAccent, win));
             handWrap.Children.Add(MakeSep());
             handWrap.Children.Add(MakeSectionLabel("4D / 5D"));
             handWrap.Children.Add(MakeDispatchBtn("4D Timeline", "Export4DTimeline", BrPurple, win));
@@ -1349,12 +1357,13 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeSectionLabel("COORDINATION"));
             meetWrap.Children.Add(MakeActBtn("Send Reminder", BrAccent, (s, e) => SendMeetingReminder(doc)));
             meetWrap.Children.Add(MakeActBtn("Smart Agenda", BrGreen, (s, e) => GenerateSmartAgendaFromDialog(doc)));
-            meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "CoordinationCenter", BrAccent, win));
+            meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "BIMCoordinationCenter", BrAccent, win));
             tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
 
             // GAP-BIM-010: Restore last-used tab on reopen (saves navigation time)
-            if (_lastTabIndex >= 0 && _lastTabIndex < tabs.Items.Count)
-                tabs.SelectedIndex = _lastTabIndex;
+            // Clamp to valid range to prevent IndexOutOfRangeException if tabs were added/removed
+            if (tabs.Items.Count > 0 && _lastTabIndex >= 0)
+                tabs.SelectedIndex = Math.Min(_lastTabIndex, tabs.Items.Count - 1);
             tabs.SelectionChanged += (s, e) => { if (tabs.SelectedIndex >= 0) _lastTabIndex = tabs.SelectedIndex; };
 
             bar.Child = tabs;
@@ -1649,7 +1658,7 @@ namespace StingTools.UI
                 string transPath = Path.Combine(bimDir, "transmittals.json");
                 JArray arr;
                 try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
-                catch { arr = new JArray(); }
+                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
 
                 string transId = $"TX-{arr.Count + 1:D4}";
                 string suitCode = (suitCombo.SelectedItem?.ToString() ?? "S2").Split(' ')[0];
@@ -1741,7 +1750,7 @@ namespace StingTools.UI
                 string issuePath = Path.Combine(bimDir, "issues.json");
                 JArray arr;
                 try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
-                catch { arr = new JArray(); }
+                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
 
                 string issueId = $"{issueType}-{arr.Count(i => i["type"]?.ToString() == issueType) + 1:D4}";
                 DateTime now = DateTime.Now;
@@ -3140,7 +3149,7 @@ namespace StingTools.UI
                 string notifyPath = Path.Combine(bimDir, "notification_queue.json");
                 JArray queue;
                 try { queue = File.Exists(notifyPath) ? JArray.Parse(File.ReadAllText(notifyPath)) : new JArray(); }
-                catch { queue = new JArray(); }
+                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); queue = new JArray(); }
 
                 queue.Add(new JObject
                 {

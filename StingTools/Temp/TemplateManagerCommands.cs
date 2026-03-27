@@ -1657,14 +1657,10 @@ namespace StingTools.Temp
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
 
-            FillPatternElement solidFill = null;
-            try
-            {
-                solidFill = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            }
-            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
+            // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? doc.GetElement(solidFillId) as FillPatternElement : null;
 
             int totalIssues = 0;
             int totalFixed = 0;
@@ -1784,14 +1780,10 @@ namespace StingTools.Temp
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
 
-            FillPatternElement solidFill = null;
-            try
-            {
-                solidFill = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            }
-            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
+            // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? doc.GetElement(solidFillId) as FillPatternElement : null;
 
             int synced = 0, failed = 0;
             bool cancelled = false;
@@ -2252,14 +2244,10 @@ namespace StingTools.Temp
                 .ToDictionary(f => f.Name, f => f);
 
             // Solid fill pattern
-            FillPatternElement solidFill = null;
-            try
-            {
-                solidFill = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            }
-            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
+            // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? doc.GetElement(solidFillId) as FillPatternElement : null;
 
             // Cross-hatch pattern for demolition
             FillPatternElement crossHatch = null;
@@ -3836,14 +3824,10 @@ namespace StingTools.Temp
                 .OfClass(typeof(ParameterFilterElement)).Cast<ParameterFilterElement>())
                 filterLookup[pfe.Name] = pfe;
 
-            FillPatternElement solidFill = null;
-            try
-            {
-                solidFill = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
-                    .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            }
-            catch (Exception ex) { StingLog.Warn($"Find solid fill pattern: {ex.Message}"); }
+            // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? doc.GetElement(solidFillId) as FillPatternElement : null;
 
             using (Transaction tx = new Transaction(doc, "STING Clone Template"))
             {

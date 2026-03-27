@@ -52,12 +52,18 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"LoadJsonObject failed: {ex.Message}"); return new JObject(); }
         }
 
+        /// <summary>Atomic JSON write using temp file + replace. GF-001 FIX:
+        /// Previous File.Delete→File.Move had crash window where target is deleted
+        /// but temp not yet moved, permanently losing the JSON file.</summary>
         internal static void SaveJson(string path, JToken data)
         {
             string tmp = path + ".tmp";
+            string backup = path + ".bak";
             File.WriteAllText(tmp, data.ToString(Formatting.Indented));
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(tmp, path);
+            if (File.Exists(path))
+                File.Replace(tmp, path, backup);
+            else
+                File.Move(tmp, path);
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -163,7 +169,8 @@ namespace StingTools.BIMManager
             var sb = new StringBuilder();
             try
             {
-                ComplianceScan.InvalidateCache();
+                // PERF-R3: Removed InvalidateCache() — let the 30-second cache work as designed.
+                // Previously forced a full-model element scan (2-5s) every time BuildFullCoordData was called.
                 var scan = ComplianceScan.Scan(doc);
                 sb.AppendLine($"Tag Compliance: {scan?.CompliancePercent:F1}% ({(scan?.TaggedComplete ?? 0) + (scan?.TaggedIncomplete ?? 0)}/{scan?.TotalElements})");
                 sb.AppendLine($"Stale: {scan?.StaleCount}, Placeholders: {scan?.PlaceholderCount}");
@@ -217,9 +224,12 @@ namespace StingTools.BIMManager
                 if (lastRow > 10000)
                     return $"COBie file has {lastRow} rows (safety limit: 10,000). Process in batches.";
 
-                // Build element lookup
-                var collector = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType().ToList();
+                // Build element lookup (filtered to taggable categories)
+                var importCatEnums = SharedParamGuids.AllCategoryEnums;
+                var importColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (importCatEnums != null && importCatEnums.Length > 0)
+                    importColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(importCatEnums)));
+                var collector = importColl.ToList();
                 var byUniqueId = collector.ToDictionary(e => e.UniqueId, e => e);
                 var byTag = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
                 foreach (var el in collector)
@@ -701,6 +711,41 @@ namespace StingTools.BIMManager
                 ["STRUCT_COL"] = "Column", ["STRUCT_BEAM"] = "Beam", ["STRUCT_FND"] = "Foundation",
                 ["STR_COLUMN"] = "Column", ["STR_BEAM"] = "Beam", ["STR_SLAB"] = "Slab",
                 ["COLUMN"] = "Column", ["BEAM"] = "Beam", ["FOOTING"] = "Foundation",
+                // NBS (UK National BIM Standard — Uniclass Ss codes)
+                ["Ss_15_10"] = "Column", ["Ss_15_20"] = "Beam", ["Ss_15_30"] = "Slab",
+                ["Ss_20"] = "Wall", ["Ss_20_05"] = "Wall", ["Ss_25"] = "Slab",
+                ["Ss_25_10"] = "Slab", ["Ss_25_30"] = "Foundation", ["Ss_30"] = "Stair",
+                ["Ss_15"] = "Beam", ["Ss_32"] = "Brace",
+                ["Ss_15_10_30"] = "Column", ["Ss_15_10_70"] = "Column", // RC / steel columns
+                ["Ss_15_20_30"] = "Beam", ["Ss_15_20_70"] = "Beam",    // RC / steel beams
+                ["Ss_20_10"] = "Wall", ["Ss_20_20"] = "Wall",          // retaining / curtain walls
+                ["Ss_25_20"] = "Slab", ["Ss_25_60"] = "Foundation",    // ground slabs / piles
+                ["Ss_30_10"] = "Stair", ["Ss_30_20"] = "Stair",        // internal / external stairs
+                ["Ss_32_10"] = "Brace", ["Ss_32_20"] = "Brace",        // lateral / vertical bracing
+                ["Ss_35"] = "Foundation", ["Ss_35_10"] = "Foundation",  // substructure / piling
+                // Singapore BIM Guide (BCA)
+                ["A-WALL"] = "Wall", ["S-COLUMN"] = "Column",
+                ["S-FOUNDATION"] = "Foundation", ["S-STAIR"] = "Stair",
+                ["M-DUCT"] = "Beam", ["M-PIPE"] = "Beam", ["E-CABLE"] = "Beam",
+                ["A-DOOR"] = "Wall", ["A-WINDOW"] = "Wall",
+                ["S-PILE"] = "Foundation", ["S-BRACE"] = "Brace",
+                ["A-FLOOR"] = "Slab", ["A-ROOF"] = "Slab", ["A-CLNG"] = "Slab",
+                ["A-STAIR"] = "Stair", ["A-COL"] = "Column",
+                ["M-EQUIP"] = "Column", ["E-PANEL"] = "Column",
+                ["P-PIPE"] = "Beam", ["P-FIXT"] = "Column",
+                // Australian AS 1100.301
+                ["A-WALL-FULL"] = "Wall", ["A-WALL-PART"] = "Wall",
+                ["S-CONC-BEAM"] = "Beam", ["S-CONC-COL"] = "Column", ["S-CONC-SLAB"] = "Slab",
+                ["S-CONC-FNDN"] = "Foundation", ["S-CONC-WALL"] = "Wall",
+                ["S-STEEL-BEAM"] = "Beam", ["S-STEEL-COL"] = "Column",
+                ["S-STEL-BEAM"] = "Beam", ["S-STEL-COL"] = "Column",
+                ["S-CONC-FTG"] = "Foundation", ["S-CONC-PIER"] = "Column",
+                ["A-WALL-EXTR"] = "Wall", ["A-WALL-INTR"] = "Wall",
+                ["S-CONC-STAIR"] = "Stair", ["S-CONC-PILE"] = "Foundation",
+                ["S-STEEL-BRACE"] = "Brace", ["S-STEEL-TRUSS"] = "Beam",
+                ["S-TIMBER-BEAM"] = "Beam", ["S-TIMBER-COL"] = "Column",
+                ["S-REBAR"] = "Beam", ["S-MESH"] = "Slab",
+                ["A-ROOF-SLAB"] = "Slab", ["A-FLOOR-SLAB"] = "Slab",
             };
 
         /// <summary>MED-09: Structural model validation.</summary>

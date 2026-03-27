@@ -72,19 +72,20 @@ namespace StingTools.UI
         private static readonly Color SelectedBorder = AccentOrange;
         private static readonly Color HoverBg = Color.FromRgb(0xF0, 0xEC, 0xE8);
 
-        private static readonly SolidColorBrush BrBg = new(BgColor);
-        private static readonly SolidColorBrush BrPanel = new(PanelBg);
-        private static readonly SolidColorBrush BrHeader = new(HeaderBg);
-        private static readonly SolidColorBrush BrHeaderFg = new(HeaderFg);
-        private static readonly SolidColorBrush BrAccent = new(AccentOrange);
-        private static readonly SolidColorBrush BrText = new(TextPrimary);
-        private static readonly SolidColorBrush BrTextSec = new(TextSecondary);
-        private static readonly SolidColorBrush BrTextDim = new(TextDim);
-        private static readonly SolidColorBrush BrBorder = new(BorderColor);
-        private static readonly SolidColorBrush BrCatBg = new(CategoryBg);
-        private static readonly SolidColorBrush BrSelected = new(SelectedBg);
-        private static readonly SolidColorBrush BrSelectedBorder = new(SelectedBorder);
-        private static readonly SolidColorBrush BrHover = new(HoverBg);
+        private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+        private static readonly SolidColorBrush BrBg = FZ(BgColor);
+        private static readonly SolidColorBrush BrPanel = FZ(PanelBg);
+        private static readonly SolidColorBrush BrHeader = FZ(HeaderBg);
+        private static readonly SolidColorBrush BrHeaderFg = FZ(HeaderFg);
+        private static readonly SolidColorBrush BrAccent = FZ(AccentOrange);
+        private static readonly SolidColorBrush BrText = FZ(TextPrimary);
+        private static readonly SolidColorBrush BrTextSec = FZ(TextSecondary);
+        private static readonly SolidColorBrush BrTextDim = FZ(TextDim);
+        private static readonly SolidColorBrush BrBorder = FZ(BorderColor);
+        private static readonly SolidColorBrush BrCatBg = FZ(CategoryBg);
+        private static readonly SolidColorBrush BrSelected = FZ(SelectedBg);
+        private static readonly SolidColorBrush BrSelectedBorder = FZ(SelectedBorder);
+        private static readonly SolidColorBrush BrHover = FZ(HoverBg);
 
         // ── Element type catalog ────────────────────────────────────────
         private static List<ElementDef> BuildCatalog()

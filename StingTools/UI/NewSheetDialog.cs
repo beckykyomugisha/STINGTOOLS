@@ -14,7 +14,7 @@ using StingTools.Core;
 namespace StingTools.UI
 {
     /// <summary>
-    /// Naviate-style sheet creation dialog with editable Excel-like grid.
+    /// Sheet creation dialog with editable Excel-like grid.
     /// Shows all parameters bound to sheets, dependent views, scope boxes.
     /// Users can create one or many sheets in a single batch with full control
     /// over sheet number, name, discipline, title block, dependent views, and scope boxes.

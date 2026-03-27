@@ -57,6 +57,9 @@ namespace StingTools.UI
                 _param1 = param1 ?? "";
                 _param2 = param2 ?? "";
             }
+            // M-02 FIX: Clear stale ExtraParams from previous command to prevent
+            // unintended parameter bleed (e.g., AlignDirection from AlignTagsH affecting AutoTag)
+            ClearAllExtraParams();
         }
 
         public string GetName() => "STING Command Dispatcher";
@@ -85,6 +88,14 @@ namespace StingTools.UI
                 TaskDialog.Show("STING Tools",
                     "No document is open. Please open a Revit project first.");
                 return;
+            }
+
+            // PERF-CRIT: Run deferred morning briefing on first command after document open.
+            // This was previously in OnDocumentOpened where it blocked the UI thread for 5-30s.
+            if (Core.StingToolsApp._briefingPending)
+            {
+                try { Core.StingToolsApp.RunDeferredMorningBriefing(app.ActiveUIDocument.Document); }
+                catch (Exception mbEx) { Core.StingLog.Warn($"Deferred briefing: {mbEx.Message}"); }
             }
 
             try
@@ -196,6 +207,8 @@ namespace StingTools.UI
                     case "ReTag": RunCommand<Organise.ReTagCommand>(app); break;
                     case "DeleteTags": RunCommand<Organise.DeleteTagsCommand>(app); break;
                     case "RenumberTags": RunCommand<Organise.RenumberTagsCommand>(app); break;
+                    case "SmartNumbering":
+                    case "GraitecNumbering": RunCommand<Organise.SmartNumberingCommand>(app); break;
                     case "CopyTags": RunCommand<Organise.CopyTagsCommand>(app); break;
                     case "SwapTags": RunCommand<Organise.SwapTagsCommand>(app); break;
                     case "FixDuplicates": RunCommand<Organise.FixDuplicateTagsCommand>(app); break;
@@ -265,8 +278,8 @@ namespace StingTools.UI
                     // ── Orientation & text alignment ──
                     case "ToggleTagOrientation": RunCommand<Organise.ToggleTagOrientationCommand>(app); break;
                     case "FlipTags":
-                    case "FlipTagsH":
-                    case "FlipTagsV": RunCommand<Organise.FlipTagsCommand>(app); break;
+                    case "FlipTagsH": SetExtraParam("FlipDirection", "H"); RunCommand<Organise.FlipTagsCommand>(app); break;
+                    case "FlipTagsV": SetExtraParam("FlipDirection", "V"); RunCommand<Organise.FlipTagsCommand>(app); break;
                     case "AlignTextLeft":
                     case "AlignTextCenter":
                     case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
@@ -768,11 +781,8 @@ namespace StingTools.UI
                     case "ExcelLinkExport": RunCommand<Temp.ExcelLinkExportCommand>(app); break;
                     case "AutoTaggerToggle": RunCommand<Core.AutoTaggerToggleCommand>(app); break;
 
-                    // ── Theme ──
-                    case "CycleTheme":
-                        string next = UI.ThemeManager.CycleTheme();
-                        Autodesk.Revit.UI.TaskDialog.Show("Theme", $"Theme set to: {next}");
-                        break;
+                    // Phase 74c: CycleTheme handled directly in StingDockPanel.xaml.cs Cmd_Click()
+                    // which returns before dispatching to this handler. This case is dead code.
 
                     // ════════════════════════════════════════════════════════
                     // CREATE TAB (ISO 19650 tag creation)
@@ -783,6 +793,45 @@ namespace StingTools.UI
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "ConfigEditor": RunCommand<Tags.ConfigEditorCommand>(app); break;
                     case "GuidedDataEditor": RunCommand<Tags.GuidedDataEditorCommand>(app); break;
+                    case "DisciplineProfiles":
+                    {
+                        var profiles = Core.TagConfig.DisciplineProfiles;
+                        if (profiles == null || profiles.Count == 0)
+                        {
+                            var td = new TaskDialog("STING Discipline Profiles");
+                            td.MainInstruction = "No discipline profiles configured";
+                            td.MainContent = "Add a DISCIPLINE_PROFILES section to project_config.json to define per-discipline token defaults and validation rules.\n\n"
+                                + "Example:\n\"DISCIPLINE_PROFILES\": {\n  \"M\": { \"AllowedSysCodes\": [\"HVAC\",\"CHW\"], \"DefaultProd\": \"EQP\" }\n}";
+                            td.Show();
+                        }
+                        else
+                        {
+                            var sb = new System.Text.StringBuilder();
+                            foreach (var kvp in profiles)
+                            {
+                                sb.AppendLine($"DISC = {kvp.Key}:");
+                                var p = kvp.Value;
+                                if (p.AllowedSysCodes?.Count > 0)
+                                    sb.AppendLine($"  Allowed SYS: {string.Join(", ", p.AllowedSysCodes)}");
+                                if (p.AllowedFuncCodes?.Count > 0)
+                                    sb.AppendLine($"  Allowed FUNC: {string.Join(", ", p.AllowedFuncCodes)}");
+                                if (!string.IsNullOrEmpty(p.DefaultProd))
+                                    sb.AppendLine($"  Default PROD: {p.DefaultProd}");
+                                if (!string.IsNullOrEmpty(p.DefaultStatus))
+                                    sb.AppendLine($"  Default STATUS: {p.DefaultStatus}");
+                                if (p.ValidationStrictness)
+                                    sb.AppendLine($"  Strict validation: ON");
+                                if (p.RequiredTokens?.Count > 0)
+                                    sb.AppendLine($"  Required tokens: {string.Join(", ", p.RequiredTokens)}");
+                                sb.AppendLine();
+                            }
+                            var td = new TaskDialog("STING Discipline Profiles");
+                            td.MainInstruction = $"{profiles.Count} discipline profile(s) loaded";
+                            td.MainContent = sb.ToString();
+                            td.Show();
+                        }
+                        break;
+                    }
                     case "TagConfig": RunCommand<Tags.TagConfigCommand>(app); break;
                     case "SyncParamSchema": RunCommand<Tags.SyncParameterSchemaCommand>(app); break;
                     case "AddParamRemap": RunCommand<Tags.AddParamRemapCommand>(app); break;
@@ -1570,7 +1619,8 @@ namespace StingTools.UI
                     case "WorkflowPreset_DocumentPackage":
                     case "WorkflowPreset_ProjectKickoff":
                     {
-                        string presetName = _commandTag.Replace("WorkflowPreset_", "");
+                        // Phase 74: Use local `tag` not instance `_commandTag` to prevent race condition
+                        string presetName = tag.Replace("WorkflowPreset_", "");
                         SetExtraParam("WorkflowPresetName", presetName);
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
@@ -1610,20 +1660,17 @@ namespace StingTools.UI
                     case "RunWorkflow_DrawingIssue":
                     case "RunWorkflow_SpatialQA":
                     {
-                        string wfName = _commandTag.Replace("RunWorkflow_", "")
-                            .Replace("Sync", " Sync").Replace("Health", " Health")
-                            .Replace("Data", " Data").Replace("Readiness", " Readiness")
-                            .Replace("Tagging", " Tagging").Replace("Kickoff", " Kickoff")
-                            .Replace("Package", " Package").Replace("Meeting", " Meeting")
-                            .Replace("Prep", " Prep").Replace("Coordination", " Coordination")
-                            .Replace("Stage", " Stage").Replace("Gate", " Gate")
-                            .Replace("Fix", " Fix").Replace("Cycle", " Cycle")
-                            .Replace("Clash", " Clash").Replace("Federated", " Federated")
-                            .Replace("Model", " Model").Replace("Audit", " Audit")
-                            .Replace("Day", " Day").Replace("End Of", "End of")
-                            .Replace("COBie", "COBie ").Replace("Drawing", "Drawing ")
-                            .Replace("Spatial", "Spatial ").Replace("Issue", " Issue");
-                        SetExtraParam("WorkflowPresetName", wfName.Trim());
+                        // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
+                        string rawName = _commandTag.Replace("RunWorkflow_", "");
+                        var sb = new System.Text.StringBuilder(rawName.Length + 10);
+                        for (int ci = 0; ci < rawName.Length; ci++)
+                        {
+                            char ch = rawName[ci];
+                            if (ci > 0 && char.IsUpper(ch) && !char.IsUpper(rawName[ci - 1]))
+                                sb.Append(' ');
+                            sb.Append(ch);
+                        }
+                        SetExtraParam("WorkflowPresetName", sb.ToString().Trim());
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
@@ -1739,8 +1786,10 @@ namespace StingTools.UI
                     // Standards / Compliance (wired to StandardsEngine.cs commands)
                     case "ISO19650Checker": RunCommand<Temp.Iso19650DeepComplianceCommand>(app); break;
                     case "BS1192Checker": RunCommand<Temp.Bs7671ComplianceCommand>(app); break;
-                    case "COBieValidator": RunCommand<Temp.StandardsDashboardCommand>(app); break;
-                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    // H-02 FIX: Corrected dispatch mismatches (COBieValidator→COBieDataSummary, Uniclass not Unicode)
+                    case "COBieValidator": RunCommand<Temp.COBieDataSummaryCommand>(app); break;
+                    case "UniclassValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break;
+                    case "UnicodeValidator": RunCommand<Temp.UniclassClassifyCommand>(app); break; // Legacy alias
                     case "NamingConventionAudit": RunCommand<Docs.SheetNamingCheckCommand>(app); break;
                     case "ClassificationAudit": RunCommand<Temp.UniclassClassifyCommand>(app); break;
 
@@ -2572,6 +2621,9 @@ namespace StingTools.UI
             _conditions.Clear();
             _scopeIsView = true;
             _overwriteMode = false;
+            // Phase 74: Clear cross-document stale ElementId references
+            _clonedTagLayout = null;
+            _clonedSourceViewName = null;
         }
 
         private static void ViewIsolateSelected(UIApplication app)
@@ -2592,34 +2644,15 @@ namespace StingTools.UI
             uidoc.ActiveView.HideElementsTemporary(ids);
         }
 
+        // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
+        // direct instance method in Revit 2025+ API (this plugin targets net8.0-windows).
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             try
             {
-                // EnableTemporaryViewMode is not available as a direct instance
-                // method on View in all Revit API versions — use reflection with
-                // proper exception unwrapping to avoid masking the real error.
-                var view = uidoc.ActiveView;
-                var method = view.GetType().GetMethod("EnableTemporaryViewMode",
-                    new[] { typeof(TemporaryViewMode) });
-                if (method != null)
-                {
-                    try
-                    {
-                        method.Invoke(view, new object[] { TemporaryViewMode.RevealHiddenElements });
-                    }
-                    catch (System.Reflection.TargetInvocationException tie) when (tie.InnerException != null)
-                    {
-                        // Unwrap reflection wrapper to surface the real Revit exception
-                        throw tie.InnerException;
-                    }
-                }
-                else
-                {
-                    TaskDialog.Show("Reveal", "Reveal hidden elements is not available in this Revit version.");
-                }
+                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
@@ -2735,10 +2768,16 @@ namespace StingTools.UI
                 TaskDialog.Show("Select Hosts", "No host elements found for selected tags.");
         }
 
+        // Phase 75: Track which document the memory slots belong to
+        private static string _memoryDocPath = "";
+
         private static void SaveSelectionMemory(UIApplication app, string slot)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
+            // Phase 75: Clear slots if document changed since last save
+            if (_memoryDocPath != curDoc) { _memorySlots.Clear(); _memoryDocPath = curDoc; }
             _memorySlots[slot] = uidoc.Selection.GetElementIds()
                 .Select(id => id).ToList();
             StingLog.Info($"Selection saved to {slot}: {_memorySlots[slot].Count} elements");
@@ -2748,6 +2787,15 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
+            string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
+            // Phase 75: Reject load if document changed since slots were saved
+            if (_memoryDocPath != curDoc)
+            {
+                TaskDialog.Show("Memory", "Selection memory was saved in a different document.\nSlots have been cleared.");
+                _memorySlots.Clear();
+                _memoryDocPath = curDoc;
+                return;
+            }
             if (_memorySlots.TryGetValue(slot, out var ids))
             {
                 uidoc.Selection.SetElementIds(ids);
@@ -3432,13 +3480,10 @@ namespace StingTools.UI
 
             Color color = new Color(r, g, b);
 
-            FillPatternElement solidFill = null;
-            foreach (FillPatternElement fpe in new FilteredElementCollector(uidoc.Document)
-                .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>())
-            {
-                try { if (fpe.GetFillPattern().IsSolidFill) { solidFill = fpe; break; } }
-                catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
-            }
+            // Phase 74: Use cached solid fill pattern instead of redundant collector
+            var solidFillId = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
+            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
+                ? uidoc.Document.GetElement(solidFillId) as FillPatternElement : null;
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {

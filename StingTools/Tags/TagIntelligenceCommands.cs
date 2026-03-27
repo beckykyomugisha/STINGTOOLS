@@ -41,11 +41,12 @@ namespace StingTools.Tags
         /// </summary>
         public static List<Element> CollectTaggable(Document doc)
         {
-            var known = new HashSet<string>(TagConfig.DiscMap.Keys);
-            return new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .Where(e => known.Contains(ParameterHelpers.GetCategoryName(e)))
-                .ToList();
+            // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on all model elements
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            return coll.ToList();
         }
 
         /// <summary>
@@ -131,8 +132,9 @@ namespace StingTools.Tags
                     root = JsonConvert.DeserializeObject<Dictionary<string, object>>(existing)
                         ?? new Dictionary<string, object>();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StingLog.Warn($"Config parse fallback: {ex.Message}");
                     root = new Dictionary<string, object>();
                 }
             }
@@ -301,8 +303,9 @@ namespace StingTools.Tags
                     root = JsonConvert.DeserializeObject<Dictionary<string, object>>(existing)
                         ?? new Dictionary<string, object>();
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StingLog.Warn($"Config parse fallback: {ex.Message}");
                     root = new Dictionary<string, object>();
                 }
             }

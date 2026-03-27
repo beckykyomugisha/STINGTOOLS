@@ -12,7 +12,7 @@ using StingTools.UI;
 namespace StingTools.Tags
 {
     /// <summary>
-    /// Naviate-style "Combine Parameters" command with interactive selection.
+    /// "Combine Parameters" command with interactive selection.
     ///
     /// Presents a multi-step dialog where the user:
     ///   Step 1: Chooses a mode (All Containers, Universal Only, Discipline Only, Pick Containers)
@@ -135,11 +135,22 @@ namespace StingTools.Tags
             foreach (var g in activeGroups)
                 writesPerGroup[g.GroupCode] = 0;
 
+            // PERF-006 FIX: Collect elements once, count from list instead of second collector
+            var elements = collector.ToList();
+            int elementCount = 0;
+            foreach (var el in elements)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (knownCategories.Contains(cat)) elementCount++;
+            }
+
+            var progress = UI.StingProgressDialog.Show("STING — Combine Parameters", elementCount);
+
             using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
             {
                 tx.Start();
 
-                foreach (Element el in collector)
+                foreach (Element el in elements)
                 {
                     // GAP-WS-01: Skip elements on worksets owned by other users
                     if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
@@ -170,6 +181,19 @@ namespace StingTools.Tags
                     }
 
                     totalElements++;
+
+                    // AUTO-R2: Progress reporting and cancellation
+                    if (progress != null)
+                    {
+                        progress.Increment($"Element {totalElements}: {cat}");
+                        if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
+                        {
+                            tx.RollBack();
+                            progress.Close();
+                            TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
+                            return Result.Cancelled;
+                        }
+                    }
 
                     // Bridge native params before reading tokens
                     try { NativeParamMapper.MapAll(doc, el); }
@@ -255,6 +279,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            progress?.Close(); // AUTO-R2: Close progress dialog
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

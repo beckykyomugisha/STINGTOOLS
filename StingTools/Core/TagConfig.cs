@@ -125,6 +125,10 @@ namespace StingTools.Core
         public int EmptyFuncCount { get; private set; }
         /// <summary>PERF-02: Inline count of elements with empty PROD after pipeline.</summary>
         public int EmptyProdCount { get; private set; }
+        /// <summary>PERF-R13: Count of elements that defaulted to LOC=BLD1 (throttled from per-element warnings).</summary>
+        public int DefaultLocCount { get; set; }
+        /// <summary>PERF-R13: Count of elements that defaulted to ZONE=Z01 (throttled from per-element warnings).</summary>
+        public int DefaultZoneCount { get; set; }
 
         /// <summary>PERF-02: Track empty FUNC/PROD inline during tagging loop to avoid post-loop re-scan.</summary>
         public void RecordEmptyTokens(string func, string prod)
@@ -621,10 +625,9 @@ namespace StingTools.Core
 
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
         /// Detects contradictory function/product combinations like FUNC=SUP with PROD=WC.</summary>
-        private static string ValidateFuncProdPair(string func, string prod, string disc)
-        {
-            // Define incompatible FUNC→PROD pairs (function cannot produce these product types)
-            var incompatiblePairs = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+        // PERF: Static readonly to avoid per-call Dictionary+HashSet allocation
+        private static readonly Dictionary<string, HashSet<string>> _incompatibleFuncProdPairs =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
                 { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
@@ -640,7 +643,9 @@ namespace StingTools.Core
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
 
-            if (incompatiblePairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
+        private static string ValidateFuncProdPair(string func, string prod, string disc)
+        {
+            if (_incompatibleFuncProdPairs.TryGetValue(func, out var badProds) && badProds.Contains(prod))
                 return $"FUNC '{func}' is incompatible with PROD '{prod}' — check discipline assignment";
 
             return null;
@@ -791,6 +796,28 @@ namespace StingTools.Core
     }
 
     /// <summary>
+    /// Per-discipline tagging profile defining token defaults and validation constraints.
+    /// Loaded from DISCIPLINE_PROFILES in project_config.json.
+    /// </summary>
+    public class DisciplineProfile
+    {
+        /// <summary>Default DISC code for this profile (e.g., "M").</summary>
+        public string DefaultDisc { get; set; }
+        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedSysCodes { get; set; } = new List<string>();
+        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
+        /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
+        public string DefaultProd { get; set; }
+        /// <summary>Default STATUS value for this discipline.</summary>
+        public string DefaultStatus { get; set; }
+        /// <summary>When true, SYS/FUNC must be in AllowedSysCodes/AllowedFuncCodes.</summary>
+        public bool ValidationStrictness { get; set; }
+        /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
+        public List<string> RequiredTokens { get; set; } = new List<string>();
+    }
+
+    /// <summary>
     /// Ported from tag_config.py — project-level ISO 19650 token lookup tables.
     /// Loads from project_config.json; falls back to built-in defaults that mirror
     /// Sheet 02-TAG-FAMILY-CONFIG from the STINGTOOLS template workbook.
@@ -821,6 +848,62 @@ namespace StingTools.Core
         public static string TagSuffix { get; internal set; } = "";
 
         /// <summary>
+        /// Per-discipline tagging profiles loaded from DISCIPLINE_PROFILES in project_config.json.
+        /// Key is discipline code (e.g., "M", "E", "P"). Provides token defaults and validation constraints.
+        /// </summary>
+        public static Dictionary<string, DisciplineProfile> DisciplineProfiles { get; internal set; }
+            = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Returns the discipline profile for the given discipline code, or null if none is defined.
+        /// </summary>
+        public static DisciplineProfile GetDisciplineProfile(string disc)
+        {
+            if (string.IsNullOrEmpty(disc)) return null;
+            return DisciplineProfiles.TryGetValue(disc, out var profile) ? profile : null;
+        }
+
+        /// <summary>
+        /// Validates token values against discipline profile constraints.
+        /// Returns a list of validation error messages (empty if all valid).
+        /// </summary>
+        public static List<string> ValidateAgainstProfile(string disc, string sys, string func, string prod)
+        {
+            var errors = new List<string>();
+            var profile = GetDisciplineProfile(disc);
+            if (profile == null) return errors;
+
+            if (profile.AllowedSysCodes != null && profile.AllowedSysCodes.Count > 0
+                && !string.IsNullOrEmpty(sys)
+                && !profile.AllowedSysCodes.Any(c => string.Equals(c, sys, StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add($"SYS '{sys}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedSysCodes)}");
+            }
+
+            if (profile.AllowedFuncCodes != null && profile.AllowedFuncCodes.Count > 0
+                && !string.IsNullOrEmpty(func)
+                && !profile.AllowedFuncCodes.Any(c => string.Equals(c, func, StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add($"FUNC '{func}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedFuncCodes)}");
+            }
+
+            if (profile.ValidationStrictness)
+            {
+                if (profile.RequiredTokens != null)
+                {
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "SYS", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(sys))
+                        errors.Add($"SYS is required for DISC '{disc}'");
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "FUNC", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(func))
+                        errors.Add($"FUNC is required for DISC '{disc}'");
+                    if (profile.RequiredTokens.Any(t => string.Equals(t, "PROD", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(prod))
+                        errors.Add($"PROD is required for DISC '{disc}'");
+                }
+            }
+
+            return errors;
+        }
+
+        /// <summary>
         /// Historical separators that have been used in this project.
         /// TagIsComplete will try these if the current separator doesn't produce
         /// the expected number of tokens, allowing tags created with old separators
@@ -849,6 +932,16 @@ namespace StingTools.Core
         /// <summary>Phase 40: Configurable cost rates CSV filename (via COST_RATES_FILE config key).
         /// Defaults to "cost_rates_5d.csv". Allows per-phase or per-region cost files.</summary>
         public static string CostRatesFileName { get; internal set; } = "cost_rates_5d.csv";
+
+        // Phase 77: Custom title block family for sheet operations
+        public static string PreferredTitleBlockFamily { get; set; }
+
+        // Phase 77: Configurable sheet margins (mm)
+        public static double SheetMarginLeftMm { get; set; } = 15.0;
+        public static double SheetMarginRightMm { get; set; } = 55.0;
+        public static double SheetMarginTopMm { get; set; } = 10.0;
+        public static double SheetMarginBottomMm { get; set; } = 15.0;
+        public static double SheetMarginGapMm { get; set; } = 8.0;
 
         /// <summary>FUT-01: SEQ namespace range allocation per linked model.
         /// Loaded from SEQ_RANGE_ALLOCATION in project_config.json.
@@ -921,16 +1014,30 @@ namespace StingTools.Core
             return null;
         }
 
-        /// <summary>R4-B: Generic double config getter for project_config.json numeric values.</summary>
+        /// <summary>R4-B: Generic double config getter — reads from cached config, not disk.
+        /// Falls back to LoadFromFile-parsed values where possible.</summary>
+        private static Newtonsoft.Json.Linq.JObject _cachedConfigObj;
+        private static string _cachedConfigPath;
+        private static DateTime _cachedConfigModified;
+
         internal static double GetConfigDouble(string key, double defaultValue)
         {
             try
             {
                 string path = ConfigSource;
                 if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return defaultValue;
-                string json = System.IO.File.ReadAllText(path);
-                var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
-                var token = obj[key];
+
+                // Use cached JObject if file hasn't changed
+                var lastWrite = System.IO.File.GetLastWriteTimeUtc(path);
+                if (_cachedConfigObj == null || _cachedConfigPath != path || _cachedConfigModified != lastWrite)
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    _cachedConfigObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    _cachedConfigPath = path;
+                    _cachedConfigModified = lastWrite;
+                }
+
+                var token = _cachedConfigObj[key];
                 if (token == null) return defaultValue;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float) return (double)token;
                 if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return (long)token;
@@ -1078,7 +1185,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
                 return fullTag;
 
-            string[] parts = fullTag.Split(ParamRegistry.Separator[0]);
+            char sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator[0] : '-';
+            string[] parts = fullTag.Split(sep);
             if (parts.Length < 8) return fullTag;
 
             var visible = new List<string>();
@@ -1168,7 +1276,7 @@ namespace StingTools.Core
         public static string RevDefault { get; internal set; }
 
         /// <summary>Reverse lookup: category name → SYS code. Built lazily from SysMap.</summary>
-        private static Dictionary<string, List<string>> _reverseSysMap;
+        private static volatile Dictionary<string, List<string>> _reverseSysMap;
 
         static TagConfig()
         {
@@ -1238,6 +1346,7 @@ namespace StingTools.Core
                     "TRADE_DURATION_OVERRIDES","SEQ_RANGE_ALLOCATION",
                     "CDE_SHARED_MIN_COMPLIANCE","CDE_PUBLISHED_MIN_COMPLIANCE",
                     "DD_SCHEDULE","DD_REQUIREMENTS",
+                    "TITLE_BLOCK_FAMILY","SHEET_MARGINS",
                     "DISCIPLINE_PROFILES","FORMULA_CACHE_TTL_MINUTES","GRID_CACHE_TTL_MINUTES",
                     "SLA_THRESHOLDS","AUTO_SAVE_WARNING_BASELINE","AUTO_SAVE_BASELINE_ON_REVISION",
                     "DISCIPLINE_LEADS","WARNING_SUPPRESS_PATTERNS","AUTO_TAGGER_DISC_FILTER",
@@ -1382,6 +1491,25 @@ namespace StingTools.Core
                     + ISO19650Validator.CustomZoneCodes.Count;
                 if (customCount > 0)
                     StingLog.Info($"TagConfig: loaded {customCount} custom validator codes from project_config.json");
+
+                // Per-discipline tagging profiles
+                DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
+                var profilesDict = TryDeserialize<Dictionary<string, DisciplineProfile>>(data, "DISCIPLINE_PROFILES");
+                if (profilesDict != null)
+                {
+                    foreach (var kvp in profilesDict)
+                    {
+                        var p = kvp.Value;
+                        if (p != null)
+                        {
+                            if (string.IsNullOrEmpty(p.DefaultDisc))
+                                p.DefaultDisc = kvp.Key; // Use the dictionary key as DefaultDisc if not explicitly set
+                            DisciplineProfiles[kvp.Key] = p;
+                        }
+                    }
+                    if (DisciplineProfiles.Count > 0)
+                        StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profile(s): {string.Join(", ", DisciplineProfiles.Keys)}");
+                }
 
                 // HC-001: Configurable proximity radius for CopyTokensFromNearest
                 ProximityRadiusFt = 10.0; // default 10 ft
@@ -1550,6 +1678,36 @@ namespace StingTools.Core
                     else if (asbrObj is string asbrs) AutoSaveBaselineOnRevision = asbrs.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
+                // Phase 77: Custom title block family
+                PreferredTitleBlockFamily = null;
+                if (data.TryGetValue("TITLE_BLOCK_FAMILY", out object tbfObj) && tbfObj is string tbfStr
+                    && !string.IsNullOrWhiteSpace(tbfStr))
+                    PreferredTitleBlockFamily = tbfStr.Trim();
+
+                // Phase 77: Configurable sheet margins
+                SheetMarginLeftMm = 15.0;
+                SheetMarginRightMm = 55.0;
+                SheetMarginTopMm = 10.0;
+                SheetMarginBottomMm = 15.0;
+                SheetMarginGapMm = 8.0;
+                if (data.TryGetValue("SHEET_MARGINS", out object smObj) && smObj != null)
+                {
+                    try
+                    {
+                        var smDict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, double>>(
+                            Newtonsoft.Json.JsonConvert.SerializeObject(smObj));
+                        if (smDict != null)
+                        {
+                            if (smDict.TryGetValue("Left", out double ml)) SheetMarginLeftMm = ml;
+                            if (smDict.TryGetValue("Right", out double mr)) SheetMarginRightMm = mr;
+                            if (smDict.TryGetValue("Top", out double mt)) SheetMarginTopMm = mt;
+                            if (smDict.TryGetValue("Bottom", out double mb)) SheetMarginBottomMm = mb;
+                            if (smDict.TryGetValue("Gap", out double mg)) SheetMarginGapMm = mg;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse SHEET_MARGINS: {ex.Message}"); }
+                }
+
                 ConfigSource = path;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
 
@@ -1587,6 +1745,7 @@ namespace StingTools.Core
             TagSuffix = string.Empty;
             CategorySkipList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             CategoryForceSys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
             LocPatterns = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 { "BLD1", new List<string> { "building 1", "main building", "block a", "primary" } },
@@ -1615,6 +1774,13 @@ namespace StingTools.Core
             _seqSchemeChanged = false;
             _seqSchemeWarned = false;
             _activePresetName = null;
+            // Phase 77: Reset title block and sheet margin settings
+            PreferredTitleBlockFamily = null;
+            SheetMarginLeftMm = 15.0;
+            SheetMarginRightMm = 55.0;
+            SheetMarginTopMm = 10.0;
+            SheetMarginBottomMm = 15.0;
+            SheetMarginGapMm = 8.0;
             // Load category warnings and paragraph containers from LABEL_DEFINITIONS
             LoadCategoryWarningsFromLabels();
         }
@@ -2310,7 +2476,9 @@ namespace StingTools.Core
             HashSet<string> existingTags = null,
             TagCollisionMode collisionMode = TagCollisionMode.AutoIncrement,
             TaggingStats stats = null,
-            string cachedRev = null)
+            string cachedRev = null,
+            List<Phase> cachedPhases = null,
+            ElementId lastPhaseId = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
@@ -2392,13 +2560,12 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(prod))
                 prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
 
-            // Log when defaults are applied for LOC/ZONE
+            // PERF-R13: Throttle default-value warnings — record count, not per-element message.
+            // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
             if (stats != null)
             {
-                if (loc == "BLD1" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-                    stats.RecordWarning($"Element {el.Id}: LOC defaulted to BLD1");
-                if (zone == "Z01" && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-                    stats.RecordWarning($"Element {el.Id}: ZONE defaulted to Z01");
+                if (loc == "BLD1") stats.DefaultLocCount++;
+                if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
             // GAP-025: Validate-before-write — guarantee all 7 tokens are non-empty
@@ -2479,7 +2646,7 @@ namespace StingTools.Core
                         string overflowMsg = $"SEQ overflow in collision loop: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
                         StingLog.Warn(overflowMsg);
                         stats?.RecordWarning(overflowMsg);
-                        sequenceCounters[seqKey] = maxSeq;
+                        sequenceCounters[seqKey] = preIncrementValue; // Rollback to pre-collision value, not maxSeq
                         return false; // Skip element to prevent duplicate tags
                     }
                     seq = BuildSeqString(sequenceCounters[seqKey], CurrentSeqScheme, seqSchemeContext);
@@ -2544,6 +2711,8 @@ namespace StingTools.Core
                 // Update collision index with actual tag
                 if (existingTags != null)
                     existingTags.Add(tag);
+                // LOGIC-003 FIX: Guard against actualTokens having fewer than 8 elements
+                if (actualTokens.Length < 8) return false;
                 // Also update the SEQ key variables to reflect actual stored values
                 // so collision detection uses the right tag string
                 disc = actualTokens[0];
@@ -2556,12 +2725,16 @@ namespace StingTools.Core
                 seq = actualTokens[7];
             }
 
-            // Final validation: ensure tag has correct segment count before writing
-            string[] tagParts = tag.Split(new[] { Separator }, StringSplitOptions.None);
-            if (tagParts.Length < 8)
+            // PERF-R11: Validate segment count by counting separators instead of allocating split array.
+            // Previously: String.Split created 8-12 string array per element (50K = 400K+ allocations).
+            int sepCount = 0;
+            char sepCh = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
+            for (int ci = 0; ci < tag.Length; ci++)
+                if (tag[ci] == sepCh) sepCount++;
+            if (sepCount < 7) // 8 segments = 7 separators
             {
-                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {tagParts.Length} segments (expected 8)");
-                stats?.RecordWarning($"Element {el.Id}: malformed tag with {tagParts.Length} segments — skipped");
+                StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
                 return false;
             }
             bool tagWriteSucceeded = ParameterHelpers.SetString(el, ParamRegistry.TAG1, tag, overwrite: true);
@@ -2592,7 +2765,10 @@ namespace StingTools.Core
                 string existingStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                 if (string.IsNullOrEmpty(existingStatus) || overwriteTokens)
                 {
-                    string status = PhaseAutoDetect.DetectStatus(doc, el);
+                    // PERF-003 FIX: Use cached phase list when available to avoid per-element FilteredElementCollector
+                    string status = (cachedPhases != null && lastPhaseId != null)
+                        ? PhaseAutoDetect.DetectStatusCached(doc, el, cachedPhases, lastPhaseId)
+                        : PhaseAutoDetect.DetectStatus(doc, el);
                     if (string.IsNullOrEmpty(status)) status = "NEW";
                     if (overwriteTokens)
                         ParameterHelpers.SetString(el, ParamRegistry.STATUS, status, overwrite: true);
@@ -5230,14 +5406,23 @@ namespace StingTools.Core
             }
 
             // TAG7A-TAG7F get plain section text for tag family labels
+            // PERF-R12: Track consecutive empties — once 4+ empty sections hit, skip rest.
+            // Threshold raised from 2 to 4 so sections D/E/F are still written when C is empty.
             string[] sectionParams = ParamRegistry.TAG7Sections;
             string[] sectionValues = tag7.AllSections;
+            int consecutiveEmpty = 0;
             for (int i = 0; i < sectionParams.Length && i < sectionValues.Length; i++)
             {
                 if (!string.IsNullOrEmpty(sectionValues[i]))
                 {
+                    consecutiveEmpty = 0;
                     if (ParameterHelpers.SetString(el, sectionParams[i], sectionValues[i], overwrite))
                         written++;
+                }
+                else
+                {
+                    consecutiveEmpty++;
+                    if (consecutiveEmpty >= 4) break; // Skip remaining empty trailing sections
                 }
             }
 
@@ -6250,6 +6435,110 @@ namespace StingTools.Core
             }
 
             return sb.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Plugin hook system — extensibility framework for third-party command registration.
+    /// Third-party plugins register hooks at Revit startup; STING invokes them at defined points.
+    /// </summary>
+    public static class StingPluginHooks
+    {
+        /// <summary>Hook invoked before each element is tagged in RunFullPipeline.</summary>
+        public static event Action<Document, Element> BeforeTagElement;
+
+        /// <summary>Hook invoked after each element is tagged in RunFullPipeline.</summary>
+        public static event Action<Document, Element, string> AfterTagElement;
+
+        /// <summary>Hook for custom token validation. Return null if valid, error string if invalid.</summary>
+        public static event Func<string, string, string> ValidateToken;
+
+        /// <summary>Hook invoked before a workflow preset executes.</summary>
+        public static event Action<string> BeforeWorkflow;
+
+        /// <summary>Hook invoked after a workflow preset completes.</summary>
+        public static event Action<string, bool> AfterWorkflow;
+
+        /// <summary>Registry of third-party commands keyed by tag string.</summary>
+        private static readonly Dictionary<string, Func<UIApplication, string>> _customCommands
+            = new Dictionary<string, Func<UIApplication, string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Register a custom command that can be invoked from workflows or dispatch.</summary>
+        public static void RegisterCommand(string tag, Func<UIApplication, string> handler)
+        {
+            if (string.IsNullOrWhiteSpace(tag) || handler == null) return;
+            _customCommands[tag] = handler;
+            StingLog.Info($"StingPluginHooks: registered custom command '{tag}'");
+        }
+
+        /// <summary>Unregister a custom command.</summary>
+        public static void UnregisterCommand(string tag)
+        {
+            if (_customCommands.Remove(tag))
+                StingLog.Info($"StingPluginHooks: unregistered command '{tag}'");
+        }
+
+        /// <summary>Try to execute a registered custom command. Returns (found, resultMessage).</summary>
+        public static (bool Found, string Result) TryExecuteCommand(string tag, UIApplication app)
+        {
+            if (_customCommands.TryGetValue(tag, out var handler))
+            {
+                try
+                {
+                    string result = handler(app);
+                    return (true, result ?? "OK");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"StingPluginHooks: command '{tag}' failed", ex);
+                    return (true, $"Error: {ex.Message}");
+                }
+            }
+            return (false, null);
+        }
+
+        /// <summary>Get list of registered custom command tags.</summary>
+        public static IReadOnlyList<string> RegisteredCommands => _customCommands.Keys.ToList().AsReadOnly();
+
+        /// <summary>Fire the BeforeTagElement hook (safe — catches exceptions).</summary>
+        internal static void FireBeforeTag(Document doc, Element el)
+        {
+            try { BeforeTagElement?.Invoke(doc, el); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.BeforeTag: {ex.Message}"); }
+        }
+
+        /// <summary>Fire the AfterTagElement hook (safe — catches exceptions).</summary>
+        internal static void FireAfterTag(Document doc, Element el, string tag)
+        {
+            try { AfterTagElement?.Invoke(doc, el, tag); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.AfterTag: {ex.Message}"); }
+        }
+
+        /// <summary>Run custom validators. Returns first error or null.</summary>
+        internal static string RunCustomValidators(string tokenName, string value)
+        {
+            if (ValidateToken == null) return null;
+            foreach (var handler in ValidateToken.GetInvocationList().Cast<Func<string, string, string>>())
+            {
+                try
+                {
+                    string error = handler(tokenName, value);
+                    if (error != null) return error;
+                }
+                catch (Exception ex) { StingLog.Warn($"StingPluginHooks.ValidateToken: {ex.Message}"); }
+            }
+            return null;
+        }
+
+        /// <summary>Clear all hooks and registered commands (called on plugin shutdown).</summary>
+        public static void ClearAll()
+        {
+            BeforeTagElement = null;
+            AfterTagElement = null;
+            ValidateToken = null;
+            BeforeWorkflow = null;
+            AfterWorkflow = null;
+            _customCommands.Clear();
         }
     }
 }

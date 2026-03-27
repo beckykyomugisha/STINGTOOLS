@@ -298,6 +298,26 @@ namespace StingTools.Core
         /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
         [JsonProperty("minWarningHealthScore")]
         public int? MinWarningHealthScore { get; set; }
+
+        /// <summary>Phase 69: Fallback command if this step fails.</summary>
+        [JsonProperty("fallbackStep")]
+        public string FallbackStep { get; set; }
+
+        /// <summary>Phase 69: Condition logic for multiple conditions: "AND" (all must pass) or "OR" (any must pass).</summary>
+        [JsonProperty("conditionLogic")]
+        public string ConditionLogic { get; set; } = "AND";
+
+        /// <summary>Phase 69: Array of condition keys for compound condition evaluation.</summary>
+        [JsonProperty("conditions")]
+        public List<string> Conditions { get; set; }
+
+        /// <summary>Phase 69: Parallel execution group. Steps with same group number run concurrently.</summary>
+        [JsonProperty("parallelGroup")]
+        public int? ParallelGroup { get; set; }
+
+        /// <summary>Phase 69: Minimum data drop level required (1-4). Skip if current DD is below.</summary>
+        [JsonProperty("minDataDrop")]
+        public int? MinDataDrop { get; set; }
     }
 
     internal static class WorkflowEngine
@@ -353,7 +373,13 @@ namespace StingTools.Core
             foreach (var step in preset.Steps)
             {
                 if (ResolveCommand(step.CommandTag) == null)
-                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail");
+                {
+                    var closest = GetClosestCommandTags(step.CommandTag, 5);
+                    string suggestion = closest.Count > 0
+                        ? $" Did you mean: {string.Join(", ", closest)}"
+                        : "";
+                    issues.Add($"Step '{step.Label}': command tag '{step.CommandTag}' not found — step will fail.{suggestion}");
+                }
             }
 
             return (issues.Count == 0, issues);
@@ -394,6 +420,8 @@ namespace StingTools.Core
 
             // PERF-03: Cache stale-element check — avoid full scan per step
             bool? _cachedHasStale = null;
+            // PERF: Cache element count — doesn't change between workflow steps
+            int? cachedElemCount = null;
             bool cachedHasStale()
             {
                 if (_cachedHasStale.HasValue) return _cachedHasStale.Value;
@@ -437,11 +465,24 @@ namespace StingTools.Core
 
             bool previousStepSkipped = false;  // Phase 48: Track if previous step was skipped
 
+            // Plugin hook: notify third-party plugins before workflow execution
+            try { StingPluginHooks.BeforeWorkflow?.Invoke(preset.Name); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.BeforeWorkflow: {ex.Message}"); }
+
             try
             {
                 foreach (var step in preset.Steps)
                 {
                     stepNum++;
+
+                    // Phase 74: Local helper — records skip with audit trail + cascade flag
+                    void RecordSkip(string reason)
+                    {
+                        skipped++;
+                        previousStepSkipped = true;
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({reason})");
+                        stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                    }
 
                     if (EscapeChecker.IsEscapePressed())
                     {
@@ -462,80 +503,87 @@ namespace StingTools.Core
 
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
-                        if (step.Condition == "workshared" && !doc.IsWorkshared)
-                        {
-                            skipped++;
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)");
-                            continue;
-                        }
+                        // Normalize condition to lowercase for case-insensitive matching
+                        string cond = step.Condition.Trim().ToLowerInvariant();
+                        if (cond == "workshared" && !doc.IsWorkshared)
+                        { RecordSkip("not workshared"); continue; }
                         // GAP-02: Extended condition engine for workflow steps
-                        if (step.Condition == "has_links")
+                        if (cond == "has_links")
                         {
                             bool hasLinks = new FilteredElementCollector(doc)
                                 .OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
-                            if (!hasLinks) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no linked models)"); continue; }
+                            if (!hasLinks) { RecordSkip("no linked models"); continue; }
                         }
-                        if (step.Condition == "has_cad_imports")
+                        if (cond == "has_cad_imports")
                         {
                             bool hasCad = new FilteredElementCollector(doc)
                                 .OfClass(typeof(ImportInstance)).GetElementCount() > 0;
-                            if (!hasCad) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no CAD imports)"); continue; }
+                            if (!hasCad) { RecordSkip("no CAD imports"); continue; }
                         }
-                        if (step.Condition == "has_stale")
+                        if (cond == "has_stale")
                         {
-                            if (!cachedHasStale()) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)"); continue; }
+                            if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
                         // Phase 39: WorkflowStep.RequiresWorksharedModel condition
                         if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        {
-                            skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (not workshared)"); continue;
-                        }
-                        // Phase 39: Element count range condition
+                        { RecordSkip("not workshared"); continue; }
+                        // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
-                            int elemCount = new FilteredElementCollector(doc)
+                            cachedElemCount ??= new FilteredElementCollector(doc)
                                 .WhereElementIsNotElementType().GetElementCount();
+                            int elemCount = cachedElemCount.Value;
                             if (step.MinElementCount.HasValue && elemCount < step.MinElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements < min {step.MinElementCount.Value})"); continue; }
+                            { RecordSkip($"{elemCount} elements < min {step.MinElementCount.Value}"); continue; }
                             if (step.MaxElementCount.HasValue && elemCount > step.MaxElementCount.Value)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED ({elemCount} elements > max {step.MaxElementCount.Value})"); continue; }
+                            { RecordSkip($"{elemCount} elements > max {step.MaxElementCount.Value}"); continue; }
                         }
 
                         // Phase 47: Warning-aware workflow conditions
-                        if (step.Condition == "has_warnings")
+                        if (cond == "has_warnings")
                         {
                             try
                             {
                                 int warnCount = doc.GetWarnings()?.Count ?? 0;
-                                if (warnCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no warnings)"); continue; }
+                                if (warnCount == 0) { RecordSkip("no warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_critical_warnings")
+                        if (cond == "has_critical_warnings")
                         {
                             try
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int critical = warnReport.BySeverity.GetValueOrDefault(WarningSeverity.Critical);
-                                if (critical == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no critical warnings)"); continue; }
+                                if (critical == 0) { RecordSkip("no critical warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_critical_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_open_issues")
+                        if (cond == "has_open_issues")
                         {
                             try
                             {
                                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                                 string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
-                                if (!File.Exists(issuesPath)) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no issues file)"); continue; }
+                                if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
                                 string raw = File.ReadAllText(issuesPath);
                                 int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
-                                if (openCount == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no open issues)"); continue; }
+                                if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
                         }
+                        // Phase 75: has_overdue_issues — skip if no SLA-breaching issues
+                        if (cond == "has_overdue_issues")
+                        {
+                            try
+                            {
+                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
+                                if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
+                            }
+                            catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
+                        }
 
-                        if (step.Condition == "has_untagged")
+                        if (cond == "has_untagged")
                         {
                             bool hasUntagged = false;
                             try
@@ -547,11 +595,11 @@ namespace StingTools.Core
                                 hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
                             }
                             catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
-                            if (!hasUntagged) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no untagged elements)"); continue; }
+                            if (!hasUntagged) { RecordSkip("no untagged elements"); continue; }
                         }
 
                         // Phase 66c: Additional workflow condition operators
-                        if (step.Condition == "has_placeholders")
+                        if (cond == "has_placeholders")
                         {
                             bool hasPlaceholders = false;
                             try
@@ -567,30 +615,66 @@ namespace StingTools.Core
                                 });
                             }
                             catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
-                            if (!hasPlaceholders) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no placeholder tokens)"); continue; }
+                            if (!hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
-                        if (step.Condition == "has_container_gaps")
+                        if (cond == "has_container_gaps")
                         {
                             try
                             {
                                 var scan = ComplianceScan.Scan(doc);
                                 double containerPct = scan?.ContainerCompletePct ?? 100;
                                 if (containerPct >= 95)
-                                { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (containers {containerPct:F0}% complete)"); continue; }
+                                { RecordSkip($"containers {containerPct:F0}% complete"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_container_gaps check: {ex.Message}"); }
                         }
-                        if (step.Condition == "compliance_above_90")
+                        if (cond == "compliance_above_90")
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 90)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 90%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% ≥ 90%"); continue; }
                         }
-                        if (step.Condition == "compliance_below_50")
+                        if (cond == "compliance_below_50")
                         {
                             double pct = cachedCompliancePct();
                             if (pct >= 50)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% ≥ 50%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% ≥ 50%"); continue; }
+                        }
+                    }
+
+                    // Phase 69: Compound condition evaluation (AND/OR logic)
+                    if (step.Conditions != null && step.Conditions.Count > 0)
+                    {
+                        bool isOr = string.Equals(step.ConditionLogic, "OR", StringComparison.OrdinalIgnoreCase);
+                        var results = new List<bool>();
+                        foreach (var cond in step.Conditions)
+                        {
+                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale));
+                        }
+
+                        bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
+                        if (!compoundResult)
+                        {
+                            skipped++;
+                            string logic = isOr ? "OR" : "AND";
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compound {logic}: {string.Join(", ", step.Conditions)})");
+                            previousStepSkipped = true;
+                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            continue;
+                        }
+                    }
+
+                    // Phase 69: Data drop level gate
+                    if (step.MinDataDrop.HasValue)
+                    {
+                        int currentDD = CalculateCurrentDataDrop(doc, cachedCompliancePct());
+                        if (currentDD < step.MinDataDrop.Value)
+                        {
+                            skipped++;
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (current DD{currentDD} < required DD{step.MinDataDrop.Value})");
+                            previousStepSkipped = true;
+                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            continue;
                         }
 
                         // Phase 68: New workflow conditions for BIM coordinator daily operations
@@ -870,6 +954,10 @@ namespace StingTools.Core
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
+            // Plugin hook: notify third-party plugins after workflow completion
+            try { StingPluginHooks.AfterWorkflow?.Invoke(preset.Name, failed == 0 && !cancelled); }
+            catch (Exception ex) { StingLog.Warn($"StingPluginHooks.AfterWorkflow: {ex.Message}"); }
+
             // Phase 48: Persist last-workflow memory for "Repeat Last" feature
             _lastWorkflowName = preset.Name;
             _lastWorkflowResult = $"{passed}/{preset.Steps.Count} OK, {failed} failed";
@@ -1000,6 +1088,22 @@ namespace StingTools.Core
             IExternalCommand cmd = ResolveCommand(tag);
             if (cmd == null)
             {
+                // Try plugin hook custom commands before failing
+                try
+                {
+                    var uiApp = data?.Application;
+                    if (uiApp != null)
+                    {
+                        var (found, result) = StingPluginHooks.TryExecuteCommand(tag, uiApp);
+                        if (found)
+                        {
+                            StingLog.Info($"WorkflowEngine: custom command '{tag}' executed via plugin hook: {result}");
+                            return result != null && result.StartsWith("Error:") ? Result.Failed : Result.Succeeded;
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"WorkflowEngine: plugin hook command '{tag}' lookup failed: {ex.Message}"); }
+
                 // M-05 FIX: Log error (not just warn) with clear diagnostic message
                 // so workflow preset JSON typos are immediately obvious
                 StingLog.Error($"WorkflowEngine: unknown command tag '{tag}' — check workflow preset JSON for typos. " +
@@ -1083,6 +1187,7 @@ namespace StingTools.Core
                 case "NamingAudit": return new Temp.NamingConventionAuditCommand();
                 case "CrossModelClash": return new Temp.CrossModelClashCommand();
                 case "MEPClearance": return new Temp.MEPClearanceValidationCommand();
+                // Phase 74: Removed duplicate "AutoAssignTemplates" case (already at line 1096)
                 case "BatchPrintSheets": return new Docs.BatchPrintSheetsCommand();
 
                 // Data Pipeline
@@ -1157,6 +1262,8 @@ namespace StingTools.Core
                 case "CompletenessDashboard": return new Tags.CompletenessDashboardCommand();
                 case "TagRegisterExport":    return new Organise.TagRegisterExportCommand();
                 case "AuditTagsCSV":         return new Organise.AuditTagsCSVCommand();
+                case "SmartNumbering":
+                case "GraitecNumbering":     return new Organise.SmartNumberingCommand();
                 case "ModelHealthDashboard": return new BIMManager.ModelHealthDashboardCommand();
 
                 // Phase 72: Doc/Schedule Automation
@@ -1260,12 +1367,205 @@ namespace StingTools.Core
                 case "ImportTagMap":            return new BIMManager.ImportTagMapCommand();
                 case "BatchPlaceTags":          return new Tags.BatchPlaceTagsCommand();
 
+                // Phase 67: Additional command tag resolutions
+                case "TagSelector":             return new Select.TagSelectorCommand();
+                case "ExportTagPositions":      return new Tags.ExportTagPositionsCommand();
+
+                // Phase 74: Missing resolutions that break sector-specific workflow presets
+                case "RoomSpaceAudit":          return new Temp.RoomSpaceAuditCommand();
+                case "HandoverManual":          return new Docs.HandoverManualCommand();
+                case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
+                case "EscalateOverdueActions":  return new BIMManager.EscalateOverdueActionsCommand();
+
                 default: return null;
             }
         }
 
+        /// <summary>Returns the closest matching valid command tags for a given invalid tag.</summary>
+        private static List<string> GetClosestCommandTags(string invalidTag, int maxResults)
+        {
+            // All valid command tags from the ResolveCommand switch
+            var allTags = new[]
+            {
+                "LoadParams", "MasterSetup", "ProjectSetup", "CreateBLEMaterials", "CreateMEPMaterials",
+                "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
+                "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
+                "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
+                "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
+                "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
+                "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
+                "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
+                "BatchCreateViews", "BatchCreateSheets", "DrawingRegister", "AutoNumberSheets",
+                "SpatialConnectivityAudit", "NamingAudit", "CrossModelClash", "MEPClearance", "BatchPrintSheets",
+                "DynamicBindings", "BOQExport", "BatchFamilyParams", "FamilyParamProcessor",
+                "AutoCreateLegends", "CreateBEP", "UpdateBEP", "ExportBEP", "COBieExport", "DocumentBriefcase",
+                "WorkflowTrend", "CreateRevision", "RevisionDashboard", "AutoRevisionCloud",
+                "AutoRevisionOnTagChange", "RevisionTagIntegration", "RevisionExport",
+                "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
+                "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
+                "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
+                "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
+                "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
+                "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
+                "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
+                "WarningsCompliance", "BIMCoordinationCenter", "CompletenessDashboard", "TagRegisterExport",
+                "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
+                "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
+                "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
+                "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+                "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
+                "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
+                "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
+                "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
+                "WarningsSelectElements", "WarningsSuppress",
+                "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
+                "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
+                "ScheduleAudit", "SchemaValidate", "SheetComplianceCheck", "SheetNamingCheck",
+                "TemplateAudit", "TemplateComplianceScore", "ClashDetection", "BatchSystemPush",
+                "ExportSheetRegister", "COBieHandoverExport", "GenerateBEP", "WarningsMonitor",
+                "DeleteUnusedViews", "ExportCSV", "SheetOrganizer", "ViewOrganizer", "SyncOverrides",
+                "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
+                "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
+                "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
+                "TagSelector", "ExportTagPositions"
+            };
+
+            string lowerInvalid = invalidTag.ToLowerInvariant();
+            return allTags
+                .Select(t => new { Tag = t, Dist = LevenshteinDistance(lowerInvalid, t.ToLowerInvariant()) })
+                .OrderBy(x => x.Dist)
+                .Take(maxResults)
+                .Select(x => x.Tag)
+                .ToList();
+        }
+
+        /// <summary>Simple Levenshtein distance for command tag suggestion.</summary>
+        private static int LevenshteinDistance(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
+            if (string.IsNullOrEmpty(b)) return a.Length;
+            int[,] d = new int[a.Length + 1, b.Length + 1];
+            for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+            for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+            for (int i = 1; i <= a.Length; i++)
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                }
+            return d[a.Length, b.Length];
+        }
+
         /// <summary>FIX-7.1: Public wrapper so NLPCommandProcessorCommand can call it.</summary>
         public static IExternalCommand ResolveCommandPublic(string tag) => ResolveCommand(tag);
+
+        // ── Phase 69: Compound condition evaluation ─────────────────────
+
+        /// <summary>Evaluate a single named condition against the current document state.</summary>
+        private static bool EvaluateSingleCondition(Document doc, string condition,
+            Func<double> cachedCompliancePct, Func<bool> cachedHasStale)
+        {
+            try
+            {
+                switch (condition)
+                {
+                    case "has_stale": return cachedHasStale();
+                    case "has_warnings": return (doc.GetWarnings()?.Count ?? 0) > 0;
+                    case "has_critical_warnings":
+                        var wr = WarningsEngine.ScanWarnings(doc);
+                        return wr.BySeverity.GetValueOrDefault(WarningSeverity.Critical) > 0;
+                    case "has_open_issues":
+                        string iPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        if (!File.Exists(iPath)) return false;
+                        return File.ReadAllText(iPath).Contains("\"OPEN\"");
+                    case "has_overdue_issues":
+                    {
+                        string oiPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        if (!File.Exists(oiPath)) return false;
+                        var slaHrs = new Dictionary<string, int>
+                            { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
+                        var oiArr = JArray.Parse(File.ReadAllText(oiPath));
+                        foreach (var oi in oiArr)
+                        {
+                            if (oi["status"]?.ToString() != "OPEN") continue;
+                            string pri = oi["priority"]?.ToString() ?? "MEDIUM";
+                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created"]?.ToString(), out var created)) continue;
+                            int ageH = (int)(DateTime.Now - created).TotalHours;
+                            int threshold = slaHrs.GetValueOrDefault(pri, 336);
+                            if (ageH > threshold) return true;
+                        }
+                        return false;
+                    }
+                    case "has_untagged":
+                        var cats = SharedParamGuids.AllCategoryEnums;
+                        var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                        if (cats != null && cats.Length > 0) coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats)));
+                        return coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                    case "has_placeholders":
+                        var cats2 = SharedParamGuids.AllCategoryEnums;
+                        var coll2 = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                        if (cats2 != null && cats2.Length > 0) coll2.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats2)));
+                        return coll2.Any(e => { string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1); return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t); });
+                    case "has_container_gaps":
+                        var scan = ComplianceScan.Scan(doc);
+                        return (scan?.ContainerCompletePct ?? 100) < 95;
+                    case "has_links":
+                        return new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount() > 0;
+                    case "compliance_above_90": return cachedCompliancePct() >= 90;
+                    case "compliance_below_50": return cachedCompliancePct() < 50;
+                    case "compliance_above_80": return cachedCompliancePct() >= 80;
+                    case "compliance_below_70": return cachedCompliancePct() < 70;
+                    case "workshared": return doc.IsWorkshared;
+                    case "has_high_severity_warnings":
+                        var wrHigh = WarningsEngine.ScanWarnings(doc);
+                        return wrHigh.BySeverity.GetValueOrDefault(WarningSeverity.Critical) > 0
+                            || wrHigh.BySeverity.GetValueOrDefault(WarningSeverity.High) > 0;
+                    case "has_cad_imports":
+                        return new FilteredElementCollector(doc).OfClass(typeof(ImportInstance)).GetElementCount() > 0;
+                    case "has_rooms":
+                        return new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
+                            .WhereElementIsNotElementType().GetElementCount() > 0;
+                    case "has_sheets":
+                        return new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount() > 0;
+                    default:
+                        // WF-001 FIX: Unknown conditions now return false (fail-safe).
+                        // Previously returned true, silently executing gated steps on typos.
+                        StingLog.Warn($"WorkflowEngine: unknown condition '{condition}' — step will be SKIPPED (fail-safe)");
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WorkflowEngine: condition '{condition}' failed: {ex.Message}");
+                return false; // Fail-safe: skip step on condition evaluation error (consistent with WF-001)
+            }
+        }
+
+        /// <summary>
+        /// Calculate current ISO 19650 data drop level based on compliance percentage.
+        /// DD1=30%, DD2=60%, DD3=85%, DD4=95%.
+        /// </summary>
+        public static int CalculateCurrentDataDrop(Document doc, double compliancePct)
+        {
+            if (compliancePct >= 95) return 4; // DD4: Handover
+            if (compliancePct >= 85) return 3; // DD3: Detailed Design
+            if (compliancePct >= 60) return 2; // DD2: Concept Design
+            if (compliancePct >= 30) return 1; // DD1: Brief
+            return 0; // Pre-DD1
+        }
+
+        /// <summary>Get data drop compliance thresholds (configurable per project).</summary>
+        public static (int shared, int published) GetDataDropGates(int dataDrop)
+        {
+            return dataDrop switch
+            {
+                1 => (30, 50),
+                2 => (60, 75),
+                3 => (80, 90),
+                4 => (95, 98),
+                _ => (70, 90),
+            };
+        }
 
         /// <summary>Get all available presets (built-in + user JSON files).</summary>
         public static List<WorkflowPreset> GetAvailablePresets()

@@ -1105,26 +1105,51 @@ namespace StingTools.Model
                 });
             }
 
-            // Build connections by proximity
+            // PERF-R9: Build connections using spatial grid instead of O(n^2) all-pairs check.
+            // Previously: 500 elements → 125,000 distance calculations.
+            // Now: grid-based proximity → ~O(n) average case with sparse structural layouts.
+            double maxTol = ConnectionToleranceFt * 3; // Maximum tolerance (beam endpoint)
+            double cellSize = maxTol * 2; // Grid cell size — guarantees all neighbors are in adjacent cells
+            var grid = new Dictionary<(int, int, int), List<int>>();
             for (int i = 0; i < nodes.Count; i++)
             {
-                for (int j = i + 1; j < nodes.Count; j++)
-                {
-                    double dist = nodes[i].Location.DistanceTo(nodes[j].Location);
-                    // Different tolerance for different connection types
-                    double tol = ConnectionToleranceFt;
-                    // Beam-to-column connections can be at beam endpoints
-                    if ((nodes[i].NodeType == StructuralElementType.Beam ||
-                         nodes[j].NodeType == StructuralElementType.Beam))
-                    {
-                        // Check beam endpoints too
-                        tol = ConnectionToleranceFt * 3; // ~450mm for beam endpoint tolerance
-                    }
+                var loc = nodes[i].Location;
+                int gx = (int)Math.Floor(loc.X / cellSize);
+                int gy = (int)Math.Floor(loc.Y / cellSize);
+                int gz = (int)Math.Floor(loc.Z / cellSize);
+                var key = (gx, gy, gz);
+                if (!grid.ContainsKey(key)) grid[key] = new List<int>();
+                grid[key].Add(i);
+            }
 
-                    if (dist < tol)
+            // Check only neighboring cells (3x3x3 = 27 cells max)
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var loc = nodes[i].Location;
+                int gx = (int)Math.Floor(loc.X / cellSize);
+                int gy = (int)Math.Floor(loc.Y / cellSize);
+                int gz = (int)Math.Floor(loc.Z / cellSize);
+
+                for (int dx = -1; dx <= 1; dx++)
+                for (int dy = -1; dy <= 1; dy++)
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    var nkey = (gx + dx, gy + dy, gz + dz);
+                    if (!grid.TryGetValue(nkey, out var neighbors)) continue;
+                    foreach (int j in neighbors)
                     {
-                        nodes[i].ConnectedTo.Add(nodes[j]);
-                        nodes[j].ConnectedTo.Add(nodes[i]);
+                        if (j <= i) continue; // Avoid duplicates (j > i only)
+                        double dist = nodes[i].Location.DistanceTo(nodes[j].Location);
+                        double tol = ConnectionToleranceFt;
+                        if (nodes[i].NodeType == StructuralElementType.Beam ||
+                            nodes[j].NodeType == StructuralElementType.Beam)
+                            tol = ConnectionToleranceFt * 3;
+
+                        if (dist < tol)
+                        {
+                            nodes[i].ConnectedTo.Add(nodes[j]);
+                            nodes[j].ConnectedTo.Add(nodes[i]);
+                        }
                     }
                 }
             }
@@ -2181,6 +2206,11 @@ namespace StingTools.Model
                 if (level == null) return StructuralModelResult.Fail("No levels found.");
 
                 int totalCols = (baysX + 1) * (baysY + 1);
+                // AUTO-R3: Add progress reporting for multi-storey frame creation.
+                // Previously no feedback for 5x5 grid × 10 storeys = 1100+ beams + 275 columns.
+                int totalExpected = totalCols * storeyCount + // columns per storey
+                    (baysX * (baysY + 1) + baysY * (baysX + 1)) * storeyCount; // beams per storey
+                var frameProgress = UI.StingProgressDialog.Show("STING — Grid Frame", totalExpected);
                 StingLog.Info($"StructuralModelingEngine: Creating {baysX}×{baysY} grid frame " +
                     $"({totalCols} columns, {storeyCount} storeys)");
 
@@ -2239,6 +2269,7 @@ namespace StingTools.Model
                                             ModelWorksetAssigner.Assign(_doc, beam);
                                             totalResult.CreatedIds.Add(beam.Id);
                                             totalResult.BeamsCreated++;
+                                            frameProgress?.Increment($"Storey {s}: X-beam ({ix},{iy})");
                                         }
                                         catch (Exception ex)
                                         {
@@ -2323,6 +2354,7 @@ namespace StingTools.Model
                     }
                 }
 
+                frameProgress?.Close(); // AUTO-R3: Close progress dialog
                 sw.Stop();
                 totalResult.Duration = sw.Elapsed;
                 totalResult.Summary = $"Created {baysX}×{baysY} structural grid frame ({storeyCount} storeys): " +

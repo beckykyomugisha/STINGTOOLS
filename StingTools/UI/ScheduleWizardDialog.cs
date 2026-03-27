@@ -47,15 +47,16 @@ namespace StingTools.UI
         private static readonly Color SelectedBg = Color.FromRgb(0xFD, 0xF0, 0xDD);
         private static readonly Color HoverBg = Color.FromRgb(0xF0, 0xF0, 0xF0);
 
-        private static readonly SolidColorBrush BrBg = new(BgColor);
-        private static readonly SolidColorBrush BrPanel = new(PanelBg);
-        private static readonly SolidColorBrush BrHeader = new(HeaderBg);
-        private static readonly SolidColorBrush BrAccent = new(AccentOrange);
-        private static readonly SolidColorBrush BrFg = new(FgDark);
-        private static readonly SolidColorBrush BrFgDim = new(FgDim);
-        private static readonly SolidColorBrush BrBorder = new(BorderClr);
-        private static readonly SolidColorBrush BrSelected = new(SelectedBg);
-        private static readonly SolidColorBrush BrWhite = new(Colors.White);
+        private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+        private static readonly SolidColorBrush BrBg = FZ(BgColor);
+        private static readonly SolidColorBrush BrPanel = FZ(PanelBg);
+        private static readonly SolidColorBrush BrHeader = FZ(HeaderBg);
+        private static readonly SolidColorBrush BrAccent = FZ(AccentOrange);
+        private static readonly SolidColorBrush BrFg = FZ(FgDark);
+        private static readonly SolidColorBrush BrFgDim = FZ(FgDim);
+        private static readonly SolidColorBrush BrBorder = FZ(BorderClr);
+        private static readonly SolidColorBrush BrSelected = FZ(SelectedBg);
+        private static readonly SolidColorBrush BrWhite = FZ(Colors.White);
         private static readonly SolidColorBrush BrTransparent = Brushes.Transparent;
 
         /// <summary>

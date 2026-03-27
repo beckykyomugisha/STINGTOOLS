@@ -25,23 +25,24 @@ namespace StingTools.UI
     /// </summary>
     internal static class StingResultPanel
     {
-        // ── Theme ──
-        private static readonly SolidColorBrush BrHeader = new(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly SolidColorBrush BrAccent = new(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly SolidColorBrush BrBg     = new(Color.FromRgb(0xF7, 0xF7, 0xF9));
+        // ── Theme (M-07 FIX: All brushes frozen for thread safety) ──
+        private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+        private static readonly SolidColorBrush BrHeader = FZ(new(Color.FromRgb(0x1A, 0x23, 0x7E)));
+        private static readonly SolidColorBrush BrAccent = FZ(new(Color.FromRgb(0xE8, 0x91, 0x2D)));
+        private static readonly SolidColorBrush BrBg     = FZ(new(Color.FromRgb(0xF7, 0xF7, 0xF9)));
         private static readonly SolidColorBrush BrWhite  = Brushes.White;
-        private static readonly SolidColorBrush BrGreen  = new(Color.FromRgb(0x2E, 0x7D, 0x32));
-        private static readonly SolidColorBrush BrAmber  = new(Color.FromRgb(0xF5, 0x7F, 0x17));
-        private static readonly SolidColorBrush BrRed    = new(Color.FromRgb(0xC6, 0x28, 0x28));
-        private static readonly SolidColorBrush BrBlue   = new(Color.FromRgb(0x15, 0x65, 0xC0));
-        private static readonly SolidColorBrush BrGrey   = new(Color.FromRgb(0x75, 0x75, 0x75));
-        private static readonly SolidColorBrush BrPurple = new(Color.FromRgb(0x6A, 0x1B, 0x9A));
-        private static readonly SolidColorBrush BrTeal   = new(Color.FromRgb(0x00, 0x69, 0x5C));
-        private static readonly SolidColorBrush BrLightGreen = new(Color.FromRgb(0xE8, 0xF5, 0xE9));
-        private static readonly SolidColorBrush BrLightRed   = new(Color.FromRgb(0xFF, 0xEB, 0xEE));
-        private static readonly SolidColorBrush BrLightAmber = new(Color.FromRgb(0xFF, 0xF8, 0xE1));
-        private static readonly SolidColorBrush BrLightBlue  = new(Color.FromRgb(0xE3, 0xF2, 0xFD));
-        private static readonly SolidColorBrush BrSectionBg  = new(Color.FromRgb(0xF0, 0xF0, 0xF5));
+        private static readonly SolidColorBrush BrGreen  = FZ(new(Color.FromRgb(0x2E, 0x7D, 0x32)));
+        private static readonly SolidColorBrush BrAmber  = FZ(new(Color.FromRgb(0xF5, 0x7F, 0x17)));
+        private static readonly SolidColorBrush BrRed    = FZ(new(Color.FromRgb(0xC6, 0x28, 0x28)));
+        private static readonly SolidColorBrush BrBlue   = FZ(new(Color.FromRgb(0x15, 0x65, 0xC0)));
+        private static readonly SolidColorBrush BrGrey   = FZ(new(Color.FromRgb(0x75, 0x75, 0x75)));
+        private static readonly SolidColorBrush BrPurple = FZ(new(Color.FromRgb(0x6A, 0x1B, 0x9A)));
+        private static readonly SolidColorBrush BrTeal   = FZ(new(Color.FromRgb(0x00, 0x69, 0x5C)));
+        private static readonly SolidColorBrush BrLightGreen = FZ(new(Color.FromRgb(0xE8, 0xF5, 0xE9)));
+        private static readonly SolidColorBrush BrLightRed   = FZ(new(Color.FromRgb(0xFF, 0xEB, 0xEE)));
+        private static readonly SolidColorBrush BrLightAmber = FZ(new(Color.FromRgb(0xFF, 0xF8, 0xE1)));
+        private static readonly SolidColorBrush BrLightBlue  = FZ(new(Color.FromRgb(0xE3, 0xF2, 0xFD)));
+        private static readonly SolidColorBrush BrSectionBg  = FZ(new(Color.FromRgb(0xF0, 0xF0, 0xF5)));
 
         // ══════════════════════════════════════════════════════════════════
         //  BUILDER API

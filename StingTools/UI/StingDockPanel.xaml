@@ -518,6 +518,7 @@
                                 <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="Orphans" Click="Cmd_Click" ToolTip="Find orphaned tags"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[Num]Renumb" Tag="RenumberTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click" ToolTip="Smart element numbering with template, grouping, and live preview"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout from current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[List]Apply Clone" Tag="ApplyClonedTags" Click="Cmd_Click" ToolTip="Apply cloned tag layout to current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
@@ -2157,6 +2158,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export existing structural elements to Excel schedule format"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="StrExcelTemplate" Click="Cmd_Click" ToolTip="Generate blank Excel template with data validation"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" ToolTip="Auto-design and place rebar per EC2 on selected elements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click" ToolTip="Smart element numbering with template, grouping, and live preview"/>
                                 </WrapPanel>
                                 <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>

@@ -27,8 +27,8 @@ namespace StingTools.UI
         private static StingCommandHandler _handler;
         private static StingDockPanel _instance;
 
-        private static readonly Dictionary<string, List<int>> SelectionMemory =
-            new Dictionary<string, List<int>>();
+        // Phase 74c: Removed dead SelectionMemory field — actual memory logic uses
+        // StingCommandHandler._memorySlots (Dictionary<string, List<ElementId>>)
 
         // ── Lazy tab loading state ────────────────────────────────────
         // Stores detached tab content keyed by tab index.

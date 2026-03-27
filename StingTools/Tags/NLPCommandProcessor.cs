@@ -436,10 +436,12 @@ namespace StingTools.Tags
                     suggestions.Add(("HIGH", "Load Parameters", "STING parameters not loaded — required before tagging"));
 
                 // Check tagged vs untagged
-                var taggable = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
-                    .ToList();
+                // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on entire model
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var taggableColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (catEnums != null && catEnums.Length > 0)
+                    taggableColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                var taggable = taggableColl.ToList();
 
                 int tagged = 0, untagged = 0;
                 foreach (var el in taggable)

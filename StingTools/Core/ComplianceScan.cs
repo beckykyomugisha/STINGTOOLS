@@ -24,6 +24,11 @@ namespace StingTools.Core
         /// <summary>Phase 78: Timestamp of last scan start for timeout recovery.</summary>
         private static DateTime _lastScanStart = DateTime.MinValue;
 
+        // PERF-R1: Static cached arrays to avoid per-element allocations in hot scan loop
+        // DI-001 FIX: Use mutable field so separator refreshes on cache invalidation
+        private static string[] _separatorArray;
+        private static readonly string[] _tokenKeys = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
+
         /// <summary>
         /// Quick compliance scan results.
         /// </summary>
@@ -96,7 +101,7 @@ namespace StingTools.Core
             /// Separate from CompliancePercent — an element can be "tagged" (TAG1 exists) but have empty
             /// discipline containers, which breaks COBie export and platform deliverables.</summary>
             public double ContainerCompletePct =>
-                TaggedComplete > 0 ? (TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
+                TaggedComplete > 0 ? Math.Max(0, TaggedComplete - ContainersMissing) * 100.0 / TaggedComplete : 0;
 
             /// <summary>RAG status: factors in both tagging AND revision completeness.</summary>
             public string RAGStatus
@@ -188,6 +193,11 @@ namespace StingTools.Core
                 _lastScanStart = DateTime.Now;
                 var result = new ComplianceResult { ScanTime = DateTime.Now };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
+                if (known.Count == 0)
+                {
+                    StingLog.Warn("ComplianceScan: DiscMap is empty — no categories to scan. Load TagConfig first.");
+                    return result;
+                }
 
                 try
                 {
@@ -199,6 +209,11 @@ namespace StingTools.Core
                     if (scanCatEnums != null && scanCatEnums.Length > 0)
                         scanColl.WherePasses(new ElementMulticategoryFilter(
                             new List<BuiltInCategory>(scanCatEnums)));
+                    // PERF-CRIT: Scan timeout — abort after 8 seconds to prevent blocking
+                    // UI thread on very large models (50K+ elements). Partial results still useful.
+                    var scanStart = DateTime.Now;
+                    const int ScanTimeoutMs = 8000;
+
                     foreach (Element elem in scanColl)
                     {
                         if (elem == null || !elem.IsValidObject) continue;
@@ -206,6 +221,16 @@ namespace StingTools.Core
                         if (!known.Contains(cat)) continue;
 
                         result.TotalElements++;
+
+                        // PERF-CRIT: Check timeout every 500 elements to avoid DateTime overhead
+                        if (result.TotalElements % 500 == 0 &&
+                            (DateTime.Now - scanStart).TotalMilliseconds > ScanTimeoutMs)
+                        {
+                            StingLog.Warn($"ComplianceScan: timeout at {result.TotalElements} elements " +
+                                $"({(DateTime.Now - scanStart).TotalMilliseconds:F0}ms). " +
+                                "Results are partial — run manually for full scan.");
+                            break;
+                        }
                         string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
                         if (!result.ByDisc.TryGetValue(disc, out var dd))
                         {
@@ -224,11 +249,22 @@ namespace StingTools.Core
                         else
                         {
                             // Parse tag segments to determine completeness
-                            string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
+                            // PERF-R1: Use cached separator array; replace LINQ Skip/Take/All with for-loop
+                            // DI-001: Rebuild separator array from ParamRegistry if null (first scan or after InvalidateCache)
+                            if (_separatorArray == null)
+                                _separatorArray = new[] { ParamRegistry.Separator };
+                            string[] parts = tag.Split(_separatorArray, StringSplitOptions.None);
                             int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                             int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
-                            bool hasCorrectSegments = parts.Length >= 8 + po + so
-                                && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+                            bool hasCorrectSegments = parts.Length >= 8 + po + so;
+                            if (hasCorrectSegments)
+                            {
+                                for (int si = po; si < po + 8; si++)
+                                {
+                                    if (string.IsNullOrWhiteSpace(parts[si]))
+                                    { hasCorrectSegments = false; break; }
+                                }
+                            }
 
                             if (!hasCorrectSegments)
                             {
@@ -254,15 +290,15 @@ namespace StingTools.Core
                                 if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
                                 if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
 
-                                string[] tokenKeys = new[] {"DISC","LOC","ZONE","LVL","SYS","FUNC","PROD","SEQ"};
-                                for (int ti = 0; ti < tokenKeys.Length && (ti + po) < parts.Length; ti++)
+                                // PERF-R1: Use static readonly token keys array instead of per-element allocation
+                                for (int ti = 0; ti < _tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
                                     string part = parts[ti + po];
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
                                         || part == "GEN" || part == "0000")
                                     {
-                                        if (result.EmptyTokenCounts.ContainsKey(tokenKeys[ti]))
-                                            result.EmptyTokenCounts[tokenKeys[ti]]++;
+                                        if (result.EmptyTokenCounts.ContainsKey(_tokenKeys[ti]))
+                                            result.EmptyTokenCounts[_tokenKeys[ti]]++;
                                     }
                                 }
                             }
@@ -437,8 +473,16 @@ namespace StingTools.Core
                         string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
                         int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                         int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
-                        bool hasCorrectSegments = parts.Length >= 8 + po + so
-                            && parts.Skip(po).Take(8).All(p => !string.IsNullOrWhiteSpace(p));
+                        // PERF-R10: Use for-loop instead of LINQ Skip/Take/All to match Scan() pattern
+                        bool hasCorrectSegments = false;
+                        if (parts.Length >= 8 + po + so)
+                        {
+                            hasCorrectSegments = true;
+                            for (int si = po; si < po + 8; si++)
+                            {
+                                if (string.IsNullOrWhiteSpace(parts[si])) { hasCorrectSegments = false; break; }
+                            }
+                        }
 
                         if (!hasCorrectSegments)
                             result.TaggedIncomplete++;
@@ -472,6 +516,8 @@ namespace StingTools.Core
                 _cached = null;
                 _cacheTime = DateTime.MinValue;
                 _incrementalCount = 0;
+                // DI-001 FIX: Null out separator so it's re-read from ParamRegistry on next scan
+                _separatorArray = null;
             }
         }
 
@@ -481,13 +527,16 @@ namespace StingTools.Core
 
         /// <summary>FUT-16: O(1) incremental compliance update instead of full O(n) rescan.
         /// Adjusts cached counters in-place when a single element's tag status changes.
-        /// Falls back to full rescan after 1000 incremental updates to prevent drift.</summary>
+        /// Falls back to full rescan after 1000 incremental updates to prevent drift.
+        /// NOTE: TotalElements is NOT adjusted — this method is only valid for status changes
+        /// on already-scanned elements. New elements require a full rescan.</summary>
         public static void IncrementalUpdate(string oldTag, string newTag, string disc)
         {
             lock (_cacheLock)
             {
                 if (_cached == null) return; // No cache to update
-                if (Interlocked.Increment(ref _incrementalCount) > MaxIncrementalUpdates)
+                // PERF-R1: Use plain increment inside lock (Interlocked unnecessary under lock)
+                if (++_incrementalCount > MaxIncrementalUpdates)
                 {
                     // Drift guard: force full rescan
                     _cached = null;
@@ -501,7 +550,8 @@ namespace StingTools.Core
                 bool wasComplete = wasTagged && TagConfig.TagIsComplete(oldTag);
                 bool isComplete = isTagged && TagConfig.TagIsComplete(newTag);
 
-                // Update untagged count
+                // CRIT-03: Guard all counter decrements to prevent negative values
+                // when IncrementalUpdate is called for new elements not in the original scan
                 if (!wasTagged && isTagged) _cached.Untagged = Math.Max(0, _cached.Untagged - 1);
                 else if (wasTagged && !isTagged) _cached.Untagged++;
 
@@ -526,8 +576,8 @@ namespace StingTools.Core
                     else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
                 }
 
-                // Refresh cache timestamp so it stays valid
-                _cacheTime = DateTime.UtcNow;
+                // PERF-R1: Fix DateTime.UtcNow → DateTime.Now to match Scan() and cache staleness check
+                _cacheTime = DateTime.Now;
             }
         }
 

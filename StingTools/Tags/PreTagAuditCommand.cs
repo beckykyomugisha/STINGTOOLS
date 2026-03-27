@@ -253,15 +253,16 @@ namespace StingTools.Tags
                 // Predict STATUS from Revit phases/worksets
                 string statusSource = "existing";
                 string currentStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                // PERF: Call DetectStatus once and reuse for both auto-detect and cross-validation
+                string phaseDetected = PhaseAutoDetect.DetectStatus(doc, el);
                 if (string.IsNullOrEmpty(currentStatus))
                 {
                     statusMissing++;
-                    string detectedStatus = PhaseAutoDetect.DetectStatus(doc, el);
-                    if (!string.IsNullOrEmpty(detectedStatus))
+                    if (!string.IsNullOrEmpty(phaseDetected))
                     {
                         statusWillAutoDetect++;
                         statusSource = "phase-auto";
-                        currentStatus = detectedStatus;
+                        currentStatus = phaseDetected;
                     }
                     else
                     {
@@ -271,9 +272,8 @@ namespace StingTools.Tags
                 }
                 else
                 {
-                    // Cross-validate: check if existing STATUS matches what phase detection would give
-                    string phaseStatus = PhaseAutoDetect.DetectStatus(doc, el);
-                    if (!string.IsNullOrEmpty(phaseStatus) && phaseStatus != currentStatus)
+                    // Cross-validate: check if existing STATUS matches phase detection
+                    if (!string.IsNullOrEmpty(phaseDetected) && phaseDetected != currentStatus)
                         phaseMismatches++;
                 }
                 if (!statusDistribution.ContainsKey(currentStatus))

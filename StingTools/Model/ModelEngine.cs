@@ -391,6 +391,11 @@ namespace StingTools.Model
             [BuiltInCategory.OST_FireAlarmDevices] = "MEP - Fire Protection",
         };
 
+        // Phase 75: Per-document workset ID cache to avoid redundant FilteredWorksetCollector scans
+        private static readonly Dictionary<string, Dictionary<string, int>> _wsIdCache = new();
+
+        public static void ClearCache() { lock (_wsIdCache) { _wsIdCache.Clear(); } }
+
         public static void Assign(Document doc, Element el)
         {
             if (el?.Category == null || !doc.IsWorkshared) return;
@@ -398,15 +403,23 @@ namespace StingTools.Model
             if (!Map.TryGetValue(bic, out var wsName)) return;
             try
             {
-                var ws = new FilteredWorksetCollector(doc)
-                    .OfKind(WorksetKind.UserWorkset)
-                    .ToWorksets()
-                    .FirstOrDefault(w => w.Name.Equals(wsName, StringComparison.OrdinalIgnoreCase));
-                if (ws == null) return;
+                string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+                Dictionary<string, int> docWsMap;
+                lock (_wsIdCache)
+                {
+                    if (!_wsIdCache.TryGetValue(docKey, out docWsMap))
+                    {
+                        docWsMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var w in new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset).ToWorksets())
+                            docWsMap[w.Name] = w.Id.IntegerValue;
+                        _wsIdCache[docKey] = docWsMap;
+                    }
+                }
+                if (!docWsMap.TryGetValue(wsName, out int wsIdVal)) return;
                 var p = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
                 {
-                    try { p.Set((int)ws.Id.IntegerValue); }
+                    try { p.Set(wsIdVal); }
                     catch (Exception ex) { StingLog.Warn($"WorksetAssign: {ex.Message}"); }
                 }
             }
@@ -1376,10 +1389,12 @@ namespace StingTools.Model
                 var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
                 if (ctx == null) { StingLog.Warn("AutoTagCreatedElements: PopulationContext.Build returned null"); return 0; }
 
+                // Phase 74d: Use BuildTagIndexAndCounters tuple (returns both tag index + SEQ counters)
+                // instead of separate BuildExistingTagIndex + BuildTagIndexAndCounters (was 2 full scans)
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                // Phase 74d: Use session-cached pipeline helpers instead of raw uncached loaders
                 var formulas = TagPipelineHelper.LoadFormulas();
-                var gridLines = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Grid)).Cast<Grid>().ToList();
+                var gridLines = TagPipelineHelper.LoadGridLines(doc);
 
                 using (var tx = new Transaction(doc, "STING MODEL: Auto-Tag Created Elements"))
                 {

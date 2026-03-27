@@ -170,7 +170,9 @@ namespace StingTools.UI
                 try
                 {
                     var color = (Color)ColorConverter.ConvertFromString(kvp.Value);
-                    resources[kvp.Key] = new SolidColorBrush(color);
+                    var brush = new SolidColorBrush(color);
+                    brush.Freeze(); // Thread safety for cross-thread WPF resource access
+                    resources[kvp.Key] = brush;
                 }
                 catch (Exception ex)
                 {

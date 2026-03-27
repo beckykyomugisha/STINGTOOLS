@@ -15,8 +15,7 @@ namespace StingTools.Docs
 {
     // ════════════════════════════════════════════════════════════════════════════
     //  DOCUMENTATION AUTOMATION ENGINE
-    //  Inspired by Naviate, Ideate, Glyph, and DiRoots — enhanced with
-    //  multi-layer intelligence for maximum automation.
+    //  Enhanced with multi-layer intelligence for maximum automation.
     //
     //  Commands:
     //    1. BatchCreateViewsCommand         — Create views from levels × disciplines × scope boxes
@@ -449,7 +448,7 @@ namespace StingTools.Docs
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  1. BATCH CREATE VIEWS — Naviate/Ideate-inspired with 7-layer intelligence
+    //  1. BATCH CREATE VIEWS — 7-layer intelligence
     //     Creates views from: Levels × Disciplines × ViewTypes × ScopeBoxes
     //     with auto-template assignment and dependent view support
     // ════════════════════════════════════════════════════════════════════
@@ -967,7 +966,7 @@ namespace StingTools.Docs
 
     // ════════════════════════════════════════════════════════════════════
     //  3. CREATE DEPENDENT VIEWS — One-click scope box dependents
-    //     (Naviate Quick Dependents + Ideate Apply Dependents)
+    //     Quick dependents creation + batch apply
     // ════════════════════════════════════════════════════════════════════
 
     [Transaction(TransactionMode.Manual)]
