@@ -464,54 +464,68 @@ namespace StingTools.UI
         {
             if (sender is not Button btn) return;
             string tag = btn.Tag?.ToString();
-            switch (tag)
+            try
             {
-                case "CreateFolders":
-                    int created = ProjectFolderEngine.CreateFolderStructure(_doc);
-                    MessageBox.Show($"Created {created} folders at:\n{ProjectFolderEngine.GetRootPath(_doc)}",
-                        "STING Folder Structure", MessageBoxButton.OK, MessageBoxImage.Information);
-                    RefreshData();
-                    break;
-                case "ImportFile":
-                    var dlg = new Microsoft.Win32.OpenFileDialog
-                    {
-                        Title = "Import file into STING project",
-                        Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg|BCF|*.bcfzip;*.bcf",
-                        Multiselect = true
-                    };
-                    if (dlg.ShowDialog() == true)
-                    {
-                        foreach (string file in dlg.FileNames)
-                        {
-                            string ext = Path.GetExtension(file).ToUpperInvariant().TrimStart('.');
-                            string targetFolder = "BRIEFCASE";
-                            if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
-                                targetFolder = fid;
-                            ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
-                        }
+                switch (tag)
+                {
+                    case "CreateFolders":
+                        int created = ProjectFolderEngine.CreateFolderStructure(_doc);
+                        MessageBox.Show($"Created {created} folders at:\n{ProjectFolderEngine.GetRootPath(_doc)}",
+                            "STING Folder Structure", MessageBoxButton.OK, MessageBoxImage.Information);
                         RefreshData();
-                    }
-                    break;
-                case "SetOutputDirectory":
-                    OutputLocationHelper.PromptSetPreferredDirectory();
-                    break;
-                case "Refresh":
-                    RefreshData();
-                    break;
-                case "StartWatch":
-                    ProjectFolderEngine.StartWatching(_doc, changedFile =>
-                    {
-                        // Auto-refresh on external file changes (dispatched to UI thread)
-                        try
+                        SetStatus($"Created {created} folders.");
+                        break;
+                    case "ImportFile":
+                        var dlg = new Microsoft.Win32.OpenFileDialog
                         {
-                            _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                            Title = "Import file into STING project",
+                            Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg|BCF|*.bcfzip;*.bcf",
+                            Multiselect = true
+                        };
+                        if (dlg.ShowDialog() == true)
+                        {
+                            int importCount = 0;
+                            foreach (string file in dlg.FileNames)
+                            {
+                                string ext = Path.GetExtension(file).ToUpperInvariant().TrimStart('.');
+                                string targetFolder = "BRIEFCASE";
+                                if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
+                                    targetFolder = fid;
+                                ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
+                                importCount++;
+                            }
+                            RefreshData();
+                            SetStatus($"Imported {importCount} file(s).");
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                    });
-                    MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
-                        "External file changes will auto-refresh the document list.",
-                        "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
-                    break;
+                        break;
+                    case "SetOutputDirectory":
+                        OutputLocationHelper.PromptSetPreferredDirectory();
+                        SetStatus("Output directory updated.");
+                        break;
+                    case "Refresh":
+                        RefreshData();
+                        SetStatus("Refreshed.");
+                        break;
+                    case "StartWatch":
+                        ProjectFolderEngine.StartWatching(_doc, changedFile =>
+                        {
+                            // Auto-refresh on external file changes (dispatched to UI thread)
+                            try
+                            {
+                                _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        });
+                        MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
+                            "External file changes will auto-refresh the document list.",
+                            "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocMgr header '{tag}': {ex.Message}");
+                SetStatus($"Error: {ex.Message}");
             }
         }
 
@@ -3476,7 +3490,15 @@ namespace StingTools.UI
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
                 ToolTip = GetButtonTooltip(label)
             };
-            btn.Click += handler;
+            btn.Click += (s, e) =>
+            {
+                try { handler(s, e); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr button '{label}': {ex.Message}");
+                    SetStatus($"Error: {ex.Message}");
+                }
+            };
             return btn;
         }
 
@@ -3490,7 +3512,15 @@ namespace StingTools.UI
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
                 ToolTip = GetButtonTooltip(label, op)
             };
-            btn.Click += (s, e) => { _selectedOperation = op; win.DialogResult = true; win.Close(); };
+            btn.Click += (s, e) =>
+            {
+                try { _selectedOperation = op; win.DialogResult = true; win.Close(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr dispatch '{op}': {ex.Message}");
+                    SetStatus($"Error dispatching {label}: {ex.Message}");
+                }
+            };
             return btn;
         }
 
@@ -3691,8 +3721,12 @@ namespace StingTools.UI
 
         private static void OpenSelected()
         {
-            if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
-                Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to open."); return; }
+            if (!File.Exists(item.FilePath))
+            { SetStatus($"File not found: {item.FilePath}"); return; }
+            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            SetStatus($"Opened: {Path.GetFileName(item.FilePath)}");
         }
 
         private static void OpenFolder(Document doc)
@@ -3708,7 +3742,8 @@ namespace StingTools.UI
 
         private static void RenameSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to rename."); return; }
             string currentName = Path.GetFileName(item.FilePath);
             string newName = PromptForText("Rename File", "Enter new filename:", currentName);
             if (!string.IsNullOrEmpty(newName) && newName != currentName)
@@ -3731,7 +3766,8 @@ namespace StingTools.UI
 
         private static void DeleteSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to delete."); return; }
             if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 ProjectFolderEngine.LogActivity(_doc, "DELETE", item.Id ?? item.Title, item.FilePath ?? "");
@@ -3743,7 +3779,8 @@ namespace StingTools.UI
 
         private static void MoveSelected(Document doc)
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to move."); return; }
             var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name} — {f.Description}").ToList();
             string pick = StingListPicker.Show("Move To Folder", "Select destination:", folders);
             if (string.IsNullOrEmpty(pick)) return;
@@ -4117,6 +4154,12 @@ namespace StingTools.UI
             int clashes = _allItems.Count(i => i.Category == "CLASH");
             string overdueStr = overdue > 0 ? $"  OVERDUE: {overdue}" : "";
             _statusText.Text = $"Root: {root}  |  {docs} docs  {issues} issues (open: {open}){overdueStr}  {revs} revisions  {clashes} clashes  |  Total: {_allItems.Count}";
+        }
+
+        /// <summary>Set a temporary status bar message visible to the user.</summary>
+        private static void SetStatus(string message)
+        {
+            if (_statusText != null) _statusText.Text = message;
         }
 
         // ══════════════════════════════════════════════════════════════════
