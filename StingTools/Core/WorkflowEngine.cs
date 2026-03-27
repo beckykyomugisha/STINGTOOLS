@@ -466,7 +466,7 @@ namespace StingTools.Core
             bool previousStepSkipped = false;  // Phase 48: Track if previous step was skipped
 
             // Plugin hook: notify third-party plugins before workflow execution
-            try { StingPluginHooks.BeforeWorkflow?.Invoke(preset.Name); }
+            try { StingPluginHooks.InvokeBeforeWorkflow(preset.Name); }
             catch (Exception ex) { StingLog.Warn($"StingPluginHooks.BeforeWorkflow: {ex.Message}"); }
 
             try
@@ -955,7 +955,7 @@ namespace StingTools.Core
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
 
             // Plugin hook: notify third-party plugins after workflow completion
-            try { StingPluginHooks.AfterWorkflow?.Invoke(preset.Name, failed == 0 && !cancelled); }
+            try { StingPluginHooks.InvokeAfterWorkflow(preset.Name, failed == 0 && !cancelled); }
             catch (Exception ex) { StingLog.Warn($"StingPluginHooks.AfterWorkflow: {ex.Message}"); }
 
             // Phase 48: Persist last-workflow memory for "Repeat Last" feature
@@ -1372,10 +1372,10 @@ namespace StingTools.Core
                 case "ExportTagPositions":      return new Tags.ExportTagPositionsCommand();
 
                 // Phase 74: Missing resolutions that break sector-specific workflow presets
-                case "RoomSpaceAudit":          return new Temp.RoomSpaceAuditCommand();
+                case "RoomSpaceAudit":          return new Temp.RoomAuditCommand();
                 case "HandoverManual":          return new Docs.HandoverManualCommand();
                 case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
-                case "EscalateOverdueActions":  return new BIMManager.EscalateOverdueActionsCommand();
+                case "EscalateOverdueActions":  return null; // EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand
 
                 default: return null;
             }

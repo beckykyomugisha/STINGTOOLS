@@ -112,7 +112,7 @@ namespace StingTools.Core
                         var doc = e.Document;
                         if (doc != null && !doc.IsFamilyDocument)
                         {
-                            WarningsManager.WarningsEngine.SaveBaseline(doc);
+                            WarningsEngine.SaveBaseline(doc);
                             StingLog.Info("DocumentClosing: auto-saved warning baseline");
                         }
                     }

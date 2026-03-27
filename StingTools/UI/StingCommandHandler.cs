@@ -3481,9 +3481,7 @@ namespace StingTools.UI
             Color color = new Color(r, g, b);
 
             // Phase 74: Use cached solid fill pattern instead of redundant collector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? uidoc.Document.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {

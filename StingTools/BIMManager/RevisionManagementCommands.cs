@@ -628,7 +628,7 @@ namespace StingTools.BIMManager
                 {
                     try
                     {
-                        WarningsManager.WarningsEngine.SaveExtendedBaseline(doc);
+                        WarningsEngine.SaveExtendedBaseline(doc);
                         StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
                     }
                     catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }

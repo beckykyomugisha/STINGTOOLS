@@ -1658,9 +1658,7 @@ namespace StingTools.Temp
                 filterLookup[pfe.Name] = pfe;
 
             // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? doc.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
 
             int totalIssues = 0;
             int totalFixed = 0;
@@ -1781,9 +1779,7 @@ namespace StingTools.Temp
                 filterLookup[pfe.Name] = pfe;
 
             // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? doc.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
 
             int synced = 0, failed = 0;
             bool cancelled = false;
@@ -2245,9 +2241,7 @@ namespace StingTools.Temp
 
             // Solid fill pattern
             // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? doc.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
 
             // Cross-hatch pattern for demolition
             FillPatternElement crossHatch = null;
@@ -3825,9 +3819,7 @@ namespace StingTools.Temp
                 filterLookup[pfe.Name] = pfe;
 
             // EFF-R1: Use cached GetSolidFillPattern instead of inline FilteredElementCollector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(doc);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? doc.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(doc);
 
             using (Transaction tx = new Transaction(doc, "STING Clone Template"))
             {

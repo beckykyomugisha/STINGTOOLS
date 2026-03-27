@@ -370,8 +370,8 @@ namespace StingTools.BIMManager
             {
                 // Gather data
                 var comp = ComplianceScan.Scan(doc);
-                WarningsManager.WarningReport warnings = null;
-                try { warnings = WarningsManager.WarningsEngine.ScanWarnings(doc); }
+                WarningReport warnings = null;
+                try { warnings = WarningsEngine.ScanWarnings(doc); }
                 catch (Exception ex) { StingLog.Warn($"Dashboard export warnings scan: {ex.Message}"); }
 
                 var html = new StringBuilder();
@@ -882,11 +882,11 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var warnings = WarningsManager.WarningsEngine.ScanWarnings(doc);
+                var warnings = WarningsEngine.ScanWarnings(doc);
                 if (warnings == null || warnings.TotalWarnings == 0)
                     return (true, "No warnings detected");
 
-                var impact = WarningsManager.WarningsEngine.AnalyseDeliverableImpact(warnings.ClassifiedWarnings);
+                var impact = WarningsEngine.AnalyseDeliverableImpact(warnings.ClassifiedWarnings);
                 if (impact == null)
                     return (true, "No deliverable impact detected");
 
@@ -896,10 +896,10 @@ namespace StingTools.BIMManager
 
                 // Also check for critical/high warnings in data quality and spatial categories
                 int criticalDataWarnings = warnings.ClassifiedWarnings?
-                    .Count(w => (w.Category == WarningsManager.WarningCategory.Data ||
-                                 w.Category == WarningsManager.WarningCategory.Spatial) &&
-                                (w.Severity == WarningsManager.WarningSeverity.Critical ||
-                                 w.Severity == WarningsManager.WarningSeverity.High)) ?? 0;
+                    .Count(w => (w.Category == WarningCategory.Data ||
+                                 w.Category == WarningCategory.Spatial) &&
+                                (w.Severity == WarningSeverity.Critical ||
+                                 w.Severity == WarningSeverity.High)) ?? 0;
 
                 if (cobieImpact > 10 || criticalDataWarnings > 5)
                 {
@@ -1007,7 +1007,7 @@ namespace StingTools.BIMManager
             // Section 3: Warnings summary
             try
             {
-                var warnings = WarningsManager.WarningsEngine.ScanWarnings(doc);
+                var warnings = WarningsEngine.ScanWarnings(doc);
                 if (warnings != null && warnings.TotalWarnings > 0)
                 {
                     sb.AppendLine("4. WARNING SUMMARY");

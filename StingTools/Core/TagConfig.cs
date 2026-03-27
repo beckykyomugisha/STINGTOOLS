@@ -93,7 +93,7 @@ namespace StingTools.Core
             }
             if (dict.TryGetValue("seq_scheme", out object ss) && ss is string sss)
             {
-                if (Enum.TryParse<Tags.SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
+                if (Enum.TryParse<SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
             }
             if (dict.TryGetValue("default_zone", out object dz) && dz is string dzs && !string.IsNullOrWhiteSpace(dzs))
                 p.DefaultZone = dzs;
@@ -6442,6 +6442,12 @@ namespace StingTools.Core
         /// <summary>Registry of third-party commands keyed by tag string.</summary>
         private static readonly Dictionary<string, Func<UIApplication, string>> _customCommands
             = new Dictionary<string, Func<UIApplication, string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Invoke BeforeWorkflow event (callable from other classes since events can only be raised by declaring class).</summary>
+        internal static void InvokeBeforeWorkflow(string presetName) => BeforeWorkflow?.Invoke(presetName);
+
+        /// <summary>Invoke AfterWorkflow event (callable from other classes since events can only be raised by declaring class).</summary>
+        internal static void InvokeAfterWorkflow(string presetName, bool success) => AfterWorkflow?.Invoke(presetName, success);
 
         /// <summary>Register a custom command that can be invoked from workflows or dispatch.</summary>
         public static void RegisterCommand(string tag, Func<UIApplication, string> handler)
