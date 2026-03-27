@@ -185,7 +185,7 @@ namespace StingTools.Tags
                     // AUTO-R2: Progress reporting and cancellation
                     if (progress != null)
                     {
-                        progress.Increment($"Element {totalElements}: {cat}");
+                        progress.Increment($"Element {totalElements}: {catName}");
                         if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
                         {
                             tx.RollBack();

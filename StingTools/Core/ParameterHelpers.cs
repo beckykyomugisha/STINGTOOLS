@@ -3479,7 +3479,7 @@ namespace StingTools.Core
             {
                 // MEDIUM-09: Reset read-only skip counter at pipeline entry to prevent
                 // cross-batch counter leakage from [ThreadStatic] persistence
-                ResetReadOnlySkipCount();
+                ParameterHelpers.ResetReadOnlySkipCount();
 
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName)) return false;

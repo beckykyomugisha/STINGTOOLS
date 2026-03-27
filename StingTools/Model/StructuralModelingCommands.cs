@@ -1017,14 +1017,11 @@ namespace StingTools.Model
 
             try
             {
-                var dlg = StructuralDWGDialog.Show(doc);
-                if (dlg == null || !dlg.Confirmed) return Result.Cancelled;
-
-                if (dlg.SelectedImport == null)
-                {
-                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import selected.");
-                    return Result.Cancelled;
-                }
+                var wizard = new StructuralCADWizard(doc);
+                wizard.ShowDialog();
+                if (!wizard.Confirmed) return Result.Cancelled;
+                var dlg = wizard.GetConfig();
+                if (dlg == null) return Result.Cancelled;
 
                 if (dlg.SelectedLayers == null || dlg.SelectedLayers.Count == 0)
                 {
@@ -1036,18 +1033,23 @@ namespace StingTools.Model
                 var pipeline = new StructuralCADPipeline(doc);
                 pipeline.SelectedLayers = dlg.SelectedLayers;
 
-                // Use auto-detected beam depth if available, otherwise dialog default
+                // Use dialog beam depth
                 double beamDepth = dlg.BeamDepthMm;
-                if (dlg.AutoDetectSizes && dlg.DetectedGroups.Count > 0)
+
+                // Find a DWG import instance for the pipeline
+                var imports = new FilteredElementCollector(doc)
+                    .OfClass(typeof(ImportInstance))
+                    .Cast<ImportInstance>()
+                    .ToList();
+                if (imports.Count == 0)
                 {
-                    var beamGroup = dlg.DetectedGroups
-                        .FirstOrDefault(g => g.ElementType == "Beam");
-                    if (beamGroup != null && beamGroup.DepthMm > 0)
-                        beamDepth = beamGroup.DepthMm;
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import found in the project.");
+                    return Result.Cancelled;
                 }
+                var selectedImport = imports.First();
 
                 var result = pipeline.RunFullPipeline(
-                    dlg.SelectedImport,
+                    selectedImport,
                     dlg.BaseLevelName,
                     dlg.CreateColumns,
                     dlg.CreateBeams,
@@ -1057,8 +1059,8 @@ namespace StingTools.Model
                     dlg.SlabThicknessMm,
                     dlg.ColumnHeightMm);
 
-                // Auto-tag created elements if requested
-                if (dlg.AutoTag && result.CreatedIds.Count > 0)
+                // Auto-tag created elements
+                if (result.CreatedIds.Count > 0)
                 {
                     try
                     {
@@ -2249,7 +2251,7 @@ namespace StingTools.Model
                 {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
                     // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
-                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                    ModelEngine.AutoTagCreatedElements(uidoc.Document, result.CreatedIds);
                 }
 
                 TaskDialog.Show("STRUCT — Smart Column", result.Summary +
@@ -2295,7 +2297,7 @@ namespace StingTools.Model
                 {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
                     // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
-                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                    ModelEngine.AutoTagCreatedElements(uidoc.Document, result.CreatedIds);
                 }
 
                 TaskDialog.Show("STRUCT — Smart Beam", result.Summary +

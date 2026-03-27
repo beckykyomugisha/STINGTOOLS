@@ -806,7 +806,10 @@ namespace StingTools.Model
                         }
 
                         // Find or create column type
-                        FamilySymbol colType = StructuralTypeFactory.FindColumnType(_doc, widthMm, depthMm);
+                        var typeFactory = new StructuralTypeFactory(_doc);
+                        typeFactory.BuildCatalog();
+                        var colResult = typeFactory.FindOrCreateColumnType(widthMm, depthMm);
+                        FamilySymbol colType = colResult?.TypeId != null ? _doc.GetElement(colResult.TypeId) as FamilySymbol : null;
                         if (colType == null)
                         {
                             failedRows.Add((row.RowNum, $"No column type for size {row.Size}"));

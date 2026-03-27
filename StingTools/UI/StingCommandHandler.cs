@@ -2652,7 +2652,7 @@ namespace StingTools.UI
             if (uidoc?.ActiveView == null) return;
             try
             {
-                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+                uidoc.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
