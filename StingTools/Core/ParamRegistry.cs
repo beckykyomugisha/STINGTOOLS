@@ -44,7 +44,7 @@ namespace StingTools.Core
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
         /// <summary>PERF-05: Cached read-only segment order — avoids Clone() on every access.</summary>
-        private static string[] _cachedSegmentOrder;
+        private static volatile string[] _cachedSegmentOrder;
         public static string[] SegmentOrder
         {
             get
@@ -515,7 +515,9 @@ namespace StingTools.Core
         }
 
         /// <summary>All 10 paragraph state parameter names indexed by tier (1-based: index 0 = state 1).</summary>
-        public static string[] AllParaStates => new[]
+        // PERF-010 FIX: Cache array to avoid per-access allocation in hot loops (WriteTag7All)
+        private static string[] _allParaStates;
+        public static string[] AllParaStates => _allParaStates ??= new[]
         {
             PARA_STATE_1, PARA_STATE_2, PARA_STATE_3, PARA_STATE_4, PARA_STATE_5,
             PARA_STATE_6, PARA_STATE_7, PARA_STATE_8, PARA_STATE_9, PARA_STATE_10

@@ -13,7 +13,7 @@ namespace StingTools.Tags
 {
     /// <summary>
     /// Enhanced Smart Tag Placement engine — priority-based annotation placement
-    /// with grid-based spatial index, actual tag BB measurement, Naviate-style
+    /// with grid-based spatial index, actual tag BB measurement, STING
     /// priority cascading, and tag placement template save/recall.
     ///
     /// Key improvements over v1:
@@ -22,7 +22,7 @@ namespace StingTools.Tags
     ///   - 16 candidate positions (8 cardinal + 8 intermediate at 1.5x offset)
     ///   - Alignment bonus: tags aligned with existing nearby tags score higher
     ///   - Performance: suppress annotation regeneration during batch placement
-    ///   - Naviate-style priority cascade: try preferred side first, then rotate
+    ///   - STING priority cascade: try preferred side first, then rotate
     ///   - Tag placement template system: save/recall relative positions per category
     /// </summary>
     internal static class TagPlacementEngine
@@ -338,7 +338,7 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Enhanced scoring with alignment bonus, element overlap penalty,
-        /// view-edge penalty, and Naviate-style priority cascade.
+        /// view-edge penalty, and STING priority cascade.
         /// </summary>
         public static double ScoreCandidate(XYZ candidate, XYZ elementCenter,
             Box2D candidateBox, SpatialGrid grid, int preferredSide,
@@ -355,7 +355,7 @@ namespace StingTools.Tags
             int overlaps = grid.CountOverlaps(candidateBox);
             score -= overlaps * 500.0;
 
-            // Preferred side bonus (Naviate-style priority)
+            // Preferred side bonus (STING priority)
             XYZ diff = candidate - elementCenter;
             if (preferredSide == 0 && diff.Y > 0) score += 40;      // above
             else if (preferredSide == 1 && diff.X > 0) score += 40;  // right
@@ -969,7 +969,7 @@ namespace StingTools.Tags
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Tag placement preset system (Naviate Tag-from-Template style).
+    /// Tag placement preset system (tag-from-template approach).
     /// Saves tag positions relative to host element centers per category,
     /// then recalls and applies them to other views.
     /// </summary>

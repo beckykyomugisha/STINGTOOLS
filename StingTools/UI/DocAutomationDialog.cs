@@ -44,16 +44,17 @@ namespace StingTools.UI
         private static readonly Color TabSelected = Color.FromRgb(0xE8, 0x91, 0x2D);
         private static readonly Color TabDefault = Color.FromRgb(0xE0, 0xE0, 0xE0);
 
-        private static readonly SolidColorBrush BrBgLight = new(BgLight);
-        private static readonly SolidColorBrush BrBgWhite = new(BgWhite);
-        private static readonly SolidColorBrush BrBgHeader = new(BgHeader);
-        private static readonly SolidColorBrush BrAccent = new(AccentOrange);
-        private static readonly SolidColorBrush BrFgDark = new(FgDark);
-        private static readonly SolidColorBrush BrFgSubtle = new(FgSubtle);
-        private static readonly SolidColorBrush BrBorder = new(BorderLight);
-        private static readonly SolidColorBrush BrCardBg = new(CardBg);
-        private static readonly SolidColorBrush BrCardHover = new(CardHover);
-        private static readonly SolidColorBrush BrCardSelected = new(CardSelected);
+        private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+        private static readonly SolidColorBrush BrBgLight = FZ(BgLight);
+        private static readonly SolidColorBrush BrBgWhite = FZ(BgWhite);
+        private static readonly SolidColorBrush BrBgHeader = FZ(BgHeader);
+        private static readonly SolidColorBrush BrAccent = FZ(AccentOrange);
+        private static readonly SolidColorBrush BrFgDark = FZ(FgDark);
+        private static readonly SolidColorBrush BrFgSubtle = FZ(FgSubtle);
+        private static readonly SolidColorBrush BrBorder = FZ(BorderLight);
+        private static readonly SolidColorBrush BrCardBg = FZ(CardBg);
+        private static readonly SolidColorBrush BrCardHover = FZ(CardHover);
+        private static readonly SolidColorBrush BrCardSelected = FZ(CardSelected);
 
         // ── State ───────────────────────────────────────────────────────
         private static string _selectedOperation;

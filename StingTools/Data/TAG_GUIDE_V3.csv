@@ -1,7 +1,7 @@
 ## STING TAG GUIDE V3 — Comprehensive Tag Configuration & Manual Input Reference
 ## Version: 3.0 | Date: 2026-03-03 | Standard: ISO 19650 | Plugin: StingTools v1.0
 ## Replaces: TAG GUIDE V2.xlsx and TAG_GUIDE.xlsx
-## Note: Naviate formulae and Dynamo workflows removed — all operations use STING CombineParameters
+## Note: External formulae and Dynamo workflows removed — all operations use STING CombineParameters
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
 ## SHEET 1: TAG FORMAT — 8-Segment ISO 19650 Tag Structure
@@ -279,11 +279,11 @@ STEP,COMMAND,PANEL_TAB,DESCRIPTION,PREREQUISITE,MANUAL_INPUT_REQUIRED
 ## - Master Setup (Steps 1+2 + materials + families + schedules + templates)
 ##
 ## ═══════════════════════════════════════════════════════════════════════════════
-## SHEET 13: COMBINE PARAMETERS — Container Assembly (Replaces Naviate Formulae)
+## SHEET 13: COMBINE PARAMETERS — Container Assembly
 ## ═══════════════════════════════════════════════════════════════════════════════
 SECTION,COMBINE_PARAMETERS
 NOTE,All tag container assembly is handled by STING CombineParameters command
-NOTE,No external tools (Naviate/Dynamo/pyRevit) required
+NOTE,No external tools required
 NOTE,ParamRegistry.WriteContainers() is the single source of truth for container assembly
 NOTE,Container definitions loaded from PARAMETER_REGISTRY.json at runtime
 OPERATION,SOURCE,DESTINATION,METHOD,DESCRIPTION

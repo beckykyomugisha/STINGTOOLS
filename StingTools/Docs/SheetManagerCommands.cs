@@ -376,7 +376,7 @@ namespace StingTools.Docs
             // Suggest next sheet number
             string suggestedNum = SheetManagerEngine.GetNextSheetNumber(doc, "A");
 
-            // ── Show Naviate-style New Sheet dialog ──
+            // ── Show New Sheet dialog ──
             var rows = NewSheetDialog.Show(
                 tbNames, scopeBoxes, unplacedViews, viewTemplates,
                 out bool autoPlaceDependentViews,
@@ -690,11 +690,20 @@ namespace StingTools.Docs
                 tx.Start();
                 try
                 {
-                    SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
-                    tx.Commit();
-                    string targetNum = result.Options.ContainsKey("TargetSheetNumber")
-                        ? result.Options["TargetSheetNumber"]?.ToString() : targetSheet.SheetNumber;
-                    TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
+                    var newVp = SheetManagerEngine.MoveViewportToSheet(doc, vp, targetSheet);
+                    if (newVp != null)
+                    {
+                        tx.Commit();
+                        string targetNum = result.Options.ContainsKey("TargetSheetNumber")
+                            ? result.Options["TargetSheetNumber"]?.ToString() : targetSheet.SheetNumber;
+                        TaskDialog.Show("Sheet Manager", $"Moved '{viewName}' to sheet '{targetNum}'.");
+                    }
+                    else
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("Sheet Manager",
+                            $"Failed to move '{viewName}'. The view may already be on the target sheet or cannot be placed there.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -2053,16 +2062,17 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 var newVp = SheetManagerEngine.MoveViewportToSheet(doc, selected, targetSheet);
-                tx.Commit();
-
                 if (newVp != null)
                 {
+                    tx.Commit();
                     TaskDialog.Show("Move Viewport",
                         $"Moved '{viewName}' from '{sourceSheet.SheetNumber}' to '{targetSheet.SheetNumber}'.");
                 }
                 else
                 {
-                    TaskDialog.Show("Move Viewport", "Failed to move viewport. Check the log for details.");
+                    tx.RollBack();
+                    TaskDialog.Show("Move Viewport",
+                        $"Failed to move '{viewName}'. The view may not be placeable on the target sheet.");
                 }
             }
             return Result.Succeeded;

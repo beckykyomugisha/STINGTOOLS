@@ -881,7 +881,7 @@ namespace StingTools.Model
                         ParameterHelpers.SetIfEmpty(col, "ASS_PRODCT_COD_TXT", "COL");
                         report.AddStep("STING tags populated (DISC=S, PROD=COL)");
                     }
-                    catch { /* STING params not bound — skip silently */ }
+                    catch (Exception ex) { StingLog.Warn($"STING params: {ex.Message}"); }
 
                     tx.Commit();
                 }
@@ -1018,7 +1018,7 @@ namespace StingTools.Model
                         ParameterHelpers.SetIfEmpty(beam, "ASS_PRODCT_COD_TXT", "BM");
                         report.AddStep("STING tags populated (DISC=S, PROD=BM)");
                     }
-                    catch { /* STING params not bound */ }
+                    catch (Exception ex) { StingLog.Warn($"STING params: {ex.Message}"); }
 
                     tx.Commit();
                 }

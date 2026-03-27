@@ -97,6 +97,14 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Validate a single value against known codes. Returns error message or null if valid.
         /// </summary>
+        // Phase 74: Cache validation sets — avoids 35K+ HashSet allocations per 5K-element import
+        private static HashSet<string> _cachedValidDisc;
+        private static HashSet<string> _cachedValidFunc;
+        private static HashSet<string> _cachedValidProd;
+        private static HashSet<string> EnsureValidDisc() => _cachedValidDisc ??= new HashSet<string>(TagConfig.DiscMap.Values, StringComparer.OrdinalIgnoreCase);
+        private static HashSet<string> EnsureValidFunc() => _cachedValidFunc ??= new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
+        private static HashSet<string> EnsureValidProd() => _cachedValidProd ??= new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
+
         internal static string ValidateValue(string column, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null; // empty is allowed
@@ -104,9 +112,8 @@ namespace StingTools.BIMManager
             switch (column)
             {
                 case "DISC":
-                    var validDisc = new HashSet<string>(TagConfig.DiscMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validDisc.Contains(value))
-                        return $"DISC '{value}' not in valid codes: {string.Join(", ", validDisc.OrderBy(v => v))}";
+                    if (!EnsureValidDisc().Contains(value))
+                        return $"DISC '{value}' not in valid codes: {string.Join(", ", EnsureValidDisc().OrderBy(v => v))}";
                     break;
                 case "SYS":
                     if (!TagConfig.SysMap.ContainsKey(value))
@@ -121,14 +128,12 @@ namespace StingTools.BIMManager
                         return $"ZONE '{value}' not in valid codes: {string.Join(", ", TagConfig.ZoneCodes)}";
                     break;
                 case "FUNC":
-                    var validFunc = new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validFunc.Contains(value))
-                        return $"FUNC '{value}' not in valid codes: {string.Join(", ", validFunc.OrderBy(v => v))}";
+                    if (!EnsureValidFunc().Contains(value))
+                        return $"FUNC '{value}' not in valid codes: {string.Join(", ", EnsureValidFunc().OrderBy(v => v))}";
                     break;
                 case "PROD":
-                    var validProd = new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
-                    if (!validProd.Contains(value))
-                        return $"PROD '{value}' not in valid codes: {string.Join(", ", validProd.OrderBy(v => v).Take(20))}...";
+                    if (!EnsureValidProd().Contains(value))
+                        return $"PROD '{value}' not in valid codes: {string.Join(", ", EnsureValidProd().OrderBy(v => v).Take(20))}...";
                     break;
                 case "SEQ":
                     if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d{1,6}$"))
@@ -172,6 +177,39 @@ namespace StingTools.BIMManager
                 // Only warn if we have data to validate against (some SYS codes are universal)
                 if (!sysBelongsToDisc && TagConfig.SysMap.ContainsKey(sys))
                     return $"SYS '{sys}' does not typically belong to discipline '{disc}'";
+            }
+
+            // FUNC-PROD cross-validation: certain FUNC codes are incompatible with certain PROD codes
+            if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(prod))
+            {
+                var sanitaryProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH" };
+                var plumbingProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH", "TAP", "TMV", "CIS" };
+                var hvacProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "AHU", "FCU", "VAV", "CHR", "BLR", "FAN", "GRL", "DIF", "ATU" };
+                var electricalProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "DB", "MSB", "TFR", "GEN", "UPS", "SWT", "SKT", "LUM", "EMR" };
+
+                // SUP (supply) is incompatible with sanitary products
+                if (func == "SUP" && sanitaryProds.Contains(prod))
+                    return $"FUNC=SUP incompatible with sanitary PROD={prod}";
+
+                // PWR (power) is incompatible with plumbing products
+                if (func == "PWR" && plumbingProds.Contains(prod))
+                    return $"FUNC=PWR incompatible with plumbing PROD={prod}";
+
+                // SAN (sanitary) is incompatible with HVAC products
+                if (func == "SAN" && hvacProds.Contains(prod))
+                    return $"FUNC=SAN incompatible with HVAC PROD={prod}";
+
+                // HTG (heating) / CLG (cooling) incompatible with electrical products
+                if ((func == "HTG" || func == "CLG") && electricalProds.Contains(prod))
+                    return $"FUNC={func} incompatible with electrical PROD={prod}";
+
+                // LTG (lighting) incompatible with plumbing products
+                if (func == "LTG" && plumbingProds.Contains(prod))
+                    return $"FUNC=LTG incompatible with plumbing PROD={prod}";
             }
 
             return null;

@@ -146,7 +146,7 @@ namespace StingTools.Tags
                 // R4-B FIX: Save the already-mutated seqCounters (not a fresh scan) so collision increments persist
                 try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
                 catch (Exception ssEx) { StingLog.Warn($"TokenWriter SaveSeqSidecar: {ssEx.Message}"); }
-                TagConfig.CheckComplianceGate(doc); // R4-B: TokenWriter was missing compliance gate
+                TagConfig.CheckComplianceGate(doc, "TokenWriter"); // R4-B: TokenWriter was missing compliance gate
             }
 
             string resultMsg = $"Set '{value}' on {written} elements.";
@@ -514,6 +514,12 @@ namespace StingTools.Tags
             var stats = new Dictionary<string, (int total, int valid, int resolved, int incomplete, int missing)>();
             int emptyStatus = 0, emptyRev = 0;
 
+            // PERF: Collect revision distribution in same loop to avoid second full-model scan
+            var revDistribution = new Dictionary<string, int>();
+            string currentProjectRev = "";
+            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Get current project revision failed: {ex.Message}"); }
+            int staleRevCount = 0;
+
             var dashColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             var dashCatEnums = SharedParamGuids.AllCategoryEnums;
             if (dashCatEnums != null && dashCatEnums.Length > 0)
@@ -528,7 +534,18 @@ namespace StingTools.Tags
 
                 // Track STATUS/REV completeness
                 if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.STATUS))) emptyStatus++;
-                if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.REV))) emptyRev++;
+                string revVal = ParameterHelpers.GetString(elem, ParamRegistry.REV);
+                if (string.IsNullOrEmpty(revVal))
+                    emptyRev++;
+                else
+                {
+                    // Collect revision distribution inline (was a second full-model scan)
+                    if (!revDistribution.ContainsKey(revVal)) revDistribution[revVal] = 0;
+                    revDistribution[revVal]++;
+                    if (!string.IsNullOrEmpty(currentProjectRev) &&
+                        !string.Equals(revVal, currentProjectRev, StringComparison.OrdinalIgnoreCase))
+                        staleRevCount++;
+                }
 
                 var s = stats[disc];
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
@@ -574,23 +591,7 @@ namespace StingTools.Tags
             if (emptyRev > 0)
                 report.AppendLine($"Empty REV: {emptyRev} elements (run Tag & Combine to auto-set)");
 
-            // GAP-005 fix: Show revision distribution and stale revision detection
-            var revDistribution = new Dictionary<string, int>();
-            string currentProjectRev = "";
-            try { currentProjectRev = BIMManager.RevisionEngine.GetCurrentProjectRevision(doc); } catch (Exception ex) { StingLog.Warn($"Get current project revision failed: {ex.Message}"); }
-            int staleRevCount = 0;
-            foreach (Element elem2 in new FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                string cat2 = ParameterHelpers.GetCategoryName(elem2);
-                if (!known.Contains(cat2)) continue;
-                string revVal = ParameterHelpers.GetString(elem2, ParamRegistry.REV);
-                if (string.IsNullOrEmpty(revVal)) continue;
-                if (!revDistribution.ContainsKey(revVal)) revDistribution[revVal] = 0;
-                revDistribution[revVal]++;
-                if (!string.IsNullOrEmpty(currentProjectRev) &&
-                    !string.Equals(revVal, currentProjectRev, StringComparison.OrdinalIgnoreCase))
-                    staleRevCount++;
-            }
+            // GAP-005 fix: Show revision distribution (collected inline above — no second scan)
             if (revDistribution.Count > 0)
             {
                 report.AppendLine();

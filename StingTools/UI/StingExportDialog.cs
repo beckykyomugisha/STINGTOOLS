@@ -16,8 +16,7 @@ namespace StingTools.UI
     //  StingExportDialog — BIMLink-style unified export dialog
     //
     //  A single WPF dialog that replaces ad-hoc export workflows with a
-    //  comprehensive export configurator. Inspired by BIMLink, DiRootsOne,
-    //  and Ideate BIMLink UI patterns:
+    //  comprehensive export configurator:
     //
     //  ┌─────────────────────────────────────────────────────────────┐
     //  │  LEFT: Categories      │  CENTER: Parameters  │  RIGHT:    │
@@ -120,13 +119,13 @@ namespace StingTools.UI
     // ════════════════════════════════════════════════════════════════════
     //  ExportLinkLibrary — Built-in + user preset library
     //
-    //  120+ built-in presets covering all Ideate BIMLink export categories
+    //  120+ built-in presets covering all standard export categories
     //  plus STING-specific tagging presets. User presets saved to JSON.
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Export preset library with 120+ built-in presets matching Ideate BIMLink
-    /// folder structure, plus STING-specific tagging presets.
+    /// Export preset library with 120+ built-in presets covering standard BIM export
+    /// categories, plus STING-specific tagging presets.
     /// User presets persisted to EXPORT_PRESETS.json alongside project_config.json.
     /// </summary>
     internal static class ExportLinkLibrary
@@ -192,7 +191,7 @@ namespace StingTools.UI
             "ASS_TAG_7C_TXT", "ASS_TAG_7D_TXT", "ASS_TAG_7E_TXT", "ASS_TAG_7F_TXT"
         };
 
-        // ── Category groups (Ideate BIMLink folder structure) ──
+        // ── Category groups ──
         private static readonly List<string> ArchCategories = new()
         {
             "Doors", "Windows", "Walls", "Floors", "Ceilings", "Roofs", "Stairs",

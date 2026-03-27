@@ -16,6 +16,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Model
 {
@@ -559,10 +560,16 @@ namespace StingTools.Model
                 }
 
                 var pt = uidoc.Selection.PickPoint("Pick grid origin");
+
+                int totalCols = rows * cols;
+                var progress = StingProgressDialog.Show($"Creating {totalCols} Columns", totalCols);
+
                 var engine = new ModelEngine(doc);
                 var result = engine.PlaceColumnGrid(rows, cols, spacingXMm, spacingYMm,
                     originXMm: pt.X * Units.FeetToMm,
                     originYMm: pt.Y * Units.FeetToMm);
+
+                progress.Close();
 
                 if (result.Success)
                 {
@@ -1196,16 +1203,16 @@ namespace StingTools.Model
                                 var slopeParam = ramp.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM);
                                 if (slopeParam != null) slopeParam.Set(0);
                             }
-                            catch { /* Some floor types don't support slope */ }
+                            catch (Exception ex) { StingLog.Warn($"Floor slope: {ex.Message}"); }
                         }
                     }
                     tx.Commit();
                 }
 
                 // Auto-tag created elements
-                ModelCommandHelper.AutoTagAndReport(doc, createdIds,
-                    $"Ramp created: {widthMm:F0}mm wide × {runMm:F0}mm long, gradient 1:{(1.0/gradient):F0}\n" +
-                    (compliance.Length > 0 ? compliance.ToString() : "BS 8300 compliance: PASS"));
+                var rampResult = new ModelResult { Success = true, Message = $"Ramp created: {widthMm:F0}mm wide × {runMm:F0}mm long, gradient 1:{(1.0/gradient):F0}\n" + (compliance.Length > 0 ? compliance.ToString() : "BS 8300 compliance: PASS") };
+                rampResult.CreatedElementIds.AddRange(createdIds);
+                TaskDialog.Show("MODEL — Ramp", ModelCommandHelper.AutoTagAndReport(doc, rampResult));
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1287,8 +1294,9 @@ namespace StingTools.Model
                     tx.Commit();
                 }
 
-                ModelCommandHelper.AutoTagAndReport(doc, createdIds,
-                    $"Canopy created: {3000}mm × {1500}mm at {2700}mm height");
+                var canopyResult = new ModelResult { Success = true, Message = $"Canopy created: {3000}mm × {1500}mm at {2700}mm height" };
+                canopyResult.CreatedElementIds.AddRange(createdIds);
+                TaskDialog.Show("MODEL — Canopy", ModelCommandHelper.AutoTagAndReport(doc, canopyResult));
                 return Result.Succeeded;
             }
             catch (Exception ex)

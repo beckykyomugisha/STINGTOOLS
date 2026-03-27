@@ -161,6 +161,7 @@ namespace StingTools.Model
         public int FoundationsCreated { get; set; }
         public int WallsCreated { get; set; }
         public int RebarPlaced { get; set; }
+        public int TaggedCount { get; set; }
         public int Errors { get; set; }
         public List<string> Warnings { get; set; } = new();
         public List<ElementId> AllCreatedIds { get; set; } = new();
@@ -170,6 +171,7 @@ namespace StingTools.Model
             $"Columns: {ColumnsCreated}, Beams: {BeamsCreated}, Slabs: {SlabsCreated}\n" +
             $"Foundations: {FoundationsCreated}, Walls: {WallsCreated}\n" +
             $"Rebar sets: {RebarPlaced}, Errors: {Errors}\n" +
+            $"Auto-tagged: {TaggedCount}/{AllCreatedIds.Count}\n" +
             $"Total elements: {AllCreatedIds.Count}";
     }
 
@@ -381,7 +383,20 @@ namespace StingTools.Model
                 if (totalWidth <= widthMm)
                     return $"{count}H{size}";
             }
-            return $"{minCount}H32"; // Fallback
+
+            // SAFETY FIX (EXCEL-CRIT-01): Validate fallback bars actually fit.
+            // Previous code returned fallback "{minCount}H32" without checking fit,
+            // producing physically impossible bar arrangements (bars wider than beam).
+            double fallbackSize = 32;
+            double fallbackSpacing = Math.Max(fallbackSize, 25);
+            double fallbackWidth = minCount * fallbackSize + (minCount - 1) * fallbackSpacing + 2 * coverMm + 2 * 10;
+            if (fallbackWidth > widthMm)
+            {
+                StingLog.Warn($"RebarEngine.SelectBars: {minCount}H32 does not fit in {widthMm:F0}mm width " +
+                    $"(requires {fallbackWidth:F0}mm). Increase section width or check design.");
+                return $"{minCount}H32 [NO FIT — REVIEW]";
+            }
+            return $"{minCount}H32"; // Fallback fits
         }
 
         /// <summary>Export bar bending schedule to Excel per BS 8666.</summary>
@@ -458,7 +473,8 @@ namespace StingTools.Model
                 if (colSheet != null)
                 {
                     var rows = ParseColumnSheet(colSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("COLUMNS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportColumns(rows, options);
                         result.ColumnsCreated = ids.Count;
@@ -471,7 +487,8 @@ namespace StingTools.Model
                 if (beamSheet != null)
                 {
                     var rows = ParseBeamSheet(beamSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("BEAMS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportBeams(rows, options);
                         result.BeamsCreated = ids.Count;
@@ -484,7 +501,8 @@ namespace StingTools.Model
                 if (slabSheet != null)
                 {
                     var rows = ParseSlabSheet(slabSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("SLABS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportSlabs(rows, options);
                         result.SlabsCreated = ids.Count;
@@ -497,7 +515,8 @@ namespace StingTools.Model
                 if (fndSheet != null)
                 {
                     var rows = ParseFoundationSheet(fndSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("FOUNDATIONS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportFoundations(rows, options);
                         result.FoundationsCreated = ids.Count;
@@ -510,7 +529,8 @@ namespace StingTools.Model
                 if (wallSheet != null)
                 {
                     var rows = ParseWallSheet(wallSheet);
-                    if (!options.DryRun)
+                    if (rows.Count == 0) { result.Warnings.Add("WALLS sheet has no data rows"); }
+                    else if (!options.DryRun)
                     {
                         var ids = ImportWalls(rows, options);
                         result.WallsCreated = ids.Count;
@@ -520,9 +540,24 @@ namespace StingTools.Model
                 }
             }
 
-            // Auto-tag created elements
+            // Auto-tag created elements using the full STING tagging pipeline
+            // (mirrors the pattern in ModelCommands.cs — AutoTagCreatedElements runs
+            // RunFullPipeline per element in a separate transaction)
             if (options.AutoTag && result.AllCreatedIds.Count > 0 && !options.DryRun)
-                ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
+            {
+                int tagged = ModelEngine.AutoTagCreatedElements(_doc, result.AllCreatedIds);
+                result.TaggedCount = tagged;
+                StingLog.Info($"ExcelStructuralImport: auto-tagged {tagged}/{result.AllCreatedIds.Count} elements");
+                var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(_doc);
+                TagConfig.SaveSeqSidecar(_doc, seqCtrs);
+            }
+
+            // Invalidate caches so dashboards reflect new structural elements
+            if (result.AllCreatedIds.Count > 0)
+            {
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
+            }
 
             StingLog.Info($"ExcelStructuralImport: {result.Summary}");
             return result;
@@ -575,10 +610,12 @@ namespace StingTools.Model
 
         // ── Sheet parsers ──
 
+        private const int MaxExcelRows = 10000;
+
         private List<ColumnScheduleRow> ParseColumnSheet(IXLWorksheet ws)
         {
             var rows = new List<ColumnScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
 
             for (int r = 2; r <= lastRow; r++)
@@ -609,7 +646,7 @@ namespace StingTools.Model
         private List<BeamScheduleRow> ParseBeamSheet(IXLWorksheet ws)
         {
             var rows = new List<BeamScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
 
             for (int r = 2; r <= lastRow; r++)
@@ -643,7 +680,7 @@ namespace StingTools.Model
         private List<SlabScheduleRow> ParseSlabSheet(IXLWorksheet ws)
         {
             var rows = new List<SlabScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {
@@ -670,7 +707,7 @@ namespace StingTools.Model
         private List<FoundationScheduleRow> ParseFoundationSheet(IXLWorksheet ws)
         {
             var rows = new List<FoundationScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {
@@ -695,7 +732,7 @@ namespace StingTools.Model
         private List<WallScheduleRow> ParseWallSheet(IXLWorksheet ws)
         {
             var rows = new List<WallScheduleRow>();
-            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
+            int lastRow = Math.Min(ws.LastRowUsed()?.RowNumber() ?? 0, MaxExcelRows);
             var headers = ReadHeaders(ws);
             for (int r = 2; r <= lastRow; r++)
             {
@@ -722,6 +759,7 @@ namespace StingTools.Model
         private List<ElementId> ImportColumns(List<ColumnScheduleRow> rows, StructuralImportOptions options)
         {
             var ids = new List<ElementId>();
+            var failedRows = new List<(int Row, string Reason)>();
             using (var tx = new Transaction(_doc, "STING Import Columns"))
             {
                 tx.Start();
@@ -742,11 +780,21 @@ namespace StingTools.Model
                         }
 
                         XYZ pt = ResolveGridIntersection(gridX, gridY);
-                        if (pt == null) { StingLog.Warn($"Column row {row.RowNum}: Grid {row.GridRef} not found"); continue; }
+                        if (pt == null)
+                        {
+                            failedRows.Add((row.RowNum, $"Grid {row.GridRef} not found"));
+                            StingLog.Warn($"Column row {row.RowNum}: Grid {row.GridRef} not found");
+                            continue;
+                        }
 
                         Level baseLevel = ResolveLevel(row.Level);
                         Level topLevel = ResolveLevel(row.TopLevel);
-                        if (baseLevel == null) { StingLog.Warn($"Column row {row.RowNum}: Level {row.Level} not found"); continue; }
+                        if (baseLevel == null)
+                        {
+                            failedRows.Add((row.RowNum, $"Level {row.Level} not found"));
+                            StingLog.Warn($"Column row {row.RowNum}: Level {row.Level} not found");
+                            continue;
+                        }
 
                         // Parse size
                         double widthMm = 400, depthMm = 400;
@@ -759,7 +807,12 @@ namespace StingTools.Model
 
                         // Find or create column type
                         FamilySymbol colType = StructuralTypeFactory.FindColumnType(_doc, widthMm, depthMm);
-                        if (colType == null) { StingLog.Warn($"Column row {row.RowNum}: No type for {row.Size}"); continue; }
+                        if (colType == null)
+                        {
+                            failedRows.Add((row.RowNum, $"No column type for size {row.Size}"));
+                            StingLog.Warn($"Column row {row.RowNum}: No type for {row.Size}");
+                            continue;
+                        }
                         if (!colType.IsActive) colType.Activate();
 
                         XYZ placePt = new XYZ(pt.X, pt.Y, baseLevel.Elevation);
@@ -770,11 +823,34 @@ namespace StingTools.Model
                     }
                     catch (Exception ex)
                     {
+                        failedRows.Add((row.RowNum, ex.Message));
                         StingLog.Warn($"Column row {row.RowNum}: {ex.Message}");
                     }
                 }
                 tx.Commit();
             }
+
+            // Warn if >5% of rows failed
+            if (rows.Count > 0 && failedRows.Count > 0)
+            {
+                double failPct = failedRows.Count * 100.0 / rows.Count;
+                if (failPct > 5.0)
+                {
+                    var failSummary = string.Join("\n", failedRows.Take(10).Select(f => $"  Row {f.Row}: {f.Reason}"));
+                    string extra = failedRows.Count > 10 ? $"\n  ... and {failedRows.Count - 10} more" : "";
+                    StingLog.Warn($"Column import: {failedRows.Count}/{rows.Count} rows failed ({failPct:F1}%):\n{failSummary}{extra}");
+                    try
+                    {
+                        var td = new Autodesk.Revit.UI.TaskDialog("STING Column Import Warning");
+                        td.MainContent = $"{failedRows.Count} of {rows.Count} rows ({failPct:F1}%) failed to import.\n\n" +
+                            string.Join("\n", failedRows.Take(5).Select(f => $"Row {f.Row}: {f.Reason}")) +
+                            (failedRows.Count > 5 ? $"\n... and {failedRows.Count - 5} more (see log)" : "");
+                        td.Show();
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column import warning dialog: {ex.Message}"); }
+                }
+            }
+
             return ids;
         }
 
@@ -797,7 +873,9 @@ namespace StingTools.Model
                         Level level = ResolveLevel(row.Level);
                         if (level == null) continue;
 
-                        FamilySymbol beamType = StructuralTypeFactory.FindBeamType(_doc, row.WidthMm, row.DepthMm);
+                        var beamFactory = new StructuralTypeFactory(_doc);
+                        var beamResult = beamFactory.FindOrCreateBeamType(row.DepthMm, row.WidthMm);
+                        FamilySymbol beamType = beamResult?.Success == true ? _doc.GetElement(beamResult.TypeId) as FamilySymbol : null;
                         if (beamType == null) continue;
                         if (!beamType.IsActive) beamType.Activate();
 

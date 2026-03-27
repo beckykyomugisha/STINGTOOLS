@@ -119,6 +119,9 @@ namespace StingTools.Core
             NativeParamMapper.InvalidateBipCache();
             // PERF-CRIT-01: Clear spatial candidate cache
             TokenAutoPopulator.InvalidateSpatialCache();
+            // PERF: Clear cached last phase on document switch
+            _lastPhaseDocKey = null;
+            _lastPhaseCache = null;
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -464,6 +467,10 @@ namespace StingTools.Core
         }
 
         /// <summary>LG-02: Get the element's creation phase for phase-aware room lookup.</summary>
+        // PERF: Cache last phase per document to avoid FilteredElementCollector per element in fallback
+        private static string _lastPhaseDocKey;
+        private static Phase _lastPhaseCache;
+
         private static Phase GetElementPhase(Document doc, Element el)
         {
             try
@@ -477,14 +484,21 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el?.Id}: {ex.Message}"); }
 
-            // Fallback: last phase in the project
+            // Fallback: last phase in the project (cached per document)
             try
             {
-                return new FilteredElementCollector(doc)
+                string docKey = GetStableDocKey(doc);
+                if (_lastPhaseCache != null && _lastPhaseDocKey == docKey && _lastPhaseCache.IsValidObject)
+                    return _lastPhaseCache;
+
+                var phase = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase))
                     .Cast<Phase>()
                     .OrderBy(p => p.Id.Value)
                     .LastOrDefault();
+                _lastPhaseDocKey = docKey;
+                _lastPhaseCache = phase;
+                return phase;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
@@ -1515,6 +1529,37 @@ namespace StingTools.Core
                 {
                     string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
                     bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
+
+                    // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
+                    if (string.IsNullOrEmpty(loc) && doc.IsWorkshared)
+                    {
+                        try
+                        {
+                            var wsParam = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                            if (wsParam != null)
+                            {
+                                int wsId = wsParam.AsInteger();
+                                if (wsId > 0)
+                                {
+                                    string wsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
+                                    // Extract LOC code from workset name (e.g., "BLD2_Mechanical" → "BLD2")
+                                    foreach (string locCode in TagConfig.LocCodes ?? new List<string>())
+                                    {
+                                        if (wsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            wsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            wsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            loc = locCode;
+                                            locFromSpatial = true; // workset-derived counts as detected
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception wsEx) { StingLog.Warn($"LOC workset fallback: {wsEx.Message}"); }
+                    }
+
                     if (string.IsNullOrEmpty(loc)) loc = "BLD1";
                     if (overwrite)
                     {
@@ -1526,9 +1571,25 @@ namespace StingTools.Core
                     }
                     result.LocDetected = locFromSpatial;
 
-                    // LOG-01: Track LOC detection source
-                    string locSource = locFromSpatial ? "Room" :
-                        (!string.IsNullOrEmpty(ctx.ProjectLoc) ? "ProjectInfo" : "Default");
+                    // LOG-01: Track LOC detection source (Phase 67: added Workset layer)
+                    string locSource = locFromSpatial
+                        ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
+                        : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
+                    // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
+                    if (locFromSpatial && doc.IsWorkshared)
+                    {
+                        try
+                        {
+                            var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                            if (wsCheck != null && wsCheck.AsInteger() > 0)
+                            {
+                                string wsN = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
+                                if (wsN.Contains(loc, StringComparison.OrdinalIgnoreCase))
+                                    locSource = "Workset";
+                            }
+                        }
+                        catch { /* keep existing source */ }
+                    }
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, locSource);
                 }
             }
@@ -1566,6 +1627,23 @@ namespace StingTools.Core
                     // LOG-01: Track ZONE detection source
                     string zoneSource = zoneFromSpatial ? "Room" : "Default";
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, zoneSource);
+                }
+            }
+
+            // Phase 68 (NEW-02): CopyTokensFromNearest for LOC/ZONE when spatial detection yields defaults
+            if (!overwrite)
+            {
+                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.ProjectLoc;
+                bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
+                if (locDefault || zoneDefault)
+                {
+                    var spatialTokens = new List<string>();
+                    if (locDefault) spatialTokens.Add(ParamRegistry.LOC);
+                    if (zoneDefault) spatialTokens.Add(ParamRegistry.ZONE);
+                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens.ToArray());
+                    result.TokensSet += spatialCopied;
                 }
             }
 
@@ -1643,6 +1721,41 @@ namespace StingTools.Core
                     if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
                     int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
                     result.TokensSet += proxCopied;
+                }
+            }
+
+            // Per-discipline profile defaults — apply after all detection to fill still-generic tokens
+            {
+                string curDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                var profile = TagConfig.GetDisciplineProfile(curDisc);
+                if (profile != null)
+                {
+                    // Apply DefaultProd when PROD is still generic (GEN/XX)
+                    if (!string.IsNullOrEmpty(profile.DefaultProd))
+                    {
+                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+                        if (string.IsNullOrEmpty(curProd) || curProd == "GEN" || curProd == "XX")
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, profile.DefaultProd))
+                                result.TokensSet++;
+                            else if (overwrite && (curProd == "GEN" || curProd == "XX"))
+                            {
+                                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
+                                    result.TokensSet++;
+                            }
+                        }
+                    }
+
+                    // Apply DefaultStatus when STATUS is still empty
+                    if (!string.IsNullOrEmpty(profile.DefaultStatus))
+                    {
+                        string curStatus = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
+                        if (string.IsNullOrEmpty(curStatus))
+                        {
+                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.STATUS, profile.DefaultStatus))
+                                result.TokensSet++;
+                        }
+                    }
                 }
             }
 
@@ -3274,6 +3387,15 @@ namespace StingTools.Core
     /// </summary>
     internal static class TagPipelineHelper
     {
+        // Phase 74d: Static token-param map — eliminates 2 Dictionary allocations per element in RunFullPipeline
+        private static readonly Dictionary<string, string> TokenParamMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DISC"] = ParamRegistry.DISC, ["LOC"] = ParamRegistry.LOC,
+            ["ZONE"] = ParamRegistry.ZONE, ["LVL"] = ParamRegistry.LVL,
+            ["SYS"] = ParamRegistry.SYS, ["FUNC"] = ParamRegistry.FUNC,
+            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
+            ["REV"] = ParamRegistry.REV
+        };
         /// <summary>
         /// GAP-WS-01: Check whether the element can be modified in a workshared environment.
         /// Returns true if the element is safe to edit (not workshared, or owned by current user, or unowned).
@@ -3355,50 +3477,61 @@ namespace StingTools.Core
         {
             try
             {
+                // MEDIUM-09: Reset read-only skip counter at pipeline entry to prevent
+                // cross-batch counter leakage from [ThreadStatic] persistence
+                ResetReadOnlySkipCount();
+
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName)) return false;
 
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // AL-06: Capture previous tag value and timestamp for audit trail
+                // AL-06: Capture previous tag value for audit trail (timestamp written AFTER successful tag change)
+                // DI-004 FIX: Moved MODIFIED_DT write to after BuildAndWriteTag to prevent
+                // stale timestamps on partial pipeline failures
+                string _prevTag = null;
                 try
                 {
-                    string prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", prevTag, overwrite: true);
+                    _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(_prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    // Phase 78 ISO-CRIT-001: Track contributor username for ISO 19650-2 §5.2 traceability
+                    try
+                    {
+                        string userName = Environment.UserName;
+                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", userName, overwrite: true);
+                    }
+                    catch (Exception usrEx) { StingLog.Warn($"ISO username tracking: {usrEx.Message}"); }
                 }
                 catch (Exception auditEx)
                 {
                     StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
                 }
 
+                // Plugin hook: notify third-party plugins before tagging
+                StingPluginHooks.FireBeforeTag(doc, el);
+
                 // P4: Inherit token values from family type before populating
                 TokenAutoPopulator.TypeTokenInherit(doc, el);
 
                 // FIX-DEEP01: Snapshot locked token values AFTER TypeTokenInherit so inherited
                 // values are preserved, but BEFORE PopulateAll/overrides can change them
-                var lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                // Phase 74d: Only allocate locked snapshot when token lock is non-empty (rare)
+                Dictionary<string, string> lockedSnapshot = null;
                 try
                 {
                     string preLockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
                     if (!string.IsNullOrWhiteSpace(preLockStr))
                     {
+                        lockedSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                         string[] lockKeys = preLockStr.Split(',')
                             .Select(s => s.Trim().ToUpperInvariant()).ToArray();
-                        var tokenParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
-                            ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
-                            ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
-                            ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
-                            ["REV"]  = ParamRegistry.REV
-                        };
                         foreach (string lockKey in lockKeys)
                         {
-                            if (tokenParamMap.TryGetValue(lockKey, out string paramName))
+                            if (TokenParamMap.TryGetValue(lockKey, out string paramName))
                             {
                                 string val = ParameterHelpers.GetString(el, paramName);
                                 if (!string.IsNullOrEmpty(val))
@@ -3442,19 +3575,12 @@ namespace StingTools.Core
                 }
 
                 // FIX-DEEP01: Restore locked token values (overrides above may have changed them)
-                if (lockedSnapshot.Count > 0)
+                // Phase 74d: Use static TokenParamMap + null check (lockedSnapshot only allocated when lock exists)
+                if (lockedSnapshot != null && lockedSnapshot.Count > 0)
                 {
-                    var restoreParamMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["DISC"] = ParamRegistry.DISC, ["LOC"]  = ParamRegistry.LOC,
-                        ["ZONE"] = ParamRegistry.ZONE, ["LVL"]  = ParamRegistry.LVL,
-                        ["SYS"]  = ParamRegistry.SYS,  ["FUNC"] = ParamRegistry.FUNC,
-                        ["PROD"] = ParamRegistry.PROD, ["STATUS"] = ParamRegistry.STATUS,
-                        ["REV"]  = ParamRegistry.REV
-                    };
                     foreach (var kvp in lockedSnapshot)
                     {
-                        if (restoreParamMap.TryGetValue(kvp.Key, out string paramName))
+                        if (TokenParamMap.TryGetValue(kvp.Key, out string paramName))
                         {
                             try { ParameterHelpers.SetString(el, paramName, kvp.Value, overwrite: true); }
                             catch (Exception lockEx)
@@ -3512,12 +3638,25 @@ namespace StingTools.Core
                     existingTags: tagIndex,
                     collisionMode: collisionMode,
                     stats: stats,
-                    cachedRev: ctx?.ProjectRev);
+                    cachedRev: ctx?.ProjectRev,
+                    cachedPhases: ctx?.CachedPhases,
+                    lastPhaseId: ctx?.LastPhaseId);
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
                     return false;
                 }
+
+                // DI-004 FIX: Write modification timestamp AFTER successful tag change only
+                try
+                {
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                }
+                catch (Exception dtEx) { StingLog.Warn($"Tag modified date write: {dtEx.Message}"); }
+
+                // Plugin hook: notify third-party plugins after successful tagging
+                StingPluginHooks.FireAfterTag(doc, el, ParameterHelpers.GetString(el, ParamRegistry.TAG1));
 
                 // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
@@ -3575,12 +3714,14 @@ namespace StingTools.Core
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
         private static DateTime _formulaCacheTime;
-        private static readonly TimeSpan FormulaCacheTTL = TimeSpan.FromMinutes(5);
+        // GAP-FIX: Use configurable TTL from TagConfig instead of hardcoded value
+        private static TimeSpan FormulaCacheTTL => TimeSpan.FromMinutes(TagConfig.FormulaCacheTTLMinutes);
 
         private static List<Grid> _cachedGridLines;
         private static string _gridCacheDocKey;
         private static DateTime _gridCacheTime;
-        private static readonly TimeSpan GridCacheTTL = TimeSpan.FromMinutes(2);
+        // GAP-FIX: Use configurable TTL from TagConfig instead of hardcoded value
+        private static TimeSpan GridCacheTTL => TimeSpan.FromMinutes(TagConfig.GridCacheTTLMinutes);
 
         /// <summary>
         /// Build context objects required by RunFullPipeline. Call once before the element loop.

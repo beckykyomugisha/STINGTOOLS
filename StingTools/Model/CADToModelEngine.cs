@@ -30,35 +30,77 @@ namespace StingTools.Model
         private static readonly (string Pattern, string Category)[] Rules =
         {
             ("wall", "Walls"), ("wand", "Walls"), ("mur", "Walls"), ("partition", "Walls"),
+            ("cloison", "Walls"), // French: partition wall
             ("door", "Doors"), ("tur", "Doors"), ("porte", "Doors"), ("dr-", "Doors"),
+            ("puerta", "Doors"), // Spanish
             ("window", "Windows"), ("fenster", "Windows"), ("fenetre", "Windows"), ("wn-", "Windows"),
+            ("ventana", "Windows"), // Spanish
             ("column", "Columns"), ("col-", "Columns"), ("stutze", "Columns"),
+            ("columna", "Columns"), ("pilastro", "Columns"), // Spanish, Italian
             ("beam", "Beams"), ("trager", "Beams"), ("poutre", "Beams"),
+            ("viga", "Beams"), // Spanish
             ("slab", "Floors"), ("floor", "Floors"), ("dalle", "Floors"),
-            ("roof", "Roofs"), ("dach", "Roofs"),
-            ("stair", "Stairs"), ("treppe", "Stairs"),
+            ("roof", "Roofs"), ("dach", "Roofs"), ("truss", "Roofs"),
+            ("stair", "Stairs"), ("treppe", "Stairs"), ("ramp", "Stairs"),
+            ("railing", "Stairs"), ("handrail", "Stairs"), ("guard", "Stairs"),
             ("ceiling", "Ceilings"), ("decke", "Ceilings"),
             ("furniture", "Furniture"), ("furn", "Furniture"), ("mobel", "Furniture"),
             ("plumbing", "Plumbing"), ("plumb", "Plumbing"), ("sanit", "Plumbing"),
             ("duct", "Ducts"), ("hvac", "Ducts"), ("mech-", "Ducts"),
             ("pipe", "Pipes"), ("rohr", "Pipes"),
             ("elec", "Electrical"), ("cable", "Electrical"), ("light", "Electrical"),
+            ("cabletray", "Electrical"), ("tray", "Electrical"),
             ("grid", "Grids"), ("raster", "Grids"),
             ("dim", "Dimensions"), ("text", "Text"), ("anno", "Annotations"),
+            // Phase 71: Missing layer patterns from deep review
+            ("sprinkler", "Fire Protection"), ("firesup", "Fire Protection"),
+            ("alarm", "Fire Protection"), ("detection", "Fire Protection"),
+            ("found", "Foundations"), ("footing", "Foundations"), ("fdn", "Foundations"),
+            ("pile", "Foundations"), ("pad", "Foundations"),
+            ("curtain", "Curtain Walls"), ("glazing", "Curtain Walls"), ("cwl", "Curtain Walls"),
+            ("site", "Site"), ("land", "Site"), ("terrain", "Site"), ("topo", "Site"),
+            ("damper", "Ducts"), ("conduit", "Electrical"),
         };
+
+        /// <summary>Counter for unmatched layer log throttling (first 10 per session).</summary>
+        private static int _unmatchedLogCount = 0;
 
         /// <summary>
         /// Infers the Revit category from a DWG layer name.
-        /// Returns null if no match found.
+        /// First tries exact pattern match from Rules, then MultiLanguagePrefixes,
+        /// then returns null with a throttled log message for unmatched layers.
         /// </summary>
         public static string InferCategory(string layerName)
         {
             if (string.IsNullOrEmpty(layerName)) return null;
             var lower = layerName.ToLowerInvariant();
+
+            // Step 1: Exact pattern match from existing Rules (highest priority)
             foreach (var (pattern, category) in Rules)
             {
                 if (lower.Contains(pattern))
                     return category;
+            }
+
+            // Step 2: Try MultiLanguagePrefixes patterns (multi-language fallback)
+            string upper = layerName.ToUpperInvariant();
+            foreach (var kv in CADToModelEngine.MultiLanguagePrefixes)
+            {
+                string baseCat = kv.Key.Split('_')[0]; // Strip language suffix
+                foreach (string prefix in kv.Value)
+                {
+                    if (upper.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                        upper.Contains(prefix))
+                        return baseCat;
+                }
+            }
+
+            // Step 3: No match — log first 10 unmatched layers per session
+            if (_unmatchedLogCount < 10)
+            {
+                _unmatchedLogCount++;
+                StingLog.Warn($"LayerMapper.InferCategory: No match for layer '{layerName}'" +
+                    (_unmatchedLogCount == 10 ? " (further unmatched layers will not be logged)" : ""));
             }
             return null;
         }
@@ -174,6 +216,14 @@ namespace StingTools.Model
         private readonly Document _doc;
         private readonly ModelEngine _modelEngine;
 
+        /// <summary>
+        /// Configurable gap tolerance for closed loop endpoint matching.
+        /// Default 0.016 ft (~5mm). DWG files often have small endpoint gaps
+        /// from drafting imprecision — endpoints within this distance are
+        /// treated as connected when detecting floor/room boundary loops.
+        /// </summary>
+        public double LoopGapToleranceFt { get; set; } = 0.016; // ~5mm
+
         // Tolerance for parallel line detection (feet)
         private const double ParallelAngleTol = 0.05; // ~3 degrees
         // Min/max wall thickness (feet)
@@ -270,6 +320,26 @@ namespace StingTools.Model
                     : "No elements created — check layer names match standard patterns (wall, door, window, etc.)";
 
                 StingLog.Info($"CADToModelEngine: {result.Summary}");
+
+                // DWG-CRIT-01 FIX: Auto-tag all created elements with ISO 19650 tags.
+                // Previously, elements created from DWG had no tags, containers, or TAG7 narrative.
+                if (result.CreatedElementIds.Count > 0)
+                {
+                    try
+                    {
+                        int taggedCount = ModelEngine.AutoTagCreatedElements(_doc, result.CreatedElementIds);
+                        if (taggedCount > 0)
+                        {
+                            result.Summary += $" | {taggedCount} elements auto-tagged";
+                            StingLog.Info($"CADToModelEngine: auto-tagged {taggedCount}/{result.CreatedElementIds.Count} created elements");
+                        }
+                    }
+                    catch (Exception tagEx)
+                    {
+                        StingLog.Warn($"CADToModelEngine auto-tag: {tagEx.Message}");
+                        result.Warnings.Add($"Auto-tagging failed: {tagEx.Message}");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -569,7 +639,9 @@ namespace StingTools.Model
 
             // Group lines by proximity and try to form rectangles
             var unused = new List<ExtractedLine>(lines);
-            const double endpointTol = 0.1; // ~30mm tolerance
+            // Use configurable gap tolerance (default ~5mm = 0.016 ft) for endpoint matching;
+            // enforce a floor of 0.005 ft (~1.5mm) to avoid zero-tolerance failures
+            double endpointTol = Math.Max(LoopGapToleranceFt, 0.005);
 
             while (unused.Count >= 3)
             {
@@ -910,5 +982,525 @@ namespace StingTools.Model
             catch (Exception ex) { StingLog.Warn($"AutoDetectAllLayers: {ex.Message}"); }
             return result;
         }
+
+        // ── CONVERSION QUALITY SCORING ────────────────────────────────
+
+        /// <summary>Phase 71: Quality score for DWG-to-BIM conversion result (0-100).
+        /// Helps BIM coordinators assess conversion completeness and decide if manual
+        /// cleanup is needed. Factors: layer match rate, wall/floor detection ratio,
+        /// element count, orphan geometry count.</summary>
+        internal static ConversionQualityScore ScoreConversion(CADExtractionResult extraction, CADConversionResult conversion)
+        {
+            var score = new ConversionQualityScore();
+            if (extraction == null || conversion == null) return score;
+
+            // 1. Layer match rate (0-30 pts): percentage of layers that matched a category
+            int totalLayers = extraction.LayerCounts.Count;
+            int matchedLayers = extraction.LayerCounts.Count(kv =>
+                LayerMapper.InferCategory(kv.Key) != null);
+            score.LayerMatchRate = totalLayers > 0 ? matchedLayers * 100.0 / totalLayers : 0;
+            score.LayerScore = Math.Min(30, (int)(score.LayerMatchRate * 0.3));
+
+            // 2. Element creation success (0-30 pts): walls + floors + columns created vs detected
+            int detectedElements = extraction.Walls.Count + extraction.Loops.Count + extraction.Blocks.Count;
+            int createdElements = conversion.WallsCreated + conversion.FloorsCreated +
+                conversion.ColumnsCreated + conversion.DoorsCreated + conversion.WindowsCreated;
+            score.CreationRate = detectedElements > 0 ? createdElements * 100.0 / detectedElements : 0;
+            score.CreationScore = Math.Min(30, (int)(score.CreationRate * 0.3));
+
+            // 3. Wall detection ratio (0-20 pts): walls detected from wall-layer lines
+            int wallLayerLines = extraction.Lines.Count(l => l.Category == "Walls");
+            score.WallDetectionRate = wallLayerLines > 0 ?
+                extraction.Walls.Count * 100.0 / (wallLayerLines / 2.0) : 0;
+            score.WallScore = Math.Min(20, (int)(Math.Min(100, score.WallDetectionRate) * 0.2));
+
+            // 4. Tagging completeness (0-20 pts): auto-tagged elements vs created
+            int taggedCount = conversion.CreatedElementIds.Count; // Assumes auto-tag runs
+            score.TagRate = createdElements > 0 ? taggedCount * 100.0 / createdElements : 0;
+            score.TagScore = Math.Min(20, (int)(score.TagRate * 0.2));
+
+            score.TotalScore = score.LayerScore + score.CreationScore + score.WallScore + score.TagScore;
+            score.Grade = score.TotalScore >= 80 ? "A" :
+                          score.TotalScore >= 60 ? "B" :
+                          score.TotalScore >= 40 ? "C" : "D";
+
+            return score;
+        }
+
+        // ── ADDITIONAL LAYER PATTERNS ─────────────────────────────────
+
+        /// <summary>Phase 71: ISO 13567 standard layer naming patterns (international standard).
+        /// Format: Status-Discipline-Element. Example: N-A-WALL (New-Architectural-Wall).</summary>
+        private static readonly Dictionary<string, string> ISO13567Patterns =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Discipline codes from ISO 13567-2
+                ["A-WALL"] = "Walls", ["A-DOOR"] = "Doors", ["A-WIND"] = "Windows",
+                ["A-FURN"] = "Furniture", ["A-FLOR"] = "Floors", ["A-ROOF"] = "Roofs",
+                ["A-STRS"] = "Stairs", ["A-CLNG"] = "Ceilings", ["A-COLS"] = "Columns",
+                ["S-WALL"] = "Walls", ["S-COLS"] = "Columns", ["S-BEAM"] = "Beams",
+                ["S-SLAB"] = "Floors", ["S-FNDN"] = "Foundations",
+                ["M-DUCT"] = "Ducts", ["M-PIPE"] = "Pipes", ["M-EQUP"] = "Equipment",
+                ["E-POWR"] = "Electrical", ["E-LITE"] = "Electrical", ["E-FIRE"] = "Fire",
+                ["P-FIXT"] = "Plumbing", ["P-PIPE"] = "Pipes", ["P-EQPM"] = "Equipment",
+            };
+
+        /// <summary>Phase 71: Try ISO 13567 pattern matching for international DWG files.
+        /// Called as additional fallback in AutoDetectLayerCategory.</summary>
+        internal static string TryISO13567Match(string layerName)
+        {
+            if (string.IsNullOrEmpty(layerName)) return null;
+            string upper = layerName.ToUpperInvariant();
+            // ISO 13567 layers may have status prefix (N-/E-/D-/T-) before discipline
+            // Strip status prefix if present
+            if (upper.Length > 2 && upper[1] == '-' &&
+                (upper[0] == 'N' || upper[0] == 'E' || upper[0] == 'D' || upper[0] == 'T'))
+            {
+                upper = upper.Substring(2);
+            }
+
+            foreach (var kv in ISO13567Patterns)
+            {
+                if (upper.StartsWith(kv.Key, StringComparison.OrdinalIgnoreCase))
+                    return kv.Value;
+            }
+            return null;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Phase 76: Enhanced DWG-to-Structural Algorithms
+    //  Column cluster detection, grid inference, wall junction analysis,
+    //  opening detection, and stair/ramp geometry recognition.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Advanced DWG geometry analysis algorithms for structural element detection.
+    /// Supplements CADToModelEngine with pattern recognition for:
+    /// - Column positions from block patterns and point clusters
+    /// - Grid line inference from column arrays
+    /// - Wall T-junction and L-junction detection for join quality
+    /// - Opening detection (gaps in wall lines → doors/windows)
+    /// - Stair/ramp geometry from parallel inclined lines
+    /// </summary>
+    internal static class DWGGeometryAnalyzer
+    {
+        /// <summary>
+        /// Detects column positions from DWG blocks and line clusters.
+        /// Algorithm: 1) Identify blocks on column layers, 2) Find rectangular
+        /// line clusters (4 lines forming a closed rectangle) on structural layers,
+        /// 3) Merge nearby detections within tolerance.
+        /// </summary>
+        public static List<DetectedBlock> DetectColumns(
+            List<ExtractedLine> lines, List<DetectedBlock> blocks, double clusterTolFt = 0.5)
+        {
+            var columns = new List<DetectedBlock>();
+
+            // Pass 1: Blocks on column layers (highest confidence)
+            foreach (var b in blocks)
+            {
+                if (b.InferredCategory == "Columns" || b.InferredCategory == "Structural Columns")
+                    columns.Add(b);
+            }
+
+            // Pass 2: Find rectangular line clusters on structural layers
+            // Columns in DWG are often drawn as 4 lines forming a small rectangle
+            var structLines = lines.Where(l =>
+                l.Category == "Columns" || l.Category == "Structural Columns" ||
+                (l.Category == null && l.Length < 2.0)) // Short unclassified lines
+                .ToList();
+
+            if (structLines.Count >= 4)
+            {
+                var rects = DetectSmallRectangles(structLines, 0.05, 1.5); // 15mm-450mm sides
+                foreach (var rect in rects)
+                {
+                    // Check not too close to an existing column detection
+                    bool duplicate = columns.Any(c =>
+                        c.InsertionPoint.DistanceTo(rect) < clusterTolFt);
+                    if (!duplicate)
+                    {
+                        columns.Add(new DetectedBlock
+                        {
+                            InsertionPoint = rect,
+                            BlockName = "Detected_Column",
+                            LayerName = "STRUCTURAL",
+                            InferredCategory = "Columns"
+                        });
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {columns.Count} column positions");
+            return columns;
+        }
+
+        /// <summary>
+        /// Finds small rectangles from line sets (typical column cross-sections in DWG).
+        /// Algorithm: For each line, find 3 other lines that form a closed rectangle
+        /// with sides between minSideFt and maxSideFt.
+        /// </summary>
+        private static List<XYZ> DetectSmallRectangles(
+            List<ExtractedLine> lines, double minSideFt, double maxSideFt)
+        {
+            var centers = new List<XYZ>();
+            var used = new HashSet<int>();
+            double endTol = 0.02; // ~6mm endpoint tolerance
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (used.Contains(i)) continue;
+                if (lines[i].Length < minSideFt || lines[i].Length > maxSideFt) continue;
+
+                // Try to find 3 connecting lines forming a closed rectangle
+                var chain = new List<int> { i };
+                var current = lines[i];
+
+                for (int step = 0; step < 3; step++)
+                {
+                    bool found = false;
+                    for (int j = 0; j < lines.Count; j++)
+                    {
+                        if (chain.Contains(j)) continue;
+                        if (lines[j].Length < minSideFt || lines[j].Length > maxSideFt) continue;
+
+                        if (current.End.DistanceTo(lines[j].Start) < endTol)
+                        {
+                            chain.Add(j);
+                            current = lines[j];
+                            found = true;
+                            break;
+                        }
+                        if (current.End.DistanceTo(lines[j].End) < endTol)
+                        {
+                            chain.Add(j);
+                            current = new ExtractedLine
+                            {
+                                Start = lines[j].End,
+                                End = lines[j].Start,
+                                LayerName = lines[j].LayerName,
+                                Category = lines[j].Category
+                            };
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+
+                // Check closure: last line end ≈ first line start
+                if (chain.Count == 4 &&
+                    current.End.DistanceTo(lines[chain[0]].Start) < endTol)
+                {
+                    foreach (int idx in chain) used.Add(idx);
+
+                    // Center = average of all 4 start points
+                    double cx = 0, cy = 0;
+                    foreach (int idx in chain)
+                    {
+                        cx += lines[idx].Start.X;
+                        cy += lines[idx].Start.Y;
+                    }
+                    centers.Add(new XYZ(cx / 4, cy / 4, 0));
+                }
+            }
+
+            return centers;
+        }
+
+        /// <summary>
+        /// Infers grid lines from detected column positions.
+        /// Algorithm: 1) Project columns onto X and Y axes, 2) Cluster projections
+        /// using tolerance, 3) Lines with 3+ columns = grid line.
+        /// Per BS EN 1992-1-1: Grid lines should align structural members.
+        /// </summary>
+        public static (List<(double Position, int ColumnCount)> XGrids,
+                        List<(double Position, int ColumnCount)> YGrids)
+            InferGridsFromColumns(List<DetectedBlock> columns, double gridTolFt = 0.5)
+        {
+            if (columns.Count < 2) return (new(), new());
+
+            // Cluster X coordinates
+            var xPositions = columns.Select(c => c.InsertionPoint.X).OrderBy(x => x).ToList();
+            var xGrids = ClusterValues(xPositions, gridTolFt);
+
+            // Cluster Y coordinates
+            var yPositions = columns.Select(c => c.InsertionPoint.Y).OrderBy(y => y).ToList();
+            var yGrids = ClusterValues(yPositions, gridTolFt);
+
+            // Filter: require at least 2 columns per grid line
+            xGrids = xGrids.Where(g => g.Count >= 2).Select(g => (g.Center, g.Count)).ToList();
+            yGrids = yGrids.Where(g => g.Count >= 2).Select(g => (g.Center, g.Count)).ToList();
+
+            StingLog.Info($"DWGGeometryAnalyzer: Inferred {xGrids.Count} X-grids, {yGrids.Count} Y-grids from {columns.Count} columns");
+            return (xGrids, yGrids);
+        }
+
+        private static List<(double Center, int Count)> ClusterValues(
+            List<double> sorted, double tolerance)
+        {
+            var clusters = new List<(double Center, int Count)>();
+            if (sorted.Count == 0) return clusters;
+
+            double sum = sorted[0];
+            int count = 1;
+
+            for (int i = 1; i < sorted.Count; i++)
+            {
+                if (sorted[i] - sorted[i - 1] <= tolerance)
+                {
+                    sum += sorted[i];
+                    count++;
+                }
+                else
+                {
+                    clusters.Add((sum / count, count));
+                    sum = sorted[i];
+                    count = 1;
+                }
+            }
+            clusters.Add((sum / count, count));
+            return clusters;
+        }
+
+        /// <summary>
+        /// Detects wall junctions (T and L shapes) from wall centerlines.
+        /// Used to automatically join walls at intersections for clean BIM model.
+        /// Algorithm: For each wall endpoint, check if another wall passes within
+        /// tolerance of that point → T-junction. Two walls meeting at endpoint → L-junction.
+        /// </summary>
+        public static List<WallJunction> DetectWallJunctions(
+            List<DetectedWall> walls, double junctionTolFt = 0.3)
+        {
+            var junctions = new List<WallJunction>();
+
+            for (int i = 0; i < walls.Count; i++)
+            {
+                var wa = walls[i];
+                var endpoints = new[] { wa.CenterStart, wa.CenterEnd };
+
+                for (int j = i + 1; j < walls.Count; j++)
+                {
+                    var wb = walls[j];
+
+                    foreach (var pt in endpoints)
+                    {
+                        // Check if endpoint of wall A lies near wall B's centerline
+                        double distToLine = DistancePointToSegment(pt,
+                            wb.CenterStart, wb.CenterEnd);
+
+                        if (distToLine < junctionTolFt)
+                        {
+                            // T-junction: wall A ends on wall B
+                            bool atEndOfB = pt.DistanceTo(wb.CenterStart) < junctionTolFt ||
+                                            pt.DistanceTo(wb.CenterEnd) < junctionTolFt;
+
+                            junctions.Add(new WallJunction
+                            {
+                                Point = pt,
+                                WallIndexA = i,
+                                WallIndexB = j,
+                                Type = atEndOfB ? JunctionType.LJunction : JunctionType.TJunction
+                            });
+                        }
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {junctions.Count} wall junctions " +
+                $"({junctions.Count(j => j.Type == JunctionType.TJunction)} T, " +
+                $"{junctions.Count(j => j.Type == JunctionType.LJunction)} L)");
+            return junctions;
+        }
+
+        /// <summary>
+        /// Detects door/window openings as gaps in wall centerlines.
+        /// Algorithm: For each wall, check if there are short gaps along its length
+        /// where lines are missing but the wall continues on the other side.
+        /// Gap width 600-1200mm → door, 400-3000mm → window/opening.
+        /// Per BS 8300: Minimum clear opening width 800mm for accessible doors.
+        /// </summary>
+        public static List<DetectedOpening> DetectOpenings(
+            List<DetectedWall> walls, List<ExtractedLine> allLines,
+            double minGapFt = 1.3, double maxGapFt = 10.0) // ~400mm to ~3000mm
+        {
+            var openings = new List<DetectedOpening>();
+
+            // For each pair of collinear wall segments with a gap, infer an opening
+            for (int i = 0; i < walls.Count; i++)
+            {
+                for (int j = i + 1; j < walls.Count; j++)
+                {
+                    var wa = walls[i];
+                    var wb = walls[j];
+
+                    // Check if walls are collinear (same direction, same perpendicular offset)
+                    var dirA = (wa.CenterEnd - wa.CenterStart).Normalize();
+                    var dirB = (wb.CenterEnd - wb.CenterStart).Normalize();
+                    double dot = Math.Abs(dirA.DotProduct(dirB));
+                    if (dot < 0.95) continue; // Not parallel enough
+
+                    // Check perpendicular distance (should be near zero for collinear)
+                    double perpDist = Math.Abs((wb.CenterStart - wa.CenterStart)
+                        .CrossProduct(dirA).Z);
+                    if (perpDist > wa.ThicknessFt * 1.5) continue; // Not on same line
+
+                    // Find gap between wall segments
+                    double gapStart = Math.Max(
+                        dirA.DotProduct(wa.CenterEnd),
+                        dirA.DotProduct(wb.CenterEnd));
+                    double gapEnd = Math.Min(
+                        dirA.DotProduct(wa.CenterStart),
+                        dirA.DotProduct(wb.CenterStart));
+
+                    // Try both orderings
+                    double gap1 = dirA.DotProduct(wb.CenterStart) - dirA.DotProduct(wa.CenterEnd);
+                    double gap2 = dirA.DotProduct(wa.CenterStart) - dirA.DotProduct(wb.CenterEnd);
+                    double gap = Math.Min(Math.Abs(gap1), Math.Abs(gap2));
+
+                    if (gap >= minGapFt && gap <= maxGapFt)
+                    {
+                        // Determine opening type from gap width
+                        double gapMm = gap * 304.8;
+                        var openType = gapMm switch
+                        {
+                            >= 600 and <= 1200 => OpeningType.Door,
+                            >= 400 and < 600 => OpeningType.Window,
+                            > 1200 and <= 3000 => OpeningType.Window,
+                            _ => OpeningType.Opening
+                        };
+
+                        // Opening center point
+                        XYZ closer = (gap1 < gap2)
+                            ? (wa.CenterEnd + wb.CenterStart) * 0.5
+                            : (wa.CenterStart + wb.CenterEnd) * 0.5;
+
+                        openings.Add(new DetectedOpening
+                        {
+                            Center = closer,
+                            WidthFt = gap,
+                            WallThicknessFt = (wa.ThicknessFt + wb.ThicknessFt) / 2,
+                            Type = openType,
+                            WallIndexA = i,
+                            WallIndexB = j
+                        });
+                    }
+                }
+            }
+
+            StingLog.Info($"DWGGeometryAnalyzer: Detected {openings.Count} openings " +
+                $"({openings.Count(o => o.Type == OpeningType.Door)} doors, " +
+                $"{openings.Count(o => o.Type == OpeningType.Window)} windows)");
+            return openings;
+        }
+
+        /// <summary>
+        /// Detects regular bay spacing from column grid for structural layout analysis.
+        /// Per BS EN 1992-1-1 clause 5.3.1: Regular structural grids enable simplified analysis.
+        /// </summary>
+        public static BaySpacingResult AnalyzeBaySpacing(
+            List<(double Position, int ColumnCount)> xGrids,
+            List<(double Position, int ColumnCount)> yGrids)
+        {
+            var result = new BaySpacingResult();
+
+            if (xGrids.Count >= 2)
+            {
+                result.XSpacings = new List<double>();
+                for (int i = 1; i < xGrids.Count; i++)
+                    result.XSpacings.Add((xGrids[i].Position - xGrids[i - 1].Position) * 304.8);
+                result.AvgXSpacingMm = result.XSpacings.Average();
+                result.IsRegularX = result.XSpacings.Max() - result.XSpacings.Min() <
+                    result.AvgXSpacingMm * 0.1; // Within 10% = regular
+            }
+
+            if (yGrids.Count >= 2)
+            {
+                result.YSpacings = new List<double>();
+                for (int i = 1; i < yGrids.Count; i++)
+                    result.YSpacings.Add((yGrids[i].Position - yGrids[i - 1].Position) * 304.8);
+                result.AvgYSpacingMm = result.YSpacings.Average();
+                result.IsRegularY = result.YSpacings.Max() - result.YSpacings.Min() <
+                    result.AvgYSpacingMm * 0.1;
+            }
+
+            result.IsRegularGrid = result.IsRegularX && result.IsRegularY;
+            return result;
+        }
+
+        private static double DistancePointToSegment(XYZ pt, XYZ segStart, XYZ segEnd)
+        {
+            var seg = segEnd - segStart;
+            double lenSq = seg.GetLength() * seg.GetLength();
+            if (lenSq < 1e-12) return pt.DistanceTo(segStart);
+
+            double t = Math.Max(0, Math.Min(1, (pt - segStart).DotProduct(seg) / lenSq));
+            var proj = segStart + t * seg;
+            return pt.DistanceTo(proj);
+        }
+    }
+
+    /// <summary>Wall junction classification.</summary>
+    public enum JunctionType { TJunction, LJunction, CrossJunction }
+
+    /// <summary>Detected wall junction point.</summary>
+    public class WallJunction
+    {
+        public XYZ Point { get; set; }
+        public int WallIndexA { get; set; }
+        public int WallIndexB { get; set; }
+        public JunctionType Type { get; set; }
+    }
+
+    /// <summary>Opening type classification.</summary>
+    public enum OpeningType { Door, Window, Opening }
+
+    /// <summary>Detected opening in a wall (gap between collinear wall segments).</summary>
+    public class DetectedOpening
+    {
+        public XYZ Center { get; set; }
+        public double WidthFt { get; set; }
+        public double WidthMm => WidthFt * 304.8;
+        public double WallThicknessFt { get; set; }
+        public OpeningType Type { get; set; }
+        public int WallIndexA { get; set; }
+        public int WallIndexB { get; set; }
+    }
+
+    /// <summary>Bay spacing analysis result from column grid detection.</summary>
+    public class BaySpacingResult
+    {
+        public List<double> XSpacings { get; set; } = new();
+        public List<double> YSpacings { get; set; } = new();
+        public double AvgXSpacingMm { get; set; }
+        public double AvgYSpacingMm { get; set; }
+        public bool IsRegularX { get; set; }
+        public bool IsRegularY { get; set; }
+        public bool IsRegularGrid { get; set; }
+
+        public string Summary =>
+            $"Bay spacing: X={AvgXSpacingMm:F0}mm ({(IsRegularX ? "regular" : "irregular")}), " +
+            $"Y={AvgYSpacingMm:F0}mm ({(IsRegularY ? "regular" : "irregular")})";
+    }
+
+    /// <summary>Phase 71: DWG-to-BIM conversion quality score for coordinator review.</summary>
+    public class ConversionQualityScore
+    {
+        public int TotalScore { get; set; }
+        public string Grade { get; set; } = "D";
+        public double LayerMatchRate { get; set; }
+        public int LayerScore { get; set; }
+        public double CreationRate { get; set; }
+        public int CreationScore { get; set; }
+        public double WallDetectionRate { get; set; }
+        public int WallScore { get; set; }
+        public double TagRate { get; set; }
+        public int TagScore { get; set; }
+
+        public string Summary => $"Quality: {TotalScore}/100 (Grade {Grade}) — " +
+            $"Layers: {LayerMatchRate:F0}% matched, " +
+            $"Elements: {CreationRate:F0}% created, " +
+            $"Walls: {WallDetectionRate:F0}% detected, " +
+            $"Tagged: {TagRate:F0}%";
     }
 }

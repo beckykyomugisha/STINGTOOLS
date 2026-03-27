@@ -708,6 +708,13 @@ namespace StingTools.Temp
             int skipped = 0;
             int failed = 0;
 
+            // PERF-R15: Pre-build definition index to avoid O(groups×defs) per param lookup
+            var defIndex = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            foreach (DefinitionGroup grp in defFile.Groups)
+                foreach (Definition d in grp.Definitions)
+                    if (d is ExternalDefinition ed && !defIndex.ContainsKey(d.Name))
+                        defIndex[d.Name] = ed;
+
             using (Transaction tx = new Transaction(doc, "STING Dynamic Parameter Bindings"))
             {
                 tx.Start();
@@ -717,8 +724,8 @@ namespace StingTools.Temp
                     string paramName = kvp.Key;
                     var targets = kvp.Value;
 
-                    // Find definition in shared param file
-                    ExternalDefinition def = FindDefinition(defFile, paramName);
+                    // Find definition in pre-built index (O(1) instead of O(n))
+                    defIndex.TryGetValue(paramName, out ExternalDefinition def);
                     if (def == null)
                     {
                         skipped++;
@@ -2506,16 +2513,31 @@ namespace StingTools.Temp
 
                     if (BoundingBoxesOverlap(mepBB, strBB))
                     {
-                        // Refined check with solid intersection
+                        // PERF-R8: Use direct BooleanOperationsUtils.ExecuteBooleanOperation instead of
+                        // per-pair FilteredElementCollector. Previously created a new collector for EVERY
+                        // bounding-box-overlapping pair, then scanned ALL model elements just to check one ID.
                         try
                         {
                             Solid mepSolid = GetSolid(mepEl);
-                            if (mepSolid != null)
+                            Solid strSolid = GetSolid(strEl);
+                            if (mepSolid != null && strSolid != null)
                             {
+                                // Direct solid-solid intersection check — no collector needed
+                                Solid intersection = BooleanOperationsUtils.ExecuteBooleanOperation(
+                                    mepSolid, strSolid, BooleanOperationsType.Intersect);
+                                if (intersection != null && intersection.Volume > 0)
+                                {
+                                    string mepCat = ParameterHelpers.GetCategoryName(mepEl);
+                                    string strCat = ParameterHelpers.GetCategoryName(strEl);
+                                    clashes.Add((mepEl, strEl, $"{mepCat} vs {strCat}"));
+                                }
+                            }
+                            else if (mepSolid != null)
+                            {
+                                // Fallback: use ElementIntersectsSolidFilter but with targeted ID set
                                 var intersectFilter = new ElementIntersectsSolidFilter(mepSolid);
-                                var hits = new FilteredElementCollector(doc)
+                                bool hits = new FilteredElementCollector(doc, new List<ElementId> { strEl.Id })
                                     .WherePasses(intersectFilter)
-                                    .Where(e => e.Id == strEl.Id)
                                     .Any();
                                 if (hits)
                                 {
@@ -2552,13 +2574,14 @@ namespace StingTools.Temp
                     {
                         try
                         {
+                            // PERF-R8: Use direct solid intersection instead of per-pair FilteredElementCollector
                             Solid mepSolid = GetSolid(mepEl);
-                            if (mepSolid != null)
+                            Solid otherSolid = GetSolid(otherMep);
+                            if (mepSolid != null && otherSolid != null)
                             {
-                                bool hits = new FilteredElementCollector(doc)
-                                    .WherePasses(new ElementIntersectsSolidFilter(mepSolid))
-                                    .Where(e => e.Id == otherMep.Id)
-                                    .Any();
+                                Solid xsect = BooleanOperationsUtils.ExecuteBooleanOperation(
+                                    mepSolid, otherSolid, BooleanOperationsType.Intersect);
+                                bool hits = xsect != null && xsect.Volume > 0;
                                 if (hits)
                                     clashes.Add((mepEl, otherMep, $"{mepCat} vs {otherCat} (cross-discipline)"));
                             }
@@ -3074,8 +3097,7 @@ namespace StingTools.Temp
 
     // ════════════════════════════════════════════════════════════════════════════
     //  Excel-to-Drafting View — Import spreadsheet tables into Revit views
-    //  Inspired by: Rushforth Loos Excel-to-Revit, DiRoots SheetLink,
-    //  Ideate Sticky for flexible data overlay.
+    //  Excel-to-Drafting View with flexible data overlay.
     // ════════════════════════════════════════════════════════════════════════════
 
     #region Excel to Drafting View
@@ -3460,7 +3482,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Batch import sticky notes from an Excel file. Each row maps a tag or element ID
     /// to a note text, enabling bulk QA annotation from external review spreadsheets.
-    /// Inspired by Ideate Sticky for Revit batch operations.
+    /// Bulk QA annotation from external review spreadsheets.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3591,7 +3613,7 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════════════
     //  EXCEL LINK EXPORT — BIMLink-style Category + Property Selector (P10)
     //  Lets users pick categories and properties, then exports to Excel.
-    //  Inspired by Ideate BIMLink: category multi-select → property columns → XLSX
+    //  Category multi-select → property columns → XLSX export
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
@@ -4472,7 +4494,7 @@ namespace StingTools.Temp
                 try
                 {
                     var linkType = doc.GetElement(linkInst.GetTypeId()) as RevitLinkType;
-                    Document linkedDoc = linkType?.GetLinkedDocument();
+                    Document linkedDoc = linkInst.GetLinkDocument();
                     if (linkedDoc == null) continue;
 
                     Transform linkTransform = linkInst.GetTotalTransform();
@@ -4791,7 +4813,7 @@ namespace StingTools.Temp
                     var p = el.LookupParameter("IfcGUID") ?? el.LookupParameter("IFC GUID");
                     ifcGuid = p?.AsString();
                 }
-                catch { /* Not IFC-imported */ }
+                catch (Exception ex) { StingLog.Warn($"IFC GUID lookup: {ex.Message}"); }
 
                 if (string.IsNullOrEmpty(ifcGuid)) continue;
                 total++;

@@ -358,14 +358,12 @@ namespace StingTools.Temp
                     for (int i = 0; i < cH.Length; i++)
                         wsComp.Cell(1, i + 1).Value = cH[i];
 
-                    var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                    var tagged = new FilteredElementCollector(doc)
-                        .WhereElementIsNotElementType()
-                        .Where(e =>
-                        {
-                            string cat = ParameterHelpers.GetCategoryName(e);
-                            return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                        })
+                    // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on all elements
+                    var catEnums = SharedParamGuids.AllCategoryEnums;
+                    var taggedColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                    if (catEnums != null && catEnums.Length > 0)
+                        taggedColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                    var tagged = taggedColl
                         .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
                         .Take(10000).ToList();
                     componentCount = tagged.Count;
@@ -430,15 +428,12 @@ namespace StingTools.Temp
                     "Excel Files|*.xlsx|All Files|*.*", "Quantities")
                     ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Quantities", ".xlsx");
 
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                var allElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    })
-                    .ToList();
+                // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on all elements
+                var qtCatEnums = SharedParamGuids.AllCategoryEnums;
+                var qtColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (qtCatEnums != null && qtCatEnums.Length > 0)
+                    qtColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(qtCatEnums)));
+                var allElements = qtColl.ToList();
 
                 var groups = allElements
                     .GroupBy(e => ParameterHelpers.GetCategoryName(e))

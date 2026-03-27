@@ -1006,7 +1006,7 @@ namespace StingTools.Model
                     ParameterHelpers.SetIfEmpty(room, "BLE_ROOM_FINISH_BASE_TXT", entry.BaseFinish);
                     written++;
                 }
-                catch { /* param not bound */ }
+                catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }
             }
             return written;
         }
@@ -1261,7 +1261,7 @@ namespace StingTools.Model
                         ParameterHelpers.SetIfEmpty(el, "ASS_DISCIPLINE_COD_TXT", "A");
                         ParameterHelpers.SetIfEmpty(el, "ASS_PRODCT_COD_TXT", prodCode);
                     }
-                    catch { /* not bound */ }
+                    catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }
                 }
                 report.Steps.Add($"✓ STING tags: DISC=A, PROD={prodCode}");
 
@@ -1374,7 +1374,7 @@ namespace StingTools.Model
                 {
                     var newLayer = new CompoundStructureLayer(
                         coat.ThicknessMm * Units.MmToFeet,
-                        MaterialFunctionAssignment.Finish,
+                        MaterialFunctionAssignment.Finish1,
                         plasterMatId);
 
                     if (applyToInterior)

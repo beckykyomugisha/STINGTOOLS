@@ -537,13 +537,15 @@ namespace StingTools.Tags
                 .WhereElementIsElementType()
                 .ToList();
 
-            // Also need instances to determine discipline per type
+            // PERF-R5: Use ElementMulticategoryFilter instead of collecting ALL instances.
+            // Previously loaded 50K+ elements into memory just to extract DISC codes.
             var instancesByType = new Dictionary<ElementId, string>();
-            var allInstances = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var instCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                instCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
-            foreach (var inst in allInstances)
+            foreach (var inst in instCollector)
             {
                 var typeId = inst.GetTypeId();
                 if (typeId == ElementId.InvalidElementId) continue;

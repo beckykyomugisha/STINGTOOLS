@@ -51,7 +51,7 @@ namespace StingTools.UI
         private static readonly Color CAmber       = Color.FromRgb(0xF5, 0x7F, 0x17);
         private static readonly Color CRed         = Color.FromRgb(0xC6, 0x28, 0x28);
 
-        private static SolidColorBrush Br(Color c) => new SolidColorBrush(c);
+        private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
         // ── Data ──
         private CoordData _data;
@@ -59,6 +59,9 @@ namespace StingTools.UI
         private readonly TextBlock _statusBar;
         private readonly StackPanel _navPanel;
         private Button _activeNav;
+
+        // Phase 75: Persist last-viewed tab across dialog reopens
+        private static string _lastViewedTab = "OVERVIEW";
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -396,8 +399,8 @@ namespace StingTools.UI
                 }
             };
 
-            // Default to Overview
-            NavigateTo("OVERVIEW");
+            // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
+            NavigateTo(_lastViewedTab ?? "OVERVIEW");
         }
 
         private string BuildStatusText()
@@ -550,6 +553,9 @@ namespace StingTools.UI
 
         private void NavigateTo(string tabName)
         {
+            // Phase 75: Remember tab for cross-reopen persistence
+            _lastViewedTab = tabName;
+
             // Reset all nav buttons
             foreach (var child in _navPanel.Children)
             {

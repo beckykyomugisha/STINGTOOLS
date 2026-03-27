@@ -30,8 +30,8 @@ namespace StingTools.BIMManager
     //  Data storage: JSON files in STING_BIM_MANAGER/ alongside .rvt file
     //  All data is portable and version-controllable.
     //
-    //  Briefcase: In-Revit reference document viewer inspired by Procore Briefcase
-    //  and Ideate Sticky. Allows users to access, read, and print reference
+    //  Briefcase: In-Revit reference document viewer. Allows users to access,
+    //  read, and print reference
     //  documents (BEP, standards, specs) without leaving Revit.
     // ════════════════════════════════════════════════════════════════════════════
 
@@ -733,7 +733,12 @@ namespace StingTools.BIMManager
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(path, data.ToString(Formatting.Indented));
+                // Atomic write: write to temp file first, then move (overwrite) to target.
+                // File.Move with overwrite=true is atomic on NTFS, preventing corruption
+                // if the process crashes mid-write.
+                string tmpPath = path + ".tmp";
+                File.WriteAllText(tmpPath, data.ToString(Formatting.Indented));
+                File.Move(tmpPath, path, true);
                 StingLog.Info($"BIMManager: saved {Path.GetFileName(path)}");
             }
             catch (Exception ex)
@@ -789,16 +794,60 @@ namespace StingTools.BIMManager
         }
 
         /// <summary>
-        /// Auto-raise BIM issues from tag compliance scan results.
-        /// Creates issues for untagged elements exceeding a threshold.
-        /// Called after batch tagging or validation operations.
+        /// Phase 75: Auto-close compliance issues when compliance reaches GREEN.
+        /// Matches issues auto-raised by AutoRaiseComplianceIssues.
         /// </summary>
+        internal static int AutoCloseComplianceIssues(Document doc)
+        {
+            try
+            {
+                var scanResult = ComplianceScan.Scan(doc);
+                if (scanResult == null || scanResult.RAGStatus != "GREEN") return 0;
+
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                if (!File.Exists(issuesPath)) return 0;
+                var issues = LoadJsonArray(issuesPath);
+                int closed = 0;
+                foreach (var issue in issues)
+                {
+                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    string title = issue["title"]?.ToString() ?? "";
+                    if (title.Contains("Untagged Elements") || title.Contains("Incomplete Tags"))
+                    {
+                        issue["status"] = "CLOSED";
+                        issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+                        issue["response"] = $"Auto-closed: compliance is now {scanResult.CompliancePercent:F1}% (GREEN)";
+                        issue["resolved_in_revision"] = PhaseAutoDetect.DetectProjectRevision(doc) ?? "";
+                        issue["modified_by"] = Environment.UserName;
+                        issue["modified_date"] = DateTime.Now.ToString("o");
+                        closed++;
+                    }
+                }
+                if (closed > 0)
+                {
+                    SaveJsonFile(issuesPath, issues);
+                    StingLog.Info($"AutoCloseComplianceIssues: closed {closed} issues (compliance GREEN)");
+                }
+                return closed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AutoCloseComplianceIssues: {ex.Message}");
+                return 0;
+            }
+        }
+
         internal static int AutoRaiseComplianceIssues(Document doc)
         {
             try
             {
                 var scanResult = ComplianceScan.Scan(doc);
-                if (scanResult == null || scanResult.RAGStatus == "GREEN") return 0;
+                if (scanResult == null || scanResult.RAGStatus == "GREEN")
+                {
+                    // Phase 75: Auto-close any previously raised compliance issues
+                    AutoCloseComplianceIssues(doc);
+                    return 0;
+                }
 
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
                 var issues = LoadJsonArray(issuesPath);
@@ -832,7 +881,7 @@ namespace StingTools.BIMManager
                             $"Top issues: {scanResult.TopIssues}";
 
                         var issue = CreateIssue(nextId, "NCR", priority, title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "");
+                            Environment.UserName, "", new List<ElementId>(), "", doc);
                         issues.Add(issue);
                         raised++;
                     }
@@ -854,7 +903,7 @@ namespace StingTools.BIMManager
                             $"(missing segments). Run 'Validate Tags' for details.";
 
                         var issue = CreateIssue(nextId, "NCR", "MEDIUM", title, desc,
-                            Environment.UserName, "", new List<ElementId>(), "");
+                            Environment.UserName, "", new List<ElementId>(), "", doc);
                         issues.Add(issue);
                         raised++;
                     }
@@ -1927,7 +1976,8 @@ namespace StingTools.BIMManager
             int totalTagged = 0, totalUntagged = 0;
             try
             {
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                // PERF: Removed .ToList() — iterate lazily to avoid 50K-element List allocation
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(catName)) continue;
@@ -2125,6 +2175,28 @@ namespace StingTools.BIMManager
             return $"{type}-{(max + 1):D4}";
         }
 
+        /// <summary>
+        /// CRIT-005: Check if an existing open issue already references the same element IDs.
+        /// Returns the issue_id of the first matching issue, or null if no match.
+        /// Prevents duplicate issues being raised for the same elements.
+        /// </summary>
+        internal static string FindExistingIssueForElements(JArray issues, List<string> elementIds)
+        {
+            if (issues == null || elementIds == null || elementIds.Count == 0) return null;
+            var targetSet = new HashSet<string>(elementIds);
+            foreach (var issue in issues)
+            {
+                if (issue["status"]?.ToString() == "CLOSED") continue;
+                var existingIds = issue["element_ids"] as JArray;
+                if (existingIds == null || existingIds.Count == 0) continue;
+                var existingSet = new HashSet<string>(existingIds.Select(e => e.ToString()));
+                // Match if any element overlaps
+                if (targetSet.Overlaps(existingSet))
+                    return issue["issue_id"]?.ToString();
+            }
+            return null;
+        }
+
         internal static JObject CreateIssue(string issueId, string issueType, string priority,
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
@@ -2156,8 +2228,41 @@ namespace StingTools.BIMManager
                 ["view_name"] = viewName ?? "",
                 ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
+                ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
                 ["comments"] = new JArray()
             };
+        }
+
+        /// <summary>
+        /// Phase 75: Cross-link a transmittal ID to open issues that share element IDs.
+        /// Scans issues.json for OPEN issues with overlapping element_ids and appends the txId.
+        /// </summary>
+        internal static int LinkTransmittalToIssues(Document doc, string transmittalId, IEnumerable<string> transmittalDocNames)
+        {
+            try
+            {
+                string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
+                if (!File.Exists(issuesPath)) return 0;
+                var issues = LoadJsonArray(issuesPath);
+                int linked = 0;
+                foreach (var issue in issues)
+                {
+                    if (issue["status"]?.ToString() != "OPEN") continue;
+                    var linkedTx = issue["linked_transmittals"] as JArray;
+                    if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
+                    if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
+                    // Link if issue has element references (meaning it relates to model content being transmitted)
+                    var elemIds = issue["element_ids"] as JArray;
+                    if (elemIds != null && elemIds.Count > 0)
+                    {
+                        linkedTx.Add(transmittalId);
+                        linked++;
+                    }
+                }
+                if (linked > 0) SaveJsonFile(issuesPath, issues);
+                return linked;
+            }
+            catch (Exception ex) { StingLog.Warn($"LinkTransmittalToIssues: {ex.Message}"); return 0; }
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -2314,15 +2419,17 @@ namespace StingTools.BIMManager
             }
             data["Floor"] = floors;
 
-            // ── Space (from Rooms) ──
+            // ── Space (from Rooms) + Zone grouping (single pass) ──
             var spaces = new List<Dictionary<string, string>>();
+            var zoneSpaceMap = new Dictionary<string, List<string>>();
             foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType())
             {
                 var room = el as Room;
                 if (room == null || room.Area <= 0) continue;
+                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name;
                 spaces.Add(new Dictionary<string, string>
                 {
-                    ["Name"] = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name,
+                    ["Name"] = roomName,
                     ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
                     ["Category"] = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Room",
                     ["FloorName"] = room.Level?.Name ?? "",
@@ -2335,25 +2442,19 @@ namespace StingTools.BIMManager
                     // (standard 5% deduction for internal wall area per BS 1192-4)
                     ["NetArea"] = Math.Round(room.Area * 0.092903 * 0.95, 2).ToString()
                 });
-            }
-            data["Space"] = spaces;
 
-            // ── Zone (from STING ZONE parameter on rooms, fallback to Department) ──
-            var zones = new List<Dictionary<string, string>>();
-            // Build zone grouping: prefer ASS_ZONE_TXT from room elements, fallback to Department
-            var zoneSpaceMap = new Dictionary<string, List<string>>();
-            foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType())
-            {
-                var room = el as Room;
-                if (room == null || room.Area <= 0) continue;
+                // Collect zone grouping inline (was a second room collector scan)
                 string zoneCode = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(zoneCode))
                     zoneCode = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unassigned";
-                string roomName = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name;
                 if (!zoneSpaceMap.ContainsKey(zoneCode))
                     zoneSpaceMap[zoneCode] = new List<string>();
                 zoneSpaceMap[zoneCode].Add(roomName);
             }
+            data["Space"] = spaces;
+
+            // ── Zone (built from room data collected above) ──
+            var zones = new List<Dictionary<string, string>>();
             foreach (var kvp in zoneSpaceMap.OrderBy(k => k.Key))
             {
                 zones.Add(new Dictionary<string, string>
@@ -3207,11 +3308,16 @@ namespace StingTools.BIMManager
             dashboard["tag_completeness_pct"] = totalElements > 0 ? Math.Round(100.0 * tagged / totalElements, 1) : 0;
             dashboard["discipline_breakdown"] = JObject.FromObject(discCounts.OrderByDescending(kv => kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value));
 
+            // PERF: Count non-template views without materializing all View objects
+            int viewCount = 0;
+            foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)))
+            { if (!v.IsTemplate) viewCount++; }
+
             var modelStats = new JObject
             {
                 ["levels"] = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount(),
                 ["rooms"] = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType().GetElementCount(),
-                ["views"] = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Count(v => !v.IsTemplate),
+                ["views"] = viewCount,
                 ["sheets"] = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount(),
                 ["linked_models"] = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkType)).GetElementCount(),
                 ["is_workshared"] = doc.IsWorkshared
@@ -3450,30 +3556,32 @@ namespace StingTools.BIMManager
             {
                 var obj = JToken.Parse(json);
                 var sb = new StringBuilder();
-                FormatJsonToken(obj, sb, 0, maxLines);
+                // PERF-R3: Use ref int lineCount instead of O(n^2) sb.ToString().Split('\n')
+                int lineCount = 0;
+                FormatJsonToken(obj, sb, 0, maxLines, ref lineCount);
                 return sb.ToString();
             }
             catch (Exception ex) { StingLog.Warn($"JSON formatting: {ex.Message}"); return json.Substring(0, Math.Min(json.Length, 5000)); }
         }
 
-        private static void FormatJsonToken(JToken token, StringBuilder sb, int indent, int maxLines)
+        private static void FormatJsonToken(JToken token, StringBuilder sb, int indent, int maxLines, ref int lineCount)
         {
-            if (sb.ToString().Split('\n').Length >= maxLines) return;
+            if (lineCount >= maxLines) return;
             string pad = new string(' ', indent * 2);
 
             if (token is JObject obj)
             {
                 foreach (var prop in obj.Properties())
                 {
-                    if (sb.ToString().Split('\n').Length >= maxLines) { sb.AppendLine($"{pad}..."); return; }
+                    if (lineCount >= maxLines) { sb.AppendLine($"{pad}..."); lineCount++; return; }
                     if (prop.Value is JObject || prop.Value is JArray)
                     {
-                        sb.AppendLine($"{pad}{prop.Name}:");
-                        FormatJsonToken(prop.Value, sb, indent + 1, maxLines);
+                        sb.AppendLine($"{pad}{prop.Name}:"); lineCount++;
+                        FormatJsonToken(prop.Value, sb, indent + 1, maxLines, ref lineCount);
                     }
                     else
                     {
-                        sb.AppendLine($"{pad}{prop.Name}: {prop.Value}");
+                        sb.AppendLine($"{pad}{prop.Name}: {prop.Value}"); lineCount++;
                     }
                 }
             }
@@ -3482,17 +3590,17 @@ namespace StingTools.BIMManager
                 int i = 0;
                 foreach (var item in arr)
                 {
-                    if (sb.ToString().Split('\n').Length >= maxLines) { sb.AppendLine($"{pad}... ({arr.Count - i} more)"); return; }
+                    if (lineCount >= maxLines) { sb.AppendLine($"{pad}... ({arr.Count - i} more)"); lineCount++; return; }
                     if (item is JObject itemObj)
                     {
                         var summary = string.Join(", ", itemObj.Properties().Take(3).Select(p => $"{p.Name}={p.Value}"));
-                        sb.AppendLine($"{pad}• {summary}");
+                        sb.AppendLine($"{pad}• {summary}"); lineCount++;
                     }
-                    else sb.AppendLine($"{pad}• {item}");
+                    else { sb.AppendLine($"{pad}• {item}"); lineCount++; }
                     i++;
                 }
             }
-            else sb.AppendLine($"{pad}{token}");
+            else { sb.AppendLine($"{pad}{token}"); lineCount++; }
         }
 
         private static string FormatCsvForDisplay(string path, int maxLines)
@@ -3775,8 +3883,9 @@ namespace StingTools.BIMManager
                 enrichment["top_issues"] = compliance.TopIssues;
 
                 // Per-discipline tag breakdown
+                // PERF: Removed .ToList() — iterate lazily
                 var discBreakdown = new JObject();
-                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList())
+                foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(cat)) continue;
@@ -4098,6 +4207,32 @@ namespace StingTools.BIMManager
 
             var selectedIds = uidoc.Selection.GetElementIds();
 
+            // Filter selected elements to taggable categories only
+            if (selectedIds.Count > 0)
+            {
+                try
+                {
+                    var taggableCats = new HashSet<int>(
+                        SharedParamGuids.AllCategoryEnums.Select(c => (int)c));
+                    var filtered = new List<ElementId>();
+                    int removedCount = 0;
+                    foreach (var id in selectedIds)
+                    {
+                        var el = doc.GetElement(id);
+                        if (el?.Category != null && taggableCats.Contains(el.Category.Id.IntegerValue))
+                            filtered.Add(id);
+                        else
+                            removedCount++;
+                    }
+                    if (removedCount > 0)
+                    {
+                        StingLog.Warn($"RaiseIssue: {removedCount} non-taggable elements removed from selection (kept {filtered.Count})");
+                        selectedIds = new List<ElementId>(filtered);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"RaiseIssue taggable filter: {ex.Message}"); }
+            }
+
             // Launch the Issue Wizard for interactive configuration
             var wizResult = IssueWizard.Show(doc, uidoc);
             if (wizResult == null) return Result.Cancelled;
@@ -4158,7 +4293,7 @@ namespace StingTools.BIMManager
             string nextId = BIMManagerEngine.GetNextIssueId(issues, issueType);
 
             var issue = BIMManagerEngine.CreateIssue(nextId, issueType, priority,
-                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name);
+                autoTitle, description, assignee, discipline, selectedIds, uidoc.ActiveView?.Name, doc);
 
             // Set due date from wizard if provided
             if (!string.IsNullOrEmpty(wizResult.DueDate))
@@ -5017,6 +5152,25 @@ namespace StingTools.BIMManager
             }
             catch (Exception gateEx) { StingLog.Warn($"COBie compliance gate check: {gateEx.Message}"); }
 
+            // GAP-07: Warning quality gate — block if critical data warnings affect COBie
+            try
+            {
+                var (warnPass, warnReason) = GapAnalysisEngine.CheckCOBieWarningQuality(doc);
+                if (!warnPass)
+                {
+                    var warnGateDlg = new TaskDialog("COBie Export — Warning Quality Gate");
+                    warnGateDlg.MainInstruction = "Data quality warnings may affect COBie output";
+                    warnGateDlg.MainContent = warnReason +
+                        "\n\nRecommended: run 'Warnings Auto-Fix' before COBie export.";
+                    warnGateDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "Export anyway", "Some COBie data may be inaccurate");
+                    warnGateDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    if (warnGateDlg.Show() != TaskDialogResult.CommandLink1) return Result.Cancelled;
+                    StingLog.Warn($"COBie export proceeding despite warning quality gate: {warnReason}");
+                }
+            }
+            catch (Exception wqEx) { StingLog.Warn($"COBie warning quality gate: {wqEx.Message}"); }
+
             // Launch the COBie Export Wizard for interactive configuration
             var settings = COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
@@ -5440,9 +5594,13 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // NOTE: Revit TaskDialog supports max 4 CommandLinks (CommandLink1-4).
+            // CDEStates also includes SUPERSEDED, WITHDRAWN, OBSOLETE but these cannot
+            // be shown here. Use the Document Management Center for full 7-state CDE lifecycle.
             var dlg = new TaskDialog("STING CDE Status Manager");
             dlg.MainInstruction = "Set CDE container status for this model:";
-            dlg.MainContent = "ISO 19650 defines 4 CDE containers.\nStored in Project Information parameters.";
+            dlg.MainContent = "ISO 19650 defines 4 primary CDE containers.\nStored in Project Information parameters.\n\n" +
+                "Note: SUPERSEDED, WITHDRAWN, and OBSOLETE states are available\nvia the Document Management Center.";
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "WIP — Work In Progress");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "SHARED — For Coordination");
             dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "PUBLISHED — Approved");
@@ -5498,9 +5656,55 @@ namespace StingTools.BIMManager
                 tx.Commit();
             }
 
+            // Phase 75: Auto-create transmittal record on SHARED/PUBLISHED transitions
+            int txCreated = 0;
+            if (status == "SHARED" || status == "PUBLISHED")
+            {
+                try
+                {
+                    string txPath = GetBIMManagerFilePath(doc, "transmittals.json");
+                    var txArray = LoadJsonArray(txPath);
+                    string txId = $"TX-{(txArray.Count + 1):D4}";
+                    var txRec = new JObject
+                    {
+                        ["transmittal_id"] = txId,
+                        ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
+                        ["from"] = Environment.UserName,
+                        ["to"] = "",
+                        ["documents"] = new JArray(doc.Title),
+                        ["cde_state"] = status,
+                        ["suitability"] = suitCode,
+                        ["status"] = "DRAFT",
+                        ["status_history"] = new JArray(new JObject
+                        {
+                            ["timestamp"] = DateTime.Now.ToString("o"),
+                            ["old_cde"] = currentCDE ?? "",
+                            ["new_cde"] = status,
+                            ["suitability"] = suitCode,
+                            ["user"] = Environment.UserName
+                        })
+                    };
+                    txArray.Add(txRec);
+                    SaveJsonFile(txPath, txArray);
+                    txCreated = 1;
+                    StingLog.Info($"CDE auto-transmittal {txId} created for {currentCDE ?? "NEW"} → {status}");
+                }
+                catch (Exception ex) { StingLog.Warn($"CDE auto-transmittal: {ex.Message}"); }
+            }
+
+            // Phase 75: Log coordination action for CDE transition
+            try
+            {
+                WarningsEngine.LogCoordinationAction(doc,
+                    $"CDE transition: {currentCDE ?? "NEW"} → {status}",
+                    "CDE", $"Suitability: {suitCode}", "HIGH");
+            }
+            catch (Exception ex) { StingLog.Warn($"CDE coord log: {ex.Message}"); }
+
+            string txNote = txCreated > 0 ? "\n✓ Auto-transmittal record created" : "";
             TaskDialog.Show("STING CDE Status",
                 $"CDE Status: {status} ({BIMManagerEngine.CDEStates[status]})\n" +
-                $"Suitability: {suitCode}\n\n" +
+                $"Suitability: {suitCode}{txNote}\n\n" +
                 $"Stored in: ASS_CDE_STATUS_TXT, ASS_CDE_SUITABILITY_TXT");
 
             StingLog.Info($"CDE status: {status}");
@@ -6154,7 +6358,7 @@ namespace StingTools.BIMManager
     }
 
     // ════════════════════════════════════════════════════════════════════════════
-    //  STING BIM TOOLS — Procore Briefcase Export, Ideate-Style Sticky Notes,
+    //  STING BIM TOOLS — Briefcase Export, Sticky Notes,
     //  Model Health Dashboard, MIDP Tracker, 4D/5D Export, Compliance Integration
     // ════════════════════════════════════════════════════════════════════════════
 
@@ -6261,12 +6465,12 @@ namespace StingTools.BIMManager
 
     #endregion
 
-    #region Element Sticky Notes (Ideate-style)
+    #region Element Sticky Notes
 
     /// <summary>
     /// Element Sticky Notes: attach persistent text annotations to elements
     /// stored in shared parameters. Notes survive across sessions and can be
-    /// exported for QA reviews. Inspired by Ideate Sticky Notes for Revit.
+    /// exported for QA reviews.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -9318,7 +9522,7 @@ namespace StingTools.BIMManager
 
             // Compliance trend
             html.AppendLine("<h2>Compliance Trend (7-day)</h2>");
-            html.AppendLine($"<p>Direction: <strong>{trend.Direction}</strong> ({trend.DeltaPct:+0.0;-0.0;0}%)</p>");
+            html.AppendLine($"<p>Direction: <strong>{trend.direction}</strong> ({trend.delta:+0.0;-0.0;0}%)</p>");
             html.AppendLine($"<div class='rag-bar' style='background:linear-gradient(to right,#E8912D {comp.CompliancePercent}%,#eee {comp.CompliancePercent}%);width:100%'></div>");
 
             // Per-discipline table
@@ -9756,7 +9960,7 @@ namespace StingTools.BIMManager
                             if (!string.IsNullOrEmpty(tag1)) taggedByUser++;
                         }
                     }
-                    catch { /* Non-workshared document */ }
+                    catch (Exception ex) { StingLog.Warn($"Worksharing check: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Productivity worksharing: {ex.Message}"); }
@@ -9792,7 +9996,7 @@ namespace StingTools.BIMManager
                                     weekRuns++;
                             }
                         }
-                        catch { /* Skip malformed lines */ }
+                        catch (Exception ex) { StingLog.Warn($"Skip malformed workflow log line: {ex.Message}"); }
                     }
                     report.AppendLine($"\nWorkflow executions (total): {workflowRuns}");
                     report.AppendLine($"Workflow executions (7-day): {weekRuns}");

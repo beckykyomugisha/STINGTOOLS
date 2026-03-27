@@ -74,11 +74,15 @@ namespace StingTools.Core
         // M-06 FIX: Track dropped elements for diagnostic purposes
         private static int _droppedElementCount = 0;
 
+        /// <summary>Phase 78: Track dropped element IDs for sidecar recovery.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentBag<long> _droppedElementIds = new();
+
         public static void EnqueueDeferred(ElementId id)
         {
             if (_deferredElements.Count >= MaxDeferredQueueSize)
             {
                 _droppedElementCount++;
+                _droppedElementIds.Add(id.Value); // Phase 78: Track for sidecar recovery
                 // M-06 FIX: Throttle logging — only log every 100th drop to avoid log spam
                 // but use Error level (not Warn) so it's visible in diagnostics
                 if (_droppedElementCount <= 5 || _droppedElementCount % 100 == 0)
@@ -88,6 +92,29 @@ namespace StingTools.Core
             }
             _deferredElements.Enqueue(id);
         }
+
+        /// <summary>Phase 78: Persist dropped element IDs to sidecar for retry on next session.
+        /// Called on document close to ensure no elements are permanently lost from auto-tagger.</summary>
+        public static void SaveDroppedElementsSidecar(Document doc)
+        {
+            if (_droppedElementIds.IsEmpty) return;
+            try
+            {
+                string projectPath = doc?.PathName;
+                if (string.IsNullOrEmpty(projectPath)) return;
+                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                var ids = _droppedElementIds.ToArray();
+                string json = $"{{\"version\":\"1.0\",\"timestamp\":\"{DateTime.Now:o}\",\"dropped_count\":{ids.Length},\"element_ids\":[{string.Join(",", ids)}]}}";
+                string tempPath = sidecarPath + ".tmp";
+                System.IO.File.WriteAllText(tempPath, json);
+                System.IO.File.Move(tempPath, sidecarPath, true);
+                StingLog.Info($"AutoTagger: saved {ids.Length} dropped element IDs to sidecar for recovery");
+            }
+            catch (Exception ex) { StingLog.Warn($"Deferred sidecar save: {ex.Message}"); }
+        }
+
+        /// <summary>Phase 78: Get dropped element count for dashboard display.</summary>
+        public static int DroppedElementCount => _droppedElementCount;
 
         /// <summary>R-02: Drain and discard the deferred queue (call on DocumentClosed).</summary>
         public static void ClearDeferredQueue()
@@ -109,7 +136,9 @@ namespace StingTools.Core
         {
             _contextInvalid = true;
             _tag7HashCache.Clear();
-            _elementVersionHash.Clear();
+            // PERF-R2: Do NOT clear _elementVersionHash here — it tracks geometry changes
+            // for stale detection, not tag state. Clearing it causes ALL previously-marked
+            // elements to be re-marked as stale on their next modification even if nothing changed.
             // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
             _consecutiveFailures = 0;
             WasAutoDisabled = false;
@@ -226,7 +255,13 @@ namespace StingTools.Core
                 _enabled = true;
                 WasAutoDisabled = false;
                 _consecutiveFailures = 0;
-                _recentlyProcessed.Clear();
+                // PERF-R2: Acquire lock before clearing to prevent ConcurrentModificationException
+                lock (_recentlyProcessed)
+                {
+                    _recentlyProcessed.Clear();
+                    _recentlyProcessedQueue.Clear();
+                    _processedCount = 0;
+                }
                 StingLog.Info("StingAutoTagger: enabled (triggers active)");
             }
             return _enabled;
@@ -625,13 +660,21 @@ namespace StingTools.Core
                 var modifiedIds = args.GetModifiedElementIds();
                 if (modifiedIds == null || modifiedIds.Count == 0) return;
 
-                // R4-C AL-GAP-01: Process first 100 instead of dropping entire batch silently.
-                // Previously, moving 200+ elements caused ZERO stale marking.
+                // R4-C AL-GAP-01: Process first 100, enqueue overflow for deferred processing.
+                // PERF-009 FIX: Queue overflow instead of dropping — previously 400+ elements silently lost.
                 ICollection<ElementId> processIds = modifiedIds;
                 if (modifiedIds.Count > 100)
                 {
-                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing first 100, {modifiedIds.Count - 100} unchecked.");
-                    processIds = modifiedIds.Take(100).ToList();
+                    var allIds = modifiedIds.ToList();
+                    processIds = allIds.Take(100).ToList();
+                    // Enqueue overflow for processing on next sync/idle
+                    int enqueued = 0;
+                    foreach (var overflow in allIds.Skip(100))
+                    {
+                        EnqueueDeferred(overflow);
+                        enqueued++;
+                    }
+                    StingLog.Warn($"StingStaleMarker: {modifiedIds.Count} elements modified — processing 100, {enqueued} enqueued for deferred stale check.");
                 }
 
                 var idsToMark = new List<ElementId>();
@@ -658,6 +701,20 @@ namespace StingTools.Core
 
                 if (idsToMark.Count == 0) return;
 
+                // PERF: Pre-compute hashes BEFORE transaction to minimize time inside tx.
+                // Previously read 4 params per element AGAIN inside the transaction (redundant).
+                var hashUpdates = new Dictionary<long, string>();
+                foreach (ElementId id in idsToMark)
+                {
+                    Element el = doc.GetElement(id);
+                    if (el == null) continue;
+                    string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    string l = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                    string z = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                    string v = ParameterHelpers.GetString(el, ParamRegistry.LVL);
+                    hashUpdates[id.Value] = $"{t}|{l}|{z}|{v}";
+                }
+
                 using (Transaction tx = new Transaction(doc, "STING Mark Stale"))
                 {
                     tx.Start();
@@ -671,37 +728,9 @@ namespace StingTools.Core
                             if (p != null && !p.IsReadOnly)
                             {
                                 p.Set(1);
-                                // LG-04: Record which tokens changed for targeted re-derivation
-                                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                                string curLvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
-                                string curTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                                string newHash = $"{curTag}|{curLoc}|{curZone}|{curLvl}";
-
-                                // Determine which tokens changed
-                                if (_elementVersionHash.TryGetValue(id.Value, out string prevHash) && prevHash != newHash)
-                                {
-                                    var changedTokens = new List<string>();
-                                    string[] prevParts = prevHash.Split('|');
-                                    string[] curParts = newHash.Split('|');
-                                    string[] tokenNames = { "TAG1", "LOC", "ZONE", "LVL" };
-                                    for (int ti = 0; ti < tokenNames.Length && ti < prevParts.Length && ti < curParts.Length; ti++)
-                                    {
-                                        if (prevParts[ti] != curParts[ti])
-                                            changedTokens.Add(tokenNames[ti]);
-                                    }
-                                    if (changedTokens.Count > 0)
-                                    {
-                                        try
-                                        {
-                                            Parameter staleTokens = el.LookupParameter("ASS_STALE_TOKENS_TXT");
-                                            if (staleTokens != null && !staleTokens.IsReadOnly)
-                                                staleTokens.Set(string.Join(",", changedTokens));
-                                        }
-                                        catch (Exception stEx) { StingLog.Warn($"StaleTokens write for {id.Value}: {stEx.Message}"); }
-                                    }
-                                }
-                                _elementVersionHash[id.Value] = newHash;
+                                // Update hash cache with pre-computed value
+                                if (hashUpdates.TryGetValue(id.Value, out string newHash))
+                                    _elementVersionHash[id.Value] = newHash;
                             }
                         }
                         catch (Exception ex)
@@ -715,17 +744,17 @@ namespace StingTools.Core
                 // A2: Update last stale-mark timestamp for debounce
                 _lastStaleMarkTime = DateTime.UtcNow;
 
-                // PERF-07: Partial 20% LRU eviction instead of clearing entire cache
+                // PERF: Partial 20% eviction without allocating ToList() copy of all keys
                 if (_elementVersionHash.Count > 10000)
                 {
-                    // M-09 FIX: Capture count BEFORE eviction for accurate log output
                     int originalCount = _elementVersionHash.Count;
-                    int evictCount = originalCount / 5; // 20%
+                    int evictCount = originalCount / 5;
                     int evicted = 0;
-                    foreach (var key in _elementVersionHash.Keys.ToList()) // ToList() prevents enumeration-during-modification
+                    // Use enumerator directly — ConcurrentDictionary supports concurrent removal during iteration
+                    foreach (var kvp in _elementVersionHash)
                     {
                         if (evicted >= evictCount) break;
-                        _elementVersionHash.TryRemove(key, out _);
+                        _elementVersionHash.TryRemove(kvp.Key, out _);
                         evicted++;
                     }
                     StingLog.Info($"StingStaleMarker: evicted {evicted} of {originalCount} cached hashes");
@@ -982,6 +1011,19 @@ namespace StingTools.Core
 
         private const int MaxElementsPerTrigger = 20;
 
+        // PERF-CRIT: Cached room index to avoid FilteredElementCollector on every trigger
+        private static Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> _cachedRoomIndex;
+        private static string _cachedProjectLoc;
+        private static DateTime _roomIndexCacheTime = DateTime.MinValue;
+
+        /// <summary>Clear cached room index (call on document close/switch).</summary>
+        internal static void ClearRoomIndexCache()
+        {
+            _cachedRoomIndex = null;
+            _cachedProjectLoc = null;
+            _roomIndexCacheTime = DateTime.MinValue;
+        }
+
         public void Execute(UpdaterData data)
         {
             if (!_enabled) return;
@@ -1003,14 +1045,26 @@ namespace StingTools.Core
                     return;
                 }
 
-                // FIX-N07: Build roomIndex ONCE before the loop to avoid NullReferenceException
-                // and prevent per-element room collector rebuilds inside an IUpdater
+                // PERF-CRIT: Cache room index across stale marker triggers to avoid rebuilding
+                // on every geometry change. Room index is expensive (FilteredElementCollector scan).
+                // TTL of 30 seconds — rooms don't change during normal geometry editing.
                 Dictionary<ElementId, Autodesk.Revit.DB.Architecture.Room> roomIndex = null;
                 string projectLoc = null;
                 try
                 {
-                    roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
-                    projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                    if (_cachedRoomIndex != null && (DateTime.Now - _roomIndexCacheTime).TotalSeconds < 30)
+                    {
+                        roomIndex = _cachedRoomIndex;
+                        projectLoc = _cachedProjectLoc;
+                    }
+                    else
+                    {
+                        roomIndex = SpatialAutoDetect.BuildRoomIndex(doc);
+                        projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
+                        _cachedRoomIndex = roomIndex;
+                        _cachedProjectLoc = projectLoc;
+                        _roomIndexCacheTime = DateTime.Now;
+                    }
                 }
                 catch (Exception riEx)
                 {

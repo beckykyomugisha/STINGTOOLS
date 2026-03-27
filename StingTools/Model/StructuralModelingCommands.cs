@@ -33,6 +33,28 @@ using StingTools.Core;
 namespace StingTools.Model
 {
     // ══════════════════════════════════════════════════════════════════
+    //  Phase 67c: AUTO-TAG HELPER for all structural commands
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>Phase 67c: Shared auto-tag helper for structural element creation commands.
+    /// Ensures all structural elements get ISO 19650 tags, containers, and TAG7 narratives.</summary>
+    internal static class StructuralAutoTagHelper
+    {
+        /// <summary>Auto-tag created structural elements and append tag count to result message.</summary>
+        public static void TagAndReport(Document doc, StructuralModelResult result)
+        {
+            if (doc == null || result == null || !result.Success || result.CreatedIds.Count == 0) return;
+            try
+            {
+                int tagged = ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                if (tagged > 0)
+                    result.Summary += $" | Tagged {tagged} element{(tagged == 1 ? "" : "s")} (ISO 19650)";
+            }
+            catch (Exception ex) { StingLog.Warn($"StructuralAutoTag: {ex.Message}"); }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // PAD FOOTING
     // ══════════════════════════════════════════════════════════════════
 
@@ -81,10 +103,17 @@ namespace StingTools.Model
                     widthMm, depthMm, thickMm,
                     columnLoadKN: loadKN);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Pad Footing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -142,10 +171,17 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     widthMm, depthMm);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Strip Footing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -215,10 +251,17 @@ namespace StingTools.Model
                 var result = engine.CreateStructuralSlab(widthMm, depthMm,
                     originXMm: originXMm, originYMm: originYMm);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Structural Slab",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -277,10 +320,17 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     thicknessMm: thickMm, wallType: wallType);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Structural Wall",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -349,10 +399,17 @@ namespace StingTools.Model
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateBeamSystem(bayX, bayY, originX, originY);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Beam System",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -413,10 +470,17 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm,
                     storeyCount: 1, pattern: pattern);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Bracing",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -477,10 +541,17 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, zMm,
                     type);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Truss",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -555,10 +626,17 @@ namespace StingTools.Model
                     originXMm: originX, originYMm: originY,
                     addBracing: addBracing, bracingPattern: pattern);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Full Bay Frame",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -621,10 +699,17 @@ namespace StingTools.Model
                     originXMm: pt.X * Units.FeetToMm, originYMm: pt.Y * Units.FeetToMm,
                     perimeterBracing: bracing);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Grid Frame",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -770,7 +855,11 @@ namespace StingTools.Model
                 TaskDialog.Show("STRUCT — CAD to Structural", msg);
 
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -928,39 +1017,76 @@ namespace StingTools.Model
 
             try
             {
-                var wizard = StructuralCADWizard.Show(doc);
-                if (!wizard.Confirmed) return Result.Cancelled;
+                var dlg = StructuralDWGDialog.Show(doc);
+                if (dlg == null || !dlg.Confirmed) return Result.Cancelled;
 
-                if (wizard.SelectedImport == null)
+                if (dlg.SelectedImport == null)
                 {
-                    TaskDialog.Show("STRUCT — CAD Wizard", "No DWG import selected.");
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import selected.");
                     return Result.Cancelled;
                 }
 
-                // Run the full pipeline with wizard settings + selected layers + tolerances
+                if (dlg.SelectedLayers == null || dlg.SelectedLayers.Count == 0)
+                {
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "No layers selected. Run 'Analyze' first and select layers.");
+                    return Result.Cancelled;
+                }
+
+                // Run pipeline with dialog settings + layer mappings + auto-detected sizes
                 var pipeline = new StructuralCADPipeline(doc);
-                pipeline.SelectedLayers = wizard.GetSelectedLayers();
-                pipeline.EndpointToleranceFt = wizard.EndpointToleranceMm * Units.MmToFeet;
+                pipeline.SelectedLayers = dlg.SelectedLayers;
+
+                // Use auto-detected beam depth if available, otherwise dialog default
+                double beamDepth = dlg.BeamDepthMm;
+                if (dlg.AutoDetectSizes && dlg.DetectedGroups.Count > 0)
+                {
+                    var beamGroup = dlg.DetectedGroups
+                        .FirstOrDefault(g => g.ElementType == "Beam");
+                    if (beamGroup != null && beamGroup.DepthMm > 0)
+                        beamDepth = beamGroup.DepthMm;
+                }
+
                 var result = pipeline.RunFullPipeline(
-                    wizard.SelectedImport,
-                    wizard.SelectedLevel,
-                    wizard.CreateColumns,
-                    wizard.CreateBeams,
-                    wizard.CreateSlabs,
-                    wizard.CreateGrids,
-                    wizard.DefaultBeamDepthMm,
-                    wizard.DefaultSlabThickMm,
-                    wizard.DefaultStoreyHeightMm);
+                    dlg.SelectedImport,
+                    dlg.BaseLevelName,
+                    dlg.CreateColumns,
+                    dlg.CreateBeams,
+                    dlg.CreateSlabs,
+                    dlg.CreateGrids,
+                    beamDepth,
+                    dlg.SlabThicknessMm,
+                    dlg.ColumnHeightMm);
+
+                // Auto-tag created elements if requested
+                if (dlg.AutoTag && result.CreatedIds.Count > 0)
+                {
+                    try
+                    {
+                        ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                        var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
+                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
+                        result.Summary += $" | Auto-tagged {result.CreatedIds.Count} elements";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Auto-tag after DWG: {ex.Message}"); }
+                }
+
+                // Invalidate caches so dashboards and auto-tagger reflect new elements
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 var msg = result.Summary;
                 if (result.Warnings.Count > 0)
                     msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
-                        string.Join("\n", result.Warnings.Take(15).Select(w => $"• {w}"));
+                        string.Join("\n", result.Warnings.Take(15).Select(w => $"\u2022 {w}"));
 
-                TaskDialog.Show("STRUCT — CAD Wizard", msg);
+                TaskDialog.Show("STRUCT — DWG-to-BIM", msg);
 
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -1094,10 +1220,17 @@ namespace StingTools.Model
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateAutoSizedFootings(soilKPa);
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Auto Foundations",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -1191,10 +1324,17 @@ namespace StingTools.Model
                 var engine = new StructuralModelingEngine(doc);
                 var result = engine.CreateSlabEdgeBeams();
 
+                // Phase 67c: Auto-tag created structural elements
+                StructuralAutoTagHelper.TagAndReport(doc, result);
+
                 TaskDialog.Show("STRUCT — Slab Edge Beams",
                     result.Success ? result.Summary : $"Failed: {result.Summary}");
                 if (result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 return Result.Succeeded;
             }
@@ -1511,7 +1651,7 @@ namespace StingTools.Model
                 TaskDialog.Show("STRUCT — Full Analysis Report", summary);
 
                 // Export full report to file
-                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport");
+                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport", ".txt");
                 try
                 {
                     var filePath = System.IO.Path.Combine(
@@ -2106,7 +2246,11 @@ namespace StingTools.Model
                     uidoc.Document, pt.X * Units.FeetToMm, pt.Y * Units.FeetToMm);
 
                 if (result.Success && result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 TaskDialog.Show("STRUCT — Smart Column", result.Summary +
                     (result.Warnings.Count > 0 ? "\n\nWarnings:\n" + string.Join("\n", result.Warnings) : ""));
@@ -2148,7 +2292,11 @@ namespace StingTools.Model
                     p2.X * Units.FeetToMm, p2.Y * Units.FeetToMm, p2.Z * Units.FeetToMm);
 
                 if (result.Success && result.CreatedIds.Count > 0)
+                {
                     uidoc.Selection.SetElementIds(result.CreatedIds);
+                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
+                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                }
 
                 TaskDialog.Show("STRUCT — Smart Beam", result.Summary +
                     (result.Warnings.Count > 0 ? "\n\nWarnings:\n" + string.Join("\n", result.Warnings) : ""));

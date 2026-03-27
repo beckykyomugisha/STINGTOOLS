@@ -169,6 +169,11 @@ namespace StingTools.Model
 
                 // Extract dimensions from type parameters
                 ExtractDimensions(sym, entry);
+                if (entry.WidthMm <= 0 && entry.DepthMm <= 0 && entry.ThicknessMm <= 0)
+                {
+                    StingLog.Warn($"StructuralTypeFactory: {sym.FamilyName}/{sym.Name} has no extractable dimensions — skipped");
+                    continue;
+                }
                 _catalog.Add(entry);
             }
         }

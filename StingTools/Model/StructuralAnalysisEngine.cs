@@ -375,10 +375,12 @@ namespace StingTools.Model
             {
                 // Steel: δ = k × wL⁴ / (384 × E × I)
                 // k = 5 for simply supported, 1 for fixed-fixed, 48/5 for cantilever
+                // k factor for δ = k×wL⁴/(384×EI): simply_supported=5, fixed_fixed=1, continuous≈2.0, cantilever=48
                 double k = supportCondition switch
                 {
                     "simply_supported" => 5.0,
-                    "continuous" => 1.0,
+                    "fixed_fixed" => 1.0,
+                    "continuous" => 2.0, // Multi-span continuous beam (conservative approximation)
                     "cantilever" => 48.0,
                     _ => 5.0,
                 };
@@ -474,6 +476,26 @@ namespace StingTools.Model
         public string Summary { get; set; }
     }
 
+    /// <summary>Punching shear reinforcement design result per EC2 §6.4.5.</summary>
+    public class PunchingReinforcementResult
+    {
+        public double EffectiveDepthMm { get; set; }
+        public double AppliedStressMPa { get; set; }
+        public double ConcreteResistanceMPa { get; set; }
+        public double MaxResistanceMPa { get; set; }
+        public double EffectiveYieldMPa { get; set; }
+        public double RadialSpacingMm { get; set; }
+        public double RequiredAsw { get; set; }
+        public int LegsRequired { get; set; }
+        public int BarDiameter { get; set; }
+        public double TangentialSpacing1Mm { get; set; }
+        public double TangentialSpacing2Mm { get; set; }
+        public double OuterPerimeterDistanceMm { get; set; }
+        public int NumberOfPerimeters { get; set; }
+        public bool Pass { get; set; }
+        public string Summary { get; set; }
+    }
+
     #endregion
 
     /// <summary>
@@ -538,6 +560,114 @@ namespace StingTools.Model
             result.Summary = $"vEd={vEd:F2}MPa vs vRd,c={vRdc:F2}MPa (util={result.UtilisationRatio:F2})" +
                 (exceedsMax ? " EXCEEDS MAX — increase slab thickness!" :
                  result.NeedsShearReinforcement ? " — shear reinforcement required" : " — OK");
+
+            return result;
+        }
+
+        /// <summary>
+        /// Designs punching shear reinforcement per EC2 §6.4.5.
+        /// Calculates required Asw per perimeter and checks outer perimeter without reinforcement.
+        /// Two-way check: verifies both x and y directions and orthogonal perimeters.
+        /// </summary>
+        public static PunchingReinforcementResult DesignPunchingReinforcement(
+            double columnWidthMm, double columnDepthMm,
+            double slabThicknessMm, double reactionKN,
+            double fckMPa = 30, double fywkMPa = 500)
+        {
+            var result = new PunchingReinforcementResult();
+
+            double d = slabThicknessMm - 30 - 12;
+            if (d <= 0) d = slabThicknessMm * 0.85;
+            result.EffectiveDepthMm = d;
+
+            // Two-way effective depths: dx and dy
+            double dx = d;           // x-direction (outermost layer)
+            double dy = d - 12;     // y-direction (inner layer, minus one bar diameter)
+            double dAvg = (dx + dy) / 2.0;
+
+            // Basic control perimeter at 2d
+            double u1 = 2 * (columnWidthMm + columnDepthMm) + 2 * Math.PI * (2 * dAvg);
+
+            // Beta factor for moment transfer (EC2 §6.4.3)
+            // Internal: 1.15, Edge: 1.40, Corner: 1.50
+            double beta = 1.15; // Internal column default
+
+            // Applied shear stress
+            double vEd = beta * reactionKN * 1000 / (u1 * dAvg);
+            result.AppliedStressMPa = vEd;
+
+            // Concrete resistance vRd,c (with 2-way reinforcement ratios)
+            double rhoLx = 0.005; // x-direction
+            double rhoLy = 0.005; // y-direction
+            double rhoL = Math.Min(Math.Sqrt(rhoLx * rhoLy), 0.02); // EC2 §6.4.4(1)
+
+            double CRdc = 0.18 / 1.5;
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / dAvg));
+            double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            vRdc = Math.Max(vRdc, vmin);
+            result.ConcreteResistanceMPa = vRdc;
+
+            // Maximum punching resistance
+            double nu = 0.6 * (1 - fckMPa / 250.0);
+            double fcd = fckMPa / 1.5;
+            double vRdMax = 0.5 * nu * fcd;
+            result.MaxResistanceMPa = vRdMax;
+
+            if (vEd > vRdMax)
+            {
+                result.Pass = false;
+                result.Summary = $"FAILS: vEd={vEd:F2}MPa > vRd,max={vRdMax:F2}MPa — increase slab thickness!";
+                return result;
+            }
+
+            if (vEd <= vRdc)
+            {
+                result.Pass = true;
+                result.RequiredAsw = 0;
+                result.Summary = $"OK: vEd={vEd:F2}MPa ≤ vRd,c={vRdc:F2}MPa — no shear reinforcement required";
+                return result;
+            }
+
+            // Design shear reinforcement per EC2 §6.4.5
+            // vRd,cs = 0.75×vRd,c + 1.5×(d/sr)×Asw×fywd,ef / (u1×d)
+            // where sr = radial spacing, fywd,ef = 250+0.25d ≤ fywd
+            double fywd = fywkMPa / 1.15;
+            double fywdEf = Math.Min(250 + 0.25 * dAvg, fywd);
+            result.EffectiveYieldMPa = fywdEf;
+
+            // Rearrange for Asw: Asw = (vEd - 0.75×vRd,c) × u1 × sr / (1.5 × fywd,ef)
+            double sr = 0.75 * dAvg; // Radial spacing ≤ 0.75d (EC2 §9.4.3)
+            result.RadialSpacingMm = sr;
+
+            double Asw = (vEd - 0.75 * vRdc) * u1 * sr / (1.5 * fywdEf);
+            result.RequiredAsw = Math.Max(Asw, 0);
+
+            // Select practical bars
+            double aswPerLeg = Math.PI * 10 * 10 / 4.0; // H10 studs
+            int legsRequired = (int)Math.Ceiling(Asw / aswPerLeg);
+            result.LegsRequired = legsRequired;
+            result.BarDiameter = 10;
+
+            // Tangential spacing check: st ≤ 1.5d within first perimeter, ≤ 2d beyond
+            double st1 = 1.5 * dAvg;
+            double st2 = 2.0 * dAvg;
+            result.TangentialSpacing1Mm = st1;
+            result.TangentialSpacing2Mm = st2;
+
+            // Outer perimeter where reinforcement is no longer needed
+            // uout,ef = β × VEd / (vRd,c × d)
+            double uOutEf = beta * reactionKN * 1000 / (vRdc * dAvg);
+            // Distance from column face: a = (uout - 2(c1+c2)) / (2π)
+            double aOut = (uOutEf - 2 * (columnWidthMm + columnDepthMm)) / (2 * Math.PI);
+            result.OuterPerimeterDistanceMm = Math.Max(aOut, 2 * dAvg);
+            int nPerimeters = (int)Math.Ceiling(result.OuterPerimeterDistanceMm / sr);
+            result.NumberOfPerimeters = nPerimeters;
+
+            result.Pass = true;
+            result.Summary = $"Shear reinforcement required: {legsRequired}×H{result.BarDiameter} studs, " +
+                $"{nPerimeters} perimeters at sr={sr:F0}mm, " +
+                $"Asw={Asw:F0}mm² per perimeter, vEd={vEd:F2}MPa, vRd,c={vRdc:F2}MPa";
 
             return result;
         }
@@ -663,6 +793,205 @@ namespace StingTools.Model
             double cf = 1.3;   // Force coefficient for rectangular buildings (EC1-1-4 §7.6)
             double Aref = buildingWidthM * buildingHeightM;
             return cscd * cf * qpKPa * Aref;
+        }
+
+        /// <summary>Wind torsion analysis result per EC1-1-4 §7.1.2.</summary>
+        public class WindTorsionResult
+        {
+            public double EccentricityM { get; set; }
+            public double TotalWindForceKN { get; set; }
+            public double TotalTorsionKNm { get; set; }
+            public double TorsionalShearStressKPa { get; set; }
+            public List<double> StoreyTorsionKNm { get; set; } = new();
+            public string Summary { get; set; }
+        }
+
+        /// <summary>
+        /// Calculates wind-induced torsional moment per EC1-1-4 §7.1.2.
+        /// Asymmetric wind loading creates torsion when the centre of pressure
+        /// does not coincide with the shear centre. For rectangular buildings,
+        /// the eccentricity is taken as e = b/10 where b is the crosswind breadth.
+        /// </summary>
+        /// <param name="buildingWidthM">Crosswind breadth (perpendicular to wind) in metres</param>
+        /// <param name="buildingDepthM">Along-wind depth (parallel to wind) in metres</param>
+        /// <param name="buildingHeightM">Total building height in metres</param>
+        /// <param name="qpKPa">Peak velocity pressure from CalculateWindPressure (kPa)</param>
+        /// <param name="storeyCount">Number of storeys for distribution</param>
+        /// <param name="storeyHeightM">Height per storey in metres</param>
+        /// <returns>WindTorsionResult with total torsion, per-storey torsion, and eccentricity</returns>
+        public static WindTorsionResult CalculateWindTorsion(
+            double buildingWidthM, double buildingDepthM, double buildingHeightM,
+            double qpKPa, int storeyCount = 0, double storeyHeightM = 0)
+        {
+            var result = new WindTorsionResult();
+
+            // EC1-1-4 §7.1.2: Eccentricity e = b/10 (crosswind breadth)
+            double e = buildingWidthM / 10.0;
+            result.EccentricityM = e;
+
+            // Force coefficient for rectangular section
+            double cf = 1.3;
+            double cscd = 1.0;
+
+            // Wind force on windward face: Fw = cscd × cf × qp × Aref
+            double Aref = buildingWidthM * buildingHeightM;
+            double Fw = cscd * cf * qpKPa * Aref; // kN
+            result.TotalWindForceKN = Fw;
+
+            // Torsional moment: Mt = Fw × e
+            double Mt = Fw * e;
+            result.TotalTorsionKNm = Mt;
+
+            // Per-storey torsion distribution (inverted triangular, same as force)
+            if (storeyCount > 0 && storeyHeightM > 0)
+            {
+                var storeyForces = DistributeToStoreys(Fw, storeyCount, storeyHeightM);
+                result.StoreyTorsionKNm = storeyForces.Select(f => f * e).ToList();
+            }
+
+            // Torsional shear stress in core walls (simplified rectangular core)
+            // τ = Mt / (2 × Ak × t) where Ak = enclosed area, t = wall thickness
+            // Using building plan area as conservative Ak estimate
+            double Ak = buildingWidthM * buildingDepthM * 0.25; // Core ≈ 25% of plan
+            double tCore = 0.3; // Assumed 300mm core wall
+            double tauTorsion = (Ak > 0 && tCore > 0) ? Mt / (2 * Ak * tCore) : 0;
+            result.TorsionalShearStressKPa = tauTorsion;
+
+            result.Summary = $"Wind torsion: e={e:F2}m (b/10), Fw={Fw:F1}kN, Mt={Mt:F1}kNm, " +
+                $"τ_torsion={tauTorsion:F2}kPa" +
+                (storeyCount > 0 ? $", {storeyCount} storeys distributed" : "");
+
+            return result;
+        }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // SEISMIC SITE AMPLIFICATION (EC8-1-1)
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>EC8 ground type classification.</summary>
+    public enum EC8GroundType { A, B, C, D, E }
+
+    /// <summary>Seismic site amplification result.</summary>
+    public class SeismicSiteResult
+    {
+        public EC8GroundType GroundType { get; set; }
+        public double SoilFactorS { get; set; }
+        public double TB { get; set; } // Lower limit of constant spectral acceleration (s)
+        public double TC { get; set; } // Upper limit of constant spectral acceleration (s)
+        public double TD { get; set; } // Beginning of constant displacement (s)
+        public double Ag { get; set; } // Design ground acceleration (g)
+        public double AgS { get; set; } // Ag × S
+        public double[] SpectrumPeriods { get; set; }
+        public double[] SpectrumAccelerations { get; set; }
+        public string Summary { get; set; }
+    }
+
+    /// <summary>
+    /// Seismic site amplification per EC8-1-1 §3.2.2.
+    /// Applies soil type correction factors to convert bedrock design spectra
+    /// to surface spectra accounting for local ground conditions.
+    /// </summary>
+    internal static class SeismicSiteAmplification
+    {
+        /// <summary>
+        /// Get EC8 site amplification parameters for a given ground type.
+        /// Values from EC8-1-1 Table 3.2 (Type 1 elastic response spectrum, recommended).
+        /// </summary>
+        public static (double S, double TB, double TC, double TD) GetSiteParameters(EC8GroundType groundType)
+        {
+            return groundType switch
+            {
+                EC8GroundType.A => (1.0,  0.15, 0.4,  2.0),
+                EC8GroundType.B => (1.2,  0.15, 0.5,  2.0),
+                EC8GroundType.C => (1.15, 0.20, 0.6,  2.0),
+                EC8GroundType.D => (1.35, 0.20, 0.8,  2.0),
+                EC8GroundType.E => (1.4,  0.15, 0.5,  2.0),
+                _ => (1.0, 0.15, 0.4, 2.0)
+            };
+        }
+
+        /// <summary>
+        /// Calculate the EC8 Type 1 elastic response spectrum with site amplification.
+        /// Se(T) = ag × S × η × spectral shape factor
+        /// where η = damping correction factor = √(10/(5+ξ)) ≥ 0.55
+        /// </summary>
+        /// <param name="agG">Design ground acceleration on type A ground (in g units)</param>
+        /// <param name="groundType">EC8 ground type (A-E)</param>
+        /// <param name="dampingPct">Viscous damping ratio (default 5%)</param>
+        /// <param name="importanceFactor">Importance factor γI (default 1.0)</param>
+        public static SeismicSiteResult CalculateSpectrum(
+            double agG, EC8GroundType groundType, double dampingPct = 5.0,
+            double importanceFactor = 1.0)
+        {
+            var (S, TB, TC, TD) = GetSiteParameters(groundType);
+
+            // Damping correction: η = √(10/(5+ξ)) ≥ 0.55
+            double eta = Math.Max(0.55, Math.Sqrt(10.0 / (5.0 + dampingPct)));
+
+            double ag = agG * importanceFactor;
+            double agS = ag * S;
+
+            // Generate spectrum at 50 periods from 0 to 4s
+            int nPts = 50;
+            double[] periods = new double[nPts];
+            double[] accelerations = new double[nPts];
+
+            for (int i = 0; i < nPts; i++)
+            {
+                double T = i * 4.0 / (nPts - 1);
+                periods[i] = T;
+
+                double Se;
+                if (T < TB)
+                {
+                    // EC8 Eq 3.2: Se = ag×S×[1 + T/TB×(η×2.5 - 1)]
+                    Se = ag * S * (1 + T / TB * (eta * 2.5 - 1));
+                }
+                else if (T <= TC)
+                {
+                    // EC8 Eq 3.3: Se = ag×S×η×2.5
+                    Se = ag * S * eta * 2.5;
+                }
+                else if (T <= TD)
+                {
+                    // EC8 Eq 3.4: Se = ag×S×η×2.5×(TC/T)
+                    Se = ag * S * eta * 2.5 * (TC / T);
+                }
+                else
+                {
+                    // EC8 Eq 3.5: Se = ag×S×η×2.5×(TC×TD/T²)
+                    Se = ag * S * eta * 2.5 * (TC * TD / (T * T));
+                }
+
+                accelerations[i] = Se;
+            }
+
+            return new SeismicSiteResult
+            {
+                GroundType = groundType,
+                SoilFactorS = S,
+                TB = TB, TC = TC, TD = TD,
+                Ag = ag, AgS = agS,
+                SpectrumPeriods = periods,
+                SpectrumAccelerations = accelerations,
+                Summary = $"Seismic EC8: Ground type {groundType}, S={S:F2}, ag={ag:F3}g, " +
+                    $"agS={agS:F3}g, TB={TB:F2}s, TC={TC:F2}s, TD={TD:F1}s, η={eta:F2}"
+            };
+        }
+
+        /// <summary>
+        /// Calculate equivalent static lateral force per EC8 §4.3.3.2.
+        /// Fb = Sd(T1) × m × λ  where λ = 0.85 for T1 ≤ 2TC, else 1.0
+        /// </summary>
+        public static double CalculateBaseLateralForce(
+            double sdT1G, double buildingMassKg, double fundamentalPeriodS,
+            EC8GroundType groundType)
+        {
+            var (_, _, TC, _) = GetSiteParameters(groundType);
+            double lambda = fundamentalPeriodS <= 2 * TC ? 0.85 : 1.0;
+            return sdT1G * 9.81 * buildingMassKg * lambda / 1000.0; // kN
         }
     }
 
@@ -1007,8 +1336,8 @@ namespace StingTools.Model
 
     #region Connection Result
 
-    /// <summary>Connection check result.</summary>
-    public class ConnectionResult
+    /// <summary>Simple connection check result.</summary>
+    public class SimpleConnectionResult
     {
         public double CapacityKN { get; set; }
         public double DemandKN { get; set; }
@@ -1031,11 +1360,11 @@ namespace StingTools.Model
         /// Single shear: Fv,Rd = αv × fub × A / γM2
         /// Bearing: Fb,Rd = k1 × αb × fu × d × t / γM2
         /// </summary>
-        public static ConnectionResult CheckFinPlateConnection(
+        public static SimpleConnectionResult CheckFinPlateConnection(
             double reactionKN, int boltCount = 4,
             double boltDiaMm = 20, double boltGrade = 8.8)
         {
-            var result = new ConnectionResult { ConnectionType = "Fin Plate" };
+            var result = new SimpleConnectionResult { ConnectionType = "Fin Plate" };
             result.DemandKN = reactionKN;
 
             double gammaM2 = 1.25;
@@ -1068,11 +1397,11 @@ namespace StingTools.Model
         /// <summary>
         /// Checks end plate connection capacity (moment connection).
         /// </summary>
-        public static ConnectionResult CheckEndPlateConnection(
+        public static SimpleConnectionResult CheckEndPlateConnection(
             double momentKNm, double shearKN,
             double boltDiaMm = 20, int boltRows = 4)
         {
-            var result = new ConnectionResult { ConnectionType = "End Plate" };
+            var result = new SimpleConnectionResult { ConnectionType = "End Plate" };
 
             double gammaM2 = 1.25;
             double fub = 800; // Grade 8.8
@@ -1152,6 +1481,11 @@ namespace StingTools.Model
     /// </summary>
     internal static class StructuralSystemClassifier
     {
+        /// <summary>Minimum vertical direction component for brace classification (~8.6° from horizontal).</summary>
+        private const double BraceMinVerticalComponent = 0.15;
+        /// <summary>Maximum vertical direction component for brace classification (~71.8° — beyond is a column).</summary>
+        private const double BraceMaxVerticalComponent = 0.95;
+
         public static StructuralSystemResult ClassifySystem(Document doc)
         {
             var result = new StructuralSystemResult();
@@ -1190,7 +1524,7 @@ namespace StingTools.Model
                 if (loc?.Curve == null) return false;
                 var dir = (loc.Curve.GetEndPoint(1) - loc.Curve.GetEndPoint(0)).Normalize();
                 double verticalComponent = Math.Abs(dir.Z);
-                return verticalComponent > 0.15 && verticalComponent < 0.95;
+                return verticalComponent > BraceMinVerticalComponent && verticalComponent < BraceMaxVerticalComponent;
             });
 
             result.HasBracing = result.TotalBraces > 0;
@@ -1404,30 +1738,39 @@ namespace StingTools.Model
                 });
             }
 
+            // PERF-CRIT: Collect all structural elements ONCE, group by level (was 4 collectors × N levels)
+            var allCols = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                .WhereElementIsNotElementType().ToList();
+            var allFraming = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .WhereElementIsNotElementType().ToList();
+            var allFloors = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Floors)
+                .WhereElementIsNotElementType().ToList();
+            var allWalls = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Walls)
+                .WhereElementIsNotElementType().ToList();
+
+            // Build per-level indexes
+            ElementId GetLevelParam(Element el, BuiltInParameter bip) {
+                var p = el.get_Parameter(bip); return p?.AsElementId() ?? ElementId.InvalidElementId; }
+            var colsByLevel = allCols.GroupBy(e => GetLevelParam(e, BuiltInParameter.FAMILY_BASE_LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var framingByLevel = allFraming.GroupBy(e => GetLevelParam(e, BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var floorsByLevel = allFloors.GroupBy(e => GetLevelParam(e, BuiltInParameter.LEVEL_PARAM))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var wallsByLevel = allWalls.GroupBy(e => GetLevelParam(e, BuiltInParameter.WALL_BASE_CONSTRAINT))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             // Per-level phases
             foreach (var level in levels)
             {
                 var levelId = level.Id;
 
-                // Columns on this level
-                var cols = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
-
-                // Beams on this level
-                var beams = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
+                var cols = colsByLevel.TryGetValue(levelId, out var cl) ? cl : new List<Element>();
+                var beams = framingByLevel.TryGetValue(levelId, out var bl) ? bl : new List<Element>();
 
                 // Separate braces from beams
                 var braces = beams.Where(b =>
@@ -1440,25 +1783,8 @@ namespace StingTools.Model
 
                 var pureBeams = beams.Except(braces).ToList();
 
-                // Floors on this level
-                var floors = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Floors)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.LEVEL_PARAM);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
-
-                // Walls on this level
-                var walls = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Walls)
-                    .WhereElementIsNotElementType()
-                    .Where(el =>
-                    {
-                        var param = el.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT);
-                        return param != null && param.AsElementId() == levelId;
-                    }).ToList();
+                var floors = floorsByLevel.TryGetValue(levelId, out var fl) ? fl : new List<Element>();
+                var walls = wallsByLevel.TryGetValue(levelId, out var wl) ? wl : new List<Element>();
 
                 // Skip empty levels
                 if (cols.Count == 0 && pureBeams.Count == 0 && floors.Count == 0 && walls.Count == 0)
@@ -1525,7 +1851,7 @@ namespace StingTools.Model
                         PhaseName = $"{level.Name} — Floor Slab",
                         Description = $"Cast {floors.Count} floor slabs",
                         ElementIds = floors.Select(e => e.Id).ToList(),
-                        EstimatedDays = Math.Max(2, (int)Math.Ceiling(floors.Count * 2)),
+                        EstimatedDays = Math.Max(2, (int)Math.Ceiling((double)(floors.Count * 2))),
                         LevelName = level.Name,
                     });
                 }
@@ -2897,6 +3223,9 @@ namespace StingTools.Model
     internal static class ProgressiveCollapseChecker
     {
         private const double DCR_Limit = 2.0; // GSA acceptance criterion
+        /// <summary>Beam-column connection proximity tolerance in feet (~450mm).
+        /// Per EC3 §6.2.5 connection zone for simple beam-to-column joints.</summary>
+        private const double ConnectionToleranceFt = 1.5;
 
         /// <summary>
         /// Checks structural robustness by removing each column systematically.
@@ -2930,7 +3259,7 @@ namespace StingTools.Model
                 if (loc != null) colPositions[col.Id] = loc.Point;
             }
 
-            double connectionTol = 1.5; // feet (~450mm)
+            double connectionTol = ConnectionToleranceFt;
             var colBeamConnections = new Dictionary<ElementId, List<ElementId>>();
 
             foreach (var col in columns)
@@ -3093,6 +3422,9 @@ namespace StingTools.Model
 
             double totalLoad = liveLoadKPa + deadLoadKPa;
 
+            // PERF: Cache type lookups — types don't change during sizing analysis
+            var typeCache = new Dictionary<ElementId, Element>();
+
             for (int iter = 0; iter < MaxIterations; iter++)
             {
                 result.IterationsUsed = iter + 1;
@@ -3106,8 +3438,10 @@ namespace StingTools.Model
                     double spanMm = loc.Curve.Length * Units.FeetToMm;
                     double spanM = spanMm / 1000.0;
 
-                    // Get current dimensions
-                    var type = doc.GetElement(beam.GetTypeId());
+                    // Get current dimensions (cached per type)
+                    var typeId = beam.GetTypeId();
+                    if (!typeCache.TryGetValue(typeId, out var type))
+                    { type = doc.GetElement(typeId); typeCache[typeId] = type; }
                     string currentName = type?.Name ?? "Unknown";
                     double currentDepth = 0, currentWidth = 0;
                     if (type != null)

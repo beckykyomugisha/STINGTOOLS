@@ -81,7 +81,10 @@ namespace StingTools.Model
             {
                 if (s.Sxx >= sxxReq) return (s.Name, s.Mass);
             }
-            return (UBSections.Last().Name, UBSections.Last().Mass); // Largest available
+            // No section meets requirement — return largest with warning
+            StingLog.Warn($"SelectUBForMoment: No UB section for M_Ed={mEdKNm:F0}kNm (Sxx_req={sxxReq:F0}cm³). Largest available selected.");
+            var largest = UBSections.Last();
+            return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
 
         /// <summary>Select optimal UC section for axial + bending.</summary>
@@ -89,12 +92,22 @@ namespace StingTools.Model
         {
             foreach (var s in UCSections.OrderBy(x => x.Mass))
             {
-                double nRd = s.D * s.B * 0.01 * fy * 0.001; // Approximate area × fy (kN)
-                double mRd = s.Sxx * fy * 0.001; // kNm
+                // SAFETY-R1: Use actual cross-section area from mass/density instead of D*B (solid rectangle).
+                // D*B overestimates by ~7.6x for UC sections, leading to dangerously undersized columns.
+                // Area (cm²) = Mass (kg/m) / steel density (7.85 kg/dm³) → Area_cm2 = Mass / 0.785
+                // SAFETY-R2 FIX: Dimensional analysis corrected.
+                // nRd = Area_cm2 × (1 cm² = 100 mm²) × fy (N/mm²) / 1000 (N→kN) = Area_cm2 × 0.1 × fy
+                // Previous formula (areaCm2 × 0.01 × fy × 0.001) was 10,000× too small,
+                // making nRd tiny so ALL columns passed → lightest always selected (unsafe).
+                double areaCm2 = s.Mass / 0.785;
+                double nRd = areaCm2 * 0.1 * fy; // kN: Area(cm²) × 100(mm²/cm²) × fy(N/mm²) / 1000(N/kN)
+                double mRd = s.Sxx * fy * 0.001; // kNm: Sxx(cm³) × fy(N/mm²) × 1000(mm³/cm³) / 10^6(Nmm→kNm)
                 double util = nEdKN / nRd + mEdKNm / mRd;
                 if (util <= 1.0) return (s.Name, s.Mass);
             }
-            return (UCSections.Last().Name, UCSections.Last().Mass);
+            StingLog.Warn($"SelectUCForAxialMoment: No UC section for N_Ed={nEdKN:F0}kN + M_Ed={mEdKNm:F0}kNm. Largest available selected.");
+            var largest = UCSections.Last();
+            return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
     }
 
@@ -133,15 +146,25 @@ namespace StingTools.Model
             double fcd = 0.85 * fck / GammaC;
             double K = mEd * 1e6 / (fcd * widthMm * d * d);
 
-            if (K > 0.167) // Exceeds singly reinforced limit — increase size
+            // EC2 singly reinforced limit K' = 0.167 (UK NA), iterate until satisfied or max depth
+            const double Klimit = 0.167;
+            const double MaxDepthMm = 1500;
+            bool doubleReinforced = false;
+            while (K > Klimit && depthMm < MaxDepthMm)
             {
                 depthMm += 50;
                 widthMm += 25;
                 d = depthMm - 45;
                 K = mEd * 1e6 / (fcd * widthMm * d * d);
             }
+            if (K > Klimit)
+            {
+                doubleReinforced = true;
+                StingLog.Warn($"AutoSizeRCBeam: K={K:F3} > {Klimit} at max depth {MaxDepthMm}mm — double reinforcement required");
+            }
 
-            return (widthMm, depthMm, $"Span={spanM}m, M_Ed={mEd:F0}kNm, K={K:F3}, d={d:F0}mm");
+            string suffix = doubleReinforced ? " [DOUBLE REINFORCEMENT REQUIRED]" : "";
+            return (widthMm, depthMm, $"Span={spanM}m, M_Ed={mEd:F0}kNm, K={K:F3}, d={d:F0}mm{suffix}");
         }
 
         /// <summary>Auto-size steel beam per EC3 (BS EN 1993-1-1).</summary>
@@ -287,11 +310,10 @@ namespace StingTools.Model
             sb.AppendLine("EMBODIED CARBON ASSESSMENT\n");
 
             // Carbon factors (kgCO2e/kg material) — ICE Database v3
-            double steelCarbon = 1.55; // Structural steel
             double concreteCarbon = 0.13; // Per kg concrete (C32/40)
             double rebarCarbon = 1.99; // Reinforcement
 
-            double totalSteel = 0, totalConcrete = 0, totalRebar = 0;
+            double totalConcrete = 0, totalRebar = 0;
 
             var beams = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
                 .WhereElementIsNotElementType().ToList();

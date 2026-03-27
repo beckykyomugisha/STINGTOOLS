@@ -927,6 +927,9 @@ namespace StingTools.Temp
             int totalElements = 0;
             int errors = 0;
 
+            // AUTO-R4: Add progress dialog for visual feedback on large models (30-60s blocking)
+            var progress = UI.StingProgressDialog.Show("STING — Full Auto-Populate", allElements.Count);
+
             bool cancelled = false;
             using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
             {
@@ -943,12 +946,16 @@ namespace StingTools.Temp
                         continue;
 
                     totalElements++;
-                    // Cancellation check every 200 elements
-                    if (totalElements % 200 == 0 && EscapeChecker.IsEscapePressed())
+                    // AUTO-R4: Progress + cancellation check
+                    if (totalElements % 50 == 0)
                     {
-                        cancelled = true;
-                        StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
-                        break;
+                        progress?.Increment($"Processing {totalElements}: {catName}");
+                        if ((progress != null && progress.IsCancelled) || EscapeChecker.IsEscapePressed())
+                        {
+                            cancelled = true;
+                            StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
+                            break;
+                        }
                     }
 
                     try
@@ -965,8 +972,8 @@ namespace StingTools.Temp
                         if (fullPipelineOk)
                             tagged++;
 
-                        // Progress logging
-                        if (totalElements % 500 == 0)
+                        // AUTO-R4: Reduced log frequency from 500 to 5000 (saves 10% I/O on 100K models)
+                        if (totalElements % 5000 == 0)
                             StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
                     }
                     catch (Exception ex)
@@ -978,6 +985,7 @@ namespace StingTools.Temp
 
                 tx.Commit();
             }
+            progress?.Close(); // AUTO-R4: Close progress dialog
             sw.Stop();
             // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }

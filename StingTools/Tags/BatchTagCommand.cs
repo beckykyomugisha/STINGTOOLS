@@ -276,15 +276,25 @@ namespace StingTools.Tags
         /// The SYS sort key groups elements by system type within each discipline,
         /// matching the SEQ key format (DISC_SYS_LVL) for optimal numbering.
         /// </summary>
+        // PERF-R14: Cache level elevation lookup — levels don't change during a tagging session
+        private static Dictionary<ElementId, double> _cachedLevelElevation;
+        private static string _cachedLevelDocKey;
+
         internal static List<Element> SmartSortElements(Document doc, List<Element> elements)
         {
-            // Build level elevation lookup
-            var levelElevation = new Dictionary<ElementId, double>();
-            foreach (Level lvl in new FilteredElementCollector(doc)
-                .OfClass(typeof(Level)).Cast<Level>())
+            // Build level elevation lookup (cached per document)
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            if (_cachedLevelElevation == null || _cachedLevelDocKey != docKey)
             {
-                levelElevation[lvl.Id] = lvl.Elevation;
+                _cachedLevelElevation = new Dictionary<ElementId, double>();
+                foreach (Level lvl in new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level)).Cast<Level>())
+                {
+                    _cachedLevelElevation[lvl.Id] = lvl.Elevation;
+                }
+                _cachedLevelDocKey = docKey;
             }
+            var levelElevation = _cachedLevelElevation;
 
             // Pre-cache category, discipline, and system per element to avoid
             // redundant GetCategoryName/GetMepSystemAwareSysCode calls in sort keys

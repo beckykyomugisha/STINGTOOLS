@@ -5,7 +5,7 @@
 # Used by: TagConfig.DiscMap, TagConfig.SysMap, TagConfig.FuncMap, TagConfig.ProdMap
 # Changes from v4: Added system-aware DISC correction, smart FUNC detection,
 #   expanded PROD codes (70+ family-aware), BIMManager integration parameters,
-#   Procore Briefcase fields, Ideate Sticky parameters, 4D/5D scheduling tokens.
+#   Briefcase fields, Sticky Note parameters, 4D/5D scheduling tokens.
 #
 # SECTION 1: DISCIPLINE MAP (Category → DISC code)
 # Format: DISC,CategoryName,DiscCode,Description
@@ -171,7 +171,7 @@ DISC_OVERRIDE,E,NCL,LV,Nurse call → Low Voltage
 # SECTION 6: BIM MANAGER PARAMETERS (new in v5.0)
 # Format: BIMGR,ParameterName,Description,Usage
 #
-BIMGR,STING_STICKY_NOTE_TXT,Element sticky note text,Ideate-style persistent annotations
+BIMGR,STING_STICKY_NOTE_TXT,Element sticky note text,Persistent element annotations
 BIMGR,STING_NOTE_AUTHOR_TXT,Sticky note author,QA tracking
 BIMGR,STING_NOTE_DATE_TXT,Sticky note timestamp,Audit trail
 BIMGR,STING_PREDECESSOR_TAGS_TXT,Predecessor element tags (semicolon-delimited),4D construction sequencing

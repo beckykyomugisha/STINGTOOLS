@@ -518,6 +518,7 @@
                                 <Button Style="{StaticResource RedBtn}" Content="Del Tags" Tag="DeleteTags" Click="Cmd_Click"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Orphans" Tag="Orphans" Click="Cmd_Click" ToolTip="Find orphaned tags"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[Num]Renumb" Tag="RenumberTags" Click="Cmd_Click"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click" ToolTip="Smart element numbering with template, grouping, and live preview"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[List]Clone" Tag="CloneTags" Click="Cmd_Click" ToolTip="Clone tag layout from current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="[List]Apply Clone" Tag="ApplyClonedTags" Click="Cmd_Click" ToolTip="Apply cloned tag layout to current view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="AuditTags" Click="Cmd_Click"/>
@@ -2035,10 +2036,12 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Takedown" Tag="StrColumnLoadTakedown" Click="Cmd_Click" ToolTip="Calculate tributary loads on each column"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Edge Beams" Tag="StrSlabEdgeBeams" Click="Cmd_Click" ToolTip="Auto-create edge beams along unsupported slab edges"/>
                                 </WrapPanel>
-                                <TextBlock Text="CAD → Structure" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
+                                <TextBlock Text="DWG → STRUCTURAL BIM" FontSize="9" Foreground="#C62828" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="★ CAD Wizard" Tag="StrCADWizard" Click="Cmd_Click" ToolTip="Full automation wizard: prerequisites → DWG analysis → type mapping → conversion" FontWeight="Bold"/>
-                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Convert structural DWG layers to BIM elements"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★★ DWG Wizard" Tag="StructuralDWGWizard" Click="Cmd_Click" ToolTip="ENHANCED: 7-page wizard with per-element layer mapping, height/thickness/material config, joining logic, shear wall detection, STING tagging" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Quick DWG→Struct" Tag="QuickStructuralDWG" Click="Cmd_Click" ToolTip="Quick structural conversion with auto-detection and default settings"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="CAD Wizard (Legacy)" Tag="StrCADWizard" Click="Cmd_Click" ToolTip="Legacy wizard: prerequisites → DWG analysis → type mapping → conversion"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="DWG → Struct (Legacy)" Tag="StrCADToStructural" Click="Cmd_Click" ToolTip="Legacy: Convert structural DWG layers to BIM elements"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Preview Struct" Tag="StrCADPreview" Click="Cmd_Click" ToolTip="Preview structural layers from DWG with confidence scores"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Prerequisites" Tag="StrCheckPrerequisites" Click="Cmd_Click" ToolTip="Check loaded families and project readiness"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Type Catalog" Tag="StrBrowseTypeCatalog" Click="Cmd_Click" ToolTip="Browse loaded structural families with extracted dimensions"/>
@@ -2155,6 +2158,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Export Schedule" Tag="StrExcelExportSchedule" Click="Cmd_Click" ToolTip="Export existing structural elements to Excel schedule format"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Template" Tag="StrExcelTemplate" Click="Cmd_Click" ToolTip="Generate blank Excel template with data validation"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="★★ Auto Rebar" Tag="StrAutoRebar" Click="Cmd_Click" ToolTip="Auto-design and place rebar per EC2 on selected elements" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="★ Numbering" Tag="SmartNumbering" Click="Cmd_Click" ToolTip="Smart element numbering with template, grouping, and live preview"/>
                                 </WrapPanel>
                                 <TextBlock Text="Enhanced Structural Algorithms" FontSize="9" Foreground="#1565C0" FontWeight="Bold" Margin="0,4,0,2"/>
                                 <WrapPanel>
@@ -2198,6 +2202,124 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Preview DWG" Tag="ModelDWGPreview" Click="Cmd_Click" ToolTip="Audit DWG layers and entities without creating elements"/>
                                 </WrapPanel>
                                 <TextBlock Text="Pipeline: parallel lines → walls → PlanTopology → rooms → closed loops → floors" FontSize="8" Foreground="#AAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Phase 68: Model Intelligence -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="MODEL INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Embodied Carbon" Tag="EmbodiedCarbon" Click="Cmd_Click" ToolTip="Calculate embodied carbon (kgCO2e) per RICS Whole Life Carbon / ICE Database v3.0"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Floor Efficiency" Tag="FloorEfficiency" Click="Cmd_Click" ToolTip="Gross-to-net floor area ratio per BCO Guide (target >80%)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Room Area Audit" Tag="RoomAreaAudit" Click="Cmd_Click" ToolTip="Audit rooms against minimum area standards (BCO/BS 6465/BS 5395)"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Model Complexity" Tag="ModelComplexity" Click="Cmd_Click" ToolTip="Calculate model complexity score (0-100): elements, links, worksets, systems"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Phase 68: BIM Coordinator Tools -->
+                        <Border Background="{DynamicResource SecondaryBg}" CornerRadius="6" Padding="10" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="BIM COORDINATOR" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Readiness" Tag="DeliverableReadiness" Click="Cmd_Click" ToolTip="Assess model readiness for COBie, IFC, PDF, FM handover deliverables"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Action Plan" Tag="ActionPlan" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator action plan based on model state"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Readiness" Tag="RunWorkflow_COBieReadiness" Click="Cmd_Click" ToolTip="Run COBie readiness workflow: retag, resolve, validate, export"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Issue" Tag="RunWorkflow_DrawingIssue" Click="Cmd_Click" ToolTip="Prepare drawings for issue: templates, naming, print, register"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Spatial QA" Tag="RunWorkflow_SpatialQA" Click="Cmd_Click" ToolTip="Validate rooms, areas, connectivity for FM handover"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 74: BIM COORDINATOR DAILY PLANNER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
+                            <StackPanel>
+                                <TextBlock Text="BIM COORDINATOR PLANNER" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Daily Planner" Tag="DailyPlanner" Click="Cmd_Click" ToolTip="Generate prioritised BIM coordinator daily task list"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deliverable Matrix" Tag="DeliverableMatrix" Click="Cmd_Click" ToolTip="DD1-DD4 deliverable tracking matrix with completion status"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Warning Prediction" Tag="WarningPrediction" Click="Cmd_Click" ToolTip="Predict warning count trend for next 7 days"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Check" Tag="ComplianceFallCheck" Click="Cmd_Click" ToolTip="Detect compliance regression since last check"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Export Audit Log" Tag="ActionAuditExport" Click="Cmd_Click" ToolTip="Export coordination action audit trail to CSV"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 75: WORKFLOW/COORDINATION ENHANCEMENTS (29 gaps) -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
+                            <StackPanel>
+                                <TextBlock Text="WORKFLOW &amp; COORDINATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scheduler" Tag="WorkflowScheduler" Click="Cmd_Click" ToolTip="Manage scheduled workflow triggers (on-open, compliance-fall, SLA, periodic)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Root Cause" Tag="WarningRootCause" Click="Cmd_Click" ToolTip="Warning root-cause analysis: identify source warnings that cascade"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Suppression Audit" Tag="SuppressionAudit" Click="Cmd_Click" ToolTip="Warning suppression audit trail: who, when, why, expiry"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Team Activity" Tag="TeamActivity" Click="Cmd_Click" ToolTip="Team worksharing activity: workset checkouts, issues, discipline edits"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Compliance Trends" Tag="ComplianceTrendView" Click="Cmd_Click" ToolTip="7-day compliance trend with per-discipline trajectory and ETA"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SLA Report" Tag="SLAViolationReport" Click="Cmd_Click" ToolTip="Issue SLA violation report (Critical=4h, High=24h, Medium=1wk)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Mid-Day Check" Tag="MidDayCoordination" Click="Cmd_Click" ToolTip="Quick coordination checkpoint before meetings (2-3 min)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Review Prep" Tag="DesignReviewPrep" Click="Cmd_Click" ToolTip="Prepare model for design review (retag, fix, validate, report)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Fed. Pre-Flight" Tag="FederatedPreFlight" Click="Cmd_Click" ToolTip="Federated pre-flight: validate host + linked models for duplicate tags and compliance"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Transmittal Gate" Tag="TransmittalGateCheck" Click="Cmd_Click" ToolTip="Check compliance gate before creating transmittals"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerWarningCheck" Click="Cmd_Click" ToolTip="Cross-validate container completeness against warning patterns"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 69: ACOUSTIC & SUSTAINABILITY -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <StackPanel>
+                                <TextBlock Text="ACOUSTIC &amp; SUSTAINABILITY" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Acoustic Analysis" Tag="AcousticAnalysis" Click="Cmd_Click" ToolTip="BS 8233/BB93/HTM acoustic performance: Rw, RT60, impact, flanking"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="BREEAM Assessment" Tag="BREEAMAssessment" Click="Cmd_Click" ToolTip="BREEAM v6.0 credit assessment across 10 categories"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Lifecycle Assessment" Tag="LifecycleAssessment" Click="Cmd_Click" ToolTip="BS EN 15978 whole-life carbon: A1-C4 + LETI benchmark"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 70: MEP INTELLIGENCE -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#2196F3">
+                            <StackPanel>
+                                <TextBlock Text="MEP INTELLIGENCE" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Pressure Drop Analysis" Tag="MEPPressureDrop" Click="Cmd_Click" ToolTip="Darcy-Weisbach + minor losses for ducts and pipes"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 71: STRUCTURAL DEEP -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#F44336">
+                            <StackPanel>
+                                <TextBlock Text="STRUCTURAL DEEP ANALYSIS" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Deep Structural Analysis" Tag="StructuralDeepAnalysis" Click="Cmd_Click" ToolTip="Torsion detection, LTB, connection detailing, tolerances"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 72: DOC/SCHEDULE AUTOMATION -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
+                            <StackPanel>
+                                <TextBlock Text="DOC &amp; SCHEDULE AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Drawing Register" Tag="DrawingRegisterSync" Click="Cmd_Click" ToolTip="Export/sync drawing register CSV from model sheets"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Schedule Validation" Tag="CrossScheduleValidate" Click="Cmd_Click" ToolTip="Cross-schedule consistency validation"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Print Queue" Tag="PrintQueue" Click="Cmd_Click" ToolTip="Build and export prioritised print queue"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Document Package" Tag="DocumentPackage" Click="Cmd_Click" ToolTip="Assemble ISO 19650 document package for milestone"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- PHASE 73: WORKFLOW MATURITY -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#9C27B0">
+                            <StackPanel>
+                                <TextBlock Text="WORKFLOW AUTOMATION" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PanelFg}" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Commissioning" Tag="CommissioningWorkflow" Click="Cmd_Click" ToolTip="MEP commissioning T&amp;B workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Handover Validation" Tag="HandoverValidation" Click="Cmd_Click" ToolTip="Pre-handover validation workflow (8 steps)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sustainability" Tag="SustainabilityWorkflow" Click="Cmd_Click" ToolTip="Sustainability assessment workflow (6 steps)"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
 
@@ -2534,6 +2656,27 @@
                                             ToolTip="RIBA stage-gated compliance check — verifies tag completeness meets stage requirements"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Set Output Dir" Tag="SetOutputDirectory" Click="Cmd_Click"
                                             ToolTip="Set preferred output directory for all STING exports (CSV, XLSX, HTML, JSON)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="COBie Extended Import" Tag="COBieExtendedImport" Click="Cmd_Click"
+                                            ToolTip="GAP-03: Import COBie Type, System, Job + Component worksheets for full round-trip"/>
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <!-- GAP ANALYSIS FIXES — Phase 68 -->
+                            <StackPanel>
+                                <TextBlock Text="GAP ANALYSIS — AUTOMATION" Foreground="{DynamicResource PanelFg}" FontWeight="Bold" FontSize="10" Margin="0,6,0,3"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Dashboard Export" Tag="ExportDashboardHTML" Click="Cmd_Click"
+                                            ToolTip="GAP-04: Export BIM dashboard as self-contained HTML report for stakeholder sharing"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="BEP Stage Check" Tag="BEPStageValidation" Click="Cmd_Click"
+                                            ToolTip="GAP-05: Validate model compliance against RIBA stage requirements from BEP"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Issue→Revision Link" Tag="IssueRevisionLink" Click="Cmd_Click"
+                                            ToolTip="GAP-06: Auto-link closed issues to revision snapshots for ISO 19650 audit trail"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto Minutes" Tag="AutoMeetingMinutes" Click="Cmd_Click"
+                                            ToolTip="GAP-08: Auto-generate meeting minutes from recent issue activity and compliance changes"/>
+                                    <Button Style="{StaticResource PurpleBtn}" Content="Tag Rev Diff" Tag="TagRevisionDiff" Click="Cmd_Click"
+                                            ToolTip="GAP-09: Compare tag snapshots between revisions — shows added/changed/removed tags"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Auto-Schedule Meetings" Tag="AutoScheduleMeetings" Click="Cmd_Click"
+                                            ToolTip="GAP-10: Auto-create recurring meetings from BEP meeting schedule"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

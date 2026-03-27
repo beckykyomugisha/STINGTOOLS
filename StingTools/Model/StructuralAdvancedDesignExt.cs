@@ -1017,7 +1017,7 @@ namespace StingTools.Model
                         ParameterHelpers.SetIfEmpty(wall, "ASS_PRODCT_COD_TXT", "WAL");
                         report.AddStep("STING tags: DISC=S, PROD=WAL");
                     }
-                    catch { /* STING params not bound */ }
+                    catch (Exception ex) { StingLog.Warn($"STING params: {ex.Message}"); }
 
                     tx.Commit();
                 }
@@ -1132,7 +1132,7 @@ namespace StingTools.Model
                                     ParameterHelpers.SetIfEmpty(floor, "ASS_DISCIPLINE_COD_TXT", "S");
                                     ParameterHelpers.SetIfEmpty(floor, "ASS_PRODCT_COD_TXT", "FND");
                                 }
-                                catch { /* not bound */ }
+                                catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }
                             }
                         }
                         tx.Commit();
@@ -1178,7 +1178,7 @@ namespace StingTools.Model
                             ParameterHelpers.SetIfEmpty(fnd, "ASS_PRODCT_COD_TXT", "FND");
                             report.AddStep("STING tags: DISC=S, PROD=FND");
                         }
-                        catch { /* not bound */ }
+                        catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }
 
                         tx.Commit();
                     }
