@@ -480,8 +480,17 @@ namespace StingTools.Model
                     if (overlap < minLen * 0.5) continue;
 
                     // Found a wall pair
-                    var mid1 = (a.Start + b.Start) * 0.5;
-                    var mid2 = (a.End + b.End) * 0.5;
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartW = b.Start;
+                    var bEndW = b.End;
+                    if (a.Start.DistanceTo(bEndW) < a.Start.DistanceTo(bStartW))
+                    {
+                        bStartW = b.End;
+                        bEndW = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartW) * 0.5;
+                    var mid2 = (a.End + bEndW) * 0.5;
 
                     // Determine if it's a shear wall by thickness
                     bool isShear = a.ElementType == "Shear Wall" ||
@@ -630,8 +639,17 @@ namespace StingTools.Model
                     if (overlap < minLen * 0.5) continue;
 
                     // Found a beam pair — compute centerline from midpoints
-                    var mid1 = (a.Start + b.Start) * 0.5;
-                    var mid2 = (a.End + b.End) * 0.5;
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartB = b.Start;
+                    var bEndB = b.End;
+                    if (a.Start.DistanceTo(bEndB) < a.Start.DistanceTo(bStartB))
+                    {
+                        bStartB = b.End;
+                        bEndB = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartB) * 0.5;
+                    var mid2 = (a.End + bEndB) * 0.5;
 
                     beams.Add(new DetectedBeamLine
                     {

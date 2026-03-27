@@ -1215,8 +1215,19 @@ namespace StingTools.Model
                         used.Add(bestJ);
 
                         var lineB = wallLines[bestJ];
-                        var centerStart = (lineA.Start + lineB.Start) * 0.5;
-                        var centerEnd = (lineA.End + lineB.End) * 0.5;
+
+                        // CAD-CRIT-01: Fix anti-parallel line pairs — if lines run in opposite
+                        // directions, swap b endpoints so midpoints connect corresponding ends.
+                        var bStart = lineB.Start;
+                        var bEnd = lineB.End;
+                        if (lineA.Start.DistanceTo(bEnd) < lineA.Start.DistanceTo(bStart))
+                        {
+                            bStart = lineB.End;
+                            bEnd = lineB.Start;
+                        }
+
+                        var centerStart = (lineA.Start + bStart) * 0.5;
+                        var centerEnd = (lineA.End + bEnd) * 0.5;
 
                         walls.Add(new DetectedWall
                         {
@@ -1524,7 +1535,9 @@ namespace StingTools.Model
             // Cache beam types by width×depth key to avoid redundant type lookups
             var typeCache = new Dictionary<string, FamilySymbol>();
 
-            double z = Units.Mm(heightMm) + (level?.Elevation ?? 0);
+            // CAD-CRIT-02: NewFamilyInstance with a level places relative to level elevation,
+            // so don't add level.Elevation — only use heightMm as the offset above the level.
+            double z = Units.Mm(heightMm);
             var fh = new ModelFailureHandler();
 
             using (var tx = new Transaction(_doc, "STING STRUCT: Beams from DWG"))
