@@ -160,6 +160,8 @@ namespace StingTools.Tags
 
             foreach (Element el in targetElements)
             {
+                try
+                {
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                     continue;
@@ -402,6 +404,11 @@ namespace StingTools.Tags
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\"," +
                     $"\"{action}\",\"{locSource}\",\"{zoneSource}\",\"{prodSource}\"," +
                     $"\"{currentStatus}\",\"{statusSource}\",\"{currentRev}\",{elementIsoErrors}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PreTagAudit: element {el?.Id}: {ex.Message}");
+                }
             }
 
             willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;

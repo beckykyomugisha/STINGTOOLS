@@ -667,6 +667,39 @@ namespace StingTools.Temp
 
         // ── CSV Record Loaders (MR_SCHEDULES.csv v2.8+) ──────────────────
 
+        // Static cache for MR_SCHEDULES.csv to avoid redundant file reads.
+        // All 5 Load*FromCsv() methods share this single cached read.
+        private static string[] _cachedSchedulesCsvLines;
+        private static string _cachedSchedulesCsvPath;
+        private static DateTime _cachedSchedulesCsvTimestamp;
+
+        /// <summary>
+        /// Returns cached lines from MR_SCHEDULES.csv, re-reading only if the file has changed.
+        /// </summary>
+        private static string[] GetSchedulesCsvLines()
+        {
+            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+            if (string.IsNullOrEmpty(csvPath)) return null;
+            try
+            {
+                var lastWrite = File.GetLastWriteTimeUtc(csvPath);
+                if (_cachedSchedulesCsvLines != null &&
+                    _cachedSchedulesCsvPath == csvPath &&
+                    _cachedSchedulesCsvTimestamp == lastWrite)
+                    return _cachedSchedulesCsvLines;
+
+                _cachedSchedulesCsvLines = File.ReadAllLines(csvPath);
+                _cachedSchedulesCsvPath = csvPath;
+                _cachedSchedulesCsvTimestamp = lastWrite;
+                return _cachedSchedulesCsvLines;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetSchedulesCsvLines: {ex.Message}");
+                return null;
+            }
+        }
+
         /// <summary>
         /// Loads LINE_STYLE records from MR_SCHEDULES.csv and returns parsed definitions.
         /// Fields encoding: "Weight=n, RGB(r,g,b), Pattern=..., Disc=..., Use=..., Std=..."
@@ -676,11 +709,11 @@ namespace StingTools.Temp
             LoadLineStylesFromCsv()
         {
             var results = new List<(string, byte, byte, byte, int, string)>();
-            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (string.IsNullOrEmpty(csvPath)) return results;
+            string[] allLines = GetSchedulesCsvLines();
+            if (allLines == null) return results;
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                foreach (string line in allLines)
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
@@ -734,11 +767,11 @@ namespace StingTools.Temp
             LoadObjectStylesFromCsv()
         {
             var results = new List<(BuiltInCategory, int, int, byte, byte, byte)>();
-            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (string.IsNullOrEmpty(csvPath)) return results;
+            string[] allLines = GetSchedulesCsvLines();
+            if (allLines == null) return results;
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                foreach (string line in allLines)
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
@@ -787,11 +820,11 @@ namespace StingTools.Temp
             LoadViewTemplatesFromCsv()
         {
             var results = new List<(string, string, string, string, string)>();
-            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (string.IsNullOrEmpty(csvPath)) return results;
+            string[] allLines = GetSchedulesCsvLines();
+            if (allLines == null) return results;
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                foreach (string line in allLines)
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
@@ -828,11 +861,11 @@ namespace StingTools.Temp
             LoadViewFiltersFromCsv()
         {
             var results = new List<(string, string, string, string)>();
-            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (string.IsNullOrEmpty(csvPath)) return results;
+            string[] allLines = GetSchedulesCsvLines();
+            if (allLines == null) return results;
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                foreach (string line in allLines)
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
@@ -859,11 +892,11 @@ namespace StingTools.Temp
             LoadVGSchemesFromCsv()
         {
             var results = new List<(string, string, string)>();
-            string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (string.IsNullOrEmpty(csvPath)) return results;
+            string[] allLines = GetSchedulesCsvLines();
+            if (allLines == null) return results;
             try
             {
-                foreach (string line in File.ReadAllLines(csvPath))
+                foreach (string line in allLines)
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);

@@ -280,19 +280,25 @@ namespace StingTools.UI
         }
 
         /// <summary>UI-06: Read direction override radio state.</summary>
+        private System.Windows.Controls.RadioButton[] _cachedDirRadios;
         private void SetDirOverrideParams()
         {
             try
             {
-                // Check 16 direction radio buttons (rbDirN through rbDirNWfar)
-                string[] dirNames = { "rbDirN", "rbDirNE", "rbDirE", "rbDirSE",
-                    "rbDirS", "rbDirSW", "rbDirW", "rbDirNW",
-                    "rbDirNfar", "rbDirNEfar", "rbDirEfar", "rbDirSEfar",
-                    "rbDirSfar", "rbDirSWfar", "rbDirWfar", "rbDirNWfar" };
-                for (int i = 0; i < dirNames.Length; i++)
+                // Cache FindName results on first call to avoid 16 FindName lookups per placement
+                if (_cachedDirRadios == null)
                 {
-                    var rb = FindName(dirNames[i]) as System.Windows.Controls.RadioButton;
-                    if (rb?.IsChecked == true)
+                    string[] dirNames = { "rbDirN", "rbDirNE", "rbDirE", "rbDirSE",
+                        "rbDirS", "rbDirSW", "rbDirW", "rbDirNW",
+                        "rbDirNfar", "rbDirNEfar", "rbDirEfar", "rbDirSEfar",
+                        "rbDirSfar", "rbDirSWfar", "rbDirWfar", "rbDirNWfar" };
+                    _cachedDirRadios = new System.Windows.Controls.RadioButton[dirNames.Length];
+                    for (int i = 0; i < dirNames.Length; i++)
+                        _cachedDirRadios[i] = FindName(dirNames[i]) as System.Windows.Controls.RadioButton;
+                }
+                for (int i = 0; i < _cachedDirRadios.Length; i++)
+                {
+                    if (_cachedDirRadios[i]?.IsChecked == true)
                     {
                         StingCommandHandler.SetExtraParam("DirOverride", i.ToString());
                         return;

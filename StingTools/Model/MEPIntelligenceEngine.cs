@@ -360,7 +360,8 @@ namespace StingTools.Model
                     double targetDp = totalSupplyPressurePa;
                     double excessDp = targetDp - actualDp;
                     // Damper Cv = Q / sqrt(ΔP) — flow coefficient
-                    double damperCv = excessDp > 0 ? Math.Abs(flows[i]) / Math.Sqrt(excessDp) : 0;
+                    // SAFETY: Guard against near-zero excessDp causing extreme Cv values
+                    double damperCv = excessDp > 1.0 ? Math.Abs(flows[i]) / Math.Sqrt(excessDp) : 0;
 
                     result.BranchResults.Add((branches[i].Name, branches[i].DesignFlowLs, flows[i], damperCv));
                 }
@@ -542,8 +543,7 @@ namespace StingTools.Model
                 var ducts = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_DuctCurves)
                     .WhereElementIsNotElementType()
-                    .Take(500)
-                    .ToList();
+                    .Take(500);
 
                 foreach (var duct in ducts)
                 {
@@ -554,8 +554,9 @@ namespace StingTools.Model
                         var lengthP = duct.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         var flowP = duct.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
 
-                        double widthMm = (widthP?.AsDouble() ?? 0.5) * 304.8;
-                        double heightMm = (heightP?.AsDouble() ?? 0.5) * 304.8;
+                        // Default 0.3048 ft (≈100mm) instead of 0.5 ft (≈152mm) for realistic fallback
+                        double widthMm = (widthP?.AsDouble() ?? 0.3048) * 304.8;
+                        double heightMm = (heightP?.AsDouble() ?? 0.3048) * 304.8;
                         double lengthM = (lengthP?.AsDouble() ?? 1) * 0.3048;
                         double flowM3s = (flowP?.AsDouble() ?? 0) * 0.000471947; // CFM to m³/s
 
@@ -576,8 +577,7 @@ namespace StingTools.Model
                 var pipes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_PipeCurves)
                     .WhereElementIsNotElementType()
-                    .Take(500)
-                    .ToList();
+                    .Take(500);
 
                 foreach (var pipe in pipes)
                 {

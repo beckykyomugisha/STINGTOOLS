@@ -285,8 +285,14 @@ namespace StingTools.Model
             double K = mEd * 1e6 / (fcd * b * d * d);
             double Klim = 0.167; // singly reinforced limit
 
-            double z = d * (0.5 + Math.Sqrt(0.25 - K / 1.134));
-            if (K > Klim) z = d * (0.5 + Math.Sqrt(0.25 - Klim / 1.134));
+            // SAFETY: Guard against sqrt of negative when K > 0.2835 (K/1.134 > 0.25)
+            double sqrtArgK = Math.Max(0.25 - K / 1.134, 0);
+            double z = d * (0.5 + Math.Sqrt(sqrtArgK));
+            if (K > Klim)
+            {
+                double sqrtArgKlim = Math.Max(0.25 - Klim / 1.134, 0);
+                z = d * (0.5 + Math.Sqrt(sqrtArgKlim));
+            }
             z = Math.Min(z, 0.95 * d);
 
             double fsd = fyk / gammaS;

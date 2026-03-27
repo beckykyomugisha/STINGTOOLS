@@ -404,10 +404,9 @@ namespace StingTools.UI
             // Section header
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x18,
-                    section.HeaderBrush is SolidColorBrush scb ? scb.Color.R : (byte)0x1A,
-                    section.HeaderBrush is SolidColorBrush scb2 ? scb2.Color.G : (byte)0x23,
-                    section.HeaderBrush is SolidColorBrush scb3 ? scb3.Color.B : (byte)0x7E)),
+                Background = new SolidColorBrush(section.HeaderBrush is SolidColorBrush hb
+                    ? Color.FromArgb(0x18, hb.Color.R, hb.Color.G, hb.Color.B)
+                    : Color.FromArgb(0x18, 0x1A, 0x23, 0x7E)),
                 Padding = new Thickness(16, 6, 16, 6),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)),
                 BorderThickness = new Thickness(0, 0, 0, 1)
