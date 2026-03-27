@@ -1281,6 +1281,9 @@ namespace StingTools.Model
                 var dir = (current.End - current.Start).Normalize();
                 var start = current.Start;
                 var end = current.End;
+                // DWG-CRIT-01: Track max thickness across all merged segments instead of using first only
+                double maxThickness = current.ThicknessFt;
+                bool isShearWall = current.IsShearWall;
 
                 bool didMerge;
                 // DWG-MED-01: Add convergence limit to prevent infinite merge loops
@@ -1299,29 +1302,37 @@ namespace StingTools.Model
                         if (Math.Abs(dir.DotProduct(otherDir)) < 0.98) continue;
 
                         // Check if endpoints connect
+                        bool merged_j = false;
                         if (end.DistanceTo(other.Start) < tolerance)
                         {
                             end = other.End;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (end.DistanceTo(other.End) < tolerance)
                         {
                             end = other.Start;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (start.DistanceTo(other.End) < tolerance)
                         {
                             start = other.Start;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (start.DistanceTo(other.Start) < tolerance)
                         {
                             start = other.End;
+                            merged_j = true;
+                        }
+
+                        if (merged_j)
+                        {
                             used.Add(j);
                             didMerge = true;
+                            // DWG-CRIT-01: Use maximum thickness of merged segments
+                            if (other.ThicknessFt > maxThickness)
+                                maxThickness = other.ThicknessFt;
+                            if (other.IsShearWall)
+                                isShearWall = true;
                         }
                     }
                     pass++;
@@ -1332,8 +1343,8 @@ namespace StingTools.Model
                 {
                     Start = start,
                     End = end,
-                    ThicknessFt = current.ThicknessFt,
-                    IsShearWall = current.IsShearWall,
+                    ThicknessFt = maxThickness,
+                    IsShearWall = isShearWall,
                     LayerName = current.LayerName,
                 });
             }

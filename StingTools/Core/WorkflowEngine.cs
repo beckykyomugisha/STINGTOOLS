@@ -566,8 +566,9 @@ namespace StingTools.Core
                                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                                 string issuesPath = Path.Combine(projDir, "_bim_manager", "issues.json");
                                 if (!File.Exists(issuesPath)) { RecordSkip("no issues file"); continue; }
-                                string raw = File.ReadAllText(issuesPath);
-                                int openCount = raw.Split(new[] { "\"OPEN\"" }, StringSplitOptions.None).Length - 1;
+                                // WE-HIGH-01: Use JSON parsing instead of naive string split for accuracy
+                                var issuesArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath));
+                                int openCount = issuesArr.Count(i => (string)i["status"] == "OPEN");
                                 if (openCount == 0) { RecordSkip("no open issues"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_open_issues check: {ex.Message}"); }
@@ -670,40 +671,41 @@ namespace StingTools.Core
                         int currentDD = CalculateCurrentDataDrop(doc, cachedCompliancePct());
                         if (currentDD < step.MinDataDrop.Value)
                         {
-                            skipped++;
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (current DD{currentDD} < required DD{step.MinDataDrop.Value})");
-                            previousStepSkipped = true;
-                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            RecordSkip($"current DD{currentDD} < required DD{step.MinDataDrop.Value}");
                             continue;
                         }
+                    }
 
-                        // Phase 68: New workflow conditions for BIM coordinator daily operations
-                        if (step.Condition == "has_spatial_warnings")
+                    // WE-CRIT-01 FIX: Phase 68 conditions moved out of MinDataDrop block and using RecordSkip()
+                    if (step.Condition != null)
+                    {
+                        string cond68 = step.Condition.Trim().ToLowerInvariant();
+                        if (cond68 == "has_spatial_warnings")
                         {
                             try
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int spatial = warnReport.ByCategory.GetValueOrDefault(WarningCategory.Spatial);
-                                if (spatial == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no spatial warnings)"); continue; }
+                                if (spatial == 0) { RecordSkip("no spatial warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_spatial_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "has_mep_warnings")
+                        if (cond68 == "has_mep_warnings")
                         {
                             try
                             {
                                 var warnReport = WarningsEngine.ScanWarnings(doc);
                                 int mep = warnReport.ByCategory.GetValueOrDefault(WarningCategory.MEP);
-                                if (mep == 0) { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no MEP warnings)"); continue; }
+                                if (mep == 0) { RecordSkip("no MEP warnings"); continue; }
                             }
                             catch (Exception ex) { StingLog.Warn($"has_mep_warnings check: {ex.Message}"); }
                         }
-                        if (step.Condition == "tag_compliance_below_threshold")
+                        if (cond68 == "tag_compliance_below_threshold")
                         {
                             double pct = cachedCompliancePct();
                             double threshold = step.MinCompliancePct ?? 90;
                             if (pct >= threshold)
-                            { skipped++; report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% meets threshold {threshold:F0}%)"); continue; }
+                            { RecordSkip($"compliance {pct:F0}% meets threshold {threshold:F0}%"); continue; }
                         }
                     }
 
@@ -1477,7 +1479,9 @@ namespace StingTools.Core
                     case "has_open_issues":
                         string iPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
                         if (!File.Exists(iPath)) return false;
-                        return File.ReadAllText(iPath).Contains("\"OPEN\"");
+                        // WE-HIGH-01: JSON parse instead of naive string Contains
+                        var iArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(iPath));
+                        return iArr.Any(i => (string)i["status"] == "OPEN");
                     case "has_overdue_issues":
                     {
                         string oiPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");

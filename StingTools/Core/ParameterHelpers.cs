@@ -3487,24 +3487,14 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // AL-06: Capture previous tag value for audit trail (timestamp written AFTER successful tag change)
-                // DI-004 FIX: Moved MODIFIED_DT write to after BuildAndWriteTag to prevent
-                // stale timestamps on partial pipeline failures
+                // AL-06: Capture previous tag value for audit trail
+                // DI-004 / CRIT-PH-02: MODIFIED_DT + MODIFIED_BY written AFTER successful BuildAndWriteTag only
                 string _prevTag = null;
                 try
                 {
                     _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(_prevTag))
                         ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                    // Phase 78 ISO-CRIT-001: Track contributor username for ISO 19650-2 §5.2 traceability
-                    try
-                    {
-                        string userName = Environment.UserName;
-                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", userName, overwrite: true);
-                    }
-                    catch (Exception usrEx) { StingLog.Warn($"ISO username tracking: {usrEx.Message}"); }
                 }
                 catch (Exception auditEx)
                 {
@@ -3647,13 +3637,14 @@ namespace StingTools.Core
                     return false;
                 }
 
-                // DI-004 FIX: Write modification timestamp AFTER successful tag change only
+                // DI-004 / CRIT-PH-02: Write modification timestamp + username AFTER successful tag change only
                 try
                 {
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
                 }
-                catch (Exception dtEx) { StingLog.Warn($"Tag modified date write: {dtEx.Message}"); }
+                catch (Exception dtEx) { StingLog.Warn($"Tag modified date/user write: {dtEx.Message}"); }
 
                 // Plugin hook: notify third-party plugins after successful tagging
                 StingPluginHooks.FireAfterTag(doc, el, ParameterHelpers.GetString(el, ParamRegistry.TAG1));

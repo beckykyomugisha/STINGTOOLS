@@ -2384,6 +2384,15 @@ namespace StingTools.Model
                 return result;
             }
 
+            // SA-CRIT-01: Pre-build node lookup dictionaries for O(1) access instead of O(n) per member
+            var nodeById = new Dictionary<int, FrameNode>(nNodes);
+            var nodeIndexById = new Dictionary<int, int>(nNodes);
+            for (int idx = 0; idx < nNodes; idx++)
+            {
+                nodeById[nodes[idx].Id] = nodes[idx];
+                nodeIndexById[nodes[idx].Id] = idx;
+            }
+
             // Build global stiffness matrix and load vector
             var K = new double[nDof, nDof];
             var F = new double[nDof];
@@ -2391,11 +2400,11 @@ namespace StingTools.Model
             // Assemble member stiffness matrices
             foreach (var m in members)
             {
-                var ni = nodes.First(n => n.Id == m.NodeI);
-                var nj = nodes.First(n => n.Id == m.NodeJ);
+                if (!nodeById.TryGetValue(m.NodeI, out var ni) || !nodeById.TryGetValue(m.NodeJ, out var nj))
+                    continue; // skip members with invalid node references
 
-                int iIdx = nodes.IndexOf(ni) * 3;
-                int jIdx = nodes.IndexOf(nj) * 3;
+                int iIdx = nodeIndexById[m.NodeI] * 3;
+                int jIdx = nodeIndexById[m.NodeJ] * 3;
 
                 double dx = nj.X - ni.X;
                 double dy = nj.Y - ni.Y;
@@ -2516,10 +2525,10 @@ namespace StingTools.Model
             // Recover member forces
             foreach (var m in members)
             {
-                var ni = nodes.First(n => n.Id == m.NodeI);
-                var nj = nodes.First(n => n.Id == m.NodeJ);
-                int iIdx = nodes.IndexOf(ni) * 3;
-                int jIdx = nodes.IndexOf(nj) * 3;
+                if (!nodeById.TryGetValue(m.NodeI, out var ni) || !nodeById.TryGetValue(m.NodeJ, out var nj))
+                    continue;
+                int iIdx = nodeIndexById[m.NodeI] * 3;
+                int jIdx = nodeIndexById[m.NodeJ] * 3;
 
                 double dx = nj.X - ni.X;
                 double dy = nj.Y - ni.Y;
@@ -2624,8 +2633,9 @@ namespace StingTools.Model
                 var start = loc.Curve.GetEndPoint(0);
                 var end = loc.Curve.GetEndPoint(1);
 
-                var nodeI = getOrCreateNode(start.X * 304.8, start.Y * 304.8);
-                var nodeJ = getOrCreateNode(end.X * 304.8, end.Y * 304.8);
+                // SA-HIGH-01: Revit Z is vertical; map to 2D frame analysis as X-horizontal, Z-vertical
+                var nodeI = getOrCreateNode(start.X * 304.8, start.Z * 304.8);
+                var nodeJ = getOrCreateNode(end.X * 304.8, end.Z * 304.8);
 
                 // Extract section properties from type
                 double A = 5000; // Default 50cm² 
@@ -2674,8 +2684,20 @@ namespace StingTools.Model
 
         private static double[] SolveLinearSystem(double[,] A, double[] b, int n)
         {
-            // Cholesky-like LDL decomposition for symmetric positive definite
-            // Falls back to Gaussian elimination with partial pivoting
+            // SA-CRIT-02: Guard against excessive DOF count (dense O(n³) solver)
+            // 3000 DOF ≈ 1000 nodes → ~72 MB augmented matrix; beyond this, warn and cap
+            if (n > 3000)
+            {
+                StingLog.Warn($"Frame analysis: {n} DOF exceeds dense solver limit (3000). " +
+                    "Results may be slow or inaccurate for very large frames. Consider subdividing the model.");
+            }
+            if (n > 6000)
+            {
+                StingLog.Error($"Frame analysis: {n} DOF exceeds maximum (6000). Aborting to prevent out-of-memory.");
+                return null;
+            }
+
+            // Gaussian elimination with partial pivoting
             var augmented = new double[n, n + 1];
             for (int i = 0; i < n; i++)
             {

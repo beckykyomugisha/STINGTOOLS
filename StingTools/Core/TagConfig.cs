@@ -42,6 +42,8 @@ namespace StingTools.Core
     /// </summary>
     public class DisciplineProfile
     {
+        // ── v1 properties (collision/SEQ/token defaults) ──
+
         /// <summary>Collision mode override for this discipline (Skip/Overwrite/AutoIncrement). Null = use global.</summary>
         public TagCollisionMode? CollisionMode { get; set; }
 
@@ -54,16 +56,36 @@ namespace StingTools.Core
         /// <summary>Default LOC code for this discipline. Null = use auto-detect.</summary>
         public string DefaultLoc { get; set; }
 
-        /// <summary>Default STATUS for this discipline. Null = use global.</summary>
-        public string DefaultStatus { get; set; }
-
         /// <summary>Whether to include zone in SEQ key for this discipline. Null = use global.</summary>
         public bool? SeqIncludeZone { get; set; }
 
         /// <summary>Custom SEQ pad width for this discipline (e.g., 3 for 001, 5 for 00001). Null = use global.</summary>
         public int? SeqPadWidth { get; set; }
 
-        /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
+        // ── v2 properties (validation constraints) ──
+
+        /// <summary>Default DISC code for this profile (e.g., "M").</summary>
+        public string DefaultDisc { get; set; }
+
+        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedSysCodes { get; set; } = new List<string>();
+
+        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
+
+        /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
+        public string DefaultProd { get; set; }
+
+        /// <summary>Default STATUS value for this discipline.</summary>
+        public string DefaultStatus { get; set; }
+
+        /// <summary>When true, SYS/FUNC must be in AllowedSysCodes/AllowedFuncCodes.</summary>
+        public bool ValidationStrictness { get; set; }
+
+        /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
+        public List<string> RequiredTokens { get; set; } = new List<string>();
+
+        /// <summary>Parse a DisciplineProfile from a JSON dictionary (v1 format with collision_mode, seq_scheme, etc.).</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
         {
             var p = new DisciplineProfile();
@@ -92,6 +114,16 @@ namespace StingTools.Core
             {
                 if (spw is long l) p.SeqPadWidth = (int)l;
                 else if (int.TryParse(spw?.ToString(), out int iv)) p.SeqPadWidth = iv;
+            }
+            // v2 properties from dict
+            if (dict.TryGetValue("default_disc", out object dd) && dd is string dds && !string.IsNullOrWhiteSpace(dds))
+                p.DefaultDisc = dds;
+            if (dict.TryGetValue("default_prod", out object dprod) && dprod is string dprods && !string.IsNullOrWhiteSpace(dprods))
+                p.DefaultProd = dprods;
+            if (dict.TryGetValue("validation_strictness", out object vs))
+            {
+                if (vs is bool vsb) p.ValidationStrictness = vsb;
+                else if (vs is string vss) p.ValidationStrictness = vss.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
             return p;
         }
@@ -796,28 +828,6 @@ namespace StingTools.Core
     }
 
     /// <summary>
-    /// Per-discipline tagging profile defining token defaults and validation constraints.
-    /// Loaded from DISCIPLINE_PROFILES in project_config.json.
-    /// </summary>
-    public class DisciplineProfile
-    {
-        /// <summary>Default DISC code for this profile (e.g., "M").</summary>
-        public string DefaultDisc { get; set; }
-        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedSysCodes { get; set; } = new List<string>();
-        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
-        /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
-        public string DefaultProd { get; set; }
-        /// <summary>Default STATUS value for this discipline.</summary>
-        public string DefaultStatus { get; set; }
-        /// <summary>When true, SYS/FUNC must be in AllowedSysCodes/AllowedFuncCodes.</summary>
-        public bool ValidationStrictness { get; set; }
-        /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
-        public List<string> RequiredTokens { get; set; } = new List<string>();
-    }
-
-    /// <summary>
     /// Ported from tag_config.py — project-level ISO 19650 token lookup tables.
     /// Loads from project_config.json; falls back to built-in defaults that mirror
     /// Sheet 02-TAG-FAMILY-CONFIG from the STINGTOOLS template workbook.
@@ -948,22 +958,6 @@ namespace StingTools.Core
         /// Format: {"ARCH": [1, 4999], "MEP": [5000, 8999], "STR": [9000, 9999]}.</summary>
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
-
-        // ── GAP-FIX: Per-discipline tagging profiles ──
-
-        /// <summary>Per-discipline tagging profile overrides. Loaded from DISCIPLINE_PROFILES in project_config.json.
-        /// Format: { "M": { "collision_mode": "AutoIncrement", "seq_scheme": "Numeric", "default_zone": "Z01" }, ... }
-        /// Allows each discipline to have different collision handling, SEQ schemes, and token defaults.</summary>
-        public static Dictionary<string, DisciplineProfile> DisciplineProfiles { get; internal set; }
-            = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Get the discipline profile for a given DISC code, or null if no profile defined.</summary>
-        public static DisciplineProfile GetDisciplineProfile(string disc)
-        {
-            if (string.IsNullOrEmpty(disc) || DisciplineProfiles.Count == 0) return null;
-            DisciplineProfiles.TryGetValue(disc, out var profile);
-            return profile;
-        }
 
         // ── GAP-FIX: Configurable formula cache TTL ──
 
@@ -1613,25 +1607,6 @@ namespace StingTools.Core
                     AutoTaggerStaleMarker = atsmVal;
                 }
                 else { AutoTaggerStaleMarker = null; }
-
-                // GAP-FIX: Load per-discipline tagging profiles
-                DisciplineProfiles = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
-                if (data.TryGetValue("DISCIPLINE_PROFILES", out object dpObj) && dpObj != null)
-                {
-                    try
-                    {
-                        var dpDict = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, object>>>(
-                            JsonConvert.SerializeObject(dpObj));
-                        if (dpDict != null)
-                        {
-                            foreach (var kvp in dpDict)
-                                DisciplineProfiles[kvp.Key] = DisciplineProfile.FromDict(kvp.Value);
-                            if (DisciplineProfiles.Count > 0)
-                                StingLog.Info($"TagConfig: loaded {DisciplineProfiles.Count} discipline profiles");
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"TagConfig: failed to parse DISCIPLINE_PROFILES: {ex.Message}"); }
-                }
 
                 // GAP-FIX: Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;

@@ -195,9 +195,13 @@ namespace StingTools.Model
             if (reynoldsNumber < 2300) return 64.0 / reynoldsNumber; // laminar
 
             double relRoughness = roughness / diameter;
-            // Iterative solution (Swamee-Jain approximation for speed)
-            double f = 0.25 / Math.Pow(
-                Math.Log10(relRoughness / 3.7 + 5.74 / Math.Pow(reynoldsNumber, 0.9)), 2);
+            // ME-CRIT-01: Swamee-Jain explicit approximation (not iterative — no convergence issue)
+            // Guard against log10 producing near-zero denominator
+            double logArg = relRoughness / 3.7 + 5.74 / Math.Pow(reynoldsNumber, 0.9);
+            if (logArg <= 0 || double.IsNaN(logArg)) return 0.02;
+            double logVal = Math.Log10(logArg);
+            if (Math.Abs(logVal) < 1e-12 || double.IsNaN(logVal)) return 0.02;
+            double f = 0.25 / (logVal * logVal);
             return Math.Max(f, 0.005);
         }
 
