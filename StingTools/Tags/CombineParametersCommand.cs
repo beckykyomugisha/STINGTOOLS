@@ -193,6 +193,23 @@ namespace StingTools.Tags
                         StingLog.Warn($"CombineParams BuildAndWriteTag for {el.Id}: {bwtEx.Message}");
                     }
 
+                    // Phase 67: Pre-validate token values before writing containers.
+                    // Logs cross-validation warnings but does NOT skip — containers are still
+                    // written so partial data is visible in schedules/exports for manual resolution.
+                    if (tokenValues != null && tokenValues.Length >= 8)
+                    {
+                        try
+                        {
+                            var isoErrors = ISO19650Validator.ValidateElement(el);
+                            if (isoErrors.Count > 0)
+                            {
+                                foreach (var err in isoErrors.Take(2))
+                                    StingLog.Warn($"CombineParams ISO warn {el.Id}: {err.Message}");
+                            }
+                        }
+                        catch (Exception valEx) { StingLog.Warn($"CombineParams validate: {valEx.Message}"); }
+                    }
+
                     foreach (var group in activeGroups)
                     {
                         if (group.Categories != null && !group.Categories.Contains(catName))

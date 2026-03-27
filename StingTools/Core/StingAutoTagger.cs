@@ -74,11 +74,15 @@ namespace StingTools.Core
         // M-06 FIX: Track dropped elements for diagnostic purposes
         private static int _droppedElementCount = 0;
 
+        /// <summary>Phase 78: Track dropped element IDs for sidecar recovery.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentBag<long> _droppedElementIds = new();
+
         public static void EnqueueDeferred(ElementId id)
         {
             if (_deferredElements.Count >= MaxDeferredQueueSize)
             {
                 _droppedElementCount++;
+                _droppedElementIds.Add(id.Value); // Phase 78: Track for sidecar recovery
                 // M-06 FIX: Throttle logging — only log every 100th drop to avoid log spam
                 // but use Error level (not Warn) so it's visible in diagnostics
                 if (_droppedElementCount <= 5 || _droppedElementCount % 100 == 0)
@@ -88,6 +92,29 @@ namespace StingTools.Core
             }
             _deferredElements.Enqueue(id);
         }
+
+        /// <summary>Phase 78: Persist dropped element IDs to sidecar for retry on next session.
+        /// Called on document close to ensure no elements are permanently lost from auto-tagger.</summary>
+        public static void SaveDroppedElementsSidecar(Document doc)
+        {
+            if (_droppedElementIds.IsEmpty) return;
+            try
+            {
+                string projectPath = doc?.PathName;
+                if (string.IsNullOrEmpty(projectPath)) return;
+                string sidecarPath = System.IO.Path.ChangeExtension(projectPath, ".sting_deferred_elements.json");
+                var ids = _droppedElementIds.ToArray();
+                string json = $"{{\"version\":\"1.0\",\"timestamp\":\"{DateTime.Now:o}\",\"dropped_count\":{ids.Length},\"element_ids\":[{string.Join(",", ids)}]}}";
+                string tempPath = sidecarPath + ".tmp";
+                System.IO.File.WriteAllText(tempPath, json);
+                System.IO.File.Move(tempPath, sidecarPath, true);
+                StingLog.Info($"AutoTagger: saved {ids.Length} dropped element IDs to sidecar for recovery");
+            }
+            catch (Exception ex) { StingLog.Warn($"Deferred sidecar save: {ex.Message}"); }
+        }
+
+        /// <summary>Phase 78: Get dropped element count for dashboard display.</summary>
+        public static int DroppedElementCount => _droppedElementCount;
 
         /// <summary>R-02: Drain and discard the deferred queue (call on DocumentClosed).</summary>
         public static void ClearDeferredQueue()

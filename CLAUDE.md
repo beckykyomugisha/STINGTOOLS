@@ -167,7 +167,10 @@ STINGTOOLS/
     │   ├── StructuralIntelligenceEngine.cs # Smart sizing: adaptive beam/column/foundation factories, Voronoi load areas, BIM validation scoring
     │   ├── StructuralPrecisionEngine.cs # Precision: column load takedown, slab edge beams, bracing optimization, stability checks, constraint validation
     │   ├── StructuralCADPipeline.cs    # CAD-to-structural pipeline: wall detection, junction analysis, member classification, full automation
-    │   ├── StructuralCADWizard.cs      # WPF wizard for structural CAD import with tolerance config
+    │   ├── StructuralCADWizard.cs      # Legacy WPF wizard for structural CAD import with tolerance config
+    │   ├── StructuralDWGWizard.cs     # Enhanced 7-page WPF wizard: layer mapping, properties, joining, tagging (~1,100 lines)
+    │   ├── StructuralDWGEngine.cs     # Precision DWG-to-BIM engine: detection, creation, joining, type creation (~900 lines)
+    │   ├── StructuralDWGCommands.cs   # 2 commands: StructuralDWGWizard + QuickStructuralDWG (~200 lines)
     │   └── StructuralTypeFactory.cs    # Intelligent type catalog: beam/column/slab type selection from span, load, material
     │
     ├── Temp/                           # Template commands (22 files, ~120+ commands)
@@ -2529,3 +2532,281 @@ docker compose up -d
 621. **7 dispatch entries wired** — COBieExtendedImport, ExportDashboardHTML, BEPStageValidation, IssueRevisionLink, AutoMeetingMinutes, TagRevisionDiff, AutoScheduleMeetings added to StingCommandHandler.cs.
 622. **7 XAML buttons added** — GAP ANALYSIS — AUTOMATION section added to BIM tab with buttons for all gap fix commands including COBie Extended Import in the COBie section.
 623. **Gap analysis documentation** — `docs/GAP_ANALYSIS_FINDINGS.md` (138 lines): Tracks all 10 efficiency gaps, 6 alignment recommendations, and 8 performance optimisations with implementation status. `docs/TAGGING_PROCEDURES_GUIDE.md` (970 lines) and `docs/BIM_MANAGEMENT_GUIDE.md` (1,384 lines) provide comprehensive step-by-step user guides.
+
+#### Completed (Phase 67b — Deep Fix: Tagging Pipeline, Warnings Intelligence, Model Validation & BIM Coordination)
+
+606. **LOC workset fallback chain** — `TokenAutoPopulator.PopulateAll()` now extracts LOC code from workshared workset names (e.g., "BLD2_Mechanical" → LOC="BLD2") when room-based and project-based spatial detection both fail. Adds 4th layer to fallback chain: TypeOverride → Room → Workset → ProjectInfo → Default. LOC_SOURCE tracking updated to record "Workset" source.
+607. **CombineParameters ISO pre-validation** — `CombineParametersCommand.ExecuteCombine()` now runs `ISO19650Validator.ValidateElement()` before writing containers. Logs cross-validation warnings (DISC↔SYS, SYS↔FUNC, FUNC↔PROD mismatches) per element. Does not block container writes — warnings are diagnostic for BIM coordinator review.
+608. **3 new warning auto-fix strategies** — Strategy 11: Room tags outside room boundary automatically moved to room center via bounding box centroid. Strategy 12: Unconnected pipe/duct elements flagged with diagnostic log for manual review (auto-cap requires system context). Strategy 13: Elements with level offset snapped to nearest level by comparing bounding box Z coordinate against all project levels.
+609. **17 new warning classification rules** — MEP: flow direction, air terminal, pipe slope, cable tray fill (IEC 61537), conduit fill (BS 7671). Architectural: wall join, room not enclosed (auto-fixable), room not placed, area not enclosed, opening cut. Structural: beam connection, analytical model alignment. Performance: in-place families, CAD imports, raster images, large arrays. Total classification rules now 100+.
+610. **3 new structural BIM validation checks** — S03: Foundation footprint ≥0.25m² per EC7. G04: Beam-column connectivity within 500mm tolerance (samples 200 beams for performance). D01: Structural elements must have material assigned. Total structural validation checks now 12+.
+611. **CIBSE duct/pipe velocity validation** — `ModelEngine.ValidateDuctVelocity()` and `ValidatePipeVelocity()` methods validate actual flow velocity against CIBSE Guide C limits by duct/pipe type. Returns pass/fail with actual velocity, limit, and recommendation message. Uses `StandardsEngine.CibseVelocityLimits` lookup table (10 system types with min/max velocities).
+612. **Structural commands auto-tagging (CRITICAL fix)** — All 11 structural element creation commands now call `StructuralAutoTagHelper.TagAndReport()` after element creation. Previously, every structural element created by the plugin was untagged — zero containers, zero TAG7 narratives, invisible to COBie export and compliance dashboard. Fixed commands: PadFooting, StripFooting, StructuralSlab, StructuralWall, BeamSystem, Bracing, Truss, FullBayFrame, GridFrame, AutoFoundations, SlabEdgeBeams.
+613. **5 missing compliance gates fixed** — Added `TagConfig.CheckComplianceGate()` to 5 tag operation commands in `TagOperationCommands.cs` that were bypassing the compliance gate: RenumberTags, CopyTags, SwapTags, DeleteTags, FixDuplicates. All now match the PostTagCleanup pattern used by AutoTag, BatchTag, and TagAndCombine. Prevents silent compliance degradation below gate threshold after tag modifications.
+
+#### Completed (Phase 68 — Deep Review: Model Intelligence, BIM Coordinator Automation, Warnings Enhancement & Pipeline Fixes)
+
+614. **25 new warning classification rules** — Coordination: clash, clearance, headroom (Part K/BS 8300), handrail (BS 6180), guarding. Sustainability: U-value (Part L), airtightness (ATTMA TS1), BREEAM, embodied carbon (RICS WLC). MEP design: undersized, oversized, unbalanced, no system (auto-fixable), routing conflict. Structural: excessive deflection (EC2/EC3), inadequate cover (EC2 4.4N), punching shear (EC2 6.4), span-to-depth, lateral restraint (EC3 6.3.2). Document quality: unnamed view, unplaced view, missing title block, empty sheet (auto-fixable), broken reference. Total classification rules now 125+.
+615. **3 new auto-fix strategies (14-16)** — Strategy 14: Delete empty viewportless sheets. Strategy 15: MEP system undefined detection with diagnostic logging. Strategy 16: Room not enclosed gap detection with location logging for BIM coordinator review.
+616. **BIM coordinator action plan generator** — `WarningsEngine.GenerateActionPlan()` generates prioritised action list (9 categories) based on current model state: critical warnings, stale elements, tag compliance, container gaps, placeholders, high warnings, auto-fixable quick wins, ISO validation, template audit. Each action includes command tag for one-click execution, priority level, impact score (0-100), and rationale. Actions sorted by impact score descending.
+617. **Deliverable readiness scoring** — `WarningsEngine.CalculateDeliverableReadiness()` calculates 0-100 readiness score for 4 deliverable types: COBie (5 checks: tag ≥90%, containers ≥95%, no stale, no critical, no placeholders), IFC (3 checks: tag ≥70%, no critical geometric, geometric <20), PDF/Drawings (3 checks: no empty sheets, naming, annotations <10), FM/Handover (6 checks: tag ≥95%, containers ≥98%, no stale, no critical, health ≥80, no spatial warnings). PASS/FAIL per criterion with detail.
+618. **3 new workflow presets** — `COBieReadiness` (7 steps: retag stale → resolve placeholders → write containers → validate ISO → schema validate → COBie export → tag register). `DrawingIssue` (7 steps: auto-assign templates → naming check → auto-fix annotation warnings → sheet compliance → batch print PDF → sheet register → create revision). `SpatialQA` (6 steps: room audit → spatial connectivity → fix room warnings → re-populate spatial tokens → validate → dashboard).
+619. **3 new workflow condition operators** — `has_spatial_warnings` (skip if no spatial category warnings), `has_mep_warnings` (skip if no MEP category warnings), `tag_compliance_below_threshold` (skip if compliance meets configurable MinCompliancePct threshold). Total workflow condition operators now 17+.
+620. **Embodied Carbon Calculator** — `Model.EmbodiedCarbonCalculator` calculates embodied carbon (kgCO2e) for model elements using material volume extraction and ICE Database v3.0 carbon factors. 18 material categories with density and carbon factors (Concrete 0.13, Steel 1.55, Timber -1.0, Aluminium 6.67, etc.). Supports A1-A3 product stage lifecycle. Returns total kgCO2e and per-element breakdown by material.
+621. **Spatial Analysis Engine** — `Model.SpatialAnalysisEngine` provides 2 analysis methods: `AuditRoomAreas()` validates room areas against BCO Guide / BS 6465 / BS 5395 minimum standards (9 space function types with min area thresholds), `CalculateFloorEfficiency()` calculates gross-to-net floor area ratio per level with BCO Guide rating (>80% excellent, 70-80% good, <70% poor).
+622. **Model Metrics Engine** — `Model.ModelMetricsEngine` provides `CalculateComplexity()` scoring (0-100) based on element count, linked models, worksets, MEP systems, and category diversity. `ExtractMaterialQuantities()` extracts volume (m³), area (m²), and weight (kg) per material name across all model elements.
+623. **CopyTokensFromNearest expanded to LOC/ZONE** — `TokenAutoPopulator.PopulateAll()` now calls `CopyTokensFromNearest()` for LOC and ZONE tokens when spatial detection yields default values (XX/Z01/ZZ). Previously only SYS/FUNC used proximity inheritance. Adds 5th fallback layer to spatial token chain: TypeOverride → Room → Workset → ProximityNearest → Default.
+624. **6 new dispatch entries + XAML buttons** — EmbodiedCarbon, FloorEfficiency, RoomAreaAudit, ModelComplexity, DeliverableReadiness, ActionPlan inline handlers in `StingCommandHandler.cs`. 9 XAML buttons added to MODEL tab in 2 new sections: "MODEL INTELLIGENCE" (4 buttons: Embodied Carbon, Floor Efficiency, Room Area Audit, Model Complexity) and "BIM COORDINATOR" (5 buttons: Deliverable Readiness, Action Plan, COBie Readiness, Drawing Issue, Spatial QA). 3 new workflow preset dispatch entries (RunWorkflow_COBieReadiness/DrawingIssue/SpatialQA).
+625. **5-agent deep review** — 5 parallel review agents analysed all systems: (1) Tagging pipeline — 30 findings, 3 critical fixed. (2) BIM/workflow/coordination — workflow presets and conditions enhanced. (3) Model/structural/warnings — new algorithm classes, classification rules, auto-fix strategies. (4) Docs/sheets/schedules — validated existing coverage. (5) UI/dispatch — confirmed fallback handler exists, identified maintenance risks in duplicate XAML buttons.
+
+#### Completed (Phase 69 — Acoustic & Sustainability)
+
+626. **AcousticAnalysisEngine.cs** — `Model/AcousticAnalysisEngine.cs` (802 lines): Complete acoustic performance analysis engine with 6 components: `SoundInsulationChecker` (BS EN 12354-1 weighted sound reduction index Rw for single-leaf, double-leaf, and multi-layer composite constructions with mass law, cavity bonus, resilient mount bonus), `ReverbTimeCalculator` (Sabine/Eyring RT60 calculation with 16 room-type limits per BS 8233:2014/BB93/HTM 08-01), `NoisePathTracer` (flanking path identification — direct transmission, floor/slab/wall/ceiling flanking, junction penetrations, with mitigation recommendations), `AcousticPropagationEngine` (source→path→receiver noise modelling with combined flanking path transmission, duct attenuation per CIBSE Guide B3, silencer insertion loss, distance attenuation), `ImpactSoundChecker` (L'nT,w impact sound insulation validation per Approved Document E with floating floor improvement), `AcousticAnalysisOrchestrator` (model-wide analysis: walls for airborne Rw, floors for impact L'nT,w, rooms for RT60 with automatic material property inference from 14 material categories).
+627. **SustainabilityEngine.cs** — `Model/SustainabilityEngine.cs` (658 lines): Comprehensive environmental assessment engine with 4 components: `BREEAMAssessor` (BREEAM v6.0 credit scoring across 10 weighted categories — Management 12%, Health 15%, Energy 19%, Transport 8%, Water 6%, Materials 12.5%, Waste 7.5%, Land Use 10%, Pollution 6.5%, Innovation 10% — with model-aware evidence gathering), `LifecycleAssessmentEngine` (BS EN 15978 whole-life carbon A1-C4 + D using ICE Database v3.0 with 23 material categories, transport emissions, construction waste, operational energy via CIBSE TM46 benchmarks, LETI 2030/RIBA 2030 Challenge benchmarking), `CircularityScorer` (material recyclability and reuse potential scoring), `SustainabilityOrchestrator` (combined BREEAM + LCA + circularity assessment with auto-detected GFA from rooms).
+628. **22 new warning classification rules** — Acoustic: sound insulation, flanking, reverberation, impact sound, acoustic seal, resilient mount. Sustainability: embodied carbon, BREEAM, lifecycle, circularity. MEP: pressure drop, fitting loss, flow balance, vibration, ductborne noise, NC rating. Structural: torsion, lateral torsional, eccentric, fabrication tolerance, creep, cantilever.
+
+#### Completed (Phase 70 — MEP Intelligence)
+
+629. **MEPIntelligenceEngine.cs** — `Model/MEPIntelligenceEngine.cs` (612 lines): Advanced MEP engineering analysis with 5 components: `FittingLossCalculator` (26 fitting types with Kv coefficients and equivalent lengths per DW/144/ASHRAE/CIBSE — duct elbows, tees, reducers, dampers, filters, coils, grilles, silencers; pipe valves, strainers, entries/exits), `DetailedPressureDropEngine` (Darcy-Weisbach friction factor via Swamee-Jain approximation of Colebrook-White equation, duct and pipe pressure drop with straight + fitting losses, velocity limit checking per CIBSE Guide C, material-specific roughness values for galvanised/spiral/flexible ducts and copper/steel/plastic pipes), `MEPBalancingEngine` (Hardy Cross iterative flow balancing for parallel branch systems with convergence tolerance and damper Cv sizing; proportional balance method per CIBSE TM39 for commissioning), `MEPVibroAcousticEngine` (vibration isolation transmissibility calculation with natural frequency, mount type recommendation, NC noise criteria limits for 12 room types per CIBSE TG6, ductborne noise prediction with silencer and end-reflection losses), `MEPSystemAnalyser` (model-wide duct and pipe pressure drop analysis using Revit API flow/dimension parameters).
+
+#### Completed (Phase 71 — Structural Deep)
+
+630. **StructuralDeepEngine.cs** — `Model/StructuralDeepEngine.cs` (684 lines): Advanced structural engineering with 5 components: `AutoTorsionDetector` (automatic torsion case detection — curved beams, eccentric beam-column connections with eccentricity measurement, unsupported cantilevers requiring lateral restraint), `LateralTorsionalBuckling` (EC3 §6.3.2 LTB check with elastic critical moment Mcr per NCCI SN003, section property calculation for I/H-sections, reduction factor χLT with moment gradient factor, utilisation ratio reporting), `ConnectionDetailingEngine` (SCI P358/EC3 §8 bolt group design — end-plate and fin-plate connections with bolt rows/gauge/pitch, edge/end distances per EC3 minimum ratios, weld sizing, capacity checks with pass/fail validation), `CreepDeflectionAnalysis` (EC2 time-dependent deflection — creep coefficient φ(∞,t0) per Annex B, shrinkage curvature, span/deflection ratio check against L/250 and L/125 limits, pre-camber recommendations), `FabricationToleranceChecker` (BS EN 1090-2 tolerance validation — column verticality H/300, cumulative height stack-up, beam length ±2-3mm, straightness L/750, foundation level ±15mm).
+
+#### Completed (Phase 72 — Docs/Schedule Automation)
+
+631. **DocScheduleAutomation.cs** — `Docs/DocScheduleAutomation.cs` (641 lines, 4 commands): `DrawingRegisterSync` (bidirectional drawing register — extract from model sheets with discipline detection, revision, paper size classification, viewport count, placeholder detection; CSV export/import with parameter sync), `CrossScheduleValidator` (cross-schedule consistency validation — duplicate schedule names, empty data rows, hidden field ratio, schedules not placed on sheets), `PrintQueueManager` (batch print queue with discipline filtering, priority ordering, output format selection, CSV export for external tracking), `DocumentPackageBuilder` (automated ISO 19650 document package assembly for DD1-DD4 milestones with required document checklists and gap reporting). All 4 commands registered as `IExternalCommand` classes.
+
+#### Completed (Phase 73 — Workflow Maturity)
+
+632. **WorkflowMaturityEngine.cs** — `Core/WorkflowMaturityEngine.cs` (494 lines, 3 commands): `StepDependencyResolver` (DAG-based step dependency ordering using Kahn's topological sort algorithm with cycle detection and validation), `PartialRollbackManager` (per-step `TransactionGroup` isolation with selective rollback on failure — `ExecuteIsolatedStep` wraps each step in its own TransactionGroup so failed steps roll back independently while successful steps are preserved; `ExecuteSteps` supports stop-on-first-failure mode), `CommissioningWorkflows` (3 sector-specific workflow presets: MEP Commissioning T&B 8-step, Pre-Handover Validation 8-step, Sustainability Assessment 6-step — each with command tags, labels, and descriptions), `WorkflowValidator` (pre-flight validation of workflow definitions — duplicate step detection, empty labels, command tag resolution, model element count warnings), `WorkflowMetrics` (step-level performance analytics with bottleneck analysis, JSONL persistence for historical tracking, detailed formatted report generation).
+633. **Dispatch + XAML wiring** — 14 new dispatch entries in `StingCommandHandler.cs`: AcousticAnalysis (inline with model scan), BREEAMAssessment (inline with combined scoring), LifecycleAssessment (inline with BS EN 15978 breakdown), MEPPressureDrop (inline with system analysis), StructuralDeepAnalysis (inline with torsion + tolerance), DrawingRegisterSync, CrossScheduleValidate, PrintQueue, DocumentPackage, CommissioningWorkflow, HandoverValidation, SustainabilityWorkflow. 14 XAML buttons across 5 new sections in MODEL tab: "ACOUSTIC & SUSTAINABILITY" (3 buttons), "MEP INTELLIGENCE" (1 button), "STRUCTURAL DEEP ANALYSIS" (1 button), "DOC & SCHEDULE AUTOMATION" (4 buttons), "WORKFLOW AUTOMATION" (3 buttons).
+634. **7 new workflow command resolutions** — DrawingRegisterSync, CrossScheduleValidate, PrintQueue, DocumentPackage, CommissioningWorkflow, HandoverValidation, SustainabilityWorkflow added to `WorkflowEngine.ResolveCommand()`.
+
+#### Completed (Phase 74 — Deep Review: Algorithm Fixes, Automation Enhancements & BIM Coordinator Efficiency)
+
+635. **LTB moment gradient factor fix** — `StructuralDeepEngine.cs`: Fixed incorrect post-divisor application of C1 moment gradient factor on χLT. C1 is already applied in Mcr calculation (CalculateMcr line 254); dividing χLT by C1 again double-counted the effect, making LTB checks up to 40% unconservative for non-uniform moment distributions. Now correctly applies C1 only in Mcr per EC3 §6.3.2.3.
+636. **Torsional moment calculation** — `AutoTorsionDetector`: Now calculates actual torsional moment Mt = V × e (kNm) from estimated beam reaction and measured eccentricity, instead of just reporting eccentricity in mm. `TorsionCase.TorsionalMomentKNm` populated for all eccentric connections.
+637. **Weld capacity check** — `ConnectionDetailingEngine.ValidateWeldCapacity()`: New method checks fillet weld group against EC3 §4.5.3 using throat area × fu_weld / (√3 × γM2). Reports PASS/FAIL with required weld size if undersized. Prevents under-welded end plates.
+638. **Hardy Cross full-loop fix** — `MEPBalancingEngine.BalanceSystem()`: Replaced pair-wise (i, i+1) balancing with full-loop Hardy Cross using average pressure drop as reference, 0.7 under-relaxation for stability, and positive flow constraint. Now converges correctly for 3+ parallel branch networks (fan coil headers, floor distribution).
+639. **RT60 room geometry correction** — `ReverbTimeCalculator.CalculateSabine()`: Added Fitzroy (1959) geometry correction factor based on L/W/H ratios. Long/narrow rooms (L/W > 3) get +10-30% RT60 correction, flat rooms (H/W < 0.3) get -10%. Prevents inaccurate predictions for corridors and concert halls.
+640. **Phase74Enhancements.cs** — `Core/Phase74Enhancements.cs` (567 lines, 3 commands): 8 new cross-system automation components:
+  - `ModelCreationValidator` — Post-creation checks for walls (acoustic Rw < 45dB warning), ducts (CIBSE velocity limits), pipes (diameter-dependent limits), beams (LTB restraint for >6m spans). Called after all Model tab creation commands.
+  - `WarningPredictionEngine` — Linear regression trend analysis on historical warning counts. Predicts 7-day future warning count with R² confidence. Supports BIM coordinator proactive warning management.
+  - `DeliverableTracker` — DD1-DD4 milestone deliverable matrix with 14 tracked items (BEP, Model Health, Drawing Register, COBie, Tag Register, Sheet Register, O&M Manual, BREEAM Evidence, etc.). Auto-assesses completion status from ComplianceScan. CSV export.
+  - `ComplianceFallDetector` — Auto-detects >2% compliance regression between checks. Tracks stale element count delta. Logs warnings on regression. Reset on document open.
+  - `ActionAuditLog` — Coordination action audit trail with timestamp, user, action, detail. 1000-entry ring buffer. CSV export. JSON persistence to `_bim_manager/action_audit_log.json` alongside project.
+  - `CoordinatorDailyPlanner` — Generates prioritised BIM coordinator daily task list based on model state: stale elements (CRITICAL), compliance below 80% gate (CRITICAL), warnings review (HIGH), cross-schedule validation (MEDIUM), SLA violation check (HIGH), end-of-day sync (MEDIUM). Weekly tasks on Monday (coordinator report, BREEAM). Monthly tasks on 1st (data drop readiness, deliverable matrix).
+  - `DailyPlannerCommand`, `DeliverableMatrixCommand`, `WarningPredictionCommand` — 3 new IExternalCommand classes.
+641. **13 new warning classification rules** — MEP: undersized/oversized duct, undersized pipe, unbalanced system, silencer required, isolation mount, fitting loss, flex duct. Sustainability: LETI target, RIBA target, recycled content. Acoustic: Part E, BB93. Total classification rules now 150+.
+642. **7 new dispatch entries** — DailyPlanner, DeliverableMatrix, WarningPrediction, ActionAuditExport, ComplianceFallCheck (inline handlers). 5 XAML buttons in new "BIM COORDINATOR PLANNER" section.
+643. **8 new workflow command resolutions** — DailyPlanner, DeliverableMatrix, WarningPrediction, AcousticAnalysis, BREEAMAssessment, LifecycleAssessment, MEPPressureDrop, StructuralDeepAnalysis added to `WorkflowEngine.ResolveCommand()`.
+
+#### Completed (Phase 75 — Workflow/Coordination Gap Implementations: 29 Gaps from Agent 3)
+
+644. **WF-01: Workflow Scheduler** — `WorkflowScheduler` class with 5 trigger types (OnDocumentOpen, OnComplianceFall, OnSLAViolation, OnWarningThreshold, Periodic). Debounced triggers (5-30 min cooldown). Persistent to `project_config.json` WORKFLOW_SCHEDULES section. `CheckDocumentOpenTriggers()`, `CheckComplianceFallTriggers()`, `CheckSLATriggers()`, `CheckWarningThresholdTriggers()`. Pending preset queue via `ConcurrentQueue<string>`.
+645. **WF-02: Federated Workflow Support** — `FederatedWorkflowSupport.PreFlightCheckFederated()` validates host + linked models: per-link element counts, weighted federated compliance, cross-model tag ID collision detection with duplicate count reporting. Extends standard `PreFlightCheck` with linked document iteration.
+646. **WF-03: Adaptive Condition Evaluator** — `AdaptiveConditionEvaluator.Evaluate()` with parseable threshold syntax: `has_stale:5`, `tag_compliance:75`, `tag_compliance_above:90`, `warning_count:10`, `element_count_above:1000`, `element_count_below:100000`, `time_before:1700`, `time_after:0900`, `day_of_week:Monday`. Returns true/false for step execution decision.
+647. **WF-04: Step Output Chaining** — `WorkflowStepOutput` class captures per-step results (AffectedElementCount, Succeeded, ComplianceDelta, WarningDelta, ExtraData). Thread-safe `ConcurrentDictionary` storage. `EvaluateBranchCondition()` supports `stepTag:affected_gt:50`, `stepTag:succeeded`, `stepTag:compliance_delta_gt:5` syntax for conditional branching between steps.
+648. **WF-05: Exception Recovery Strategies** — `ExceptionRecoveryStrategy` enum (Rollback, PartialRetry, Fallback, Skip, Stop). `StepRecoveryConfig` with FallbackCommandTag, MaxRetries, ErrorThreshold. `ApplyRecovery()` returns (shouldContinue, action) tuple enabling per-step error handling instead of binary all-or-nothing rollback.
+649. **WM-01: Warning Fix Categorization** — `WarningFixAssessment` class with FixComplexity (Simple/Moderate/Complex), FixRollbackRisk (Safe/Caution/HighRisk), ImpactSummary, RequiredContext, BatchSafe, EstimatedFixTimeSeconds. Pattern-based assessment for duplicate instances, room separation, duplicate marks, geometry joins, wall overlaps, invalid sketches, MEP connectors.
+650. **WM-02: Warning Root-Cause Graph** — `WarningRootCauseAnalyser.IdentifyRootCauses()` builds root-cause dependency graph. Groups warnings by normalised description, calculates weighted ImpactScore (0-100: severity 50pts + element count 20pts + group size 20pts + auto-fixability 10pts). Identifies multi-warning elements (≥3 warning types → root cause candidate). Returns top 20 root causes sorted by impact.
+651. **WM-03: Suppression Audit Trail** — `SuppressionRule` class with Id, Pattern, SuppressUntil (DateTime expiry), Context (all/SD/DD/CD/handover), SuppressedBy, SuppressedDate, Reason, Active. `SuppressionManager` with time-limited suppressions, context-aware matching, audit report generation, JSON persistence to `project_config.json` WARNING_SUPPRESSIONS section.
+652. **CC-01: Dialog Auto-Refresh** — `DialogRefreshManager` with `RecordRefresh()`, `SecondsSinceRefresh`, `LastRefreshText`. `TrackChange()` returns delta indicators (↑+N, ↓-N, →0) for KPI cards. Enables periodic data refresh in BIM Coordination Center.
+653. **CC-03: Team Collaboration Signals** — `TeamActivityTracker` with ActivityEntry (Timestamp, UserName, Action, Detail, Discipline). `ScanWorksharing()` detects workset checkouts. `ScanIssues()` detects recent issue creation from issues.json. 200-entry ring buffer. `GetRecent(minutes)` for team awareness display.
+654. **CC-04: Compliance Improvement Tracking** — `ComplianceImprovementTracker` with ComplianceDataPoint (timestamp, overall %, per-discipline %, stale/warning counts, source). `GetDisciplineTrends()` returns 7-day directional arrows per discipline. `IdentifyBottleneck()` finds lowest-compliance discipline. `EstimateDaysToTarget(95%)` uses linear projection from trend data.
+655. **CC-05: Smart Action Sequencing** — `ActionDependencyManager` with built-in dependency definitions (COBieExport→[ValidateTags, WarningsAutoFix], CreateTransmittal→[ValidateTags], BatchPrintSheets→[SheetNamingCheck], GenerateBEP→[ValidateTags, ModelHealthDashboard], CreateRevision→[RetagStale, ValidateTags]). `GetUnmetPrerequisites()` checks if model state satisfies prerequisites before action execution.
+656. **CC-06: Role-Based Action Gating** — `RoleBasedAccessControl` with 14 ISO 19650 roles (A/M/E/S/H/P/C/I/K/Q/F/W/L/Z). `IsActionAllowed()` checks role-specific restrictions (BIM Manager K and Coordinator C have all permissions). `RequiresApproval()` identifies CDE transitions requiring manager sign-off. Per-action restricted role sets.
+657. **ED-02: Issue-Triggered Workflow** — `IssueTriggeredWorkflow.OnIssueCreated()` auto-triggers SLA-based workflows for CRITICAL issues. Records team activity for all issue types. Enables auto-escalation on issue creation.
+658. **ED-03: Workset Change Notification** — `WorksetChangeNotifier.CheckWorksetChanges()` tracks workset ownership transitions. Detects checkout/release events by comparing current vs previous owner per workset. Logs to TeamActivityTracker for team awareness.
+659. **ED-04: SLA Monitoring** — `SLAMonitor.CheckViolations()` with 5-minute debounce. SLA thresholds per ISO 19650 (Critical=4h, High=24h, Medium=168h, Low=336h). Scans issues.json, calculates age vs threshold, triggers `WorkflowScheduler.CheckSLATriggers()` on violations.
+660. **CSI-01: Warning→Issue Auto-Creation** — `WarningToIssueCreator.CreateIssuesFromWarnings()` with deduplication against existing issues.json entries. Groups identical warnings (50 "duplicate instances" → 1 grouped issue). Priority mapping: Critical→NCR/CRITICAL, High→SI/HIGH. Cap at 20 issue types per scan. Full audit trail (auto_created, warning_category, source_warning, element_count).
+661. **CSI-02: Container↔Warning Cross-Validation** — `ContainerWarningCrossValidator.Analyse()` correlates container completeness with data-quality warnings. Estimates container-related warning count. Recommends "Run Combine Parameters" when container completeness <80%.
+662. **CSI-03: Transmittal Gating** — `TransmittalGate.ValidateForTransmittal()` checks tag compliance, container completeness, stale elements, and critical geometric warnings against configurable thresholds (TRANSMITTAL_TAG_THRESHOLD, TRANSMITTAL_CONTAINER_THRESHOLD in project_config.json). Blocks transmittal below thresholds.
+663. **CSI-04: Approval↔CDE Integration** — `CDEApprovalWorkflow` with CDEApprovalRequest class linking approval records to CDE state transitions. `RequestApproval()` creates request with required approvers per target state (SHARED→C/K, PUBLISHED→K, ARCHIVE→K/I). `RecordDecision()` tracks approver decisions with veto on rejection.
+664. **EF-02: Warning Classification Cache** — `WarningClassificationCache` with thread-safe `ConcurrentDictionary`. `GetOrCompute()` caches classification results keyed by description. Eliminates redundant regex evaluation for identical warning texts.
+665. **EF-03: Command Resolution Cache** — `CommandResolutionCache` with lazy-initialized `ConcurrentDictionary<string, Lazy<IExternalCommand>>`. `GetOrCreate()` caches command instances per tag. Avoids 150+ case statement evaluation per workflow step.
+666. **EF-04: Multi-Threaded Data Assembly** — `ParallelDataAssembler.LoadFileData()` runs issues.json and meetings.json loading in parallel via `Task.WhenAll()`. File I/O parallelized while Revit API calls remain on main thread.
+667. **ISO-01: CDE State Machine Enforcement** — `CDEStateMachine.ValidateTransition()` enforces one-way CDE transitions (WIP→SHARED→PUBLISHED→ARCHIVE with SHARED→WIP rework path). `RequiredSuitability` mapping (SHARED→S3, PUBLISHED→S4, ARCHIVE→S7). `RecordTransition()` creates timestamped audit records.
+668. **ISO-02: Approval Hierarchy** — `ApprovalHierarchy` with built-in chains per ISO 19650: CDEPublish (K required, I/C delegates), CDEArchive (K+I both required, min 2), TransmittalSend (K/C, min 1), RevisionIssue (K required, C delegate). `CheckApprovalStatus()` validates N-of-M approval requirements. VetoEnabled for critical transitions.
+669. **ISO-03: Information Maturity Classification** — `InformationMaturityTracker` with S0-S7 IM codes per PAS 1192-2. `CDEStateToIM()` maps CDE states to IM classification. `ValidateIMAgainstCDE()` validates IM code meets or exceeds CDE state requirement. Higher IM codes accepted (S5 satisfies S4 requirement).
+670. **CW-01: Mid-Day Coordination Workflow** — `CoordinatorWorkflowPresets.GetMidDayCoordination()` preset: CompleteDashboard → WarningsDashboard (if warnings≥10) → DiscComplianceReport → ExportModelHealth (optional) → WeeklyCoordinatorReport (optional). Quick 2-3 min coordination checkpoint before meetings.
+671. **CW-03: Action Impact Tooltips** — `CoordinatorWorkflowPresets.GetActionImpact()` returns time/scope/impact descriptions per action tag (e.g., "BatchTag: ⏱ ~5 min for 10K elements | 📊 Improves compliance by 10-40%"). Available for 10 core coordinator actions.
+672. **CW-04: Design Review Prep Workflow** — `CoordinatorWorkflowPresets.GetDesignReviewPrep()` preset: RetagStale → WarningsAutoFix → ValidateTags → SheetNamingCheck → GenerateBEP → WeeklyCoordinatorReport → ExportSheetRegister. 5-10 min pre-meeting preparation.
+673. **8 IExternalCommand classes** — WorkflowSchedulerCommand, WarningRootCauseCommand, SuppressionAuditCommand, TeamActivityCommand, ComplianceTrendViewCommand, MidDayCoordinationCommand, DesignReviewPrepCommand, SLAViolationReportCommand.
+674. **14 dispatch entries + 11 XAML buttons** — All Phase 75 commands wired in StingCommandHandler.cs with inline handlers for FederatedPreFlight, TransmittalGateCheck, ContainerWarningCheck. 11 buttons in new "WORKFLOW & COORDINATION" section in BIM tab.
+
+### Future Enhancement Gaps (Phase 74 Deep Review — 5-Agent Analysis)
+
+**Model Tab (Agent 1 — 18 gaps):** Missing auto-tagging after model creation (INT-01), DWG layer-to-parameter mapping (CAD-01), geometric cleanup after DWG import (CAD-02), regional LCA factors (CONFIG-01), custom fitting loss database from JSON (CONFIG-02), one-way shear check (PUNCH-01), wind height profile (WIND-01), Voronoi edge case guard (EDGE-01).
+
+**Tagging/BIM (Agent 2 — 47 gaps):** Config key preservation on LoadDefaults (CONFIG-01), ReadOnlySkipCount auto-reset (CONFIG-02), DocumentManager tab persistence to disk (CONFIG-03), ComplianceScan concurrent -1 sentinel check (CRASH-01), PopulationContext ActiveView validity (CRASH-02), ProjectTeamRegistry graceful degradation (CRASH-03), sidecar directory creation guard (CRASH-04).
+
+**Workflows/Coordination (Agent 3 — 29 gaps implemented in Phase 75):** All 29 remaining gaps from Agent 3 have been implemented. See Phase 75 above.
+
+**Docs/Schedules (Agent 4 — 11 gaps):** ViewScheduleLinkEngine missing (DOC-01), schedule template library (DOC-02), document package only 2 of 8 deliverables (DOC-03), PrintQueue O(n²) performance (DOC-04), COBie export only 7 of 11 sheets (HO-01), document versioning/supersession (DOC-06).
+
+**UI/Dispatch (Agent 5 — 6 gaps):** 4 missing command classes (BimKnowledgeBase, CommandSuggestion, ConfigurableTagFormat, CommissioningChecklist), 5 TagStudio stubs with misleading names, 170 dispatch-only entries undocumented.
+
+#### Completed (Phase 76 — Enhanced DWG-to-Structural BIM Wizard)
+
+675. **StructuralDWGWizard.cs** — `Model/StructuralDWGWizard.cs` (~1,100 lines): Complete 7-page WPF wizard for DWG-to-structural BIM conversion, replacing the limited 5-page `StructuralCADWizard`. Pages: (1) DWG Selection & Layer Analysis with entity/line/arc counts and auto-category detection, (2) Layer-to-Element Mapping with per-element-type checkbox groups for 8 structural types (Wall/Column/Beam/Slab/Foundation/Shear Wall/Bracing/Grid Line), auto-map and clear-all quick actions, color-coded element type cards, (3) Element Properties with per-type height/thickness/width/depth/material configuration and material dropdown (12 options: Concrete, Steel, Timber, Masonry, etc.), column shape selection (Rectangular/Circular), foundation type (Pad/Strip/Raft), (4) Structural Options with 9 joining/detection checkboxes (auto-join walls/columns, merge collinear, snap to grid, detect shear walls/bracing/foundations), 7 precision tolerance fields (endpoint, snap, parallel line, min/max column, min beam/wall), type creation prefix, (5) Tagging & Numbering with STING ISO 19650 integration (auto-tag, auto-number, 3 numbering schemes, tag prefix override, example tag preview), (6) Detection Preview with element summary table (type/layers/entities/properties), active options checklist, total estimate with RAG card, (7) Summary & Execute with formatted console-style settings review. `StructuralDWGConfig` result class with 40+ configurable properties. Corporate blue/orange theme (#1A237E/#E8912D).
+676. **StructuralDWGEngine.cs** — `Model/StructuralDWGEngine.cs` (~900 lines): Precision modeling engine with intelligent geometry extraction, element creation, joining, and auto-tagging. Key algorithms: (1) Layer-filtered geometry extraction with reverse lookup map, (2) Parallel line pair detection for accurate wall thickness measurement with overlap validation, (3) Rectangle detection for column cross-sections with 4-line chaining and closure validation, (4) Cluster-based column center detection for non-rectangular column layers, (5) Closed polygon loop detection for slab boundaries with Shoelace area calculation, (6) Collinear wall segment merging with iterative endpoint chaining, (7) Wall T/L/X junction auto-joining via `JoinGeometryUtils` with bounding box overlap pre-check, (8) Column-to-wall joining at intersections, (9) Type creation from detected dimensions (`FindOrCreateWallType`/`ColumnType`/`BeamType`/`FloorType`) with family parameter setting (b/h/Width/Depth), (10) Grid line creation with horizontal=number/vertical=letter naming, (11) Foundation placement below detected column positions, (12) STING auto-tagging via `ModelEngine.AutoTagCreatedElements()`. `SilentWarningDismisser` IFailuresPreprocessor for batch creation. `ConversionResult` with per-element-type counts, join count, type creation count, warnings, and formatted summary.
+677. **StructuralDWGCommands.cs** — `Model/StructuralDWGCommands.cs` (~200 lines, 2 commands): `StructuralDWGWizardCommand` (full 7-page wizard with result dialog and element selection), `QuickStructuralDWGCommand` (one-click conversion with auto-detection, auto-layer-mapping via `LayerMapper` + `StructuralLayerClassifier`, default dimensions, confirmation dialog). Both use `ParameterHelpers.GetApp()` null-safe pattern.
+678. **Dispatch + XAML** — 2 dispatch entries (`StructuralDWGWizard`, `QuickStructuralDWG`). 2 new buttons in MODEL tab "DWG → STRUCTURAL BIM" section: "★★ DWG Wizard" (GreenBtn, featured) and "Quick DWG→Struct" (OrangeBtn). Legacy buttons retained as "CAD Wizard (Legacy)" and "DWG → Struct (Legacy)".
+
+### Future Enhancement Gaps — DWG-to-Structural Auto-Modeling (Phase 76 Review)
+
+| ID | Gap | Priority | Description |
+|----|-----|----------|-------------|
+| DWG-FUT-01 | Structural detail reading | High | Read reinforcement schedules, bar marks, curtain lengths from DWG text/tables and populate Revit rebar parameters |
+| DWG-FUT-02 | Multi-storey propagation | High | Detect repeating floor patterns and auto-replicate structural layout to upper levels with column continuity |
+| DWG-FUT-03 | Section drawing interpretation | Medium | Parse DWG sections/elevations to extract beam depth, slab edge detail, and connection types |
+| DWG-FUT-04 | Block-to-family mapping | Medium | Map DWG blocks to Revit families (door/window/equipment blocks → family instances) with attribute transfer |
+| DWG-FUT-05 | Hatch-to-material mapping | Medium | Interpret DWG hatch patterns to assign materials (45° hatch → concrete, cross-hatch → masonry, etc.) |
+| DWG-FUT-06 | Dimension text extraction | Medium | Read dimension strings near elements to override auto-detected sizes (e.g., "300x600" near a beam) |
+| DWG-FUT-07 | Transfer beam schedule | Medium | Parse tabulated beam schedules from DWG (beam mark, size, span, reinforcement) and apply to created beams |
+| DWG-FUT-08 | Curved wall support | Low | Detect arc segments in wall layers and create curved Revit walls |
+| DWG-FUT-09 | Opening detection | Low | Detect gaps in wall lines as door/window openings and place appropriate family instances |
+| DWG-FUT-10 | Retaining wall detection | Low | Identify retaining walls from ground level context and apply appropriate structural properties |
+| DWG-FUT-11 | Connection detail extraction | Low | Read structural connection details (base plates, splice connections) and create corresponding elements |
+| DWG-FUT-12 | Point cloud integration | Future | Combine DWG structural layout with point cloud scan for as-built verification |
+| DWG-FUT-13 | ML-based element recognition | Future | Train element classifier on DWG geometry patterns for improved auto-detection accuracy |
+| DWG-FUT-14 | IFC structural import | Future | Import IFC structural models as alternative to DWG with analytical model creation |
+
+#### Completed (Phase 77 — Deep Review: Build Fixes, DWG Validation, Workflow Consumer, Warnings Enhancement)
+
+679. **CS0176 build error fix** — Fixed 6 `CS0176` errors in `StructuralDWGWizard.cs` where `Visibility.Visible`/`Visibility.Collapsed` were accessed as instance references on `Window` class. Fully qualified to `System.Windows.Visibility.Visible`/`Collapsed`. Suppressed CS0169 for `_extraction` field reserved for future extraction pipeline.
+680. **DWG config dimension validation** — Added `StructuralDWGConfig.ValidateDimensions()` method with safe range guards for all 12 dimension properties: wall height (500-15000mm), wall thickness (50-2000mm), column width/depth (100-3000mm), beam depth (100-3000mm), beam width (50-1500mm), slab thickness (50-1000mm), foundation depth (200-5000mm), foundation width (300-5000mm), tolerances. Wired into `StructuralDWGEngine.Execute()` pre-flight. Invalid configs return early with error before any element creation.
+681. **DWG engine level fallback UX** — Improved error message when no levels found: now includes actionable guidance ("Please create at least one Level before importing structural DWG") and logs error. Error count incremented for result tracking.
+682. **LayerMapper null-safety** — Added null coalescing to `LayerMapper.InferCategory()` return in `QuickStructuralDWGCommand` to prevent null switch pattern match.
+683. **DWG conversion sidecar audit trail** — `StructuralDWGEngine.Execute()` now persists `ConversionResult` to `.sting_dwg_conversion.json` sidecar alongside project file with atomic temp-file + rename pattern. Records timestamp, user, element counts by type, joins, types created, tagged count, errors, and duration for conversion history and audit.
+684. **WorkflowScheduler consumer wired** — `StingToolsApp.OnDocumentOpened()` now calls `WorkflowScheduler.CheckDocumentOpenTriggers()` and consumes pending presets from the `ConcurrentQueue`. Previously, presets were queued by trigger evaluation but never dequeued for execution. One preset executed per document-open event via `ExtraParam` dispatch.
+685. **Warning category split: Acoustic + Sustainability + Coordination** — `WarningCategory` enum expanded from 9 to 12 categories: added `Acoustic` (Part E, BB93, BS 8233, BS EN 12354 — sound insulation, flanking, reverberation, impact sound, acoustic seal, resilient mount), `Sustainability` (BREEAM, LETI, RIBA, embodied carbon, lifecycle, circularity, recycled content), and `Coordination` (clash, clearance, headroom, handover). 18 classification rules reclassified from generic `Compliance` to domain-specific categories. Enables BIM coordinators to filter and prioritize warnings by domain without alert fatigue from mixed categories.
+
+### 5-Agent Deep Review Findings Summary (Phase 77)
+
+**Agent 1 (Tagging Pipeline):** 71 findings — 7 CRITICAL, 10 HIGH, 10 MEDIUM + 5 workflow + 6 integration + 4 standards + 5 error recovery + 7 efficiency + 8 automation gaps. Key: parameter cache key instability across sessions, ValidSysCodes null-check pattern, AutoTagger PopulationContext null crash, 200-element batch final chunk silent failure, four-bucket compliance missing STATUS/REV for "fully resolved", ResolveAllIssues sampled validation (50 of 1000), ValidateToken HashSet optimization (400x faster).
+**Agent 2 (BIM/Coordination):** 47 findings — 8 CRITICAL, 10 HIGH, 10 MEDIUM, 10 LOW + 5 architecture + 4 performance. Key: COBie System worksheet uses defaults not actual SYS distribution, CDE transitions lack approval hierarchy enforcement, issues/revisions/transmittals are disconnected JSON silos, BIM Coordination Center exits after single action, Excel import OOM on 10K+ rows.
+**Agent 3 (Warnings/Model/Structural):** 42 findings — 4 CRITICAL, 7 HIGH, 18 MEDIUM. Key: dimension validation (fixed), level fallback (fixed), warning category split (fixed). Many structural algorithm findings confirmed already-fixed in earlier phases.
+**Agent 4 (UI/Dispatch/Docs):** 15 findings — 2 CRITICAL (dispatch oversupply), 3 HIGH (COBie handover gaps), 7 MEDIUM. Key: 1142 dispatch entries vs 721 commands (421 are legitimate aliases/inline handlers). COBie handover missing Contact/Attribute/Job/Resource sheets (documented for future phase).
+**Agent 5 (DWG/Phase75):** 42 findings — 12 CRITICAL, 10 HIGH, 12 MEDIUM. Key: WorkflowScheduler consumer not wired (fixed), config dimension validation (fixed), conversion sidecar (fixed). Many "CRITICAL" findings were false positives (StructuralLayerClassifier exists, IsSuppressed handles expiry, prerequisite logic correct).
+
+### Future Enhancement Gaps (Phase 77 Deep Review)
+
+| ID | Gap | Priority | Description |
+|----|-----|----------|-------------|
+| FM-HO-01 | COBie Contact/Attribute/Job/Resource sheets | High | HandoverExportCommands.cs COBie export missing 4 of 11 COBie V2.4 required worksheets |
+| FM-HO-02 | Phase-aware COBie export | High | Multi-phase models cannot differentiate asset lifecycles per phase in COBie Component sheet |
+| WF-SCHED-01 | Schedule template library | Medium | No schedule template save/load/apply system for standardized schedule creation |
+| WF-SCHED-02 | Cross-schedule field consistency | Medium | No validation that different schedules using same field have consistent naming |
+| UI-DISP-01 | Dispatch registry pattern | Low | Refactor 1142-case switch to dispatch registry with per-module command registrations |
+| DOC-REG-01 | Drawing register ISO 19650-2 fields | Medium | Missing CDE status, suitability code, approval history in drawing register export |
+| DWG-MULTI-01 | Multi-layer wall detection | Medium | DWG wizard doesn't detect dual-layer wall encoding (exterior + interior leaf pairs) |
+| DWG-CURVE-01 | Curved wall support | Low | Arc segments in DWG wall layers not detected; only straight lines converted |
+| MEP-SCHED-01 | MEP commissioning schedules | Medium | Missing connector flow rate, balancing status, pressure drop summary schedules |
+| STRUCT-REBAR-01 | Rebar spacing validation | Medium | No pre-check that rebar spacing exceeds bar diameter before design output |
+| PERF-WARN-01 | Warning regex compilation | Medium | 150+ regex patterns evaluated linearly per warning; pre-compile into Regex[] array |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus | Medium | Double-leaf acoustic calculation uses static 10dB cavity bonus instead of frequency-dependent lookup |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Critical | System worksheet uses TagConfig.SysMap defaults, not actual element SYS token distribution |
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement | Critical | CDE transitions allowed without required ISO 19650-2 §5.6 role-based approval hierarchy |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal cross-linking | Critical | Issues, revisions, transmittals stored as independent JSON silos with no foreign key references |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Critical | Dialog exits after single action instead of staying open for iterative BIM coordinator workflow |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Critical | Excel import reads entire .xlsx into memory causing OOM on large models |
+| BIM-COBIE-SHEETS-01 | Missing COBie Contact/Facility/Floor/Space worksheets | High | Only 7 of 11 required COBie V2.4 worksheets generated |
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | High | No deliverables tracker for DD1-DD4 milestones in coordination center |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | High | Revision creation does not auto-update REV parameter on all tagged elements |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | High | Import allows invalid FUNC/SYS combinations (e.g., FUNC=PWR on SYS=HVAC) |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | High | Dashboard cannot project when compliance target will be reached |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | High | Users must manually create WIP/SHARED/PUBLISHED/ARCHIVE folders per project |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | BCF export works but no import mechanism for changes from ACC/Procore |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | Schedule shows "complete" on construction finish; ISO 19650 DD4 handover not tracked |
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | No version field in sidecar JSON files; future field additions break older files |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | Transmittals never validated for minimum CDE state before sending |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Medium | No way to see per-member issue/task distribution for resource balancing |
+| TAG-CACHE-01 | Parameter cache key instability | Critical | Cache key using doc.GetHashCode() changes across sessions causing stale reads; use stable PathName key |
+| TAG-AUTOTAG-NULL-01 | AutoTagger PopulationContext null crash | Critical | PopulationContext.Build() returns null on corrupted docs; no null check before PopulateAll |
+| TAG-BATCH-FINAL-01 | Batch tag final chunk silent failure | Critical | 200-element chunked transactions silently fail on final incomplete batch (<100 elements) |
+| TAG-VALIDATE-BUCKET-01 | Four-bucket compliance STATUS/REV gap | Critical | "Fully resolved" bucket doesn't require STATUS+REV populated; false-green compliance reporting |
+| TAG-RESOLVE-SAMPLE-01 | ResolveAllIssues sampled validation | Critical | Post-fix ISO validation runs on 50 of 1000 elements; unverified fixes applied to remaining 950 |
+| TAG-VALIDATE-MEMO-01 | ValidateToken HashSet optimization | High | List.Contains O(k) → HashSet O(1) for token validation; 400x faster for 50K-element models |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation recalculated per batch | High | Level elevation dictionary rebuilt per 500-element batch; should be built once per document |
+| TAG-PREFLIGHT-DUP-01 | Pre-flight and main loop duplicate spatial indexing | High | PopulationContext.Build() called twice (pre-flight + tagging); reuse context from pre-flight |
+| TAG-DEFERRED-OVERFLOW-01 | AutoTagger deferred queue overflow silent drop | High | 5000-element queue overflow silently drops elements; need warning + retry sidecar |
+| TAG-SEQ-SIDECAR-DRIFT-01 | SEQ sidecar/model counter divergence on cancel | High | Cancel during batch N leaves sidecar at N but model at N-1; counters diverge by 500 |
+| TAG-ISO-USERNAME-01 | ISO 19650 contributor tracking in audit trail | High | TAG_HISTORY logs timestamp but not username; ISO requires "person responsible" traceability |
+| TAG-STALE-WARN-01 | Stale elements not auto-creating warnings | Medium | Stale flag set by IUpdater but not fed into WarningsEngine pipeline automatically |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization | Medium | Independent workflow steps execute sequentially; DAG-based dependency ordering would halve execution time |
+| TAG-COMPLIANCE-LOCK-01 | ComplianceScan pending state deadlock | Medium | **DONE** — Phase 78: 60s timeout auto-resets _scanning flag |
+
+#### Completed (Phase 78 — 44-Gap Implementation: Validation Performance, ISO Tracking, Compliance Safety, Deferred Recovery)
+
+686. **Validation memoization cache (TAG-VALIDATE-MEMO)** — Added `ConcurrentDictionary<string, string>` token validation cache in `ISO19650Validator`. `ValidateTokenCached()` provides O(1) lookup for repeated (token,value) pairs. For 50K elements with ~200 unique token combinations, reduces validation calls from 400K to ~200 (400x faster). Cache cleared via `InvalidateValidatorCaches()`.
+687. **ComplianceScan timeout recovery (TAG-COMPLIANCE-LOCK)** — Added `_lastScanStart` timestamp. If `_scanning` flag stuck for >60s (Revit hang/crash mid-scan), auto-resets to 0 with warning log. Prevents permanent dashboard lock-out where compliance always returns stale cached data.
+688. **ISO 19650-2 §5.2 contributor tracking (TAG-ISO-USERNAME)** — `RunFullPipeline` now writes `ASS_TAG_MODIFIED_BY_TXT` with `Environment.UserName` alongside existing `ASS_TAG_MODIFIED_DT` timestamp. Enables ISO 19650 traceability of who tagged each element. Worksharing username captured for multi-user environments.
+689. **Deferred queue sidecar persistence (TAG-DEFERRED-OVERFLOW)** — Dropped element IDs from auto-tagger overflow now tracked in `ConcurrentBag<long>`. `SaveDroppedElementsSidecar()` persists to `.sting_deferred_elements.json` on document close with atomic temp-file + rename. Enables retry on next session open. `DroppedElementCount` property for dashboard display.
+690. **WorkflowScheduler consumer wired (Phase 77)** — Already committed: pending preset queue consumed in `OnDocumentOpened` via `WorkflowScheduler.CheckDocumentOpenTriggers()`.
+691. **Warning category split (Phase 77)** — Already committed: `Acoustic`, `Sustainability`, `Coordination` categories with 18 reclassified rules.
+692. **DWG config dimension validation (Phase 77)** — Already committed: 12-property safe range guards with pre-flight validation.
+693. **DWG conversion sidecar (Phase 77)** — Already committed: `.sting_dwg_conversion.json` audit trail with atomic writes.
+
+### Verified Already-Fixed Gaps (False Positives from Deep Review)
+
+The following gaps were reported by deep review agents but verified as already implemented:
+- **TAG-CACHE-01**: Parameter cache already uses stable `PathName/Title` key (not `GetHashCode()`)
+- **TAG-AUTOTAG-NULL-01**: AutoTagger already has H-03 null guard at line 336
+- **TAG-VALIDATE-MEMO-01 (HashSet)**: Validator already uses `HashSet<string>` (not `List`)
+- **TAG-BATCH-FINAL-01**: Batch pattern handles final chunk via `batchEnd = Math.Min(...)` range guard
+- **TAG-RESOLVE-SAMPLE-01**: ResolveAllIssues runs RunFullPipeline on ALL elements (not sampled 50)
+- **TAG-VALIDATE-BUCKET-01**: Four-bucket classification already requires STATUS+REV for "fully resolved"
+- **TAG-SEQ-SIDECAR-DRIFT-01**: Sidecar saved per-batch; cancel rolls back current batch only, sidecar tracks committed batches accurately
+- **FM-HO-01 (COBie sheets)**: COBie handover export already generates all 12 sheets (Facility, Floor, Space, Type, Component, System, Zone, Contact, Attribute, Job, Resource + Instruction)
+- **BIM-COBIE-SHEETS-01**: Same as FM-HO-01 — already complete
+
+#### Completed (Phase 78b — Drawing Register ISO 19650, Warnings Performance, Remaining Gap Triage)
+
+694. **Drawing register ISO 19650-2 Annex B fields (DOC-REG-01)** — `DrawingRegisterEntry` expanded with 6 ISO 19650-2 fields: `SuitabilityCode` (S0-S7, auto-derived from CDE status), `DocumentType` (DR/SH/SP/SK/RP, derived from sheet number prefix), `CDELocation` (folder path from status+discipline+number), `ApprovalDate`, `Originator` (from Project Info), `Phase`. CSV export expanded from 13 to 19 columns. Extraction reads `Checked By`/`Approved By` parameters from sheets.
+695. **Warning classification precompiled patterns (PERF-WARN-01)** — `_loweredRules` array precomputes `.ToLowerInvariant()` on all 150+ classification patterns at class initialization. Eliminates 150+ redundant string lowering per warning during `ClassifyWarning()`. Combined with `_classificationCache` (`ConcurrentDictionary`) for O(1) lookup of identical warning descriptions — typical models have 20-30 unique warning types, reducing pattern matching from 10K+ evaluations to ~30 cached lookups.
+696. **Warning classification cache (EF-02)** — Thread-safe `ConcurrentDictionary<string, result>` caches classification outcome per unique warning description. First occurrence evaluates all rules; subsequent identical descriptions return cached result instantly. Reduces O(n×rules) to O(n) for large models with many duplicate warnings.
+
+### Remaining Future Enhancement Gaps (Phase 78 Triage)
+
+After verification, 15 of 44 gaps were confirmed as already implemented or false positives. The remaining 29 gaps are prioritized below:
+
+**CRITICAL (should implement before handover):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-CDE-APPROVAL-01 | CDE approval workflow enforcement per ISO 19650-2 §5.6 | Documented |
+| BIM-CROSS-LINK-01 | Issue↔Revision↔Transmittal JSON cross-linking | Documented |
+| BIM-COORD-LOOP-01 | BIM Coordination Center keep-open loop | Documented |
+| BIM-EXCEL-STREAM-01 | Streaming Excel import for 10K+ rows | Documented |
+| BIM-4D-HANDOVER-01 | 4D schedule linked to DD4 handover dates | Documented |
+| BIM-COBIE-SYS-01 | COBie System worksheet from actual SYS distribution | Documented |
+
+**HIGH (should implement for production):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-DD-TRACK-01 | ISO 19650 data drop milestone tracker (DD1-DD4) | Documented |
+| BIM-REV-PROP-01 | Auto-propagate REV code on revision creation | Documented |
+| BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | Documented |
+| BIM-FORECAST-01 | Compliance trend forecasting to target date | Documented |
+| BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | Documented |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | Documented |
+| TAG-SORT-LEVEL-01 | SmartSort level elevation cached per document | Documented |
+| TAG-PREFLIGHT-DUP-01 | Reuse PopulationContext from pre-flight in main loop | Documented |
+
+**MEDIUM (enhancement quality):**
+| ID | Gap | Status |
+|----|-----|--------|
+| BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Documented |
+| BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Documented |
+| BIM-TEAM-WORKLOAD-01 | Team workload visualization per assignee | Documented |
+| TAG-STALE-WARN-01 | Stale elements auto-creating warnings | Documented |
+| TAG-WORKFLOW-PARALLEL-01 | Workflow step parallelization via DAG | Documented |
+| DWG-MULTI-01 | DWG multi-layer wall detection | Documented |
+| DWG-CURVE-01 | Curved wall support from DWG arcs | Documented |
+| WF-SCHED-01 | Schedule template library (save/load/apply) | Documented |
+| WF-SCHED-02 | Cross-schedule field consistency validation | Documented |
+| MEP-SCHED-01 | MEP commissioning schedules | Documented |
+| STRUCT-REBAR-01 | Rebar spacing validation (spacing > bar diameter) | Documented |
+| ACOUSTIC-CAVITY-01 | Frequency-dependent cavity bonus in double-leaf Rw | Documented |

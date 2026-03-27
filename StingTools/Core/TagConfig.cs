@@ -393,6 +393,7 @@ namespace StingTools.Core
             _cachedValidDiscCodes = null;
             _cachedValidSysCodes = null;
             _cachedValidFuncCodes = null;
+            _tokenValidationCache.Clear(); // Phase 78: Clear memoized validation results
         }
 
         /// <summary>
@@ -495,9 +496,22 @@ namespace StingTools.Core
             return null; // valid
         }
 
+        /// <summary>Phase 78: Validation memoization cache — caches ValidateToken results per (token,value) pair.
+        /// For 50K elements with ~200 unique token combinations, reduces validation calls from 50K×8 to ~200.
+        /// Thread-safe ConcurrentDictionary. Cleared via InvalidateValidatorCaches().</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string>
+            _tokenValidationCache = new System.Collections.Concurrent.ConcurrentDictionary<string, string>();
+
+        /// <summary>Phase 78: Memoized token validation — O(1) lookup for repeated (token,value) pairs.</summary>
+        private static string ValidateTokenCached(string tokenName, string value)
+        {
+            string cacheKey = $"{tokenName}|{value ?? ""}";
+            return _tokenValidationCache.GetOrAdd(cacheKey, _ => ValidateToken(tokenName, value));
+        }
+
         /// <summary>
         /// Validate all 8 tokens on an element. Returns a list of validation errors
-        /// (empty list = fully valid).
+        /// (empty list = fully valid). Uses memoized token validation for O(1) repeated lookups.
         /// </summary>
         public static List<ValidationError> ValidateElement(Element el)
         {
@@ -512,7 +526,7 @@ namespace StingTools.Core
             foreach (string param in tokenParams)
             {
                 string val = ParameterHelpers.GetString(el, param);
-                string error = ValidateToken(param, val);
+                string error = ValidateTokenCached(param, val);
                 if (error != null)
                 {
                     var errorType = string.IsNullOrEmpty(val)
@@ -2332,7 +2346,8 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "A";
+            // LOGIC-BUG-05 fix: fallback to "G" (General) not "A" (Architecture) for unknown categories
+            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "G";
 
             // Note: DiscMap.ContainsKey(catName) is guaranteed true by the early return at line 1105
 
@@ -3500,6 +3515,11 @@ namespace StingTools.Core
             {
                 string sidecarPath = GetSeqSidecarPath(doc);
                 if (sidecarPath == null) return;
+
+                // CRASH-04 fix: ensure parent directory exists before writing
+                string sidecarDir = System.IO.Path.GetDirectoryName(sidecarPath);
+                if (!string.IsNullOrEmpty(sidecarDir) && !System.IO.Directory.Exists(sidecarDir))
+                    System.IO.Directory.CreateDirectory(sidecarDir);
 
                 string json = Newtonsoft.Json.JsonConvert.SerializeObject(seqCounters,
                     Newtonsoft.Json.Formatting.Indented);

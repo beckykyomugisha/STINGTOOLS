@@ -454,6 +454,7 @@ namespace StingTools.Organise
             catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "FixDuplicates"); // Phase 67d
             TaskDialog.Show("Fix Duplicates",
                 $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
             return Result.Succeeded;
@@ -547,6 +548,7 @@ namespace StingTools.Organise
                 TagConfig.SaveSeqSidecar(doc, dtSeq);
             }
             catch (Exception ssEx) { StingLog.Warn($"DeleteTags SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "DeleteTags"); // Phase 67d
 
             TaskDialog.Show("Delete Tags", $"Cleared tags and containers from {cleared} elements.");
             return Result.Succeeded;
@@ -732,6 +734,7 @@ namespace StingTools.Organise
             TagConfig.SaveSeqSidecar(doc, rnSeqCounters);
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "RenumberTags"); // Phase 67d
 
             string collisionNote = collisions > 0
                 ? $"\n{collisions} collision(s) auto-resolved by incrementing SEQ."
@@ -1179,6 +1182,7 @@ namespace StingTools.Organise
             catch (Exception ssEx) { StingLog.Warn($"CopyTagsCommand SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            TagConfig.CheckComplianceGate(doc, "CopyTags"); // Phase 67d
             TaskDialog.Show("Copy Tags", $"Copied tag values to {copied} elements.");
             return Result.Succeeded;
         }
@@ -1287,6 +1291,7 @@ namespace StingTools.Organise
                 TagConfig.SaveSeqSidecar(doc, mergedSeq);
             }
             catch (Exception ssEx) { StingLog.Warn($"SwapTags SaveSeqSidecar: {ssEx.Message}"); }
+            TagConfig.CheckComplianceGate(doc, "SwapTags"); // Phase 67d
             TaskDialog.Show("Swap Tags", "Tags swapped successfully.");
             return Result.Succeeded;
         }

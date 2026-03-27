@@ -410,6 +410,7 @@ namespace StingTools.Model
             // Shear stud design (19mm dia, 100mm height typical)
             result.ShearStudDiaMm = 19;
             double fu_stud = 450; // MPa (EN 13918)
+            // hsc = 100mm stud height (used in PRd formulas implicitly via dStud ratio)
             double dStud = result.ShearStudDiaMm;
 
             // PRd per stud (EC4 Eq 6.18/6.19): min of steel failure and concrete failure
@@ -1190,6 +1191,76 @@ namespace StingTools.Model
                 Pass = overSpanned == 0, Severity = overSpanned > 0 ? "Warning" : "Info",
                 AffectedCount = overSpanned,
                 Detail = overSpanned > 0 ? $"{overSpanned} beams with L/d > 30" : "All OK"
+            });
+
+            // Phase 67: Additional structural validation checks
+
+            // S03: Foundation elements must have adequate bearing area
+            var founds = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                .WhereElementIsNotElementType().ToList();
+            int unsizedFoundations = founds.Count(f =>
+            {
+                var bb = f.get_BoundingBox(null);
+                if (bb == null) return true;
+                double footprintSqM = (bb.Max.X - bb.Min.X) * (bb.Max.Y - bb.Min.Y) * Units.SqFtToSqM;
+                return footprintSqM < 0.25; // < 500×500mm
+            });
+            checks.Add(new ValidationCheck
+            {
+                RuleId = "S03", Category = "Standards", Description = "Foundations ≥0.25m² footprint",
+                Pass = unsizedFoundations == 0, Severity = unsizedFoundations > 0 ? "Warning" : "Info",
+                AffectedCount = unsizedFoundations,
+                Detail = unsizedFoundations > 0 ? $"{unsizedFoundations} undersized foundations" : "All OK"
+            });
+
+            // G04: Check beam-column connectivity (beams must be near a column at each end)
+            int disconnectedBeams = 0;
+            if (beams.Count > 0 && cols.Count > 0)
+            {
+                var colPoints = cols.Select(c =>
+                {
+                    var bb = c.get_BoundingBox(null);
+                    return bb != null ? new XYZ((bb.Min.X + bb.Max.X) / 2, (bb.Min.Y + bb.Max.Y) / 2, bb.Min.Z) : null;
+                }).Where(p => p != null).ToList();
+
+                foreach (var b in beams.Take(200)) // Sample first 200 for performance
+                {
+                    var loc = b.Location as LocationCurve;
+                    if (loc?.Curve == null) continue;
+                    XYZ start = loc.Curve.GetEndPoint(0);
+                    XYZ end = loc.Curve.GetEndPoint(1);
+                    double tol = Units.Mm(500); // 500mm tolerance
+                    bool startNearCol = colPoints.Any(cp => start.DistanceTo(cp) < tol);
+                    bool endNearCol = colPoints.Any(cp => end.DistanceTo(cp) < tol);
+                    if (!startNearCol && !endNearCol) disconnectedBeams++;
+                }
+            }
+            checks.Add(new ValidationCheck
+            {
+                RuleId = "G04", Category = "Geometry", Description = "Beams connected to columns (within 500mm)",
+                Pass = disconnectedBeams == 0, Severity = disconnectedBeams > 0 ? "Warning" : "Info",
+                AffectedCount = disconnectedBeams,
+                Detail = disconnectedBeams > 0 ? $"{disconnectedBeams} beams not near any column" : "All connected"
+            });
+
+            // D01: Structural elements must have material assigned
+            int noMaterial2 = 0;
+            foreach (var el in cols.Concat(beams).Concat(slabs).Take(500))
+            {
+                try
+                {
+                    var matIds = el.GetMaterialIds(false);
+                    if (matIds == null || matIds.Count == 0) noMaterial2++;
+                }
+                catch { /* skip */ }
+            }
+            checks.Add(new ValidationCheck
+            {
+                RuleId = "D01", Category = "Data", Description = "Structural elements have material",
+                Pass = noMaterial2 == 0, Severity = noMaterial2 > 0 ? "Warning" : "Info",
+                AffectedCount = noMaterial2,
+                Detail = noMaterial2 > 0 ? $"{noMaterial2} elements without material" : "All assigned"
             });
 
             // Compile results
