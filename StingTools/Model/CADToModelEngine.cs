@@ -481,9 +481,8 @@ namespace StingTools.Model
 
                 // Track layer counts
                 var key = objLayerName ?? "(unnamed)";
-                if (!result.LayerCounts.ContainsKey(key))
-                    result.LayerCounts[key] = 0;
-                result.LayerCounts[key]++;
+                result.LayerCounts.TryGetValue(key, out int layerCount);
+                result.LayerCounts[key] = layerCount + 1;
 
                 if (obj is Line line)
                 {

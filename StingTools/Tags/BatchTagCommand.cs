@@ -60,7 +60,7 @@ namespace StingTools.Tags
                 .WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            var allElements = collector.ToList();
+            var allElements = collector.Cast<Element>();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
             int skippedWorkset = 0, skippedDemolished = 0;

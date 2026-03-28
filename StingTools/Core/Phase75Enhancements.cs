@@ -1046,7 +1046,7 @@ namespace StingTools.Core
         private static readonly Dictionary<string, int> _previousValues = new();
 
         /// <summary>Record current refresh time.</summary>
-        public static void RecordRefresh() => _lastRefreshTime = DateTime.Now;
+        public static void RecordRefresh() => _lastRefreshTime = DateTime.UtcNow;
 
         /// <summary>Get formatted last refresh time.</summary>
         public static string LastRefreshText =>
@@ -1054,7 +1054,7 @@ namespace StingTools.Core
 
         /// <summary>Seconds since last refresh.</summary>
         public static double SecondsSinceRefresh =>
-            _lastRefreshTime == DateTime.MinValue ? double.MaxValue : (DateTime.Now - _lastRefreshTime).TotalSeconds;
+            _lastRefreshTime == DateTime.MinValue ? double.MaxValue : (DateTime.UtcNow - _lastRefreshTime).TotalSeconds;
 
         /// <summary>Track a metric value and return change indicator (↑+N, ↓-N, or →0).</summary>
         public static string TrackChange(string metricName, int currentValue)
@@ -1641,9 +1641,9 @@ namespace StingTools.Core
             if (doc == null) return (0, new List<string>());
 
             // Debounce: only check every N minutes
-            if ((DateTime.Now - _lastCheck).TotalMinutes < CheckIntervalMinutes)
+            if ((DateTime.UtcNow - _lastCheck).TotalMinutes < CheckIntervalMinutes)
                 return (0, new List<string>());
-            _lastCheck = DateTime.Now;
+            _lastCheck = DateTime.UtcNow;
 
             var violations = new List<string>();
             try

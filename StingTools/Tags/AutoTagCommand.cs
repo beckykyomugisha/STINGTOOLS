@@ -59,7 +59,7 @@ namespace StingTools.Tags
                 .WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            var viewElements = collector.ToList();
+            var viewElements = collector.Cast<Element>();
 
             // Intelligence Layer: detect relevant disciplines from view name/template/VG
             var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);

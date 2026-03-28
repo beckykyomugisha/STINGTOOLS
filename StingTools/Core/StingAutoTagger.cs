@@ -1064,7 +1064,7 @@ namespace StingTools.Core
                 string projectLoc = null;
                 try
                 {
-                    if (_cachedRoomIndex != null && (DateTime.Now - _roomIndexCacheTime).TotalSeconds < 30)
+                    if (_cachedRoomIndex != null && (DateTime.UtcNow - _roomIndexCacheTime).TotalSeconds < 30)
                     {
                         roomIndex = _cachedRoomIndex;
                         projectLoc = _cachedProjectLoc;
@@ -1075,7 +1075,7 @@ namespace StingTools.Core
                         projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
                         _cachedRoomIndex = roomIndex;
                         _cachedProjectLoc = projectLoc;
-                        _roomIndexCacheTime = DateTime.Now;
+                        _roomIndexCacheTime = DateTime.UtcNow;
                     }
                 }
                 catch (Exception riEx)

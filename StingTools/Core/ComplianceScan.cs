@@ -298,8 +298,8 @@ namespace StingTools.Core
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
                                         || part == "GEN" || part == "0000")
                                     {
-                                        if (result.EmptyTokenCounts.ContainsKey(_tokenKeys[ti]))
-                                            result.EmptyTokenCounts[_tokenKeys[ti]]++;
+                                        result.EmptyTokenCounts.TryGetValue(_tokenKeys[ti], out int etc);
+                                        result.EmptyTokenCounts[_tokenKeys[ti]] = etc + 1;
                                     }
                                 }
                             }
@@ -309,9 +309,8 @@ namespace StingTools.Core
                         if (!string.IsNullOrEmpty(rev))
                         {
                             result.RevisionComplete++;
-                            if (!result.RevisionDistribution.ContainsKey(rev))
-                                result.RevisionDistribution[rev] = 0;
-                            result.RevisionDistribution[rev]++;
+                            result.RevisionDistribution.TryGetValue(rev, out int rdc);
+                            result.RevisionDistribution[rev] = rdc + 1;
                         }
                         else
                         {
@@ -330,9 +329,8 @@ namespace StingTools.Core
                         }
                         else
                         {
-                            if (!result.StatusDistribution.ContainsKey(status))
-                                result.StatusDistribution[status] = 0;
-                            result.StatusDistribution[status]++;
+                            result.StatusDistribution.TryGetValue(status, out int sdc);
+                            result.StatusDistribution[status] = sdc + 1;
                         }
 
                         // Phase 48: Phase-based compliance breakdown
@@ -375,9 +373,8 @@ namespace StingTools.Core
                                         {
                                             emptyCount++;
                                             string cName = containers[ci].ParamName;
-                                            if (!result.EmptyContainerCounts.ContainsKey(cName))
-                                                result.EmptyContainerCounts[cName] = 0;
-                                            result.EmptyContainerCounts[cName]++;
+                                            result.EmptyContainerCounts.TryGetValue(cName, out int ecc);
+                                            result.EmptyContainerCounts[cName] = ecc + 1;
                                         }
                                     }
                                     if (emptyCount > 0) result.ContainersMissing++;
@@ -571,10 +568,11 @@ namespace StingTools.Core
                 // Update per-discipline counts
                 if (!string.IsNullOrEmpty(disc) && _cached.ByDisc != null)
                 {
-                    if (!_cached.ByDisc.ContainsKey(disc))
-                        _cached.ByDisc[disc] = new DiscComplianceData { Total = 1 };
-
-                    var dd = _cached.ByDisc[disc];
+                    if (!_cached.ByDisc.TryGetValue(disc, out var dd))
+                    {
+                        dd = new DiscComplianceData { Total = 1 };
+                        _cached.ByDisc[disc] = dd;
+                    }
                     if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
                     else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
                 }
@@ -586,9 +584,8 @@ namespace StingTools.Core
 
         private static void AddIssue(ComplianceResult result, string issueType)
         {
-            if (!result.IssuesByType.ContainsKey(issueType))
-                result.IssuesByType[issueType] = 0;
-            result.IssuesByType[issueType]++;
+            result.IssuesByType.TryGetValue(issueType, out int ibtc);
+            result.IssuesByType[issueType] = ibtc + 1;
         }
     }
 

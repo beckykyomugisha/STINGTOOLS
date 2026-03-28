@@ -822,6 +822,19 @@ namespace StingTools.Core
                     "CDT", "CFT", "CBLT", "CTF", "GEN" } },
             };
 
+        /// <summary>Static lookup for DISC → valid SYS codes. Used in ValidateCrossSystemConsistency.</summary>
+        private static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
+            new Dictionary<string, HashSet<string>>
+            {
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
+                { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                { "FP", new HashSet<string> { "FP", "FLS" } },
+                { "A",  new HashSet<string> { "ARC" } },
+                { "S",  new HashSet<string> { "STR" } },
+                { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+            };
+
         /// <summary>
         /// Validate that a PROD code is reasonable for the given DISC.
         /// Returns null if valid, error message if mismatched.
@@ -3760,7 +3773,7 @@ namespace StingTools.Core
 
                 // Key format migration: if SeqIncludeZone changed between sessions,
                 // translate old-format keys to new-format keys using max-value strategy
-                if (!target.ContainsKey(key))
+                if (!target.TryGetValue(key, out _))
                 {
                     // Try stripping zone segment: "M_Z01_HVAC_L01" → "M_HVAC_L01"
                     // Old format (no zone): DISC_SYS_LVL (3 parts)
@@ -6311,18 +6324,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(disc)) return issues;
 
             // DISC ↔ SYS consistency
-            var validSysForDisc = new Dictionary<string, HashSet<string>>
-            {
-                { "M", new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
-                { "E", new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                { "P", new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
-                { "FP", new HashSet<string> { "FP", "FLS" } },
-                { "A", new HashSet<string> { "ARC" } },
-                { "S", new HashSet<string> { "STR" } },
-                { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
-            };
-
-            if (!string.IsNullOrEmpty(sys) && validSysForDisc.TryGetValue(disc, out var validSys))
+            if (!string.IsNullOrEmpty(sys) && _validSysForDisc.TryGetValue(disc, out var validSys))
             {
                 if (!validSys.Contains(sys))
                     issues.Add($"DISC={disc} incompatible with SYS={sys} (expected: {string.Join("/", validSys)})");

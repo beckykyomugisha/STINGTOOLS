@@ -53,7 +53,7 @@ namespace StingTools.Core
                 {
                     if (!inDegree.ContainsKey(step.StepTag))
                         inDegree[step.StepTag] = 0;
-                    if (!adjacency.ContainsKey(step.StepTag))
+                    if (!adjacency.TryGetValue(step.StepTag, out _))
                         adjacency[step.StepTag] = new List<string>();
                 }
 
@@ -62,13 +62,12 @@ namespace StingTools.Core
                 {
                     foreach (var dep in step.DependsOn)
                     {
-                        if (!adjacency.ContainsKey(dep))
-                            adjacency[dep] = new List<string>();
-                        adjacency[dep].Add(step.StepTag);
+                        if (!adjacency.TryGetValue(dep, out var depList))
+                            adjacency[dep] = depList = new List<string>();
+                        depList.Add(step.StepTag);
 
-                        if (!inDegree.ContainsKey(step.StepTag))
-                            inDegree[step.StepTag] = 0;
-                        inDegree[step.StepTag]++;
+                        inDegree.TryGetValue(step.StepTag, out int cur);
+                        inDegree[step.StepTag] = cur + 1;
                     }
                 }
 
