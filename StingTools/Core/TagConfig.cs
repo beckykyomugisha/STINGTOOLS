@@ -2610,7 +2610,7 @@ namespace StingTools.Core
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
             int seqPad = SeqPadWidth > 0 ? SeqPadWidth : NumPad;
-            int maxSeq = (int)Math.Pow(10, seqPad) - 1; // 9999 for SeqPadWidth=4, 99 for SeqPadWidth=2
+            int maxSeq = seqPad switch { 1 => 9, 2 => 99, 3 => 999, 4 => 9999, 5 => 99999, _ => (int)Math.Pow(10, seqPad) - 1 };
             if (sequenceCounters[seqKey] > maxSeq)
             {
                 string overflowMsg = $"SEQ overflow: group {seqKey} reached {sequenceCounters[seqKey]} (max {maxSeq}) — skipping element {el.Id}";
