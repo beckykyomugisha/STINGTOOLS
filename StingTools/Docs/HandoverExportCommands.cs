@@ -160,9 +160,13 @@ namespace StingTools.Docs
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     if (string.IsNullOrEmpty(sys)) continue;
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
-                    if (!systemGroups.ContainsKey(sys)) systemGroups[sys] = new List<string>();
-                    if (!string.IsNullOrEmpty(tag1) && systemGroups[sys].Count < 20)
-                        systemGroups[sys].Add(tag1);
+                    if (!systemGroups.TryGetValue(sys, out var sgList))
+                    {
+                        sgList = new List<string>();
+                        systemGroups[sys] = sgList;
+                    }
+                    if (!string.IsNullOrEmpty(tag1) && sgList.Count < 20)
+                        sgList.Add(tag1);
                 }
                 foreach (var sg in systemGroups.OrderBy(x => x.Key))
                 {
@@ -181,8 +185,12 @@ namespace StingTools.Docs
                     if (string.IsNullOrEmpty(zone)) continue;
                     string space = HandoverHelper.Gs(el, ParamRegistry.ROOM_NAME);
                     if (string.IsNullOrEmpty(space)) space = HandoverHelper.Gs(el, ParamRegistry.BLE_ROOM_NAME);
-                    if (!zoneGroups.ContainsKey(zone)) zoneGroups[zone] = new HashSet<string>();
-                    if (!string.IsNullOrEmpty(space)) zoneGroups[zone].Add(space);
+                    if (!zoneGroups.TryGetValue(zone, out var zgSet))
+                    {
+                        zgSet = new HashSet<string>();
+                        zoneGroups[zone] = zgSet;
+                    }
+                    if (!string.IsNullOrEmpty(space)) zgSet.Add(space);
                 }
                 foreach (var zg in zoneGroups.OrderBy(x => x.Key))
                 {
@@ -545,8 +553,8 @@ namespace StingTools.Docs
 
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                        discCounts[disc]++;
+                        discCounts.TryGetValue(disc, out int dc);
+                        discCounts[disc] = dc + 1;
                     }
 
                     // ASTM E2018 condition grade + CIBSE failure mode + spare parts
@@ -708,11 +716,17 @@ namespace StingTools.Docs
                     string discKey = string.IsNullOrEmpty(rec.Disc) ? "XX" : rec.Disc;
                     string sysKey = string.IsNullOrEmpty(rec.Sys) ? "GEN" : rec.Sys;
 
-                    if (!assets.ContainsKey(discKey))
-                        assets[discKey] = new Dictionary<string, List<AssetRecord>>();
-                    if (!assets[discKey].ContainsKey(sysKey))
-                        assets[discKey][sysKey] = new List<AssetRecord>();
-                    assets[discKey][sysKey].Add(rec);
+                    if (!assets.TryGetValue(discKey, out var discDict))
+                    {
+                        discDict = new Dictionary<string, List<AssetRecord>>();
+                        assets[discKey] = discDict;
+                    }
+                    if (!discDict.TryGetValue(sysKey, out var sysList))
+                    {
+                        sysList = new List<AssetRecord>();
+                        discDict[sysKey] = sysList;
+                    }
+                    sysList.Add(rec);
                 }
 
                 // ── Table of Contents ──
@@ -962,8 +976,12 @@ namespace StingTools.Docs
 
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discScores.ContainsKey(disc)) discScores[disc] = new List<int>();
-                        discScores[disc].Add(healthScore);
+                        if (!discScores.TryGetValue(disc, out var dsList))
+                        {
+                            dsList = new List<int>();
+                            discScores[disc] = dsList;
+                        }
+                        dsList.Add(healthScore);
                     }
 
                     string issueStr = issues.Count > 0 ? string.Join("; ", issues) : "";
@@ -1048,7 +1066,7 @@ namespace StingTools.Docs
                     .OfClass(typeof(SpatialElement)).OfType<Room>().Where(r => r.Area > 0))
                 {
                     string key = $"{room.Number}|{room.Name}";
-                    if (!roomAssets.ContainsKey(key))
+                    if (!roomAssets.TryGetValue(key, out _))
                     {
                         roomAssets[key] = new SpaceInfo
                         {
@@ -1128,10 +1146,10 @@ namespace StingTools.Docs
                 foreach (var kvp in roomAssets.OrderBy(x => x.Value.Level).ThenBy(x => x.Value.RoomNumber))
                 {
                     var info = kvp.Value;
-                    int mechCount = info.ByDiscipline.ContainsKey("M") ? info.ByDiscipline["M"] : 0;
-                    int elecCount = info.ByDiscipline.ContainsKey("E") ? info.ByDiscipline["E"] : 0;
-                    int plumCount = info.ByDiscipline.ContainsKey("P") ? info.ByDiscipline["P"] : 0;
-                    int fireCount = (info.ByDiscipline.ContainsKey("FP") ? info.ByDiscipline["FP"] : 0);
+                    info.ByDiscipline.TryGetValue("M", out int mechCount);
+                    info.ByDiscipline.TryGetValue("E", out int elecCount);
+                    info.ByDiscipline.TryGetValue("P", out int plumCount);
+                    info.ByDiscipline.TryGetValue("FP", out int fireCount);
                     int otherCount = info.TotalAssets - mechCount - elecCount - plumCount - fireCount;
                     string density = info.Area > 0 ? (info.TotalAssets / info.Area).ToString("F2") : "";
                     string systems = string.Join("; ", info.BySystems.Keys.OrderBy(x => x));
@@ -1577,10 +1595,13 @@ namespace StingTools.Docs
                         string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                         if (!string.IsNullOrEmpty(sys))
                         {
-                            if (!systemGroups.ContainsKey(sys))
-                                systemGroups[sys] = new List<string>();
-                            if (systemGroups[sys].Count < 50) // cap for memory
-                                systemGroups[sys].Add(tag1 ?? el.Id.ToString());
+                            if (!systemGroups.TryGetValue(sys, out var sgList2))
+                            {
+                                sgList2 = new List<string>();
+                                systemGroups[sys] = sgList2;
+                            }
+                            if (sgList2.Count < 50) // cap for memory
+                                sgList2.Add(tag1 ?? el.Id.ToString());
                         }
 
                         // Get room context

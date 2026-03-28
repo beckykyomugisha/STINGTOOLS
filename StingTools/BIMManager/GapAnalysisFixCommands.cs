@@ -527,8 +527,8 @@ namespace StingTools.BIMManager
             var comp = ComplianceScan.Scan(doc);
             if (comp == null) { TaskDialog.Show("STING", "Could not scan compliance."); return Result.Failed; }
 
-            var (stageName, minTagPct, minContainerPct, requiredSheets) = RIBATargets.ContainsKey(currentStage)
-                ? RIBATargets[currentStage] : RIBATargets[0];
+            var (stageName, minTagPct, minContainerPct, requiredSheets) = RIBATargets.TryGetValue(currentStage, out var rtVal)
+                ? rtVal : RIBATargets[0];
 
             var report = new StringBuilder();
             report.AppendLine($"BEP Stage Validation — RIBA Stage {currentStage}: {stageName}");

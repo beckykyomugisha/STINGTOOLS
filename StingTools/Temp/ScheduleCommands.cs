@@ -501,9 +501,9 @@ namespace StingTools.Temp
                         && !string.IsNullOrEmpty(oldField)
                         && !string.IsNullOrEmpty(newField))
                     {
-                        if (remaps.ContainsKey(oldField))
+                        if (remaps.TryGetValue(oldField, out var prevRemap))
                             StingLog.Warn($"SCHEDULE_FIELD_REMAP: duplicate source key '{oldField}' — " +
-                                $"overwriting '{remaps[oldField]}' with '{newField}'");
+                                $"overwriting '{prevRemap}' with '{newField}'");
                         remaps[oldField] = newField;
                     }
                 }
@@ -1355,8 +1355,8 @@ namespace StingTools.Temp
                 totalTaggable++;
 
                 string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "G";
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dcCnt);
+                discCounts[disc] = dcCnt + 1;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag)) totalTagged++;

@@ -400,7 +400,7 @@ namespace StingTools.UI
             // Lazy-load deferred tab content on first selection.
             // Guard against double-queuing if user clicks the same tab rapidly
             // before the BeginInvoke callback has run.
-            if (_deferredTabContent.ContainsKey(idx) && !_tabsLoading.Contains(idx))
+            if (_deferredTabContent.TryGetValue(idx, out _) && !_tabsLoading.Contains(idx))
             {
                 if (tabMain.Items[idx] is TabItem tab)
                 {

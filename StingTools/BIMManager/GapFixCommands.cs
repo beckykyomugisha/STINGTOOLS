@@ -396,9 +396,12 @@ namespace StingTools.BIMManager
                         catch (Exception ex) { StingLog.Warn($"Connector traverse: {ex.Message}"); }
                     }
 
-                    if (!systemGroups.ContainsKey(sysCode))
-                        systemGroups[sysCode] = new List<ElementId>();
-                    systemGroups[sysCode].Add(el.Id);
+                    if (!systemGroups.TryGetValue(sysCode, out var sgList))
+                    {
+                        sgList = new List<ElementId>();
+                        systemGroups[sysCode] = sgList;
+                    }
+                    sgList.Add(el.Id);
                 }
             }
             return systemGroups;
@@ -648,10 +651,9 @@ namespace StingTools.BIMManager
             foreach (JObject t in tasks.OfType<JObject>())
             {
                 string assignee = t["assignee"]?.ToString() ?? "Unassigned";
-                if (!workload.ContainsKey(assignee)) workload[assignee] = (0, 0, 0);
-                var w = workload[assignee];
+                if (!workload.TryGetValue(assignee, out var wt)) wt = (0, 0, 0);
                 if (!(t["status"]?.ToString() ?? "").Equals("CLOSED", StringComparison.OrdinalIgnoreCase))
-                    workload[assignee] = (w.tasks + 1, w.issues, w.approvals);
+                    workload[assignee] = (wt.tasks + 1, wt.issues, wt.approvals);
             }
 
             // Issues
@@ -659,10 +661,9 @@ namespace StingTools.BIMManager
             foreach (JObject i in issues.OfType<JObject>())
             {
                 string assignee = i["assignee"]?.ToString() ?? "Unassigned";
-                if (!workload.ContainsKey(assignee)) workload[assignee] = (0, 0, 0);
-                var w = workload[assignee];
+                if (!workload.TryGetValue(assignee, out var wi)) wi = (0, 0, 0);
                 if (!(i["status"]?.ToString() ?? "").Equals("CLOSED", StringComparison.OrdinalIgnoreCase))
-                    workload[assignee] = (w.tasks, w.issues + 1, w.approvals);
+                    workload[assignee] = (wi.tasks, wi.issues + 1, wi.approvals);
             }
 
             // Approvals
@@ -670,10 +671,9 @@ namespace StingTools.BIMManager
             foreach (JObject a in approvals.OfType<JObject>())
             {
                 string approver = a["approver"]?.ToString() ?? "Unknown";
-                if (!workload.ContainsKey(approver)) workload[approver] = (0, 0, 0);
-                var w = workload[approver];
+                if (!workload.TryGetValue(approver, out var wa)) wa = (0, 0, 0);
                 if ((a["status"]?.ToString() ?? "").Equals("PENDING", StringComparison.OrdinalIgnoreCase))
-                    workload[approver] = (w.tasks, w.issues, w.approvals + 1);
+                    workload[approver] = (wa.tasks, wa.issues, wa.approvals + 1);
             }
 
             var sb = new StringBuilder();

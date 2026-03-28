@@ -358,11 +358,12 @@ namespace StingTools.UI
 
             foreach (string p in sorted)
             {
+                bool isPriority = priority.Contains(p);
                 var item = new ListBoxItem
                 {
                     Content = p,
-                    FontWeight = priority.Contains(p) ? FontWeights.SemiBold : FontWeights.Normal,
-                    Foreground = priority.Contains(p) ? AccentBrush : Brushes.Black,
+                    FontWeight = isPriority ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = isPriority ? AccentBrush : Brushes.Black,
                     FontSize = 11
                 };
                 _paramList.Items.Add(item);
