@@ -620,7 +620,7 @@ namespace StingTools.Model
                     {
                         CheckName = "Cumulative height tolerance",
                         ModelledValueMm = heightMm,
-                        ToleranceMm = Math.Sqrt(heightMm / 3000.0) * 5.0,
+                        ToleranceMm = Math.Sqrt(Math.Max(heightMm, 0) / 3000.0) * 5.0,
                         Pass = true,
                         Standard = "BS EN 1090-2 §D.1.11",
                         Recommendation = "Check cumulative tolerance stack-up for multi-storey"

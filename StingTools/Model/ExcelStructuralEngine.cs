@@ -405,7 +405,7 @@ namespace StingTools.Model
                     if (int.TryParse(sizeStr, out int parsed)) mainSize = parsed;
                 }
             }
-            catch { /* use default 25 */ }
+            catch (Exception ex) { StingLog.Warn($"ExcelStructuralEngine rebar size parse failed, using default: {ex.Message}"); /* use default 25 */ }
             int    linkSize    = Math.Max(8, mainSize / 4);
             double linkSpacing = Math.Min(20 * mainSize, Math.Min(sizeMm, 400));
             string links = $"H{linkSize}@{(int)linkSpacing}";

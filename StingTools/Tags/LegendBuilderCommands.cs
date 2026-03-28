@@ -2202,10 +2202,11 @@ namespace StingTools.Tags
                     label = colorKey;
 
                 // Group by color, keep best label (shortest non-RGB label wins)
-                if (!colorGroups.ContainsKey(colorKey))
+                if (!colorGroups.TryGetValue(colorKey, out var existing))
+                {
                     colorGroups[colorKey] = (overrideColor, 0, label);
-
-                var existing = colorGroups[colorKey];
+                    existing = colorGroups[colorKey];
+                }
                 // Prefer discipline codes over category names over RGB strings
                 string bestLabel = existing.bestLabel;
                 if (label.Length < bestLabel.Length && !label.Contains(","))
@@ -4392,9 +4393,9 @@ namespace StingTools.Tags
             foreach (var fs in symbols)
             {
                 string catName = fs.Category.Name;
-                if (!result.ContainsKey(catName))
-                    result[catName] = new List<FamilySymbol>();
-                result[catName].Add(fs);
+                if (!result.TryGetValue(catName, out var fsList))
+                    result[catName] = fsList = new List<FamilySymbol>();
+                fsList.Add(fs);
             }
 
             return result;
@@ -5327,7 +5328,7 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); matColor = MaterialCategoryColors.TryGetValue(group, out Color mc)
                         ? mc : new Color(180, 180, 180); }
 
-                if (!matGroups.ContainsKey(group))
+                if (!matGroups.TryGetValue(group, out _))
                     matGroups[group] = (matColor, 0, "");
 
                 var existing = matGroups[group];

@@ -1253,7 +1253,7 @@ namespace StingTools.Model
                     var matIds = el.GetMaterialIds(false);
                     if (matIds == null || matIds.Count == 0) noMaterial2++;
                 }
-                catch { /* skip */ }
+                catch (Exception ex) { StingLog.Warn($"StructuralDesignSuite material ID check failed: {ex.Message}"); /* skip */ }
             }
             checks.Add(new ValidationCheck
             {

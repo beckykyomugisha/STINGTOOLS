@@ -365,7 +365,7 @@ namespace StingTools.Model
                     var lvl = doc.GetElement(e.LevelId) as Level;
                     return lvl?.Elevation ?? 0;
                 }
-                catch { return 0.0; }
+                catch (Exception ex) { StingLog.Warn($"StructuralCADWizard level sort failed: {ex.Message}"); return 0.0; }
             })
             .ThenBy(e =>
             {
@@ -374,7 +374,7 @@ namespace StingTools.Model
                     var loc = e.Location as LocationPoint;
                     return loc?.Point.X ?? 0;
                 }
-                catch { return 0.0; }
+                catch (Exception ex) { StingLog.Warn($"StructuralCADWizard X sort failed: {ex.Message}"); return 0.0; }
             })
             .ThenBy(e =>
             {
@@ -383,7 +383,7 @@ namespace StingTools.Model
                     var loc = e.Location as LocationPoint;
                     return loc?.Point.Y ?? 0;
                 }
-                catch { return 0.0; }
+                catch (Exception ex) { StingLog.Warn($"StructuralCADWizard Y sort failed: {ex.Message}"); return 0.0; }
             }).ToList();
         }
 
@@ -593,17 +593,30 @@ namespace StingTools.Model
             Height = 780;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
-            Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+            Background = Brushes.White;
 
             BuildLayout();
         }
 
+        // ── Colour helpers ────────────────────────────────────────────────
+        private static Brush FZ(byte r, byte g, byte b)
+        {
+            var br = new SolidColorBrush(Color.FromRgb(r, g, b));
+            br.Freeze();
+            return br;
+        }
+
         // ── Colours ──────────────────────────────────────────────────────
-        private static readonly Brush AccentOrange = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly Brush DarkBlue = new SolidColorBrush(Color.FromRgb(0x1A, 0x23, 0x7E));
-        private static readonly Brush LightBg = new SolidColorBrush(Color.FromRgb(0xFA, 0xF7, 0xF2));
-        private static readonly Brush SectionBorder = new SolidColorBrush(Color.FromRgb(0xE8, 0x91, 0x2D));
-        private static readonly Brush HeaderBg = new SolidColorBrush(Color.FromRgb(0x1A, 0x23, 0x7E));
+        private static readonly Brush AccentOrange   = FZ(0xE8, 0x91, 0x2D);
+        private static readonly Brush DarkBlue       = FZ(0x1A, 0x23, 0x7E);
+        private static readonly Brush LightBg        = FZ(0xFA, 0xF7, 0xF2);
+        private static readonly Brush SectionBorder  = FZ(0xE8, 0x91, 0x2D); // same as AccentOrange
+        private static readonly Brush HeaderBg       = FZ(0x1A, 0x23, 0x7E); // same as DarkBlue
+        private static readonly Brush SubtitleOrange = FZ(0xFF, 0xA7, 0x26);
+        private static readonly Brush FooterBg       = FZ(0xF0, 0xF0, 0xF0);
+        private static readonly Brush FooterBorder   = FZ(0xCC, 0xCC, 0xCC);
+        private static readonly Brush AltRowBg       = FZ(0xFA, 0xF7, 0xF2); // same as LightBg
+        private static readonly Brush GreenFg        = FZ(0x00, 0x80, 0x00);
 
         // ── Layout ───────────────────────────────────────────────────────
 
@@ -633,7 +646,7 @@ namespace StingTools.Model
             var subtitleText = new TextBlock
             {
                 Text = "Select a DWG import and analyze layers",
-                FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xA7, 0x26)),
+                FontSize = 11, Foreground = SubtitleOrange,
                 VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right,
             };
             Grid.SetColumn(subtitleText, 1);

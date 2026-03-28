@@ -2000,7 +2000,7 @@ namespace StingTools.Core
             double currentX = (DateTime.Now.Ticks / (double)TimeSpan.TicksPerDay) - baseTime;
             double projected = slope * currentX + intercept;
 
-            if (slope <= 0) return (-1, Math.Max(0, Math.Min(100, projected))); // Not improving
+            if (slope <= 0 || Math.Abs(slope) < 1e-10) return (-1, Math.Max(0, Math.Min(100, projected))); // Not improving
 
             double daysToTarget = (targetPct - projected) / slope;
             return (Math.Max(0, daysToTarget), Math.Max(0, Math.Min(100, projected)));
@@ -3575,12 +3575,23 @@ namespace StingTools.Core
                 {
                     var revisions = new FilteredElementCollector(doc).OfClass(typeof(Revision)).ToElements();
                     revisionCount = revisions.Count;
+                    // Pre-collect all revision clouds once and group by revision ID
+                    var allClouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                        .WhereElementIsNotElementType().ToElements();
+                    var cloudsByRevId = new Dictionary<ElementId, int>();
+                    foreach (var c in allClouds)
+                    {
+                        var revId = c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                        if (revId != null && revId != ElementId.InvalidElementId)
+                        {
+                            cloudsByRevId.TryGetValue(revId, out int cnt);
+                            cloudsByRevId[revId] = cnt + 1;
+                        }
+                    }
                     foreach (var rev in revisions.Cast<Revision>())
                     {
-                        var clouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
-                            .WhereElementIsNotElementType().ToElements()
-                            .Where(c => c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id);
-                        revisionClouds += clouds.Count();
+                        cloudsByRevId.TryGetValue(rev.Id, out int clouds);
+                        revisionClouds += clouds;
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter revision load: {ex.Message}"); }
@@ -3655,11 +3666,26 @@ namespace StingTools.Core
                 try
                 {
                     var revisions2 = new FilteredElementCollector(doc).OfClass(typeof(Revision)).Cast<Revision>().ToList();
+                    // Pre-collect all clouds once; group by revision ID to avoid per-revision collectors
+                    var allClouds2 = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                        .WhereElementIsNotElementType().ToElements();
+                    var cloudsByRevId2 = new Dictionary<ElementId, int>();
+                    foreach (var c2 in allClouds2)
+                    {
+                        try
+                        {
+                            var rid2 = c2.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                            if (rid2 != null && rid2 != ElementId.InvalidElementId)
+                            {
+                                cloudsByRevId2.TryGetValue(rid2, out int cnt2);
+                                cloudsByRevId2[rid2] = cnt2 + 1;
+                            }
+                        }
+                        catch { }
+                    }
                     foreach (var rev in revisions2)
                     {
-                        int clouds2 = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
-                            .WhereElementIsNotElementType().ToElements()
-                            .Count(c => { try { return c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id; } catch { return false; } });
+                        cloudsByRevId2.TryGetValue(rev.Id, out int clouds2);
                         revisionRows.Add(new UI.BIMCoordinationCenter.RevisionRow
                         {
                             Id = rev.Id.Value.ToString(),
