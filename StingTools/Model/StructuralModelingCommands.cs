@@ -1283,7 +1283,7 @@ namespace StingTools.Model
                 {
                     var col = doc.GetElement(kvp.Key);
                     string name = col?.Name ?? $"#{kvp.Key.Value}";
-                    double padMm = FoundationAnalyzer.CalculatePadSize(kvp.Value);
+                    double padMm = FoundationAnalyzer.CalculatePadSizeFromTotalLoad(kvp.Value, 150);
                     sb.AppendLine($"  {rank++}. {name}: {kvp.Value:F0} kN → pad {padMm:F0}×{padMm:F0}mm");
                 }
 

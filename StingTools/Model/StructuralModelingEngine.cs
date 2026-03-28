@@ -380,13 +380,12 @@ namespace StingTools.Model
         /// but if permanentKN and variableKN are both supplied via the new overload, EC7 DA1
         /// partial factors are used instead.
         /// </remarks>
-        public static double CalculatePadSize(double columnLoadKN,
-            double soilCapacityKPa = 150, double safetyFactor = 2.5)
+        public static double CalculatePadSizeFromTotalLoad(double columnLoadKN,
+            double soilCapacityKPa, double safetyFactor = 2.5)
         {
             // SME-HIGH-01: Legacy single-load overload — assume 70/30 permanent/variable split
             // and apply EC7 DA1 Combination 1 partial factors (γG=1.35, γQ=1.50).
-            // Using a fixed safetyFactor=2.5 is not EC7-compliant; this mapping ensures
-            // the result is conservative for typical building loads.
+            // safetyFactor retained for API compatibility but not used; EC7 partial factors apply.
             double permanentKN = columnLoadKN * 0.70;
             double variableKN  = columnLoadKN * 0.30;
             return CalculatePadSize(permanentKN, variableKN, soilCapacityKPa);
@@ -1517,7 +1516,7 @@ namespace StingTools.Model
                 // Auto-size from load if provided
                 if (columnLoadKN > 0)
                 {
-                    double calcSize = FoundationAnalyzer.CalculatePadSize(
+                    double calcSize = FoundationAnalyzer.CalculatePadSizeFromTotalLoad(
                         columnLoadKN, soilCapacityKPa);
                     widthMm = Math.Max(widthMm, calcSize);
                     depthMm = widthMm; // Square footing
@@ -2720,7 +2719,7 @@ namespace StingTools.Model
                     double loadKN = kvp.Value;
                     if (loadKN <= 0) loadKN = 200; // Default 200kN if no floor data
 
-                    double padSizeMm = FoundationAnalyzer.CalculatePadSize(
+                    double padSizeMm = FoundationAnalyzer.CalculatePadSizeFromTotalLoad(
                         loadKN, soilCapacityKPa, safetyFactor);
 
                     var footingResult = CreatePadFooting(
