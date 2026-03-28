@@ -669,9 +669,12 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(category))
                     continue;
 
-                if (!bindingGroups.ContainsKey(paramName))
-                    bindingGroups[paramName] = new List<(string, string)>();
-                bindingGroups[paramName].Add((category, bindType));
+                if (!bindingGroups.TryGetValue(paramName, out var bgList))
+                {
+                    bgList = new List<(string, string)>();
+                    bindingGroups[paramName] = bgList;
+                }
+                bgList.Add((category, bindType));
             }
 
             TaskDialog confirm = new TaskDialog("Dynamic Bindings");
@@ -2553,10 +2556,8 @@ namespace StingTools.Temp
                     string otherCat = otherMep.Category?.Name ?? "";
                     if (mepCat == otherCat) continue;
 
-                    string mepDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(mepEl))
-                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(mepEl)] : "";
-                    string otherDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(otherMep))
-                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(otherMep)] : "";
+                    string mepDisc = TagConfig.DiscMap.TryGetValue(mepCat, out var mdVal) ? mdVal : "";
+                    string otherDisc = TagConfig.DiscMap.TryGetValue(otherCat, out var odVal) ? odVal : "";
                     if (mepDisc == otherDisc) continue;
 
                     if (BoundingBoxesOverlap(mepBB, otherBB))
@@ -3639,16 +3640,15 @@ namespace StingTools.Temp
                 .Where(e => e.Category != null && !string.IsNullOrEmpty(e.Category.Name)))
             {
                 string catName = el.Category.Name;
-                if (!catCounts.ContainsKey(catName))
+                if (!catCounts.TryGetValue(catName, out int ccVal))
                 {
-                    catCounts[catName] = 0;
                     try
                     {
                         catBics[catName] = (BuiltInCategory)el.Category.Id.Value;
                     }
                     catch (Exception ex) { StingLog.Warn($"Cast category ID to BuiltInCategory for '{catName}': {ex.Message}"); }
                 }
-                catCounts[catName]++;
+                catCounts[catName] = ccVal + 1;
             }
 
             if (catCounts.Count == 0)

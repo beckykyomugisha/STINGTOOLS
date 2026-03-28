@@ -235,7 +235,7 @@ namespace StingTools.Temp
         {
             // First try the standard 5-layer algorithm
             string stingMatch = FindMatchingTemplate(view);
-            if (stingMatch != null && allTemplates.ContainsKey(stingMatch))
+            if (stingMatch != null && allTemplates.ContainsKey(stingMatch)) // guard-only: no indexer follows
                 return stingMatch;
 
             // Fall back: search all templates by keyword matching
@@ -1262,9 +1262,8 @@ namespace StingTools.Temp
                         view.ViewTemplateId = template.Id;
                         assigned++;
                         assignments.Add($"  {view.Name} → {matchName}");
-                        if (!perTemplate.ContainsKey(matchName))
-                            perTemplate[matchName] = 0;
-                        perTemplate[matchName]++;
+                        perTemplate.TryGetValue(matchName, out int ptCnt);
+                        perTemplate[matchName] = ptCnt + 1;
                     }
                     catch (Exception ex)
                     {
@@ -1357,12 +1356,11 @@ namespace StingTools.Temp
             foreach (View v in allViews)
             {
                 if (v.ViewTemplateId == ElementId.InvalidElementId) continue;
-                if (!templateUsage.ContainsKey(v.ViewTemplateId))
-                    templateUsage[v.ViewTemplateId] = 0;
-                templateUsage[v.ViewTemplateId]++;
+                templateUsage.TryGetValue(v.ViewTemplateId, out int tuCnt);
+                templateUsage[v.ViewTemplateId] = tuCnt + 1;
             }
             var unusedSting = stingTemplates
-                .Where(t => !templateUsage.ContainsKey(t.Id) || templateUsage[t.Id] == 0).ToList();
+                .Where(t => !templateUsage.TryGetValue(t.Id, out int tuVal) || tuVal == 0).ToList();
 
             // STING filter coverage check
             var stingFilters = new FilteredElementCollector(doc)
@@ -1416,9 +1414,9 @@ namespace StingTools.Temp
             foreach (View tmpl in stingTemplates)
             {
                 string disc = TemplateManager.GetDisciplineFromTemplateName(tmpl.Name) ?? "Other";
-                int usage = templateUsage.ContainsKey(tmpl.Id) ? templateUsage[tmpl.Id] : 0;
-                if (!discDist.ContainsKey(disc)) discDist[disc] = 0;
-                discDist[disc] += usage;
+                int usage = templateUsage.TryGetValue(tmpl.Id, out int tuUsage) ? tuUsage : 0;
+                discDist.TryGetValue(disc, out int ddCnt);
+                discDist[disc] = ddCnt + usage;
             }
 
             // Build report
@@ -2298,9 +2296,12 @@ namespace StingTools.Temp
                 StringComparer.OrdinalIgnoreCase);
             foreach (var (sName, sCat, sFields) in csvSchemesList)
             {
-                if (!csvSchemes.ContainsKey(sName))
-                    csvSchemes[sName] = new List<(string, string)>();
-                csvSchemes[sName].Add((sCat, sFields));
+                if (!csvSchemes.TryGetValue(sName, out var csList))
+                {
+                    csList = new List<(string, string)>();
+                    csvSchemes[sName] = csList;
+                }
+                csList.Add((sCat, sFields));
             }
 
             using (Transaction tx = new Transaction(doc, "STING Apply VG Overrides"))
@@ -2454,9 +2455,9 @@ namespace StingTools.Temp
                             else if (disc == "PRES_C" || disc == "PRES_E") schemeName = "Monochrome";
                             else if (disc == "DEMO") schemeName = "Demolition";
 
-                            if (schemeName != null && csvSchemes.ContainsKey(schemeName))
+                            if (schemeName != null && csvSchemes.TryGetValue(schemeName, out var schemeEntries))
                             {
-                                foreach (var (cat, schFields) in csvSchemes[schemeName])
+                                foreach (var (cat, schFields) in schemeEntries)
                                 {
                                     if (!TemplateManager.CategoryNameToEnum.TryGetValue(cat,
                                         out BuiltInCategory schemeBic)) continue;
@@ -2709,7 +2710,7 @@ namespace StingTools.Temp
                                 if (cat != null)
                                 {
                                     catSet.Insert(cat);
-                                    if (!perCategory.ContainsKey(catName))
+                                    if (!perCategory.ContainsKey(catName)) // guard-only: no indexer follows (value stays 0)
                                         perCategory[catName] = 0;
                                 }
                             }
