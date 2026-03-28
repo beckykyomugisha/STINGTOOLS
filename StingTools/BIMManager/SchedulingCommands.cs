@@ -353,8 +353,7 @@ namespace StingTools.BIMManager
             // Process levels in order (bottom to top = construction sequence)
             foreach (var level in levels)
             {
-                if (!elementsByLevelAndCat.ContainsKey(level.Name)) continue;
-                var catCounts = elementsByLevelAndCat[level.Name];
+                if (!elementsByLevelAndCat.TryGetValue(level.Name, out var catCounts)) continue;
 
                 // Sort categories by trade sequence order
                 var sortedCats = catCounts.Keys

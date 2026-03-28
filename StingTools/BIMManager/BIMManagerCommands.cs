@@ -2315,8 +2315,8 @@ namespace StingTools.BIMManager
 
             // Resolve COBie preset for project type-specific configuration
             COBiePreset activePreset = null;
-            if (!string.IsNullOrEmpty(presetKey) && COBiePresets.ContainsKey(presetKey))
-                activePreset = COBiePresets[presetKey];
+            if (!string.IsNullOrEmpty(presetKey))
+                COBiePresets.TryGetValue(presetKey, out activePreset);
 
             // ── Instruction (COBie V2.4 standard — first worksheet) ──
             var instructions = new List<Dictionary<string, string>>();
@@ -2518,8 +2518,8 @@ namespace StingTools.BIMManager
                             // cols[0]=Category, cols[3]=Unit_Rate_USD (or cols[1] for 3-col format)
                             string cat = cols[0].Trim();
                             string rate = cols.Length >= 5 ? cols[3].Trim() : cols[1].Trim();
-                            if (!string.IsNullOrEmpty(rate) && !costRateByCategory.ContainsKey(cat))
-                                costRateByCategory[cat] = rate;
+                            if (!string.IsNullOrEmpty(rate))
+                                costRateByCategory.TryAdd(cat, rate);
                         }
                     }
                     StingLog.Info($"IG-01: Loaded {costRateByCategory.Count} cost rates from cost_rates_5d.csv");
