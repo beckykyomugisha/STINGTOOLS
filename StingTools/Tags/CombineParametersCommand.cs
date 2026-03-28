@@ -61,8 +61,8 @@ namespace StingTools.Tags
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCategories.Contains(cat)) continue;
-                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
-                else catCounts[cat] = 1;
+                catCounts.TryGetValue(cat, out int cc);
+                catCounts[cat] = cc + 1;
             }
             return catCounts;
         }
@@ -73,19 +73,8 @@ namespace StingTools.Tags
         [Obsolete("Replaced by CombineConfigDialog. Retained as backup.")]
         private HashSet<string> ShowGroupPicker(Document doc, ParamRegistry.ContainerGroupDef[] allGroups)
         {
-            var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
-            var catCounts = new Dictionary<string, int>();
-            var gpColl = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            var gpCatEnums = SharedParamGuids.AllCategoryEnums;
-            if (gpCatEnums != null && gpCatEnums.Length > 0)
-                gpColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(gpCatEnums)));
-            foreach (Element el in gpColl)
-            {
-                string cat = ParameterHelpers.GetCategoryName(el);
-                if (!knownCategories.Contains(cat)) continue;
-                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
-                else catCounts[cat] = 1;
-            }
+            // Reuse BuildCategoryCounts to avoid duplicate FilteredElementCollector scan
+            var catCounts = BuildCategoryCounts(doc);
 
             var groupItems = allGroups.Select(g =>
             {
@@ -146,139 +135,153 @@ namespace StingTools.Tags
 
             var progress = UI.StingProgressDialog.Show("STING — Combine Parameters", elementCount);
 
-            using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
+            // TAG-H-03: Process in 200-element batched transactions so Revit doesn't build
+            // a huge undo journal for very large models (which can exhaust memory).
+            // seqCounters and existingTags persist across batches for collision detection.
+            const int BatchSize = 200;
+            int batchStart = 0;
+
+            while (batchStart < elements.Count)
             {
-                tx.Start();
+                int batchEnd = Math.Min(batchStart + BatchSize, elements.Count);
+                var batch = elements.GetRange(batchStart, batchEnd - batchStart);
+                batchStart = batchEnd;
 
-                foreach (Element el in elements)
+                using (Transaction tx = new Transaction(doc, "STING Combine Parameters"))
                 {
-                    // GAP-WS-01: Skip elements on worksets owned by other users
-                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    tx.Start();
 
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
-                        continue;
-
-                    // GAP-04: Run TypeTokenInherit BEFORE DISC check so type-level
-                    // DISC values are inherited to empty instances before fallback
-                    try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
-                    catch (Exception tiEx) { StingLog.Warn($"CombineParams TypeTokenInherit {el.Id}: {tiEx.Message}"); }
-
-                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                    if (string.IsNullOrEmpty(disc))
+                    foreach (Element el in batch)
                     {
-                        // Fallback chain: 1) category map, 2) skip
-                        disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
-                        if (!string.IsNullOrEmpty(disc))
-                        {
-                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
-                        }
-                        else
-                        {
-                            skippedNoDisc++;
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                             continue;
-                        }
-                    }
 
-                    totalElements++;
+                        // GAP-04: Run TypeTokenInherit BEFORE DISC check so type-level
+                        // DISC values are inherited to empty instances before fallback
+                        try { TokenAutoPopulator.TypeTokenInherit(doc, el); }
+                        catch (Exception tiEx) { StingLog.Warn($"CombineParams TypeTokenInherit {el.Id}: {tiEx.Message}"); }
 
-                    // AUTO-R2: Progress reporting and cancellation
-                    if (progress != null)
-                    {
-                        progress.Increment($"Element {totalElements}: {catName}");
-                        if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
+                        string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                        if (string.IsNullOrEmpty(disc))
                         {
-                            tx.RollBack();
-                            progress.Close();
-                            TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
-                            return Result.Cancelled;
-                        }
-                    }
-
-                    // Bridge native params before reading tokens
-                    try { NativeParamMapper.MapAll(doc, el); }
-                    catch (Exception enrichEx) { StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}"); }
-
-                    // Read all source tokens once (after enrichment)
-                    string[] tokenValues = ParamRegistry.ReadTokenValues(el);
-
-                    // TAG-06: Use BuildAndWriteTag for TAG1 assembly instead of manual string.Join.
-                    // This provides collision detection (auto-increment SEQ on duplicate tags),
-                    // proper PREFIX/SUFFIX application, and SEQ counter tracking.
-                    try
-                    {
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
-                        // Re-read tokens in case BuildAndWriteTag updated SEQ
-                        tokenValues = ParamRegistry.ReadTokenValues(el);
-                    }
-                    catch (Exception bwtEx)
-                    {
-                        StingLog.Warn($"CombineParams BuildAndWriteTag for {el.Id}: {bwtEx.Message}");
-                    }
-
-                    // Phase 67: Pre-validate token values before writing containers.
-                    // Logs cross-validation warnings but does NOT skip — containers are still
-                    // written so partial data is visible in schedules/exports for manual resolution.
-                    if (tokenValues != null && tokenValues.Length >= 8)
-                    {
-                        try
-                        {
-                            var isoErrors = ISO19650Validator.ValidateElement(el);
-                            if (isoErrors.Count > 0)
+                            // Fallback chain: 1) category map, 2) skip
+                            disc = TagConfig.DiscMap.TryGetValue(catName, out string autoDisc) ? autoDisc : null;
+                            if (!string.IsNullOrEmpty(disc))
                             {
-                                foreach (var err in isoErrors.Take(2))
-                                    StingLog.Warn($"CombineParams ISO warn {el.Id}: {err.Message}");
+                                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
+                            }
+                            else
+                            {
+                                skippedNoDisc++;
+                                continue;
                             }
                         }
-                        catch (Exception valEx) { StingLog.Warn($"CombineParams validate: {valEx.Message}"); }
-                    }
 
-                    foreach (var group in activeGroups)
-                    {
-                        if (group.Categories != null && !group.Categories.Contains(catName))
-                            continue;
+                        totalElements++;
 
-                        foreach (var container in group.Params)
+                        // AUTO-R2: Progress reporting and cancellation
+                        if (progress != null)
                         {
-                            // Skip TAG7 in normal assembly — it uses the narrative builder
-                            if (container.ParamName == ParamRegistry.TAG7)
+                            progress.Increment($"Element {totalElements}: {catName}");
+                            if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
+                            {
+                                tx.RollBack();
+                                progress.Close();
+                                TaskDialog.Show("STING", $"Combine cancelled after {totalElements} elements.\n{totalWrites} container writes completed before cancellation.");
+                                return Result.Cancelled;
+                            }
+                        }
+
+                        // Bridge native params before reading tokens
+                        try { NativeParamMapper.MapAll(doc, el); }
+                        catch (Exception enrichEx) { StingLog.Warn($"CombineParams enrich {el.Id}: {enrichEx.Message}"); }
+
+                        // Read all source tokens once (after enrichment)
+                        string[] tokenValues = ParamRegistry.ReadTokenValues(el);
+
+                        // TAG-06: Use BuildAndWriteTag for TAG1 assembly instead of manual string.Join.
+                        // This provides collision detection (auto-increment SEQ on duplicate tags),
+                        // proper PREFIX/SUFFIX application, and SEQ counter tracking.
+                        try
+                        {
+                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                skipComplete: false, existingTags, TagCollisionMode.AutoIncrement);
+                            // Re-read tokens in case BuildAndWriteTag updated SEQ
+                            tokenValues = ParamRegistry.ReadTokenValues(el);
+                        }
+                        catch (Exception bwtEx)
+                        {
+                            StingLog.Warn($"CombineParams BuildAndWriteTag for {el.Id}: {bwtEx.Message}");
+                        }
+
+                        // Phase 67: Pre-validate token values before writing containers.
+                        // Logs cross-validation warnings but does NOT skip — containers are still
+                        // written so partial data is visible in schedules/exports for manual resolution.
+                        if (tokenValues != null && tokenValues.Length >= 8)
+                        {
+                            try
+                            {
+                                var isoErrors = ISO19650Validator.ValidateElement(el);
+                                if (isoErrors.Count > 0)
+                                {
+                                    foreach (var err in isoErrors.Take(2))
+                                        StingLog.Warn($"CombineParams ISO warn {el.Id}: {err.Message}");
+                                }
+                            }
+                            catch (Exception valEx) { StingLog.Warn($"CombineParams validate: {valEx.Message}"); }
+                        }
+
+                        foreach (var group in activeGroups)
+                        {
+                            if (group.Categories != null && !group.Categories.Contains(catName))
                                 continue;
 
-                            string assembled = ParamRegistry.AssembleContainer(container, tokenValues);
-
-                            if (!string.IsNullOrEmpty(assembled))
+                            foreach (var container in group.Params)
                             {
-                                if (ParameterHelpers.SetString(el, container.ParamName,
-                                    assembled, overwrite: true))
+                                // Skip TAG7 in normal assembly — it uses the narrative builder
+                                if (container.ParamName == ParamRegistry.TAG7)
+                                    continue;
+
+                                string assembled = ParamRegistry.AssembleContainer(container, tokenValues);
+
+                                if (!string.IsNullOrEmpty(assembled))
                                 {
-                                    totalWrites++;
-                                    writesPerGroup[group.GroupCode]++;
+                                    if (ParameterHelpers.SetString(el, container.ParamName,
+                                        assembled, overwrite: true))
+                                    {
+                                        totalWrites++;
+                                        writesPerGroup[group.GroupCode]++;
+                                    }
                                 }
                             }
                         }
+
+                        // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
+                        // Only write TAG7 if core + spatial tokens are populated to avoid
+                        // generating incomplete narratives from partially-tagged elements
+                        bool hasCoreTags = tokenValues.Length >= 8
+                            && !string.IsNullOrEmpty(tokenValues[0])   // DISC
+                            && !string.IsNullOrEmpty(tokenValues[1])   // LOC
+                            && !string.IsNullOrEmpty(tokenValues[2])   // ZONE
+                            && !string.IsNullOrEmpty(tokenValues[3])   // LVL
+                            && !string.IsNullOrEmpty(tokenValues[4])   // SYS
+                            && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
+                        int tag7Writes = 0;
+                        if (hasCoreTags)
+                            tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
+                        totalWrites += tag7Writes;
+                        if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
+                            writesPerGroup["UNIVERSAL"] += tag7Writes;
                     }
 
-                    // Write TAG7 + sub-sections (TAG7A-TAG7F) — rich descriptive narrative
-                    // Only write TAG7 if core + spatial tokens are populated to avoid
-                    // generating incomplete narratives from partially-tagged elements
-                    bool hasCoreTags = tokenValues.Length >= 8
-                        && !string.IsNullOrEmpty(tokenValues[0])   // DISC
-                        && !string.IsNullOrEmpty(tokenValues[1])   // LOC
-                        && !string.IsNullOrEmpty(tokenValues[2])   // ZONE
-                        && !string.IsNullOrEmpty(tokenValues[3])   // LVL
-                        && !string.IsNullOrEmpty(tokenValues[4])   // SYS
-                        && !string.IsNullOrEmpty(tokenValues[6]);  // PROD
-                    int tag7Writes = 0;
-                    if (hasCoreTags)
-                        tag7Writes = TagConfig.WriteTag7All(doc, el, catName, tokenValues, overwrite: true);
-                    totalWrites += tag7Writes;
-                    if (tag7Writes > 0 && writesPerGroup.ContainsKey("UNIVERSAL"))
-                        writesPerGroup["UNIVERSAL"] += tag7Writes;
+                    tx.Commit();
                 }
+            } // end batched loop
 
-                tx.Commit();
-            }
             progress?.Close(); // AUTO-R2: Close progress dialog
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
@@ -401,8 +404,8 @@ namespace StingTools.Tags
                     fullyReady++;
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!readyByDisc.ContainsKey(disc)) readyByDisc[disc] = 0;
-                        readyByDisc[disc]++;
+                        readyByDisc.TryGetValue(disc, out int rc);
+                        readyByDisc[disc] = rc + 1;
                     }
                 }
                 else if (filledCount > 0)
@@ -410,8 +413,8 @@ namespace StingTools.Tags
                     partial++;
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!incompleteByDisc.ContainsKey(disc)) incompleteByDisc[disc] = 0;
-                        incompleteByDisc[disc]++;
+                        incompleteByDisc.TryGetValue(disc, out int ic);
+                        incompleteByDisc[disc] = ic + 1;
                     }
                 }
                 else

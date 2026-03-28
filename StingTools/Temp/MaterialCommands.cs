@@ -348,6 +348,10 @@ namespace StingTools.Temp
             }
         }
 
+        /// <summary>SAFETY-001: Reset shared-parameter warning counter. Call at the
+        /// top of each Execute() to prevent stale suppression from a previous run.</summary>
+        public static void ResetSharedParamWarnings() { _sharedParamWarnings = 0; }
+
         /// <summary>Set a shared parameter by name on the material, handling both string and double storage.</summary>
         private static int _sharedParamWarnings;
 
@@ -758,6 +762,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
@@ -787,6 +794,9 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // SAFETY-001: Reset static warning counter so a previous failed run
+            // does not suppress warnings for this execution.
+            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);

@@ -46,12 +46,17 @@ namespace StingTools.UI
         private static readonly Color BorderClr = Color.FromRgb(0x55, 0x55, 0x58);
 
         private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+        private static SolidColorBrush FZ(byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromRgb(r, g, b)); br.Freeze(); return br; }
         private static readonly SolidColorBrush BgBrush = FZ(new(BgColor));
         private static readonly SolidColorBrush PanelBrush = FZ(new(PanelBg));
         private static readonly SolidColorBrush AccentBrush = FZ(new(AccentColor));
         private static readonly SolidColorBrush FgBrush = FZ(new(FgColor));
         private static readonly SolidColorBrush DimBrush = FZ(new(DimFg));
         private static readonly new SolidColorBrush BorderBrush = FZ(new(BorderClr));
+        private static readonly SolidColorBrush BrDark25 = FZ(0x25, 0x25, 0x28);
+        private static readonly SolidColorBrush BrDark1E = FZ(0x1E, 0x1E, 0x1E);
+        private static readonly SolidColorBrush BrMid50 = FZ(0x50, 0x50, 0x53);
+        private static readonly HashSet<string> _universalSet = new HashSet<string> { "UNIVERSAL" };
 
         // ── Controls ─────────────────────────────────────────────────
         private readonly List<GroupItem> _allGroups;
@@ -118,7 +123,7 @@ namespace StingTools.UI
             // ── Title bar ────────────────────────────────────────────
             var titleBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
+                Background = BrDark25,
                 Padding = new Thickness(16, 10, 16, 10)
             };
             var titlePanel = new StackPanel();
@@ -236,7 +241,7 @@ namespace StingTools.UI
             {
                 Height = 26,
                 FontSize = 12,
-                Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
+                Background = BrDark1E,
                 Foreground = FgBrush,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(1),
@@ -287,7 +292,7 @@ namespace StingTools.UI
             // ── Info bar ─────────────────────────────────────────────
             var infoBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
+                Background = BrDark25,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(16, 8, 16, 8)
@@ -304,7 +309,7 @@ namespace StingTools.UI
             // ── OK / Cancel buttons ──────────────────────────────────
             var btnBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
+                Background = BrDark25,
                 Padding = new Thickness(16, 10, 16, 10)
             };
             var btnBarPanel = new StackPanel
@@ -319,7 +324,7 @@ namespace StingTools.UI
                 Width = 80,
                 Height = 30,
                 FontSize = 12,
-                Background = new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x53)),
+                Background = BrMid50,
                 Foreground = FgBrush,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(1),
@@ -337,7 +342,7 @@ namespace StingTools.UI
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Background = AccentBrush,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)),
+                Foreground = BrDark1E,
                 BorderBrush = AccentBrush,
                 BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand,
@@ -400,7 +405,7 @@ namespace StingTools.UI
                 Height = 22,
                 Padding = new Thickness(8, 2, 8, 2),
                 Margin = new Thickness(4, 0, 0, 0),
-                Background = new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x53)),
+                Background = BrMid50,
                 Foreground = FgBrush,
                 BorderBrush = BorderBrush,
                 BorderThickness = new Thickness(1),
@@ -505,7 +510,7 @@ namespace StingTools.UI
             if (_rbAll.IsChecked == true)
                 return new HashSet<string>(_allGroups.Select(g => g.GroupCode));
             if (_rbUniversal.IsChecked == true)
-                return new HashSet<string> { "UNIVERSAL" };
+                return _universalSet;
             if (_rbDiscipline.IsChecked == true)
                 return new HashSet<string>(
                     _allGroups.Where(g => g.GroupCode != "UNIVERSAL" && g.GroupCode != "MAT_TAG")

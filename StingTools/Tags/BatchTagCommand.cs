@@ -60,7 +60,7 @@ namespace StingTools.Tags
                 .WhereElementIsNotElementType();
             if (catEnums != null && catEnums.Length > 0)
                 collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            var allElements = collector.ToList();
+            var allElements = collector.Cast<Element>();
 
             int totalTaggable = 0, alreadyTagged = 0, untagged = 0;
             int skippedWorkset = 0, skippedDemolished = 0;
@@ -276,25 +276,29 @@ namespace StingTools.Tags
         /// The SYS sort key groups elements by system type within each discipline,
         /// matching the SEQ key format (DISC_SYS_LVL) for optimal numbering.
         /// </summary>
-        // PERF-R14: Cache level elevation lookup — levels don't change during a tagging session
-        private static Dictionary<ElementId, double> _cachedLevelElevation;
-        private static string _cachedLevelDocKey;
+        // TAG-H-05: Single atomic tuple replaces two separate static fields — prevents torn read
+        // where one thread sees new docKey but old elevations (or vice versa).
+        private static (string docKey, Dictionary<ElementId, double> elevations) _levelElevationCache;
 
         internal static List<Element> SmartSortElements(Document doc, List<Element> elements)
         {
             // Build level elevation lookup (cached per document)
+            // TAG-H-05: Read snapshot of atomic tuple — both fields from the same write.
             string docKey = doc.PathName ?? doc.Title ?? "";
-            if (_cachedLevelElevation == null || _cachedLevelDocKey != docKey)
+            var cachedSnapshot = _levelElevationCache;
+            if (cachedSnapshot.elevations == null || cachedSnapshot.docKey != docKey)
             {
-                _cachedLevelElevation = new Dictionary<ElementId, double>();
+                var newElevations = new Dictionary<ElementId, double>();
                 foreach (Level lvl in new FilteredElementCollector(doc)
                     .OfClass(typeof(Level)).Cast<Level>())
                 {
-                    _cachedLevelElevation[lvl.Id] = lvl.Elevation;
+                    newElevations[lvl.Id] = lvl.Elevation;
                 }
-                _cachedLevelDocKey = docKey;
+                // TAG-H-05: Assign atomically as a single tuple write.
+                _levelElevationCache = (docKey, newElevations);
+                cachedSnapshot = _levelElevationCache;
             }
-            var levelElevation = _cachedLevelElevation;
+            var levelElevation = cachedSnapshot.elevations;
 
             // Pre-cache category, discipline, and system per element to avoid
             // redundant GetCategoryName/GetMepSystemAwareSysCode calls in sort keys
@@ -477,120 +481,147 @@ namespace StingTools.Tags
             var mfGridLines = TagPipelineHelper.LoadGridLines(doc);
             int migrated = 0;
 
-            using (Transaction tx = new Transaction(doc, "STING Tag Format Migration"))
+            // TAG-H-04: Chunked 200-element batches with StingProgressDialog and Escape cancellation.
+            // Commits after each batch so Revit memory is not exhausted on large models.
+            // seqCounters and tagIndex carry across batch boundaries for collision-free SEQ.
+            var mfProgress = StingProgressDialog.Show("Tag Format Migration", tagged.Count);
+            bool mfCancelled = false;
+            const int MfBatchSize = 200;
+            int mfBatchStart = 0;
+            while (mfBatchStart < tagged.Count)
             {
-                tx.Start();
-
-                foreach (var (el, currentTag) in tagged)
+                if (EscapeChecker.IsEscapePressed())
                 {
-                    try
-                    {
-                        // FIX-V01-C: Re-derive tokens before format rebuild so stale/wrong
-                        // tokens are corrected, not just reformatted
-                        if (mfPopCtx != null)
-                        {
-                            try
-                            {
-                                TokenAutoPopulator.TypeTokenInherit(doc, el);
-                                TokenAutoPopulator.PopulateAll(doc, el, mfPopCtx, overwrite: false);
-                            }
-                            catch (Exception popEx)
-                            {
-                                StingLog.Warn($"TagFormatMigration Populate for {el.Id}: {popEx.Message}");
-                            }
-                        }
-
-                        // FIX-V01-C: Bridge native params before tag format migration
-                        try { NativeParamMapper.MapAll(doc, el); }
-                        catch (Exception nmEx) { StingLog.Warn($"TagFormatMigration NativeMapper for {el.Id}: {nmEx.Message}"); }
-
-                        // FIX-V01-C: Evaluate formulas after populate + native mapping
-                        if (mfFormulas != null && mfFormulas.Count > 0)
-                        {
-                            try
-                            {
-                                foreach (var formula in mfFormulas)
-                                {
-                                    try
-                                    {
-                                        Parameter fp = el.LookupParameter(formula.ParameterName);
-                                        if (fp == null || fp.IsReadOnly) continue;
-                                        var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
-                                        if (fCtx == null) continue;
-                                        if (formula.DataType == "TEXT")
-                                        {
-                                            string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
-                                            if (fResult != null && fp.StorageType == StorageType.String
-                                                && string.IsNullOrEmpty(fp.AsString()))
-                                                fp.Set(fResult);
-                                        }
-                                        else
-                                        {
-                                            double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
-                                            if (fResult.HasValue && !double.IsNaN(fResult.Value)
-                                                && !double.IsInfinity(fResult.Value))
-                                                Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
-                                        }
-                                    }
-                                    catch (Exception frmEx) { StingLog.Warn($"Formula eval for element {el.Id}: {frmEx.Message}"); }
-                                }
-                            }
-                            catch (Exception fExMf)
-                            {
-                                StingLog.Warn($"TagFormatMigration formula eval for {el.Id}: {fExMf.Message}");
-                            }
-                        }
-
-                        TagConfig.BuildAndWriteTag(doc, el, seqCounters,
-                            skipComplete: false,
-                            existingTags: tagIndex,
-                            collisionMode: TagCollisionMode.Overwrite,
-                            stats: stats);
-
-                        // Write TAG7 + containers with migrated tag
-                        try
-                        {
-                            string catName = ParameterHelpers.GetCategoryName(el);
-                            string[] tokenVals = ParamRegistry.ReadTokenValues(el);
-                            TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
-                            // NP3: Write containers after format migration
-                            ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
-                                skipParam: ParamRegistry.TAG1);
-                        }
-                        catch (Exception tag7Ex)
-                        {
-                            StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
-                        }
-
-                        // FIX-R06: Write GridRef per element
-                        if (mfGridLines != null && mfGridLines.Count > 0)
-                        {
-                            try
-                            {
-                                string gridRef = SpatialAutoDetect.GetGridRef(el, mfGridLines);
-                                if (!string.IsNullOrEmpty(gridRef))
-                                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
-                            }
-                            catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
-                        }
-
-                        migrated++;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Migration failed for {el.Id}: {ex.Message}");
-                    }
+                    mfCancelled = true;
+                    break;
                 }
 
-                tx.Commit();
-            }
-            // Save SEQ sidecar once + invalidate caches after migration
+                int mfBatchEnd = Math.Min(mfBatchStart + MfBatchSize, tagged.Count);
+                var mfBatch = tagged.GetRange(mfBatchStart, mfBatchEnd - mfBatchStart);
+                mfBatchStart = mfBatchEnd;
+
+                using (Transaction tx = new Transaction(doc, "STING Tag Format Migration"))
+                {
+                    tx.Start();
+
+                    foreach (var (el, currentTag) in mfBatch)
+                    {
+                        if (mfProgress != null) mfProgress.Increment($"Migrating {el.Id}");
+                        try
+                        {
+                            // FIX-V01-C: Re-derive tokens before format rebuild so stale/wrong
+                            // tokens are corrected, not just reformatted
+                            if (mfPopCtx != null)
+                            {
+                                try
+                                {
+                                    TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                    TokenAutoPopulator.PopulateAll(doc, el, mfPopCtx, overwrite: false);
+                                }
+                                catch (Exception popEx)
+                                {
+                                    StingLog.Warn($"TagFormatMigration Populate for {el.Id}: {popEx.Message}");
+                                }
+                            }
+
+                            // FIX-V01-C: Bridge native params before tag format migration
+                            try { NativeParamMapper.MapAll(doc, el); }
+                            catch (Exception nmEx) { StingLog.Warn($"TagFormatMigration NativeMapper for {el.Id}: {nmEx.Message}"); }
+
+                            // FIX-V01-C: Evaluate formulas after populate + native mapping
+                            if (mfFormulas != null && mfFormulas.Count > 0)
+                            {
+                                try
+                                {
+                                    foreach (var formula in mfFormulas)
+                                    {
+                                        try
+                                        {
+                                            Parameter fp = el.LookupParameter(formula.ParameterName);
+                                            if (fp == null || fp.IsReadOnly) continue;
+                                            var fCtx = Temp.FormulaEngine.BuildContext(el, formula);
+                                            if (fCtx == null) continue;
+                                            if (formula.DataType == "TEXT")
+                                            {
+                                                string fResult = Temp.FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                                if (fResult != null && fp.StorageType == StorageType.String
+                                                    && string.IsNullOrEmpty(fp.AsString()))
+                                                    fp.Set(fResult);
+                                            }
+                                            else
+                                            {
+                                                double? fResult = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                                if (fResult.HasValue && !double.IsNaN(fResult.Value)
+                                                    && !double.IsInfinity(fResult.Value))
+                                                    Temp.FormulaEngine.WriteNumericResult(fp, fResult.Value);
+                                            }
+                                        }
+                                        catch (Exception frmEx) { StingLog.Warn($"Formula eval for element {el.Id}: {frmEx.Message}"); }
+                                    }
+                                }
+                                catch (Exception fExMf)
+                                {
+                                    StingLog.Warn($"TagFormatMigration formula eval for {el.Id}: {fExMf.Message}");
+                                }
+                            }
+
+                            TagConfig.BuildAndWriteTag(doc, el, seqCounters,
+                                skipComplete: false,
+                                existingTags: tagIndex,
+                                collisionMode: TagCollisionMode.Overwrite,
+                                stats: stats);
+
+                            // Write TAG7 + containers with migrated tag
+                            try
+                            {
+                                string catName = ParameterHelpers.GetCategoryName(el);
+                                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                                TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: true);
+                                // NP3: Write containers after format migration
+                                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true,
+                                    skipParam: ParamRegistry.TAG1);
+                            }
+                            catch (Exception tag7Ex)
+                            {
+                                StingLog.Warn($"Migration TAG7+containers for {el.Id}: {tag7Ex.Message}");
+                            }
+
+                            // FIX-R06: Write GridRef per element
+                            if (mfGridLines != null && mfGridLines.Count > 0)
+                            {
+                                try
+                                {
+                                    string gridRef = SpatialAutoDetect.GetGridRef(el, mfGridLines);
+                                    if (!string.IsNullOrEmpty(gridRef))
+                                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                                }
+                                catch (Exception grEx) { StingLog.Warn($"Migration GridRef for {el.Id}: {grEx.Message}"); }
+                            }
+
+                            migrated++;
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"Migration failed for {el.Id}: {ex.Message}");
+                        }
+                    }
+
+                    tx.Commit();
+                }
+                // TAG-H-04: Save sidecar after each batch so partial progress survives a crash.
+                try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
+                catch (Exception batchSsEx) { StingLog.Warn($"TagFormatMigration batch sidecar: {batchSsEx.Message}"); }
+            } // end batch loop
+            mfProgress?.Close();
+            // Final sidecar save + cache invalidation after all batches complete.
+            // (Per-batch sidecar saves already happened in the loop above.)
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"TagFormatMigration SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
+            string mfCancelNote = mfCancelled ? " (cancelled — partial)" : "";
             TaskDialog.Show("Tag Format Migration",
-                $"Migration complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
+                $"Migration{mfCancelNote} complete.\n\n  Scope:    {mfScopeLabel}\n  Migrated: {migrated}\n  Total:    {tagged.Count}");
             StingLog.Info($"Tag format migration: {migrated}/{tagged.Count} tags reformatted");
             return Result.Succeeded;
         }

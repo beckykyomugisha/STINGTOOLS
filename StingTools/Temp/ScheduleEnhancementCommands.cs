@@ -68,10 +68,8 @@ namespace StingTools.Temp
                 string name = sched.Name;
 
                 // Track duplicates
-                if (duplicateNames.ContainsKey(name))
-                    duplicateNames[name]++;
-                else
-                    duplicateNames[name] = 1;
+                duplicateNames.TryGetValue(name, out int dn);
+                duplicateNames[name] = dn + 1;
 
                 // Count STING schedules
                 if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase))
@@ -1540,15 +1538,34 @@ namespace StingTools.Temp
             public string BackgroundColor { get; set; }
         }
 
+        // Static cache for LoadScheduleDefinitions to avoid redundant CSV reads
+        private static Dictionary<string, ScheduleDefinition> _cachedScheduleDefs;
+        private static DateTime _cachedScheduleDefsTimestamp;
+        private static string _cachedScheduleDefsPath;
+
         /// <summary>
         /// Load all schedule definitions from MR_SCHEDULES.csv keyed by schedule name.
+        /// Results are cached and only re-read when the file changes on disk.
         /// </summary>
         public static Dictionary<string, ScheduleDefinition> LoadScheduleDefinitions()
         {
-            var defs = new Dictionary<string, ScheduleDefinition>(StringComparer.OrdinalIgnoreCase);
-
             string csvPath = StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
-            if (csvPath == null) return defs;
+            if (csvPath == null) return new Dictionary<string, ScheduleDefinition>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                var lastWrite = File.GetLastWriteTimeUtc(csvPath);
+                if (_cachedScheduleDefs != null &&
+                    _cachedScheduleDefsPath == csvPath &&
+                    _cachedScheduleDefsTimestamp == lastWrite)
+                    return _cachedScheduleDefs;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadScheduleDefinitions timestamp check: {ex.Message}");
+            }
+
+            var defs = new Dictionary<string, ScheduleDefinition>(StringComparer.OrdinalIgnoreCase);
 
             try
             {
@@ -1590,8 +1607,14 @@ namespace StingTools.Temp
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Failed to load MR_SCHEDULES.csv: {ex.Message}");
+                StingLog.Error($"Failed to load MR_SCHEDULES.csv: {csvPath}", ex);
             }
+
+            // Cache the result for subsequent calls
+            _cachedScheduleDefs = defs;
+            _cachedScheduleDefsPath = csvPath;
+            try { _cachedScheduleDefsTimestamp = File.GetLastWriteTimeUtc(csvPath); }
+            catch (Exception ex) { StingLog.Warn($"LoadScheduleDefinitions cache timestamp: {ex.Message}"); }
 
             return defs;
         }

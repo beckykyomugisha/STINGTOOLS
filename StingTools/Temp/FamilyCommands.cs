@@ -191,6 +191,17 @@ namespace StingTools.Temp
             // For compound types (wall/floor/ceiling/roof), collect existing type names
             var existingTypeNames = GetExistingTypeNames(doc, kind);
 
+            // PERF-001: Pre-collect base types ONCE before the CSV row loop.
+            // Each CreateXxxType previously ran a FilteredElementCollector per row — O(rows) collectors.
+            WallType    baseWallType     = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>().FirstOrDefault(wt => wt.Kind == WallKind.Basic);
+            FloorType   baseFloorType    = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>().FirstOrDefault(ft => ft.IsFoundationSlab == false);
+            CeilingType baseCeilingType  = new FilteredElementCollector(doc).OfClass(typeof(CeilingType)).Cast<CeilingType>().FirstOrDefault();
+            RoofType    baseRoofType     = new FilteredElementCollector(doc).OfClass(typeof(RoofType)).Cast<RoofType>().FirstOrDefault();
+            var baseDuctType     = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType)).FirstOrDefault() as ElementType;
+            var basePipeType     = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType)).FirstOrDefault() as ElementType;
+            var baseCableTrayType = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType)).FirstOrDefault() as ElementType;
+            var baseConduitType  = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType)).FirstOrDefault() as ElementType;
+
             int created = 0;
             int skipped = 0;
             int matCreated = 0;
@@ -261,26 +272,28 @@ namespace StingTools.Temp
                         {
                             case ElementKind.Wall:
                                 success = CreateWallType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseWallType);
                                 break;
                             case ElementKind.Floor:
                                 success = CreateFloorType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseFloorType);
                                 break;
                             case ElementKind.Ceiling:
                                 success = CreateCeilingType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseCeilingType);
                                 break;
                             case ElementKind.Roof:
                                 success = CreateRoofType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache);
+                                    thicknessMm, cols, materialCache, baseRoofType);
                                 break;
                             case ElementKind.Duct:
                             case ElementKind.Pipe:
                             case ElementKind.CableTray:
                             case ElementKind.Conduit:
                                 success = CreateMEPType(doc, typeName, matId,
-                                    thicknessMm, kind);
+                                    thicknessMm, kind,
+                                    baseDuctType, basePipeType,
+                                    baseCableTrayType, baseConduitType);
                                 break;
                         }
                     }
@@ -363,9 +376,11 @@ namespace StingTools.Temp
 
         private static bool CreateWallType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            WallType baseWallType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseWallType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(WallType))
                 .Cast<WallType>()
                 .FirstOrDefault(wt => wt.Kind == WallKind.Basic);
@@ -387,9 +402,11 @@ namespace StingTools.Temp
 
         private static bool CreateFloorType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            FloorType baseFloorType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseFloorType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(FloorType))
                 .Cast<FloorType>()
                 .FirstOrDefault(ft => ft.IsFoundationSlab == false);
@@ -422,9 +439,11 @@ namespace StingTools.Temp
 
         private static bool CreateCeilingType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            CeilingType baseCeilingType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseCeilingType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(CeilingType))
                 .Cast<CeilingType>()
                 .FirstOrDefault();
@@ -455,9 +474,11 @@ namespace StingTools.Temp
 
         private static bool CreateRoofType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
-            Dictionary<string, ElementId> materialCache)
+            Dictionary<string, ElementId> materialCache,
+            RoofType baseRoofType = null)
         {
-            var baseType = new FilteredElementCollector(doc)
+            // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
+            var baseType = baseRoofType ?? new FilteredElementCollector(doc)
                 .OfClass(typeof(RoofType))
                 .Cast<RoofType>()
                 .FirstOrDefault();
@@ -487,34 +508,37 @@ namespace StingTools.Temp
         }
 
         private static bool CreateMEPType(Document doc, string typeName,
-            ElementId matId, double thicknessMm, ElementKind kind)
+            ElementId matId, double thicknessMm, ElementKind kind,
+            ElementType baseDuctType = null, ElementType basePipeType = null,
+            ElementType baseCableTrayType = null, ElementType baseConduitType = null)
         {
+            // PERF-001: base types pre-collected by caller; fall back to per-call collect only if null
             switch (kind)
             {
                 case ElementKind.Duct:
                 {
-                    var bt = new FilteredElementCollector(doc)
+                    var bt = baseDuctType ?? new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Mechanical.DuctType))
                         .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Pipe:
                 {
-                    var bt = new FilteredElementCollector(doc)
+                    var bt = basePipeType ?? new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Plumbing.PipeType))
                         .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.CableTray:
                 {
-                    var bt = new FilteredElementCollector(doc)
+                    var bt = baseCableTrayType ?? new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType))
                         .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;
                 }
                 case ElementKind.Conduit:
                 {
-                    var bt = new FilteredElementCollector(doc)
+                    var bt = baseConduitType ?? new FilteredElementCollector(doc)
                         .OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType))
                         .FirstOrDefault() as ElementType;
                     return bt != null && bt.Duplicate(typeName) != null;

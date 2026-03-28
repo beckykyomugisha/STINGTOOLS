@@ -652,9 +652,9 @@ namespace StingTools.Tags
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                     string groupKey = $"{disc}|{sys}|{lvl}";
-                    if (!seqByGroup.ContainsKey(groupKey))
-                        seqByGroup[groupKey] = new List<int>();
-                    seqByGroup[groupKey].Add(seqNum);
+                    if (!seqByGroup.TryGetValue(groupKey, out var seqList))
+                        seqByGroup[groupKey] = seqList = new List<int>();
+                    seqList.Add(seqNum);
                 }
             }
 
@@ -1215,8 +1215,7 @@ namespace StingTools.Tags
                 string family = ParameterHelpers.GetFamilyName(src);
                 string type = ParameterHelpers.GetFamilySymbolName(src);
                 string key = $"{family}|{type}";
-                if (!sourceKeys.ContainsKey(key))
-                    sourceKeys[key] = src;
+                sourceKeys.TryAdd(key, src);
             }
 
             // Find matching untagged elements
@@ -1353,16 +1352,14 @@ namespace StingTools.Tags
                 byStatus[statusKey] = byStatus.GetValueOrDefault(statusKey) + 1;
 
                 // Coverage tracking
-                if (!coverageByDisc.ContainsKey(discKey))
-                    coverageByDisc[discKey] = (0, 0);
-                var (t, tot) = coverageByDisc[discKey];
+                coverageByDisc.TryGetValue(discKey, out var covTuple);
+                var (t, tot) = covTuple;
                 coverageByDisc[discKey] = (t + (hasTag ? 1 : 0), tot + 1);
 
                 // Quality by level
                 double score = TagIntelligenceHelper.ScoreElement(el);
-                if (!qualityByLevel.ContainsKey(lvlKey))
-                    qualityByLevel[lvlKey] = (0, 0);
-                var (ts, c) = qualityByLevel[lvlKey];
+                qualityByLevel.TryGetValue(lvlKey, out var qualTuple);
+                var (ts, c) = qualTuple;
                 qualityByLevel[lvlKey] = (ts + score, c + 1);
             }
 

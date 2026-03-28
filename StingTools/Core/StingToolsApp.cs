@@ -130,7 +130,12 @@ namespace StingTools.Core
                 StingAutoTagger.ClearDeferredQueue();
                 // PERF-CRIT: Clear stale marker room index cache
                 StingStaleMarker.ClearRoomIndexCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
+                // GAP-STP-02: Clear cached tag types on document close
+                Tags.TagPlacementEngine.ClearTagTypeCache();
+                // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
+                // from the closed document being applied to subsequently opened documents.
+                Model.WorksetAssigner.ClearCache();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
             }
             catch (Exception ex)
             {

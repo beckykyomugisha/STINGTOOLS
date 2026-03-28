@@ -597,9 +597,8 @@ namespace StingTools.Model
                 result.RevealAreaM2 += revealsM2;
                 result.NetAreaM2 += netArea;
 
-                if (!result.AreaByTarget.ContainsKey(target))
-                    result.AreaByTarget[target] = 0;
-                result.AreaByTarget[target] += netArea;
+                result.AreaByTarget.TryGetValue(target, out double prevArea);
+                result.AreaByTarget[target] = prevArea + netArea;
             }
 
             // Waste & quantities
@@ -903,7 +902,7 @@ namespace StingTools.Model
                 ParameterHelpers.SetIfEmpty(el, paramName, value);
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex) { StingLog.Warn($"PlasteringEngine SetParam failed: {ex.Message}"); return false; }
         }
     }
 

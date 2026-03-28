@@ -346,9 +346,8 @@ namespace StingTools.Tags
                     catch (Exception nmEx) { StingLog.Warn($"SystemParamPush NativeMapper for {el.Id}: {nmEx.Message}"); }
 
                     result.Pushed++;
-                    if (!result.PushedByCategory.ContainsKey(catName))
-                        result.PushedByCategory[catName] = 0;
-                    result.PushedByCategory[catName]++;
+                    result.PushedByCategory.TryGetValue(catName, out int pbc);
+                    result.PushedByCategory[catName] = pbc + 1;
                 }
                 catch (Exception ex)
                 {

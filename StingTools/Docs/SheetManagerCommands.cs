@@ -1129,7 +1129,8 @@ namespace StingTools.Docs
                 {
                     int seq = 0;
                     int.TryParse(digits.Length > 4 ? digits.Substring(digits.Length - 4) : digits, out seq);
-                    if (!disciplineCounters.ContainsKey(role) || seq > disciplineCounters[role])
+                    disciplineCounters.TryGetValue(role, out int cur);
+                    if (seq > cur)
                         disciplineCounters[role] = seq;
                 }
                 if (!disciplineCounters.ContainsKey(role))
@@ -1157,8 +1158,8 @@ namespace StingTools.Docs
                 else if (nameUpper.Contains("REPORT")) docType = "RP";
 
                 // Increment counter for this discipline
-                if (!disciplineCounters.ContainsKey(role)) disciplineCounters[role] = 0;
-                disciplineCounters[role]++;
+                disciplineCounters.TryGetValue(role, out int dc);
+                disciplineCounters[role] = dc + 1;
                 int seqNum = disciplineCounters[role];
 
                 string newNum = $"{projectCode}-{originator}-{volume}-{level}-{docType}-{role}-{seqNum:D4}";
@@ -1892,8 +1893,8 @@ namespace StingTools.Docs
                 if (vpCount == 0) emptySheets++;
 
                 string disc = SheetManagerEngine.ExtractDisciplinePrefix(sheet.SheetNumber);
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int sc);
+                discCounts[disc] = sc + 1;
             }
 
             var report = new System.Text.StringBuilder();

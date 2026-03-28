@@ -349,7 +349,7 @@ namespace StingTools.UI
                     foreach (string col in WorksheetColumns[ws])
                     {
                         bool required = col == "Name" || col == "CreatedBy" || col == "CreatedOn";
-                        bool excluded = _excludedColumns.ContainsKey(ws) && _excludedColumns[ws].Contains(col);
+                        bool excluded = _excludedColumns.TryGetValue(ws, out var excSet) && excSet.Contains(col);
                         var cb = new CheckBox
                         {
                             Content = col,

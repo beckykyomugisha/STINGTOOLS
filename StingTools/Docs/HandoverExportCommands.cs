@@ -160,9 +160,13 @@ namespace StingTools.Docs
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     if (string.IsNullOrEmpty(sys)) continue;
                     string tag1 = HandoverHelper.Gs(el, ParamRegistry.TAG1);
-                    if (!systemGroups.ContainsKey(sys)) systemGroups[sys] = new List<string>();
-                    if (!string.IsNullOrEmpty(tag1) && systemGroups[sys].Count < 20)
-                        systemGroups[sys].Add(tag1);
+                    if (!systemGroups.TryGetValue(sys, out var sgList))
+                    {
+                        sgList = new List<string>();
+                        systemGroups[sys] = sgList;
+                    }
+                    if (!string.IsNullOrEmpty(tag1) && sgList.Count < 20)
+                        sgList.Add(tag1);
                 }
                 foreach (var sg in systemGroups.OrderBy(x => x.Key))
                 {
@@ -181,8 +185,12 @@ namespace StingTools.Docs
                     if (string.IsNullOrEmpty(zone)) continue;
                     string space = HandoverHelper.Gs(el, ParamRegistry.ROOM_NAME);
                     if (string.IsNullOrEmpty(space)) space = HandoverHelper.Gs(el, ParamRegistry.BLE_ROOM_NAME);
-                    if (!zoneGroups.ContainsKey(zone)) zoneGroups[zone] = new HashSet<string>();
-                    if (!string.IsNullOrEmpty(space)) zoneGroups[zone].Add(space);
+                    if (!zoneGroups.TryGetValue(zone, out var zgSet))
+                    {
+                        zgSet = new HashSet<string>();
+                        zoneGroups[zone] = zgSet;
+                    }
+                    if (!string.IsNullOrEmpty(space)) zgSet.Add(space);
                 }
                 foreach (var zg in zoneGroups.OrderBy(x => x.Key))
                 {
@@ -267,8 +275,11 @@ namespace StingTools.Docs
                 // Phase 75: COBie V2.4 additional worksheets (Instruction, Connection, Assembly, Document, Coordinate, Impact, Spare)
                 var instructionLines = new List<string>();
                 instructionLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,Description");
+                // HEC-HIGH-01: Inline compliance % from allTaggedElements (already collected) — avoids a full model re-scan.
+                int _taggedCount = allTaggedElements.Count(e => !string.IsNullOrEmpty(HandoverHelper.Gs(e, ParamRegistry.TAG1)));
+                double _compliancePct = allTaggedElements.Count > 0 ? _taggedCount * 100.0 / allTaggedElements.Count : 0.0;
                 instructionLines.Add($"COBie Export,STING Tools,{DateTime.Now:yyyy-MM-dd},Instruction,All," +
-                    $"\"COBie V2.4 handover export from STING Tools. Project: {Esc(doc.Title ?? "")}. Compliance: {ComplianceScan.Scan(doc)?.CompliancePercent ?? 0:F1}%\"");
+                    $"\"COBie V2.4 handover export from STING Tools. Project: {Esc(doc.Title ?? "")}. Compliance: {_compliancePct:F1}%\"");
 
                 var connectionLines = new List<string>();
                 connectionLines.Add("Name,CreatedBy,CreatedOn,ConnectionType,SheetName,RowName1,SheetName2,RowName2,Description");
@@ -492,6 +503,9 @@ namespace StingTools.Docs
 
             try
             {
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
+
                 var sb = new StringBuilder();
                 sb.Append('\uFEFF');
                 sb.AppendLine("AssetTag,Category,FamilyName,TypeName,Discipline,System,Function,Product," +
@@ -551,8 +565,8 @@ namespace StingTools.Docs
 
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                        discCounts[disc]++;
+                        discCounts.TryGetValue(disc, out int dc);
+                        discCounts[disc] = dc + 1;
                     }
 
                     // ASTM E2018 condition grade + CIBSE failure mode + spare parts
@@ -660,18 +674,10 @@ namespace StingTools.Docs
                 sb.AppendLine($"  Generator:   STING Tools BIM Automation");
                 sb.AppendLine();
 
-                // ── Collect tagged elements and all assets by discipline → system ──
-                var omCatEnums = SharedParamGuids.AllCategoryEnums;
-                var omCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-                if (omCatEnums != null && omCatEnums.Length > 0)
-                    omCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(omCatEnums)));
-                var allTaggedElements = new List<Element>();
-                foreach (Element scanEl in omCollector)
-                {
-                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
-                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
-                }
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
 
+                // ── Collect all assets by discipline → system ──
                 var assets = new Dictionary<string, Dictionary<string, List<AssetRecord>>>();
                 int totalAssets = 0;
 
@@ -722,11 +728,17 @@ namespace StingTools.Docs
                     string discKey = string.IsNullOrEmpty(rec.Disc) ? "XX" : rec.Disc;
                     string sysKey = string.IsNullOrEmpty(rec.Sys) ? "GEN" : rec.Sys;
 
-                    if (!assets.ContainsKey(discKey))
-                        assets[discKey] = new Dictionary<string, List<AssetRecord>>();
-                    if (!assets[discKey].ContainsKey(sysKey))
-                        assets[discKey][sysKey] = new List<AssetRecord>();
-                    assets[discKey][sysKey].Add(rec);
+                    if (!assets.TryGetValue(discKey, out var discDict))
+                    {
+                        discDict = new Dictionary<string, List<AssetRecord>>();
+                        assets[discKey] = discDict;
+                    }
+                    if (!discDict.TryGetValue(sysKey, out var sysList))
+                    {
+                        sysList = new List<AssetRecord>();
+                        discDict[sysKey] = sysList;
+                    }
+                    sysList.Add(rec);
                 }
 
                 // ── Table of Contents ──
@@ -882,6 +894,9 @@ namespace StingTools.Docs
 
             try
             {
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
+
                 var sb = new StringBuilder();
                 sb.Append('\uFEFF');
                 sb.AppendLine("AssetTag,Category,FamilyName,TypeName,Discipline,System,Level,Room," +
@@ -985,8 +1000,12 @@ namespace StingTools.Docs
 
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discScores.ContainsKey(disc)) discScores[disc] = new List<int>();
-                        discScores[disc].Add(healthScore);
+                        if (!discScores.TryGetValue(disc, out var dsList))
+                        {
+                            dsList = new List<int>();
+                            discScores[disc] = dsList;
+                        }
+                        dsList.Add(healthScore);
                     }
 
                     string issueStr = issues.Count > 0 ? string.Join("; ", issues) : "";
@@ -1071,7 +1090,7 @@ namespace StingTools.Docs
                     .OfClass(typeof(SpatialElement)).OfType<Room>().Where(r => r.Area > 0))
                 {
                     string key = $"{room.Number}|{room.Name}";
-                    if (!roomAssets.ContainsKey(key))
+                    if (!roomAssets.TryGetValue(key, out _))
                     {
                         roomAssets[key] = new SpaceInfo
                         {
@@ -1084,17 +1103,8 @@ namespace StingTools.Docs
                     }
                 }
 
-                // Collect tagged elements once
-                var shCatEnums = SharedParamGuids.AllCategoryEnums;
-                var shCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-                if (shCatEnums != null && shCatEnums.Length > 0)
-                    shCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(shCatEnums)));
-                var allTaggedElements = new List<Element>();
-                foreach (Element scanEl in shCollector)
-                {
-                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
-                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
-                }
+                // Collect tagged elements
+                var allTaggedElements = HandoverHelper.CollectTaggedElements(doc, known);
 
                 // Map assets to rooms
                 int totalMapped = 0;
@@ -1122,29 +1132,31 @@ namespace StingTools.Docs
                         totalMapped++;
                     }
 
-                    if (!roomAssets.ContainsKey(key))
+                    // HEC-MEDIUM-01: TryGetValue avoids double dictionary lookup (ContainsKey + indexer → single lookup)
+                    if (!roomAssets.TryGetValue(key, out var info))
                     {
-                        roomAssets[key] = new SpaceInfo
+                        info = new SpaceInfo
                         {
                             RoomNumber = roomNum ?? "",
                             RoomName = roomName ?? "",
                             Level = HandoverHelper.Gs(el, ParamRegistry.LVL),
                         };
+                        roomAssets[key] = info;
                     }
-
-                    var info = roomAssets[key];
                     info.TotalAssets++;
                     string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!info.ByDiscipline.ContainsKey(disc)) info.ByDiscipline[disc] = 0;
-                        info.ByDiscipline[disc]++;
+                        // HEC-MEDIUM-01: TryGetValue avoids ContainsKey + indexer double-lookup
+                        info.ByDiscipline.TryGetValue(disc, out int dCount);
+                        info.ByDiscipline[disc] = dCount + 1;
                     }
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     if (!string.IsNullOrEmpty(sys))
                     {
-                        if (!info.BySystems.ContainsKey(sys)) info.BySystems[sys] = 0;
-                        info.BySystems[sys]++;
+                        // HEC-MEDIUM-01: TryGetValue avoids ContainsKey + indexer double-lookup
+                        info.BySystems.TryGetValue(sys, out int sCount);
+                        info.BySystems[sys] = sCount + 1;
                     }
                 }
 
@@ -1158,10 +1170,10 @@ namespace StingTools.Docs
                 foreach (var kvp in roomAssets.OrderBy(x => x.Value.Level).ThenBy(x => x.Value.RoomNumber))
                 {
                     var info = kvp.Value;
-                    int mechCount = info.ByDiscipline.ContainsKey("M") ? info.ByDiscipline["M"] : 0;
-                    int elecCount = info.ByDiscipline.ContainsKey("E") ? info.ByDiscipline["E"] : 0;
-                    int plumCount = info.ByDiscipline.ContainsKey("P") ? info.ByDiscipline["P"] : 0;
-                    int fireCount = (info.ByDiscipline.ContainsKey("FP") ? info.ByDiscipline["FP"] : 0);
+                    info.ByDiscipline.TryGetValue("M", out int mechCount);
+                    info.ByDiscipline.TryGetValue("E", out int elecCount);
+                    info.ByDiscipline.TryGetValue("P", out int plumCount);
+                    info.ByDiscipline.TryGetValue("FP", out int fireCount);
                     int otherCount = info.TotalAssets - mechCount - elecCount - plumCount - fireCount;
                     string density = info.Area > 0 ? (info.TotalAssets / info.Area).ToString("F2") : "";
                     string systems = string.Join("; ", info.BySystems.Keys.OrderBy(x => x));
@@ -1221,6 +1233,22 @@ namespace StingTools.Docs
     /// </summary>
     internal static class HandoverHelper
     {
+        /// <summary>Collect all tagged elements in the model using a single FilteredElementCollector scan.</summary>
+        internal static List<Element> CollectTaggedElements(Document doc, HashSet<string> knownCategories)
+        {
+            var catEnums = SharedParamGuids.AllCategoryEnums;
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+            if (catEnums != null && catEnums.Length > 0)
+                collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+            var result = new List<Element>();
+            foreach (Element el in collector)
+            {
+                string cat = ParameterHelpers.GetCategoryName(el);
+                if (knownCategories.Contains(cat)) result.Add(el);
+            }
+            return result;
+        }
+
         /// <summary>Read STING shared parameter as string.</summary>
         internal static string Gs(Element el, string paramName)
         {
@@ -1257,12 +1285,9 @@ namespace StingTools.Docs
             {
                 Element projInfo = doc.ProjectInformation;
                 if (projInfo == null) return "";
-                foreach (Parameter p in projInfo.Parameters)
-                {
-                    if (p.Definition.Name == paramName)
-                        return p.AsString() ?? "";
-                }
-                return "";
+                // HEC-MEDIUM-02: LookupParameter does O(1) hash lookup; avoids linear foreach over all Parameters.
+                Parameter p = projInfo.LookupParameter(paramName);
+                return p?.AsString() ?? "";
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }
@@ -1594,10 +1619,13 @@ namespace StingTools.Docs
                         string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                         if (!string.IsNullOrEmpty(sys))
                         {
-                            if (!systemGroups.ContainsKey(sys))
-                                systemGroups[sys] = new List<string>();
-                            if (systemGroups[sys].Count < 50) // cap for memory
-                                systemGroups[sys].Add(tag1 ?? el.Id.ToString());
+                            if (!systemGroups.TryGetValue(sys, out var sgList2))
+                            {
+                                sgList2 = new List<string>();
+                                systemGroups[sys] = sgList2;
+                            }
+                            if (sgList2.Count < 50) // cap for memory
+                                sgList2.Add(tag1 ?? el.Id.ToString());
                         }
 
                         // Get room context

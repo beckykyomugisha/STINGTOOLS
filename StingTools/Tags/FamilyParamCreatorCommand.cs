@@ -503,7 +503,7 @@ namespace StingTools.Tags
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("COBIE_TYPE_MAP.csv");
-                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                if (string.IsNullOrEmpty(csvPath))
                 {
                     StingLog.Info("EnsureCobieTypeMapLoaded: COBIE_TYPE_MAP.csv not found, skipping");
                     return;

@@ -59,6 +59,8 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrWhite = FZ(Colors.White);
         private static readonly SolidColorBrush BrTransparent = Brushes.Transparent;
 
+        private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
+
         /// <summary>
         /// Show the schedule wizard dialog.
         /// </summary>
@@ -163,7 +165,7 @@ namespace StingTools.UI
             };
 
             // Panels that need the schedule list
-            var listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
+            var listOps = _listOps;
 
             // Controls we need to reference across closures
             Border scheduleSection = null;

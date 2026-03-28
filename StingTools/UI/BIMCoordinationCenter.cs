@@ -63,6 +63,14 @@ namespace StingTools.UI
         // Phase 75: Persist last-viewed tab across dialog reopens
         private static string _lastViewedTab = "OVERVIEW";
 
+        // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
+        private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
+
+        // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
+        // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
+        private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
+            { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "WORKFLOWS", "QA DASHBOARD" };
+
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
 
@@ -577,23 +585,33 @@ namespace StingTools.UI
                 }
             }
 
-            switch (tabName)
+            // BCC-HIGH-01: Live-data tabs rebuilt on every navigation; layout tabs served from class-level cache.
+            if (_liveDataTabs.Contains(tabName))
+                _tabCache.Remove(tabName);
+
+            if (!_tabCache.TryGetValue(tabName, out var tabContent))
             {
-                case "OVERVIEW":      _contentArea.Content = BuildOverviewTab(); break;
-                case "MODEL HEALTH":  _contentArea.Content = BuildModelHealthTab(); break;
-                case "WARNINGS":      _contentArea.Content = BuildWarningsTab(); break;
-                case "ISSUES":        _contentArea.Content = BuildIssuesTab(); break;
-                case "REVISIONS":     _contentArea.Content = BuildRevisionsTab(); break;
-                case "PLATFORM":      _contentArea.Content = BuildPlatformTab(); break;
-                case "WORKFLOWS":     _contentArea.Content = BuildWorkflowsTab(); break;
-                case "QA DASHBOARD":  _contentArea.Content = BuildQADashboardTab(); break;
-                case "4D/5D":         _contentArea.Content = Build4D5DTab(); break;
-                case "DELIVERABLES":  _contentArea.Content = BuildDeliverablesTab(); break;
-                case "MEETINGS":      _contentArea.Content = BuildMeetingsTab(); break;
-                case "PERMISSIONS":   _contentArea.Content = BuildPermissionsTab(); break;
-                case "COORD LOG":     _contentArea.Content = BuildCoordLogTab(); break;
-                case "TEAM":          _contentArea.Content = BuildTeamTab(); break;
+                tabContent = tabName switch
+                {
+                    "OVERVIEW"      => BuildOverviewTab(),
+                    "MODEL HEALTH"  => BuildModelHealthTab(),
+                    "WARNINGS"      => BuildWarningsTab(),
+                    "ISSUES"        => BuildIssuesTab(),
+                    "REVISIONS"     => BuildRevisionsTab(),
+                    "PLATFORM"      => BuildPlatformTab(),
+                    "WORKFLOWS"     => BuildWorkflowsTab(),
+                    "QA DASHBOARD"  => BuildQADashboardTab(),
+                    "4D/5D"         => Build4D5DTab(),
+                    "DELIVERABLES"  => BuildDeliverablesTab(),
+                    "MEETINGS"      => BuildMeetingsTab(),
+                    "PERMISSIONS"   => BuildPermissionsTab(),
+                    "COORD LOG"     => BuildCoordLogTab(),
+                    "TEAM"          => BuildTeamTab(),
+                    _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
+                };
+                _tabCache[tabName] = tabContent;
             }
+            _contentArea.Content = tabContent;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -721,29 +739,29 @@ namespace StingTools.UI
                     discGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                     double pct = kv.Value.CompliancePct;
                     string rag = pct >= _data.RAGGreenThreshold ? "GREEN" : pct >= _data.RAGAmberThreshold ? "AMBER" : "RED";
-                    AddCellToGrid(discGrid, kv.Key, row, 0, false, FontWeights.Bold);
-                    AddCellToGrid(discGrid, kv.Value.Total.ToString(), row, 1);
-                    AddCellToGrid(discGrid, kv.Value.Tagged.ToString(), row, 2);
-                    AddCellToGrid(discGrid, $"{pct:F0}%", row, 3, false, FontWeights.Normal, RagBrush(rag));
-                    AddCellToGrid(discGrid, rag, row, 4, false, FontWeights.Bold, RagBrush(rag));
-
-                    // Phase 48b: Make entire row clickable — double-click selects discipline elements
+                    // BCC-HIGH-02: Capture returned TextBlock directly — no Cast().LastOrDefault() search
                     int rowIdx = row;
                     string disc = kv.Key;
-                    for (int c = 0; c < 5; c++)
+                    var rowCells = new[]
                     {
-                        var cell = discGrid.Children.Cast<UIElement>().LastOrDefault(e => Grid.GetRow(e) == rowIdx && Grid.GetColumn(e) == c);
-                        if (cell is TextBlock tb)
+                        AddCellToGrid(discGrid, kv.Key, row, 0, false, FontWeights.Bold),
+                        AddCellToGrid(discGrid, kv.Value.Total.ToString(), row, 1),
+                        AddCellToGrid(discGrid, kv.Value.Tagged.ToString(), row, 2),
+                        AddCellToGrid(discGrid, $"{pct:F0}%", row, 3, false, FontWeights.Normal, RagBrush(rag)),
+                        AddCellToGrid(discGrid, rag, row, 4, false, FontWeights.Bold, RagBrush(rag))
+                    };
+
+                    // Phase 48b: Make entire row clickable — double-click selects discipline elements
+                    foreach (var tb in rowCells)
+                    {
+                        tb.Cursor = Cursors.Hand;
+                        tb.ToolTip = $"Double-click to select all {disc} elements ({kv.Value.Total} total, {kv.Value.Untagged} untagged)";
+                        tb.MouseLeftButtonDown += (s, e) =>
                         {
-                            tb.Cursor = Cursors.Hand;
-                            tb.ToolTip = $"Double-click to select all {disc} elements ({kv.Value.Total} total, {kv.Value.Untagged} untagged)";
-                            tb.MouseLeftButtonDown += (s, e) =>
-                            {
-                                if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{disc}"; DialogResult = true; Close(); }
-                            };
-                            tb.MouseEnter += (s, e) => tb.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
-                            tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : Br(Color.FromRgb(0xF5, 0xF5, 0xF5));
-                        }
+                            if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{disc}"; DialogResult = true; Close(); }
+                        };
+                        tb.MouseEnter += (s, e) => tb.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
+                        tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : Br(Color.FromRgb(0xF5, 0xF5, 0xF5));
                     }
                     row++;
                 }
@@ -1427,7 +1445,10 @@ namespace StingTools.UI
                 foreach (var kv in typeGroups.OrderByDescending(x => x.Value))
                     statsPanel.Children.Add(MakeMetricChip($"{kv.Key}: {kv.Value}", Br(Color.FromRgb(0x45, 0x50, 0x6E))));
                 // Average age
-                var ages = _data.Issues.Where(i => int.TryParse(i.DaysOpen, out _)).Select(i => int.Parse(i.DaysOpen)).ToList();
+                // BCC-MEDIUM-01: Use TryParse out-value to avoid double parse
+                var ages = _data.Issues
+                    .Select(i => int.TryParse(i.DaysOpen, out int d) ? (int?)d : null)
+                    .Where(d => d.HasValue).Select(d => d.Value).ToList();
                 if (ages.Count > 0)
                     statsPanel.Children.Add(MakeMetricChip($"Avg age: {ages.Average():F0}d", Br(CHeaderBg)));
                 // Resolution rate
@@ -2220,14 +2241,13 @@ namespace StingTools.UI
             btn.Click += ActionBtn_Click;
             // Phase 48: Hover effect — lighten on enter, restore on leave
             var origBg = bg;
-            btn.MouseEnter += (s, e) =>
-            {
-                var c = origBg.Color;
-                btn.Background = Br(Color.FromRgb(
-                    (byte)Math.Min(255, c.R + 30),
-                    (byte)Math.Min(255, c.G + 30),
-                    (byte)Math.Min(255, c.B + 30)));
-            };
+            // BCC-MEDIUM-02: Pre-compute hover brush once per button instead of on every MouseEnter
+            var c0 = origBg.Color;
+            var hoverBrush = Br(Color.FromRgb(
+                (byte)Math.Min(255, c0.R + 30),
+                (byte)Math.Min(255, c0.G + 30),
+                (byte)Math.Min(255, c0.B + 30)));
+            btn.MouseEnter += (s, e) => { btn.Background = hoverBrush; };
             btn.MouseLeave += (s, e) => { btn.Background = origBg; };
             return btn;
         }
@@ -2271,7 +2291,9 @@ namespace StingTools.UI
             return rag == "GREEN" ? Br(CGreen) : rag == "AMBER" ? Br(CAmber) : Br(CRed);
         }
 
-        private void AddCellToGrid(Grid grid, string text, int row, int col, bool isHeader = false,
+        // BCC-HIGH-02: Return the TextBlock so callers can reference it directly
+        // instead of doing Cast<UIElement>().LastOrDefault() over all children.
+        private TextBlock AddCellToGrid(Grid grid, string text, int row, int col, bool isHeader = false,
             FontWeight? weight = null, SolidColorBrush fg = null)
         {
             var tb = new TextBlock
@@ -2284,6 +2306,7 @@ namespace StingTools.UI
             Grid.SetRow(tb, row);
             Grid.SetColumn(tb, col);
             grid.Children.Add(tb);
+            return tb;
         }
 
         // ════════════════════════════════════════════════════════════════

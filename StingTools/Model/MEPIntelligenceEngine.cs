@@ -79,6 +79,13 @@ namespace StingTools.Model
             { FittingType.Strainer,        new FittingLossData { Type = FittingType.Strainer,        Kv = 2.00, EquivLengthM = 5.0,  Standard = "CIBSE" } },
             { FittingType.Entry,           new FittingLossData { Type = FittingType.Entry,           Kv = 0.50, EquivLengthM = 1.0,  Standard = "CIBSE" } },
             { FittingType.Exit,            new FittingLossData { Type = FittingType.Exit,            Kv = 1.00, EquivLengthM = 2.0,  Standard = "CIBSE" } },
+            // MEP-05/06: Missing pipe fitting entries
+            { FittingType.TeePipeStraight, new FittingLossData { Type = FittingType.TeePipeStraight, Kv = 0.50, EquivLengthM = 2.0,  Standard = "CIBSE" } },
+            { FittingType.TeePipeBranch,   new FittingLossData { Type = FittingType.TeePipeBranch,   Kv = 1.50, EquivLengthM = 5.0,  Standard = "CIBSE" } },
+            { FittingType.ReducerPipe,     new FittingLossData { Type = FittingType.ReducerPipe,     Kv = 0.15, EquivLengthM = 0.5,  Standard = "CIBSE" } },
+            { FittingType.TeeValve,        new FittingLossData { Type = FittingType.TeeValve,        Kv = 5.00, EquivLengthM = 12.0, Standard = "CIBSE" } },
+            { FittingType.PressureReducer, new FittingLossData { Type = FittingType.PressureReducer, Kv = 8.00, EquivLengthM = 20.0, Standard = "CIBSE" } },
+            { FittingType.FlowMeter,       new FittingLossData { Type = FittingType.FlowMeter,       Kv = 3.50, EquivLengthM = 10.0, Standard = "CIBSE" } },
         };
 
         /// <summary>Get loss coefficient for a fitting type.</summary>
@@ -128,8 +135,19 @@ namespace StingTools.Model
             if (name.Contains("check valve") || name.Contains("non-return")) return FittingType.CheckValve;
             if (name.Contains("butterfly")) return FittingType.ButterflyValve;
             if (name.Contains("strainer")) return FittingType.Strainer;
+            // MEP-07: Additional detection patterns for pipe fittings
+            if (name.Contains("tee valve") || name.Contains("globe valve")) return FittingType.TeeValve;
+            if (name.Contains("pressure reduc") || name.Contains("prv")) return FittingType.PressureReducer;
+            if (name.Contains("flow meter") || name.Contains("flowmeter")) return FittingType.FlowMeter;
+            if (name.Contains("expander") || name.Contains("increaser")) return FittingType.Expander;
+            if (name.Contains("entry") || name.Contains("inlet")) return FittingType.Entry;
+            if (name.Contains("exit") || name.Contains("outlet") || name.Contains("discharge")) return FittingType.Exit;
+            // MEP-07: Pipe-specific tee detection
+            if (catName.Contains("pipe") && (name.Contains("tee") || name.Contains("branch")))
+                return name.Contains("branch") ? FittingType.TeePipeBranch : FittingType.TeePipeStraight;
 
-            return FittingType.Elbow90; // safe default
+            // Default: use pipe or duct elbow based on category context
+            return catName.Contains("pipe") ? FittingType.ElbowPipe90 : FittingType.Elbow90;
         }
     }
 
@@ -177,9 +195,13 @@ namespace StingTools.Model
             if (reynoldsNumber < 2300) return 64.0 / reynoldsNumber; // laminar
 
             double relRoughness = roughness / diameter;
-            // Iterative solution (Swamee-Jain approximation for speed)
-            double f = 0.25 / Math.Pow(
-                Math.Log10(relRoughness / 3.7 + 5.74 / Math.Pow(reynoldsNumber, 0.9)), 2);
+            // ME-CRIT-01: Swamee-Jain explicit approximation (not iterative — no convergence issue)
+            // Guard against log10 producing near-zero denominator
+            double logArg = relRoughness / 3.7 + 5.74 / Math.Pow(reynoldsNumber, 0.9);
+            if (logArg <= 0 || double.IsNaN(logArg)) return 0.02;
+            double logVal = Math.Log10(logArg);
+            if (Math.Abs(logVal) < 1e-12 || double.IsNaN(logVal)) return 0.02;
+            double f = 0.25 / (logVal * logVal);
             return Math.Max(f, 0.005);
         }
 
@@ -345,6 +367,16 @@ namespace StingTools.Model
                         maxCorrection = Math.Max(maxCorrection, Math.Abs(imbalance));
                     }
 
+                    // MEP-04: Renormalize flows to preserve total mass conservation
+                    double totalDesign = branches.Sum(b => b.DesignFlowLs);
+                    double totalCurrent = flows.Sum();
+                    if (totalCurrent > 0.01 && totalDesign > 0.01)
+                    {
+                        double scale = totalDesign / totalCurrent;
+                        for (int i = 0; i < n; i++)
+                            flows[i] *= scale;
+                    }
+
                     result.MaxImbalancePa = maxCorrection;
                     if (maxCorrection < tolerancePa)
                     {
@@ -360,7 +392,8 @@ namespace StingTools.Model
                     double targetDp = totalSupplyPressurePa;
                     double excessDp = targetDp - actualDp;
                     // Damper Cv = Q / sqrt(ΔP) — flow coefficient
-                    double damperCv = excessDp > 0 ? Math.Abs(flows[i]) / Math.Sqrt(excessDp) : 0;
+                    // SAFETY: Guard against near-zero excessDp causing extreme Cv values
+                    double damperCv = excessDp > 1.0 ? Math.Abs(flows[i]) / Math.Sqrt(excessDp) : 0;
 
                     result.BranchResults.Add((branches[i].Name, branches[i].DesignFlowLs, flows[i], damperCv));
                 }
@@ -538,12 +571,15 @@ namespace StingTools.Model
 
             try
             {
-                // Analyse ducts
-                var ducts = new FilteredElementCollector(doc)
+                // Analyse ducts (MEP-01: warn if truncated at 500)
+                var allDucts = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_DuctCurves)
-                    .WhereElementIsNotElementType()
-                    .Take(500)
-                    .ToList();
+                    .WhereElementIsNotElementType();
+                var ducts = allDucts.Take(500).ToList();
+                int totalDucts = ducts.Count == 500 ? new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_DuctCurves).WhereElementIsNotElementType().GetElementCount() : ducts.Count;
+                if (totalDucts > 500)
+                    StingLog.Warn($"MEPAnalysis: analysing first 500 of {totalDucts} ducts — results are a sample");
 
                 foreach (var duct in ducts)
                 {
@@ -554,10 +590,11 @@ namespace StingTools.Model
                         var lengthP = duct.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH);
                         var flowP = duct.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
 
-                        double widthMm = (widthP?.AsDouble() ?? 0.5) * 304.8;
-                        double heightMm = (heightP?.AsDouble() ?? 0.5) * 304.8;
+                        // Default 0.3048 ft (≈100mm) instead of 0.5 ft (≈152mm) for realistic fallback
+                        double widthMm = (widthP?.AsDouble() ?? 0.3048) * 304.8;
+                        double heightMm = (heightP?.AsDouble() ?? 0.3048) * 304.8;
                         double lengthM = (lengthP?.AsDouble() ?? 1) * 0.3048;
-                        double flowM3s = (flowP?.AsDouble() ?? 0) * 0.000471947; // CFM to m³/s
+                        double flowM3s = (flowP?.AsDouble() ?? 0) * 0.0283168; // ft³/s → m³/s (Revit internal unit is ft³/s)
 
                         if (flowM3s > 0 && lengthM > 0)
                         {
@@ -572,12 +609,18 @@ namespace StingTools.Model
                     }
                 }
 
-                // Analyse pipes
+                // Analyse pipes (MEP-01: warn if truncated at 500)
                 var pipes = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_PipeCurves)
                     .WhereElementIsNotElementType()
-                    .Take(500)
-                    .ToList();
+                    .Take(500).ToList();
+                if (pipes.Count == 500)
+                {
+                    int totalPipes = new FilteredElementCollector(doc)
+                        .OfCategory(BuiltInCategory.OST_PipeCurves).WhereElementIsNotElementType().GetElementCount();
+                    if (totalPipes > 500)
+                        StingLog.Warn($"MEPAnalysis: analysing first 500 of {totalPipes} pipes — results are a sample");
+                }
 
                 foreach (var pipe in pipes)
                 {
@@ -589,7 +632,7 @@ namespace StingTools.Model
 
                         double diamMm = (diamP?.AsDouble() ?? 0.05) * 304.8;
                         double lengthM = (lengthP?.AsDouble() ?? 1) * 0.3048;
-                        double flowLs = (flowP?.AsDouble() ?? 0) * 0.0283168; // CFM to L/s (approx)
+                        double flowLs = (flowP?.AsDouble() ?? 0) * 28.3168; // ft³/s → L/s (Revit internal unit is ft³/s)
 
                         if (flowLs > 0 && lengthM > 0)
                         {

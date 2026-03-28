@@ -225,12 +225,26 @@ namespace StingTools.Model
             // Ensure load list matches spans
             while (loadKNPerFt.Count < n) loadKNPerFt.Add(loadKNPerFt.LastOrDefault());
 
+            // SAE-CRIT-01: Convert Revit internal feet to SI metres for all moment/reaction
+            // calculations. Revit stores geometry in feet; span inputs are therefore ft and
+            // loads are kN/ft. Without conversion, stiffness = 4/L is kN·ft (not dimensionless)
+            // and FEM = wL²/12 is kN·ft² (not kN·m). All results must be in kN·m.
+            // 1 ft = 0.3048 m  (exact, by international definition)
+            const double FtToM = 0.3048;
+            var spansM = new double[n];
+            var loadKNPerM = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                spansM[i] = spansFt[i] * FtToM;                // ft → m
+                loadKNPerM[i] = loadKNPerFt[i] / FtToM;        // kN/ft → kN/m
+            }
+
             int joints = n + 1; // Number of support points
 
-            // Stiffness factors: k = 4EI/L (assuming constant EI=1)
+            // Stiffness factors: k = 4EI/L (relative, assuming constant EI=1), spans in m
             var stiffness = new double[n];
             for (int i = 0; i < n; i++)
-                stiffness[i] = (spansFt[i] > 0) ? 4.0 / spansFt[i] : 0;
+                stiffness[i] = (spansM[i] > 0) ? 4.0 / spansM[i] : 0;
 
             // Distribution factors at each internal joint
             var df = new double[joints, 2]; // [joint, left/right member]
@@ -244,13 +258,14 @@ namespace StingTools.Model
                 }
             }
 
-            // Fixed-end moments: M = wL²/12 for uniform load, fixed-fixed
+            // Fixed-end moments: M = wL²/12 for uniform load, fixed-fixed (EC2 §5, Table C.1)
+            // Units: w [kN/m] × L² [m²] / 12 = kN·m  ✓
             var fem = new double[joints, 2]; // [joint, arriving from left(0)/right(1)]
             for (int i = 0; i < n; i++)
             {
-                double w = loadKNPerFt[i];
-                double L = spansFt[i];
-                double femVal = w * L * L / 12.0;
+                double w = loadKNPerM[i];
+                double L = spansM[i];
+                double femVal = w * L * L / 12.0; // kN·m
                 fem[i, 1] = -femVal;     // Right end of span i (hogging at left support)
                 fem[i + 1, 0] = femVal;  // Left end of span i+1 (hogging at right support)
             }
@@ -276,7 +291,10 @@ namespace StingTools.Model
                     double distLeft = -imbalance * df[j, 0];
                     double distRight = -imbalance * df[j, 1];
 
-                    moments[j] = 0; // Balanced
+                    // Phase 79b CRITICAL FIX: Apply correction to accumulated moment (not zero it).
+                    // moments[j] must retain the sum of all distributed moments arriving at joint j.
+                    // The distributed amounts (-imbalance × df) sum to -imbalance, balancing this joint.
+                    moments[j] += -imbalance; // Apply full correction (distLeft + distRight = -imbalance)
                     carryOver[j] = 0;
 
                     // Carry-over factor = 0.5
@@ -300,24 +318,24 @@ namespace StingTools.Model
 
             result.SupportMomentsKNm = moments.ToList();
 
-            // Calculate midspan moments: wL²/8 - (M_left + M_right)/2
+            // Calculate midspan moments: M_mid = wL²/8 - (|M_L| + |M_R|)/2 [kN·m]
             for (int i = 0; i < n; i++)
             {
-                double w = loadKNPerFt[i];
-                double L = spansFt[i];
-                double freeSpanMoment = w * L * L / 8.0;
+                double w = loadKNPerM[i];
+                double L = spansM[i];
+                double freeSpanMoment = w * L * L / 8.0; // kN·m
                 double avgSupportMoment = (Math.Abs(moments[i]) + Math.Abs(moments[i + 1])) / 2.0;
                 result.MidspanMomentsKNm.Add(freeSpanMoment - avgSupportMoment);
             }
 
-            // Calculate reactions: R = wL/2 + (M_right - M_left)/L
+            // Calculate reactions: R = wL/2 ± ΔM/L [kN]  (spans and moments both in SI)
             for (int j = 0; j < joints; j++)
             {
                 double reaction = 0;
-                if (j > 0) reaction += loadKNPerFt[j - 1] * spansFt[j - 1] / 2.0 +
-                    (moments[j] - moments[j - 1]) / spansFt[j - 1];
-                if (j < n) reaction += loadKNPerFt[j] * spansFt[j] / 2.0 -
-                    (moments[j + 1] - moments[j]) / spansFt[j];
+                if (j > 0) reaction += loadKNPerM[j - 1] * spansM[j - 1] / 2.0 +
+                    (moments[j] - moments[j - 1]) / spansM[j - 1];
+                if (j < n) reaction += loadKNPerM[j] * spansM[j] / 2.0 -
+                    (moments[j + 1] - moments[j]) / spansM[j];
                 result.ReactionsKN.Add(reaction);
             }
 
@@ -385,8 +403,22 @@ namespace StingTools.Model
                     _ => 5.0,
                 };
 
-                // I = bh³/12 for rectangular section (approximate)
-                double I_mm4 = widthMm * depthMm * depthMm * depthMm / 12.0;
+                // SAE-HIGH-04: Use rolled I-beam approximation for steel sections.
+                // For typical UB/UC: flanges ≈ 0.7h wide × 0.1h thick, web ≈ 0.6h deep × 0.01h thick.
+                // Ixx ≈ 2 × [b_f × t_f × (h/2 - t_f/2)²] + (t_w × h_w³)/12
+                // With b_f = 0.7h, t_f = 0.1h, t_w = 0.01h, h_w = 0.8h:
+                //   I ≈ 2 × [0.7h × 0.1h × (0.45h)²] + (0.01h × (0.8h)³)/12
+                //     ≈ 0.0284h⁴ + 0.000427h⁴ ≈ 0.0288h⁴
+                // This is approximately bh³/12 × 0.35 for rolled I-sections vs full rectangular.
+                // Reference: SCI Blue Book section tables for typical UB/UC proportions.
+                double tf = depthMm * 0.1;    // flange thickness ≈ 0.1h
+                double bf = depthMm * 0.7;    // flange width ≈ 0.7h (use actual widthMm if available)
+                double tw = depthMm * 0.01;   // web thickness ≈ 0.01h
+                double hw = depthMm - 2 * tf; // clear web height
+                // If widthMm was provided by caller, use it for flange width
+                if (widthMm > 0 && widthMm < depthMm * 2) bf = widthMm;
+                double I_mm4 = 2.0 * (bf * tf * Math.Pow(depthMm / 2.0 - tf / 2.0, 2))
+                             + (tw * hw * hw * hw) / 12.0;
                 double w_Nmm = loadKNPerM; // kN/m = N/mm
                 double L_mm = spanMm;
 
@@ -532,18 +564,18 @@ namespace StingTools.Model
             // Applied shear stress: vEd = β × VEd / (u1 × d)
             // β = 1.15 for internal column (EC2 §6.4.3)
             double beta = 1.15;
-            double vEd = beta * reactionKN * 1000 / (u1 * d); // N/mm² = MPa
+            double vEd = beta * reactionKN * 1000 / Math.Max(u1 * d, 1e-10); // N/mm² = MPa
             result.AppliedStressMPa = vEd;
 
             // Concrete shear resistance: vRd,c = CRd,c × k × (100 × ρl × fck)^(1/3)
             // CRd,c = 0.18/γc, γc = 1.5
             double CRdc = 0.18 / 1.5;
-            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / d));
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / Math.Max(d, 1e-10)));
             double rhoL = 0.005; // Assume 0.5% reinforcement
             double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
 
             // Minimum: vmin = 0.035 × k^(3/2) × fck^(1/2)
-            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(Math.Max(fckMPa, 0));
             vRdc = Math.Max(vRdc, vmin);
 
             result.ResistanceMPa = vRdc;
@@ -577,13 +609,25 @@ namespace StingTools.Model
             var result = new PunchingReinforcementResult();
 
             double d = slabThicknessMm - 30 - 12;
-            if (d <= 0) d = slabThicknessMm * 0.85;
+            if (d <= 0)
+            {
+                d = slabThicknessMm * 0.85;
+                StingLog.Warn($"PunchingShear: Effective depth d={slabThicknessMm - 42:F0}mm ≤ 0 for slab thickness {slabThicknessMm:F0}mm. Using fallback d={d:F0}mm.");
+            }
             result.EffectiveDepthMm = d;
 
             // Two-way effective depths: dx and dy
             double dx = d;           // x-direction (outermost layer)
             double dy = d - 12;     // y-direction (inner layer, minus one bar diameter)
             double dAvg = (dx + dy) / 2.0;
+
+            // Phase 82 Finding 2: Guard dAvg > 0 before division
+            if (dAvg <= 0)
+            {
+                result.Pass = false;
+                result.Summary = $"FAILS: Average effective depth dAvg={dAvg:F1}mm ≤ 0 — slab too thin for punching shear check";
+                return result;
+            }
 
             // Basic control perimeter at 2d
             double u1 = 2 * (columnWidthMm + columnDepthMm) + 2 * Math.PI * (2 * dAvg);
@@ -593,7 +637,7 @@ namespace StingTools.Model
             double beta = 1.15; // Internal column default
 
             // Applied shear stress
-            double vEd = beta * reactionKN * 1000 / (u1 * dAvg);
+            double vEd = beta * reactionKN * 1000 / Math.Max(u1 * dAvg, 1e-10);
             result.AppliedStressMPa = vEd;
 
             // Concrete resistance vRd,c (with 2-way reinforcement ratios)
@@ -602,9 +646,9 @@ namespace StingTools.Model
             double rhoL = Math.Min(Math.Sqrt(rhoLx * rhoLy), 0.02); // EC2 §6.4.4(1)
 
             double CRdc = 0.18 / 1.5;
-            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / dAvg));
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / Math.Max(dAvg, 1e-10)));
             double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
-            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(Math.Max(fckMPa, 0));
             vRdc = Math.Max(vRdc, vmin);
             result.ConcreteResistanceMPa = vRdc;
 
@@ -657,7 +701,7 @@ namespace StingTools.Model
 
             // Outer perimeter where reinforcement is no longer needed
             // uout,ef = β × VEd / (vRd,c × d)
-            double uOutEf = beta * reactionKN * 1000 / (vRdc * dAvg);
+            double uOutEf = beta * reactionKN * 1000 / Math.Max(vRdc * dAvg, 1e-10);
             // Distance from column face: a = (uout - 2(c1+c2)) / (2π)
             double aOut = (uOutEf - 2 * (columnWidthMm + columnDepthMm)) / (2 * Math.PI);
             result.OuterPerimeterDistanceMm = Math.Max(aOut, 2 * dAvg);
@@ -928,7 +972,7 @@ namespace StingTools.Model
             var (S, TB, TC, TD) = GetSiteParameters(groundType);
 
             // Damping correction: η = √(10/(5+ξ)) ≥ 0.55
-            double eta = Math.Max(0.55, Math.Sqrt(10.0 / (5.0 + dampingPct)));
+            double eta = Math.Max(0.55, Math.Sqrt(Math.Max(10.0 / Math.Max(5.0 + dampingPct, 1e-10), 0)));
 
             double ag = agG * importanceFactor;
             double agS = ag * S;
@@ -1090,7 +1134,7 @@ namespace StingTools.Model
             return _sections
                 .Where(s => s.WplxCm3 >= requiredWplCm3)
                 .OrderBy(s => s.MassKgPerM)
-                .FirstOrDefault() ?? _sections.Last();
+                .FirstOrDefault() ?? (_sections.Any() ? _sections.Last() : null);
         }
 
         /// <summary>
@@ -1107,7 +1151,7 @@ namespace StingTools.Model
                 // Slenderness: λ = L / iy
                 double lambda = (heightM * 1000.0) / section.iyMm;
                 // Relative slenderness: λ̄ = λ / (π × √(E/fy))
-                double lambdaBar = lambda / (Math.PI * Math.Sqrt(210000.0 / fykMPa));
+                double lambdaBar = lambda / (Math.PI * Math.Sqrt(210000.0 / Math.Max(fykMPa, 1e-10)));
 
                 // Reduction factor χ (buckling curve 'b' for UC)
                 double alpha = 0.34; // Imperfection factor for curve 'b'
@@ -1124,7 +1168,7 @@ namespace StingTools.Model
                 if (Nbrd >= axialLoadKN) return section;
             }
 
-            return _sections.Where(s => s.Series == "UC").LastOrDefault() ?? _sections.Last();
+            return _sections.Where(s => s.Series == "UC").LastOrDefault() ?? (_sections.Any() ? _sections.Last() : null);
         }
 
         /// <summary>Returns all sections in the database.</summary>
@@ -1189,7 +1233,7 @@ namespace StingTools.Model
             double M = momentKNm * 1e6; // Convert to N.mm
 
             // K factor
-            double K = M / (widthMm * d * d * fckMPa);
+            double K = M / Math.Max(widthMm * d * d * fckMPa, 1e-10);
             double Klim = 0.167; // Singly reinforced limit
 
             if (K > Klim)
@@ -1269,7 +1313,10 @@ namespace StingTools.Model
             // Simplified As calculation: As = (N×e - 0.4×fck×b×d²)/(0.87×fyk×(d-d'))
             double fcd = fckMPa / 1.5;
             double d2 = 40; // Compression bar depth from face
-            double As = (N * e - 0.4 * fcd * widthMm * d * d) / (0.87 * fykMPa * (d - d2));
+            // SAE-HIGH-02: Guard against negative As when concrete section alone can carry the moment.
+            // When N×e < 0.4×fcd×b×d², the numerator is negative — clamp to zero before AsMin check.
+            // EC2 §6.1 allows sections with no tension steel if the concrete can carry the moment.
+            double As = Math.Max(0.0, (N * e - 0.4 * fcd * widthMm * d * d) / (0.87 * fykMPa * (d - d2)));
 
             // Minimum: 0.1N/(0.87fyk) or 0.002Ac
             double AsMin = Math.Max(0.1 * N / (0.87 * fykMPa), 0.002 * Ac);
@@ -1396,25 +1443,44 @@ namespace StingTools.Model
 
         /// <summary>
         /// Checks end plate connection capacity (moment connection).
+        /// Ref: EC3-1-8 §6.2 (bolt tension), §6.2.2 (T-stub moment capacity).
         /// </summary>
+        /// <param name="momentKNm">Design bending moment demand (kN·m)</param>
+        /// <param name="shearKN">Design shear demand (kN)</param>
+        /// <param name="boltDiaMm">Bolt diameter (mm). Default 20.</param>
+        /// <param name="boltRows">Number of bolt rows. Default 4 (2 tension + 2 compression).</param>
+        /// <param name="beamDepthMm">Connected beam depth (mm). Default 400 if unknown.
+        /// SAE-CRIT-02: Callers must pass actual beam depth; 400mm is only a fallback.</param>
+        /// <param name="boltGrade">Bolt property class per EN 1993-1-8 Table 3.1. Supported: "4.6", "5.6", "6.8", "8.8", "10.9". Default "8.8".</param>
         public static SimpleConnectionResult CheckEndPlateConnection(
             double momentKNm, double shearKN,
-            double boltDiaMm = 20, int boltRows = 4)
+            double boltDiaMm = 20, int boltRows = 4,
+            double beamDepthMm = 400, string boltGrade = "8.8")
         {
             var result = new SimpleConnectionResult { ConnectionType = "End Plate" };
 
             double gammaM2 = 1.25;
-            double fub = 800; // Grade 8.8
+            // SAE-HIGH-03: Full grade fub lookup per EN 1993-1-8 Table 3.1.
+            // fub is the ultimate tensile strength of the bolt material (N/mm²).
+            double fub = boltGrade switch
+            {
+                "4.6" => 400,
+                "5.6" => 500,
+                "6.8" => 600,
+                "8.8" => 800,
+                "10.9" => 1000,
+                _ => 800  // Default grade 8.8 for unrecognised grade strings
+            };
             double As = boltDiaMm switch
             {
                 16 => 157, 20 => 245, 24 => 353, _ => 245
             };
 
-            // Tension capacity per bolt
+            // Tension capacity per bolt: Ft,Rd = 0.9 fub As / γM2  (EC3-1-8 §3.6.1 Table 3.4)
             double FtRd = 0.9 * fub * As / (gammaM2 * 1000); // kN
 
-            // Lever arm between bolt rows (simplified)
-            double beamDepthMm = 400; // Typical
+            // Lever arm between extreme bolt rows (simplified from beam depth)
+            // Per SCI P358 §6.3: use actual beam depth minus edge distance each end
             double leverArmMm = beamDepthMm - 2 * 60; // 60mm edge distance each end
             int tensionRows = boltRows / 2;
 
@@ -1438,7 +1504,7 @@ namespace StingTools.Model
             result.UtilisationRatio = Math.Max(momentUtil, shearUtil);
             result.Pass = result.UtilisationRatio <= 1.0;
 
-            result.Summary = $"End plate: {boltRows * 2}No M{boltDiaMm} gr8.8, " +
+            result.Summary = $"End plate: {boltRows * 2}No M{boltDiaMm} gr{boltGrade}, " +
                 $"M_cap={momentCapacity:F0}kNm vs M_dem={momentKNm:F0}kNm, " +
                 $"V_cap={shearCapacity:F0}kN vs V_dem={shearKN:F0}kN " +
                 $"(util={result.UtilisationRatio:F2}) → {(result.Pass ? "OK" : "FAIL")}";
@@ -1490,35 +1556,39 @@ namespace StingTools.Model
         {
             var result = new StructuralSystemResult();
 
-            // Count structural elements
-            result.TotalColumns = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .WhereElementIsNotElementType().GetElementCount();
+            // SAE-HIGH-01: Use a single multi-category pass to collect all structural elements,
+            // replacing 6+ separate FilteredElementCollector instantiations (each scans the
+            // entire document element table).
+            var structuralCategories = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_Walls,
+                BuiltInCategory.OST_StructuralFoundation,
+            });
+            var allStructural = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(structuralCategories)
+                .ToList();
 
-            result.TotalBeams = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .WhereElementIsNotElementType().GetElementCount();
+            var columns     = allStructural.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralColumns).Cast<FamilyInstance>().ToList();
+            var framingEls  = allStructural.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFraming).ToList();
+            var wallEls     = allStructural.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_Walls).Cast<Wall>().ToList();
+            var foundations = allStructural.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation).ToList();
+
+            result.TotalColumns    = columns.Count;
+            result.TotalBeams      = framingEls.Count;
+            result.TotalFoundations = foundations.Count;
 
             // Count structural walls (not all walls are structural)
-            var allWalls = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Walls)
-                .WhereElementIsNotElementType().Cast<Wall>().ToList();
-            result.TotalWalls = allWalls.Count(w =>
+            result.TotalWalls = wallEls.Count(w =>
             {
                 var usage = w.get_Parameter(BuiltInParameter.WALL_STRUCTURAL_USAGE_PARAM);
                 return usage != null && usage.AsInteger() > 0;
             });
 
-            result.TotalFoundations = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
-                .WhereElementIsNotElementType().GetElementCount();
-
-            // Check for bracing (beams with non-horizontal orientation)
-            var framingElements = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .WhereElementIsNotElementType().ToList();
-
-            result.TotalBraces = framingElements.Count(el =>
+            // Check for bracing (framing elements with non-horizontal orientation)
+            result.TotalBraces = framingEls.Count(el =>
             {
                 var loc = el.Location as LocationCurve;
                 if (loc?.Curve == null) return false;
@@ -1536,11 +1606,8 @@ namespace StingTools.Model
             result.WallToColumnRatio = (result.TotalColumns > 0)
                 ? (double)result.TotalWalls / result.TotalColumns : 0;
 
-            // Material detection (heuristic from family names)
-            var colFamilies = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .WhereElementIsNotElementType()
-                .Cast<FamilyInstance>()
+            // Material detection (heuristic from family names, using already-collected columns)
+            var colFamilies = columns
                 .Select(fi => fi.Symbol?.FamilyName?.ToLowerInvariant() ?? "")
                 .Distinct().ToList();
 
@@ -1643,8 +1710,8 @@ namespace StingTools.Model
                 if (baseLevelParam != null)
                 {
                     var levelId = baseLevelParam.AsElementId();
-                    if (!colsByLevel.ContainsKey(levelId)) colsByLevel[levelId] = 0;
-                    colsByLevel[levelId]++;
+                    colsByLevel.TryGetValue(levelId, out int levelCount);
+                    colsByLevel[levelId] = levelCount + 1;
                 }
             }
 
@@ -1966,7 +2033,24 @@ namespace StingTools.Model
                 if (colLoc == null) continue;
 
                 double dist = DistancePointToLine3D(colLoc.Point, start, end);
-                double clearance = halfWidthFt + 0.5; // Column half-width + margin
+                // SAE-CRIT-03: Derive column half-width from actual element geometry.
+                // The hardcoded 0.5 ft (152mm) margin was independent of actual column size.
+                // Read 'b' (width) parameter with fallback to bounding-box estimate.
+                double colHalfWidthFt = halfWidthFt; // default: use beam half-width as proxy
+                try
+                {
+                    var bParam = col.LookupParameter("b") ?? col.LookupParameter("Width");
+                    if (bParam != null && bParam.StorageType == StorageType.Double)
+                        colHalfWidthFt = bParam.AsDouble() / 2.0; // already in feet (Revit internal)
+                    else
+                    {
+                        var bb = col.get_BoundingBox(null);
+                        if (bb != null)
+                            colHalfWidthFt = Math.Max(bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y) / 2.0;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Column width read: {ex.Message}"); }
+                double clearance = halfWidthFt + colHalfWidthFt; // beam half + column half
 
                 if (dist < clearance)
                 {
@@ -2235,9 +2319,21 @@ namespace StingTools.Model
             var candidates = new List<int>();
             QueryRect(_root, queryBox, candidates);
 
-            // Filter by actual distance (circle, not rectangle)
+            // Phase 79b FIX (HIGH-02): Filter by actual circular distance, not just bounding square.
+            // Entries store bounding boxes; for point inserts the box center IS the point.
+            // Without circular filtering, corner entries at distance up to √2 × radius are included.
             double r2 = radiusFt * radiusFt;
-            return candidates; // Already filtered by rect; exact circle filtering would need entry positions
+            candidates.RemoveAll(id =>
+            {
+                var entry = FindEntry(_root, id);
+                if (entry == null) return false; // keep if entry not found (shouldn't happen)
+                double cx = (entry.Value.MinX + entry.Value.MaxX) * 0.5;
+                double cy = (entry.Value.MinY + entry.Value.MaxY) * 0.5;
+                double dx = cx - point.X;
+                double dy = cy - point.Y;
+                return dx * dx + dy * dy > r2;
+            });
+            return candidates;
         }
 
         /// <summary>Find all entries overlapping a rectangle.</summary>
@@ -2265,6 +2361,23 @@ namespace StingTools.Model
                 foreach (var child in node.Children)
                     QueryRect(child, query, results);
             }
+        }
+
+        /// <summary>Find entry bounding box by ID (for circular distance filtering).</summary>
+        private BoundingBox2D? FindEntry(RTreeNode node, int id)
+        {
+            if (node.IsLeaf)
+            {
+                foreach (var (entryId, box) in node.Entries)
+                    if (entryId == id) return box;
+                return null;
+            }
+            foreach (var child in node.Children)
+            {
+                var found = FindEntry(child, id);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>Total number of entries in the tree.</summary>
@@ -2380,6 +2493,15 @@ namespace StingTools.Model
                 return result;
             }
 
+            // SA-CRIT-01: Pre-build node lookup dictionaries for O(1) access instead of O(n) per member
+            var nodeById = new Dictionary<int, FrameNode>(nNodes);
+            var nodeIndexById = new Dictionary<int, int>(nNodes);
+            for (int idx = 0; idx < nNodes; idx++)
+            {
+                nodeById[nodes[idx].Id] = nodes[idx];
+                nodeIndexById[nodes[idx].Id] = idx;
+            }
+
             // Build global stiffness matrix and load vector
             var K = new double[nDof, nDof];
             var F = new double[nDof];
@@ -2387,11 +2509,11 @@ namespace StingTools.Model
             // Assemble member stiffness matrices
             foreach (var m in members)
             {
-                var ni = nodes.First(n => n.Id == m.NodeI);
-                var nj = nodes.First(n => n.Id == m.NodeJ);
+                if (!nodeById.TryGetValue(m.NodeI, out var ni) || !nodeById.TryGetValue(m.NodeJ, out var nj))
+                    continue; // skip members with invalid node references
 
-                int iIdx = nodes.IndexOf(ni) * 3;
-                int jIdx = nodes.IndexOf(nj) * 3;
+                int iIdx = nodeIndexById[m.NodeI] * 3;
+                int jIdx = nodeIndexById[m.NodeJ] * 3;
 
                 double dx = nj.X - ni.X;
                 double dy = nj.Y - ni.Y;
@@ -2512,10 +2634,10 @@ namespace StingTools.Model
             // Recover member forces
             foreach (var m in members)
             {
-                var ni = nodes.First(n => n.Id == m.NodeI);
-                var nj = nodes.First(n => n.Id == m.NodeJ);
-                int iIdx = nodes.IndexOf(ni) * 3;
-                int jIdx = nodes.IndexOf(nj) * 3;
+                if (!nodeById.TryGetValue(m.NodeI, out var ni) || !nodeById.TryGetValue(m.NodeJ, out var nj))
+                    continue;
+                int iIdx = nodeIndexById[m.NodeI] * 3;
+                int jIdx = nodeIndexById[m.NodeJ] * 3;
 
                 double dx = nj.X - ni.X;
                 double dy = nj.Y - ni.Y;
@@ -2554,12 +2676,17 @@ namespace StingTools.Model
                 m.MomentJKNm = (6 * EI_L2 * (uLocal[1] - uLocal[4]) +
                     2 * EI_L * uLocal[2] + 4 * EI_L * uLocal[5]) / 1e6;
 
+                // Phase 79b CRITICAL FIX: Compute J-end shear independently from stiffness matrix
+                // (not copy from I-end). For asymmetric frames, V_J ≠ V_I.
+                m.ShearForceJKN = -(12 * EI_L3 * (uLocal[1] - uLocal[4]) +
+                    6 * EI_L2 * (uLocal[2] + uLocal[5])) / 1000.0;
+
                 // Add fixed-end forces from UDL
                 if (Math.Abs(m.UdlKNPerM) > 1e-10)
                 {
                     double Lm = L / 1000.0;
                     m.ShearForceIKN += m.UdlKNPerM * Lm / 2.0;
-                    m.ShearForceJKN = m.ShearForceIKN;
+                    m.ShearForceJKN += m.UdlKNPerM * Lm / 2.0;
                     m.MomentIKNm += m.UdlKNPerM * Lm * Lm / 12.0;
                     m.MomentJKNm -= m.UdlKNPerM * Lm * Lm / 12.0;
                 }
@@ -2620,8 +2747,9 @@ namespace StingTools.Model
                 var start = loc.Curve.GetEndPoint(0);
                 var end = loc.Curve.GetEndPoint(1);
 
-                var nodeI = getOrCreateNode(start.X * 304.8, start.Y * 304.8);
-                var nodeJ = getOrCreateNode(end.X * 304.8, end.Y * 304.8);
+                // SA-HIGH-01: Revit Z is vertical; map to 2D frame analysis as X-horizontal, Z-vertical
+                var nodeI = getOrCreateNode(start.X * 304.8, start.Z * 304.8);
+                var nodeJ = getOrCreateNode(end.X * 304.8, end.Z * 304.8);
 
                 // Extract section properties from type
                 double A = 5000; // Default 50cm² 
@@ -2670,8 +2798,20 @@ namespace StingTools.Model
 
         private static double[] SolveLinearSystem(double[,] A, double[] b, int n)
         {
-            // Cholesky-like LDL decomposition for symmetric positive definite
-            // Falls back to Gaussian elimination with partial pivoting
+            // SA-CRIT-02: Guard against excessive DOF count (dense O(n³) solver)
+            // 3000 DOF ≈ 1000 nodes → ~72 MB augmented matrix; beyond this, warn and cap
+            if (n > 3000)
+            {
+                StingLog.Warn($"Frame analysis: {n} DOF exceeds dense solver limit (3000). " +
+                    "Results may be slow or inaccurate for very large frames. Consider subdividing the model.");
+            }
+            if (n > 6000)
+            {
+                StingLog.Error($"Frame analysis: {n} DOF exceeds maximum (6000). Aborting to prevent out-of-memory.");
+                return null;
+            }
+
+            // Gaussian elimination with partial pivoting
             var augmented = new double[n, n + 1];
             for (int i = 0; i < n; i++)
             {
@@ -3077,13 +3217,12 @@ namespace StingTools.Model
                 population = newPop;
                 result.GenerationsUsed = gen + 1;
 
-                // Early termination if converged (top 10 are similar)
-                var topN = population.Select((p, i) => (p, fitnesses.Count > i ? fitnesses[i] : 0))
-                    .OrderByDescending(x => x.Item2).Take(10).Select(x => x.p).ToList();
-                if (topN.Count >= 10)
+                // Phase 79b FIX: Check convergence using population spatial spread (not stale fitness).
+                // Previous code paired newPop with old-generation fitnesses — meaningless ordering.
+                if (population.Count >= 10)
                 {
-                    double rangeX = topN.Max(t => t.SpacingX) - topN.Min(t => t.SpacingX);
-                    double rangeY = topN.Max(t => t.SpacingY) - topN.Min(t => t.SpacingY);
+                    double rangeX = population.Max(t => t.SpacingX) - population.Min(t => t.SpacingX);
+                    double rangeY = population.Max(t => t.SpacingY) - population.Min(t => t.SpacingY);
                     if (rangeX < 500 && rangeY < 500) break;
                 }
             }

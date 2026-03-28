@@ -83,6 +83,7 @@ namespace StingTools.Model
             }
             // No section meets requirement — return largest with warning
             StingLog.Warn($"SelectUBForMoment: No UB section for M_Ed={mEdKNm:F0}kNm (Sxx_req={sxxReq:F0}cm³). Largest available selected.");
+            if (!UBSections.Any()) return ("NO UB SECTIONS AVAILABLE", 0);
             var largest = UBSections.Last();
             return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
@@ -106,6 +107,7 @@ namespace StingTools.Model
                 if (util <= 1.0) return (s.Name, s.Mass);
             }
             StingLog.Warn($"SelectUCForAxialMoment: No UC section for N_Ed={nEdKN:F0}kN + M_Ed={mEdKNm:F0}kNm. Largest available selected.");
+            if (!UCSections.Any()) return ("NO UC SECTIONS AVAILABLE", 0);
             var largest = UCSections.Last();
             return ($"{largest.Name} (OVERSIZED)", largest.Mass);
         }
@@ -142,7 +144,12 @@ namespace StingTools.Model
 
             // Check moment capacity
             double d = depthMm - 45; // Assume 30 cover + 10 link + half bar
-            double mEd = (GammaG * udlKNm * 0.5 + GammaQ * udlKNm * 0.5) * spanM * spanM / 8;
+            // ESP-CRIT-02: Use 70/30 dead/live split per EC1-1-1 §6.2 (typical office/residential loading).
+            // 50/50 split underestimates permanent load contribution for most building types.
+            // w_uls = γG × 0.70 × w + γQ × 0.30 × w  (EC1-1-1 characteristic action combination)
+            double wDeadFraction = 0.70; // Dead load proportion of total UDL
+            double wLiveFraction = 0.30; // Imposed load proportion of total UDL
+            double mEd = (GammaG * wDeadFraction * udlKNm + GammaQ * wLiveFraction * udlKNm) * spanM * spanM / 8;
             double fcd = 0.85 * fck / GammaC;
             double K = mEd * 1e6 / (fcd * widthMm * d * d);
 
@@ -171,7 +178,8 @@ namespace StingTools.Model
         public static (string Section, double Mass, string Summary) AutoSizeSteelBeam(
             double spanM, double udlKNm, double fy = 355)
         {
-            double wUls = GammaG * udlKNm * 0.5 + GammaQ * udlKNm * 0.5;
+            // ESP-CRIT-02: 70/30 dead/live split per EC1-1-1 §6.2 (consistent with AutoSizeRCBeam)
+            double wUls = GammaG * 0.70 * udlKNm + GammaQ * 0.30 * udlKNm;
             double mEd = wUls * spanM * spanM / 8;
 
             // Deflection check (SLS: span/360 for imposed)
@@ -183,23 +191,57 @@ namespace StingTools.Model
             return (name, mass, $"M_Ed={mEd:F0}kNm, Section: {name} ({mass:F0}kg/m)");
         }
 
-        /// <summary>Auto-size foundation per EC7 (BS EN 1997-1).</summary>
+        /// <summary>Auto-size foundation per EC7 Design Approach 1 (DA1) (BS EN 1997-1 §6.5).</summary>
+        /// <param name="permanentKN">Characteristic permanent (dead) axial load (kN).</param>
+        /// <param name="variableKN">Characteristic variable (imposed) axial load (kN). Defaults to 0 if not provided.</param>
+        /// <param name="soilBearingKPa">Characteristic ultimate bearing resistance of soil (kPa).</param>
         public static (double WidthMm, double DepthMm, string Summary) AutoSizeFoundation(
-            double axialKN, double soilBearingKPa = 150)
+            double permanentKN, double variableKN = 0, double soilBearingKPa = 150)
         {
-            // EC7 bearing pressure check
-            double aReq = axialKN / soilBearingKPa * 1.0; // m² (approximate)
-            double widthM = Math.Sqrt(aReq);
-            double widthMm = Math.Ceiling(widthM * 1000 / 100) * 100; // Round to 100mm
-            widthMm = Math.Max(widthMm, 600);
+            // Phase 82 Finding 1: Input validation guards
+            if (soilBearingKPa <= 0)
+                return (600, 300, $"ERROR: soilBearingKPa={soilBearingKPa} must be > 0");
+            if (permanentKN < 0)
+                return (600, 300, $"ERROR: permanentKN={permanentKN} must be >= 0");
+            if (variableKN < 0)
+                return (600, 300, $"ERROR: variableKN={variableKN} must be >= 0");
 
-            // Depth: minimum 1/3 of projection from column face
+            // ESP-CRIT-03: Apply EC7 Design Approach 1 partial load factors (BS EN 1997-1 §2.4.7, Table A.3).
+            // DA1 Combination 1: γG = 1.35 (permanent), γQ = 1.50 (variable)  — governs for large variable loads
+            // DA1 Combination 2: γG = 1.00 (permanent), γQ = 1.30 (variable)  — governs for soil resistance
+            // Use Combination 1 to size the foundation area (load-governed).
+            const double gammaG_C1 = 1.35;
+            const double gammaQ_C1 = 1.50;
+            double nEd_C1 = gammaG_C1 * permanentKN + gammaQ_C1 * variableKN;
+
+            // Design bearing resistance is derived from the characteristic value with γR.v = 1.0 (DA1 C1)
+            // For preliminary sizing, use the characteristic bearing capacity directly.
+            double aReq = nEd_C1 / soilBearingKPa; // m² required
+            double widthM = Math.Sqrt(Math.Max(aReq, 0));
+            double widthMm = Math.Ceiling(widthM * 1000 / 100) * 100; // Round up to 100mm
+            widthMm = Math.Max(widthMm, 600); // Minimum 600mm width
+
+            // Depth: minimum 1/3 of projection from column face (BS 8004 / BS EN 1997-1 §6.8)
             double projection = (widthMm - 400) / 2; // Assume 400mm column
             double depthMm = Math.Max(projection / 3, 300);
             depthMm = Math.Ceiling(depthMm / 50) * 50;
 
-            double bearingPressure = axialKN / (widthMm * widthMm * 1e-6);
-            return (widthMm, depthMm, $"N={axialKN:F0}kN, Size={widthMm}x{widthMm}x{depthMm}mm, q={bearingPressure:F0}kPa ≤ {soilBearingKPa}kPa");
+            double charLoad = permanentKN + variableKN;
+            double bearingPressure = nEd_C1 / (widthMm * widthMm * 1e-6);
+            return (widthMm, depthMm,
+                $"Gk={permanentKN:F0}kN, Qk={variableKN:F0}kN, NEd(EC7 DA1-C1)={nEd_C1:F0}kN, " +
+                $"Size={widthMm}x{widthMm}x{depthMm}mm, q={bearingPressure:F0}kPa ≤ {soilBearingKPa}kPa");
+        }
+
+        /// <summary>
+        /// Backward-compatible overload accepting a single total axial load.
+        /// Assumes 70/30 permanent/variable split per EC1-1-1 §6.2.
+        /// </summary>
+        public static (double WidthMm, double DepthMm, string Summary) AutoSizeFoundation(
+            double axialKN, double soilBearingKPa)
+        {
+            // ESP-CRIT-03: Split total axial load into permanent + variable using 70/30 assumption
+            return AutoSizeFoundation(axialKN * 0.70, axialKN * 0.30, soilBearingKPa);
         }
 
         /// <summary>Auto-size all structural elements in model.</summary>
@@ -208,9 +250,23 @@ namespace StingTools.Model
             var sb = new StringBuilder();
             sb.AppendLine("STRUCTURAL AUTO-SIZING REPORT (EC2/EC3/EC7)\n");
 
-            // Beams
-            var beams = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .WhereElementIsNotElementType().ToList();
+            // ESP-MED-01: Pre-collect all structural elements in a single multi-category pass
+            // instead of 3 separate FilteredElementCollector calls.
+            var autoSizeFilter = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_StructuralFoundation
+            });
+            var allEls = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(autoSizeFilter)
+                .ToList();
+
+            var beams   = allEls.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFraming).ToList();
+            var columns = allEls.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralColumns).ToList();
+            var fnds    = allEls.Where(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation).ToList();
+
             sb.AppendLine($"BEAMS ({beams.Count}):");
             foreach (var beam in beams.Take(20))
             {
@@ -221,18 +277,12 @@ namespace StingTools.Model
                 sb.AppendLine($"  [{beam.Id.Value}] Recommended: {w}x{d}mm — {summary}");
             }
 
-            // Columns
-            var columns = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .WhereElementIsNotElementType().ToList();
             sb.AppendLine($"\nCOLUMNS ({columns.Count}):");
             foreach (var col in columns.Take(20))
             {
                 sb.AppendLine($"  [{col.Id.Value}] Current type: {ParameterHelpers.GetFamilySymbolName(col)}");
             }
 
-            // Foundations
-            var fnds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFoundation)
-                .WhereElementIsNotElementType().ToList();
             sb.AppendLine($"\nFOUNDATIONS ({fnds.Count}):");
 
             sb.AppendLine($"\nTotal structural elements: {beams.Count + columns.Count + fnds.Count}");
@@ -309,46 +359,107 @@ namespace StingTools.Model
             var sb = new StringBuilder();
             sb.AppendLine("EMBODIED CARBON ASSESSMENT\n");
 
-            // Carbon factors (kgCO2e/kg material) — ICE Database v3
-            double concreteCarbon = 0.13; // Per kg concrete (C32/40)
-            double rebarCarbon = 1.99; // Reinforcement
+            // ESP-CRIT-01: Material-based carbon factors from ICE Database v3.0 (University of Bath).
+            // Each element's material is inspected to select the correct density and carbon factor.
+            // Previously, all elements used concrete density/factor regardless of actual material.
+            //
+            // Density (kg/m³) and A1-A3 embodied carbon factor (kgCO2e/kg) per ICE DB v3.0:
+            // Concrete C32/40: 2400 kg/m³, 0.13 kgCO2e/kg
+            // Reinforcement (rebar): 7850 kg/m³, 1.99 kgCO2e/kg (virgin), 0.52 (recycled content typical)
+            // Structural steel (hot-rolled): 7850 kg/m³, 1.55 kgCO2e/kg (UK grid mix)
+            // Timber (glulam): 500 kg/m³, 0.51 kgCO2e/kg (with sequestration credit −1.83 kgCO2e/kg)
+            // Masonry (brick): 1900 kg/m³, 0.24 kgCO2e/kg
+            static (double density, double carbonFactor, bool addRebar) GetMaterialProps(string matName)
+            {
+                string m = (matName ?? "").ToLowerInvariant();
+                if (m.Contains("steel") || m.Contains("s355") || m.Contains("s275") || m.Contains("s235"))
+                    return (7850, 1.55, false);   // Structural steel — no rebar
+                if (m.Contains("timber") || m.Contains("wood") || m.Contains("glulam") || m.Contains("clt"))
+                    return (500, 0.51, false);    // Timber
+                if (m.Contains("masonry") || m.Contains("brick") || m.Contains("block"))
+                    return (1900, 0.24, false);   // Masonry
+                // Default: reinforced concrete C32/40 with 2% rebar by weight
+                return (2400, 0.13, true);
+            }
 
-            double totalConcrete = 0, totalRebar = 0;
+            // Collect beams and columns in a single pass (ESP-MED-01: avoid repeated collectors)
+            var structFilter = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralColumns
+            });
+            var allElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(structFilter)
+                .ToList();
 
-            var beams = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .WhereElementIsNotElementType().ToList();
-            var columns = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .WhereElementIsNotElementType().ToList();
+            double totalConcrete = 0, totalRebar = 0, totalSteel = 0, totalTimber = 0, totalOther = 0;
+            double co2Total = 0;
 
-            // Estimate volumes (simplified)
-            foreach (var el in beams.Concat(columns))
+            var geomOptions = new Options();
+            foreach (var el in allElements)
             {
                 try
                 {
-                    var geom = el.get_Geometry(new Options());
+                    // Read primary material name from element type
+                    string matName = "";
+                    var matIdParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
+                                  ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
+                    if (matIdParam != null && matIdParam.StorageType == StorageType.ElementId)
+                    {
+                        var matEl = doc.GetElement(matIdParam.AsElementId());
+                        matName = matEl?.Name ?? "";
+                    }
+
+                    var (density, carbonFactor, addRebar) = GetMaterialProps(matName);
+
+                    var geom = el.get_Geometry(geomOptions);
                     if (geom == null) continue;
                     foreach (var gObj in geom)
                     {
                         if (gObj is Solid solid && solid.Volume > 0)
                         {
                             double volM3 = solid.Volume * 0.0283168; // ft³ → m³
-                            totalConcrete += volM3 * 2400; // kg (density of concrete)
-                            totalRebar += volM3 * 2400 * 0.02; // ~2% rebar by weight
+                            double massKg = volM3 * density;
+                            double co2 = massKg * carbonFactor / 1000.0; // tCO2e
+                            co2Total += co2;
+
+                            if (addRebar)
+                            {
+                                double rebarMassKg = massKg * 0.02; // ~2% rebar by weight (typical RC)
+                                double co2Rebar = rebarMassKg * 1.99 / 1000.0;
+                                co2Total += co2Rebar;
+                                totalConcrete += massKg;
+                                totalRebar += rebarMassKg;
+                            }
+                            else if (density > 5000)
+                                totalSteel += massKg;
+                            else if (density < 1000)
+                                totalTimber += massKg;
+                            else
+                                totalOther += massKg;
                         }
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Carbon calc: {ex.Message}"); }
             }
 
-            double co2Concrete = totalConcrete * concreteCarbon / 1000; // tonnes
-            double co2Rebar = totalRebar * rebarCarbon / 1000;
-            double co2Total = co2Concrete + co2Rebar;
+            int beamCount = allElements.Count(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFraming);
+            int colCount  = allElements.Count(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralColumns);
 
-            sb.AppendLine($"Concrete: {totalConcrete:F0} kg → {co2Concrete:F1} tCO2e");
-            sb.AppendLine($"Rebar: {totalRebar:F0} kg → {co2Rebar:F1} tCO2e");
+            if (totalConcrete > 0)
+                sb.AppendLine($"Concrete: {totalConcrete:F0} kg → {totalConcrete * 0.13 / 1000:F1} tCO2e");
+            if (totalRebar > 0)
+                sb.AppendLine($"Rebar: {totalRebar:F0} kg → {totalRebar * 1.99 / 1000:F1} tCO2e");
+            if (totalSteel > 0)
+                sb.AppendLine($"Structural steel: {totalSteel:F0} kg → {totalSteel * 1.55 / 1000:F1} tCO2e");
+            if (totalTimber > 0)
+                sb.AppendLine($"Timber: {totalTimber:F0} kg → {totalTimber * 0.51 / 1000:F1} tCO2e");
+            if (totalOther > 0)
+                sb.AppendLine($"Other materials: {totalOther:F0} kg");
             sb.AppendLine($"TOTAL: {co2Total:F1} tCO2e");
-            sb.AppendLine($"\nElements analysed: {beams.Count} beams + {columns.Count} columns");
-            sb.AppendLine("Carbon factors: ICE Database v3 (University of Bath)");
+            sb.AppendLine($"\nElements analysed: {beamCount} beams + {colCount} columns");
+            sb.AppendLine("Carbon factors: ICE Database v3.0 (University of Bath)");
             return sb.ToString();
         }
     }
@@ -381,8 +492,55 @@ namespace StingTools.Model
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) return Result.Failed;
 
-            // Get building extents from levels and outline
-            string result = StructuralOptimizer.OptimizeColumnGrid(40, 20, 5);
+            // ESP-HIGH-01: Derive building dimensions from the model's bounding box and level count
+            // instead of using hardcoded 40m × 20m × 5 floors.
+            double buildingLengthM = 40, buildingWidthM = 20;
+            int floorCount = 5;
+            try
+            {
+                var doc = ctx.Doc;
+                // Level count
+                var levels = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .WhereElementIsNotElementType()
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+                if (levels.Count > 1) floorCount = levels.Count - 1; // exclude roof level
+
+                // Building plan extents from all wall/column bounding boxes
+                double minX = double.MaxValue, maxX = double.MinValue;
+                double minY = double.MaxValue, maxY = double.MinValue;
+                var planFilter = new ElementMulticategoryFilter(new[]
+                {
+                    BuiltInCategory.OST_Walls,
+                    BuiltInCategory.OST_StructuralColumns
+                });
+                var planEls = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(planFilter)
+                    .ToList();
+                foreach (var el in planEls)
+                {
+                    var bb = el.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    if (bb.Min.X < minX) minX = bb.Min.X;
+                    if (bb.Max.X > maxX) maxX = bb.Max.X;
+                    if (bb.Min.Y < minY) minY = bb.Min.Y;
+                    if (bb.Max.Y > maxY) maxY = bb.Max.Y;
+                }
+                if (maxX > minX && maxY > minY)
+                {
+                    // Convert from Revit internal feet to metres
+                    buildingLengthM = Math.Round((maxX - minX) * 0.3048, 0);
+                    buildingWidthM  = Math.Round((maxY - minY) * 0.3048, 0);
+                    buildingLengthM = Math.Max(buildingLengthM, 5);  // Sanity minimum
+                    buildingWidthM  = Math.Max(buildingWidthM, 5);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GridOptimize extents: {ex.Message}"); }
+
+            string result = StructuralOptimizer.OptimizeColumnGrid(buildingLengthM, buildingWidthM, floorCount);
             TaskDialog.Show("STING Grid Optimize", result);
             return Result.Succeeded;
         }
@@ -434,12 +592,27 @@ namespace StingTools.Model
             sb.AppendLine($"Project: {ctx.Doc.Title}");
             sb.AppendLine($"Date: {DateTime.Now:yyyy-MM-dd}\n");
 
-            // Count elements
-            int cols = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().GetElementCount();
-            int beams = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().GetElementCount();
-            int fnds = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_StructuralFoundation).WhereElementIsNotElementType().GetElementCount();
-            int walls = new FilteredElementCollector(ctx.Doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType()
-                .Where(w => w.get_Parameter(BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)?.AsInteger() == 1).Count();
+            // ESP-HIGH-02: Combine 5 separate FilteredElementCollector calls into a single
+            // multi-category pass, then partition in memory to avoid 5× full-model scans.
+            var structReportFilter = new ElementMulticategoryFilter(new[]
+            {
+                BuiltInCategory.OST_StructuralColumns,
+                BuiltInCategory.OST_StructuralFraming,
+                BuiltInCategory.OST_StructuralFoundation,
+                BuiltInCategory.OST_Walls
+            });
+            var allStructEls = new FilteredElementCollector(ctx.Doc)
+                .WhereElementIsNotElementType()
+                .WherePasses(structReportFilter)
+                .ToList();
+
+            int cols  = allStructEls.Count(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralColumns);
+            int beams = allStructEls.Count(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFraming);
+            int fnds  = allStructEls.Count(e => e.Category?.Id?.Value == (int)BuiltInCategory.OST_StructuralFoundation);
+            int walls = allStructEls.Count(e =>
+                e.Category?.Id?.Value == (int)BuiltInCategory.OST_Walls &&
+                e.get_Parameter(BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)?.AsInteger() == 1);
+            // Rebar must use OfClass — no category equivalent for Rebar instances
             int rebar = new FilteredElementCollector(ctx.Doc).OfClass(typeof(Rebar)).GetElementCount();
 
             sb.AppendLine("ELEMENT SUMMARY:");

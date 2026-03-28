@@ -554,12 +554,6 @@ namespace StingTools.Core
 
         // ── CLASSIFICATION ──
 
-        /// <summary>Phase 78 PERF-WARN: Precompiled lowercase patterns for O(1) string comparison.
-        /// Eliminates 150+ ToLowerInvariant() calls per warning by pre-lowering all patterns at class init.</summary>
-        private static readonly (string pattern, WarningCategory cat, WarningSeverity sev, string fix, bool autoFix)[]
-            _loweredRules = ClassificationRules.Select(r =>
-                (r.pattern.ToLowerInvariant(), r.cat, r.sev, r.fix, r.autoFix)).ToArray();
-
         /// <summary>Phase 78 EF-02: Warning classification cache — identical descriptions return cached result.</summary>
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (WarningCategory, WarningSeverity, string, bool)>
             _classificationCache = new();
@@ -582,6 +576,7 @@ namespace StingTools.Core
             // Reduces classification time by 60-80% on models with 500+ warnings.
             string[] descWords = lower.Split(new[] { ' ', ',', '.', ':', ';', '-' },
                 StringSplitOptions.RemoveEmptyEntries);
+            int wordCount = 0;
             foreach (string word in descWords)
             {
                 if (_ruleFirstWordIndex.TryGetValue(word, out var indices))
@@ -597,7 +592,7 @@ namespace StingTools.Core
                         }
                     }
                 }
-                if (descWords.Length > 5) break; // Only check first 5 words for efficiency
+                if (++wordCount >= 5) break;
             }
 
             // Full scan fallback — use pre-computed _loweredPatterns[] instead of per-call ToLowerInvariant()
@@ -674,6 +669,7 @@ namespace StingTools.Core
         // Every call to ScanWarnings re-scanned all warnings from scratch (15+ callers).
         private static WarningReport _cachedReport;
         private static DateTime _reportCacheTime = DateTime.MinValue;
+        private static string _cachedReportDocKey;
         private static readonly TimeSpan ReportCacheLifetime = TimeSpan.FromSeconds(30);
 
         /// <summary>Get cached warning report without triggering a new scan. Returns null if no cache.</summary>
@@ -684,6 +680,7 @@ namespace StingTools.Core
         {
             _cachedReport = null;
             _reportCacheTime = DateTime.MinValue;
+            _cachedReportDocKey = null;
         }
 
         // ── FULL SCAN ──
@@ -694,8 +691,9 @@ namespace StingTools.Core
         /// </summary>
         internal static WarningReport ScanWarnings(Document doc)
         {
-            // PERF: Return cached report if recent (30-second TTL)
-            if (_cachedReport != null && (DateTime.Now - _reportCacheTime) < ReportCacheLifetime)
+            // PERF: Return cached report if recent (30-second TTL) and same document
+            string docKey = doc.PathName ?? doc.Title ?? "";
+            if (_cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
 
             var report = new WarningReport();
@@ -729,32 +727,32 @@ namespace StingTools.Core
                 else report.ManualReview++;
 
                 // Category counts
-                if (!report.ByCategory.ContainsKey(cw.Category)) report.ByCategory[cw.Category] = 0;
-                report.ByCategory[cw.Category]++;
+                report.ByCategory.TryGetValue(cw.Category, out int catCount);
+                report.ByCategory[cw.Category] = catCount + 1;
 
                 // Severity counts
-                if (!report.BySeverity.ContainsKey(cw.Severity)) report.BySeverity[cw.Severity] = 0;
-                report.BySeverity[cw.Severity]++;
+                report.BySeverity.TryGetValue(cw.Severity, out int sevCount);
+                report.BySeverity[cw.Severity] = sevCount + 1;
 
                 // Level counts
                 if (!string.IsNullOrEmpty(cw.LevelName))
                 {
-                    if (!report.ByLevel.ContainsKey(cw.LevelName)) report.ByLevel[cw.LevelName] = 0;
-                    report.ByLevel[cw.LevelName]++;
+                    report.ByLevel.TryGetValue(cw.LevelName, out int lvlCount);
+                    report.ByLevel[cw.LevelName] = lvlCount + 1;
                 }
 
                 // Workset counts
                 if (!string.IsNullOrEmpty(cw.WorksetName))
                 {
-                    if (!report.ByWorkset.ContainsKey(cw.WorksetName)) report.ByWorkset[cw.WorksetName] = 0;
-                    report.ByWorkset[cw.WorksetName]++;
+                    report.ByWorkset.TryGetValue(cw.WorksetName, out int wsCount);
+                    report.ByWorkset[cw.WorksetName] = wsCount + 1;
                 }
 
                 // Discipline counts
                 if (!string.IsNullOrEmpty(cw.Discipline))
                 {
-                    if (!report.ByDiscipline.ContainsKey(cw.Discipline)) report.ByDiscipline[cw.Discipline] = 0;
-                    report.ByDiscipline[cw.Discipline]++;
+                    report.ByDiscipline.TryGetValue(cw.Discipline, out int discCount);
+                    report.ByDiscipline[cw.Discipline] = discCount + 1;
                 }
 
                 // Hotspot counting
@@ -763,8 +761,8 @@ namespace StingTools.Core
                     foreach (ElementId eid in cw.FailingElements)
                     {
                         long key = eid.Value;
-                        if (!elementCounts.ContainsKey(key)) elementCounts[key] = 0;
-                        elementCounts[key]++;
+                        elementCounts.TryGetValue(key, out int elCount);
+                        elementCounts[key] = elCount + 1;
                     }
                 }
             }
@@ -820,10 +818,10 @@ namespace StingTools.Core
                     report.Warnings.Add(syntheticStale);
                     report.Total++;
                     report.AutoFixable++;
-                    if (!report.ByCategory.ContainsKey(WarningCategory.Data)) report.ByCategory[WarningCategory.Data] = 0;
-                    report.ByCategory[WarningCategory.Data]++;
-                    if (!report.BySeverity.ContainsKey(WarningSeverity.High)) report.BySeverity[WarningSeverity.High] = 0;
-                    report.BySeverity[WarningSeverity.High]++;
+                    report.ByCategory.TryGetValue(WarningCategory.Data, out int dataCatCount);
+                    report.ByCategory[WarningCategory.Data] = dataCatCount + 1;
+                    report.BySeverity.TryGetValue(WarningSeverity.High, out int highSevCount);
+                    report.BySeverity[WarningSeverity.High] = highSevCount + 1;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
@@ -838,7 +836,8 @@ namespace StingTools.Core
 
             // PERF: Cache the report for 30 seconds to prevent redundant re-scans
             _cachedReport = report;
-            _reportCacheTime = DateTime.Now;
+            _reportCacheTime = DateTime.UtcNow;
+            _cachedReportDocKey = docKey;
 
             return report;
         }
@@ -873,7 +872,7 @@ namespace StingTools.Core
                     }
                     // Fallback: delete second failing element
                     var ids = cw.FailingElements.ToList();
-                    if (ids.Count >= 2)
+                    if (ids.Count >= 2 && doc.GetElement(ids[1]) != null)
                     {
                         doc.Delete(ids[1]);
                         return true;
@@ -888,13 +887,16 @@ namespace StingTools.Core
                     {
                         double len0 = GetCurveLength(doc, ids[0]);
                         double len1 = GetCurveLength(doc, ids[1]);
+                        // If either length is MaxValue (element not found/no curve), skip auto-fix
+                        if (len0 == double.MaxValue || len1 == double.MaxValue)
+                            return false;
                         doc.Delete(len0 <= len1 ? ids[0] : ids[1]);
                         return true;
                     }
                 }
 
-                // Strategy 3: Redundant elements — delete
-                if (lower.Contains("redundant"))
+                // Strategy 3: Redundant elements — delete (exclude room separation lines handled by Strategy 2)
+                if (lower.Contains("redundant") && !lower.Contains("room separation line"))
                 {
                     var ids = cw.FailingElements.ToList();
                     if (ids.Count >= 2)
@@ -1025,7 +1027,7 @@ namespace StingTools.Core
                                 {
                                     var dir = line.Direction;
                                     // Snap near-horizontal to horizontal, near-vertical to vertical
-                                    if (Math.Abs(dir.Y) < 0.01 && Math.Abs(dir.Y) > 0.0001)
+                                    if (Math.Abs(dir.Y) > 0.0001 && Math.Abs(dir.Y) < 0.01)
                                     {
                                         var newEnd = new XYZ(line.GetEndPoint(1).X, line.GetEndPoint(0).Y, line.GetEndPoint(1).Z);
                                         lc.Curve = Line.CreateBound(line.GetEndPoint(0), newEnd);
@@ -1065,7 +1067,8 @@ namespace StingTools.Core
                 }
 
                 // Phase 63: Strategy 10: Fix duplicate mark values — use pre-cached marks from BatchAutoFix
-                if (lower.Contains("duplicate mark"))
+                // Exclude "duplicate mark value" which is handled by Strategy 4
+                if (lower.Contains("duplicate mark") && !lower.Contains("duplicate mark value") && !lower.Contains("duplicate type mark"))
                 {
                     var ids = cw.FailingElements.ToList();
                     if (ids.Count >= 2)
@@ -1103,33 +1106,6 @@ namespace StingTools.Core
                             }
                         }
                         catch (Exception ex2) { StingLog.Warn($"Duplicate mark fix: {ex2.Message}"); }
-                    }
-                }
-
-                // Phase 67: Strategy 11: Fix room tags outside room boundary
-                if (lower.Contains("room tag") && lower.Contains("outside"))
-                {
-                    foreach (var id in cw.FailingElements)
-                    {
-                        try
-                        {
-                            var roomTag = doc.GetElement(id) as Autodesk.Revit.DB.Architecture.RoomTag;
-                            if (roomTag?.Room != null)
-                            {
-                                XYZ roomCenter = roomTag.Room.get_BoundingBox(null)?.Min;
-                                if (roomCenter != null)
-                                {
-                                    var roomBB = roomTag.Room.get_BoundingBox(null);
-                                    var center = new XYZ(
-                                        (roomBB.Min.X + roomBB.Max.X) / 2,
-                                        (roomBB.Min.Y + roomBB.Max.Y) / 2,
-                                        roomBB.Min.Z);
-                                    roomTag.Location.Move(center - (roomTag.Location as LocationPoint).Point);
-                                    return true;
-                                }
-                            }
-                        }
-                        catch (Exception exRT) { StingLog.Warn($"Room tag fix: {exRT.Message}"); }
                     }
                 }
 
@@ -1253,21 +1229,33 @@ namespace StingTools.Core
             var impact = new WarningImpactAnalysis();
             foreach (var w in warnings)
             {
-                string lower = (w.Description ?? "").ToLowerInvariant();
+                // HIGH-10: Use StringComparison.OrdinalIgnoreCase — avoids ToLowerInvariant() allocation per warning
+                string desc = w.Description ?? "";
                 // COBie impact: data quality warnings, missing params, duplicate marks
-                if (w.Category == WarningCategory.Data || lower.Contains("duplicate mark") || lower.Contains("missing parameter"))
+                if (w.Category == WarningCategory.Data
+                    || desc.IndexOf("duplicate mark", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("missing parameter", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsCOBie++;
                 // IFC impact: geometric, structural, and material warnings
-                if (w.Category == WarningCategory.Geometric || w.Category == WarningCategory.Structural || lower.Contains("material"))
+                if (w.Category == WarningCategory.Geometric
+                    || w.Category == WarningCategory.Structural
+                    || desc.IndexOf("material", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsIFC++;
                 // FM handover: spatial, compliance, MEP system warnings
-                if (w.Category == WarningCategory.Spatial || w.Category == WarningCategory.Compliance || lower.Contains("system"))
+                if (w.Category == WarningCategory.Spatial
+                    || w.Category == WarningCategory.Compliance
+                    || desc.IndexOf("system", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsHandover++;
                 // Schedule: data quality, level offset, parameter warnings
-                if (lower.Contains("schedule") || lower.Contains("offset from level") || lower.Contains("parameter"))
+                if (desc.IndexOf("schedule", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("offset from level", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("parameter", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsSchedules++;
                 // Clash: geometric overlap, MEP intersection warnings
-                if (lower.Contains("overlap") || lower.Contains("intersect") || lower.Contains("clash") || lower.Contains("conflict"))
+                if (desc.IndexOf("overlap", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("intersect", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("clash", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("conflict", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsClash++;
             }
             impact.TotalDeliverableImpact = impact.AffectsCOBie + impact.AffectsIFC + impact.AffectsHandover + impact.AffectsSchedules + impact.AffectsClash;
@@ -1527,7 +1515,7 @@ namespace StingTools.Core
                 StingLog.Warn($"SaveBaseline: {ex.Message}");
                 // Clean up temp file on failure
                 try { string tp = GetBaselinePath(doc) + ".tmp"; if (File.Exists(tp)) File.Delete(tp); }
-                catch { /* best effort cleanup */ }
+                catch (Exception cleanupEx) { StingLog.Warn($"SaveBaseline cleanup: {cleanupEx.Message}"); }
             }
         }
 
@@ -1547,7 +1535,7 @@ namespace StingTools.Core
                 if (endIdx > 0) numStr = numStr.Substring(0, endIdx);
                 return int.TryParse(numStr, out int val) ? val : null;
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"LoadBaseline: {ex.Message}"); return null; }
         }
 
         // ── EXPORT ──
@@ -1944,12 +1932,16 @@ namespace StingTools.Core
         /// Append an entry to the coordination log sidecar file.
         /// Thread-safe write with retry.
         /// </summary>
+        // CRIT-06: Counter for cap enforcement (every 100th call)
+        private static int _coordLogCallCount = 0;
+
         internal static void LogCoordinationAction(Document doc, string action, string category, string detail, string impact = "LOW")
         {
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.json");
+                // CRIT-06: JSONL append-only — avoids read/parse/rewrite on every call
+                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
 
                 var entry = new UI.BIMCoordinationCenter.CoordLogEntry
                 {
@@ -1961,28 +1953,25 @@ namespace StingTools.Core
                     Impact = impact
                 };
 
-                List<UI.BIMCoordinationCenter.CoordLogEntry> entries;
-                if (File.Exists(logPath))
+                // CRIT-06: Append single JSON line — O(1) regardless of file size
+                string line = Newtonsoft.Json.JsonConvert.SerializeObject(entry);
+                File.AppendAllText(logPath, line + Environment.NewLine);
+
+                // CRIT-06: Enforce 1000-entry cap every 100th call to avoid unbounded growth
+                _coordLogCallCount++;
+                if (_coordLogCallCount % 100 == 0 && File.Exists(logPath))
                 {
                     try
                     {
-                        entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
-                            File.ReadAllText(logPath)) ?? new List<UI.BIMCoordinationCenter.CoordLogEntry>();
+                        var lines = File.ReadAllLines(logPath);
+                        if (lines.Length > 1000)
+                        {
+                            // Keep only the most recent 1000 lines
+                            File.WriteAllLines(logPath, lines.Skip(lines.Length - 1000));
+                        }
                     }
-                    catch { entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>(); }
+                    catch (Exception ex) { StingLog.Warn($"CoordLog cap: {ex.Message}"); }
                 }
-                else
-                {
-                    entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>();
-                }
-
-                entries.Add(entry);
-
-                // Cap at 500 entries — rotate oldest
-                if (entries.Count > 500)
-                    entries = entries.Skip(entries.Count - 500).ToList();
-
-                File.WriteAllText(logPath, Newtonsoft.Json.JsonConvert.SerializeObject(entries, Newtonsoft.Json.Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"CoordLog write: {ex.Message}"); }
         }
@@ -2011,7 +2000,7 @@ namespace StingTools.Core
             double currentX = (DateTime.Now.Ticks / (double)TimeSpan.TicksPerDay) - baseTime;
             double projected = slope * currentX + intercept;
 
-            if (slope <= 0) return (-1, Math.Max(0, Math.Min(100, projected))); // Not improving
+            if (slope <= 0 || Math.Abs(slope) < 1e-10) return (-1, Math.Max(0, Math.Min(100, projected))); // Not improving
 
             double daysToTarget = (targetPct - projected) / slope;
             return (Math.Max(0, daysToTarget), Math.Max(0, Math.Min(100, projected)));
@@ -2043,14 +2032,17 @@ namespace StingTools.Core
             return thresholds;
         }
 
+        // HIGH-08: SLAThresholdsHours is a mutable view — LoadSLAThresholds() populates it;
+        // callers that only need a snapshot should use GetSLAThresholds() instead.
+        // Initialised from GetSLAThresholds() defaults to avoid duplication.
         /// Configurable via WARNING_SLA_*_HOURS keys in project_config.json.</summary>
         internal static Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
         {
-            { WarningSeverity.Critical, 4 },     // 4 hours
-            { WarningSeverity.High, 24 },         // 1 day
-            { WarningSeverity.Medium, 168 },      // 1 week
-            { WarningSeverity.Low, 336 },         // 2 weeks
-            { WarningSeverity.Info, double.MaxValue }  // No SLA
+            { WarningSeverity.Critical, 4 },     // 4 hours — overridden by LoadSLAThresholds()
+            { WarningSeverity.High, 24 },
+            { WarningSeverity.Medium, 168 },
+            { WarningSeverity.Low, 336 },
+            { WarningSeverity.Info, double.MaxValue }
         };
 
         /// <summary>Load SLA thresholds from project_config.json with current defaults as fallbacks.</summary>
@@ -2148,7 +2140,7 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(desc) || !seen.Add(desc)) continue;
 
                         // Preserve existing first-seen date, or stamp new
-                        string firstSeenDate = firstSeen.ContainsKey(desc) ? firstSeen[desc] : now;
+                        string firstSeenDate = firstSeen.TryGetValue(desc, out string fsDate) ? fsDate : now;
                         string escaped = desc.Replace("\\", "\\\\").Replace("\"", "\\\"");
                         typeEntries.Add($"{{\"desc\":\"{escaped}\",\"first_seen\":\"{firstSeenDate}\",\"count\":1}}");
                     }
@@ -2217,20 +2209,15 @@ namespace StingTools.Core
                 if (firstSeen.Count == 0) return violations;
 
                 var now = DateTime.Now;
+                // HIGH-07: Use configurable SLA thresholds instead of hardcoded values
+                var slaThresholds = GetSLAThresholds();
                 foreach (var group in report.RootCauseGroups)
                 {
                     if (!firstSeen.TryGetValue(group.Description, out string fsStr)) continue;
                     if (!DateTime.TryParse(fsStr, out DateTime fsDate)) continue;
 
                     double ageHours = (now - fsDate).TotalHours;
-                    double slaHours = group.Severity switch
-                    {
-                        WarningSeverity.Critical => 4,
-                        WarningSeverity.High => 24,
-                        WarningSeverity.Medium => 168,
-                        WarningSeverity.Low => 336,
-                        _ => 336
-                    };
+                    double slaHours = slaThresholds.TryGetValue(group.Severity, out double sv) ? sv : 336;
 
                     if (ageHours > slaHours)
                         violations.Add((group.Description, ageHours, slaHours, group.Severity));
@@ -2422,8 +2409,9 @@ namespace StingTools.Core
                         checks.Add(("Container completion ≥ 98%", containerPct >= 98, $"{containerPct:F0}%"));
                         checks.Add(("No stale elements", stale == 0, stale > 0 ? $"{stale}" : "OK"));
                         checks.Add(("No critical warnings", critical == 0, critical > 0 ? $"{critical}" : "OK"));
-                        checks.Add(("Warning health ≥ 80", CalculateWarningHealthScore(warnings) >= 80,
-                            $"{CalculateWarningHealthScore(warnings)}"));
+                        // HIGH-09: compute once, use twice — avoid redundant call to CalculateWarningHealthScore
+                        int healthScore = CalculateWarningHealthScore(warnings);
+                        checks.Add(("Warning health ≥ 80", healthScore >= 80, $"{healthScore}"));
                         int spatialWarnings = warnings?.ByCategory.GetValueOrDefault(WarningCategory.Spatial) ?? 0;
                         checks.Add(("No spatial warnings", spatialWarnings == 0, $"{spatialWarnings}"));
                         break;
@@ -2622,7 +2610,7 @@ namespace StingTools.Core
                     if (File.Exists(issuesPath))
                     {
                         try { arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(issuesPath)); }
-                        catch { arr = new Newtonsoft.Json.Linq.JArray(); }
+                        catch (Exception ex) { StingLog.Warn($"ParseJArray: {ex.Message}"); arr = new Newtonsoft.Json.Linq.JArray(); }
                     }
                     else arr = new Newtonsoft.Json.Linq.JArray();
 
@@ -3061,7 +3049,7 @@ namespace StingTools.Core
         internal static void SnapshotBefore(Document doc)
         {
             try { _preCommandCount = doc?.GetWarnings()?.Count; }
-            catch { _preCommandCount = null; }
+            catch (Exception ex) { StingLog.Warn($"WarningSnapshot: {ex.Message}"); _preCommandCount = null; }
         }
 
         /// <summary>Call after a command — shows alert if warnings increased.</summary>
@@ -3393,7 +3381,7 @@ namespace StingTools.Core
                     return links.Where(l => l["issue_id"]?.ToString() == issueId)
                         .Select(l => l["document_id"]?.ToString()).Where(d => d != null).ToList();
                 }
-                catch { return new List<string>(); }
+                catch (Exception ex) { StingLog.Warn($"LoadSuppression: {ex.Message}"); return new List<string>(); }
             }
         }
 
@@ -3587,12 +3575,23 @@ namespace StingTools.Core
                 {
                     var revisions = new FilteredElementCollector(doc).OfClass(typeof(Revision)).ToElements();
                     revisionCount = revisions.Count;
+                    // Pre-collect all revision clouds once and group by revision ID
+                    var allClouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                        .WhereElementIsNotElementType().ToElements();
+                    var cloudsByRevId = new Dictionary<ElementId, int>();
+                    foreach (var c in allClouds)
+                    {
+                        var revId = c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                        if (revId != null && revId != ElementId.InvalidElementId)
+                        {
+                            cloudsByRevId.TryGetValue(revId, out int cnt);
+                            cloudsByRevId[revId] = cnt + 1;
+                        }
+                    }
                     foreach (var rev in revisions.Cast<Revision>())
                     {
-                        var clouds = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
-                            .WhereElementIsNotElementType().ToElements()
-                            .Where(c => c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id);
-                        revisionClouds += clouds.Count();
+                        cloudsByRevId.TryGetValue(rev.Id, out int clouds);
+                        revisionClouds += clouds;
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"BIMCoordCenter revision load: {ex.Message}"); }
@@ -3667,11 +3666,26 @@ namespace StingTools.Core
                 try
                 {
                     var revisions2 = new FilteredElementCollector(doc).OfClass(typeof(Revision)).Cast<Revision>().ToList();
+                    // Pre-collect all clouds once; group by revision ID to avoid per-revision collectors
+                    var allClouds2 = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
+                        .WhereElementIsNotElementType().ToElements();
+                    var cloudsByRevId2 = new Dictionary<ElementId, int>();
+                    foreach (var c2 in allClouds2)
+                    {
+                        try
+                        {
+                            var rid2 = c2.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId();
+                            if (rid2 != null && rid2 != ElementId.InvalidElementId)
+                            {
+                                cloudsByRevId2.TryGetValue(rid2, out int cnt2);
+                                cloudsByRevId2[rid2] = cnt2 + 1;
+                            }
+                        }
+                        catch { }
+                    }
                     foreach (var rev in revisions2)
                     {
-                        int clouds2 = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_RevisionClouds)
-                            .WhereElementIsNotElementType().ToElements()
-                            .Count(c => { try { return c.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION)?.AsElementId() == rev.Id; } catch { return false; } });
+                        cloudsByRevId2.TryGetValue(rev.Id, out int clouds2);
                         revisionRows.Add(new UI.BIMCoordinationCenter.RevisionRow
                         {
                             Id = rev.Id.Value.ToString(),

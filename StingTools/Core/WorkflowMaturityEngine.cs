@@ -53,7 +53,7 @@ namespace StingTools.Core
                 {
                     if (!inDegree.ContainsKey(step.StepTag))
                         inDegree[step.StepTag] = 0;
-                    if (!adjacency.ContainsKey(step.StepTag))
+                    if (!adjacency.TryGetValue(step.StepTag, out _))
                         adjacency[step.StepTag] = new List<string>();
                 }
 
@@ -62,13 +62,12 @@ namespace StingTools.Core
                 {
                     foreach (var dep in step.DependsOn)
                     {
-                        if (!adjacency.ContainsKey(dep))
-                            adjacency[dep] = new List<string>();
-                        adjacency[dep].Add(step.StepTag);
+                        if (!adjacency.TryGetValue(dep, out var depList))
+                            adjacency[dep] = depList = new List<string>();
+                        depList.Add(step.StepTag);
 
-                        if (!inDegree.ContainsKey(step.StepTag))
-                            inDegree[step.StepTag] = 0;
-                        inDegree[step.StepTag]++;
+                        inDegree.TryGetValue(step.StepTag, out int cur);
+                        inDegree[step.StepTag] = cur + 1;
                     }
                 }
 
@@ -95,8 +94,7 @@ namespace StingTools.Core
                 if (ordered.Count < steps.Count)
                 {
                     var missing = steps.Select(s => s.StepTag).Except(ordered).ToList();
-                    StingLog.Warn($"StepDependencyResolver: cycle detected — steps not reachable: {string.Join(", ", missing)}");
-                    // Add unreachable steps at end
+                    StingLog.Warn($"StepDependencyResolver: cycle detected — appending {missing.Count} steps involved in dependency cycle: {string.Join(", ", missing)}");
                     ordered.AddRange(missing);
                 }
             }
@@ -405,7 +403,7 @@ namespace StingTools.Core
                     }).ToList()
                 };
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entry, Newtonsoft.Json.Formatting.Indented);
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(entry, Newtonsoft.Json.Formatting.None);
 
                 // Append to JSONL
                 File.AppendAllText(path, json + "\n");

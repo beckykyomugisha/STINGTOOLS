@@ -332,11 +332,13 @@ namespace StingTools.BIMManager
                     if (lvl != null) levelName = lvl.Name;
                 }
 
-                if (!elementsByLevelAndCat.ContainsKey(levelName))
-                    elementsByLevelAndCat[levelName] = new Dictionary<string, int>();
-                if (!elementsByLevelAndCat[levelName].ContainsKey(cat))
-                    elementsByLevelAndCat[levelName][cat] = 0;
-                elementsByLevelAndCat[levelName][cat]++;
+                if (!elementsByLevelAndCat.TryGetValue(levelName, out var lvlCats))
+                {
+                    lvlCats = new Dictionary<string, int>();
+                    elementsByLevelAndCat[levelName] = lvlCats;
+                }
+                lvlCats.TryGetValue(cat, out int catCnt);
+                lvlCats[cat] = catCnt + 1;
             }
 
             // Generate tasks in construction sequence
@@ -351,12 +353,11 @@ namespace StingTools.BIMManager
             // Process levels in order (bottom to top = construction sequence)
             foreach (var level in levels)
             {
-                if (!elementsByLevelAndCat.ContainsKey(level.Name)) continue;
-                var catCounts = elementsByLevelAndCat[level.Name];
+                if (!elementsByLevelAndCat.TryGetValue(level.Name, out var catCounts)) continue;
 
                 // Sort categories by trade sequence order
                 var sortedCats = catCounts.Keys
-                    .OrderBy(c => TradeSequence.ContainsKey(c) ? TradeSequence[c].Item1 : 999)
+                    .OrderBy(c => TradeSequence.TryGetValue(c, out var tsOrd) ? tsOrd.Item1 : 999)
                     .ToList();
 
                 int levelTaskId = taskId;
@@ -368,8 +369,8 @@ namespace StingTools.BIMManager
                 {
                     int count = catCounts[cat];
                     if (count == 0) continue; // GAP-012: Skip phantom tasks with no elements
-                    var tradeInfo = TradeSequence.ContainsKey(cat)
-                        ? TradeSequence[cat]
+                    var tradeInfo = TradeSequence.TryGetValue(cat, out var tsInfo)
+                        ? tsInfo
                         : (999, $"General — {cat}", 3);
                     int tradeOrder = tradeInfo.Item1;
                     string tradeName = tradeInfo.Item2;
@@ -721,8 +722,8 @@ namespace StingTools.BIMManager
                 if (!hasCostRate)
                 {
                     skippedCount++;
-                    if (!skippedCategories.ContainsKey(cat)) skippedCategories[cat] = 0;
-                    skippedCategories[cat]++;
+                    skippedCategories.TryGetValue(cat, out int skCnt);
+                    skippedCategories[cat] = skCnt + 1;
                     continue;
                 }
 
@@ -740,8 +741,12 @@ namespace StingTools.BIMManager
                         continue;
                 }
 
-                if (!byCategory.ContainsKey(cat)) byCategory[cat] = new List<Element>();
-                byCategory[cat].Add(el);
+                if (!byCategory.TryGetValue(cat, out var catList))
+                {
+                    catList = new List<Element>();
+                    byCategory[cat] = catList;
+                }
+                catList.Add(el);
             }
 
             foreach (var kv in byCategory.OrderBy(x => x.Key))
@@ -751,15 +756,15 @@ namespace StingTools.BIMManager
 
                 double rate;
                 string unit;
-                if (costRates != null && costRates.ContainsKey(cat))
+                if (costRates != null && costRates.TryGetValue(cat, out var crVal))
                 {
-                    rate = costRates[cat].rate;
-                    unit = costRates[cat].unit;
+                    rate = crVal.rate;
+                    unit = crVal.unit;
                 }
-                else if (DefaultCostRates.ContainsKey(cat))
+                else if (DefaultCostRates.TryGetValue(cat, out var dcrVal))
                 {
-                    rate = DefaultCostRates[cat].ratePerUnit;
-                    unit = DefaultCostRates[cat].unit;
+                    rate = dcrVal.ratePerUnit;
+                    unit = dcrVal.unit;
                 }
                 else continue;
 
@@ -849,7 +854,7 @@ namespace StingTools.BIMManager
                     ["unit"] = unit,
                     ["unit_rate"] = rate,
                     ["total"] = Math.Round(lineTotal, 2),
-                    ["description"] = DefaultCostRates.ContainsKey(cat) ? DefaultCostRates[cat].description : cat
+                    ["description"] = DefaultCostRates.TryGetValue(cat, out var dcrDesc) ? dcrDesc.description : cat
                 });
             }
 
@@ -2133,11 +2138,17 @@ namespace StingTools.BIMManager
                     string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                     if (string.IsNullOrEmpty(lvl)) lvl = "L00";
 
-                    if (!grouped.ContainsKey(lvl))
-                        grouped[lvl] = new Dictionary<string, List<Element>>();
-                    if (!grouped[lvl].ContainsKey(cat))
-                        grouped[lvl][cat] = new List<Element>();
-                    grouped[lvl][cat].Add(el);
+                    if (!grouped.TryGetValue(lvl, out var grpCats))
+                    {
+                        grpCats = new Dictionary<string, List<Element>>();
+                        grouped[lvl] = grpCats;
+                    }
+                    if (!grpCats.TryGetValue(cat, out var grpList))
+                    {
+                        grpList = new List<Element>();
+                        grpCats[cat] = grpList;
+                    }
+                    grpList.Add(el);
                 }
 
                 // Build TimeLiner tasks
@@ -2394,10 +2405,10 @@ namespace StingTools.BIMManager
 
                         projectTotal += grandTotal;
                         string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "X";
-                        if (!costByDisc.ContainsKey(disc)) costByDisc[disc] = 0;
-                        costByDisc[disc] += grandTotal;
-                        if (!costByCat.ContainsKey(cat)) costByCat[cat] = 0;
-                        costByCat[cat] += grandTotal;
+                        costByDisc.TryGetValue(disc, out double cbdVal);
+                        costByDisc[disc] = cbdVal + grandTotal;
+                        costByCat.TryGetValue(cat, out double cbcVal);
+                        costByCat[cat] = cbcVal + grandTotal;
                         costed++;
                     }
 
@@ -2465,7 +2476,7 @@ namespace StingTools.BIMManager
             // Phase 40: Use configurable cost rates filename from project_config.json
             string costFile = Core.TagConfig.CostRatesFileName ?? "cost_rates_5d.csv";
             string path = StingToolsApp.FindDataFile(costFile);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
+            if (string.IsNullOrEmpty(path)) return rates;
 
             try
             {

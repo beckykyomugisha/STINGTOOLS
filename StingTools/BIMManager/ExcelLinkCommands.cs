@@ -33,6 +33,16 @@ namespace StingTools.BIMManager
 
     internal static class ExcelLinkEngine
     {
+        // ── Static FUNC-PROD cross-validation sets (allocated once, used by ValidateTokenCrossRefs) ──
+        private static readonly HashSet<string> SanitaryProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH" };
+        private static readonly HashSet<string> PlumbingProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH", "TAP", "TMV", "CIS" };
+        private static readonly HashSet<string> HvacProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "AHU", "FCU", "VAV", "CHR", "BLR", "FAN", "GRL", "DIF", "ATU" };
+        private static readonly HashSet<string> ElectricalProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "DB", "MSB", "TFR", "GEN", "UPS", "SWT", "SKT", "LUM", "EMR" };
+
         // ── Column definitions in export order (30+ columns) ──
         internal static readonly string[] ColumnHeaders = new[]
         {
@@ -182,33 +192,24 @@ namespace StingTools.BIMManager
             // FUNC-PROD cross-validation: certain FUNC codes are incompatible with certain PROD codes
             if (!string.IsNullOrEmpty(func) && !string.IsNullOrEmpty(prod))
             {
-                var sanitaryProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH" };
-                var plumbingProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { "WC", "BAS", "SHR", "URN", "BDT", "SNK", "BTH", "TAP", "TMV", "CIS" };
-                var hvacProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { "AHU", "FCU", "VAV", "CHR", "BLR", "FAN", "GRL", "DIF", "ATU" };
-                var electricalProds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { "DB", "MSB", "TFR", "GEN", "UPS", "SWT", "SKT", "LUM", "EMR" };
-
                 // SUP (supply) is incompatible with sanitary products
-                if (func == "SUP" && sanitaryProds.Contains(prod))
+                if (func == "SUP" && SanitaryProds.Contains(prod))
                     return $"FUNC=SUP incompatible with sanitary PROD={prod}";
 
                 // PWR (power) is incompatible with plumbing products
-                if (func == "PWR" && plumbingProds.Contains(prod))
+                if (func == "PWR" && PlumbingProds.Contains(prod))
                     return $"FUNC=PWR incompatible with plumbing PROD={prod}";
 
                 // SAN (sanitary) is incompatible with HVAC products
-                if (func == "SAN" && hvacProds.Contains(prod))
+                if (func == "SAN" && HvacProds.Contains(prod))
                     return $"FUNC=SAN incompatible with HVAC PROD={prod}";
 
                 // HTG (heating) / CLG (cooling) incompatible with electrical products
-                if ((func == "HTG" || func == "CLG") && electricalProds.Contains(prod))
+                if ((func == "HTG" || func == "CLG") && ElectricalProds.Contains(prod))
                     return $"FUNC={func} incompatible with electrical PROD={prod}";
 
                 // LTG (lighting) incompatible with plumbing products
-                if (func == "LTG" && plumbingProds.Contains(prod))
+                if (func == "LTG" && PlumbingProds.Contains(prod))
                     return $"FUNC=LTG incompatible with plumbing PROD={prod}";
             }
 

@@ -507,7 +507,7 @@ namespace StingTools.Tags
 
             // 1. Standard data path lookup
             string found = StingToolsApp.FindDataFile(fileName);
-            if (!string.IsNullOrEmpty(found) && File.Exists(found))
+            if (!string.IsNullOrEmpty(found))
                 return found;
 
             // 2. Search next to the currently set shared parameter file
@@ -620,7 +620,7 @@ namespace StingTools.Tags
         {
             var s = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             string f = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
-            if (string.IsNullOrEmpty(f) || !File.Exists(f)) return s;
+            if (string.IsNullOrEmpty(f)) return s;
             foreach (string l in File.ReadAllLines(f))
             {
                 if (!l.StartsWith("PARAM")) continue;

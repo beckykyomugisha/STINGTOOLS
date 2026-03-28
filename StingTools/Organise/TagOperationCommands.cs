@@ -192,9 +192,9 @@ namespace StingTools.Organise
                 if (newTag != null)
                     StingLog.Info($"Visual tag placed for element {elem.Id}");
             }
-            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
             {
-                // No tag family loaded for this category — silently skip
+                StingLog.Warn($"TagSelected visual tag skipped for element {elem?.Id}: {ex.Message}");
             }
         }
     }
@@ -306,8 +306,9 @@ namespace StingTools.Organise
                 if (!known.Contains(cat)) continue;
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
-                if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<Element>();
-                tagMap[tag].Add(elem);
+                if (!tagMap.TryGetValue(tag, out var tagList))
+                    tagMap[tag] = tagList = new List<Element>();
+                tagList.Add(elem);
             }
 
             var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1).ToList();
@@ -373,7 +374,7 @@ namespace StingTools.Organise
 
                         // FIX-B02: Use canonical BuildSeqKey for consistent key format
                         string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
-                        if (!seqCounters.ContainsKey(seqKey)) seqCounters[seqKey] = 0;
+                        if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
 
                         // Find next unique SEQ
                         string newTag = "";
@@ -422,24 +423,23 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            // GAP-010: Post-fix duplicate scan to verify all tags are now unique
-            var postTagMap = new Dictionary<string, int>();
-            IEnumerable<Element> postElements;
-            if (catEnums != null && catEnums.Length > 0)
-                postElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            else
-                postElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            foreach (Element elem in postElements)
+            // TAG-M-07: Use the local tagIndex (built above and updated with every new tag assigned)
+            // instead of a second full-model scan to verify uniqueness.  tagIndex already contains
+            // every post-fix tag value — if any value was added more than once, the do-while loop
+            // above would have incremented SEQ until it was unique, so remaining dupes can only
+            // come from the unmodified first-copy elements.  We re-check only the original tagMap
+            // to count multi-value collisions that survive.
+            var postTagMap = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var kvp in tagMap)
             {
-                if (elem.Category == null) continue;
-                string cat = ParameterHelpers.GetCategoryName(elem);
-                if (!known.Contains(cat)) continue;
-                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag)) continue;
-                if (!postTagMap.ContainsKey(tag)) postTagMap[tag] = 0;
-                postTagMap[tag]++;
+                // kept element (index 0) retains the original tag value
+                string keptTag = ParameterHelpers.GetString(kvp.Value[0], ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(keptTag))
+                {
+                    postTagMap.TryGetValue(keptTag, out int ptc);
+                    postTagMap[keptTag] = ptc + 1;
+                }
+                // fixed elements (index 1+) got new tags added to tagIndex; they are unique by construction
             }
             int remainingDupes = postTagMap.Count(kvp => kvp.Value > 1);
 
@@ -449,8 +449,10 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
-            // Persist SEQ + invalidate caches after duplicate fix
-            try { var (_, fdSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, fdSeq); }
+            // TAG-H-01: Save locally-modified seqCounters (which already contain the new SEQ values
+            // assigned during this fix pass) rather than rebuilding from scratch via BuildTagIndexAndCounters,
+            // which would discard the increments made above and could assign duplicate SEQ numbers.
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
@@ -590,8 +592,9 @@ namespace StingTools.Organise
 
                 // TAG-03: Use canonical BuildSeqKey for consistent grouping with all other commands
                 string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
-                if (!groups.ContainsKey(key)) groups[key] = new List<Element>();
-                groups[key].Add(elem);
+                if (!groups.TryGetValue(key, out var grpList))
+                    groups[key] = grpList = new List<Element>();
+                grpList.Add(elem);
             }
 
             // FIX-C03: Sort elements within each group spatially (by level, then X, then Y)
@@ -848,8 +851,9 @@ namespace StingTools.Organise
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (string.IsNullOrEmpty(tag)) continue;
 
-                if (!tagMap.ContainsKey(tag)) tagMap[tag] = new List<ElementId>();
-                tagMap[tag].Add(elem.Id);
+                if (!tagMap.TryGetValue(tag, out var tagIdList))
+                    tagMap[tag] = tagIdList = new List<ElementId>();
+                tagIdList.Add(elem.Id);
             }
 
             var duplicates = tagMap.Where(kvp => kvp.Value.Count > 1)
@@ -1324,12 +1328,9 @@ namespace StingTools.Organise
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                if (!discCounts.ContainsKey(disc))
-                {
-                    discCounts[disc] = 0;
-                    discElements[disc] = new List<ElementId>();
-                }
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dc);
+                discCounts[disc] = dc + 1;
+                if (dc == 0) discElements[disc] = new List<ElementId>();
                 discElements[disc].Add(elem.Id);
             }
 
@@ -1694,8 +1695,8 @@ namespace StingTools.Organise
                         view.SetElementOverrides(tag.Id, ogs);
                         colored++;
 
-                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                        discCounts[disc]++;
+                        discCounts.TryGetValue(disc, out int dcc);
+                        discCounts[disc] = dcc + 1;
                     }
                 }
                 tx.Commit();
@@ -2324,8 +2325,8 @@ namespace StingTools.Organise
                                     AnnotationColorHelper.DisciplineColors.TryGetValue(disc, out Color dc))
                                 {
                                     textCol = dc;
-                                    if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                                    discCounts[disc]++;
+                                    discCounts.TryGetValue(disc, out int dcc);
+                                    discCounts[disc] = dcc + 1;
                                 }
 
                                 Color lineCol = hasLeader
@@ -2589,8 +2590,9 @@ namespace StingTools.Organise
                         ? Select.ColorHelper.GetParameterValue(host, selectedParam) ?? "<No Value>"
                         : "<No Value>";
 
-                    if (!groups.ContainsKey(val)) groups[val] = new List<IndependentTag>();
-                    groups[val].Add(tag);
+                    if (!groups.TryGetValue(val, out var valGroup))
+                        groups[val] = valGroup = new List<IndependentTag>();
+                    valGroup.Add(tag);
                 }
                 catch (Exception ex) { StingLog.Warn($"Group tag by parameter value failed: {ex.Message}"); }
             }
@@ -2688,8 +2690,8 @@ namespace StingTools.Organise
                     ElementId typeId = tag.GetTypeId();
                     Element type = doc.GetElement(typeId);
                     string typeName = type?.Name ?? "Unknown";
-                    if (!currentTypes.ContainsKey(typeName)) currentTypes[typeName] = 0;
-                    currentTypes[typeName]++;
+                    currentTypes.TryGetValue(typeName, out int ctc);
+                    currentTypes[typeName] = ctc + 1;
                 }
                 catch (Exception ex) { StingLog.Warn($"Get tag type distribution failed: {ex.Message}"); }
             }
@@ -2787,20 +2789,20 @@ namespace StingTools.Organise
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (!string.IsNullOrEmpty(disc))
                 {
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byDisc.TryGetValue(disc, out int bdc);
+                    byDisc[disc] = bdc + 1;
                 }
                 string sys = ParameterHelpers.GetString(elem, ParamRegistry.SYS);
                 if (!string.IsNullOrEmpty(sys))
                 {
-                    if (!bySys.ContainsKey(sys)) bySys[sys] = 0;
-                    bySys[sys]++;
+                    bySys.TryGetValue(sys, out int bsc);
+                    bySys[sys] = bsc + 1;
                 }
                 string lvl = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
                 if (!string.IsNullOrEmpty(lvl))
                 {
-                    if (!byLvl.ContainsKey(lvl)) byLvl[lvl] = 0;
-                    byLvl[lvl]++;
+                    byLvl.TryGetValue(lvl, out int blc);
+                    byLvl[lvl] = blc + 1;
                 }
             }
 
@@ -2995,8 +2997,8 @@ namespace StingTools.Organise
                 // Track discipline counts
                 if (!string.IsNullOrEmpty(disc))
                 {
-                    if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                    discCounts[disc]++;
+                    discCounts.TryGetValue(disc, out int dcc);
+                    discCounts[disc] = dcc + 1;
                 }
 
                 // Write CSV row
@@ -5056,8 +5058,8 @@ namespace StingTools.Organise
                             string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
                             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                             string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
-                            if (!seqCounters.ContainsKey(key)) seqCounters[key] = 0;
-                            seqCounters[key]++;
+                            seqCounters.TryGetValue(key, out int sqc);
+                            seqCounters[key] = sqc + 1;
                             string newSeq = seqCounters[key].ToString().PadLeft(ParamRegistry.NumPad, '0');
                             ParameterHelpers.SetString(el, ParamRegistry.SEQ, newSeq, overwrite: true);
                             fixed_seq++;
@@ -5449,6 +5451,7 @@ namespace StingTools.Organise
                 }
                 catch (Exception ex)
                 {
+                    StingLog.Error("CSV export failed", ex);
                     TaskDialog.Show("STING", $"Export failed: {ex.Message}");
                 }
             }

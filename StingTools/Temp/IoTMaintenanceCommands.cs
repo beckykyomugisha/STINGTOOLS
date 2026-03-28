@@ -65,8 +65,8 @@ namespace StingTools.Temp
                         noCondition++;
                         continue;
                     }
-                    if (!conditionGroups.ContainsKey(condition)) conditionGroups[condition] = 0;
-                    conditionGroups[condition]++;
+                    conditionGroups.TryGetValue(condition, out int cg);
+                    conditionGroups[condition] = cg + 1;
                 }
 
                 report.AppendLine("── CONDITION SUMMARY ──");
