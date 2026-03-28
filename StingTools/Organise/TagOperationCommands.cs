@@ -192,9 +192,9 @@ namespace StingTools.Organise
                 if (newTag != null)
                     StingLog.Info($"Visual tag placed for element {elem.Id}");
             }
-            catch (Autodesk.Revit.Exceptions.InvalidOperationException)
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException ex)
             {
-                // No tag family loaded for this category — silently skip
+                StingLog.Warn($"TagSelected visual tag skipped for element {elem?.Id}: {ex.Message}");
             }
         }
     }
@@ -1328,12 +1328,9 @@ namespace StingTools.Organise
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
 
-                if (!discCounts.ContainsKey(disc))
-                {
-                    discCounts[disc] = 0;
-                    discElements[disc] = new List<ElementId>();
-                }
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dc);
+                discCounts[disc] = dc + 1;
+                if (dc == 0) discElements[disc] = new List<ElementId>();
                 discElements[disc].Add(elem.Id);
             }
 

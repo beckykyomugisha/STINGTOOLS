@@ -147,9 +147,8 @@ namespace StingTools.Temp
                                 // Track formulas skipped due to missing inputs for audit
                                 totalSkipped++;
                                 string sKey = formula.ParameterName;
-                                if (!formulaSkipCounts.ContainsKey(sKey))
-                                    formulaSkipCounts[sKey] = 0;
-                                formulaSkipCounts[sKey]++;
+                                formulaSkipCounts.TryGetValue(sKey, out int sk);
+                                formulaSkipCounts[sKey] = sk + 1;
                                 continue;
                             }
 
@@ -196,12 +195,9 @@ namespace StingTools.Temp
                             totalErrors++;
                             // Per-formula error tracking
                             string fKey = formula.ParameterName;
-                            if (!formulaErrorCounts.ContainsKey(fKey))
-                            {
-                                formulaErrorCounts[fKey] = 0;
-                                formulaSampleFailures[fKey] = new List<ElementId>();
-                            }
-                            formulaErrorCounts[fKey]++;
+                            formulaErrorCounts.TryGetValue(fKey, out int ec);
+                            formulaErrorCounts[fKey] = ec + 1;
+                            if (ec == 0) formulaSampleFailures[fKey] = new List<ElementId>();
                             if (formulaSampleFailures[fKey].Count < 5)
                                 formulaSampleFailures[fKey].Add(el.Id);
 

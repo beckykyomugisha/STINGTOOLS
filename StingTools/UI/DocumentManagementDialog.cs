@@ -108,7 +108,17 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrPurple  = FZ(0x6A, 0x1B, 0x9A);
         private static readonly SolidColorBrush BrTeal    = FZ(0x00, 0x69, 0x5C);
         private static readonly SolidColorBrush BrAmber     = FZ(0xFF, 0x8F, 0x00);
-        private static readonly SolidColorBrush BrHeaderSub = FZ(0xBB, 0xDE, 0xFB); // DMD-MEDIUM-01: frozen header subtitle brush
+        private static readonly SolidColorBrush BrHeaderSub  = FZ(0xBB, 0xDE, 0xFB); // DMD-MEDIUM-01: frozen header subtitle brush
+        private static readonly SolidColorBrush BrLightGreen = FZ(0xE8, 0xF5, 0xE9);
+        private static readonly SolidColorBrush BrLightGrey  = FZ(0xF0, 0xF0, 0xF0);
+        private static readonly SolidColorBrush BrNearWhite  = FZ(0xF8, 0xF8, 0xF8);
+        private static readonly SolidColorBrush BrBlueGrey   = FZ(0xF0, 0xF4, 0xF8);
+        private static readonly SolidColorBrush BrLegendHdr  = FZ(0xE8, 0xEE, 0xF5);
+        private static readonly SolidColorBrush BrRowAlt     = FZ(0xF8, 0xF8, 0xFA);
+        private static readonly SolidColorBrush BrRowRed     = FZ(0xFF, 0xEB, 0xEE);
+        private static readonly SolidColorBrush BrRowAmber   = FZ(0xFF, 0xF3, 0xE0);
+        private static readonly SolidColorBrush BrLightE8    = FZ(0xE8, 0xE8, 0xE8);
+        private static readonly SolidColorBrush BrLightDD    = FZ(0xDD, 0xDD, 0xDD);
 
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
@@ -560,7 +570,7 @@ namespace StingTools.UI
             // Workflow buttons at top of tree (GAP WF-01)
             var wfPanel = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                Background = BrLightGreen,
                 Padding = new Thickness(6, 4, 6, 4),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -585,7 +595,7 @@ namespace StingTools.UI
             // Tree header
             var treeHeader = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
+                Background = BrLightGrey,
                 Padding = new Thickness(10, 5, 10, 5)
             };
             treeHeader.Child = new TextBlock
@@ -909,7 +919,7 @@ namespace StingTools.UI
             // Search bar
             var searchBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xF8)),
+                Background = BrNearWhite,
                 Padding = new Thickness(8, 5, 8, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -955,7 +965,7 @@ namespace StingTools.UI
             // Quick filter buttons
             var filterBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF4, 0xF8)),
+                Background = BrBlueGrey,
                 Padding = new Thickness(8, 3, 8, 3),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -1181,7 +1191,7 @@ namespace StingTools.UI
         {
             var bar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
+                Background = BrLightGrey,
                 Padding = new Thickness(0),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
@@ -1480,8 +1490,8 @@ namespace StingTools.UI
             root.Children.Add(MakeLegendRow("SUPERSEDED", "Replaced by newer transmittal", BrFgSub));
 
             root.Children.Add(MakeLegendHeader("DISCIPLINE CODES (STING)"));
-            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", new SolidColorBrush(Colors.Blue)));
-            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", new SolidColorBrush(Colors.Goldenrod)));
+            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", Brushes.Blue));
+            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", Brushes.Goldenrod));
             root.Children.Add(MakeLegendRow("P", "Plumbing — DHW, DCW, sanitary, drainage", BrGreen));
             root.Children.Add(MakeLegendRow("A", "Architectural — walls, doors, windows, floors", BrFgSub));
             root.Children.Add(MakeLegendRow("S", "Structural — columns, beams, foundations", BrRed));
@@ -1535,7 +1545,7 @@ namespace StingTools.UI
                 Text = text, FontSize = 11, FontWeight = FontWeights.Bold,
                 Foreground = BrHeader, Margin = new Thickness(0, 10, 0, 4),
                 Padding = new Thickness(4, 2, 0, 2),
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xEE, 0xF5))
+                Background = BrLegendHdr
             };
         }
 
@@ -3647,8 +3657,7 @@ namespace StingTools.UI
 
             // Alternating row colors
             var altTrigger = new Trigger { Property = ItemsControl.AlternationIndexProperty, Value = 1 };
-            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xFA))));
+            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowAlt));
             style.Triggers.Add(altTrigger);
 
             // Overdue items: light red background
@@ -3656,8 +3665,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("IsOverdue"), Value = true
             };
-            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowRed));
             overdueTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrRed));
             style.Triggers.Add(overdueTrigger);
 
@@ -3666,8 +3674,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Priority"), Value = "CRITICAL"
             };
-            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xE0))));
+            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowAmber));
             critTrigger.Setters.Add(new Setter(ListViewItem.FontWeightProperty, FontWeights.Bold));
             style.Triggers.Add(critTrigger);
 
@@ -3676,8 +3683,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Status"), Value = "RED"
             };
-            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowRed));
             style.Triggers.Add(redTrigger);
 
             // GREEN compliance: light green tint
@@ -3685,8 +3691,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Status"), Value = "GREEN"
             };
-            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9))));
+            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrLightGreen));
             style.Triggers.Add(greenTrigger);
 
             // CLOSED issues: grey italic
@@ -4128,7 +4133,7 @@ namespace StingTools.UI
         {
             var footer = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xE8)),
+                Background = BrLightE8,
                 Padding = new Thickness(12, 5, 12, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
@@ -4151,7 +4156,7 @@ namespace StingTools.UI
             var btnClose = new Button
             {
                 Content = "Close", Width = 80, Height = 26,
-                Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)),
+                Background = BrLightDD,
                 Foreground = BrFgDark, BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand, FontSize = 11
             };

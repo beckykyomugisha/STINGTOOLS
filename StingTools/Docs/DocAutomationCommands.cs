@@ -34,19 +34,16 @@ namespace StingTools.Docs
                 .ToList();
 
             // Build set of all views placed on sheets
-            var placedViewIds = new HashSet<ElementId>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .SelectMany(s => s.GetAllPlacedViews()));
+            var allSheets = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>().ToList();
+            var placedViewIds = new HashSet<ElementId>(allSheets.SelectMany(s => s.GetAllPlacedViews()));
 
             // Get the active view to protect it
             ElementId activeViewId = ctx.ActiveView.Id;
 
             // Phase 40: Build multi-sheet placement map for safety reporting
             var viewToSheets = new Dictionary<ElementId, List<string>>();
-            foreach (var sheet in new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+            foreach (var sheet in allSheets)
             {
                 foreach (var vId in sheet.GetAllPlacedViews())
                 {
