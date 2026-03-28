@@ -677,8 +677,8 @@ namespace StingTools.Model
             // ── Footer ──
             var footer = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                Background = FooterBg,
+                BorderBrush = FooterBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(16, 6, 16, 6),
             };
@@ -783,7 +783,7 @@ namespace StingTools.Model
                 CanUserDeleteRows = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(0xFA, 0xF7, 0xF2)),
+                AlternatingRowBackground = AltRowBg,
                 MinHeight = 160,
                 MaxHeight = 240,
                 Margin = new Thickness(0, 4, 0, 4),
@@ -1048,25 +1048,25 @@ namespace StingTools.Model
             {
                 Content = "Beams rest on top of walls", IsChecked = true,
                 Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00)),
+                Foreground = GreenFg,
             };
             _chkBeamsConnectSlabs = new CheckBox
             {
                 Content = "Beams connect to slabs", IsChecked = true,
                 Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00)),
+                Foreground = GreenFg,
             };
             _chkColumnsStopAtSoffit = new CheckBox
             {
                 Content = "Columns stop at slab soffit (not slab level)", IsChecked = true,
                 Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00)),
+                Foreground = GreenFg,
             };
             _chkStructuralWall = new CheckBox
             {
                 Content = "Create as Structural Walls (not architectural)", IsChecked = true,
                 Margin = new Thickness(0, 2, 0, 2), FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00)),
+                Foreground = GreenFg,
             };
 
             leftStack.Children.Add(_chkBeamsOnWalls);
@@ -1376,8 +1376,7 @@ namespace StingTools.Model
 
                 foreach (var kvp in sorted)
                 {
-                    var counts = layerEntityCounts.ContainsKey(kvp.Key)
-                        ? layerEntityCounts[kvp.Key] : (0, 0);
+                    layerEntityCounts.TryGetValue(kvp.Key, out var counts);
 
                     string autoDetect = kvp.Value.Classification ?? "";
                     string mapTo = InferMapTo(autoDetect, kvp.Value.Confidence);
@@ -1401,7 +1400,7 @@ namespace StingTools.Model
                 int structCount = _layerRows.Count(r => r.Confidence > 0);
                 _statusBar.Text = $"✓ Found {_layerRows.Count} layers ({structCount} structural). " +
                     $"Scale: {_extraction?.DetectedScaleFactor:F4}";
-                _statusBar.Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0x80, 0x00));
+                _statusBar.Foreground = GreenFg;
             }
             catch (Exception ex)
             {
