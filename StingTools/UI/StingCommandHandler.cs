@@ -1563,6 +1563,9 @@ namespace StingTools.UI
                         var ccDoc = app.ActiveUIDocument?.Document;
                         if (ccDoc != null)
                         {
+                            // NOTE: Blocking loop on API thread is intentional for keep-dialog-open
+                            // pattern within ExternalEvent handler. The ExternalEvent handler IS the
+                            // Revit API thread — blocking here is safe and expected for modal dialogs.
                             while (true)
                             {
                                 var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
@@ -2322,7 +2325,9 @@ namespace StingTools.UI
                     {
                         var doc = app.ActiveUIDocument?.Document;
                         if (doc == null) break;
+                        var mcf = new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums);
                         var allIds = new FilteredElementCollector(doc)
+                            .WherePasses(mcf)
                             .WhereElementIsNotElementType()
                             .Select(e => e.Id).ToList();
                         var (total, breakdown) = Model.ModelEmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
@@ -2885,12 +2890,13 @@ namespace StingTools.UI
                 .Where(e => e != null)
                 .GroupBy(e => ParameterHelpers.GetCategoryName(e))
                 .OrderByDescending(g => g.Count());
-            var msg = $"Selected: {ids.Count} elements\n\n";
+            var msgSb = new StringBuilder();
+            msgSb.AppendLine($"Selected: {ids.Count} elements\n");
             foreach (var g in byCategory.Take(15))
-                msg += $"  {g.Key}: {g.Count()}\n";
+                msgSb.AppendLine($"  {g.Key}: {g.Count()}");
             foreach (var kvp in _memorySlots)
-                msg += $"\n  {kvp.Key}: {kvp.Value.Count} stored";
-            TaskDialog.Show("Selection Info", msg);
+                msgSb.AppendLine($"\n  {kvp.Key}: {kvp.Value.Count} stored");
+            TaskDialog.Show("Selection Info", msgSb.ToString());
         }
 
         private static void RefreshParamList(UIApplication app)
