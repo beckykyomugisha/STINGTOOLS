@@ -67,11 +67,13 @@ namespace StingTools.Core
         /// <summary>Default DISC code for this profile (e.g., "M").</summary>
         public string DefaultDisc { get; set; }
 
-        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedSysCodes { get; set; } = new List<string>();
+        /// <summary>Allowed SYS codes for this discipline. Empty set means no restriction.</summary>
+        // F-17: HashSet for O(1) Contains instead of O(n) List.Any(StringEquals)
+        public HashSet<string> AllowedSysCodes { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
+        /// <summary>Allowed FUNC codes for this discipline. Empty set means no restriction.</summary>
+        // F-17: HashSet for O(1) Contains instead of O(n) List.Any(StringEquals)
+        public HashSet<string> AllowedFuncCodes { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
         public string DefaultProd { get; set; }
@@ -83,7 +85,8 @@ namespace StingTools.Core
         public bool ValidationStrictness { get; set; }
 
         /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
-        public List<string> RequiredTokens { get; set; } = new List<string>();
+        // F-17: HashSet for O(1) Contains instead of O(n) List.Any(StringEquals)
+        public HashSet<string> RequiredTokens { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Parse a DisciplineProfile from a JSON dictionary (v1 format with collision_mode, seq_scheme, etc.).</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
@@ -423,12 +426,18 @@ namespace StingTools.Core
             }
         }
 
+        // F-08: Cached HashSet<string> for LocCodes and ZoneCodes — avoids O(n) List.Contains in ValidateToken
+        private static HashSet<string> _locCodesSet;
+        private static HashSet<string> _zoneCodesSet;
+
         /// <summary>PERF-01: Invalidate cached validator code sets. Call after LoadFromFile/LoadDefaults or custom code changes.</summary>
         internal static void InvalidateValidatorCaches()
         {
             _cachedValidDiscCodes = null;
             _cachedValidSysCodes = null;
             _cachedValidFuncCodes = null;
+            _locCodesSet = null;  // F-08
+            _zoneCodesSet = null; // F-08
             _tokenValidationCache.Clear(); // Phase 78: Clear memoized validation results
         }
 
@@ -454,7 +463,9 @@ namespace StingTools.Core
                     return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
-                    if (!TagConfig.LocCodes.Contains(value))
+                    // F-08: Use cached HashSet for O(1) lookup instead of List.Contains O(n)
+                    var locSet = _locCodesSet ??= new HashSet<string>(TagConfig.LocCodes, StringComparer.OrdinalIgnoreCase);
+                    if (!locSet.Contains(value))
                         return $"LOC '{value}' not in valid set ({string.Join(",", TagConfig.LocCodes)})";
                 }
                 else
@@ -471,7 +482,9 @@ namespace StingTools.Core
                     return null; // Custom code accepted
                 if (TagConfig.ValidateStrictMode)
                 {
-                    if (!TagConfig.ZoneCodes.Contains(value))
+                    // F-08: Use cached HashSet for O(1) lookup instead of List.Contains O(n)
+                    var zoneSet = _zoneCodesSet ??= new HashSet<string>(TagConfig.ZoneCodes, StringComparer.OrdinalIgnoreCase);
+                    if (!zoneSet.Contains(value))
                         return $"ZONE '{value}' not in valid set ({string.Join(",", TagConfig.ZoneCodes)})";
                 }
                 else
@@ -549,15 +562,24 @@ namespace StingTools.Core
         /// Validate all 8 tokens on an element. Returns a list of validation errors
         /// (empty list = fully valid). Uses memoized token validation for O(1) repeated lookups.
         /// </summary>
+        // F-16: Static readonly token param array — avoids per-call allocation
+        private static readonly string[] _validateElementTokenParams = new[]
+        {
+            ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
+            ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
+            ParamRegistry.PROD, ParamRegistry.SEQ,
+        };
+        // F-16: [ThreadStatic] reusable error list — avoids List<ValidationError> allocation per call
+        [ThreadStatic]
+        private static List<ValidationError> _validateElementErrors;
+
         public static List<ValidationError> ValidateElement(Element el)
         {
-            var errors = new List<ValidationError>();
-            string[] tokenParams = new[]
-            {
-                ParamRegistry.DISC, ParamRegistry.LOC, ParamRegistry.ZONE,
-                ParamRegistry.LVL, ParamRegistry.SYS, ParamRegistry.FUNC,
-                ParamRegistry.PROD, ParamRegistry.SEQ,
-            };
+            // F-16: Reuse thread-local list instead of allocating new on each call
+            if (_validateElementErrors == null) _validateElementErrors = new List<ValidationError>();
+            else _validateElementErrors.Clear();
+            var errors = _validateElementErrors;
+            string[] tokenParams = _validateElementTokenParams;
 
             foreach (string param in tokenParams)
             {
@@ -883,16 +905,17 @@ namespace StingTools.Core
             var profile = GetDisciplineProfile(disc);
             if (profile == null) return errors;
 
+            // F-17: Use HashSet.Contains for O(1) lookup instead of List.Any(StringEquals) O(n)
             if (profile.AllowedSysCodes != null && profile.AllowedSysCodes.Count > 0
                 && !string.IsNullOrEmpty(sys)
-                && !profile.AllowedSysCodes.Any(c => string.Equals(c, sys, StringComparison.OrdinalIgnoreCase)))
+                && !profile.AllowedSysCodes.Contains(sys))
             {
                 errors.Add($"SYS '{sys}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedSysCodes)}");
             }
 
             if (profile.AllowedFuncCodes != null && profile.AllowedFuncCodes.Count > 0
                 && !string.IsNullOrEmpty(func)
-                && !profile.AllowedFuncCodes.Any(c => string.Equals(c, func, StringComparison.OrdinalIgnoreCase)))
+                && !profile.AllowedFuncCodes.Contains(func))
             {
                 errors.Add($"FUNC '{func}' not in allowed codes for DISC '{disc}': {string.Join(", ", profile.AllowedFuncCodes)}");
             }
@@ -901,11 +924,12 @@ namespace StingTools.Core
             {
                 if (profile.RequiredTokens != null)
                 {
-                    if (profile.RequiredTokens.Any(t => string.Equals(t, "SYS", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(sys))
+                    // F-17: HashSet.Contains is O(1) vs List.Any(StringEquals) O(n)
+                    if (profile.RequiredTokens.Contains("SYS") && string.IsNullOrEmpty(sys))
                         errors.Add($"SYS is required for DISC '{disc}'");
-                    if (profile.RequiredTokens.Any(t => string.Equals(t, "FUNC", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(func))
+                    if (profile.RequiredTokens.Contains("FUNC") && string.IsNullOrEmpty(func))
                         errors.Add($"FUNC is required for DISC '{disc}'");
-                    if (profile.RequiredTokens.Any(t => string.Equals(t, "PROD", StringComparison.OrdinalIgnoreCase)) && string.IsNullOrEmpty(prod))
+                    if (profile.RequiredTokens.Contains("PROD") && string.IsNullOrEmpty(prod))
                         errors.Add($"PROD is required for DISC '{disc}'");
                 }
             }
@@ -2456,7 +2480,8 @@ namespace StingTools.Core
             ElementId lastPhaseId = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
-            if (string.IsNullOrEmpty(catName) || !DiscMap.ContainsKey(catName))
+            // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
+            if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
                 return false;
 
             // Handle already-tagged elements based on collision mode
@@ -2489,10 +2514,8 @@ namespace StingTools.Core
 
             bool overwriteTokens = (collisionMode == TagCollisionMode.Overwrite);
 
-            // LOGIC-BUG-05 fix: fallback to "G" (General) not "A" (Architecture) for unknown categories
-            string disc = DiscMap.TryGetValue(catName, out string d) ? d : "G";
-
-            // Note: DiscMap.ContainsKey(catName) is guaranteed true by the early return at line 1105
+            // disc already retrieved above via TryGetValue (F-14). Fallback to "G" if null (safety).
+            if (string.IsNullOrEmpty(disc)) disc = "G";
 
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
@@ -2653,6 +2676,9 @@ namespace StingTools.Core
                 existingTags.Add(tag);
             }
 
+            // F-03: Track whether we already have a fresh ReadTokenValues result from the non-overwrite branch
+            string[] _cachedReadTokens = null;
+
             if (overwriteTokens)
             {
                 ParameterHelpers.SetString(el, ParamRegistry.DISC, disc, overwrite: true);
@@ -2679,7 +2705,9 @@ namespace StingTools.Core
                 // what's on the element. Do NOT fill empty slots with derived defaults —
                 // that would overwrite manually-set values that SetIfEmpty preserved.
                 // The malformed-tag guard below blocks incomplete tags correctly.
+                // F-03: Cache result so container write at line ~2808 can reuse without second read
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
+                _cachedReadTokens = actualTokens;
                 if (actualTokens.Length < 8)
                     return false;
                 // Remove the derived-value tag from collision index (it may differ from actual)
@@ -2782,7 +2810,8 @@ namespace StingTools.Core
             // Always write containers — even partial token values should propagate.
             try
             {
-                string[] tokenVals = ParamRegistry.ReadTokenValues(el);
+                // F-03: Reuse cached token read from non-overwrite branch; only re-read for overwrite path
+                string[] tokenVals = _cachedReadTokens ?? ParamRegistry.ReadTokenValues(el);
                 // Validate token array before container write
                 for (int i = 0; i < tokenVals.Length; i++)
                 {

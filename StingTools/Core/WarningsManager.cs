@@ -1229,21 +1229,33 @@ namespace StingTools.Core
             var impact = new WarningImpactAnalysis();
             foreach (var w in warnings)
             {
-                string lower = (w.Description ?? "").ToLowerInvariant();
+                // HIGH-10: Use StringComparison.OrdinalIgnoreCase — avoids ToLowerInvariant() allocation per warning
+                string desc = w.Description ?? "";
                 // COBie impact: data quality warnings, missing params, duplicate marks
-                if (w.Category == WarningCategory.Data || lower.Contains("duplicate mark") || lower.Contains("missing parameter"))
+                if (w.Category == WarningCategory.Data
+                    || desc.IndexOf("duplicate mark", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("missing parameter", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsCOBie++;
                 // IFC impact: geometric, structural, and material warnings
-                if (w.Category == WarningCategory.Geometric || w.Category == WarningCategory.Structural || lower.Contains("material"))
+                if (w.Category == WarningCategory.Geometric
+                    || w.Category == WarningCategory.Structural
+                    || desc.IndexOf("material", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsIFC++;
                 // FM handover: spatial, compliance, MEP system warnings
-                if (w.Category == WarningCategory.Spatial || w.Category == WarningCategory.Compliance || lower.Contains("system"))
+                if (w.Category == WarningCategory.Spatial
+                    || w.Category == WarningCategory.Compliance
+                    || desc.IndexOf("system", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsHandover++;
                 // Schedule: data quality, level offset, parameter warnings
-                if (lower.Contains("schedule") || lower.Contains("offset from level") || lower.Contains("parameter"))
+                if (desc.IndexOf("schedule", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("offset from level", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("parameter", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsSchedules++;
                 // Clash: geometric overlap, MEP intersection warnings
-                if (lower.Contains("overlap") || lower.Contains("intersect") || lower.Contains("clash") || lower.Contains("conflict"))
+                if (desc.IndexOf("overlap", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("intersect", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("clash", StringComparison.OrdinalIgnoreCase) >= 0
+                    || desc.IndexOf("conflict", StringComparison.OrdinalIgnoreCase) >= 0)
                     impact.AffectsClash++;
             }
             impact.TotalDeliverableImpact = impact.AffectsCOBie + impact.AffectsIFC + impact.AffectsHandover + impact.AffectsSchedules + impact.AffectsClash;
@@ -1920,12 +1932,16 @@ namespace StingTools.Core
         /// Append an entry to the coordination log sidecar file.
         /// Thread-safe write with retry.
         /// </summary>
+        // CRIT-06: Counter for cap enforcement (every 100th call)
+        private static int _coordLogCallCount = 0;
+
         internal static void LogCoordinationAction(Document doc, string action, string category, string detail, string impact = "LOW")
         {
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.json");
+                // CRIT-06: JSONL append-only — avoids read/parse/rewrite on every call
+                string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", ".sting_coord_log.jsonl");
 
                 var entry = new UI.BIMCoordinationCenter.CoordLogEntry
                 {
@@ -1937,28 +1953,25 @@ namespace StingTools.Core
                     Impact = impact
                 };
 
-                List<UI.BIMCoordinationCenter.CoordLogEntry> entries;
-                if (File.Exists(logPath))
+                // CRIT-06: Append single JSON line — O(1) regardless of file size
+                string line = Newtonsoft.Json.JsonConvert.SerializeObject(entry);
+                File.AppendAllText(logPath, line + Environment.NewLine);
+
+                // CRIT-06: Enforce 1000-entry cap every 100th call to avoid unbounded growth
+                _coordLogCallCount++;
+                if (_coordLogCallCount % 100 == 0 && File.Exists(logPath))
                 {
                     try
                     {
-                        entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<UI.BIMCoordinationCenter.CoordLogEntry>>(
-                            File.ReadAllText(logPath)) ?? new List<UI.BIMCoordinationCenter.CoordLogEntry>();
+                        var lines = File.ReadAllLines(logPath);
+                        if (lines.Length > 1000)
+                        {
+                            // Keep only the most recent 1000 lines
+                            File.WriteAllLines(logPath, lines.Skip(lines.Length - 1000));
+                        }
                     }
-                    catch (Exception ex) { StingLog.Warn($"LoadCoordLog: {ex.Message}"); entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>(); }
+                    catch (Exception ex) { StingLog.Warn($"CoordLog cap: {ex.Message}"); }
                 }
-                else
-                {
-                    entries = new List<UI.BIMCoordinationCenter.CoordLogEntry>();
-                }
-
-                entries.Add(entry);
-
-                // Cap at 500 entries — rotate oldest
-                if (entries.Count > 500)
-                    entries = entries.Skip(entries.Count - 500).ToList();
-
-                File.WriteAllText(logPath, Newtonsoft.Json.JsonConvert.SerializeObject(entries, Newtonsoft.Json.Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"CoordLog write: {ex.Message}"); }
         }
@@ -2019,14 +2032,17 @@ namespace StingTools.Core
             return thresholds;
         }
 
+        // HIGH-08: SLAThresholdsHours is a mutable view — LoadSLAThresholds() populates it;
+        // callers that only need a snapshot should use GetSLAThresholds() instead.
+        // Initialised from GetSLAThresholds() defaults to avoid duplication.
         /// Configurable via WARNING_SLA_*_HOURS keys in project_config.json.</summary>
         internal static Dictionary<WarningSeverity, double> SLAThresholdsHours = new()
         {
-            { WarningSeverity.Critical, 4 },     // 4 hours
-            { WarningSeverity.High, 24 },         // 1 day
-            { WarningSeverity.Medium, 168 },      // 1 week
-            { WarningSeverity.Low, 336 },         // 2 weeks
-            { WarningSeverity.Info, double.MaxValue }  // No SLA
+            { WarningSeverity.Critical, 4 },     // 4 hours — overridden by LoadSLAThresholds()
+            { WarningSeverity.High, 24 },
+            { WarningSeverity.Medium, 168 },
+            { WarningSeverity.Low, 336 },
+            { WarningSeverity.Info, double.MaxValue }
         };
 
         /// <summary>Load SLA thresholds from project_config.json with current defaults as fallbacks.</summary>
@@ -2193,20 +2209,15 @@ namespace StingTools.Core
                 if (firstSeen.Count == 0) return violations;
 
                 var now = DateTime.Now;
+                // HIGH-07: Use configurable SLA thresholds instead of hardcoded values
+                var slaThresholds = GetSLAThresholds();
                 foreach (var group in report.RootCauseGroups)
                 {
                     if (!firstSeen.TryGetValue(group.Description, out string fsStr)) continue;
                     if (!DateTime.TryParse(fsStr, out DateTime fsDate)) continue;
 
                     double ageHours = (now - fsDate).TotalHours;
-                    double slaHours = group.Severity switch
-                    {
-                        WarningSeverity.Critical => 4,
-                        WarningSeverity.High => 24,
-                        WarningSeverity.Medium => 168,
-                        WarningSeverity.Low => 336,
-                        _ => 336
-                    };
+                    double slaHours = slaThresholds.TryGetValue(group.Severity, out double sv) ? sv : 336;
 
                     if (ageHours > slaHours)
                         violations.Add((group.Description, ageHours, slaHours, group.Severity));
@@ -2398,8 +2409,9 @@ namespace StingTools.Core
                         checks.Add(("Container completion ≥ 98%", containerPct >= 98, $"{containerPct:F0}%"));
                         checks.Add(("No stale elements", stale == 0, stale > 0 ? $"{stale}" : "OK"));
                         checks.Add(("No critical warnings", critical == 0, critical > 0 ? $"{critical}" : "OK"));
-                        checks.Add(("Warning health ≥ 80", CalculateWarningHealthScore(warnings) >= 80,
-                            $"{CalculateWarningHealthScore(warnings)}"));
+                        // HIGH-09: compute once, use twice — avoid redundant call to CalculateWarningHealthScore
+                        int healthScore = CalculateWarningHealthScore(warnings);
+                        checks.Add(("Warning health ≥ 80", healthScore >= 80, $"{healthScore}"));
                         int spatialWarnings = warnings?.ByCategory.GetValueOrDefault(WarningCategory.Spatial) ?? 0;
                         checks.Add(("No spatial warnings", spatialWarnings == 0, $"{spatialWarnings}"));
                         break;

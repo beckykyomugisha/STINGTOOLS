@@ -122,6 +122,13 @@ namespace StingTools.Temp
                     .Cast<ParameterFilterElement>()
                     .Select(f => f.Name));
 
+            // PERF-004: Pre-build category dictionary ONCE before the VIEW_FILTER loop.
+            // The previous code called doc.Settings.Categories.Cast<Category>().FirstOrDefault(...)
+            // per category name per VIEW_FILTER row — O(rows × categories) linear scans.
+            var categoryDict = new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase);
+            foreach (Category c in doc.Settings.Categories)
+                categoryDict[c.Name] = c;
+
             using (Transaction tx = new Transaction(doc, "STING Batch Create Schedules"))
             {
                 tx.Start();
@@ -158,9 +165,8 @@ namespace StingTools.Temp
                             foreach (string catStr in catNames)
                             {
                                 string cn = catStr.Trim();
-                                Category cat = doc.Settings.Categories.Cast<Category>()
-                                    .FirstOrDefault(c => c.Name.Equals(cn, StringComparison.OrdinalIgnoreCase));
-                                if (cat != null)
+                                // PERF-004: O(1) dictionary lookup instead of linear scan
+                                if (categoryDict.TryGetValue(cn, out Category cat))
                                     catIds.Add(cat.Id);
                             }
 

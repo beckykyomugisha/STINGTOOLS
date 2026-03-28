@@ -267,8 +267,11 @@ namespace StingTools.Docs
                 // Phase 75: COBie V2.4 additional worksheets (Instruction, Connection, Assembly, Document, Coordinate, Impact, Spare)
                 var instructionLines = new List<string>();
                 instructionLines.Add("Name,CreatedBy,CreatedOn,Category,SheetName,Description");
+                // HEC-HIGH-01: Inline compliance % from allTaggedElements (already collected) — avoids a full model re-scan.
+                int _taggedCount = allTaggedElements.Count(e => !string.IsNullOrEmpty(HandoverHelper.Gs(e, ParamRegistry.TAG1)));
+                double _compliancePct = allTaggedElements.Count > 0 ? _taggedCount * 100.0 / allTaggedElements.Count : 0.0;
                 instructionLines.Add($"COBie Export,STING Tools,{DateTime.Now:yyyy-MM-dd},Instruction,All," +
-                    $"\"COBie V2.4 handover export from STING Tools. Project: {Esc(doc.Title ?? "")}. Compliance: {ComplianceScan.Scan(doc)?.CompliancePercent ?? 0:F1}%\"");
+                    $"\"COBie V2.4 handover export from STING Tools. Project: {Esc(doc.Title ?? "")}. Compliance: {_compliancePct:F1}%\"");
 
                 var connectionLines = new List<string>();
                 connectionLines.Add("Name,CreatedBy,CreatedOn,ConnectionType,SheetName,RowName1,SheetName2,RowName2,Description");
@@ -1087,29 +1090,31 @@ namespace StingTools.Docs
                         totalMapped++;
                     }
 
-                    if (!roomAssets.ContainsKey(key))
+                    // HEC-MEDIUM-01: TryGetValue avoids double dictionary lookup (ContainsKey + indexer → single lookup)
+                    if (!roomAssets.TryGetValue(key, out var info))
                     {
-                        roomAssets[key] = new SpaceInfo
+                        info = new SpaceInfo
                         {
                             RoomNumber = roomNum ?? "",
                             RoomName = roomName ?? "",
                             Level = HandoverHelper.Gs(el, ParamRegistry.LVL),
                         };
+                        roomAssets[key] = info;
                     }
-
-                    var info = roomAssets[key];
                     info.TotalAssets++;
                     string disc = HandoverHelper.Gs(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!info.ByDiscipline.ContainsKey(disc)) info.ByDiscipline[disc] = 0;
-                        info.ByDiscipline[disc]++;
+                        // HEC-MEDIUM-01: TryGetValue avoids ContainsKey + indexer double-lookup
+                        info.ByDiscipline.TryGetValue(disc, out int dCount);
+                        info.ByDiscipline[disc] = dCount + 1;
                     }
                     string sys = HandoverHelper.Gs(el, ParamRegistry.SYS);
                     if (!string.IsNullOrEmpty(sys))
                     {
-                        if (!info.BySystems.ContainsKey(sys)) info.BySystems[sys] = 0;
-                        info.BySystems[sys]++;
+                        // HEC-MEDIUM-01: TryGetValue avoids ContainsKey + indexer double-lookup
+                        info.BySystems.TryGetValue(sys, out int sCount);
+                        info.BySystems[sys] = sCount + 1;
                     }
                 }
 
@@ -1238,12 +1243,9 @@ namespace StingTools.Docs
             {
                 Element projInfo = doc.ProjectInformation;
                 if (projInfo == null) return "";
-                foreach (Parameter p in projInfo.Parameters)
-                {
-                    if (p.Definition.Name == paramName)
-                        return p.AsString() ?? "";
-                }
-                return "";
+                // HEC-MEDIUM-02: LookupParameter does O(1) hash lookup; avoids linear foreach over all Parameters.
+                Parameter p = projInfo.LookupParameter(paramName);
+                return p?.AsString() ?? "";
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; }
         }

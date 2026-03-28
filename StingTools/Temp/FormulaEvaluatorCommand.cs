@@ -78,6 +78,30 @@ namespace StingTools.Temp
             // Per-formula skip tracking — missing input parameters
             var formulaSkipCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
+            // PERF-003: Build discipline-to-formula index before element loop so per-element
+            // formula iteration is limited to relevant formulas, not all 199 for every element.
+            // Elements with DISC=M skip E/P/A/S-only formulas, reducing inner iterations by ~75%.
+            // Formulas with empty/ALL Discipline apply to every element (stored under "" key).
+            var formulasByDisc = new Dictionary<string, List<FormulaDefinition>>(
+                StringComparer.OrdinalIgnoreCase);
+            var formulasForAll = new List<FormulaDefinition>(); // applies to all disciplines
+            foreach (var f in formulas)
+            {
+                string disc = (f.Discipline ?? "").Trim();
+                if (string.IsNullOrEmpty(disc) ||
+                    disc.Equals("ALL", StringComparison.OrdinalIgnoreCase) ||
+                    disc.Equals("GEN", StringComparison.OrdinalIgnoreCase))
+                {
+                    formulasForAll.Add(f);
+                }
+                else
+                {
+                    if (!formulasByDisc.ContainsKey(disc))
+                        formulasByDisc[disc] = new List<FormulaDefinition>();
+                    formulasByDisc[disc].Add(f);
+                }
+            }
+
             bool cancelled = false;
             int elIndex = 0;
 
@@ -98,9 +122,17 @@ namespace StingTools.Temp
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName)) continue;
 
+                    // PERF-003: Only evaluate formulas relevant to this element's discipline.
+                    // Read the element's DISC token; combine discipline-specific + universal formulas.
+                    string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    IEnumerable<FormulaDefinition> activeFormulas = formulasForAll;
+                    if (!string.IsNullOrEmpty(elDisc) &&
+                        formulasByDisc.TryGetValue(elDisc, out var discFormulas))
+                        activeFormulas = formulasForAll.Concat(discFormulas);
+
                     bool anyWritten = false;
 
-                    foreach (var formula in formulas)
+                    foreach (var formula in activeFormulas)
                     {
                         try
                         {
@@ -417,12 +449,27 @@ namespace StingTools.Temp
                 if (!inDegree.ContainsKey(f.ParameterName)) inDegree[f.ParameterName] = 0;
             }
 
+            // PERF-002: Use word-boundary regex to detect dependencies.
+            // f.Expression.Contains(dep.ParameterName) was a substring match that falsely detected
+            // "AREA" inside "FLOOR_AREA_M2", corrupting the topological sort order.
+            // Pre-compile one Regex per formula name to avoid repeated compilation in the inner loop.
+            var depRegexes = new Dictionary<string, System.Text.RegularExpressions.Regex>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var f in formulas)
+            {
+                if (!depRegexes.ContainsKey(f.ParameterName))
+                    depRegexes[f.ParameterName] = new System.Text.RegularExpressions.Regex(
+                        $@"\b{System.Text.RegularExpressions.Regex.Escape(f.ParameterName)}\b",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+
             foreach (var f in formulas)
             {
                 foreach (var dep in formulas)
                 {
                     if (dep.ParameterName == f.ParameterName) continue;
-                    if (f.Expression != null && f.Expression.Contains(dep.ParameterName))
+                    if (f.Expression != null && depRegexes.TryGetValue(dep.ParameterName, out var rx)
+                        && rx.IsMatch(f.Expression))
                     {
                         if (!adjList.ContainsKey(dep.ParameterName)) adjList[dep.ParameterName] = new List<string>();
                         adjList[dep.ParameterName].Add(f.ParameterName);
@@ -449,7 +496,11 @@ namespace StingTools.Temp
 
             if (sorted.Count < formulas.Count)
             {
-                var cycleNodes = formulas.Where(f => !sorted.Any(s => s.ParameterName == f.ParameterName)).ToList();
+                // LOGIC-001: Use HashSet for O(1) membership test instead of O(n) sorted.Any(...).
+                // For 199 formulas this is a 199x speedup for each cycle-node check.
+                var sortedNames = new HashSet<string>(
+                    sorted.Select(s => s.ParameterName), StringComparer.OrdinalIgnoreCase);
+                var cycleNodes = formulas.Where(f => !sortedNames.Contains(f.ParameterName)).ToList();
                 foreach (var cn in cycleNodes)
                     StingLog.Error($"Formula cycle detected: {cn.ParameterName} (level {cn.DependencyLevel})");
                 // Add cycle nodes at the end so they still execute (with potentially wrong values)

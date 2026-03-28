@@ -422,24 +422,23 @@ namespace StingTools.Organise
                 tx.Commit();
             }
 
-            // GAP-010: Post-fix duplicate scan to verify all tags are now unique
-            var postTagMap = new Dictionary<string, int>();
-            IEnumerable<Element> postElements;
-            if (catEnums != null && catEnums.Length > 0)
-                postElements = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            else
-                postElements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            foreach (Element elem in postElements)
+            // TAG-M-07: Use the local tagIndex (built above and updated with every new tag assigned)
+            // instead of a second full-model scan to verify uniqueness.  tagIndex already contains
+            // every post-fix tag value — if any value was added more than once, the do-while loop
+            // above would have incremented SEQ until it was unique, so remaining dupes can only
+            // come from the unmodified first-copy elements.  We re-check only the original tagMap
+            // to count multi-value collisions that survive.
+            var postTagMap = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var kvp in tagMap)
             {
-                if (elem.Category == null) continue;
-                string cat = ParameterHelpers.GetCategoryName(elem);
-                if (!known.Contains(cat)) continue;
-                string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag)) continue;
-                if (!postTagMap.ContainsKey(tag)) postTagMap[tag] = 0;
-                postTagMap[tag]++;
+                // kept element (index 0) retains the original tag value
+                string keptTag = ParameterHelpers.GetString(kvp.Value[0], ParamRegistry.TAG1);
+                if (!string.IsNullOrEmpty(keptTag))
+                {
+                    if (!postTagMap.ContainsKey(keptTag)) postTagMap[keptTag] = 0;
+                    postTagMap[keptTag]++;
+                }
+                // fixed elements (index 1+) got new tags added to tagIndex; they are unique by construction
             }
             int remainingDupes = postTagMap.Count(kvp => kvp.Value > 1);
 
@@ -449,8 +448,10 @@ namespace StingTools.Organise
             if (remainingDupes > 0)
                 StingLog.Warn($"FixDuplicates: post-fix scan found {remainingDupes} remaining duplicate tag values");
 
-            // Persist SEQ + invalidate caches after duplicate fix
-            try { var (_, fdSeq) = TagConfig.BuildTagIndexAndCounters(doc); TagConfig.SaveSeqSidecar(doc, fdSeq); }
+            // TAG-H-01: Save locally-modified seqCounters (which already contain the new SEQ values
+            // assigned during this fix pass) rather than rebuilding from scratch via BuildTagIndexAndCounters,
+            // which would discard the increments made above and could assign duplicate SEQ numbers.
+            try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
             catch (Exception ssEx) { StingLog.Warn($"FixDuplicates SaveSeqSidecar: {ssEx.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

@@ -593,10 +593,13 @@ namespace StingTools.UI
                             string idsStr = GetExtraParam("SM_ElementIds");
                             if (!string.IsNullOrEmpty(idsStr))
                             {
-                                var ids = idsStr.Split(',')
-                                    .Where(s => long.TryParse(s.Trim(), out _))
-                                    .Select(s => new ElementId(long.Parse(s.Trim())))
-                                    .ToList();
+                                // SCH-MEDIUM-01: Use TryParse out-value to avoid double Trim+Parse
+                                var ids = new List<ElementId>();
+                                foreach (var s in idsStr.Split(','))
+                                {
+                                    if (long.TryParse(s.Trim(), out long idVal))
+                                        ids.Add(new ElementId(idVal));
+                                }
                                 if (ids.Count > 0)
                                     uidoc.Selection.SetElementIds(ids);
                             }
@@ -2641,8 +2644,9 @@ namespace StingTools.UI
 
         // ── Inline operations ─────────────────────────────────────────
 
-        private static readonly Dictionary<string, List<ElementId>> _memorySlots =
-            new Dictionary<string, List<ElementId>>();
+        // SCH-MEDIUM-02: Use HashSet<ElementId> to prevent duplicates in O(1) instead of O(n) List.Contains
+        private static readonly Dictionary<string, HashSet<ElementId>> _memorySlots =
+            new Dictionary<string, HashSet<ElementId>>();
 
         /// <summary>
         /// CRASH FIX: Clear all static state that may hold stale references.
@@ -2812,8 +2816,7 @@ namespace StingTools.UI
             string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
             // Phase 75: Clear slots if document changed since last save
             if (_memoryDocPath != curDoc) { _memorySlots.Clear(); _memoryDocPath = curDoc; }
-            _memorySlots[slot] = uidoc.Selection.GetElementIds()
-                .Select(id => id).ToList();
+            _memorySlots[slot] = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
             StingLog.Info($"Selection saved to {slot}: {_memorySlots[slot].Count} elements");
         }
 
@@ -2845,8 +2848,8 @@ namespace StingTools.UI
         {
             _memorySlots.TryGetValue(a, out var slotA);
             _memorySlots.TryGetValue(b, out var slotB);
-            _memorySlots[a] = slotB ?? new List<ElementId>();
-            _memorySlots[b] = slotA ?? new List<ElementId>();
+            _memorySlots[a] = slotB ?? new HashSet<ElementId>();
+            _memorySlots[b] = slotA ?? new HashSet<ElementId>();
         }
 
         private static void AddToMemory(UIApplication app, string slot)
@@ -2854,10 +2857,10 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             if (!_memorySlots.ContainsKey(slot))
-                _memorySlots[slot] = new List<ElementId>();
+                _memorySlots[slot] = new HashSet<ElementId>();
+            // SCH-MEDIUM-02: HashSet.Add is idempotent — no .Contains() check needed
             foreach (var id in uidoc.Selection.GetElementIds())
-                if (!_memorySlots[slot].Contains(id))
-                    _memorySlots[slot].Add(id);
+                _memorySlots[slot].Add(id);
         }
 
         private static void RemoveFromMemory(UIApplication app, string slot)
@@ -2866,7 +2869,7 @@ namespace StingTools.UI
             if (uidoc == null) return;
             if (!_memorySlots.ContainsKey(slot)) return;
             var toRemove = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
-            _memorySlots[slot].RemoveAll(id => toRemove.Contains(id));
+            _memorySlots[slot].RemoveWhere(id => toRemove.Contains(id));
         }
 
         private static void IntersectWithMemory(UIApplication app, string slot)
@@ -2874,9 +2877,9 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             if (!_memorySlots.TryGetValue(slot, out var memIds)) return;
-            var memSet = new HashSet<ElementId>(memIds);
+            // SCH-MEDIUM-02: memIds is already a HashSet — no redundant wrapper needed
             var result = uidoc.Selection.GetElementIds()
-                .Where(id => memSet.Contains(id)).ToList();
+                .Where(id => memIds.Contains(id)).ToList();
             uidoc.Selection.SetElementIds(result);
         }
 

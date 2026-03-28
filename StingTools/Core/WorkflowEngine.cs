@@ -327,6 +327,59 @@ namespace StingTools.Core
         private static string _lastWorkflowResult;
         private static DateTime _lastWorkflowTime;
 
+        // HIGH-05: Cache built-in presets list — rebuilt only when data path changes or explicitly cleared
+        private static List<WorkflowPreset> _cachedBuiltInPresets;
+        private static string _cachedBuiltInPresetsDataPath;
+
+        // MED-02: Static readonly to avoid re-allocating on every GetClosestCommandTags call
+        private static readonly string[] _allKnownCommandTags = new[]
+        {
+            "LoadParams", "MasterSetup", "ProjectSetup", "CreateBLEMaterials", "CreateMEPMaterials",
+            "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
+            "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
+            "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
+            "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
+            "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
+            "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
+            "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
+            "BatchCreateViews", "BatchCreateSheets", "DrawingRegister", "AutoNumberSheets",
+            "SpatialConnectivityAudit", "NamingAudit", "CrossModelClash", "MEPClearance", "BatchPrintSheets",
+            "DynamicBindings", "BOQExport", "BatchFamilyParams", "FamilyParamProcessor",
+            "AutoCreateLegends", "CreateBEP", "UpdateBEP", "ExportBEP", "COBieExport", "DocumentBriefcase",
+            "WorkflowTrend", "CreateRevision", "RevisionDashboard", "AutoRevisionCloud",
+            "AutoRevisionOnTagChange", "RevisionTagIntegration", "RevisionExport",
+            "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
+            "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
+            "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
+            "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
+            "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
+            "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
+            "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
+            "WarningsCompliance", "BIMCoordinationCenter", "CompletenessDashboard", "TagRegisterExport",
+            "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
+            "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
+            "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
+            "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
+            "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
+            "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
+            "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
+            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
+            "WarningsSelectElements", "WarningsSuppress",
+            "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
+            "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
+            "ScheduleAudit", "SchemaValidate", "SheetComplianceCheck", "SheetNamingCheck",
+            "TemplateAudit", "TemplateComplianceScore", "ClashDetection", "BatchSystemPush",
+            "ExportSheetRegister", "COBieHandoverExport", "GenerateBEP", "WarningsMonitor",
+            "DeleteUnusedViews", "ExportCSV", "SheetOrganizer", "ViewOrganizer", "SyncOverrides",
+            "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
+            "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
+            "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
+            "TagSelector", "ExportTagPositions"
+        };
+
+        /// <summary>Invalidate the built-in presets cache (e.g. after JSON file changes).</summary>
+        public static void InvalidatePresetsCache() { _cachedBuiltInPresets = null; }
+
         /// <summary>Phase 48: Name of the last successfully executed workflow preset.</summary>
         public static string LastWorkflowName => _lastWorkflowName;
 
@@ -582,24 +635,10 @@ namespace StingTools.Core
                             catch (Exception ex) { StingLog.Warn($"has_overdue_issues check: {ex.Message}"); }
                         }
 
-                        if (cond == "has_untagged")
+                        // HIGH-04: has_untagged and has_placeholders share a single collector pass
+                        if (cond == "has_untagged" || cond == "has_placeholders")
                         {
                             bool hasUntagged = false;
-                            try
-                            {
-                                var catEnums = SharedParamGuids.AllCategoryEnums;
-                                var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-                                if (catEnums != null && catEnums.Length > 0)
-                                    coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-                                hasUntagged = coll.Any(e => string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
-                            }
-                            catch (Exception ex) { StingLog.Warn($"has_untagged condition check: {ex.Message}"); }
-                            if (!hasUntagged) { RecordSkip("no untagged elements"); continue; }
-                        }
-
-                        // Phase 66c: Additional workflow condition operators
-                        if (cond == "has_placeholders")
-                        {
                             bool hasPlaceholders = false;
                             try
                             {
@@ -607,14 +646,17 @@ namespace StingTools.Core
                                 var coll = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                                 if (catEnums != null && catEnums.Length > 0)
                                     coll.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-                                hasPlaceholders = coll.Any(e =>
+                                foreach (var e in coll)
                                 {
                                     string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1);
-                                    return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t);
-                                });
+                                    if (string.IsNullOrEmpty(t)) hasUntagged = true;
+                                    else if (TagConfig.TagHasPlaceholders(t)) hasPlaceholders = true;
+                                    if (hasUntagged && hasPlaceholders) break; // both found — early exit
+                                }
                             }
-                            catch (Exception ex) { StingLog.Warn($"has_placeholders check: {ex.Message}"); }
-                            if (!hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
+                            catch (Exception ex) { StingLog.Warn($"{cond} condition check: {ex.Message}"); }
+                            if (cond == "has_untagged" && !hasUntagged) { RecordSkip("no untagged elements"); continue; }
+                            if (cond == "has_placeholders" && !hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
                         if (cond == "has_container_gaps")
                         {
@@ -1281,11 +1323,12 @@ namespace StingTools.Core
                 case "DailyPlanner":            return new DailyPlannerCommand();
                 case "DeliverableMatrix":       return new DeliverableMatrixCommand();
                 case "WarningPrediction":       return new WarningPredictionCommand();
-                case "AcousticAnalysis":        return null; // inline handler in dispatch
-                case "BREEAMAssessment":        return null; // inline handler in dispatch
-                case "LifecycleAssessment":     return null; // inline handler in dispatch
-                case "MEPPressureDrop":         return null; // inline handler in dispatch
-                case "StructuralDeepAnalysis":  return null; // inline handler in dispatch
+                // CRIT-05: These are handled inline in StingCommandHandler — not usable in workflows
+                case "AcousticAnalysis":        throw new NotSupportedException("AcousticAnalysis is an inline dispatch handler and cannot be used in workflow presets.");
+                case "BREEAMAssessment":        throw new NotSupportedException("BREEAMAssessment is an inline dispatch handler and cannot be used in workflow presets.");
+                case "LifecycleAssessment":     throw new NotSupportedException("LifecycleAssessment is an inline dispatch handler and cannot be used in workflow presets.");
+                case "MEPPressureDrop":         throw new NotSupportedException("MEPPressureDrop is an inline dispatch handler and cannot be used in workflow presets.");
+                case "StructuralDeepAnalysis":  throw new NotSupportedException("StructuralDeepAnalysis is an inline dispatch handler and cannot be used in workflow presets.");
 
                 // BIM Coordination Center dispatch targets
                 case "FullComplianceDashboard": return new BIMManager.FullComplianceDashboardCommand();
@@ -1384,54 +1427,9 @@ namespace StingTools.Core
         /// <summary>Returns the closest matching valid command tags for a given invalid tag.</summary>
         private static List<string> GetClosestCommandTags(string invalidTag, int maxResults)
         {
-            // All valid command tags from the ResolveCommand switch
-            var allTags = new[]
-            {
-                "LoadParams", "MasterSetup", "ProjectSetup", "CreateBLEMaterials", "CreateMEPMaterials",
-                "CreateWalls", "CreateFloors", "CreateCeilings", "CreateRoofs", "CreateDucts", "CreatePipes",
-                "FullAutoPopulate", "BatchSchedules", "EvaluateFormulas",
-                "AutoTag", "BatchTag", "TagAndCombine", "TagNewOnly", "TagChanged", "FamilyStagePopulate",
-                "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "ValidateTemplate",
-                "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
-                "CreateFillPatterns", "CreateLineStyles", "CreateObjectStyles", "CreateTextStyles",
-                "CreateDimStyles", "CreateVGOverrides", "ApplyFilters",
-                "BatchCreateViews", "BatchCreateSheets", "DrawingRegister", "AutoNumberSheets",
-                "SpatialConnectivityAudit", "NamingAudit", "CrossModelClash", "MEPClearance", "BatchPrintSheets",
-                "DynamicBindings", "BOQExport", "BatchFamilyParams", "FamilyParamProcessor",
-                "AutoCreateLegends", "CreateBEP", "UpdateBEP", "ExportBEP", "COBieExport", "DocumentBriefcase",
-                "WorkflowTrend", "CreateRevision", "RevisionDashboard", "AutoRevisionCloud",
-                "AutoRevisionOnTagChange", "RevisionTagIntegration", "RevisionExport",
-                "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
-                "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
-                "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
-                "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
-                "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
-                "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
-                "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
-                "WarningsCompliance", "BIMCoordinationCenter", "CompletenessDashboard", "TagRegisterExport",
-                "AuditTagsCSV", "ModelHealthDashboard", "FullComplianceDashboard", "ExportModelHealth",
-                "RaiseIssue", "UpdateIssue", "SelectIssueElements", "IssueDashboard",
-                "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
-                "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp",
-                "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
-                "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
-                "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
-                "ListWorkflowPresets", "AddDocument", "DocumentRegister", "StageComplianceGate",
-                "WarningsSelectElements", "WarningsSuppress",
-                "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
-                "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
-                "ScheduleAudit", "SchemaValidate", "SheetComplianceCheck", "SheetNamingCheck",
-                "TemplateAudit", "TemplateComplianceScore", "ClashDetection", "BatchSystemPush",
-                "ExportSheetRegister", "COBieHandoverExport", "GenerateBEP", "WarningsMonitor",
-                "DeleteUnusedViews", "ExportCSV", "SheetOrganizer", "ViewOrganizer", "SyncOverrides",
-                "DataDropReadiness", "WeeklyCoordinatorReport", "ExportSchedulesToExcel", "COBieImport",
-                "UserProductivityReport", "FederatedCompliance", "ApprovalWorkflow", "RevisionSchedule",
-                "AssignNumbers", "SetSeqScheme", "ExportTagMap", "ImportTagMap", "BatchPlaceTags",
-                "TagSelector", "ExportTagPositions"
-            };
-
+            // MED-02: Uses static readonly _allKnownCommandTags — no per-call allocation
             string lowerInvalid = invalidTag.ToLowerInvariant();
-            return allTags
+            return _allKnownCommandTags
                 .Select(t => new { Tag = t, Dist = LevenshteinDistance(lowerInvalid, t.ToLowerInvariant()) })
                 .OrderBy(x => x.Dist)
                 .Take(maxResults)
@@ -1444,16 +1442,23 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
             if (string.IsNullOrEmpty(b)) return a.Length;
-            int[,] d = new int[a.Length + 1, b.Length + 1];
-            for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
-            for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+            // HIGH-06: Single-row DP — avoids (m+1)×(n+1) 2D array allocation
+            int bLen = b.Length;
+            int[] prev = new int[bLen + 1];
+            int[] curr = new int[bLen + 1];
+            for (int j = 0; j <= bLen; j++) prev[j] = j;
             for (int i = 1; i <= a.Length; i++)
-                for (int j = 1; j <= b.Length; j++)
+            {
+                curr[0] = i;
+                for (int j = 1; j <= bLen; j++)
                 {
                     int cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + cost);
+                    curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
                 }
-            return d[a.Length, b.Length];
+                // swap rows
+                var tmp = prev; prev = curr; curr = tmp;
+            }
+            return prev[bLen];
         }
 
         /// <summary>FIX-7.1: Public wrapper so NLPCommandProcessorCommand can call it.</summary>
@@ -1475,19 +1480,18 @@ namespace StingTools.Core
                         var wr = WarningsEngine.ScanWarnings(doc);
                         return wr.BySeverity.GetValueOrDefault(WarningSeverity.Critical) > 0;
                     case "has_open_issues":
-                        string iPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
-                        if (!File.Exists(iPath)) return false;
-                        // WE-HIGH-01: JSON parse instead of naive string Contains
-                        var iArr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(iPath));
-                        return iArr.Any(i => (string)i["status"] == "OPEN");
                     case "has_overdue_issues":
                     {
-                        string oiPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
-                        if (!File.Exists(oiPath)) return false;
+                        // HIGH-03: Load issues.json once, shared between has_open_issues and has_overdue_issues
+                        string issuePath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "_bim_manager", "issues.json");
+                        if (!File.Exists(issuePath)) return false;
+                        JArray cachedIssues = JArray.Parse(File.ReadAllText(issuePath));
+                        if (condition == "has_open_issues")
+                            return cachedIssues.Any(i => (string)i["status"] == "OPEN");
+                        // has_overdue_issues
                         var slaHrs = new Dictionary<string, int>
                             { { "CRITICAL", 4 }, { "HIGH", 24 }, { "MEDIUM", 168 }, { "LOW", 336 } };
-                        var oiArr = JArray.Parse(File.ReadAllText(oiPath));
-                        foreach (var oi in oiArr)
+                        foreach (var oi in cachedIssues)
                         {
                             if (oi["status"]?.ToString() != "OPEN") continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
@@ -1572,6 +1576,17 @@ namespace StingTools.Core
         /// <summary>Get all available presets (built-in + user JSON files).</summary>
         public static List<WorkflowPreset> GetAvailablePresets()
         {
+            string dataDir = StingToolsApp.DataPath;
+
+            // HIGH-05: Return cached built-in list when data path is unchanged
+            if (_cachedBuiltInPresets != null && _cachedBuiltInPresetsDataPath == dataDir)
+            {
+                // Still append fresh user-defined JSON files on top of the cached built-ins
+                var cachedResult = new List<WorkflowPreset>(_cachedBuiltInPresets);
+                AppendUserPresets(cachedResult, dataDir);
+                return cachedResult;
+            }
+
             var presets = new List<WorkflowPreset>();
 
             // Built-in presets
@@ -1615,32 +1630,40 @@ namespace StingTools.Core
             // Remove any null entries from failed lookups
             presets.RemoveAll(p => p == null);
 
+            // HIGH-05: Cache the built-in list so subsequent calls skip all GetBuiltInPreset() work
+            _cachedBuiltInPresets = new List<WorkflowPreset>(presets);
+            _cachedBuiltInPresetsDataPath = dataDir;
+
             // User-defined JSON files
-            string dataDir = StingToolsApp.DataPath;
-            if (Directory.Exists(dataDir))
-            {
-                foreach (string file in Directory.GetFiles(dataDir, "WORKFLOW_*.json"))
-                {
-                    try
-                    {
-                        string json = File.ReadAllText(file);
-                        var preset = JsonConvert.DeserializeObject<WorkflowPreset>(json);
-                        if (preset != null && preset.Steps.Count > 0)
-                        {
-                            preset.IsBuiltIn = false;
-                            // Avoid duplicating built-in names
-                            if (!presets.Any(p => p.Name == preset.Name))
-                                presets.Add(preset);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Failed to load workflow preset '{file}': {ex.Message}");
-                    }
-                }
-            }
+            // Append user-defined JSON presets on top
+            AppendUserPresets(presets, dataDir);
 
             return presets;
+        }
+
+        // HIGH-05: Extracted helper so both cached and uncached paths share the same JSON-loading logic
+        private static void AppendUserPresets(List<WorkflowPreset> presets, string dataDir)
+        {
+            if (!Directory.Exists(dataDir)) return;
+            foreach (string file in Directory.GetFiles(dataDir, "WORKFLOW_*.json"))
+            {
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    var preset = JsonConvert.DeserializeObject<WorkflowPreset>(json);
+                    if (preset != null && preset.Steps.Count > 0)
+                    {
+                        preset.IsBuiltIn = false;
+                        // Avoid duplicating built-in names
+                        if (!presets.Any(p => p.Name == preset.Name))
+                            presets.Add(preset);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Failed to load workflow preset '{file}': {ex.Message}");
+                }
+            }
         }
 
         /// <summary>Get a built-in workflow preset by name.</summary>

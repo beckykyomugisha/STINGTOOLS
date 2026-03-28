@@ -497,13 +497,16 @@ namespace StingTools.Tags
         /// Find a tag family type for the given element category.
         /// Priority: STING family > category name match > multi-category/generic.
         /// </summary>
-        // GAP-STP-02 FIX: Cache annotation tag types per document to avoid
-        // FilteredElementCollector scan per element (500 elements = 500 scans → 1 scan)
-        private static string _tagTypeCacheDocKey;
-        private static List<FamilySymbol> _tagTypeCache;
+        // TAG-M-04: Single atomic tuple replaces two separate static fields — prevents torn read
+        // where one thread sees new docKey but stale types list (or null list with valid key).
+        private static (string docKey, List<FamilySymbol> types) _tagTypeCache;
 
         /// <summary>Clear cached tag types on document close/switch.</summary>
-        public static void ClearTagTypeCache() { _tagTypeCache = null; _tagTypeCacheDocKey = null; }
+        public static void ClearTagTypeCache()
+        {
+            // TAG-M-04: Assign atomically — both fields clear in one write.
+            _tagTypeCache = (null, null);
+        }
 
         public static FamilySymbol FindTagType(Document doc, Category elementCategory)
         {
@@ -511,17 +514,21 @@ namespace StingTools.Tags
             string catName = elementCategory.Name ?? "";
 
             string docKey = doc.PathName ?? doc.Title ?? "Untitled";
-            if (_tagTypeCache == null || _tagTypeCacheDocKey != docKey)
+            // TAG-M-04: Snapshot the tuple atomically before checking — avoids torn read.
+            var cacheSnapshot = _tagTypeCache;
+            if (cacheSnapshot.types == null || cacheSnapshot.docKey != docKey)
             {
-                _tagTypeCache = new FilteredElementCollector(doc)
+                var newTypes = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
                     .Where(fs => fs.Category != null &&
                         fs.Category.CategoryType == CategoryType.Annotation)
                     .ToList();
-                _tagTypeCacheDocKey = docKey;
+                // TAG-M-04: Assign atomically as a single tuple write.
+                _tagTypeCache = (docKey, newTypes);
+                cacheSnapshot = _tagTypeCache;
             }
-            var tagTypes = _tagTypeCache;
+            var tagTypes = cacheSnapshot.types;
 
             // Pass 1: STING tag family
             string stingName = GetStingFamilyName(elementCategory);

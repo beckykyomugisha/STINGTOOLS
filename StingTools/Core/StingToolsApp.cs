@@ -132,7 +132,10 @@ namespace StingTools.Core
                 StingStaleMarker.ClearRoomIndexCache();
                 // GAP-STP-02: Clear cached tag types on document close
                 Tags.TagPlacementEngine.ClearTagTypeCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
+                // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
+                // from the closed document being applied to subsequently opened documents.
+                Model.WorksetAssigner.ClearCache();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
             }
             catch (Exception ex)
             {

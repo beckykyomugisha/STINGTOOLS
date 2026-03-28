@@ -284,13 +284,31 @@ namespace StingTools.BIMManager
         /// Returns list of overdue issues with hours overdue and escalation recommendation.
         /// Called from DocumentOpened event for morning SLA report.
         /// </summary>
+        // HIGH-01: Cache issues.json for SLA checks — re-read only when file changes on disk
+        private static (string path, DateTime lastMod, JArray issues) _slaIssuesCache;
+
         internal static List<(string issueId, string priority, string title, double hoursOverdue)> CheckSLAViolations(Document doc)
         {
             var overdue = new List<(string, string, string, double)>();
             try
             {
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
-                var issues = LoadJsonArray(issuesPath);
+                // HIGH-01: Use cached array when file hasn't changed
+                JArray issues;
+                if (!string.IsNullOrEmpty(_slaIssuesCache.path) &&
+                    _slaIssuesCache.path == issuesPath &&
+                    File.Exists(issuesPath) &&
+                    File.GetLastWriteTimeUtc(issuesPath) == _slaIssuesCache.lastMod)
+                {
+                    issues = _slaIssuesCache.issues;
+                }
+                else
+                {
+                    issues = LoadJsonArray(issuesPath);
+                    _slaIssuesCache = (issuesPath,
+                        File.Exists(issuesPath) ? File.GetLastWriteTimeUtc(issuesPath) : DateTime.MinValue,
+                        issues);
+                }
                 foreach (var issue in issues)
                 {
                     string status = issue["status"]?.ToString() ?? "";
@@ -796,12 +814,15 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Phase 75: Auto-close compliance issues when compliance reaches GREEN.
         /// Matches issues auto-raised by AutoRaiseComplianceIssues.
+        /// HIGH-02: Accepts pre-computed scanResult to avoid a second ComplianceScan.Scan(doc) call
+        /// when invoked from AutoRaiseComplianceIssues which already has the result.
         /// </summary>
-        internal static int AutoCloseComplianceIssues(Document doc)
+        internal static int AutoCloseComplianceIssues(Document doc, ComplianceScan.ComplianceResult scanResult = null)
         {
             try
             {
-                var scanResult = ComplianceScan.Scan(doc);
+                // HIGH-02: Use passed-in result if available; only scan when called standalone
+                if (scanResult == null) scanResult = ComplianceScan.Scan(doc);
                 if (scanResult == null || scanResult.RAGStatus != "GREEN") return 0;
 
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
@@ -845,7 +866,8 @@ namespace StingTools.BIMManager
                 if (scanResult == null || scanResult.RAGStatus == "GREEN")
                 {
                     // Phase 75: Auto-close any previously raised compliance issues
-                    AutoCloseComplianceIssues(doc);
+                    // HIGH-02: Pass scanResult to avoid redundant ComplianceScan.Scan(doc) inside
+                    AutoCloseComplianceIssues(doc, scanResult);
                     return 0;
                 }
 
@@ -2507,8 +2529,12 @@ namespace StingTools.BIMManager
 
             var types = new List<Dictionary<string, string>>();
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-            foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+            // CRIT-03: Materialize FamilySymbol list once; reused by Spare section below
+            var allFamilySymbols = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
                 .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
+                .ToList();
+            foreach (var fs in allFamilySymbols
                 .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()))
             {
                 // Read all available type-level STING parameters
@@ -2696,14 +2722,26 @@ namespace StingTools.BIMManager
             }
             data["Component"] = components;
 
+            // CRIT-01/04: Build UniqueId → Element map once; reuse across System/Job/Impact/Attribute/Coordinate
+            // sections instead of calling doc.GetElement(extId) per section per component (~5× redundant scans).
+            var elemById = new Dictionary<string, Element>(components.Count, StringComparer.Ordinal);
+            foreach (var comp in components)
+            {
+                string cid = comp["ExternalIdentifier"];
+                if (!string.IsNullOrEmpty(cid) && !elemById.ContainsKey(cid))
+                {
+                    var cel = doc.GetElement(cid);
+                    if (cel != null) elemById[cid] = cel;
+                }
+            }
+
             // ── System (grouped by actual SYS parameter values from tagged elements) ──
             var systems = new List<Dictionary<string, string>>();
             var sysGroups = new Dictionary<string, List<string>>();
             foreach (var comp in components)
             {
                 string extId = comp["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) continue;
                 string sysCode = ParameterHelpers.GetString(revitEl, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sysCode)) continue;
                 if (!sysGroups.ContainsKey(sysCode))
@@ -2756,8 +2794,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string compExtId = comp["ExternalIdentifier"];
-                var compEl = doc.GetElement(compExtId);
-                if (compEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(compExtId, out var compEl) || compEl == null) continue;
                 string compSys = ParameterHelpers.GetString(compEl, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(compSys) || sysMaintenanceOverrides.ContainsKey(compSys)) continue;
                 string interval = ParameterHelpers.GetString(compEl, "MNT_SERVICE_INTERVAL_TXT");
@@ -2955,9 +2993,8 @@ namespace StingTools.BIMManager
 
             // ── Spare (basic spare parts from type data) ──
             var spares = new List<Dictionary<string, string>>();
-            foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
-                .GroupBy(fs => fs.FamilyName).Select(g => g.First()))
+            // CRIT-03: Reuse allFamilySymbols from Type section — already filtered to knownCats
+            foreach (var fs in allFamilySymbols.GroupBy(fs => fs.FamilyName).Select(g => g.First()))
             {
                 string manufacturer = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT");
                 string model = ParameterHelpers.GetString(fs, "ASS_MODEL_NR_TXT");
@@ -3000,8 +3037,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string compExtId = comp["ExternalIdentifier"];
-                var compEl = doc.GetElement(compExtId);
-                if (compEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(compExtId, out var compEl) || compEl == null) continue;
                 string carbon = ParameterHelpers.GetString(compEl, "PER_CARBON_FOOTPRINT_KG_NR");
                 string embodied = ParameterHelpers.GetString(compEl, "PER_EMBODIED_CARBON_KG_NR");
                 string energyRating = ParameterHelpers.GetString(compEl, "PER_ENERGY_RATING_TXT");
@@ -3117,8 +3154,8 @@ namespace StingTools.BIMManager
             {
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) { attrSkippedOrphans++; continue; }
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) { attrSkippedOrphans++; continue; }
                 foreach (string pName in attrParamNames)
                 {
                     string val = ParameterHelpers.GetString(revitEl, pName);
@@ -3167,8 +3204,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string extId = comp["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) continue;
                 XYZ point = null;
                 string rotation = "0";
                 // Prefer element Location (more accurate for placed families)

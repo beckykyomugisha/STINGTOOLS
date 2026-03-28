@@ -183,7 +183,7 @@ namespace StingTools.Core
                     // with non-alarming defaults instead of 0/0 = RED
                     return new ComplianceResult
                     {
-                        ScanTime = DateTime.Now,
+                        ScanTime = DateTime.UtcNow,
                         TotalElements = -1 // sentinel: callers should treat -1 as "scan pending"
                     };
                 }
@@ -212,7 +212,7 @@ namespace StingTools.Core
                             new List<BuiltInCategory>(scanCatEnums)));
                     // PERF-CRIT: Scan timeout — abort after 8 seconds to prevent blocking
                     // UI thread on very large models (50K+ elements). Partial results still useful.
-                    var scanStart = DateTime.Now;
+                    var scanStart = DateTime.UtcNow;
                     const int ScanTimeoutMs = 8000;
 
                     foreach (Element elem in scanColl)
@@ -225,14 +225,14 @@ namespace StingTools.Core
 
                         // PERF-CRIT: Check timeout every 500 elements to avoid DateTime overhead
                         if (result.TotalElements % 500 == 0 &&
-                            (DateTime.Now - scanStart).TotalMilliseconds > ScanTimeoutMs)
+                            (DateTime.UtcNow - scanStart).TotalMilliseconds > ScanTimeoutMs)
                         {
                             StingLog.Warn($"ComplianceScan: timeout at {result.TotalElements} elements " +
-                                $"({(DateTime.Now - scanStart).TotalMilliseconds:F0}ms). " +
+                                $"({(DateTime.UtcNow - scanStart).TotalMilliseconds:F0}ms). " +
                                 "Results are partial — run manually for full scan.");
                             break;
                         }
-                        string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
+                        string disc = TagConfig.DiscMap.TryGetValue(cat, out var discVal) ? discVal : "X";
                         if (!result.ByDisc.TryGetValue(disc, out var dd))
                         {
                             dd = new DiscComplianceData();
@@ -388,8 +388,8 @@ namespace StingTools.Core
 
                         try
                         {
-                            Parameter stalePar = elem.LookupParameter(ParamRegistry.STALE);
-                            if (stalePar != null && stalePar.StorageType == StorageType.Integer && stalePar.AsInteger() == 1)
+                            // F-07: Use cached GetInt instead of direct LookupParameter bypass
+                            if (ParameterHelpers.GetInt(elem, ParamRegistry.STALE, 0) == 1)
                             {
                                 result.StaleCount++;
                                 AddIssue(result, "Stale element");
@@ -406,13 +406,13 @@ namespace StingTools.Core
                 // Phase 39: Sheet compliance scan
                 try
                 {
-                    var sheets = new FilteredElementCollector(doc)
+                    // F-13: Iterate collector directly — avoid .ToList() allocation on large sheet sets
+                    var sheetColl = new FilteredElementCollector(doc)
                         .OfClass(typeof(ViewSheet))
-                        .Cast<ViewSheet>()
-                        .ToList();
-                    result.TotalSheets = sheets.Count;
-                    foreach (var sheet in sheets)
+                        .Cast<ViewSheet>();
+                    foreach (var sheet in sheetColl)
                     {
+                        result.TotalSheets++;
                         string shtTag = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
                         if (!string.IsNullOrEmpty(shtTag))
                             result.SheetsTagged++;
@@ -445,7 +445,7 @@ namespace StingTools.Core
         /// </summary>
         public static ComplianceResult ScanView(Document doc, View view)
         {
-            var result = new ComplianceResult { ScanTime = DateTime.Now };
+            var result = new ComplianceResult { ScanTime = DateTime.UtcNow };
             if (doc == null || view == null) return result;
             try
             {
@@ -457,6 +457,8 @@ namespace StingTools.Core
                     scanColl.WherePasses(new ElementMulticategoryFilter(
                         new List<BuiltInCategory>(catEnums)));
 
+                // F-12: Cache separator array once before the loop — avoids per-element allocation
+                var viewSepArray = new[] { ParamRegistry.Separator };
                 foreach (Element elem in scanColl)
                 {
                     if (elem == null || !elem.IsValidObject) continue;
@@ -471,7 +473,7 @@ namespace StingTools.Core
                     }
                     else
                     {
-                        string[] parts = tag.Split(new[] { ParamRegistry.Separator }, StringSplitOptions.None);
+                        string[] parts = tag.Split(viewSepArray, StringSplitOptions.None);
                         int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                         int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
                         // PERF-R10: Use for-loop instead of LINQ Skip/Take/All to match Scan() pattern
@@ -720,7 +722,7 @@ namespace StingTools.Core
             {
                 string path = System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
                 var entries = LoadEntries(path);
-                string today = DateTime.Now.ToString("yyyy-MM-dd");
+                string today = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
                 // Update today's entry or add new
                 var existing = entries.FirstOrDefault(e => e.Date == today);

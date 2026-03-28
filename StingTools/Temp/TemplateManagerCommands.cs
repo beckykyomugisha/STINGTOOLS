@@ -242,37 +242,38 @@ namespace StingTools.Temp
             string viewName = (view.Name ?? "").ToLowerInvariant();
             string viewTypeName = view.ViewType.ToString().ToLowerInvariant();
 
-            foreach (var kv in allTemplates)
-            {
-                string tplName = kv.Key.ToLowerInvariant();
+            // PERF-008: Pre-compute lowered template names ONCE before the loops so
+            // ToLowerInvariant() is not called per (template × iteration) combination.
+            var loweredTemplates = allTemplates.Select(kv => (original: kv.Key, lower: kv.Key.ToLowerInvariant())).ToList();
 
+            foreach (var (original, tplName) in loweredTemplates)
+            {
                 // Match templates that share keywords with the view name
                 // e.g. view "Mechanical Floor Plan" matches template "Mechanical Plan"
-                if (viewName.Contains("mechanical") && tplName.Contains("mechanical")) return kv.Key;
-                if (viewName.Contains("electrical") && tplName.Contains("electrical")) return kv.Key;
-                if (viewName.Contains("plumbing") && tplName.Contains("plumbing")) return kv.Key;
-                if (viewName.Contains("structural") && tplName.Contains("structural")) return kv.Key;
-                if (viewName.Contains("architectural") && tplName.Contains("architectural")) return kv.Key;
-                if (viewName.Contains("fire") && tplName.Contains("fire")) return kv.Key;
-                if (viewName.Contains("coordination") && tplName.Contains("coordination")) return kv.Key;
-                if (viewName.Contains("hvac") && tplName.Contains("hvac")) return kv.Key;
-                if (viewName.Contains("lighting") && tplName.Contains("lighting")) return kv.Key;
-                if (viewName.Contains("ceiling") && tplName.Contains("ceiling")) return kv.Key;
-                if (viewName.Contains("section") && tplName.Contains("section")) return kv.Key;
-                if (viewName.Contains("elevation") && tplName.Contains("elevation")) return kv.Key;
-                if (viewName.Contains("detail") && tplName.Contains("detail")) return kv.Key;
-                if (viewName.Contains("3d") && tplName.Contains("3d")) return kv.Key;
+                if (viewName.Contains("mechanical") && tplName.Contains("mechanical")) return original;
+                if (viewName.Contains("electrical") && tplName.Contains("electrical")) return original;
+                if (viewName.Contains("plumbing") && tplName.Contains("plumbing")) return original;
+                if (viewName.Contains("structural") && tplName.Contains("structural")) return original;
+                if (viewName.Contains("architectural") && tplName.Contains("architectural")) return original;
+                if (viewName.Contains("fire") && tplName.Contains("fire")) return original;
+                if (viewName.Contains("coordination") && tplName.Contains("coordination")) return original;
+                if (viewName.Contains("hvac") && tplName.Contains("hvac")) return original;
+                if (viewName.Contains("lighting") && tplName.Contains("lighting")) return original;
+                if (viewName.Contains("ceiling") && tplName.Contains("ceiling")) return original;
+                if (viewName.Contains("section") && tplName.Contains("section")) return original;
+                if (viewName.Contains("elevation") && tplName.Contains("elevation")) return original;
+                if (viewName.Contains("detail") && tplName.Contains("detail")) return original;
+                if (viewName.Contains("3d") && tplName.Contains("3d")) return original;
             }
 
             // Fall back to view type matching against template names
-            foreach (var kv in allTemplates)
+            foreach (var (original, tplName) in loweredTemplates)
             {
-                string tplName = kv.Key.ToLowerInvariant();
-                if (viewTypeName == "floorplan" && tplName.Contains("plan") && !tplName.Contains("ceiling")) return kv.Key;
-                if (viewTypeName == "ceilingplan" && (tplName.Contains("ceiling") || tplName.Contains("rcp"))) return kv.Key;
-                if (viewTypeName == "section" && tplName.Contains("section")) return kv.Key;
-                if (viewTypeName == "elevation" && tplName.Contains("elevation")) return kv.Key;
-                if (viewTypeName == "threed" && tplName.Contains("3d")) return kv.Key;
+                if (viewTypeName == "floorplan" && tplName.Contains("plan") && !tplName.Contains("ceiling")) return original;
+                if (viewTypeName == "ceilingplan" && (tplName.Contains("ceiling") || tplName.Contains("rcp"))) return original;
+                if (viewTypeName == "section" && tplName.Contains("section")) return original;
+                if (viewTypeName == "elevation" && tplName.Contains("elevation")) return original;
+                if (viewTypeName == "threed" && tplName.Contains("3d")) return original;
             }
 
             return null;
@@ -374,6 +375,14 @@ namespace StingTools.Temp
             double totalScore = 0;
             double maxScore = 0;
 
+            // PERF-009: Fetch the view template element ONCE before the loop.
+            // Previously, doc.GetElement(view.ViewTemplateId) was called inside up to
+            // 6 of the 10 criterion switch cases, causing repeated element lookups per view.
+            bool hasTemplate = view.ViewTemplateId != ElementId.InvalidElementId;
+            View templateView = hasTemplate
+                ? doc.GetElement(view.ViewTemplateId) as View
+                : null;
+
             foreach (var (criterion, weight, _) in ComplianceCriteria)
             {
                 maxScore += weight;
@@ -382,49 +391,38 @@ namespace StingTools.Temp
                 switch (criterion)
                 {
                     case "HasTemplate":
-                        earned = view.ViewTemplateId != ElementId.InvalidElementId ? weight : 0;
+                        earned = hasTemplate ? weight : 0;
                         break;
                     case "IsStingTemplate":
-                        if (view.ViewTemplateId != ElementId.InvalidElementId)
-                        {
-                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
-                            earned = (tmpl != null && tmpl.Name.StartsWith("STING")) ? weight : 0;
-                        }
+                        if (hasTemplate)
+                            earned = (templateView != null && templateView.Name.StartsWith("STING")) ? weight : 0;
                         break;
                     case "HasFilters":
-                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        if (hasTemplate && templateView != null)
                         {
-                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
-                            if (tmpl != null)
-                            {
-                                int filterCount = tmpl.GetFilters().Count;
-                                earned = filterCount >= 5 ? weight : weight * filterCount / 5.0;
-                            }
+                            int filterCount = templateView.GetFilters().Count;
+                            earned = filterCount >= 5 ? weight : weight * filterCount / 5.0;
                         }
                         break;
                     case "FilterOverrides":
-                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        if (hasTemplate && templateView != null)
                         {
-                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
-                            if (tmpl != null)
+                            var filters = templateView.GetFilters();
+                            int overridden = 0;
+                            foreach (ElementId fid in filters)
                             {
-                                var filters = tmpl.GetFilters();
-                                int overridden = 0;
-                                foreach (ElementId fid in filters)
+                                try
                                 {
-                                    try
-                                    {
-                                        var ogs = tmpl.GetFilterOverrides(fid);
-                                        if (ogs.ProjectionLineColor.IsValid ||
-                                            ogs.Halftone ||
-                                            ogs.Transparency > 0)
-                                            overridden++;
-                                    }
-                                    catch (Exception ex) { StingLog.Warn($"Read filter overrides for scoring: {ex.Message}"); }
+                                    var ogs = templateView.GetFilterOverrides(fid);
+                                    if (ogs.ProjectionLineColor.IsValid ||
+                                        ogs.Halftone ||
+                                        ogs.Transparency > 0)
+                                        overridden++;
                                 }
-                                earned = filters.Count > 0
-                                    ? weight * overridden / filters.Count : 0;
+                                catch (Exception ex) { StingLog.Warn($"Read filter overrides for scoring: {ex.Message}"); }
                             }
+                            earned = filters.Count > 0
+                                ? weight * overridden / filters.Count : 0;
                         }
                         break;
                     case "DetailLevel":
@@ -432,11 +430,10 @@ namespace StingTools.Temp
                         break;
                     case "CorrectDiscipline":
                         string match = FindMatchingTemplate(view);
-                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        if (hasTemplate)
                         {
-                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
-                            earned = (tmpl != null && match != null &&
-                                string.Equals(tmpl.Name, match, StringComparison.OrdinalIgnoreCase))
+                            earned = (templateView != null && match != null &&
+                                string.Equals(templateView.Name, match, StringComparison.OrdinalIgnoreCase))
                                 ? weight : weight * 0.3;
                         }
                         break;
@@ -450,21 +447,16 @@ namespace StingTools.Temp
                         catch (Exception ex) { StingLog.Warn($"Read view phase parameter: {ex.Message}"); }
                         break;
                     case "VGConsistent":
-                        earned = view.ViewTemplateId != ElementId.InvalidElementId
-                            ? weight * 0.7 : 0;
+                        earned = hasTemplate ? weight * 0.7 : 0;
                         break;
                     case "NoOrphans":
                         earned = weight; // assume good until proven otherwise
-                        if (view.ViewTemplateId != ElementId.InvalidElementId)
+                        if (hasTemplate && templateView != null)
                         {
-                            var tmpl = doc.GetElement(view.ViewTemplateId) as View;
-                            if (tmpl != null)
+                            foreach (ElementId fid in templateView.GetFilters())
                             {
-                                foreach (ElementId fid in tmpl.GetFilters())
-                                {
-                                    if (doc.GetElement(fid) == null)
-                                    { earned = 0; break; }
-                                }
+                                if (doc.GetElement(fid) == null)
+                                { earned = 0; break; }
                             }
                         }
                         break;

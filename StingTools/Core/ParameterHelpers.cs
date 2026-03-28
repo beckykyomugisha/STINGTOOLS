@@ -1210,6 +1210,14 @@ namespace StingTools.Core
     /// </summary>
     public static class TokenAutoPopulator
     {
+        // F-10: Static readonly token arrays for CopyTokensFromNearest — avoid per-element List+ToArray allocation
+        private static readonly string[] _spatialLocOnly  = { ParamRegistry.LOC };
+        private static readonly string[] _spatialZoneOnly = { ParamRegistry.ZONE };
+        private static readonly string[] _spatialLocZone  = { ParamRegistry.LOC, ParamRegistry.ZONE };
+        private static readonly string[] _proxSysOnly     = { ParamRegistry.SYS };
+        private static readonly string[] _proxFuncOnly    = { ParamRegistry.FUNC };
+        private static readonly string[] _proxSysFunc     = { ParamRegistry.SYS, ParamRegistry.FUNC };
+
         /// <summary>
         /// FIX-B05: MEP categories that benefit from connector traversal for SYS detection.
         /// Non-MEP categories (Walls, Doors, Furniture, etc.) skip the expensive MEP detection.
@@ -1540,6 +1548,8 @@ namespace StingTools.Core
                     bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
 
                     // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
+                    // F-04: Hoist wsName to outer scope so the logging block can reuse it (avoids double GetWorkset call)
+                    string _cachedWsName = null;
                     if (string.IsNullOrEmpty(loc) && doc.IsWorkshared)
                     {
                         try
@@ -1550,13 +1560,13 @@ namespace StingTools.Core
                                 int wsId = wsParam.AsInteger();
                                 if (wsId > 0)
                                 {
-                                    string wsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
+                                    _cachedWsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
                                     // Extract LOC code from workset name (e.g., "BLD2_Mechanical" → "BLD2")
                                     foreach (string locCode in TagConfig.LocCodes ?? new List<string>())
                                     {
-                                        if (wsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            wsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            wsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
+                                        if (_cachedWsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            _cachedWsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            _cachedWsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
                                         {
                                             loc = locCode;
                                             locFromSpatial = true; // workset-derived counts as detected
@@ -1585,17 +1595,20 @@ namespace StingTools.Core
                         ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
                         : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
                     // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
+                    // F-04: Reuse _cachedWsName from detection block above — no second GetWorkset() call needed
                     if (locFromSpatial && doc.IsWorkshared)
                     {
                         try
                         {
-                            var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
-                            if (wsCheck != null && wsCheck.AsInteger() > 0)
+                            // F-04: Use cached workset name; only fall back to a fresh lookup if cache is null
+                            if (_cachedWsName == null)
                             {
-                                string wsN = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
-                                if (wsN.Contains(loc, StringComparison.OrdinalIgnoreCase))
-                                    locSource = "Workset";
+                                var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                                if (wsCheck != null && wsCheck.AsInteger() > 0)
+                                    _cachedWsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
                             }
+                            if (_cachedWsName != null && _cachedWsName.Contains(loc, StringComparison.OrdinalIgnoreCase))
+                                locSource = "Workset";
                         }
                         catch { /* keep existing source */ }
                     }
@@ -1648,10 +1661,10 @@ namespace StingTools.Core
                 bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
                 if (locDefault || zoneDefault)
                 {
-                    var spatialTokens = new List<string>();
-                    if (locDefault) spatialTokens.Add(ParamRegistry.LOC);
-                    if (zoneDefault) spatialTokens.Add(ParamRegistry.ZONE);
-                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens.ToArray());
+                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
+                    string[] spatialTokens = (locDefault && zoneDefault) ? _spatialLocZone
+                                           : locDefault ? _spatialLocOnly : _spatialZoneOnly;
+                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens);
                     result.TokensSet += spatialCopied;
                 }
             }
@@ -1680,12 +1693,8 @@ namespace StingTools.Core
             }
 
             // LOG-01: Write SYS detection layer (1-7) for confidence tracking
-            try
-            {
-                Parameter sysLayerParam = el.LookupParameter(ParamRegistry.SYS_DETECT_LAYER);
-                if (sysLayerParam != null && !sysLayerParam.IsReadOnly)
-                    sysLayerParam.Set(sysLayer);
-            }
+            // F-06: Use SetInt helper instead of manual LookupParameter + Set
+            try { ParameterHelpers.SetInt(el, ParamRegistry.SYS_DETECT_LAYER, sysLayer); }
             catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
@@ -1725,10 +1734,10 @@ namespace StingTools.Core
                 bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
                 if (sysGeneric || funcGeneric)
                 {
-                    var tokensToInherit = new List<string>();
-                    if (sysGeneric) tokensToInherit.Add(ParamRegistry.SYS);
-                    if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
-                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
+                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
+                    string[] tokensToInherit = (sysGeneric && funcGeneric) ? _proxSysFunc
+                                             : sysGeneric ? _proxSysOnly : _proxFuncOnly;
+                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit);
                     result.TokensSet += proxCopied;
                 }
             }
@@ -3408,6 +3417,21 @@ namespace StingTools.Core
     /// </summary>
     internal static class TagPipelineHelper
     {
+        // F-09: Cached timestamp string — avoids per-element DateTime.Now.ToString allocation in audit trail
+        // Refreshed at most once per second (reused within same second for batch operations)
+        [ThreadStatic] private static string _cachedTimestamp;
+        [ThreadStatic] private static long _cachedTimestampTick;
+        private static string GetCachedTimestamp()
+        {
+            long nowTick = DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond;
+            if (_cachedTimestamp == null || nowTick != _cachedTimestampTick)
+            {
+                _cachedTimestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                _cachedTimestampTick = nowTick;
+            }
+            return _cachedTimestamp;
+        }
+
         // Phase 74d: Static token-param map — eliminates 2 Dictionary allocations per element in RunFullPipeline
         private static readonly Dictionary<string, string> TokenParamMap = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -3670,8 +3694,9 @@ namespace StingTools.Core
                 {
                     if (!string.IsNullOrEmpty(_prevTag))
                         ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
+                    // F-09: Use cached timestamp (refreshed once per second) to avoid per-element allocation
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                        GetCachedTimestamp(), overwrite: true);
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
                 }
                 catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }

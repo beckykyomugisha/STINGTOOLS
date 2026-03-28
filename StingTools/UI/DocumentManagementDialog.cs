@@ -107,7 +107,8 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrRed     = FZ(0xC6, 0x28, 0x28);
         private static readonly SolidColorBrush BrPurple  = FZ(0x6A, 0x1B, 0x9A);
         private static readonly SolidColorBrush BrTeal    = FZ(0x00, 0x69, 0x5C);
-        private static readonly SolidColorBrush BrAmber   = FZ(0xFF, 0x8F, 0x00);
+        private static readonly SolidColorBrush BrAmber     = FZ(0xFF, 0x8F, 0x00);
+        private static readonly SolidColorBrush BrHeaderSub = FZ(0xBB, 0xDE, 0xFB); // DMD-MEDIUM-01: frozen header subtitle brush
 
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
@@ -317,10 +318,26 @@ namespace StingTools.UI
                 }
             }
 
-            // Issue counts
-            int openIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Status == "OPEN");
-            int criticalIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == "CRITICAL");
-            int overdueIssues = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
+            // DMD-HIGH-01: Single pass over _allItems for all dashboard counts
+            int openIssues = 0, criticalIssues = 0, overdueIssues = 0;
+            int revCount = 0, issuedRevs = 0, clashCount = 0, totalDocs = 0;
+            foreach (var item in _allItems)
+            {
+                switch (item.Category)
+                {
+                    case "ISSUE":
+                        if (item.Status == "OPEN")     openIssues++;
+                        if (item.Priority == "CRITICAL") criticalIssues++;
+                        if (item.IsOverdue)             overdueIssues++;
+                        break;
+                    case "REVISION":
+                        revCount++;
+                        if (item.Status == "ISSUED") issuedRevs++;
+                        break;
+                    case "CLASH":    clashCount++; break;
+                    case "DOCUMENT": totalDocs++;  break;
+                }
+            }
             _dashPanel.Children.Add(MakeDashCard($"{openIssues}",
                 "Open issues", openIssues == 0 ? BrGreen : BrOrange, "CAT:ISSUE"));
             if (criticalIssues > 0)
@@ -329,18 +346,14 @@ namespace StingTools.UI
                 _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed, "OVERDUE"));
 
             // Revision count
-            int revCount = _allItems.Count(i => i.Category == "REVISION");
-            int issuedRevs = _allItems.Count(i => i.Category == "REVISION" && i.Status == "ISSUED");
             _dashPanel.Children.Add(MakeDashCard($"{issuedRevs}/{revCount}",
                 "Revisions issued", BrPurple, "CAT:REVISION"));
 
             // Clash count
-            int clashCount = _allItems.Count(i => i.Category == "CLASH");
             if (clashCount > 0)
                 _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed, "CAT:CLASH"));
 
             // Document totals
-            int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
             _dashPanel.Children.Add(MakeDashCard($"{totalDocs}", "Documents", BrTeal));
 
             // Data drop readiness (milestone tracking)
@@ -426,7 +439,7 @@ namespace StingTools.UI
             left.Children.Add(new TextBlock
             {
                 Text = $"Project: {projName}  |  ISO 19650",
-                FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0xBB, 0xDE, 0xFB)),
+                FontSize = 10, Foreground = BrHeaderSub,
                 Margin = new Thickness(0, 2, 0, 0)
             });
             System.Windows.Controls.Grid.SetColumn(left, 0);
@@ -671,6 +684,18 @@ namespace StingTools.UI
         {
             _treeView.Items.Clear();
 
+            // DMD-HIGH-02: Pre-compute all groupings in one pass to avoid 20+ separate .Count() calls
+            var issueItems   = _allItems.Where(i => i.Category == "ISSUE").ToList();
+            var byDisc       = _allItems.GroupBy(i => (i.Discipline ?? "").ToUpperInvariant())
+                                .ToDictionary(g => g.Key, g => g.Count());
+            var byCDE        = _allItems.GroupBy(i => i.CDE ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssuePri   = issueItems.GroupBy(i => i.Priority ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssueType  = issueItems.GroupBy(i => i.Type ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssueStatus = issueItems.GroupBy(i => i.Status ?? "").ToDictionary(g => g.Key, g => g.Count());
+            int overdueCount = issueItems.Count(i => i.IsOverdue);
+            int clashTotalCount = _allItems.Count(i => i.Category == "CLASH");
+            int stickyTotalCount = _allItems.Count(i => i.Category == "STICKY");
+
             // ── ALL ──
             var allNode = MakeTreeItem("ALL DOCUMENTS", "ALL", true);
             _treeView.Items.Add(allNode);
@@ -690,7 +715,7 @@ namespace StingTools.UI
             var discNode = MakeTreeItem("BY DISCIPLINE", "DISC_ROOT", false);
             foreach (string disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "Z" })
             {
-                int count = _allItems.Count(i => (i.Discipline ?? "").Equals(disc, StringComparison.OrdinalIgnoreCase));
+                byDisc.TryGetValue(disc.ToUpperInvariant(), out int count);
                 if (count > 0)
                     discNode.Items.Add(MakeTreeItem($"{disc} ({count})", $"DISC:{disc}", false));
             }
@@ -713,7 +738,7 @@ namespace StingTools.UI
             foreach (var (code, label) in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
                 ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
             {
-                int count = _allItems.Count(i => i.CDE == code);
+                byCDE.TryGetValue(code, out int count);
                 cdeNode.Items.Add(MakeTreeItem($"{code} ({count})", $"CDE:{code}", false));
             }
             _treeView.Items.Add(cdeNode);
@@ -735,7 +760,7 @@ namespace StingTools.UI
             var priNode = MakeTreeItem("By Priority", "ISSUE_PRI", false);
             foreach (string pri in new[] { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" })
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == pri);
+                byIssuePri.TryGetValue(pri, out int count);
                 if (count > 0)
                     priNode.Items.Add(MakeTreeItem($"{pri} ({count})", $"PRIORITY:{pri}", false));
             }
@@ -744,7 +769,7 @@ namespace StingTools.UI
             var typeNode = MakeTreeItem("By Type", "ISSUE_TYPE", false);
             foreach (var kv in BIMManager.BIMManagerEngine.IssueTypes)
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Type == kv.Key);
+                byIssueType.TryGetValue(kv.Key, out int count);
                 if (count > 0)
                     typeNode.Items.Add(MakeTreeItem($"{kv.Key} ({count})", $"ISSUE:{kv.Key}", false));
             }
@@ -753,15 +778,14 @@ namespace StingTools.UI
             var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
             foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "ACCEPTED", "REJECTED", "CLOSED", "VOID" })
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Status == st);
+                byIssueStatus.TryGetValue(st, out int count);
                 if (count > 0)
                     issStatNode.Items.Add(MakeTreeItem($"{st} ({count})", $"ISSUESTATUS:{st}", false));
             }
             issuesNode.Items.Add(issStatNode);
             // Overdue (GAP NAV-02/03)
-            int overdue = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
-            if (overdue > 0)
-                issuesNode.Items.Add(MakeTreeItem($"OVERDUE ({overdue})", "OVERDUE", false));
+            if (overdueCount > 0)
+                issuesNode.Items.Add(MakeTreeItem($"OVERDUE ({overdueCount})", "OVERDUE", false));
             _treeView.Items.Add(issuesNode);
 
             // ── REVISIONS ──
@@ -772,8 +796,7 @@ namespace StingTools.UI
             _treeView.Items.Add(revNode);
 
             // ── CLASHES ──
-            int clashCount = _allItems.Count(i => i.Category == "CLASH");
-            var clashNode = MakeTreeItem($"CLASHES ({clashCount})", "CAT:CLASH", false);
+            var clashNode = MakeTreeItem($"CLASHES ({clashTotalCount})", "CAT:CLASH", false);
             clashNode.Items.Add(MakeTreeItem("BCF Files", "FOLDER:CLASHES", false));
             _treeView.Items.Add(clashNode);
 
@@ -812,10 +835,9 @@ namespace StingTools.UI
             _treeView.Items.Add(MakeTreeItem("BEP", "FOLDER:BEP", false));
 
             // ── STICKY NOTES (DM-02: with category breakdown) ──
-            int stickyCount = _allItems.Count(i => i.Category == "STICKY");
-            if (stickyCount > 0)
+            if (stickyTotalCount > 0)
             {
-                var stickyNode = MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false);
+                var stickyNode = MakeTreeItem($"STICKY NOTES ({stickyTotalCount})", "CAT:STICKY", false);
                 var stickyCats = _allItems.Where(i => i.Category == "STICKY")
                     .GroupBy(i => i.Status ?? "GENERAL");
                 foreach (var sg in stickyCats.OrderByDescending(g => g.Count()))

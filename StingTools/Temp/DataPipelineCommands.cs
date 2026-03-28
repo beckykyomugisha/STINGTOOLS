@@ -96,6 +96,10 @@ namespace StingTools.Temp
                 report.AppendLine($"  [{status}] {r.CheckName} — {r.Detail}");
             }
 
+            // PERF-010: Declare csvExportPath before the write block so the
+            // directory scan below can be replaced with a direct variable reuse.
+            string csvExportPath = null;
+
             // Export to CSV
             try
             {
@@ -106,26 +110,13 @@ namespace StingTools.Temp
                 File.WriteAllLines(csvPath, csvLines);
                 StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, csvPath, "RP", "BIM template validation report (45 checks)");
                 report.AppendLine($"\nCSV exported: {csvPath}");
+                // PERF-010: Capture path here; avoids the Directory.GetFiles scan below.
+                csvExportPath = csvPath;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"Validation CSV export: {ex.Message}");
             }
-
-            // Build rich result panel
-            string csvExportPath = null;
-            try
-            {
-                // Already exported CSV above — find it
-                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-                if (Directory.Exists(exportDir))
-                {
-                    var csvFiles = Directory.GetFiles(exportDir, "STING_Validation*.csv")
-                        .OrderByDescending(f => File.GetLastWriteTime(f)).ToArray();
-                    if (csvFiles.Length > 0) csvExportPath = csvFiles[0];
-                }
-            }
-            catch (Exception ex2) { StingLog.Warn($"FindCSV: {ex2.Message}"); }
 
             double passPct = results.Count > 0 ? passed * 100.0 / results.Count : 0;
             var panel = UI.StingResultPanel.Create("Validate Template")
@@ -715,6 +706,13 @@ namespace StingTools.Temp
                     if (d is ExternalDefinition ed && !defIndex.ContainsKey(d.Name))
                         defIndex[d.Name] = ed;
 
+            // PERF-005: Pre-build category dictionary ONCE before the binding loop.
+            // FindCategory() was called per (paramName × catName) combination — O(bindings × categories)
+            // linear scans of doc.Settings.Categories.  Dictionary gives O(1) lookup.
+            var catDictDynamic = new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase);
+            foreach (Category c in doc.Settings.Categories)
+                catDictDynamic[c.Name] = c;
+
             using (Transaction tx = new Transaction(doc, "STING Dynamic Parameter Bindings"))
             {
                 tx.Start();
@@ -732,12 +730,11 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Build category set
+                    // Build category set — PERF-005: O(1) dictionary lookup
                     var catSet = doc.Application.Create.NewCategorySet();
                     foreach (var (catName, _) in targets)
                     {
-                        Category cat = FindCategory(doc, catName);
-                        if (cat != null)
+                        if (catDictDynamic.TryGetValue(catName, out Category cat))
                             catSet.Insert(cat);
                     }
 
@@ -821,28 +818,8 @@ namespace StingTools.Temp
             return -1;
         }
 
-        private static ExternalDefinition FindDefinition(DefinitionFile defFile, string paramName)
-        {
-            foreach (DefinitionGroup grp in defFile.Groups)
-            {
-                foreach (Definition def in grp.Definitions)
-                {
-                    if (def.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase))
-                        return def as ExternalDefinition;
-                }
-            }
-            return null;
-        }
-
-        private static Category FindCategory(Document doc, string categoryName)
-        {
-            foreach (Category cat in doc.Settings.Categories)
-            {
-                if (cat.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase))
-                    return cat;
-            }
-            return null;
-        }
+        // DEAD-001: FindDefinition removed — superseded by pre-built defIndex dictionary (above).
+        // DEAD-001: FindCategory removed — superseded by pre-built catDictDynamic dictionary (above).
     }
 
     // ════════════════════════════════════════════════════════════════════

@@ -30,6 +30,20 @@ namespace StingTools.UI
         // Phase 74c: Removed dead SelectionMemory field — actual memory logic uses
         // StingCommandHandler._memorySlots (Dictionary<string, List<ElementId>>)
 
+        // SDP-HIGH-01: Single shared BrushConverter — avoids creating one per colour swatch
+        private static readonly BrushConverter _brushConverter = new BrushConverter();
+
+        // SDP-HIGH-02: Pre-allocated frozen brushes for status methods (UpdateTagsStatus / UpdateComplianceStatus)
+        private static readonly SolidColorBrush _statusGreenBrush  = FZ(Color.FromRgb(46,  105, 55));
+        private static readonly SolidColorBrush _statusAmberBrush  = FZ(Color.FromRgb(183, 149, 11));
+        private static readonly SolidColorBrush _statusRedBrush    = FZ(Color.FromRgb(169, 50,  38));
+        private static readonly SolidColorBrush _statusDefaultBrush = FZ(Color.FromRgb(102, 102, 102));
+        private static readonly SolidColorBrush _complianceGreenBrush  = FZ(Color.FromRgb(76,  175, 80));
+        private static readonly SolidColorBrush _complianceAmberBrush  = FZ(Color.FromRgb(255, 152, 0));
+        private static readonly SolidColorBrush _complianceRedBrush    = FZ(Color.FromRgb(244, 67,  54));
+        private static readonly SolidColorBrush _complianceDefaultBrush = FZ(Color.FromRgb(206, 147, 216));
+        private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
         // ── Lazy tab loading state ────────────────────────────────────
         // Stores detached tab content keyed by tab index.
         // Content is re-attached on first tab selection.
@@ -137,6 +151,12 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string cmdTag)
             {
+                // SDP-MEDIUM-01: Pre-compute repeated string tests once to avoid duplicate scans
+                bool isPlaceCmd     = cmdTag.Contains("Place");
+                bool isSmartPlace   = isPlaceCmd && cmdTag.Contains("SmartPlace");
+                bool isArrangeCmd   = cmdTag.Contains("Arrange");
+                bool isFreezingCmd  = _freezingTagCommands.Contains(cmdTag);
+
                 // UI-05: Pass placement scope radios to SmartPlace commands
                 if (cmdTag.StartsWith("TagStudio_SmartPlace") || cmdTag == "SmartPlaceTags" ||
                     cmdTag == "BatchPlaceTags")
@@ -145,20 +165,19 @@ namespace StingTools.UI
                 }
 
                 // UI-06: Pass DirOverride radio state to placement commands
-                if (cmdTag.Contains("Place") || cmdTag.Contains("Arrange") ||
-                    cmdTag.Contains("SmartPlace"))
+                if (isPlaceCmd || isArrangeCmd || isSmartPlace)
                 {
                     SetDirOverrideParams();
                 }
 
                 // UI-07: Pass batch warning suppression state
-                if (_freezingTagCommands.Contains(cmdTag))
+                if (isFreezingCmd)
                 {
                     SetBatchWarningParams();
                 }
 
                 // UI-08: Pass preferred compass position to SmartPlace
-                if (cmdTag.Contains("SmartPlace") || cmdTag.Contains("Place"))
+                if (isSmartPlace || isPlaceCmd)
                 {
                     SetPreferredPositionParam();
                 }
@@ -261,23 +280,34 @@ namespace StingTools.UI
         {
             try
             {
-                // Look for scope radio buttons in the XAML tree
+                // SDP-MEDIUM-02: Cache FindName results on first call
+                if (_cachedRbScopeView == null)
+                {
+                    _cachedRbScopeView      = FindName("rbScopeView")      as System.Windows.Controls.RadioButton;
+                    _cachedRbScopeAllViews  = FindName("rbScopeAllViews")  as System.Windows.Controls.RadioButton;
+                    _cachedRbScopeSelection = FindName("rbScopeSelection") as System.Windows.Controls.RadioButton;
+                    _cachedChkSkipPlaced    = FindName("chkSkipPlaced")    as System.Windows.Controls.CheckBox;
+                    _cachedChkIncludeLinks  = FindName("chkIncludeLinks")  as System.Windows.Controls.CheckBox;
+                }
+
                 string scope = "View"; // default
-                var rbScopeView = FindName("rbScopeView") as System.Windows.Controls.RadioButton;
-                var rbScopeAllViews = FindName("rbScopeAllViews") as System.Windows.Controls.RadioButton;
-                var rbScopeSelection = FindName("rbScopeSelection") as System.Windows.Controls.RadioButton;
-                if (rbScopeAllViews?.IsChecked == true) scope = "AllViews";
-                else if (rbScopeSelection?.IsChecked == true) scope = "Selection";
+                if (_cachedRbScopeAllViews?.IsChecked == true)  scope = "AllViews";
+                else if (_cachedRbScopeSelection?.IsChecked == true) scope = "Selection";
                 StingCommandHandler.SetExtraParam("PlacementScope", scope);
-
-                var chkSkipPlaced = FindName("chkSkipPlaced") as System.Windows.Controls.CheckBox;
-                StingCommandHandler.SetExtraParam("SkipPlaced", chkSkipPlaced?.IsChecked == true ? "1" : "0");
-
-                var chkIncludeLinks = FindName("chkIncludeLinks") as System.Windows.Controls.CheckBox;
-                StingCommandHandler.SetExtraParam("IncludeLinks", chkIncludeLinks?.IsChecked == true ? "1" : "0");
+                StingCommandHandler.SetExtraParam("SkipPlaced",    _cachedChkSkipPlaced?.IsChecked  == true ? "1" : "0");
+                StingCommandHandler.SetExtraParam("IncludeLinks",  _cachedChkIncludeLinks?.IsChecked == true ? "1" : "0");
             }
             catch (Exception ex) { StingLog.Warn($"Scope controls may not exist in all layouts: {ex.Message}"); }
         }
+
+        // SDP-MEDIUM-02: Cached FindName results — populated on first use to avoid repeated traversal
+        private System.Windows.Controls.RadioButton   _cachedRbScopeView;
+        private System.Windows.Controls.RadioButton   _cachedRbScopeAllViews;
+        private System.Windows.Controls.RadioButton   _cachedRbScopeSelection;
+        private System.Windows.Controls.CheckBox      _cachedChkSkipPlaced;
+        private System.Windows.Controls.CheckBox      _cachedChkIncludeLinks;
+        private System.Windows.Controls.CheckBox      _cachedChkSuppressBatchWarnings;
+        private System.Windows.Controls.RadioButton[] _cachedPosRadios;
 
         /// <summary>UI-06: Read direction override radio state.</summary>
         private System.Windows.Controls.RadioButton[] _cachedDirRadios;
@@ -315,8 +345,11 @@ namespace StingTools.UI
         {
             try
             {
-                var chk = FindName("chkSuppressBatchWarnings") as System.Windows.Controls.CheckBox;
-                if (chk?.IsChecked == true)
+                // SDP-MEDIUM-02: Cache FindName on first call
+                if (_cachedChkSuppressBatchWarnings == null)
+                    _cachedChkSuppressBatchWarnings = FindName("chkSuppressBatchWarnings") as System.Windows.Controls.CheckBox;
+
+                if (_cachedChkSuppressBatchWarnings?.IsChecked == true)
                     StingCommandHandler.SetExtraParam("SuppressWarningsDuringBatch", "1");
                 else
                     StingCommandHandler.ClearExtraParam("SuppressWarningsDuringBatch");
@@ -329,12 +362,19 @@ namespace StingTools.UI
         {
             try
             {
-                for (int i = 1; i <= 16; i++)
+                // SDP-MEDIUM-02: Cache all 16 position radio buttons on first call
+                if (_cachedPosRadios == null)
                 {
-                    var rb = FindName($"rbPos{i}") as System.Windows.Controls.RadioButton;
-                    if (rb?.IsChecked == true)
+                    _cachedPosRadios = new System.Windows.Controls.RadioButton[16];
+                    for (int i = 0; i < 16; i++)
+                        _cachedPosRadios[i] = FindName($"rbPos{i + 1}") as System.Windows.Controls.RadioButton;
+                }
+
+                for (int i = 0; i < _cachedPosRadios.Length; i++)
+                {
+                    if (_cachedPosRadios[i]?.IsChecked == true)
                     {
-                        StingCommandHandler.SetExtraParam("PreferredTagPos", i.ToString());
+                        StingCommandHandler.SetExtraParam("PreferredTagPos", (i + 1).ToString());
                         return;
                     }
                 }
@@ -534,7 +574,7 @@ namespace StingTools.UI
                 {
                     Width = 18, Height = 18,
                     Margin = new Thickness(1),
-                    Background = (SolidColorBrush)new BrushConverter().ConvertFromString(hex),
+                    Background = (SolidColorBrush)_brushConverter.ConvertFromString(hex),
                     BorderBrush = Brushes.Gray,
                     BorderThickness = new Thickness(0.5),
                     Cursor = System.Windows.Input.Cursors.Hand,
@@ -547,7 +587,7 @@ namespace StingTools.UI
                     {
                         txtHexColorView.Text = h.TrimStart('#');
                         brdColorPreviewView.Background =
-                            (SolidColorBrush)new BrushConverter().ConvertFromString(h);
+                            (SolidColorBrush)_brushConverter.ConvertFromString(h);
                     }
                 };
                 pnlSwatchesView?.Children.Add(swatch);
@@ -565,7 +605,7 @@ namespace StingTools.UI
                 {
                     Width = 18, Height = 18,
                     Margin = new Thickness(1),
-                    Background = (SolidColorBrush)new BrushConverter().ConvertFromString(hex),
+                    Background = (SolidColorBrush)_brushConverter.ConvertFromString(hex),
                     BorderBrush = Brushes.Gray,
                     BorderThickness = new Thickness(0.5),
                     Cursor = System.Windows.Input.Cursors.Hand,
@@ -577,7 +617,7 @@ namespace StingTools.UI
                     if (s is Border b && b.Tag is string h)
                     {
                         brdOutlineColorView.Background =
-                            (SolidColorBrush)new BrushConverter().ConvertFromString(h);
+                            (SolidColorBrush)_brushConverter.ConvertFromString(h);
                     }
                 };
                 pnlOutlineSwatchesView?.Children.Add(swatch);
@@ -695,11 +735,12 @@ namespace StingTools.UI
             {
                 if (_instance?.txtTagsStatus == null) return;
                 _instance.txtTagsStatus.Text = text;
-                _instance.txtTagsStatus.Foreground = new SolidColorBrush(
-                    rag == "GREEN" ? Color.FromRgb(46, 105, 55) :
-                    rag == "AMBER" ? Color.FromRgb(183, 149, 11) :
-                    rag == "RED" ? Color.FromRgb(169, 50, 38) :
-                    Color.FromRgb(102, 102, 102));
+                // SDP-HIGH-02: Use pre-allocated frozen brushes instead of new SolidColorBrush per call
+                _instance.txtTagsStatus.Foreground =
+                    rag == "GREEN" ? _statusGreenBrush :
+                    rag == "AMBER" ? _statusAmberBrush :
+                    rag == "RED"   ? _statusRedBrush :
+                    _statusDefaultBrush;
             });
         }
 
@@ -711,12 +752,13 @@ namespace StingTools.UI
             if (_instance?.txtStatus == null) return;
             try
             {
+                // SDP-HIGH-02: Use pre-allocated frozen brushes instead of new SolidColorBrush per call
                 var brush = ragStatus switch
                 {
-                    "GREEN" => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
-                    "AMBER" => new SolidColorBrush(Color.FromRgb(255, 152, 0)),
-                    "RED"   => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
-                    _       => new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                    "GREEN" => _complianceGreenBrush,
+                    "AMBER" => _complianceAmberBrush,
+                    "RED"   => _complianceRedBrush,
+                    _       => _complianceDefaultBrush,
                 };
 
                 if (!_instance.txtStatus.Dispatcher.CheckAccess())

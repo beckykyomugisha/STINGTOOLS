@@ -153,10 +153,18 @@ namespace StingTools.Tags
             if (entries == null || entries.Count == 0) return null;
 
             // Generate unique view name
+            // TAG-M-06: Pre-build a HashSet of all existing view names so the uniqueness loop
+            // is O(n) total instead of O(n×k) where n=iterations, k=view count per scan.
+            var existingViewNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>())
+            {
+                if (v.Name != null) existingViewNames.Add(v.Name);
+            }
             string baseName = $"STING Legend - {config.Title}";
             string viewName = baseName;
             int suffix = 1;
-            while (ViewNameExists(doc, viewName) || ViewNameExistsAnyType(doc, viewName))
+            while (existingViewNames.Contains(viewName))
             {
                 viewName = $"{baseName} ({suffix++})";
             }
@@ -543,7 +551,13 @@ namespace StingTools.Tags
         /// </summary>
         public static List<LegendEntry> AutoFromProject(Document doc, string colorBy = "Discipline")
         {
+            // TAG-L-02: Pre-filter with ElementMulticategoryFilter to restrict collection to
+            // taggable categories before the LINQ Where clause. Avoids iterating all model
+            // elements (walls, annotations, levels, grids, etc.) when only tagged elements are needed.
+            var categoryFilter = new ElementMulticategoryFilter(
+                new List<BuiltInCategory>(SharedParamGuids.AllCategoryEnums));
             var elems = new FilteredElementCollector(doc)
+                .WherePasses(categoryFilter)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
                 .ToList();
@@ -4131,10 +4145,11 @@ namespace StingTools.Tags
         private static List<LegendBuilder.LegendEntry> BuildDisciplineEntries(Document doc)
         {
             var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() — FilteredElementCollector is IEnumerable;
+            // materializing to a list just to foreach over it allocates a large intermediate array.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
@@ -4867,10 +4882,10 @@ namespace StingTools.Tags
         private static Dictionary<string, int> CountDisciplines(Document doc)
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
@@ -4886,10 +4901,10 @@ namespace StingTools.Tags
         private static Dictionary<string, int> CountSystems(Document doc)
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
@@ -5007,10 +5022,10 @@ namespace StingTools.Tags
 
             // Count elements by status
             var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {

@@ -315,7 +315,17 @@ namespace StingTools.Model
 
         public void EnsureActive(FamilySymbol symbol)
         {
-            if (!symbol.IsActive)
+            if (symbol.IsActive) return;
+            // ME-CRIT-01: Guard against nested transaction if caller already has an open transaction.
+            // Opening a nested Transaction inside an active outer Transaction throws
+            // InvalidOperationException in the Revit 2025+ API.
+            if (_doc.IsModifiable)
+            {
+                // Already inside a transaction — activate directly without wrapper.
+                symbol.Activate();
+                _doc.Regenerate();
+            }
+            else
             {
                 using (var tx = new Transaction(_doc, "STING MODEL: Activate Symbol"))
                 {

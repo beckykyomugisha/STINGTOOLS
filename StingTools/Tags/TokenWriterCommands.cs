@@ -93,12 +93,22 @@ namespace StingTools.Tags
             using (Transaction tx = new Transaction(doc, $"Set {label}"))
             {
                 tx.Start();
+                // TAG-M-01: Collect resolved Element references during write pass so the
+                // rebuild pass below doesn't need to call doc.GetElement() a second time.
+                var resolvedElems = new List<Element>(targetIds.Count);
                 foreach (ElementId id in targetIds)
                 {
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     if (ParameterHelpers.SetString(elem, paramName, value, overwrite: true))
+                    {
                         written++;
+                        resolvedElems.Add(elem);
+                    }
+                    else
+                    {
+                        resolvedElems.Add(elem); // keep for rebuild even if value unchanged
+                    }
                 }
 
                 // TAG-01: After setting the token, rebuild TAG1 + containers so they
@@ -109,10 +119,9 @@ namespace StingTools.Tags
                 {
                     HashSet<string> existingTags;
                     (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
-                    foreach (ElementId id in targetIds)
+                    // TAG-M-01: Reuse resolvedElems — no second doc.GetElement() per element.
+                    foreach (Element elem in resolvedElems)
                     {
-                        Element elem = doc.GetElement(id);
-                        if (elem == null) continue;
                         string tag1 = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                         if (string.IsNullOrEmpty(tag1)) continue; // Only rebuild already-tagged elements
                         try
@@ -241,6 +250,12 @@ namespace StingTools.Tags
                             }
                             tx.Commit();
                             StingLog.Info($"SetDisc: updated SYS/FUNC on {updated} elements");
+                            // TAG-M-02: Invalidate caches after SYS/FUNC downstream commit so the
+                            // compliance dashboard and auto-tagger see the updated tokens immediately.
+                            ComplianceScan.InvalidateCache();
+                            StingAutoTagger.InvalidateContext();
+                            try { TagConfig.SaveSeqSidecar(ctxDoc); }
+                            catch (Exception ssEx) { StingLog.Warn($"SetDisc sidecar: {ssEx.Message}"); }
                         }
                     }
                 }
@@ -305,8 +320,9 @@ namespace StingTools.Tags
                     .Select(e => e.Id).ToList();
             }
 
-            // Use canonical BuildTagIndexAndCounters (merges sidecar data for session continuity)
-            var (_, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
+            // TAG-H-02: Capture both the tag index and the counters in one call.
+            // The second call to BuildExistingTagIndex below is removed — existingTags comes from here.
+            var (existingTagsFromBuild, maxSeq) = TagConfig.BuildTagIndexAndCounters(doc);
 
             int assigned = 0;
             int rebuilt = 0;
@@ -366,7 +382,8 @@ namespace StingTools.Tags
                 // SEQ-01: After assigning SEQ numbers, rebuild TAG1 + containers so they
                 // reflect the new sequence. Previously TAG1 remained stale until a separate
                 // BuildTags command was run.
-                var existingTags = TagConfig.BuildExistingTagIndex(doc);
+                // TAG-H-02: Use existingTagsFromBuild captured above — eliminates second full-project scan.
+                var existingTags = existingTagsFromBuild;
                 rebuilt = 0;
                 foreach (ElementId id in targetIds)
                 {

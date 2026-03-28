@@ -277,6 +277,8 @@ namespace StingTools.Core
     {
         private static double _lastCompliancePct = -1;
         private static int _lastStaleCount = 0;
+        // MED-06: lock object for thread-safe read/write of shared state
+        private static readonly object _lock = new object();
 
         /// <summary>Check if compliance has fallen since last check.</summary>
         public static (bool Fallen, double CurrentPct, double PreviousPct, int NewStale) CheckForRegression(Document doc)
@@ -289,19 +291,23 @@ namespace StingTools.Core
                 double currentPct = result.CompliancePercent;
                 int currentStale = result.StaleCount;
 
-                bool fallen = _lastCompliancePct > 0 && currentPct < _lastCompliancePct - 2.0; // >2% drop
-                int newStale = Math.Max(0, currentStale - _lastStaleCount);
-
-                double previousPct = _lastCompliancePct;
-                var retVal = (fallen, currentPct, _lastCompliancePct, newStale);
-
-                _lastCompliancePct = currentPct;
-                _lastStaleCount = currentStale;
+                // MED-06: protect shared mutable state under lock
+                bool fallen;
+                int newStale;
+                double previousPct;
+                lock (_lock)
+                {
+                    fallen = _lastCompliancePct > 0 && currentPct < _lastCompliancePct - 2.0; // >2% drop
+                    newStale = Math.Max(0, currentStale - _lastStaleCount);
+                    previousPct = _lastCompliancePct;
+                    _lastCompliancePct = currentPct;
+                    _lastStaleCount = currentStale;
+                }
 
                 if (fallen)
                     StingLog.Warn($"ComplianceFall: {previousPct:F1}% → {currentPct:F1}% ({newStale} new stale elements)");
 
-                return retVal;
+                return (fallen, currentPct, previousPct, newStale);
             }
             catch (Exception ex)
             {
@@ -311,7 +317,11 @@ namespace StingTools.Core
         }
 
         /// <summary>Reset baseline (call on document open).</summary>
-        public static void Reset() { _lastCompliancePct = -1; _lastStaleCount = 0; }
+        public static void Reset()
+        {
+            // MED-06: protect shared mutable state under lock
+            lock (_lock) { _lastCompliancePct = -1; _lastStaleCount = 0; }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -323,21 +333,26 @@ namespace StingTools.Core
         private static readonly List<(DateTime Time, string User, string Action, string Detail)> _log
             = new List<(DateTime, string, string, string)>();
 
+        private const int MaxEntries = 1000;
+
         /// <summary>Record a coordination action.</summary>
         public static void Record(string action, string detail = "")
         {
             string user = Environment.UserName;
-            _log.Add((DateTime.Now, user, action, detail));
-
-            // Keep last 1000 entries
-            while (_log.Count > 1000)
-                _log.RemoveAt(0);
+            lock (_log)
+            {
+                _log.Add((DateTime.Now, user, action, detail));
+                // HIGH-11: O(1) bulk eviction instead of repeated RemoveAt(0) which is O(n) per call
+                if (_log.Count > MaxEntries)
+                    _log.RemoveRange(0, _log.Count - MaxEntries);
+            }
         }
 
         /// <summary>Get recent audit entries.</summary>
         public static List<(DateTime Time, string User, string Action, string Detail)> GetRecent(int count = 50)
         {
-            return _log.OrderByDescending(e => e.Time).Take(count).ToList();
+            lock (_log)
+                return _log.OrderByDescending(e => e.Time).Take(count).ToList();
         }
 
         /// <summary>Export audit log to CSV.</summary>
@@ -345,8 +360,11 @@ namespace StingTools.Core
         {
             try
             {
+                List<(DateTime Time, string User, string Action, string Detail)> snapshot;
+                lock (_log) { snapshot = new List<(DateTime, string, string, string)>(_log); }
+
                 var sb = new StringBuilder("Timestamp,User,Action,Detail\n");
-                foreach (var (time, user, action, detail) in _log)
+                foreach (var (time, user, action, detail) in snapshot)
                     sb.AppendLine($"\"{time:yyyy-MM-dd HH:mm:ss}\",\"{user}\",\"{action}\",\"{detail}\"");
                 File.WriteAllText(outputPath, sb.ToString());
                 return outputPath;
