@@ -336,11 +336,14 @@ namespace StingTools.Organise
             foreach (string t in existingTagIndex) tagIndex.Add(t);
             int fixedCount = 0;
 
+            int totalDupElements = duplicates.Sum(kvp => kvp.Value.Count - 1);
+            var fixProgress = StingProgressDialog.Show("Fix Duplicates", totalDupElements);
             using (Transaction tx = new Transaction(doc, "STING Fix Duplicates"))
             {
                 tx.Start();
                 foreach (var kvp in duplicates)
                 {
+                    if (fixProgress.IsCancelled) break;
                     // Skip the first element (keep its tag); fix the rest
                     for (int i = 1; i < kvp.Value.Count; i++)
                     {
@@ -418,10 +421,12 @@ namespace StingTools.Organise
                         }
 
                         fixedCount++;
+                        fixProgress.Increment($"Fixed {fixedCount} duplicates");
                     }
                 }
                 tx.Commit();
             }
+            try { fixProgress.Close(); } catch (Exception ex) { StingLog.Warn($"FixDuplicates progress close: {ex.Message}"); }
 
             // TAG-M-07: Use the local tagIndex (built above and updated with every new tag assigned)
             // instead of a second full-model scan to verify uniqueness.  tagIndex already contains
@@ -504,11 +509,14 @@ namespace StingTools.Organise
             if (confirm.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
 
             int cleared = 0;
+            var delProgress = StingProgressDialog.Show("Delete Tags", selected.Count);
             using (Transaction tx = new Transaction(doc, "STING Delete Tags"))
             {
                 tx.Start();
                 foreach (ElementId id in selected)
                 {
+                    if (delProgress.IsCancelled) break;
+                    delProgress.Increment("Clearing tags...");
                     Element elem = doc.GetElement(id);
                     if (elem == null) continue;
                     bool any = false;
@@ -540,6 +548,7 @@ namespace StingTools.Organise
                 }
                 tx.Commit();
             }
+            try { delProgress.Close(); } catch (Exception ex) { StingLog.Warn($"DeleteTags progress close: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             // Phase 40: Save SEQ sidecar after deletion so counter state is persisted.

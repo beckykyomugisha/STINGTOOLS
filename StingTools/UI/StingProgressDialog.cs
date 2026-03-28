@@ -158,8 +158,8 @@ namespace StingTools.UI
         {
             int val = Interlocked.Increment(ref _current);
 
-            // Update UI every 50 elements or at completion
-            if (val % 50 == 0 || val >= _total || val == 1)
+            // Update UI every 50 elements, or always for small totals (≤100), or at completion
+            if (_total <= 100 || val % 50 == 0 || val >= _total || val == 1)
             {
                 try
                 {

@@ -772,16 +772,20 @@ namespace StingTools.Docs
                 .Where(s => !s.IsPlaceholder && s.GetAllViewports().Count > 0).ToList();
 
             int total = 0;
+            var arrangeProgress = StingProgressDialog.Show("Batch Arrange Viewports", sheets.Count);
             using (var tx = new Transaction(doc, "STING Batch Arrange"))
             {
                 tx.Start();
                 foreach (var sheet in sheets)
                 {
+                    if (arrangeProgress.IsCancelled) break;
+                    arrangeProgress.Increment($"Sheet {sheet.SheetNumber}");
                     try { total += SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet); }
                     catch (Exception ex) { StingLog.Warn($"Arrange error on {sheet.SheetNumber}: {ex.Message}"); }
                 }
                 tx.Commit();
             }
+            try { arrangeProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchArrange progress close: {ex.Message}"); }
             TaskDialog.Show("Sheet Manager", $"Arranged {total} viewports across {sheets.Count} sheets.");
             return Result.Succeeded;
         }
@@ -1207,6 +1211,7 @@ namespace StingTools.Docs
 
             // Apply renames in two-pass to avoid Revit duplicate number conflicts
             int renamed = 0;
+            var isoProgress = StingProgressDialog.Show("ISO 19650 Rename", renamePlan.Count * 2);
             using (var tx = new Transaction(doc, "STING Enforce ISO Naming"))
             {
                 tx.Start();
@@ -1214,6 +1219,8 @@ namespace StingTools.Docs
                 // Pass 1: set temporary unique numbers to avoid conflicts
                 for (int i = 0; i < renamePlan.Count; i++)
                 {
+                    if (isoProgress.IsCancelled) break;
+                    isoProgress.Increment($"Temp rename: {renamePlan[i].oldNum}");
                     try
                     {
                         renamePlan[i].sheet.SheetNumber = $"_STING_TEMP_{i:D5}";
@@ -1225,8 +1232,11 @@ namespace StingTools.Docs
                 }
 
                 // Pass 2: set final ISO-compliant numbers
+                if (!isoProgress.IsCancelled)
                 foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
                 {
+                    if (isoProgress.IsCancelled) break;
+                    isoProgress.Increment($"{oldNum} \u2192 {newNum}");
                     try
                     {
                         sheet.SheetNumber = newNum;
@@ -1238,7 +1248,14 @@ namespace StingTools.Docs
                     }
                 }
 
-                tx.Commit();
+                if (isoProgress.IsCancelled) tx.RollBack(); else tx.Commit();
+            }
+            try { isoProgress.Close(); } catch (Exception ex) { StingLog.Warn($"ISO progress close: {ex.Message}"); }
+
+            if (isoProgress.IsCancelled)
+            {
+                TaskDialog.Show("ISO Naming", "Operation cancelled. No sheets were renamed.");
+                return Result.Succeeded;
             }
 
             // Save backup for revert capability

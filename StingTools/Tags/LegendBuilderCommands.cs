@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -2627,6 +2628,7 @@ namespace StingTools.Tags
 
             int placed = 0;
             int skipped = 0;
+            var legendProgress = StingProgressDialog.Show("Place Legend on Sheets", sheets.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Place Legend on All Sheets"))
             {
@@ -2634,6 +2636,8 @@ namespace StingTools.Tags
 
                 foreach (var s in sheets)
                 {
+                    if (legendProgress.IsCancelled) break;
+                    legendProgress.Increment($"Sheet {s.SheetNumber}");
                     if (!Viewport.CanAddViewToSheet(doc, s.Id, selectedLegend.Id))
                     {
                         skipped++;
@@ -2647,6 +2651,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { legendProgress.Close(); } catch (Exception ex) { StingLog.Warn($"Legend progress close: {ex.Message}"); }
 
             TaskDialog.Show("Place Legend on All Sheets",
                 $"Placed '{selectedLegend.Name}' on {placed} sheets.\n" +
@@ -2721,6 +2726,7 @@ namespace StingTools.Tags
 
             bool cancelled = false;
             int sheetIdx = 0;
+            var bscProgress = StingProgressDialog.Show("Batch Sheet Legends", sheets.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Batch Sheet Context Legends"))
             {
@@ -2728,12 +2734,14 @@ namespace StingTools.Tags
 
                 foreach (var s in sheets)
                 {
-                    if (++sheetIdx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    sheetIdx++;
+                    if (bscProgress.IsCancelled)
                     {
                         cancelled = true;
                         StingLog.Info($"Batch sheet legends: cancelled at {sheetIdx}/{sheets.Count}");
                         break;
                     }
+                    bscProgress.Increment($"Sheet {s.SheetNumber}");
 
                     var entries = LegendBuilder.FromSheetElements(doc, s, colorBy);
                     if (entries.Count == 0)
@@ -2765,6 +2773,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { bscProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchSheetLegends progress close: {ex.Message}"); }
 
             string legendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} legends.\n" :
                 $"Created {created} sheet-specific legends.\n";
@@ -7078,6 +7087,7 @@ namespace StingTools.Tags
 
             bool cancelled = false;
             int tmplIdx = 0;
+            var btlProgress = StingProgressDialog.Show("Batch Template Legends", templates.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Batch Template Legends"))
             {
@@ -7085,12 +7095,14 @@ namespace StingTools.Tags
 
                 foreach (var template in templates)
                 {
-                    if (++tmplIdx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    tmplIdx++;
+                    if (btlProgress.IsCancelled)
                     {
                         cancelled = true;
                         StingLog.Info($"Batch template legends: cancelled at {tmplIdx}/{templates.Count}");
                         break;
                     }
+                    btlProgress.Increment($"Template: {template.Name}");
 
                     var (filterEntries, categoryEntries) =
                         VGLinkedLegendBuilder.FromViewTemplate(doc, template);
@@ -7136,6 +7148,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { btlProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchTemplateLegends progress close: {ex.Message}"); }
 
             string btlMsg = cancelled ? $"CANCELLED — created {created} of {templates.Count} template legends.\n" :
                 $"Created {created} template legends.\n";

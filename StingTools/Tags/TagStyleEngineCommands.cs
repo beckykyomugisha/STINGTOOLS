@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -1837,12 +1838,15 @@ namespace StingTools.Tags
             int colorsApplied = 0;
             var distribution = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+            var batchStyleProgress = StingProgressDialog.Show("Batch Param-Driven Styles", allElements.Count);
             using (Transaction tx = new Transaction(doc, "STING Batch Param-Driven Styles"))
             {
                 tx.Start();
 
                 foreach (var el in allElements)
                 {
+                    if (batchStyleProgress.IsCancelled) break;
+                    batchStyleProgress.Increment("Applying styles...");
                     try
                     {
                         var (size, weight, colorIdx) = ParamDrivenStyleEngine.ResolveStyle(doc, el, preset);
@@ -1872,6 +1876,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
 
             TaskDialog.Show("Batch Apply Param-Driven Styles",
                 ParamDrivenStyleEngine.FormatStyleReport(

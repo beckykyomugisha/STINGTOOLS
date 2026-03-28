@@ -2602,8 +2602,12 @@ namespace StingTools.BIMManager
 
             // ── Component (from tagged elements) ──
             var components = new List<Dictionary<string, string>>();
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var cobieElements = new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList();
+            var cobieProgress = StingProgressDialog.Show("COBie Components", cobieElements.Count);
+            foreach (var el in cobieElements)
             {
+                if (cobieProgress.IsCancelled) break;
+                cobieProgress.Increment($"Processing {ParameterHelpers.GetCategoryName(el)}");
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat)) continue;
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2720,6 +2724,7 @@ namespace StingTools.BIMManager
                     ["Status"] = tagStatus
                 });
             }
+            try { cobieProgress.Close(); } catch (Exception ex) { StingLog.Warn($"COBie progress close: {ex.Message}"); }
             data["Component"] = components;
 
             // CRIT-01/04: Build UniqueId → Element map once; reuse across System/Job/Impact/Attribute/Coordinate

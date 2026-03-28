@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using StingTools.UI;
 
 namespace StingTools.Core
 {
@@ -522,6 +523,9 @@ namespace StingTools.Core
             try { StingPluginHooks.InvokeBeforeWorkflow(preset.Name); }
             catch (Exception ex) { StingLog.Warn($"StingPluginHooks.BeforeWorkflow: {ex.Message}"); }
 
+            // Show progress dialog so user can see step progress and click Cancel
+            var progress = StingProgressDialog.Show($"Workflow: {preset.Name}", preset.Steps.Count);
+
             try
             {
                 foreach (var step in preset.Steps)
@@ -537,13 +541,16 @@ namespace StingTools.Core
                         stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
                     }
 
-                    if (EscapeChecker.IsEscapePressed())
+                    if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
                     {
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED (Escape)");
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — CANCELLED");
                         StingLog.Info($"Workflow step {stepNum}: cancelled by user");
                         cancelled = true;
                         break;
                     }
+
+                    // Update progress dialog with current step info (increment counter by 1)
+                    progress.Increment($"Step {stepNum}/{preset.Steps.Count}: {step.Label}");
 
                     // Phase 48: skipIfPreviousSkipped condition
                     if (step.SkipIfPreviousSkipped && previousStepSkipped)
@@ -821,9 +828,9 @@ namespace StingTools.Core
                                 var retrySw = Stopwatch.StartNew();
                                 while (retrySw.ElapsedMilliseconds < step.RetryDelayMs)
                                 {
-                                    if (EscapeChecker.IsEscapePressed())
+                                    if (progress.IsCancelled || EscapeChecker.IsEscapePressed())
                                     {
-                                        StingLog.Info($"Workflow step {stepNum} retry cancelled by Escape");
+                                        StingLog.Info($"Workflow step {stepNum} retry cancelled by user");
                                         cancelled = true;
                                         break;
                                     }
@@ -968,6 +975,9 @@ namespace StingTools.Core
             }
 
             totalSw.Stop();
+
+            // Close progress dialog
+            try { progress.Close(); } catch (Exception ex) { StingLog.Warn($"Progress dialog close: {ex.Message}"); }
 
             // FIX-DEEP02: Invalidate caches after workflow chain completes.
             // Chained tag commands (BatchTag, TagAndCombine) update SEQ counters;
