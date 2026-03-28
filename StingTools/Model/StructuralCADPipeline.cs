@@ -190,9 +190,9 @@ namespace StingTools.Model
         private void InsertPoint(XYZ pt, int lineIdx)
         {
             var cell = GetCell(pt);
-            if (!_grid.ContainsKey(cell))
-                _grid[cell] = new List<int>();
-            _grid[cell].Add(lineIdx);
+            if (!_grid.TryGetValue(cell, out var cellList))
+                _grid[cell] = cellList = new List<int>();
+            cellList.Add(lineIdx);
         }
 
         private (int, int) GetCell(XYZ pt) =>
@@ -528,9 +528,8 @@ namespace StingTools.Model
                 bool isStructural = StructuralLayerClassifier.IsStructuralLayer(layerName);
 
                 var classKey = isStructural ? $"STRUCT: {layerName}" : $"OTHER: {layerName}";
-                if (!result.LayerClassification.ContainsKey(classKey))
-                    result.LayerClassification[classKey] = 0;
-                result.LayerClassification[classKey]++;
+                result.LayerClassification.TryGetValue(classKey, out int classCount);
+                result.LayerClassification[classKey] = classCount + 1;
 
                 // Detect circles (round columns)
                 if (obj is Arc arc && arc.IsCyclic)
@@ -2356,6 +2355,7 @@ namespace StingTools.Model
                             double dist = DistancePointToLine2D(midpoints[idx], p1, p2);
                             rmsError += dist * dist;
                         }
+                        if (inliers.Count == 0) continue;
                         rmsError = Math.Sqrt(rmsError / inliers.Count);
 
                         bestLine = new FittedLine
@@ -2611,6 +2611,7 @@ namespace StingTools.Model
                     double dist = Math.Abs(pt.DistanceTo(fit.Value.Center) - fit.Value.Radius);
                     rmsError += dist * dist;
                 }
+                if (midpoints.Count == 0) continue;
                 rmsError = Math.Sqrt(rmsError / midpoints.Count);
 
                 if (rmsError > maxDeviationFt) continue;
@@ -2708,6 +2709,7 @@ namespace StingTools.Model
 
             double cx = (D * C - B * E) / denom;
             double cy = (A * E - B * D) / denom;
+            if (!points.Any()) return null;
             double r = Math.Sqrt(points.Average(p =>
                 Math.Pow(p.X - cx, 2) + Math.Pow(p.Y - cy, 2)));
 

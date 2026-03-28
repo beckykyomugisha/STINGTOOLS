@@ -51,15 +51,21 @@ namespace StingTools.UI
         private static readonly Color SuccessGreen = Color.FromRgb(0x4C, 0xAF, 0x50);
         private static readonly Color BorderDark = Color.FromRgb(0x55, 0x55, 0x58);
 
-        private static readonly SolidColorBrush BrBgDark = new(BgDark);
-        private static readonly SolidColorBrush BrBgMedium = new(BgMedium);
-        private static readonly SolidColorBrush BrBgLight = new(BgLight);
-        private static readonly SolidColorBrush BrAccent = new(AccentOrange);
-        private static readonly SolidColorBrush BrFgWhite = new(FgWhite);
-        private static readonly SolidColorBrush BrFgDim = new(FgDim);
-        private static readonly SolidColorBrush BrWarning = new(WarningRed);
-        private static readonly SolidColorBrush BrSuccess = new(SuccessGreen);
-        private static readonly SolidColorBrush BrBorder = new(BorderDark);
+        private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+        private static SolidColorBrush FZA(byte a, byte r, byte g, byte b) { var br = new SolidColorBrush(Color.FromArgb(a, r, g, b)); br.Freeze(); return br; }
+        private static readonly SolidColorBrush BrBgDark = FZ(new(BgDark));
+        private static readonly SolidColorBrush BrBgMedium = FZ(new(BgMedium));
+        private static readonly SolidColorBrush BrBgLight = FZ(new(BgLight));
+        private static readonly SolidColorBrush BrAccent = FZ(new(AccentOrange));
+        private static readonly SolidColorBrush BrFgWhite = FZ(new(FgWhite));
+        private static readonly SolidColorBrush BrFgDim = FZ(new(FgDim));
+        private static readonly SolidColorBrush BrWarning = FZ(new(WarningRed));
+        private static readonly SolidColorBrush BrSuccess = FZ(new(SuccessGreen));
+        private static readonly SolidColorBrush BrBorder = FZ(new(BorderDark));
+        private static readonly SolidColorBrush BrDark25 = FZ(new(Color.FromRgb(0x25, 0x25, 0x28)));
+        private static readonly SolidColorBrush BrWarnBg = FZA(0x30, 0xE0, 0x50, 0x50);
+        private static readonly SolidColorBrush BrRetagBg = FZA(0x30, 0xE8, 0x91, 0x2D);
+        private static readonly SolidColorBrush BrWhite = FZ(new SolidColorBrush(Colors.White));
 
         // ── State ─────────────────────────────────────────────────────
         private readonly int _elementCount;
@@ -135,7 +141,7 @@ namespace StingTools.UI
             // ── Header ────────────────────────────────────────────────
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
+                Background = BrDark25,
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1),
                 Padding = new Thickness(16, 10, 16, 10)
@@ -258,7 +264,7 @@ namespace StingTools.UI
             // ── Bottom bar ────────────────────────────────────────────
             var bottomBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x28)),
+                Background = BrDark25,
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(16, 8, 16, 8)
@@ -589,7 +595,7 @@ namespace StingTools.UI
             // Warning block
             var warningBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x30, 0xE0, 0x50, 0x50)),
+                Background = BrWarnBg,
                 BorderBrush = BrWarning,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
@@ -650,7 +656,7 @@ namespace StingTools.UI
             // Warning block
             var warningBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x30, 0xE8, 0x91, 0x2D)),
+                Background = BrRetagBg,
                 BorderBrush = BrAccent,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
@@ -860,7 +866,7 @@ namespace StingTools.UI
             if (isPrimary)
             {
                 btn.Background = BrAccent;
-                btn.Foreground = new SolidColorBrush(Colors.White);
+                btn.Foreground = BrWhite;
                 btn.BorderBrush = BrAccent;
             }
             else

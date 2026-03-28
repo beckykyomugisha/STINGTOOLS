@@ -77,12 +77,25 @@ namespace StingTools.Core
         /// <summary>Phase 78: Track dropped element IDs for sidecar recovery.</summary>
         private static readonly System.Collections.Concurrent.ConcurrentBag<long> _droppedElementIds = new();
 
+        /// <summary>Cap for the _droppedElementIds bag to avoid unbounded memory growth
+        /// when large batches repeatedly overflow the deferred queue.</summary>
+        private const int MaxDroppedIdsBagSize = 50_000;
+
         public static void EnqueueDeferred(ElementId id)
         {
+            // SAFETY-002: The Count check and subsequent Enqueue are NOT atomic.
+            // A concurrent thread could push Count over MaxDeferredQueueSize between
+            // the check and the Enqueue.  This is an accepted benign race — the queue
+            // may transiently exceed the cap by the number of concurrent callers,
+            // which is bounded and harmless.  Full locking would serialize all IUpdater
+            // triggers and is not worth the throughput cost.
             if (_deferredElements.Count >= MaxDeferredQueueSize)
             {
                 _droppedElementCount++;
-                _droppedElementIds.Add(id.Value); // Phase 78: Track for sidecar recovery
+                // SAFETY-003: Cap the dropped-IDs bag to prevent unbounded memory growth
+                // when elements overflow repeatedly (e.g. batch import without a central sync).
+                if (_droppedElementIds.Count < MaxDroppedIdsBagSize)
+                    _droppedElementIds.Add(id.Value); // Phase 78: Track for sidecar recovery
                 // M-06 FIX: Throttle logging — only log every 100th drop to avoid log spam
                 // but use Error level (not Warn) so it's visible in diagnostics
                 if (_droppedElementCount <= 5 || _droppedElementCount % 100 == 0)
@@ -400,12 +413,11 @@ namespace StingTools.Core
 
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName)) continue;
-                    if (!TagConfig.DiscMap.ContainsKey(catName)) continue;
+                    if (!TagConfig.DiscMap.TryGetValue(catName, out string elemDisc)) continue;
 
                     // Discipline filter
                     if (_allowedDiscs.Count > 0)
                     {
-                        string elemDisc = TagConfig.DiscMap.TryGetValue(catName, out string dv) ? dv : "";
                         if (!_allowedDiscs.Contains(elemDisc)) continue;
                     }
 
@@ -1052,7 +1064,7 @@ namespace StingTools.Core
                 string projectLoc = null;
                 try
                 {
-                    if (_cachedRoomIndex != null && (DateTime.Now - _roomIndexCacheTime).TotalSeconds < 30)
+                    if (_cachedRoomIndex != null && (DateTime.UtcNow - _roomIndexCacheTime).TotalSeconds < 30)
                     {
                         roomIndex = _cachedRoomIndex;
                         projectLoc = _cachedProjectLoc;
@@ -1063,7 +1075,7 @@ namespace StingTools.Core
                         projectLoc = SpatialAutoDetect.DetectProjectLoc(doc);
                         _cachedRoomIndex = roomIndex;
                         _cachedProjectLoc = projectLoc;
-                        _roomIndexCacheTime = DateTime.Now;
+                        _roomIndexCacheTime = DateTime.UtcNow;
                     }
                 }
                 catch (Exception riEx)

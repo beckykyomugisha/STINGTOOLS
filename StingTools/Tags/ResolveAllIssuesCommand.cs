@@ -46,7 +46,7 @@ namespace StingTools.Tags
             var catEnums = SharedParamGuids.AllCategoryEnums;
             if (catEnums != null && catEnums.Length > 0)
                 resolveColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
-            var allElements = resolveColl.ToList();
+            var allElements = resolveColl.Cast<Element>();
 
             int totalTaggable = 0;
             int noTag = 0, incompleteTag = 0, unresolvedTag = 0;

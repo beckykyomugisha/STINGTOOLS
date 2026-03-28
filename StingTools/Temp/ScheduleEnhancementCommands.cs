@@ -68,10 +68,8 @@ namespace StingTools.Temp
                 string name = sched.Name;
 
                 // Track duplicates
-                if (duplicateNames.ContainsKey(name))
-                    duplicateNames[name]++;
-                else
-                    duplicateNames[name] = 1;
+                duplicateNames.TryGetValue(name, out int dn);
+                duplicateNames[name] = dn + 1;
 
                 // Count STING schedules
                 if (name.StartsWith("STING", StringComparison.OrdinalIgnoreCase))

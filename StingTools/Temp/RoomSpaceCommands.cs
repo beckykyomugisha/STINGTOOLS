@@ -60,14 +60,14 @@ namespace StingTools.Temp
                 double area = room.Area;
 
                 // Count by level
-                if (!levelCounts.ContainsKey(levelName)) levelCounts[levelName] = 0;
-                levelCounts[levelName]++;
+                levelCounts.TryGetValue(levelName, out int lc);
+                levelCounts[levelName] = lc + 1;
 
                 // Count by department
                 if (!string.IsNullOrEmpty(dept))
                 {
-                    if (!deptCounts.ContainsKey(dept)) deptCounts[dept] = 0;
-                    deptCounts[dept]++;
+                    deptCounts.TryGetValue(dept, out int dc);
+                    deptCounts[dept] = dc + 1;
                 }
 
                 // Check placement
@@ -244,8 +244,8 @@ namespace StingTools.Temp
                         assigned++;
                     }
 
-                    if (!zoneSummary.ContainsKey(zone)) zoneSummary[zone] = 0;
-                    zoneSummary[zone]++;
+                    zoneSummary.TryGetValue(zone, out int zc);
+                    zoneSummary[zone] = zc + 1;
                 }
 
                 tx.Commit();
@@ -690,14 +690,14 @@ namespace StingTools.Temp
                     if (fromRoom != null)
                     {
                         long rid = fromRoom.Id.Value;
-                        if (!roomDoorCount.ContainsKey(rid)) roomDoorCount[rid] = 0;
-                        roomDoorCount[rid]++;
+                        roomDoorCount.TryGetValue(rid, out int rc1);
+                        roomDoorCount[rid] = rc1 + 1;
                     }
                     if (toRoom != null)
                     {
                         long rid = toRoom.Id.Value;
-                        if (!roomDoorCount.ContainsKey(rid)) roomDoorCount[rid] = 0;
-                        roomDoorCount[rid]++;
+                        roomDoorCount.TryGetValue(rid, out int rc2);
+                        roomDoorCount[rid] = rc2 + 1;
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"SpatialAudit door {door.Id}: {ex.Message}"); }

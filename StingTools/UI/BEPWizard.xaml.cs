@@ -22,6 +22,12 @@ namespace StingTools.UI
         private const int TotalPages = 6;
         private int _currentPage = 0;
 
+        private static SolidColorBrush FZ(byte r, byte g, byte b) { var br = new SolidColorBrush(WpfColor.FromRgb(r, g, b)); br.Freeze(); return br; }
+        private static readonly SolidColorBrush BrGrey = FZ(0xE0, 0xE0, 0xE0);
+        private static readonly SolidColorBrush BrDim = FZ(0x99, 0x99, 0x99);
+        private static readonly SolidColorBrush BrGreen = FZ(0x4C, 0xAF, 0x50);
+        private static readonly SolidColorBrush BrPurple = FZ(0x6A, 0x1B, 0x9A);
+
         /// <summary>Result data — populated when user clicks Create.</summary>
         public BEPWizardData WizardData { get; private set; }
 
@@ -85,7 +91,7 @@ namespace StingTools.UI
                 var border = new Border
                 {
                     Width = 28, Height = 28, CornerRadius = new CornerRadius(14),
-                    Margin = new Thickness(2), Background = new SolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0))
+                    Margin = new Thickness(2), Background = BrGrey
                 };
                 var num = new TextBlock
                 {
@@ -103,7 +109,7 @@ namespace StingTools.UI
                 {
                     Text = _pageNames[i], FontSize = 9,
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Foreground = new SolidColorBrush(WpfColor.FromRgb(0x99, 0x99, 0x99))
+                    Foreground = BrDim
                 };
                 sp.Children.Add(lbl);
                 _stepLabels[i] = lbl;
@@ -117,19 +123,19 @@ namespace StingTools.UI
             {
                 if (i < _currentPage)
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0x4C, 0xAF, 0x50));
-                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x4C, 0xAF, 0x50));
+                    _stepBorders[i].Background = BrGreen;
+                    _stepLabels[i].Foreground = BrGreen;
                 }
                 else if (i == _currentPage)
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0x6A, 0x1B, 0x9A));
-                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x6A, 0x1B, 0x9A));
+                    _stepBorders[i].Background = BrPurple;
+                    _stepLabels[i].Foreground = BrPurple;
                     _stepLabels[i].FontWeight = FontWeights.Bold;
                 }
                 else
                 {
-                    _stepBorders[i].Background = new SolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
-                    _stepLabels[i].Foreground = new SolidColorBrush(WpfColor.FromRgb(0x99, 0x99, 0x99));
+                    _stepBorders[i].Background = BrGrey;
+                    _stepLabels[i].Foreground = BrDim;
                     _stepLabels[i].FontWeight = FontWeights.Normal;
                 }
             }

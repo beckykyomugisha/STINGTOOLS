@@ -504,10 +504,8 @@ namespace StingTools.Model
                             if (volM3 > 0)
                             {
                                 string name = mat.Name;
-                                if (quantities.ContainsKey(name))
-                                    quantities[name] += volM3;
-                                else
-                                    quantities[name] = volM3;
+                                quantities.TryGetValue(name, out double prevVol);
+                                quantities[name] = prevVol + volM3;
                             }
                         }
                     }

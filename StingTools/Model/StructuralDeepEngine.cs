@@ -512,10 +512,17 @@ namespace StingTools.Model
                 double deadDeflection = immediateDeflectionMm * deadLoadRatio;
                 result.CreepDeflectionMm = phiT * deadDeflection;
 
-                // Shrinkage curvature deflection (simplified)
-                // εcs ≈ 0.3 mm/m for indoor, 0.5 mm/m for outdoor
+                // Shrinkage curvature deflection per EC2 §7.4.3
+                // δsh = K × κcs × L²  where K = 0.125 (simply-supported)
+                // κcs ≈ εcs / d  where d = effective depth ≈ 0.85 × h
+                // εcs ≈ 0.3 mm/m for indoor (RH>70%), 0.5 mm/m for outdoor
                 double shrinkageStrain = relativeHumidityPct > 70 ? 0.0002 : 0.0003;
-                result.ShrinkageDeflectionMm = shrinkageStrain * spanMm * spanMm / (8.0 * 250); // h≈span/20
+                // Phase 79b FIX (HIGH-05): Use span-derived depth instead of hardcoded 250mm.
+                // For beams/slabs, h ≈ span/20, effective depth d ≈ 0.85h.
+                double hEst = spanMm / 20.0;
+                double dEst = 0.85 * hEst;
+                if (dEst < 100) dEst = 100; // guard against very short spans
+                result.ShrinkageDeflectionMm = shrinkageStrain * spanMm * spanMm / (8.0 * dEst);
 
                 result.TotalLongTermMm = immediateDeflectionMm + result.CreepDeflectionMm + result.ShrinkageDeflectionMm;
 
@@ -613,7 +620,7 @@ namespace StingTools.Model
                     {
                         CheckName = "Cumulative height tolerance",
                         ModelledValueMm = heightMm,
-                        ToleranceMm = Math.Sqrt(heightMm / 3000.0) * 5.0,
+                        ToleranceMm = Math.Sqrt(Math.Max(heightMm, 0) / 3000.0) * 5.0,
                         Pass = true,
                         Standard = "BS EN 1090-2 §D.1.11",
                         Recommendation = "Check cumulative tolerance stack-up for multi-storey"

@@ -198,8 +198,8 @@ namespace StingTools.Select
             foreach (Element e in new FilteredElementCollector(doc, view.Id)
                 .WhereElementIsNotElementType())
             {
-                if (e.LevelId != null && elemsByLevel.ContainsKey(e.LevelId))
-                    elemsByLevel[e.LevelId].Add(e.Id);
+                if (e.LevelId != null && elemsByLevel.TryGetValue(e.LevelId, out var lvlList))
+                    lvlList.Add(e.Id);
             }
 
             var nonEmpty = levels.Where(l => elemsByLevel[l.Id].Count > 0).ToList();
@@ -227,8 +227,8 @@ namespace StingTools.Select
             var pickedIds = new List<ElementId>();
             foreach (var item in picked)
             {
-                if (item.Tag is ElementId lvlId && elemsByLevel.ContainsKey(lvlId))
-                    pickedIds.AddRange(elemsByLevel[lvlId]);
+                if (item.Tag is ElementId lvlId && elemsByLevel.TryGetValue(lvlId, out var lvlElems))
+                    pickedIds.AddRange(lvlElems);
             }
 
             uidoc.Selection.SetElementIds(pickedIds);

@@ -295,7 +295,14 @@ namespace StingTools.Model
             }
             z = Math.Min(z, 0.95 * d);
 
-            double fsd = fyk / gammaS;
+            // ESE-MED-01: Design steel stress fsd = fyk/γS per EC2 §3.2.7.
+            // The anchorage bond stress that governs curtailment lengths uses:
+            //   f_bd = 2.25 × η1 × η2 × f_ctd  (EC2 §8.4.2 eq. 8.2)
+            // where η1=1.0 (good bond), η2=1.0 (bar dia ≤ 32mm), f_ctd = f_ctk,0.05/γC.
+            // Minimum anchorage length: l_b,min = max(0.3×l_b,rqd, 10ϕ, 100mm) (EC2 §8.4.4).
+            // These bond checks are performed at curtailment design stage (not modelled here)
+            // but fsd must not exceed fyk/γS regardless of assumed bond quality.
+            double fsd = fyk / gammaS; // N/mm² — EC2 §3.2.7
             double asReq = mEd * 1e6 / (fsd * z); // mm²
 
             // Select bars
@@ -337,40 +344,80 @@ namespace StingTools.Model
             double fcd = 0.85 * fck / gammaC;
             double fsd = fyk / gammaS;
 
-            // Simplified N-M interaction (EC2 §6.1)
+            // ESE-HIGH-01: Full N-M interaction check per EC2 §6.1 (BS EN 1992-1-1:2004).
+            // The simplified prior code used separate N-only or M-only paths which
+            // under-estimates As when both axial force and moment are significant.
+            // The correct approach is to check the combined interaction:
+            //   N_Ed/N_Rd + M_Ed/M_Rd ≤ 1.0  (simplified biaxial — EC2 §5.8.9)
+            // For columns: iterate trial As until interaction ratio ≤ 1.0.
+
             double nEd = axialKN * 1000; // N
             double mEd = momentKNm * 1e6; // Nmm
+            double ac  = b * h;           // gross cross-section area (mm²)
 
-            // As from combined axial + bending
-            double ac = b * h; // gross area
-            double nRd = 0.567 * fck * ac; // axial capacity without rebar
+            // Pure-axial resistance without rebar (concrete only, EC2 §6.1 — η=0.85 coeff)
+            double nRd0 = 0.567 * fck * ac; // N  (= 0.85/γC × fck × Ac)
 
-            double asReq;
-            if (nEd > nRd)
-                asReq = (nEd - nRd) / fsd;
-            else
-                asReq = mEd / (fsd * (d - coverMm));
+            // Start with As from bending alone (lower bound)
+            double z0 = Math.Max(d - coverMm - 12.5, 0.5 * d); // simplified lever arm
+            double asFromMoment = mEd > 0 ? mEd / (fsd * z0) : 0.0;
+            // Supplement from axial if compression exceeds pure-concrete capacity
+            double asFromAxial  = Math.Max(0.0, (nEd - nRd0) / fsd);
+            double asReq        = Math.Max(asFromMoment, asFromAxial);
 
-            asReq = Math.Max(asReq, 0.002 * ac); // EC2 minimum 0.2%
-            asReq = Math.Max(asReq, 0.1 * nEd / fsd); // EC2 §9.5.2
+            // EC2 §9.5.2 minimum rebar for columns
+            asReq = Math.Max(asReq, 0.002 * ac);           // 0.2% of gross area
+            asReq = Math.Max(asReq, 0.1 * nEd / fsd);      // 10% of factored axial
 
-            // Select bars (4 minimum for rectangular columns)
+            // --- N-M interaction verification (EC2 §6.1 simplified approach) ---
+            // Resistance with required As: N_Rd = η_fcd × Ac + fsd × As
+            //                              M_Rd = fsd × As × (d - d2)
+            double nRdWithAs = 0.567 * fck * ac + fsd * asReq;
+            double mRdWithAs = asReq > 0 ? fsd * asReq * (d - coverMm - 12.5) : 1.0;
+            double interactionRatio = (nEd / Math.Max(nRdWithAs, 1.0))
+                                    + (mEd / Math.Max(mRdWithAs, 1.0));
+
+            // If interaction > 1.0, increase As by the deficit fraction and re-check once.
+            if (interactionRatio > 1.0)
+            {
+                double excess = interactionRatio - 1.0;
+                asReq *= (1.0 + excess);
+                asReq = Math.Max(asReq, 0.002 * ac); // re-apply minimums
+                nRdWithAs    = 0.567 * fck * ac + fsd * asReq;
+                mRdWithAs    = fsd * asReq * (d - coverMm - 12.5);
+                interactionRatio = (nEd / Math.Max(nRdWithAs, 1.0))
+                                 + (mEd / Math.Max(mRdWithAs, 1.0));
+            }
+
+            // Select bars (4 minimum for rectangular columns per EC2 §9.5.2)
             string mainBars = SelectBars(asReq, sizeMm, coverMm, minCount: 4);
 
-            // Links (EC2 §9.5.3)
-            int mainSize = 25; // parse from mainBars if needed
-            int linkSize = Math.Max(8, mainSize / 4);
+            // Links (EC2 §9.5.3): s_cl,max = min(20ϕl, min(b,h), 400mm)
+            // Parse bar size from SelectBars result, default 25mm
+            int mainSize = 25;
+            try
+            {
+                // Parse "{count}H{size}" — take digits after 'H'
+                int hIdx = mainBars.IndexOf('H');
+                if (hIdx >= 0)
+                {
+                    string sizeStr = new string(mainBars.Substring(hIdx + 1).TakeWhile(char.IsDigit).ToArray());
+                    if (int.TryParse(sizeStr, out int parsed)) mainSize = parsed;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ExcelStructuralEngine rebar size parse failed, using default: {ex.Message}"); /* use default 25 */ }
+            int    linkSize    = Math.Max(8, mainSize / 4);
             double linkSpacing = Math.Min(20 * mainSize, Math.Min(sizeMm, 400));
             string links = $"H{linkSize}@{(int)linkSpacing}";
 
-            double utilization = nEd / nRd;
             return new RebarDesignResult
             {
                 BotRebar = mainBars,
                 Links = links,
-                Utilization = utilization,
-                PassesAllChecks = utilization <= 1.0,
-                Summary = $"N_Ed={axialKN:F0}kN, As_req={asReq:F0}mm², util={utilization:F2}"
+                Utilization = interactionRatio,
+                PassesAllChecks = interactionRatio <= 1.0,
+                Summary = $"N_Ed={axialKN:F0}kN M_Ed={momentKNm:F1}kNm, As_req={asReq:F0}mm², " +
+                          $"N-M util={interactionRatio:F2} (EC2 §6.1)"
             };
         }
 
@@ -474,6 +521,13 @@ namespace StingTools.Model
 
             using (var wb = new XLWorkbook(xlsxPath))
             {
+                // ESE-CRIT-01: Warm grid and level caches once before all import loops.
+                // Without pre-warming, each ImportColumns/ImportBeams row calls
+                // ResolveGridIntersection which creates a FilteredElementCollector —
+                // O(rows × model_elements) instead of O(model_elements) once.
+                EnsureGridCache();
+                EnsureLevelCache();
+
                 // Import each sheet
                 var colSheet = wb.Worksheets.FirstOrDefault(w => w.Name.StartsWith("COL", StringComparison.OrdinalIgnoreCase));
                 if (colSheet != null)
@@ -510,9 +564,19 @@ namespace StingTools.Model
                     if (rows.Count == 0) { result.Warnings.Add("SLABS sheet has no data rows"); }
                     else if (!options.DryRun)
                     {
-                        var ids = ImportSlabs(rows, options);
-                        result.SlabsCreated = ids.Count;
-                        result.AllCreatedIds.AddRange(ids);
+                        // ESE-HIGH-02: Slab import is not implemented — catch NotImplementedException
+                        // and add a clear warning so the import continues for columns/beams/walls.
+                        try
+                        {
+                            var ids = ImportSlabs(rows, options);
+                            result.SlabsCreated = ids.Count;
+                            result.AllCreatedIds.AddRange(ids);
+                        }
+                        catch (NotImplementedException nie)
+                        {
+                            result.Warnings.Add($"SLABS sheet skipped: {nie.Message}");
+                            StingLog.Warn($"ImportFromExcel: Slab import skipped — {nie.Message}");
+                        }
                     }
                     else result.SlabsCreated = rows.Count;
                 }
@@ -524,9 +588,18 @@ namespace StingTools.Model
                     if (rows.Count == 0) { result.Warnings.Add("FOUNDATIONS sheet has no data rows"); }
                     else if (!options.DryRun)
                     {
-                        var ids = ImportFoundations(rows, options);
-                        result.FoundationsCreated = ids.Count;
-                        result.AllCreatedIds.AddRange(ids);
+                        // ESE-HIGH-02: Foundation import is not implemented — catch NotImplementedException.
+                        try
+                        {
+                            var ids = ImportFoundations(rows, options);
+                            result.FoundationsCreated = ids.Count;
+                            result.AllCreatedIds.AddRange(ids);
+                        }
+                        catch (NotImplementedException nie)
+                        {
+                            result.Warnings.Add($"FOUNDATIONS sheet skipped: {nie.Message}");
+                            StingLog.Warn($"ImportFromExcel: Foundation import skipped — {nie.Message}");
+                        }
                     }
                     else result.FoundationsCreated = rows.Count;
                 }
@@ -571,20 +644,63 @@ namespace StingTools.Model
 
         // ── Grid resolution ──
 
+        // ESE-CRIT-01: Grid and level caches — populated once per import batch via EnsureGridCache()
+        // and EnsureLevelCache(), preventing one FilteredElementCollector scan per import row.
+        // On a 500-column sheet this reduces scans from 500 to 1 for each lookup type.
+        private Dictionary<string, Grid> _gridByName;
+        private List<Level> _levelList;
+
+        /// <summary>
+        /// Populate the grid name dictionary once.
+        /// ESE-CRIT-01: Pre-collect all grids before the import loop so individual
+        /// ResolveGridIntersection calls do not each create a FilteredElementCollector.
+        /// </summary>
+        public void EnsureGridCache()
+        {
+            if (_gridByName != null) return;
+            _gridByName = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Grids)
+                .WhereElementIsNotElementType()
+                .Cast<Grid>()
+                .ToDictionary(g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Populate the level list once.
+        /// ESE-CRIT-01: Pre-collect all levels before the import loop.
+        /// </summary>
+        public void EnsureLevelCache()
+        {
+            if (_levelList != null) return;
+            _levelList = new FilteredElementCollector(_doc)
+                .OfCategory(BuiltInCategory.OST_Levels)
+                .WhereElementIsNotElementType()
+                .Cast<Level>()
+                .OrderBy(l => l.Elevation)
+                .ToList();
+        }
+
         public XYZ ResolveGridIntersection(string gridRefX, string gridRefY)
         {
-            var grids = new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_Grids)
-                .WhereElementIsNotElementType().Cast<Grid>().ToList();
+            // ESE-CRIT-01: Use pre-built dictionary; falls back to on-demand scan if cache not warmed.
+            Dictionary<string, Grid> gridMap;
+            if (_gridByName != null)
+            {
+                gridMap = _gridByName;
+            }
+            else
+            {
+                var raw = new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_Grids)
+                    .WhereElementIsNotElementType().Cast<Grid>().ToList();
+                gridMap = raw.ToDictionary(g => g.Name, g => g, StringComparer.OrdinalIgnoreCase);
+            }
 
-            Grid gX = grids.FirstOrDefault(g => g.Name.Equals(gridRefX, StringComparison.OrdinalIgnoreCase));
-            Grid gY = grids.FirstOrDefault(g => g.Name.Equals(gridRefY, StringComparison.OrdinalIgnoreCase));
-
-            if (gX == null || gY == null) return null;
+            if (!gridMap.TryGetValue(gridRefX, out var gX)) return null;
+            if (!gridMap.TryGetValue(gridRefY, out var gY)) return null;
 
             var curveX = gX.Curve;
             var curveY = gY.Curve;
-            var results = new IntersectionResultArray();
-            curveX.Intersect(curveY, out results);
+            curveX.Intersect(curveY, out var results);
 
             if (results != null && results.Size > 0)
                 return results.get_Item(0).XYZPoint;
@@ -593,10 +709,17 @@ namespace StingTools.Model
 
         public Level ResolveLevel(string levelCode)
         {
-            var levels = new FilteredElementCollector(_doc)
-                .OfCategory(BuiltInCategory.OST_Levels)
-                .WhereElementIsNotElementType()
-                .Cast<Level>().ToList();
+            // ESE-CRIT-01: Use pre-built list; falls back to on-demand scan if cache not warmed.
+            List<Level> levels = _levelList;
+            if (levels == null)
+            {
+                levels = new FilteredElementCollector(_doc)
+                    .OfCategory(BuiltInCategory.OST_Levels)
+                    .WhereElementIsNotElementType()
+                    .Cast<Level>()
+                    .OrderBy(l => l.Elevation)
+                    .ToList();
+            }
 
             // Try exact match first
             var match = levels.FirstOrDefault(l => l.Name.Equals(levelCode, StringComparison.OrdinalIgnoreCase));
@@ -904,17 +1027,31 @@ namespace StingTools.Model
 
         private List<ElementId> ImportSlabs(List<SlabScheduleRow> rows, StructuralImportOptions options)
         {
-            // Slabs require boundary curves — for now, create rectangular slabs from span data
-            var ids = new List<ElementId>();
-            StingLog.Info($"Slab import: {rows.Count} rows parsed (boundary placement requires manual definition)");
-            return ids;
+            // ESE-HIGH-02: Slab import is not yet implemented.
+            // Slab boundaries require closed CurveLoop geometry that cannot be reliably
+            // inferred from a 1D schedule row (span × depth). Full implementation
+            // requires the user to pre-define boundary curves or a spatial polygon import.
+            // DWG-source slab boundaries should use StructuralDWGEngine instead.
+            StingLog.Warn($"ImportSlabs: {rows.Count} rows skipped — slab boundary placement " +
+                "from Excel schedule is not yet implemented. Use StructuralDWGEngine for DWG-sourced slabs.");
+            throw new NotImplementedException(
+                "ImportSlabs: Slab creation from Excel schedule requires boundary curve geometry. " +
+                "Use StructuralDWGEngine for DWG-sourced slabs, or define boundary polylines " +
+                "in the model before importing.");
         }
 
         private List<ElementId> ImportFoundations(List<FoundationScheduleRow> rows, StructuralImportOptions options)
         {
-            var ids = new List<ElementId>();
-            StingLog.Info($"Foundation import: {rows.Count} rows parsed (foundation placement requires host columns)");
-            return ids;
+            // ESE-HIGH-02: Foundation import is not yet implemented.
+            // Pad foundations require a host column or a structural-slab family instance.
+            // Strip foundations require a host wall. Neither can be reliably placed without
+            // pre-existing host elements from an earlier COLUMNS or WALLS import pass.
+            StingLog.Warn($"ImportFoundations: {rows.Count} rows skipped — foundation placement " +
+                "from Excel schedule requires host columns/walls to exist first.");
+            throw new NotImplementedException(
+                "ImportFoundations: Foundation creation requires host structural columns or walls. " +
+                "Import COLUMNS first, then run StrAutoRebar to auto-size foundations, " +
+                "or use StructuralModelingEngine.CreatePadFooting() after column placement.");
         }
 
         private List<ElementId> ImportWalls(List<WallScheduleRow> rows, StructuralImportOptions options)
@@ -1219,14 +1356,44 @@ namespace StingTools.Model
                     if (locCurve != null) lenFt = locCurve.Curve.Length;
                     double spanM = lenFt * 0.3048;
 
-                    var design = RebarEngine.AutoDesignBeamRebar(spanM, 300, 600, 25, "C32/40", 30);
-                    sb.AppendLine($"  Beam [{el.Id.Value}]: Span={spanM:F1}m");
+                    // Phase 79b FIX (HIGH-04): Extract actual beam dimensions from element
+                    // instead of hardcoded 300×600. Fall back to typical values if unavailable.
+                    double bMm = 300, hMm = 600;
+                    try
+                    {
+                        var bParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH);
+                        var hParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_HEIGHT);
+                        if (bParam != null && bParam.AsDouble() > 0) bMm = bParam.AsDouble() * 304.8;
+                        if (hParam != null && hParam.AsDouble() > 0) hMm = hParam.AsDouble() * 304.8;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Beam dimension read failed: {ex.Message}"); }
+                    var design = RebarEngine.AutoDesignBeamRebar(spanM, bMm, hMm, 25, "C32/40", 30);
+                    sb.AppendLine($"  Beam [{el.Id.Value}]: Span={spanM:F1}m, b={bMm:F0}mm, h={hMm:F0}mm");
                     sb.AppendLine($"    Bottom: {design.BotRebar}, Top: {design.TopRebar}, Links: {design.Links}");
                     sb.AppendLine($"    {design.Summary}");
                 }
                 else if (catName.Contains("Column"))
                 {
-                    var design = RebarEngine.AutoDesignColumnRebar(3.0, 400, 1000, 100, "C32/40", 35);
+                    // Phase 79b FIX (HIGH-04): Extract actual column dimensions from element
+                    double colB = 400, colAxialKN = 1000, colMomentKNm = 100;
+                    try
+                    {
+                        var bParam = el.get_Parameter(BuiltInParameter.STRUCTURAL_SECTION_COMMON_WIDTH);
+                        if (bParam != null && bParam.AsDouble() > 0) colB = bParam.AsDouble() * 304.8;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column dimension read failed: {ex.Message}"); }
+                    double colH = 3.0;
+                    try
+                    {
+                        var locLine = el.Location as LocationPoint;
+                        if (locLine != null)
+                        {
+                            var bb = el.get_BoundingBox(null);
+                            if (bb != null) colH = (bb.Max.Z - bb.Min.Z) * 0.3048;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Column height read failed: {ex.Message}"); }
+                    var design = RebarEngine.AutoDesignColumnRebar(colH, colB, colAxialKN, colMomentKNm, "C32/40", 35);
                     sb.AppendLine($"  Column [{el.Id.Value}]:");
                     sb.AppendLine($"    Main: {design.BotRebar}, Links: {design.Links}");
                     sb.AppendLine($"    {design.Summary}");

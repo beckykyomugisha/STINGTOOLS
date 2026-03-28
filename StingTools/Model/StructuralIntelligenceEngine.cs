@@ -1221,7 +1221,7 @@ namespace StingTools.Model
                             score.Issues.Add(w);
                     }
                 }
-                catch { connectivity = 10; } // Partial credit if analysis fails
+                catch (Exception ex) { StingLog.Warn($"StructuralIntelligence connectivity analysis failed: {ex.Message}"); connectivity = 10; } // Partial credit if analysis fails
             }
             else if (colCount > 0 || beamCount > 0)
             {
@@ -1244,7 +1244,7 @@ namespace StingTools.Model
                     if (passRate < 1)
                         score.Issues.Add($"{deflections.Count(d => !d.Result.Pass)} beams fail deflection");
                 }
-                catch { design += 5; }
+                catch (Exception ex) { StingLog.Warn($"StructuralIntelligence beam deflection check failed: {ex.Message}"); design += 5; }
             }
             else design += 10;
 
@@ -1261,7 +1261,7 @@ namespace StingTools.Model
                     if (passRate < 1)
                         score.Issues.Add($"{punching.Count(p => !p.Result.Pass)} columns fail punching shear");
                 }
-                catch { design += 4; }
+                catch (Exception ex) { StingLog.Warn($"StructuralIntelligence punching shear check failed: {ex.Message}"); design += 4; }
             }
             else design += 8;
 
@@ -1277,7 +1277,7 @@ namespace StingTools.Model
                 }
                 else design += 7;
             }
-            catch { design += 3; }
+            catch (Exception ex) { StingLog.Warn($"StructuralIntelligence fire check failed: {ex.Message}"); design += 3; }
 
             score.DesignScore = design;
 

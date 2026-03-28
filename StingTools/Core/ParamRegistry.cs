@@ -731,8 +731,9 @@ namespace StingTools.Core
         /// <summary>TAG7 Section F: Classification &amp; Reference — codes, cost, ISO tag.</summary>
         public static string TAG7F { get; private set; } = "ASS_TAG_7F_TXT";
 
+        private static string[] _tag7Sections;
         /// <summary>All TAG7 sub-section parameter names in order (A-F).</summary>
-        public static string[] TAG7Sections => new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
+        public static string[] TAG7Sections => _tag7Sections ??= new[] { TAG7A, TAG7B, TAG7C, TAG7D, TAG7E, TAG7F };
 
         /// <summary>Check if a parameter is any TAG7 variant (main or sub-section).</summary>
         public static bool IsTag7Param(string paramName)
@@ -749,6 +750,11 @@ namespace StingTools.Core
         public static ContainerGroupDef[] ContainerGroups { get; private set; } = Array.Empty<ContainerGroupDef>();
         private static ContainerParamDef[] _allContainers;
         private static Dictionary<string, List<ContainerParamDef>> _containersByCategory;
+        // F-02: Cache for ContainersForCategory results — avoids List+ToArray allocation per call
+        private static System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>
+            _containerForCategoryCache;
+        // F-15: Cache for GetContainerTuples result — avoids LINQ Select+ToArray per call
+        private static (string param, int[] tokens, string sep, string[] categories)[] _containerTuplesCache;
 
         // ── GUID lookups ────────────────────────────────────────────────
         private static Dictionary<string, Guid> _guidByName;
@@ -828,18 +834,23 @@ namespace StingTools.Core
                 _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
             if (string.IsNullOrEmpty(categoryName)) return _allContainers.Where(c => c.Categories == null).ToArray();
 
-            var result = new List<ContainerParamDef>();
-            // Universal containers (null categories) always apply
-            foreach (var c in _allContainers)
+            // F-02: Cache result per category — ContainersForCategory is called per-element in hot loops
+            if (_containerForCategoryCache == null)
+                _containerForCategoryCache = new System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>(StringComparer.OrdinalIgnoreCase);
+            return _containerForCategoryCache.GetOrAdd(categoryName, key =>
             {
-                if (c.Categories == null)
-                    result.Add(c);
-            }
-            // Plus category-specific matches
-            if (_containersByCategory.TryGetValue(categoryName, out var specific))
-                result.AddRange(specific);
-
-            return result.ToArray();
+                var result = new List<ContainerParamDef>();
+                // Universal containers (null categories) always apply
+                foreach (var c in _allContainers)
+                {
+                    if (c.Categories == null)
+                        result.Add(c);
+                }
+                // Plus category-specific matches
+                if (_containersByCategory.TryGetValue(key, out var specific))
+                    result.AddRange(specific);
+                return result.ToArray();
+            });
         }
 
         /// <summary>Get category display names for a discipline-specific parameter.</summary>
@@ -870,7 +881,10 @@ namespace StingTools.Core
             // Use _allContainers directly to avoid reentrant EnsureLoaded() calls
             if (_allContainers == null)
                 _allContainers = ContainerGroups.SelectMany(g => g.Params).ToArray();
-            return _allContainers.Select(c => (c.ParamName, c.TokenIndices, c.Separator, c.Categories)).ToArray();
+            // F-15: Cache result — GetContainerTuples is called per-element in WriteContainers hot path
+            return _containerTuplesCache ??= _allContainers
+                .Select(c => (c.ParamName, c.TokenIndices, c.Separator, c.Categories))
+                .ToArray();
         }
 
         /// <summary>
@@ -943,6 +957,8 @@ namespace StingTools.Core
                 _loaded = false;
                 _allContainers = null;
                 _containersByCategory = null;
+                _containerForCategoryCache = null;   // F-02
+                _containerTuplesCache = null;         // F-15
                 WarningThresholds = new Dictionary<string, WarningThresholdDef>(StringComparer.Ordinal);
                 _categoryWarnings = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
                 _paragraphContainers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

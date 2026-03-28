@@ -224,8 +224,13 @@ namespace StingTools.Model
         /// </summary>
         public double LoopGapToleranceFt { get; set; } = 0.016; // ~5mm
 
-        // Tolerance for parallel line detection (feet)
-        private const double ParallelAngleTol = 0.05; // ~3 degrees
+        /// <summary>
+        /// CAD-MED-01: Configurable angular tolerance for parallel line detection.
+        /// Default 0.05 radians (~3 degrees). Increase to ~0.1 for DWG files with
+        /// slightly non-parallel wall lines from tracing. Decrease to 0.02 for
+        /// precisely drafted structural DWGs.
+        /// </summary>
+        public double ParallelAngleTol { get; set; } = 0.05; // ~3 degrees
         // Min/max wall thickness (feet)
         private const double MinWallThicknessFt = 50 / 304.8;   // 50mm
         private const double MaxWallThicknessFt = 600 / 304.8;  // 600mm
@@ -476,9 +481,8 @@ namespace StingTools.Model
 
                 // Track layer counts
                 var key = objLayerName ?? "(unnamed)";
-                if (!result.LayerCounts.ContainsKey(key))
-                    result.LayerCounts[key] = 0;
-                result.LayerCounts[key]++;
+                result.LayerCounts.TryGetValue(key, out int layerCount);
+                result.LayerCounts[key] = layerCount + 1;
 
                 if (obj is Line line)
                 {
@@ -630,73 +634,89 @@ namespace StingTools.Model
         /// <summary>
         /// Detects closed loops from a set of lines (potential floor/room boundaries).
         /// Uses Jeremy Tammik's SortCurvesContiguous approach.
+        ///
+        /// CAD-HIGH-01: Replaced List&lt;ExtractedLine&gt; with bool[] consumed array.
+        /// The original code used List.RemoveAt(i) inside an inner for-loop which
+        /// shifts all subsequent elements — O(n²) behaviour. With 500 lines this
+        /// was ~125,000 element copies; with 2000 lines ~1,000,000 copies.
+        /// The fix uses a bool[] consumed flag array: marking an index as consumed
+        /// is O(1) and the array is never reallocated inside the loop.
         /// </summary>
         private List<DetectedLoop> DetectClosedLoops(List<ExtractedLine> lines)
         {
             var loops = new List<DetectedLoop>();
-            // Simplified: find rectangular boundaries
-            // A more complete version would use SortCurvesContiguous
+            if (lines == null || lines.Count < 3) return loops;
 
-            // Group lines by proximity and try to form rectangles
-            var unused = new List<ExtractedLine>(lines);
             // Use configurable gap tolerance (default ~5mm = 0.016 ft) for endpoint matching;
-            // enforce a floor of 0.005 ft (~1.5mm) to avoid zero-tolerance failures
+            // enforce a floor of 0.005 ft (~1.5mm) to avoid zero-tolerance failures.
             double endpointTol = Math.Max(LoopGapToleranceFt, 0.005);
 
-            while (unused.Count >= 3)
+            // CAD-HIGH-01: consumed[] replaces List.RemoveAt — O(1) per mark instead of O(n) shift.
+            bool[] consumed = new bool[lines.Count];
+            int remaining = lines.Count;
+
+            for (int seed = 0; seed < lines.Count; seed++)
             {
-                var chain = new List<ExtractedLine> { unused[0] };
-                unused.RemoveAt(0);
+                if (consumed[seed]) continue;
+
+                // Start a new chain from this seed line.
+                var chain = new List<ExtractedLine> { lines[seed] };
+                consumed[seed] = true;
+                remaining--;
 
                 bool found = true;
                 while (found)
                 {
                     found = false;
-                    var lastEnd = chain.Last().End;
-                    var firstStart = chain[0].Start;
+                    XYZ lastEnd   = chain[chain.Count - 1].End;
+                    XYZ firstStart = chain[0].Start;
 
-                    // Check if loop is closed
+                    // Check if loop is closed before searching for the next segment.
                     if (chain.Count >= 3 && lastEnd.DistanceTo(firstStart) < endpointTol)
                     {
-                        var loop = new DetectedLoop
-                        {
-                            LayerName = chain[0].LayerName,
-                        };
+                        var loop = new DetectedLoop { LayerName = chain[0].LayerName };
                         foreach (var seg in chain)
                             loop.Points.Add(seg.Start);
                         loops.Add(loop);
+                        found = false; // exit inner while
                         break;
                     }
 
-                    // Find next connecting line
-                    for (int i = 0; i < unused.Count; i++)
+                    // Find the next unconsumed line that connects to lastEnd.
+                    for (int i = 0; i < lines.Count; i++)
                     {
-                        if (unused[i].Start.DistanceTo(lastEnd) < endpointTol)
+                        if (consumed[i]) continue;
+
+                        if (lines[i].Start.DistanceTo(lastEnd) < endpointTol)
                         {
-                            chain.Add(unused[i]);
-                            unused.RemoveAt(i);
+                            chain.Add(lines[i]);
+                            consumed[i] = true;
+                            remaining--;
                             found = true;
                             break;
                         }
-                        if (unused[i].End.DistanceTo(lastEnd) < endpointTol)
+                        if (lines[i].End.DistanceTo(lastEnd) < endpointTol)
                         {
-                            // Reverse the line direction
-                            var reversed = new ExtractedLine
+                            // Add reversed direction so chain always runs Start→End.
+                            chain.Add(new ExtractedLine
                             {
-                                Start = unused[i].End,
-                                End = unused[i].Start,
-                                LayerName = unused[i].LayerName,
-                                Category = unused[i].Category,
-                            };
-                            chain.Add(reversed);
-                            unused.RemoveAt(i);
+                                Start    = lines[i].End,
+                                End      = lines[i].Start,
+                                LayerName = lines[i].LayerName,
+                                Category  = lines[i].Category,
+                            });
+                            consumed[i] = true;
+                            remaining--;
                             found = true;
                             break;
                         }
                     }
 
-                    if (!found || chain.Count > 100) break; // Safety limit
+                    if (chain.Count > 100) break; // Safety limit — malformed DWG guard
                 }
+
+                // Abort early if all lines have been consumed.
+                if (remaining <= 0) break;
             }
 
             return loops;

@@ -395,7 +395,7 @@ namespace StingTools.BIMManager
             {
                 ["issue_id"] = existingNextId,
                 ["type"] = stingType,
-                ["type_description"] = BIMManagerEngine.IssueTypes.ContainsKey(stingType) ? BIMManagerEngine.IssueTypes[stingType] : stingType,
+                ["type_description"] = BIMManagerEngine.IssueTypes.TryGetValue(stingType, out var itDesc) ? itDesc : stingType,
                 ["priority"] = stingPriority,
                 ["title"] = title,
                 ["description"] = description,

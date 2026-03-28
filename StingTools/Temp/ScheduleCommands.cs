@@ -122,6 +122,13 @@ namespace StingTools.Temp
                     .Cast<ParameterFilterElement>()
                     .Select(f => f.Name));
 
+            // PERF-004: Pre-build category dictionary ONCE before the VIEW_FILTER loop.
+            // The previous code called doc.Settings.Categories.Cast<Category>().FirstOrDefault(...)
+            // per category name per VIEW_FILTER row — O(rows × categories) linear scans.
+            var categoryDict = new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase);
+            foreach (Category c in doc.Settings.Categories)
+                categoryDict[c.Name] = c;
+
             using (Transaction tx = new Transaction(doc, "STING Batch Create Schedules"))
             {
                 tx.Start();
@@ -158,9 +165,8 @@ namespace StingTools.Temp
                             foreach (string catStr in catNames)
                             {
                                 string cn = catStr.Trim();
-                                Category cat = doc.Settings.Categories.Cast<Category>()
-                                    .FirstOrDefault(c => c.Name.Equals(cn, StringComparison.OrdinalIgnoreCase));
-                                if (cat != null)
+                                // PERF-004: O(1) dictionary lookup instead of linear scan
+                                if (categoryDict.TryGetValue(cn, out Category cat))
                                     catIds.Add(cat.Id);
                             }
 
@@ -495,9 +501,9 @@ namespace StingTools.Temp
                         && !string.IsNullOrEmpty(oldField)
                         && !string.IsNullOrEmpty(newField))
                     {
-                        if (remaps.ContainsKey(oldField))
+                        if (remaps.TryGetValue(oldField, out var prevRemap))
                             StingLog.Warn($"SCHEDULE_FIELD_REMAP: duplicate source key '{oldField}' — " +
-                                $"overwriting '{remaps[oldField]}' with '{newField}'");
+                                $"overwriting '{prevRemap}' with '{newField}'");
                         remaps[oldField] = newField;
                     }
                 }
@@ -1349,8 +1355,8 @@ namespace StingTools.Temp
                 totalTaggable++;
 
                 string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "G";
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dcCnt);
+                discCounts[disc] = dcCnt + 1;
 
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (TagConfig.TagIsComplete(tag)) totalTagged++;

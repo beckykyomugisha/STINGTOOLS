@@ -114,21 +114,23 @@ namespace StingTools.Select
         public static readonly Color NoValueColor = new Color(255, 0, 0); // Red — instant QA
 
         /// <summary>Find the solid fill pattern (required for surface overrides). Cached per document.</summary>
-        private static readonly Dictionary<int, ElementId> _solidFillCache = new();
+        // TAG-M-05: Use stable string key (PathName/Title) instead of GetHashCode()
+        // which is not guaranteed stable across Revit sessions — avoids stale cache hits.
+        private static readonly Dictionary<string, ElementId> _solidFillCache = new();
         public static FillPatternElement FindSolidFill(Document doc)
         {
-            int docHash = doc.GetHashCode();
-            if (_solidFillCache.TryGetValue(docHash, out ElementId cachedId))
+            string docKey = doc.PathName ?? doc.Title ?? "Untitled";
+            if (_solidFillCache.TryGetValue(docKey, out ElementId cachedId))
             {
                 var cached = doc.GetElement(cachedId) as FillPatternElement;
                 if (cached != null && cached.IsValidObject) return cached;
-                _solidFillCache.Remove(docHash);
+                _solidFillCache.Remove(docKey);
             }
             var result = new FilteredElementCollector(doc)
                 .OfClass(typeof(FillPatternElement))
                 .Cast<FillPatternElement>()
                 .FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
-            if (result != null) _solidFillCache[docHash] = result.Id;
+            if (result != null) _solidFillCache[docKey] = result.Id;
             return result;
         }
 
@@ -435,7 +437,7 @@ namespace StingTools.Select
             var solidFill = ColorHelper.FindSolidFill(doc);
 
             int colored = 0;
-            int noValueCount = groups.ContainsKey("<No Value>") ? groups["<No Value>"].Count : 0;
+            int noValueCount = groups.TryGetValue("<No Value>", out var noValGroup) ? noValGroup.Count : 0;
 
             using (Transaction tx = new Transaction(doc,
                 $"STING Color By {selectedParam}"))
