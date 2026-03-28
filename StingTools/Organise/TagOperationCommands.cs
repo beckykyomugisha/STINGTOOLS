@@ -6143,7 +6143,7 @@ namespace StingTools.Organise
             foreach (var el in viewCollector)
             {
                 if (el.Category == null) continue;
-                int catId = el.Category.Id.IntegerValue;
+                int catId = (int)el.Category.Id.Value;
                 if (catSet.Add(catId))
                     availableCategories.Add((el.Category.Name, (BuiltInCategory)catId));
             }

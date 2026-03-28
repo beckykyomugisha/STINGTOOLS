@@ -4219,7 +4219,7 @@ namespace StingTools.BIMManager
                     foreach (var id in selectedIds)
                     {
                         var el = doc.GetElement(id);
-                        if (el?.Category != null && taggableCats.Contains(el.Category.Id.IntegerValue))
+                        if (el?.Category != null && taggableCats.Contains((int)el.Category.Id.Value))
                             filtered.Add(id);
                         else
                             removedCount++;
@@ -5662,8 +5662,8 @@ namespace StingTools.BIMManager
             {
                 try
                 {
-                    string txPath = GetBIMManagerFilePath(doc, "transmittals.json");
-                    var txArray = LoadJsonArray(txPath);
+                    string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
+                    var txArray = BIMManagerEngine.LoadJsonArray(txPath);
                     string txId = $"TX-{(txArray.Count + 1):D4}";
                     var txRec = new JObject
                     {
@@ -5685,7 +5685,7 @@ namespace StingTools.BIMManager
                         })
                     };
                     txArray.Add(txRec);
-                    SaveJsonFile(txPath, txArray);
+                    BIMManagerEngine.SaveJsonFile(txPath, txArray);
                     txCreated = 1;
                     StingLog.Info($"CDE auto-transmittal {txId} created for {currentCDE ?? "NEW"} → {status}");
                 }

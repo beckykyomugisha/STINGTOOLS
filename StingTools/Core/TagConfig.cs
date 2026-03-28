@@ -63,6 +63,24 @@ namespace StingTools.Core
         /// <summary>Custom SEQ pad width for this discipline (e.g., 3 for 001, 5 for 00001). Null = use global.</summary>
         public int? SeqPadWidth { get; set; }
 
+        /// <summary>Default DISC code for this profile (e.g., "M").</summary>
+        public string DefaultDisc { get; set; }
+
+        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedSysCodes { get; set; } = new List<string>();
+
+        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
+        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
+
+        /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
+        public string DefaultProd { get; set; }
+
+        /// <summary>When true, SYS/FUNC must be in AllowedSysCodes/AllowedFuncCodes.</summary>
+        public bool ValidationStrictness { get; set; }
+
+        /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
+        public List<string> RequiredTokens { get; set; } = new List<string>();
+
         /// <summary>Parse a DisciplineProfile from a JSON dictionary.</summary>
         public static DisciplineProfile FromDict(Dictionary<string, object> dict)
         {
@@ -75,7 +93,7 @@ namespace StingTools.Core
             }
             if (dict.TryGetValue("seq_scheme", out object ss) && ss is string sss)
             {
-                if (Enum.TryParse<Tags.SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
+                if (Enum.TryParse<SeqScheme>(sss, true, out var parsed)) p.SeqScheme = parsed;
             }
             if (dict.TryGetValue("default_zone", out object dz) && dz is string dzs && !string.IsNullOrWhiteSpace(dzs))
                 p.DefaultZone = dzs;
@@ -796,28 +814,6 @@ namespace StingTools.Core
     }
 
     /// <summary>
-    /// Per-discipline tagging profile defining token defaults and validation constraints.
-    /// Loaded from DISCIPLINE_PROFILES in project_config.json.
-    /// </summary>
-    public class DisciplineProfile
-    {
-        /// <summary>Default DISC code for this profile (e.g., "M").</summary>
-        public string DefaultDisc { get; set; }
-        /// <summary>Allowed SYS codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedSysCodes { get; set; } = new List<string>();
-        /// <summary>Allowed FUNC codes for this discipline. Empty list means no restriction.</summary>
-        public List<string> AllowedFuncCodes { get; set; } = new List<string>();
-        /// <summary>Default PROD code when family-aware detection yields a generic result.</summary>
-        public string DefaultProd { get; set; }
-        /// <summary>Default STATUS value for this discipline.</summary>
-        public string DefaultStatus { get; set; }
-        /// <summary>When true, SYS/FUNC must be in AllowedSysCodes/AllowedFuncCodes.</summary>
-        public bool ValidationStrictness { get; set; }
-        /// <summary>Tokens that must be non-empty for compliant tags (e.g., ["DISC","SYS","FUNC","PROD","SEQ"]).</summary>
-        public List<string> RequiredTokens { get; set; } = new List<string>();
-    }
-
-    /// <summary>
     /// Ported from tag_config.py — project-level ISO 19650 token lookup tables.
     /// Loads from project_config.json; falls back to built-in defaults that mirror
     /// Sheet 02-TAG-FAMILY-CONFIG from the STINGTOOLS template workbook.
@@ -948,22 +944,6 @@ namespace StingTools.Core
         /// Format: {"ARCH": [1, 4999], "MEP": [5000, 8999], "STR": [9000, 9999]}.</summary>
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
-
-        // ── GAP-FIX: Per-discipline tagging profiles ──
-
-        /// <summary>Per-discipline tagging profile overrides. Loaded from DISCIPLINE_PROFILES in project_config.json.
-        /// Format: { "M": { "collision_mode": "AutoIncrement", "seq_scheme": "Numeric", "default_zone": "Z01" }, ... }
-        /// Allows each discipline to have different collision handling, SEQ schemes, and token defaults.</summary>
-        public static Dictionary<string, DisciplineProfile> DisciplineProfiles { get; internal set; }
-            = new Dictionary<string, DisciplineProfile>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Get the discipline profile for a given DISC code, or null if no profile defined.</summary>
-        public static DisciplineProfile GetDisciplineProfile(string disc)
-        {
-            if (string.IsNullOrEmpty(disc) || DisciplineProfiles.Count == 0) return null;
-            DisciplineProfiles.TryGetValue(disc, out var profile);
-            return profile;
-        }
 
         // ── GAP-FIX: Configurable formula cache TTL ──
 
@@ -6462,6 +6442,12 @@ namespace StingTools.Core
         /// <summary>Registry of third-party commands keyed by tag string.</summary>
         private static readonly Dictionary<string, Func<UIApplication, string>> _customCommands
             = new Dictionary<string, Func<UIApplication, string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Invoke BeforeWorkflow event (callable from other classes since events can only be raised by declaring class).</summary>
+        internal static void InvokeBeforeWorkflow(string presetName) => BeforeWorkflow?.Invoke(presetName);
+
+        /// <summary>Invoke AfterWorkflow event (callable from other classes since events can only be raised by declaring class).</summary>
+        internal static void InvokeAfterWorkflow(string presetName, bool success) => AfterWorkflow?.Invoke(presetName, success);
 
         /// <summary>Register a custom command that can be invoked from workflows or dispatch.</summary>
         public static void RegisterCommand(string tag, Func<UIApplication, string> handler)

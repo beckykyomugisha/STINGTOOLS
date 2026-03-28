@@ -531,7 +531,10 @@ namespace StingTools.Model
 
         // Numbering config
         private ComboBox _cboNumCategory, _cboNumParameter;
-        private TextBox _txtNumPrefix, _txtNumSeparator, _txtNumSuffix;
+        private TextBox _txtNumPrefix, _txtNumSeparator;
+#pragma warning disable CS0169 // '_txtNumSuffix' is reserved for future use
+        private TextBox _txtNumSuffix;
+#pragma warning restore CS0169
         private CheckBox _chkGroupEnum, _chkElementEnum;
         private ComboBox _cboGroupStyle, _cboElementStyle;
         private TextBox _txtStartFrom, _txtDigits, _txtIncrement;
@@ -768,40 +771,40 @@ namespace StingTools.Model
             // Columns
             _layerGrid.Columns.Add(new DataGridCheckBoxColumn
             {
-                Header = "✓", Binding = new Binding("Selected") { Mode = BindingMode.TwoWay },
+                Header = "✓", Binding = new System.Windows.Data.Binding("Selected") { Mode = BindingMode.TwoWay },
                 Width = 30,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Layer Name", Binding = new Binding("LayerName"),
+                Header = "Layer Name", Binding = new System.Windows.Data.Binding("LayerName"),
                 Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Entities", Binding = new Binding("Entities"), Width = 60, IsReadOnly = true,
+                Header = "Entities", Binding = new System.Windows.Data.Binding("Entities"), Width = 60, IsReadOnly = true,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Lines", Binding = new Binding("Lines"), Width = 50, IsReadOnly = true,
+                Header = "Lines", Binding = new System.Windows.Data.Binding("Lines"), Width = 50, IsReadOnly = true,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Arcs", Binding = new Binding("Arcs"), Width = 50, IsReadOnly = true,
+                Header = "Arcs", Binding = new System.Windows.Data.Binding("Arcs"), Width = 50, IsReadOnly = true,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Auto-Detect", Binding = new Binding("AutoDetect"), Width = 90, IsReadOnly = true,
+                Header = "Auto-Detect", Binding = new System.Windows.Data.Binding("AutoDetect"), Width = 90, IsReadOnly = true,
             });
             _layerGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = "Conf.", Binding = new Binding("ConfidenceText"), Width = 50, IsReadOnly = true,
+                Header = "Conf.", Binding = new System.Windows.Data.Binding("ConfidenceText"), Width = 50, IsReadOnly = true,
             });
 
             // Map To column with ComboBox
             var mapToCol = new DataGridComboBoxColumn
             {
                 Header = "Map To",
-                SelectedItemBinding = new Binding("MapTo") { Mode = BindingMode.TwoWay },
+                SelectedItemBinding = new System.Windows.Data.Binding("MapTo") { Mode = BindingMode.TwoWay },
                 Width = 100,
             };
             mapToCol.ItemsSource = MapToCategories;
@@ -1324,7 +1327,7 @@ namespace StingTools.Model
                 foreach (var kvp in sorted)
                 {
                     var counts = layerEntityCounts.ContainsKey(kvp.Key)
-                        ? layerEntityCounts[kvp.Key] : (0, 0);
+                        ? layerEntityCounts[kvp.Key] : (lines: 0, arcs: 0);
 
                     string autoDetect = kvp.Value.Classification ?? "";
                     string mapTo = InferMapTo(autoDetect, kvp.Value.Confidence);

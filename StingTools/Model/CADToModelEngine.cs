@@ -897,7 +897,7 @@ namespace StingTools.Model
 
         /// <summary>GAP-MODEL-02: Multi-language layer prefix patterns for intelligent
         /// DWG layer auto-detection across EN/DA/NO/SV/DE conventions.</summary>
-        private static readonly Dictionary<string, string[]> MultiLanguagePrefixes =
+        internal static readonly Dictionary<string, string[]> MultiLanguagePrefixes =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
             {
                 // English prefixes

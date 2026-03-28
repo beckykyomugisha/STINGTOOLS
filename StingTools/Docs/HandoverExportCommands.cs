@@ -499,6 +499,18 @@ namespace StingTools.Docs
                     "ConditionGrade,LikelyFailureMode,SpareParts,SafetyPrecautions," +
                     "Manufacturer,Model,Description,Status,Mark");
 
+                // Collect tagged elements once
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var maintCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (catEnums != null && catEnums.Length > 0)
+                    maintCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in maintCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
+                }
+
                 int total = 0;
                 var discCounts = new Dictionary<string, int>();
 
@@ -648,7 +660,18 @@ namespace StingTools.Docs
                 sb.AppendLine($"  Generator:   STING Tools BIM Automation");
                 sb.AppendLine();
 
-                // ── Collect all assets by discipline → system ──
+                // ── Collect tagged elements and all assets by discipline → system ──
+                var omCatEnums = SharedParamGuids.AllCategoryEnums;
+                var omCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (omCatEnums != null && omCatEnums.Length > 0)
+                    omCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(omCatEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in omCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
+                }
+
                 var assets = new Dictionary<string, Dictionary<string, List<AssetRecord>>>();
                 int totalAssets = 0;
 
@@ -866,6 +889,18 @@ namespace StingTools.Docs
                     "TagScore,DataScore,MfrScore,MaintenanceScore,SpatialScore," +
                     "Issues,Recommendation");
 
+                // Collect tagged elements once
+                var ahCatEnums = SharedParamGuids.AllCategoryEnums;
+                var ahCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (ahCatEnums != null && ahCatEnums.Length > 0)
+                    ahCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(ahCatEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in ahCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
+                }
+
                 int total = 0;
                 int healthy = 0;
                 int atRisk = 0;
@@ -1047,6 +1082,18 @@ namespace StingTools.Docs
                             Area = room.Area * 0.092903, // sq ft to sq m
                         };
                     }
+                }
+
+                // Collect tagged elements once
+                var shCatEnums = SharedParamGuids.AllCategoryEnums;
+                var shCollector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
+                if (shCatEnums != null && shCatEnums.Length > 0)
+                    shCollector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(shCatEnums)));
+                var allTaggedElements = new List<Element>();
+                foreach (Element scanEl in shCollector)
+                {
+                    string scanCat = ParameterHelpers.GetCategoryName(scanEl);
+                    if (known.Contains(scanCat)) allTaggedElements.Add(scanEl);
                 }
 
                 // Map assets to rooms

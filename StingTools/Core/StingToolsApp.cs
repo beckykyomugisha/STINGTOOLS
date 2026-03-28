@@ -112,7 +112,7 @@ namespace StingTools.Core
                         var doc = e.Document;
                         if (doc != null && !doc.IsFamilyDocument)
                         {
-                            WarningsManager.WarningsEngine.SaveBaseline(doc);
+                            WarningsEngine.SaveBaseline(doc);
                             StingLog.Info("DocumentClosing: auto-saved warning baseline");
                         }
                     }
@@ -341,7 +341,7 @@ namespace StingTools.Core
                     // Idling event fires repeatedly when Revit is idle — we use a flag to run once
                     if (!_briefingSubscribed)
                     {
-                        var uiApp = sender as Autodesk.Revit.ApplicationServices.Application;
+                        _briefingSubscribed = true;
                         // We can't subscribe to Idling from ControlledApplication — use static flag
                         // and check in StingCommandHandler's first Execute() call instead
                         _briefingPending = true;

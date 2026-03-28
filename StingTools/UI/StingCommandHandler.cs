@@ -2644,15 +2644,13 @@ namespace StingTools.UI
             uidoc.ActiveView.HideElementsTemporary(ids);
         }
 
-        // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
-        // direct instance method in Revit 2025+ API (this plugin targets net8.0-windows).
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             try
             {
-                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+                uidoc.ActiveView.EnableTemporaryViewPropertiesMode(uidoc.ActiveView.Id);
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
@@ -3481,9 +3479,7 @@ namespace StingTools.UI
             Color color = new Color(r, g, b);
 
             // Phase 74: Use cached solid fill pattern instead of redundant collector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? uidoc.Document.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {
