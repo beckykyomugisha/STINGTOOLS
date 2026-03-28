@@ -2327,8 +2327,8 @@ namespace StingTools.Model
             {
                 var entry = FindEntry(_root, id);
                 if (entry == null) return false; // keep if entry not found (shouldn't happen)
-                double cx = (entry.Value.MinX + entry.Value.MaxX) * 0.5;
-                double cy = (entry.Value.MinY + entry.Value.MaxY) * 0.5;
+                double cx = (entry.MinX + entry.MaxX) * 0.5;
+                double cy = (entry.MinY + entry.MaxY) * 0.5;
                 double dx = cx - point.X;
                 double dy = cy - point.Y;
                 return dx * dx + dy * dy > r2;

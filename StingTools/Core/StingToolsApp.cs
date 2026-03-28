@@ -134,7 +134,7 @@ namespace StingTools.Core
                 Tags.TagPlacementEngine.ClearTagTypeCache();
                 // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
                 // from the closed document being applied to subsequently opened documents.
-                Model.WorksetAssigner.ClearCache();
+                Model.ModelWorksetAssigner.ClearCache();
                 StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
             }
             catch (Exception ex)

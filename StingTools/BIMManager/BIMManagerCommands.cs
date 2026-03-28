@@ -9792,7 +9792,7 @@ namespace StingTools.BIMManager
                 else
                     approvals = new JArray();
 
-                string approvalId = NextIdFromArray(approvals, "APR", "approval_id");
+                string approvalId = BIMManagerEngine.NextIdFromArray(approvals, "APR", "approval_id");
                 var pending = new JArray();
                 foreach (string approver in requiredApprovers)
                     pending.Add(new JObject { ["user"] = approver, ["status"] = "PENDING", ["date"] = "" });
@@ -10176,7 +10176,7 @@ namespace StingTools.BIMManager
                 var selectedIds = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => id.Value.ToString()).ToArray()
                     ?? Array.Empty<string>();
 
-                string taskId = NextIdFromArray(tasks, "TASK", "task_id");
+                string taskId = BIMManagerEngine.NextIdFromArray(tasks, "TASK", "task_id");
                 var task = new JObject
                 {
                     ["task_id"] = taskId,

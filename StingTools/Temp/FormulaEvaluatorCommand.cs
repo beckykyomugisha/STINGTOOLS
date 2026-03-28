@@ -82,9 +82,9 @@ namespace StingTools.Temp
             // formula iteration is limited to relevant formulas, not all 199 for every element.
             // Elements with DISC=M skip E/P/A/S-only formulas, reducing inner iterations by ~75%.
             // Formulas with empty/ALL Discipline apply to every element (stored under "" key).
-            var formulasByDisc = new Dictionary<string, List<FormulaDefinition>>(
+            var formulasByDisc = new Dictionary<string, List<FormulaEngine.FormulaDefinition>>(
                 StringComparer.OrdinalIgnoreCase);
-            var formulasForAll = new List<FormulaDefinition>(); // applies to all disciplines
+            var formulasForAll = new List<FormulaEngine.FormulaDefinition>(); // applies to all disciplines
             foreach (var f in formulas)
             {
                 string disc = (f.Discipline ?? "").Trim();
@@ -97,7 +97,7 @@ namespace StingTools.Temp
                 else
                 {
                     if (!formulasByDisc.ContainsKey(disc))
-                        formulasByDisc[disc] = new List<FormulaDefinition>();
+                        formulasByDisc[disc] = new List<FormulaEngine.FormulaDefinition>();
                     formulasByDisc[disc].Add(f);
                 }
             }
@@ -125,7 +125,7 @@ namespace StingTools.Temp
                     // PERF-003: Only evaluate formulas relevant to this element's discipline.
                     // Read the element's DISC token; combine discipline-specific + universal formulas.
                     string elDisc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
-                    IEnumerable<FormulaDefinition> activeFormulas = formulasForAll;
+                    IEnumerable<FormulaEngine.FormulaDefinition> activeFormulas = formulasForAll;
                     if (!string.IsNullOrEmpty(elDisc) &&
                         formulasByDisc.TryGetValue(elDisc, out var discFormulas))
                         activeFormulas = formulasForAll.Concat(discFormulas);

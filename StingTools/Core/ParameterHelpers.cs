@@ -1910,7 +1910,7 @@ namespace StingTools.Core
         /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
         public static void BuildSpatialCandidateCache(Document doc)
         {
-            string docKey = GetStableDocKey(doc);
+            string docKey = ParameterHelpers.GetStableDocKey(doc);
             if (_spatialCacheDocKey == docKey && _spatialCandidateCache.Count > 0) return;
             _spatialCandidateCache.Clear();
             _spatialCacheDocKey = docKey;

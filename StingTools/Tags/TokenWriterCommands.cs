@@ -254,7 +254,7 @@ namespace StingTools.Tags
                             // compliance dashboard and auto-tagger see the updated tokens immediately.
                             ComplianceScan.InvalidateCache();
                             StingAutoTagger.InvalidateContext();
-                            try { TagConfig.SaveSeqSidecar(ctxDoc); }
+                            try { var (_, _sidecarSeq) = TagConfig.BuildTagIndexAndCounters(ctxDoc); TagConfig.SaveSeqSidecar(ctxDoc, _sidecarSeq); }
                             catch (Exception ssEx) { StingLog.Warn($"SetDisc sidecar: {ssEx.Message}"); }
                         }
                     }
