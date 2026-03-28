@@ -1358,7 +1358,7 @@ namespace StingTools.Model
                 // Count lines and arcs per layer from extraction
                 if (_extraction != null)
                 {
-                    foreach (var bl in _extraction.BeamLines ?? new List<ExtractedLine>())
+                    foreach (var bl in _extraction.BeamLines ?? new List<DetectedBeam>())
                     {
                         string ln = bl.LayerName ?? "";
                         if (!layerEntityCounts.ContainsKey(ln)) layerEntityCounts[ln] = (0, 0);

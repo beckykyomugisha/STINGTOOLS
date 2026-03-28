@@ -821,7 +821,7 @@ namespace StingTools.Core
             };
 
         /// <summary>Static lookup for DISC → valid SYS codes. Used in ValidateCrossSystemConsistency.</summary>
-        private static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
+        internal static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
             new Dictionary<string, HashSet<string>>
             {
                 { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
@@ -6322,7 +6322,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(disc)) return issues;
 
             // DISC ↔ SYS consistency
-            if (!string.IsNullOrEmpty(sys) && _validSysForDisc.TryGetValue(disc, out var validSys))
+            if (!string.IsNullOrEmpty(sys) && ISO19650Validator._validSysForDisc.TryGetValue(disc, out var validSys))
             {
                 if (!validSys.Contains(sys))
                     issues.Add($"DISC={disc} incompatible with SYS={sys} (expected: {string.Join("/", validSys)})");
