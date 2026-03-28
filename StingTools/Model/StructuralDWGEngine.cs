@@ -1234,15 +1234,18 @@ namespace StingTools.Model
             if (existing != null) return existing;
 
             // 3. Base type: prefer Basic structural wall.
-            var baseType = cache?.BaseWallType
-                ?? new FilteredElementCollector(doc)
-                    .OfClass(typeof(WallType))
-                    .Cast<WallType>()
-                    .FirstOrDefault(t => t.Kind == WallKind.Basic)
-                ?? new FilteredElementCollector(doc)
-                    .OfClass(typeof(WallType))
-                    .Cast<WallType>()
-                    .FirstOrDefault();
+            WallType baseType = cache?.BaseWallType;
+            if (baseType == null)
+            {
+                WallType fallback = null;
+                foreach (var wt in new FilteredElementCollector(doc)
+                    .OfClass(typeof(WallType)).Cast<WallType>())
+                {
+                    fallback ??= wt;
+                    if (wt.Kind == WallKind.Basic) { baseType = wt; break; }
+                }
+                baseType ??= fallback;
+            }
 
             if (baseType == null) return null;
             if (!config.CreateNewTypes) return baseType;
