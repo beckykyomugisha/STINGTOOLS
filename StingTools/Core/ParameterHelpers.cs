@@ -2489,11 +2489,17 @@ namespace StingTools.Core
         /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
         public static int MapSheets(Document doc)
         {
-            int written = 0;
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
                 .Cast<ViewSheet>()
                 .ToList();
+            return MapSheets(doc, sheets);
+        }
+
+        /// <summary>Map native sheet parameters using a pre-collected sheet list.</summary>
+        public static int MapSheets(Document doc, List<ViewSheet> sheets)
+        {
+            int written = 0;
             foreach (var sheet in sheets)
             {
                 written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, ParamRegistry.SHT_NUMBER);

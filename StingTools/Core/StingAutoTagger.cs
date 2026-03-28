@@ -413,12 +413,11 @@ namespace StingTools.Core
 
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(catName)) continue;
-                    if (!TagConfig.DiscMap.ContainsKey(catName)) continue;
+                    if (!TagConfig.DiscMap.TryGetValue(catName, out string elemDisc)) continue;
 
                     // Discipline filter
                     if (_allowedDiscs.Count > 0)
                     {
-                        string elemDisc = TagConfig.DiscMap.TryGetValue(catName, out string dv) ? dv : "";
                         if (!_allowedDiscs.Contains(elemDisc)) continue;
                     }
 

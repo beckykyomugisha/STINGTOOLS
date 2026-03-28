@@ -95,8 +95,7 @@ namespace StingTools.Core
                 if (ordered.Count < steps.Count)
                 {
                     var missing = steps.Select(s => s.StepTag).Except(ordered).ToList();
-                    StingLog.Warn($"StepDependencyResolver: cycle detected — steps not reachable: {string.Join(", ", missing)}");
-                    // Add unreachable steps at end
+                    StingLog.Warn($"StepDependencyResolver: cycle detected — appending {missing.Count} steps involved in dependency cycle: {string.Join(", ", missing)}");
                     ordered.AddRange(missing);
                 }
             }

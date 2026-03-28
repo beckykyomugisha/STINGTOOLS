@@ -402,7 +402,7 @@ namespace StingTools.Tags
             var entries = new List<LegendEntry>();
             foreach (var kvp in colorMap.OrderBy(k => k.Key))
             {
-                int count = groups.ContainsKey(kvp.Key) ? groups[kvp.Key].Count : 0;
+                int count = groups.TryGetValue(kvp.Key, out var grp) ? grp.Count : 0;
                 entries.Add(new LegendEntry
                 {
                     Color = kvp.Value,
@@ -4160,8 +4160,8 @@ namespace StingTools.Tags
                     disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
                 }
                 if (string.IsNullOrEmpty(disc)) continue;
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dc);
+                discCounts[disc] = dc + 1;
             }
 
             return LegendBuilder.FromDisciplineColors(
@@ -4891,8 +4891,8 @@ namespace StingTools.Tags
             {
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
-                if (!counts.ContainsKey(disc)) counts[disc] = 0;
-                counts[disc]++;
+                counts.TryGetValue(disc, out int dc);
+                counts[disc] = dc + 1;
             }
             return counts;
         }
@@ -4910,8 +4910,8 @@ namespace StingTools.Tags
             {
                 string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sys)) continue;
-                if (!counts.ContainsKey(sys)) counts[sys] = 0;
-                counts[sys]++;
+                counts.TryGetValue(sys, out int sc);
+                counts[sys] = sc + 1;
             }
             return counts;
         }
@@ -5031,8 +5031,8 @@ namespace StingTools.Tags
             {
                 string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                 if (string.IsNullOrEmpty(status)) status = "UNSET";
-                if (!statusCounts.ContainsKey(status)) statusCounts[status] = 0;
-                statusCounts[status]++;
+                statusCounts.TryGetValue(status, out int stc);
+                statusCounts[status] = stc + 1;
             }
 
             if (statusCounts.Count == 0)
@@ -5207,8 +5207,8 @@ namespace StingTools.Tags
                 }
                 if (string.IsNullOrEmpty(sys)) continue;
 
-                if (!sysCounts.ContainsKey(sys)) sysCounts[sys] = 0;
-                sysCounts[sys]++;
+                sysCounts.TryGetValue(sys, out int sysc);
+                sysCounts[sys] = sysc + 1;
             }
 
             var entries = new List<LegendBuilder.LegendEntry>();
@@ -5265,8 +5265,8 @@ namespace StingTools.Tags
                     sys = TagConfig.GetSysCode(catName);
                 }
                 if (string.IsNullOrEmpty(sys)) continue;
-                if (!sysCounts.ContainsKey(sys)) sysCounts[sys] = 0;
-                sysCounts[sys]++;
+                sysCounts.TryGetValue(sys, out int sysc);
+                sysCounts[sys] = sysc + 1;
             }
 
             var entries = new List<LegendBuilder.LegendEntry>();
@@ -5557,8 +5557,8 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Read fire rating parameter: {ex.Message}"); }
 
                 if (string.IsNullOrEmpty(rating)) continue;
-                if (!ratingCounts.ContainsKey(rating)) ratingCounts[rating] = 0;
-                ratingCounts[rating]++;
+                ratingCounts.TryGetValue(rating, out int rtc);
+                ratingCounts[rating] = rtc + 1;
             }
 
             if (ratingCounts.Count == 0) return new List<LegendBuilder.LegendEntry>();
@@ -5671,8 +5671,8 @@ namespace StingTools.Tags
                             }
                             if (!string.IsNullOrEmpty(disc))
                             {
-                                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                                discCounts[disc]++;
+                                discCounts.TryGetValue(disc, out int dcc);
+                                discCounts[disc] = dcc + 1;
                             }
                         }
                     }

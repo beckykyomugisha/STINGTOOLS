@@ -727,32 +727,32 @@ namespace StingTools.Core
                 else report.ManualReview++;
 
                 // Category counts
-                if (!report.ByCategory.ContainsKey(cw.Category)) report.ByCategory[cw.Category] = 0;
-                report.ByCategory[cw.Category]++;
+                report.ByCategory.TryGetValue(cw.Category, out int catCount);
+                report.ByCategory[cw.Category] = catCount + 1;
 
                 // Severity counts
-                if (!report.BySeverity.ContainsKey(cw.Severity)) report.BySeverity[cw.Severity] = 0;
-                report.BySeverity[cw.Severity]++;
+                report.BySeverity.TryGetValue(cw.Severity, out int sevCount);
+                report.BySeverity[cw.Severity] = sevCount + 1;
 
                 // Level counts
                 if (!string.IsNullOrEmpty(cw.LevelName))
                 {
-                    if (!report.ByLevel.ContainsKey(cw.LevelName)) report.ByLevel[cw.LevelName] = 0;
-                    report.ByLevel[cw.LevelName]++;
+                    report.ByLevel.TryGetValue(cw.LevelName, out int lvlCount);
+                    report.ByLevel[cw.LevelName] = lvlCount + 1;
                 }
 
                 // Workset counts
                 if (!string.IsNullOrEmpty(cw.WorksetName))
                 {
-                    if (!report.ByWorkset.ContainsKey(cw.WorksetName)) report.ByWorkset[cw.WorksetName] = 0;
-                    report.ByWorkset[cw.WorksetName]++;
+                    report.ByWorkset.TryGetValue(cw.WorksetName, out int wsCount);
+                    report.ByWorkset[cw.WorksetName] = wsCount + 1;
                 }
 
                 // Discipline counts
                 if (!string.IsNullOrEmpty(cw.Discipline))
                 {
-                    if (!report.ByDiscipline.ContainsKey(cw.Discipline)) report.ByDiscipline[cw.Discipline] = 0;
-                    report.ByDiscipline[cw.Discipline]++;
+                    report.ByDiscipline.TryGetValue(cw.Discipline, out int discCount);
+                    report.ByDiscipline[cw.Discipline] = discCount + 1;
                 }
 
                 // Hotspot counting
@@ -761,8 +761,8 @@ namespace StingTools.Core
                     foreach (ElementId eid in cw.FailingElements)
                     {
                         long key = eid.Value;
-                        if (!elementCounts.ContainsKey(key)) elementCounts[key] = 0;
-                        elementCounts[key]++;
+                        elementCounts.TryGetValue(key, out int elCount);
+                        elementCounts[key] = elCount + 1;
                     }
                 }
             }
@@ -818,10 +818,10 @@ namespace StingTools.Core
                     report.Warnings.Add(syntheticStale);
                     report.Total++;
                     report.AutoFixable++;
-                    if (!report.ByCategory.ContainsKey(WarningCategory.Data)) report.ByCategory[WarningCategory.Data] = 0;
-                    report.ByCategory[WarningCategory.Data]++;
-                    if (!report.BySeverity.ContainsKey(WarningSeverity.High)) report.BySeverity[WarningSeverity.High] = 0;
-                    report.BySeverity[WarningSeverity.High]++;
+                    report.ByCategory.TryGetValue(WarningCategory.Data, out int dataCatCount);
+                    report.ByCategory[WarningCategory.Data] = dataCatCount + 1;
+                    report.BySeverity.TryGetValue(WarningSeverity.High, out int highSevCount);
+                    report.BySeverity[WarningSeverity.High] = highSevCount + 1;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Stale synthetic warnings: {ex.Message}"); }
@@ -2140,7 +2140,7 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(desc) || !seen.Add(desc)) continue;
 
                         // Preserve existing first-seen date, or stamp new
-                        string firstSeenDate = firstSeen.ContainsKey(desc) ? firstSeen[desc] : now;
+                        string firstSeenDate = firstSeen.TryGetValue(desc, out string fsDate) ? fsDate : now;
                         string escaped = desc.Replace("\\", "\\\\").Replace("\"", "\\\"");
                         typeEntries.Add($"{{\"desc\":\"{escaped}\",\"first_seen\":\"{firstSeenDate}\",\"count\":1}}");
                     }

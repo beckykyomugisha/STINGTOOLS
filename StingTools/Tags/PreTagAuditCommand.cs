@@ -334,8 +334,8 @@ namespace StingTools.Tags
                         func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
 
                     string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
-                    if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
-                    simCounters[seqKey]++;
+                    simCounters.TryGetValue(seqKey, out int sc);
+                    simCounters[seqKey] = sc + 1;
                     string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
                                         : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                         : "";

@@ -62,9 +62,10 @@ namespace StingTools.UI
 
         private RenameResult _result;
 
-        private static readonly SolidColorBrush AccentBrush = new(Color.FromRgb(88, 44, 131));
-        private static readonly SolidColorBrush ChangedBrush = new(Color.FromRgb(46, 125, 50));
-        private static readonly SolidColorBrush UnchangedBrush = new(Color.FromRgb(158, 158, 158));
+        private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+        private static readonly SolidColorBrush AccentBrush = FZ(new(Color.FromRgb(88, 44, 131)));
+        private static readonly SolidColorBrush ChangedBrush = FZ(new(Color.FromRgb(46, 125, 50)));
+        private static readonly SolidColorBrush UnchangedBrush = FZ(new(Color.FromRgb(158, 158, 158)));
 
         public BatchRenameDialog(string title, List<RenameItem> items)
         {
@@ -77,7 +78,7 @@ namespace StingTools.UI
             MinWidth = 650;
             MinHeight = 480;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Background = new SolidColorBrush(Color.FromRgb(250, 250, 252));
+            Background = FZ(new SolidColorBrush(Color.FromRgb(250, 250, 252)));
             FontFamily = new FontFamily("Segoe UI");
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
@@ -105,7 +106,7 @@ namespace StingTools.UI
             {
                 Text = $"{items.Count} items loaded",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                Foreground = FZ(new SolidColorBrush(Color.FromRgb(206, 147, 216))),
                 Margin = new Thickness(0, 2, 0, 0)
             });
             header.Child = headerStack;
@@ -115,9 +116,9 @@ namespace StingTools.UI
             // ── Row 1: Filters (Category + Family + Search) ──────────
             var filterPanel = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(245, 245, 248)),
+                Background = FZ(new SolidColorBrush(Color.FromRgb(245, 245, 248))),
                 Padding = new Thickness(12, 8, 12, 8),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(0, 0, 0, 1)
             };
             var filterGrid = new Grid();
@@ -166,7 +167,7 @@ namespace StingTools.UI
             var opBorder = new Border
             {
                 Padding = new Thickness(12, 8, 12, 8),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(0, 0, 0, 1)
             };
             var opStack = new StackPanel();
@@ -288,7 +289,7 @@ namespace StingTools.UI
             _listView = new ListView
             {
                 Margin = new Thickness(12, 8, 12, 4),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(1),
                 Background = Brushes.White,
                 FontSize = 11,
@@ -302,7 +303,7 @@ namespace StingTools.UI
 
             // Column header row (manual, since GridView.DisplayMemberBinding
             // doesn't work well with our custom Grid content)
-            var headerRow = new Grid { Background = new SolidColorBrush(Color.FromRgb(240, 240, 245)), Height = 28, Margin = new Thickness(0, 0, SystemParameters.VerticalScrollBarWidth, 0) };
+            var headerRow = new Grid { Background = FZ(new SolidColorBrush(Color.FromRgb(240, 240, 245))), Height = 28, Margin = new Thickness(0, 0, SystemParameters.VerticalScrollBarWidth, 0) };
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) }); // checkbox
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // orig
             headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // new
@@ -314,10 +315,10 @@ namespace StingTools.UI
             Grid.SetColumn(hdrOrig, 1); headerRow.Children.Add(hdrOrig);
             var hdrNew = new TextBlock { Text = "New Name", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0), Foreground = AccentBrush };
             Grid.SetColumn(hdrNew, 2); headerRow.Children.Add(hdrNew);
-            var hdrCatBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            var hdrCatBorder = new Border { BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210))), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
             hdrCatBorder.Child = new TextBlock { Text = "Category", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(hdrCatBorder, 3); headerRow.Children.Add(hdrCatBorder);
-            var hdrFamBorder = new Border { BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            var hdrFamBorder = new Border { BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210))), BorderThickness = new Thickness(1, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
             hdrFamBorder.Child = new TextBlock { Text = "Family", FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(hdrFamBorder, 4); headerRow.Children.Add(hdrFamBorder);
 
@@ -332,8 +333,8 @@ namespace StingTools.UI
             // ── Row 4: Status + Buttons ──────────────────────────────
             var bottomBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(245, 245, 248)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                Background = FZ(new SolidColorBrush(Color.FromRgb(245, 245, 248))),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(12, 8, 12, 8)
             };
@@ -345,7 +346,7 @@ namespace StingTools.UI
             {
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 110))
+                Foreground = FZ(new SolidColorBrush(Color.FromRgb(100, 100, 110)))
             };
             Grid.SetColumn(_statusText, 0);
             bottomGrid.Children.Add(_statusText);
@@ -636,7 +637,7 @@ namespace StingTools.UI
 
                 var catBorder = new Border
                 {
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                     BorderThickness = new Thickness(1, 0, 0, 0),
                     Padding = new Thickness(4, 0, 4, 0),
                     Child = new TextBlock
@@ -653,7 +654,7 @@ namespace StingTools.UI
 
                 var famBorder = new Border
                 {
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                    BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                     BorderThickness = new Thickness(1, 0, 0, 0),
                     Padding = new Thickness(4, 0, 4, 0),
                     Child = new TextBlock
@@ -674,7 +675,7 @@ namespace StingTools.UI
                     Tag = item,
                     Padding = new Thickness(0, 2, 0, 2),
                     Background = item.IsChanged
-                        ? new SolidColorBrush(Color.FromRgb(232, 245, 233))
+                        ? FZ(new SolidColorBrush(Color.FromRgb(232, 245, 233)))
                         : Brushes.Transparent
                 };
                 lvi.MouseDoubleClick += (s, e) =>
@@ -727,8 +728,8 @@ namespace StingTools.UI
             else
             {
                 btn.Background = Brushes.White;
-                btn.Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 70));
-                btn.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                btn.Foreground = FZ(new SolidColorBrush(Color.FromRgb(60, 60, 70)));
+                btn.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210)));
             }
             return btn;
         }

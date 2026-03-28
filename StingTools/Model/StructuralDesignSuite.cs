@@ -266,7 +266,7 @@ namespace StingTools.Model
             result.MaxBearingPressureKPa = totalLoad / actualArea;
 
             // Thickness from punching shear (simplified)
-            result.ThicknessMm = Math.Max(500, Math.Ceiling(Math.Sqrt(totalLoad / 0.5) / 25) * 25);
+            result.ThicknessMm = Math.Max(500, Math.Ceiling(Math.Sqrt(Math.Max(totalLoad / 0.5, 0)) / 25) * 25);
 
             // Reinforcement (simplified: M = wL²/8 for uniform pressure)
             double w = result.MaxBearingPressureKPa * result.WidthMm / 1000.0; // kN/m
@@ -415,7 +415,7 @@ namespace StingTools.Model
 
             // PRd per stud (EC4 Eq 6.18/6.19): min of steel failure and concrete failure
             double PRd_steel = 0.8 * fu_stud * Math.PI * dStud * dStud / 4.0 / 1.25 / 1000; // kN
-            double PRd_conc = 0.29 * dStud * dStud * Math.Sqrt(slabFckMPa * Ec) / 1.25 / 1000; // kN
+            double PRd_conc = 0.29 * dStud * dStud * Math.Sqrt(Math.Max(slabFckMPa * Ec, 0)) / 1.25 / 1000; // kN
             double PRd = Math.Min(PRd_steel, PRd_conc);
 
             // Number of studs for full shear connection: n = min(Fc, Fs) / PRd

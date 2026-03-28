@@ -25,6 +25,8 @@ namespace StingTools.Select
             public bool IsInvalid { get; set; }
         }
 
+        private static SolidColorBrush FZ(SolidColorBrush b) { b.Freeze(); return b; }
+
         private readonly List<ListItem> _allItems;
         private readonly bool _allowMultiSelect;
         private readonly ListBox _listBox;
@@ -46,7 +48,7 @@ namespace StingTools.Select
             MinWidth = 320;
             MinHeight = 300;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Background = new SolidColorBrush(Color.FromRgb(250, 250, 252));
+            Background = FZ(new SolidColorBrush(Color.FromRgb(250, 250, 252)));
             FontFamily = new FontFamily("Segoe UI");
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
@@ -59,7 +61,7 @@ namespace StingTools.Select
             // Header bar
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(88, 44, 131)), // Purple brand
+                Background = FZ(new SolidColorBrush(Color.FromRgb(88, 44, 131))), // Purple brand
                 Padding = new Thickness(16, 12, 16, 12)
             };
             var headerStack = new StackPanel();
@@ -76,7 +78,7 @@ namespace StingTools.Select
                 {
                     Text = subtitle,
                     FontSize = 11,
-                    Foreground = new SolidColorBrush(Color.FromRgb(206, 147, 216)),
+                    Foreground = FZ(new SolidColorBrush(Color.FromRgb(206, 147, 216))),
                     Margin = new Thickness(0, 2, 0, 0)
                 });
             }
@@ -89,7 +91,7 @@ namespace StingTools.Select
             {
                 Margin = new Thickness(12, 8, 12, 4),
                 Background = Brushes.White,
-                BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210))),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 6, 8, 6)
@@ -106,7 +108,7 @@ namespace StingTools.Select
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 6, 0),
-                Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 160))
+                Foreground = FZ(new SolidColorBrush(Color.FromRgb(140, 140, 160)))
             };
             Grid.SetColumn(searchIcon, 0);
             searchGrid.Children.Add(searchIcon);
@@ -125,7 +127,7 @@ namespace StingTools.Select
             _countText = new TextBlock
             {
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 160)),
+                Foreground = FZ(new SolidColorBrush(Color.FromRgb(140, 140, 160))),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(6, 0, 0, 0)
             };
@@ -140,7 +142,7 @@ namespace StingTools.Select
             _validationHint = new TextBlock
             {
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                Foreground = FZ(new SolidColorBrush(Color.FromRgb(211, 47, 47))),
                 Margin = new Thickness(16, 0, 12, 4),
                 Visibility = Visibility.Collapsed,
                 TextWrapping = TextWrapping.Wrap
@@ -157,7 +159,7 @@ namespace StingTools.Select
             _listBox = new ListBox
             {
                 Margin = new Thickness(12, 4, 12, 8),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(1),
                 Background = Brushes.White,
                 SelectionMode = allowMultiSelect ? SelectionMode.Multiple : SelectionMode.Single,
@@ -174,8 +176,8 @@ namespace StingTools.Select
             // Button bar
             var buttonBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(245, 245, 248)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 230)),
+                Background = FZ(new SolidColorBrush(Color.FromRgb(245, 245, 248))),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(220, 220, 230))),
                 BorderThickness = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(12, 8, 12, 8)
             };
@@ -252,7 +254,7 @@ namespace StingTools.Select
             if (_validCodes == null || string.IsNullOrEmpty(text))
             {
                 // No validation set or empty text — neutral border
-                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                _searchBorder.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210)));
                 _searchBorder.BorderThickness = new Thickness(1);
                 if (_validationHint != null)
                     _validationHint.Visibility = Visibility.Collapsed;
@@ -266,7 +268,7 @@ namespace StingTools.Select
             if (exactMatch)
             {
                 // Valid code — green border
-                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                _searchBorder.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(76, 175, 80)));
                 _searchBorder.BorderThickness = new Thickness(2);
                 if (_validationHint != null)
                     _validationHint.Visibility = Visibility.Collapsed;
@@ -274,7 +276,7 @@ namespace StingTools.Select
             else if (partialMatch)
             {
                 // Partial match — neutral (still typing)
-                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                _searchBorder.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210)));
                 _searchBorder.BorderThickness = new Thickness(1);
                 if (_validationHint != null)
                     _validationHint.Visibility = Visibility.Collapsed;
@@ -282,7 +284,7 @@ namespace StingTools.Select
             else
             {
                 // No match — red border (non-compliant)
-                _searchBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47));
+                _searchBorder.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(211, 47, 47)));
                 _searchBorder.BorderThickness = new Thickness(2);
                 if (_validationHint != null)
                 {
@@ -308,8 +310,8 @@ namespace StingTools.Select
                     FontSize = 12,
                     FontWeight = FontWeights.Medium,
                     Foreground = invalid
-                        ? new SolidColorBrush(Color.FromRgb(211, 47, 47))   // Red text for invalid
-                        : new SolidColorBrush(Color.FromRgb(40, 40, 50))
+                        ? FZ(new SolidColorBrush(Color.FromRgb(211, 47, 47)))   // Red text for invalid
+                        : FZ(new SolidColorBrush(Color.FromRgb(40, 40, 50)))
                 };
                 DockPanel.SetDock(label, Dock.Left);
                 panel.Children.Add(label);
@@ -321,8 +323,8 @@ namespace StingTools.Select
                         Text = item.Detail,
                         FontSize = 11,
                         Foreground = invalid
-                            ? new SolidColorBrush(Color.FromRgb(211, 47, 47))
-                            : new SolidColorBrush(Color.FromRgb(120, 120, 140)),
+                            ? FZ(new SolidColorBrush(Color.FromRgb(211, 47, 47)))
+                            : FZ(new SolidColorBrush(Color.FromRgb(120, 120, 140))),
                         HorizontalAlignment = HorizontalAlignment.Right,
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(8, 0, 0, 0)
@@ -338,7 +340,7 @@ namespace StingTools.Select
                     {
                         Text = " \u26A0",
                         FontSize = 11,
-                        Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                        Foreground = FZ(new SolidColorBrush(Color.FromRgb(211, 47, 47))),
                         VerticalAlignment = VerticalAlignment.Center,
                         ToolTip = "Non-compliant: value not in ISO 19650 valid code list"
                     };
@@ -352,7 +354,7 @@ namespace StingTools.Select
                     Tag = item,
                     Padding = new Thickness(8, 6, 8, 6),
                     Background = invalid
-                        ? new SolidColorBrush(Color.FromRgb(255, 235, 238))  // Light red bg
+                        ? FZ(new SolidColorBrush(Color.FromRgb(255, 235, 238)))  // Light red bg
                         : Brushes.Transparent
                 };
                 _listBox.Items.Add(lbi);
@@ -394,15 +396,15 @@ namespace StingTools.Select
 
             if (isPrimary)
             {
-                btn.Background = new SolidColorBrush(Color.FromRgb(88, 44, 131));
+                btn.Background = FZ(new SolidColorBrush(Color.FromRgb(88, 44, 131)));
                 btn.Foreground = Brushes.White;
-                btn.BorderBrush = new SolidColorBrush(Color.FromRgb(88, 44, 131));
+                btn.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(88, 44, 131)));
             }
             else
             {
                 btn.Background = Brushes.White;
-                btn.Foreground = new SolidColorBrush(Color.FromRgb(60, 60, 70));
-                btn.BorderBrush = new SolidColorBrush(Color.FromRgb(200, 200, 210));
+                btn.Foreground = FZ(new SolidColorBrush(Color.FromRgb(60, 60, 70)));
+                btn.BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(200, 200, 210)));
             }
 
             return btn;

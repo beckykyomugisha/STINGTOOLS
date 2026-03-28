@@ -775,10 +775,8 @@ namespace StingTools.Tags
                 if (activeStyle != null)
                 {
                     withStyle++;
-                    if (styleCounts.ContainsKey(activeStyle))
-                        styleCounts[activeStyle]++;
-                    else
-                        styleCounts[activeStyle] = 1;
+                    styleCounts.TryGetValue(activeStyle, out int stc);
+                    styleCounts[activeStyle] = stc + 1;
                 }
                 else
                 {

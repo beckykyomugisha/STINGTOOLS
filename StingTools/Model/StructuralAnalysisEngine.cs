@@ -564,18 +564,18 @@ namespace StingTools.Model
             // Applied shear stress: vEd = β × VEd / (u1 × d)
             // β = 1.15 for internal column (EC2 §6.4.3)
             double beta = 1.15;
-            double vEd = beta * reactionKN * 1000 / (u1 * d); // N/mm² = MPa
+            double vEd = beta * reactionKN * 1000 / Math.Max(u1 * d, 1e-10); // N/mm² = MPa
             result.AppliedStressMPa = vEd;
 
             // Concrete shear resistance: vRd,c = CRd,c × k × (100 × ρl × fck)^(1/3)
             // CRd,c = 0.18/γc, γc = 1.5
             double CRdc = 0.18 / 1.5;
-            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / d));
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / Math.Max(d, 1e-10)));
             double rhoL = 0.005; // Assume 0.5% reinforcement
             double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
 
             // Minimum: vmin = 0.035 × k^(3/2) × fck^(1/2)
-            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(Math.Max(fckMPa, 0));
             vRdc = Math.Max(vRdc, vmin);
 
             result.ResistanceMPa = vRdc;
@@ -621,6 +621,14 @@ namespace StingTools.Model
             double dy = d - 12;     // y-direction (inner layer, minus one bar diameter)
             double dAvg = (dx + dy) / 2.0;
 
+            // Phase 82 Finding 2: Guard dAvg > 0 before division
+            if (dAvg <= 0)
+            {
+                result.Pass = false;
+                result.Summary = $"FAILS: Average effective depth dAvg={dAvg:F1}mm ≤ 0 — slab too thin for punching shear check";
+                return result;
+            }
+
             // Basic control perimeter at 2d
             double u1 = 2 * (columnWidthMm + columnDepthMm) + 2 * Math.PI * (2 * dAvg);
 
@@ -629,7 +637,7 @@ namespace StingTools.Model
             double beta = 1.15; // Internal column default
 
             // Applied shear stress
-            double vEd = beta * reactionKN * 1000 / (u1 * dAvg);
+            double vEd = beta * reactionKN * 1000 / Math.Max(u1 * dAvg, 1e-10);
             result.AppliedStressMPa = vEd;
 
             // Concrete resistance vRd,c (with 2-way reinforcement ratios)
@@ -638,9 +646,9 @@ namespace StingTools.Model
             double rhoL = Math.Min(Math.Sqrt(rhoLx * rhoLy), 0.02); // EC2 §6.4.4(1)
 
             double CRdc = 0.18 / 1.5;
-            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / dAvg));
+            double k = Math.Min(2.0, 1.0 + Math.Sqrt(200.0 / Math.Max(dAvg, 1e-10)));
             double vRdc = CRdc * k * Math.Pow(100 * rhoL * fckMPa, 1.0 / 3.0);
-            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(fckMPa);
+            double vmin = 0.035 * Math.Pow(k, 1.5) * Math.Sqrt(Math.Max(fckMPa, 0));
             vRdc = Math.Max(vRdc, vmin);
             result.ConcreteResistanceMPa = vRdc;
 
@@ -693,7 +701,7 @@ namespace StingTools.Model
 
             // Outer perimeter where reinforcement is no longer needed
             // uout,ef = β × VEd / (vRd,c × d)
-            double uOutEf = beta * reactionKN * 1000 / (vRdc * dAvg);
+            double uOutEf = beta * reactionKN * 1000 / Math.Max(vRdc * dAvg, 1e-10);
             // Distance from column face: a = (uout - 2(c1+c2)) / (2π)
             double aOut = (uOutEf - 2 * (columnWidthMm + columnDepthMm)) / (2 * Math.PI);
             result.OuterPerimeterDistanceMm = Math.Max(aOut, 2 * dAvg);
@@ -964,7 +972,7 @@ namespace StingTools.Model
             var (S, TB, TC, TD) = GetSiteParameters(groundType);
 
             // Damping correction: η = √(10/(5+ξ)) ≥ 0.55
-            double eta = Math.Max(0.55, Math.Sqrt(10.0 / (5.0 + dampingPct)));
+            double eta = Math.Max(0.55, Math.Sqrt(Math.Max(10.0 / Math.Max(5.0 + dampingPct, 1e-10), 0)));
 
             double ag = agG * importanceFactor;
             double agS = ag * S;
@@ -1143,7 +1151,7 @@ namespace StingTools.Model
                 // Slenderness: λ = L / iy
                 double lambda = (heightM * 1000.0) / section.iyMm;
                 // Relative slenderness: λ̄ = λ / (π × √(E/fy))
-                double lambdaBar = lambda / (Math.PI * Math.Sqrt(210000.0 / fykMPa));
+                double lambdaBar = lambda / (Math.PI * Math.Sqrt(210000.0 / Math.Max(fykMPa, 1e-10)));
 
                 // Reduction factor χ (buckling curve 'b' for UC)
                 double alpha = 0.34; // Imperfection factor for curve 'b'
@@ -1225,7 +1233,7 @@ namespace StingTools.Model
             double M = momentKNm * 1e6; // Convert to N.mm
 
             // K factor
-            double K = M / (widthMm * d * d * fckMPa);
+            double K = M / Math.Max(widthMm * d * d * fckMPa, 1e-10);
             double Klim = 0.167; // Singly reinforced limit
 
             if (K > Klim)
@@ -1702,8 +1710,8 @@ namespace StingTools.Model
                 if (baseLevelParam != null)
                 {
                     var levelId = baseLevelParam.AsElementId();
-                    if (!colsByLevel.ContainsKey(levelId)) colsByLevel[levelId] = 0;
-                    colsByLevel[levelId]++;
+                    colsByLevel.TryGetValue(levelId, out int levelCount);
+                    colsByLevel[levelId] = levelCount + 1;
                 }
             }
 

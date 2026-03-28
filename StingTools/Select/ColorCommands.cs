@@ -437,7 +437,7 @@ namespace StingTools.Select
             var solidFill = ColorHelper.FindSolidFill(doc);
 
             int colored = 0;
-            int noValueCount = groups.ContainsKey("<No Value>") ? groups["<No Value>"].Count : 0;
+            int noValueCount = groups.TryGetValue("<No Value>", out var noValGroup) ? noValGroup.Count : 0;
 
             using (Transaction tx = new Transaction(doc,
                 $"STING Color By {selectedParam}"))

@@ -368,8 +368,8 @@ namespace StingTools.Tags
                     string prod = ParameterHelpers.GetString(elem, ParamRegistry.PROD);
                     // Use canonical BuildSeqKey for consistent key format across all commands
                     string key = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone);
-                    if (!maxSeq.ContainsKey(key)) maxSeq[key] = 0;
-                    maxSeq[key]++;
+                    maxSeq.TryGetValue(key, out int ms);
+                    maxSeq[key] = ms + 1;
                     // Honor SeqScheme setting (Numeric/Alpha/ZonePrefix/DiscPrefix)
                     string seqContext = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
                                       : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
@@ -547,7 +547,7 @@ namespace StingTools.Tags
                 if (!known.Contains(cat)) continue;
 
                 string disc = TagConfig.DiscMap.TryGetValue(cat, out string d) ? d : "A";
-                if (!stats.ContainsKey(disc)) stats[disc] = (0, 0, 0, 0, 0);
+                if (!stats.TryGetValue(disc, out _)) stats[disc] = (0, 0, 0, 0, 0);
 
                 // Track STATUS/REV completeness
                 if (string.IsNullOrEmpty(ParameterHelpers.GetString(elem, ParamRegistry.STATUS))) emptyStatus++;
@@ -557,8 +557,8 @@ namespace StingTools.Tags
                 else
                 {
                     // Collect revision distribution inline (was a second full-model scan)
-                    if (!revDistribution.ContainsKey(revVal)) revDistribution[revVal] = 0;
-                    revDistribution[revVal]++;
+                    revDistribution.TryGetValue(revVal, out int rd);
+                    revDistribution[revVal] = rd + 1;
                     if (!string.IsNullOrEmpty(currentProjectRev) &&
                         !string.Equals(revVal, currentProjectRev, StringComparison.OrdinalIgnoreCase))
                         staleRevCount++;

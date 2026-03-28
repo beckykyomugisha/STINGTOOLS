@@ -1598,8 +1598,8 @@ namespace StingTools.Tags
                         string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                         string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                         string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                        if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                        distribution[key]++;
+                        distribution.TryGetValue(key, out int dv);
+                        distribution[key] = dv + 1;
                     }
                     catch (Exception ex)
                     {
@@ -1669,8 +1669,8 @@ namespace StingTools.Tags
                 string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                 string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                 string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                distribution[key]++;
+                distribution.TryGetValue(key, out int dv);
+                distribution[key] = dv + 1;
             }
 
             var sb = new StringBuilder();
@@ -1869,8 +1869,8 @@ namespace StingTools.Tags
                         string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                         string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                         string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                        if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                        distribution[key]++;
+                        distribution.TryGetValue(key, out int dv);
+                        distribution[key] = dv + 1;
                     }
                     catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }

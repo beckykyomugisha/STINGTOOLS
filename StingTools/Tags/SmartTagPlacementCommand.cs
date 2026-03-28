@@ -2087,8 +2087,8 @@ namespace StingTools.Tags
 
                         string key = string.Compare(catI, catJ, StringComparison.Ordinal) <= 0
                             ? $"{catI} / {catJ}" : $"{catJ} / {catI}";
-                        if (!catPairs.ContainsKey(key)) catPairs[key] = 0;
-                        catPairs[key]++;
+                        catPairs.TryGetValue(key, out int cp);
+                        catPairs[key] = cp + 1;
                     }
                 }
             }

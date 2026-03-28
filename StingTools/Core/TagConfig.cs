@@ -285,8 +285,8 @@ namespace StingTools.Core
         private static void Increment(Dictionary<string, int> dict, string key)
         {
             if (string.IsNullOrEmpty(key)) return;
-            if (!dict.ContainsKey(key)) dict[key] = 0;
-            dict[key]++;
+            dict.TryGetValue(key, out int count);
+            dict[key] = count + 1;
         }
     }
 
@@ -2597,12 +2597,15 @@ namespace StingTools.Core
                 _seqSchemeWarned = true;
             }
 
-            if (!sequenceCounters.ContainsKey(seqKey))
+            if (!sequenceCounters.TryGetValue(seqKey, out int currentSeqVal))
+            {
+                currentSeqVal = 0;
                 sequenceCounters[seqKey] = 0;
+            }
 
             // SEQ counter fix: tentatively increment, but track pre-increment value
             // so we can rollback if TAG1 write fails (FLEX-005 partial cancellation safety)
-            int preIncrementValue = sequenceCounters[seqKey];
+            int preIncrementValue = currentSeqVal;
             sequenceCounters[seqKey]++;
 
             // SEQ overflow detection: cap at format capacity to prevent invalid tag widths
@@ -3588,13 +3591,13 @@ namespace StingTools.Core
 
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
-                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
+                    if (!maxSeq.TryGetValue(key, out int curMax) || seqNum > curMax)
                         maxSeq[key] = seqNum;
                 }
                 else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
                 {
                     int alphaNum = FromAlpha(seqStr);
-                    if (alphaNum > 0 && (!maxSeq.ContainsKey(key) || alphaNum > maxSeq[key]))
+                    if (alphaNum > 0 && (!maxSeq.TryGetValue(key, out int curAlphaMax) || alphaNum > curAlphaMax))
                         maxSeq[key] = alphaNum;
                 }
             }
@@ -3665,13 +3668,13 @@ namespace StingTools.Core
 
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
-                    if (!maxSeq.ContainsKey(key) || seqNum > maxSeq[key])
+                    if (!maxSeq.TryGetValue(key, out int curMax) || seqNum > curMax)
                         maxSeq[key] = seqNum;
                 }
                 else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
                 {
                     int alphaNum = FromAlpha(seqStr);
-                    if (alphaNum > 0 && (!maxSeq.ContainsKey(key) || alphaNum > maxSeq[key]))
+                    if (alphaNum > 0 && (!maxSeq.TryGetValue(key, out int curAlphaMax) || alphaNum > curAlphaMax))
                         maxSeq[key] = alphaNum;
                 }
             }
@@ -3778,15 +3781,15 @@ namespace StingTools.Core
                         altKey = $"{parts[0]}_{parts[2]}_{parts[3]}";
                     }
 
-                    if (altKey != null && target.ContainsKey(altKey))
+                    if (altKey != null && target.TryGetValue(altKey, out int altVal))
                     {
-                        if (kvp.Value > target[altKey])
+                        if (kvp.Value > altVal)
                             target[altKey] = kvp.Value;
                         continue;
                     }
                 }
 
-                if (!target.ContainsKey(key) || kvp.Value > target[key])
+                if (!target.TryGetValue(key, out int tVal) || kvp.Value > tVal)
                     target[key] = kvp.Value;
             }
         }
@@ -3805,10 +3808,10 @@ namespace StingTools.Core
         private static T TryDeserialize<T>(Dictionary<string, object> data, string key)
             where T : class
         {
-            if (!data.ContainsKey(key)) return null;
+            if (!data.TryGetValue(key, out object val)) return null;
             try
             {
-                string json = JsonConvert.SerializeObject(data[key]);
+                string json = JsonConvert.SerializeObject(val);
                 return JsonConvert.DeserializeObject<T>(json);
             }
             catch (Exception ex) { StingLog.Warn($"TagConfig deserialize '{key}': {ex.Message}"); return null; }
@@ -6259,9 +6262,8 @@ namespace StingTools.Core
                     if (string.IsNullOrEmpty(adjSys)) continue;
 
                     withSys++;
-                    if (!sysCounts.ContainsKey(adjSys))
-                        sysCounts[adjSys] = 0;
-                    sysCounts[adjSys]++;
+                    sysCounts.TryGetValue(adjSys, out int sc);
+                    sysCounts[adjSys] = sc + 1;
                 }
 
                 if (withSys < 2) return null; // Need at least 2 neighbours with SYS
@@ -6356,8 +6358,8 @@ namespace StingTools.Core
                 results["DISC"] = new InferenceResult(disc, 1.0, "Category: " + catName);
 
             var wsResult = InferDiscFromWorkset(el);
-            if (wsResult != null && results.ContainsKey("DISC") && results["DISC"].Value != wsResult.Value)
-                StingLog.Warn($"Element {el.Id}: category says DISC={results["DISC"].Value} but workset says {wsResult.Value}");
+            if (wsResult != null && results.TryGetValue("DISC", out var discResult) && discResult.Value != wsResult.Value)
+                StingLog.Warn($"Element {el.Id}: category says DISC={discResult.Value} but workset says {wsResult.Value}");
 
             // SYS — multi-layer with confidence scoring
             string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
@@ -6366,11 +6368,11 @@ namespace StingTools.Core
 
             // Try connected equipment traversal for higher confidence
             var connResult = InferSysFromConnectedEquipment(el);
-            if (connResult != null && connResult.Confidence > (results.ContainsKey("SYS") ? results["SYS"].Confidence : 0))
+            if (connResult != null && connResult.Confidence > (results.TryGetValue("SYS", out var curSys) ? curSys.Confidence : 0))
                 results["SYS"] = connResult;
 
             // Size-based only if nothing else worked
-            if (!results.ContainsKey("SYS") || results["SYS"].Confidence < 0.5)
+            if (!results.TryGetValue("SYS", out var sysEntry) || sysEntry.Confidence < 0.5)
             {
                 var sizeResult = InferSysFromSize(el);
                 if (sizeResult != null)
@@ -6378,7 +6380,7 @@ namespace StingTools.Core
             }
 
             // ENH-004: Layer 9 — adjacent element inference (lowest confidence, last resort)
-            if (!results.ContainsKey("SYS") || results["SYS"].Confidence < 0.3)
+            if (!results.TryGetValue("SYS", out sysEntry) || sysEntry.Confidence < 0.3)
             {
                 var adjResult = InferSysFromAdjacentElements(doc, el);
                 if (adjResult != null)
@@ -6386,7 +6388,7 @@ namespace StingTools.Core
             }
 
             // FUNC — smart detection
-            string sysVal = results.ContainsKey("SYS") ? results["SYS"].Value : "";
+            string sysVal = results.TryGetValue("SYS", out var sysForFunc) ? sysForFunc.Value : "";
             string func = TagConfig.GetSmartFuncCode(el, sysVal);
             if (!string.IsNullOrEmpty(func))
                 results["FUNC"] = new InferenceResult(func, 0.8, "Smart FUNC detection");

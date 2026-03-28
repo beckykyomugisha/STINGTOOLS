@@ -2856,20 +2856,23 @@ namespace StingTools.UI
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            if (!_memorySlots.ContainsKey(slot))
-                _memorySlots[slot] = new HashSet<ElementId>();
+            if (!_memorySlots.TryGetValue(slot, out var slotSet))
+            {
+                slotSet = new HashSet<ElementId>();
+                _memorySlots[slot] = slotSet;
+            }
             // SCH-MEDIUM-02: HashSet.Add is idempotent — no .Contains() check needed
             foreach (var id in uidoc.Selection.GetElementIds())
-                _memorySlots[slot].Add(id);
+                slotSet.Add(id);
         }
 
         private static void RemoveFromMemory(UIApplication app, string slot)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            if (!_memorySlots.ContainsKey(slot)) return;
+            if (!_memorySlots.TryGetValue(slot, out var memSet)) return;
             var toRemove = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
-            _memorySlots[slot].RemoveWhere(id => toRemove.Contains(id));
+            memSet.RemoveWhere(id => toRemove.Contains(id));
         }
 
         private static void IntersectWithMemory(UIApplication app, string slot)
@@ -2978,7 +2981,7 @@ namespace StingTools.UI
                         }
                         ids.Add(el.Id.Value);
 
-                        if (!storageTypes.ContainsKey(val))
+                        if (!storageTypes.TryGetValue(val, out _))
                         {
                             var p = el.LookupParameter(paramName);
                             if (p != null) storageTypes[val] = p.StorageType.ToString();
@@ -3457,9 +3460,12 @@ namespace StingTools.UI
                 }
                 if (string.IsNullOrEmpty(val))
                     val = "<No Value>";
-                if (!groups.ContainsKey(val))
-                    groups[val] = new List<ElementId>();
-                groups[val].Add(el.Id);
+                if (!groups.TryGetValue(val, out var grpList))
+                {
+                    grpList = new List<ElementId>();
+                    groups[val] = grpList;
+                }
+                grpList.Add(el.Id);
             }
 
             Color[] palette = GetColorPalette(paletteName, groups.Count);
@@ -4354,9 +4360,12 @@ namespace StingTools.UI
                     if (surfColor.IsValid && (surfColor.Red != 0 || surfColor.Green != 0 || surfColor.Blue != 0))
                     {
                         string key = $"{surfColor.Red:D3},{surfColor.Green:D3},{surfColor.Blue:D3}";
-                        if (!colorGroups.ContainsKey(key))
-                            colorGroups[key] = (surfColor, new List<Element>());
-                        colorGroups[key].elems.Add(elem);
+                        if (!colorGroups.TryGetValue(key, out var cg))
+                        {
+                            cg = (surfColor, new List<Element>());
+                            colorGroups[key] = cg;
+                        }
+                        cg.elems.Add(elem);
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
@@ -4975,9 +4984,8 @@ namespace StingTools.UI
                         var hostIds = tag.GetTaggedLocalElementIds();
                         if (hostIds.Count == 0) continue;
                         ElementId hostId = hostIds.First();
-                        if (!_clonedTagLayout.ContainsKey(hostId)) continue;
+                        if (!_clonedTagLayout.TryGetValue(hostId, out var layout)) continue;
 
-                        var layout = _clonedTagLayout[hostId];
                         tag.TagHeadPosition = layout.headPos;
                         tag.TagOrientation = layout.orient;
                         applied++;
@@ -5940,8 +5948,8 @@ namespace StingTools.UI
                     else
                     {
                         filled++;
-                        if (!valueCounts.ContainsKey(val)) valueCounts[val] = 0;
-                        valueCounts[val]++;
+                        valueCounts.TryGetValue(val, out int vc);
+                        valueCounts[val] = vc + 1;
                     }
                 }
 
@@ -6444,9 +6452,8 @@ namespace StingTools.UI
                         if (!string.IsNullOrEmpty(seg.ValueOverride))
                         {
                             withOverrides++;
-                            if (!overrideValues.ContainsKey(seg.ValueOverride))
-                                overrideValues[seg.ValueOverride] = 0;
-                            overrideValues[seg.ValueOverride]++;
+                            overrideValues.TryGetValue(seg.ValueOverride, out int ovc);
+                            overrideValues[seg.ValueOverride] = ovc + 1;
                         }
                     }
                 }

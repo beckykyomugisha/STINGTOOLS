@@ -668,8 +668,8 @@ namespace StingTools.Tags
 
         private static void IncrementDict(Dictionary<string, int> dict, string key)
         {
-            if (dict.ContainsKey(key)) dict[key]++;
-            else dict[key] = 1;
+            dict.TryGetValue(key, out int c);
+            dict[key] = c + 1;
         }
 
         private static string CsvEsc(string v)

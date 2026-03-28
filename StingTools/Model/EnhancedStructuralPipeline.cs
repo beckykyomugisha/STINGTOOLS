@@ -198,6 +198,14 @@ namespace StingTools.Model
         public static (double WidthMm, double DepthMm, string Summary) AutoSizeFoundation(
             double permanentKN, double variableKN = 0, double soilBearingKPa = 150)
         {
+            // Phase 82 Finding 1: Input validation guards
+            if (soilBearingKPa <= 0)
+                return (600, 300, $"ERROR: soilBearingKPa={soilBearingKPa} must be > 0");
+            if (permanentKN < 0)
+                return (600, 300, $"ERROR: permanentKN={permanentKN} must be >= 0");
+            if (variableKN < 0)
+                return (600, 300, $"ERROR: variableKN={variableKN} must be >= 0");
+
             // ESP-CRIT-03: Apply EC7 Design Approach 1 partial load factors (BS EN 1997-1 §2.4.7, Table A.3).
             // DA1 Combination 1: γG = 1.35 (permanent), γQ = 1.50 (variable)  — governs for large variable loads
             // DA1 Combination 2: γG = 1.00 (permanent), γQ = 1.30 (variable)  — governs for soil resistance
@@ -209,7 +217,7 @@ namespace StingTools.Model
             // Design bearing resistance is derived from the characteristic value with γR.v = 1.0 (DA1 C1)
             // For preliminary sizing, use the characteristic bearing capacity directly.
             double aReq = nEd_C1 / soilBearingKPa; // m² required
-            double widthM = Math.Sqrt(aReq);
+            double widthM = Math.Sqrt(Math.Max(aReq, 0));
             double widthMm = Math.Ceiling(widthM * 1000 / 100) * 100; // Round up to 100mm
             widthMm = Math.Max(widthMm, 600); // Minimum 600mm width
 

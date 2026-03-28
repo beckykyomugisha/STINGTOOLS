@@ -412,8 +412,8 @@ namespace StingTools.Model
             const double gammaQ_C1 = 1.50; // Variable action partial factor (EC7 DA1-C1)
             double vEd = gammaG_C1 * permanentKN + gammaQ_C1 * variableKN; // Design vertical action (kN)
 
-            double requiredAreaSqM = vEd / soilCapacityKPa;
-            double sideLengthM = Math.Sqrt(requiredAreaSqM);
+            double requiredAreaSqM = vEd / Math.Max(soilCapacityKPa, 1e-10);
+            double sideLengthM = Math.Sqrt(Math.Max(requiredAreaSqM, 0));
             // Round up to nearest 50mm
             double sideMm = Math.Ceiling(sideLengthM * 1000.0 / 50.0) * 50.0;
             return Math.Max(sideMm, MinPadSizeMm);
@@ -1181,8 +1181,12 @@ namespace StingTools.Model
                 int gy = (int)Math.Floor(loc.Y / cellSize);
                 int gz = (int)Math.Floor(loc.Z / cellSize);
                 var key = (gx, gy, gz);
-                if (!grid.ContainsKey(key)) grid[key] = new List<int>();
-                grid[key].Add(i);
+                if (!grid.TryGetValue(key, out var cellList))
+                {
+                    cellList = new List<int>();
+                    grid[key] = cellList;
+                }
+                cellList.Add(i);
             }
 
             // Check only neighboring cells (3x3x3 = 27 cells max)

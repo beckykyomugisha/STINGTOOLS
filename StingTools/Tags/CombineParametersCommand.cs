@@ -61,8 +61,8 @@ namespace StingTools.Tags
             {
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCategories.Contains(cat)) continue;
-                if (catCounts.ContainsKey(cat)) catCounts[cat]++;
-                else catCounts[cat] = 1;
+                catCounts.TryGetValue(cat, out int cc);
+                catCounts[cat] = cc + 1;
             }
             return catCounts;
         }
@@ -404,8 +404,8 @@ namespace StingTools.Tags
                     fullyReady++;
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!readyByDisc.ContainsKey(disc)) readyByDisc[disc] = 0;
-                        readyByDisc[disc]++;
+                        readyByDisc.TryGetValue(disc, out int rc);
+                        readyByDisc[disc] = rc + 1;
                     }
                 }
                 else if (filledCount > 0)
@@ -413,8 +413,8 @@ namespace StingTools.Tags
                     partial++;
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!incompleteByDisc.ContainsKey(disc)) incompleteByDisc[disc] = 0;
-                        incompleteByDisc[disc]++;
+                        incompleteByDisc.TryGetValue(disc, out int ic);
+                        incompleteByDisc[disc] = ic + 1;
                     }
                 }
                 else

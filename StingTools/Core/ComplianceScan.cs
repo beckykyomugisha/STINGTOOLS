@@ -674,18 +674,19 @@ namespace StingTools.Core
 
                         var elems = new FilteredElementCollector(linkedDoc)
                             .WhereElementIsNotElementType()
-                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
-                            .ToList();
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums));
 
-                        linkResult.TotalElements = elems.Count;
+                        int linkTotal = 0;
                         foreach (var el in elems)
                         {
+                            linkTotal++;
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                             if (!string.IsNullOrEmpty(tag1) && TagConfig.TagIsComplete(tag1))
                                 linkResult.TaggedComplete++;
                             else if (string.IsNullOrEmpty(tag1))
                                 linkResult.Untagged++;
                         }
+                        linkResult.TotalElements = linkTotal;
 
                         result.LinkedResults.Add(linkResult);
                     }

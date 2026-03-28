@@ -975,7 +975,7 @@ namespace StingTools.BIMManager
                 ["project_stage"] = ribaStage >= 0 && ribaStage <= 7
                     ? $"{ribaStage} — {RIBAStages[ribaStage]}" : "2 — Concept Design",
                 ["bep_preset"] = presetKey,
-                ["preset_description"] = BEPPresets.ContainsKey(presetKey) ? BEPPresets[presetKey] : ""
+                ["preset_description"] = BEPPresets.TryGetValue(presetKey, out string presetDesc) ? presetDesc : ""
             };
             bep["project_information"] = projInfo;
 
@@ -990,7 +990,7 @@ namespace StingTools.BIMManager
             {
                 foreach (string disc in disciplines)
                 {
-                    string role = RoleCodes.ContainsKey(disc) ? RoleCodes[disc] : disc;
+                    string role = RoleCodes.TryGetValue(disc, out string roleVal) ? roleVal : disc;
                     team.Add(CreateTeamMember(role, disc, role, "", "", ""));
                 }
             }
@@ -1095,7 +1095,7 @@ namespace StingTools.BIMManager
                 var milestone = new JObject
                 {
                     ["stage"] = s,
-                    ["stage_name"] = RIBAStages.ContainsKey(s) ? RIBAStages[s] : $"Stage {s}",
+                    ["stage_name"] = RIBAStages.TryGetValue(s, out string rsName) ? rsName : $"Stage {s}",
                     ["target_date"] = "",
                     ["responsibility"] = "",
                     ["suitability"] = s <= 2 ? "S3" : (s <= 4 ? "S4" : "S6")
@@ -1956,9 +1956,11 @@ namespace StingTools.BIMManager
             modelData["number_of_levels"] = levels.Count;
             if (levels.Count > 0)
             {
-                modelData["lowest_level"] = levels.First().Name;
-                modelData["highest_level"] = levels.Last().Name;
-                modelData["building_height_m"] = Math.Round((levels.Last().Elevation - levels.First().Elevation) * 0.3048, 1);
+                var lowestLevel = levels[0];
+                var highestLevel = levels[levels.Count - 1];
+                modelData["lowest_level"] = lowestLevel.Name;
+                modelData["highest_level"] = highestLevel.Name;
+                modelData["building_height_m"] = Math.Round((highestLevel.Elevation - lowestLevel.Elevation) * 0.3048, 1);
             }
 
             var rooms = new FilteredElementCollector(doc)
@@ -2003,14 +2005,12 @@ namespace StingTools.BIMManager
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(catName)) continue;
-                    if (!countByCategory.ContainsKey(catName)) countByCategory[catName] = 0;
-                    countByCategory[catName]++;
+                    countByCategory.TryGetValue(catName, out int ccVal); countByCategory[catName] = ccVal + 1;
 
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!countByDisc.ContainsKey(disc)) countByDisc[disc] = 0;
-                        countByDisc[disc]++;
+                        countByDisc.TryGetValue(disc, out int cdVal); countByDisc[disc] = cdVal + 1;
                     }
 
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2100,11 +2100,11 @@ namespace StingTools.BIMManager
                 ["doc_id"] = docId,
                 ["title"] = title,
                 ["type"] = type,
-                ["type_description"] = DocumentTypes.ContainsKey(type) ? DocumentTypes[type] : type,
+                ["type_description"] = DocumentTypes.TryGetValue(type, out string dtDesc) ? dtDesc : type,
                 ["originator"] = originator,
-                ["originator_role"] = RoleCodes.ContainsKey(originator) ? RoleCodes[originator] : originator,
+                ["originator_role"] = RoleCodes.TryGetValue(originator, out string orVal) ? orVal : originator,
                 ["suitability"] = suitability,
-                ["suitability_desc"] = SuitabilityCodes.ContainsKey(suitability) ? SuitabilityCodes[suitability] : suitability,
+                ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string sdVal) ? sdVal : suitability,
                 ["cde_status"] = cdeStatus,
                 ["direction"] = direction,
                 ["revision"] = "P01",
@@ -2155,9 +2155,9 @@ namespace StingTools.BIMManager
                 history.Add(new JObject
                 {
                     ["from"] = oldSuitability,
-                    ["from_desc"] = SuitabilityCodes.ContainsKey(oldSuitability) ? SuitabilityCodes[oldSuitability] : oldSuitability,
+                    ["from_desc"] = SuitabilityCodes.TryGetValue(oldSuitability, out string fromDesc) ? fromDesc : oldSuitability,
                     ["to"] = newSuitability,
-                    ["to_desc"] = SuitabilityCodes.ContainsKey(newSuitability) ? SuitabilityCodes[newSuitability] : newSuitability,
+                    ["to_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string toDesc) ? toDesc : newSuitability,
                     ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                     ["reason"] = reason,
                     ["user"] = Environment.UserName
@@ -2165,8 +2165,8 @@ namespace StingTools.BIMManager
 
                 // Update current suitability
                 docEntry["suitability"] = newSuitability;
-                docEntry["suitability_desc"] = SuitabilityCodes.ContainsKey(newSuitability)
-                    ? SuitabilityCodes[newSuitability] : newSuitability;
+                docEntry["suitability_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string nsDesc)
+                    ? nsDesc : newSuitability;
 
                 SaveJsonFile(regPath, register);
                 StingLog.Info($"IG-03: Document '{docId}' suitability changed {oldSuitability} → {newSuitability} ({reason})");
@@ -2229,7 +2229,7 @@ namespace StingTools.BIMManager
             {
                 ["issue_id"] = issueId,
                 ["type"] = issueType,
-                ["type_description"] = IssueTypes.ContainsKey(issueType) ? IssueTypes[issueType] : issueType,
+                ["type_description"] = IssueTypes.TryGetValue(issueType, out string itDesc) ? itDesc : issueType,
                 ["priority"] = priority,
                 ["title"] = title,
                 ["description"] = description,
@@ -2481,9 +2481,9 @@ namespace StingTools.BIMManager
                 string zoneCode = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(zoneCode))
                     zoneCode = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unassigned";
-                if (!zoneSpaceMap.ContainsKey(zoneCode))
-                    zoneSpaceMap[zoneCode] = new List<string>();
-                zoneSpaceMap[zoneCode].Add(roomName);
+                if (!zoneSpaceMap.TryGetValue(zoneCode, out var zsList))
+                    zoneSpaceMap[zoneCode] = zsList = new List<string>();
+                zsList.Add(roomName);
             }
             data["Space"] = spaces;
 
@@ -2744,10 +2744,10 @@ namespace StingTools.BIMManager
                 if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) continue;
                 string sysCode = ParameterHelpers.GetString(revitEl, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sysCode)) continue;
-                if (!sysGroups.ContainsKey(sysCode))
-                    sysGroups[sysCode] = new List<string>();
-                if (sysGroups[sysCode].Count < 50)
-                    sysGroups[sysCode].Add(comp["Name"]);
+                if (!sysGroups.TryGetValue(sysCode, out var sgList))
+                    sysGroups[sysCode] = sgList = new List<string>();
+                if (sgList.Count < 50)
+                    sgList.Add(comp["Name"]);
             }
             // Also match components by tag string if SYS param was empty
             foreach (var comp in components)
@@ -2766,8 +2766,8 @@ namespace StingTools.BIMManager
             }
             foreach (var kvp in sysGroups.OrderBy(k => k.Key))
             {
-                string sysDesc = TagConfig.SysMap.ContainsKey(kvp.Key)
-                    ? string.Join(", ", TagConfig.SysMap[kvp.Key]) : kvp.Key;
+                string sysDesc = TagConfig.SysMap.TryGetValue(kvp.Key, out var smVal)
+                    ? string.Join(", ", smVal) : kvp.Key;
                 systems.Add(new Dictionary<string, string>
                 {
                     ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
@@ -2816,7 +2816,7 @@ namespace StingTools.BIMManager
                 }
                 else
                 {
-                    var mf = defaultMaintFreq.ContainsKey(code) ? defaultMaintFreq[code] : ("12", "months");
+                    var mf = defaultMaintFreq.TryGetValue(code, out var mfVal) ? mfVal : ("12", "months");
                     freq = mf.Item1;
                     freqUnit = mf.Item2;
                 }
@@ -3344,8 +3344,7 @@ namespace StingTools.BIMManager
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                        discCounts[disc]++;
+                        discCounts.TryGetValue(disc, out int dcVal); discCounts[disc] = dcVal + 1;
                     }
                 }
                 else untagged++;
@@ -3453,7 +3452,7 @@ namespace StingTools.BIMManager
                 ["to_role"] = recipientRole,
                 ["date_issued"] = DateTime.Now.ToString("yyyy-MM-dd"),
                 ["suitability_code"] = suitability,
-                ["suitability_desc"] = SuitabilityCodes.ContainsKey(suitability) ? SuitabilityCodes[suitability] : suitability,
+                ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string stDesc) ? stDesc : suitability,
                 ["reason_for_issue"] = reason,
                 ["document_ids"] = documentIds ?? new JArray(),
                 ["document_count"] = documentIds?.Count ?? 0,
@@ -3683,8 +3682,7 @@ namespace StingTools.BIMManager
         {
             // Use prefix-only key to match SyncSequentialCounter
             string key = $"{prefix}_";
-            if (!_seqCounters.ContainsKey(key)) _seqCounters[key] = 0;
-            _seqCounters[key]++;
+            _seqCounters.TryGetValue(key, out int seqVal); _seqCounters[key] = seqVal + 1;
             return $"{prefix}-{_seqCounters[key]:D4}";
         }
 
@@ -3955,7 +3953,7 @@ namespace StingTools.BIMManager
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(cat)) continue;
-                    string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dmVal) ? dmVal : "X";
                     string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     bool complete = TagConfig.TagIsComplete(tag);
                     bool resolved = TagConfig.TagIsFullyResolved(tag);
@@ -3978,8 +3976,8 @@ namespace StingTools.BIMManager
                 var stageCompliance = new JObject
                 {
                     ["riba_stage"] = ribaStage,
-                    ["stage_name"] = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
-                        ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}"
+                    ["stage_name"] = BIMManagerEngine.RIBAStages.TryGetValue(ribaStage, out string snVal)
+                        ? snVal : $"Stage {ribaStage}"
                 };
                 switch (ribaStage)
                 {
@@ -4972,9 +4970,9 @@ namespace StingTools.BIMManager
             var rows = docs.Select(d =>
             {
                 string suit = d["suitability"]?.ToString() ?? "N/A";
-                string suitDesc = BIMManagerEngine.SuitabilityCodes.ContainsKey(suit) ? BIMManagerEngine.SuitabilityCodes[suit] : suit;
+                string suitDesc = BIMManagerEngine.SuitabilityCodes.TryGetValue(suit, out string suDesc) ? suDesc : suit;
                 string statusCode = d["status_code"]?.ToString() ?? "";
-                string statusDesc = DocStatusCodes.All.ContainsKey(statusCode) ? DocStatusCodes.All[statusCode] : statusCode;
+                string statusDesc = DocStatusCodes.All.TryGetValue(statusCode, out string stcDesc) ? stcDesc : statusCode;
                 return new DocRegisterRow
                 {
                     DocId = d["doc_id"]?.ToString() ?? "",
@@ -5149,7 +5147,7 @@ namespace StingTools.BIMManager
             string docId = BIMManagerEngine.GenerateDocumentName(
                 project, "Z", "ZZ", "ZZ", docType, "Z", "Zz_99", (docs.Count + 1).ToString("D4"));
 
-            string typeDesc = BIMManagerEngine.DocumentTypes.ContainsKey(docType) ? BIMManagerEngine.DocumentTypes[docType] : docType;
+            string typeDesc = BIMManagerEngine.DocumentTypes.TryGetValue(docType, out var dtDesc) ? dtDesc : docType;
             var entry = BIMManagerEngine.CreateDocumentEntry(docId, typeDesc, docType, "Z", suitability, "WIP", direction);
 
             // GAP-013: Store current project revision in document entry
@@ -5323,12 +5321,12 @@ namespace StingTools.BIMManager
             var cobieData = BIMManagerEngine.BuildCOBieData(doc, settings.PresetKey);
 
             // Enhance Resource worksheet if requested
-            if (settings.IncludeResourceEnhanced && cobieData.ContainsKey("Resource"))
-                EnhanceResourceWorksheet(cobieData["Resource"]);
+            if (settings.IncludeResourceEnhanced && cobieData.TryGetValue("Resource", out var resourceWs))
+                EnhanceResourceWorksheet(resourceWs);
 
             // Enhance Impact worksheet if requested
-            if (settings.IncludeImpactEnhanced && cobieData.ContainsKey("Impact"))
-                EnhanceImpactWorksheet(doc, cobieData["Impact"]);
+            if (settings.IncludeImpactEnhanced && cobieData.TryGetValue("Impact", out var impactWs))
+                EnhanceImpactWorksheet(doc, impactWs);
 
             // Filter worksheets based on wizard selection
             if (settings.SelectedWorksheets != null && settings.SelectedWorksheets.Count > 0)
@@ -5355,15 +5353,14 @@ namespace StingTools.BIMManager
             foreach (var ws in cobieData)
             {
                 totalRows += ws.Value.Count;
-                string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                    ? BIMManagerEngine.COBieWorksheets[ws.Key]
+                string[] headers = BIMManagerEngine.COBieWorksheets.TryGetValue(ws.Key, out var wsHeaders)
+                    ? wsHeaders
                     : (ws.Value.Count > 0 ? ws.Value[0].Keys.ToArray() : Array.Empty<string>());
                 if (headers.Length == 0) { wsIdx++; continue; }
 
                 // Apply column exclusions from wizard
-                if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                if (settings.ExcludedColumns != null && settings.ExcludedColumns.TryGetValue(ws.Key, out var excluded))
                 {
-                    var excluded = settings.ExcludedColumns[ws.Key];
                     headers = headers.Where(h => !excluded.Contains(h)).ToArray();
                 }
 
@@ -5398,12 +5395,12 @@ namespace StingTools.BIMManager
                             string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
                             var sheet = wb.Worksheets.Add(name);
                             if (ws.Value.Count == 0) continue;
-                            string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                                ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
+                            string[] headers = BIMManagerEngine.COBieWorksheets.TryGetValue(ws.Key, out var xlWsH)
+                                ? xlWsH : ws.Value[0].Keys.ToArray();
 
                             // Apply column exclusions
-                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
-                                headers = headers.Where(h => !settings.ExcludedColumns[ws.Key].Contains(h)).ToArray();
+                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.TryGetValue(ws.Key, out var xlExcl))
+                                headers = headers.Where(h => !xlExcl.Contains(h)).ToArray();
 
                             for (int c = 0; c < headers.Length; c++)
                             {
@@ -5413,7 +5410,7 @@ namespace StingTools.BIMManager
                             }
                             for (int r = 0; r < ws.Value.Count; r++)
                                 for (int c = 0; c < headers.Length; c++)
-                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
+                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].TryGetValue(headers[c], out var cellVal) ? cellVal : "";
                             sheet.Columns().AdjustToContents(1, 100);
                         }
                         wb.SaveAs(xlsxPath);
@@ -7224,12 +7221,10 @@ namespace StingTools.BIMManager
                     if (!TagConfig.DiscMap.ContainsKey(catName)) continue;
                     total++;
 
-                    if (!byCat.ContainsKey(catName)) byCat[catName] = 0;
-                    byCat[catName]++;
+                    byCat.TryGetValue(catName, out int bcVal); byCat[catName] = bcVal + 1;
 
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "?";
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byDisc.TryGetValue(disc, out int bdVal2); byDisc[disc] = bdVal2 + 1;
                 }
 
                 var report = new StringBuilder();
@@ -8046,13 +8041,10 @@ namespace StingTools.BIMManager
                     suit = "S0";
                 }
 
-                if (!suitCounts.ContainsKey(suit)) suitCounts[suit] = 0;
-                suitCounts[suit]++;
+                suitCounts.TryGetValue(suit, out int scVal); suitCounts[suit] = scVal + 1;
 
-                if (!data.ByDiscipline.ContainsKey(disc)) data.ByDiscipline[disc] = 0;
-                data.ByDiscipline[disc]++;
-                if (!data.ByStatus.ContainsKey(status)) data.ByStatus[status] = 0;
-                data.ByStatus[status]++;
+                data.ByDiscipline.TryGetValue(disc, out int bdVal); data.ByDiscipline[disc] = bdVal + 1;
+                data.ByStatus.TryGetValue(status, out int bsVal); data.ByStatus[status] = bsVal + 1;
 
                 data.Items.Add(new MidpItem
                 {
@@ -8459,8 +8451,8 @@ namespace StingTools.BIMManager
             double resolvedPct = totalTaggable > 0 ? fullyResolved * 100.0 / totalTaggable : 0;
 
             // Determine pass/fail per stage
-            string stageName = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
-                ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}";
+            string stageName = BIMManagerEngine.RIBAStages.TryGetValue(ribaStage, out var rsName)
+                ? rsName : $"Stage {ribaStage}";
 
             bool passed;
             string requirement;
@@ -8661,10 +8653,8 @@ namespace StingTools.BIMManager
                     if (bracketStart >= 0 && bracketEnd > bracketStart)
                         cat = note.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
 
-                    if (!byCategory.ContainsKey(cat)) byCategory[cat] = 0;
-                    byCategory[cat]++;
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byCategory.TryGetValue(cat, out int bycVal); byCategory[cat] = bycVal + 1;
+                    byDisc.TryGetValue(disc, out int bydVal); byDisc[disc] = bydVal + 1;
                 }
 
                 var sb = new StringBuilder();
