@@ -1065,7 +1065,7 @@ namespace StingTools.Model
                 // Step 1: Size pad footing
                 // A_req = N / q_allow  (serviceability, unfactored)
                 double aReqM2 = columnLoadKN / bearingCapacityKPa;
-                double sideLengthM = Math.Ceiling(Math.Sqrt(aReqM2) * 10) / 10; // Round up to 100mm
+                double sideLengthM = Math.Ceiling(Math.Sqrt(Math.Max(aReqM2, 0)) * 10) / 10; // Round up to 100mm
                 sideLengthM = Math.Max(0.6, sideLengthM); // Min 600mm
                 report.AddStep($"Pad sized: {sideLengthM:F1}×{sideLengthM:F1}m (A={sideLengthM * sideLengthM:F2}m², " +
                     $"bearing={columnLoadKN / (sideLengthM * sideLengthM):F0}kPa / {bearingCapacityKPa:F0}kPa limit)");

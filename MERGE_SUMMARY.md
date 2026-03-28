@@ -1,10 +1,42 @@
 # Branch Merge Summary
 
-**Date:** 2026-03-27
-**Target Branch:** `claude/merge-branches-resolve-conflicts-oLzPu`
-**Commits ahead of master:** 102
+**Date:** 2026-03-28
+**Target Branch:** `claude/merge-resolve-update-docs-PQNBs`
+**Commits ahead of master:** 128
 
-## Branches Merged
+## Latest Merge (2026-03-28)
+
+Consolidated ALL remaining remote branches into `claude/merge-resolve-update-docs-PQNBs`.
+
+### Branches Merged
+
+| Branch | Commits | Description |
+|--------|---------|-------------|
+| `origin/claude/merge-branches-resolve-conflicts-oLzPu` | 5 | Build error fixes: CS0101/CS0102/CS0111 duplicate definitions, MC3089 XAML errors, ambiguous Binding references, WarningsManager reference fixes |
+| `origin/claude/determined-gates-Su8fP` | 27 | Phases 79-83: performance/safety/efficiency fixes across 32+ files including HashSet optimizations, UC section capacity safety fix, handover consolidation, cached solid fill patterns, brush freezing |
+
+### Merge Conflicts Resolved (8 conflicts across 5 files)
+
+| File | Conflicts | Resolution |
+|------|-----------|------------|
+| `BIMManager/BIMManagerCommands.cs` | 1 | Kept `NextIdFromArray` helper for collision-safe TX IDs |
+| `Core/TagConfig.cs` | 3 | Kept `HashSet<string>` for O(1) validation lookups, `DefaultStatus` property, `RequiredTokens` HashSet |
+| `Docs/HandoverExportCommands.cs` | 2 | Kept `HandoverHelper.CollectTaggedElements()` consolidated helper |
+| `Model/StructuralCADWizard.cs` | 1 | Kept `TryGetValue` pattern for safe dictionary access |
+| `Tags/CombineParametersCommand.cs` | 1 | Kept DISC fallback chain positioned before progress reporting |
+
+### Result
+
+After this merge, **ALL remote branches are fully merged** -- `git branch -r --no-merged HEAD` returns empty.
+
+---
+
+## Previous Merge (2026-03-27)
+
+**Target Branch:** `claude/merge-branches-resolve-conflicts-oLzPu`
+**Commits ahead of master at that time:** 102
+
+### Branches Merged
 
 | Branch | Commits | Description |
 |--------|---------|-------------|
@@ -16,12 +48,12 @@
 
 **Total: 5 branches merged, 99 unique commits consolidated**
 
-## Merge Conflicts Resolved
+### Merge Conflicts Resolved
 
-### Merge 1: main + bim-management-guide + fix-dwg-str-ui (0 conflicts)
+#### Merge 1: main + bim-management-guide + fix-dwg-str-ui (0 conflicts)
 All merged cleanly via fast-forward or auto-merge.
 
-### Merge 2: merge-branches-main-oaP85 (7 conflicts)
+#### Merge 2: merge-branches-main-oaP85 (7 conflicts)
 
 | File | Conflicts | Resolution |
 |------|-----------|------------|
@@ -33,11 +65,11 @@ All merged cleanly via fast-forward or auto-merge.
 | `Model/StructuralAnalysisEngine.cs` | 1 | Kept HEAD's descriptive XML doc comment |
 | `Model/StructuralDesignSuite.cs` | 1 | Kept incoming's shear stud height documentation comment |
 
-### Merge 3: review-bim-workflows-TFss5 (11 conflicts)
+#### Merge 3: review-bim-workflows-TFss5 (11 conflicts)
 
 | File | Conflicts | Resolution |
 |------|-----------|------------|
-| `CLAUDE.md` | 1 | Combined both Phase sets — HEAD (68-78b) + incoming (68-77 workflow review) |
+| `CLAUDE.md` | 1 | Combined both Phase sets -- HEAD (68-78b) + incoming (68-77 workflow review) |
 | `Core/ParameterHelpers.cs` | 1 | Kept more complete version |
 | `Core/StingToolsApp.cs` | 1 | Combined startup enhancements from both sides |
 | `Core/TagConfig.cs` | 2 | Combined both: GAP-FIX config loading + Phase 77 title block/sheet margins |
@@ -49,30 +81,42 @@ All merged cleanly via fast-forward or auto-merge.
 | `Model/StructuralModelingCommands.cs` | 1 | Kept HEAD's more complete DWG dialog with auto-tagging |
 | `UI/StingCommandHandler.cs` | 1 | Combined dispatch entries from both sides |
 
+---
+
 ## Key Features Consolidated
 
-### Tagging Pipeline (Phases 67-78)
+### Tagging Pipeline (Phases 67-83)
 - Unified `RunFullPipeline()` with 11 canonical steps
 - SEQ sidecar persistence across sessions
 - Token lock enforcement (ASS_TOKEN_LOCK_TXT)
 - Category token overrides from project_config.json
 - Compliance gate on all tagging operations
+- HashSet-based O(1) token validation
 
-### BIM Coordinator Automation (Phases 68-75)
+### BIM Coordinator Automation (Phases 68-83)
 - BIM Coordination Center (7-tab unified WPF dialog)
 - Warning classification engine (150+ rules, 2-pass O(1) lookup)
 - 16 auto-fix strategies for common warnings
 - SLA enforcement with configurable thresholds
 - Deliverable readiness scoring (COBie, IFC, PDF, FM)
 - Daily planner with priority-sorted task list
+- Handover export consolidation via `HandoverHelper`
+- Collision-safe transmittal ID generation (`NextIdFromArray`)
 
-### Workflow Engine (Phases 73-77)
+### Workflow Engine (Phases 73-83)
 - 17+ condition operators for adaptive step execution
 - Step dependency resolver (DAG topological sort)
 - Partial rollback manager (per-step TransactionGroup isolation)
 - 15+ built-in workflow presets (sector-specific)
 - Workflow scheduler with trigger types
 - Step output chaining for conditional branching
+
+### Performance & Safety (Phases 79-83)
+- HashSet optimizations across validation code paths
+- UC section capacity safety fix (structural design)
+- Cached solid fill patterns (eliminating redundant collectors)
+- Frozen WPF brushes for thread safety
+- Build error resolution (CS0101/CS0102/CS0111 duplicates, MC3089 XAML, ambiguous Binding)
 
 ### Model & Structural (Phases 67-77)
 - Excel-to-structural modeling with EC2 rebar design
@@ -92,3 +136,4 @@ All merged cleanly via fast-forward or auto-merge.
 - **154+ source files** modified across Core, Tags, Docs, Model, BIM, UI, Temp directories
 - **~20 new files** added (engines, commands, data files, guides)
 - **0 remaining merge conflict markers** in any file
+- **0 unmerged remote branches** -- all branches fully consolidated

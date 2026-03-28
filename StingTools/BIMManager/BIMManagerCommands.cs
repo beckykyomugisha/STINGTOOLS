@@ -284,13 +284,31 @@ namespace StingTools.BIMManager
         /// Returns list of overdue issues with hours overdue and escalation recommendation.
         /// Called from DocumentOpened event for morning SLA report.
         /// </summary>
+        // HIGH-01: Cache issues.json for SLA checks — re-read only when file changes on disk
+        private static (string path, DateTime lastMod, JArray issues) _slaIssuesCache;
+
         internal static List<(string issueId, string priority, string title, double hoursOverdue)> CheckSLAViolations(Document doc)
         {
             var overdue = new List<(string, string, string, double)>();
             try
             {
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
-                var issues = LoadJsonArray(issuesPath);
+                // HIGH-01: Use cached array when file hasn't changed
+                JArray issues;
+                if (!string.IsNullOrEmpty(_slaIssuesCache.path) &&
+                    _slaIssuesCache.path == issuesPath &&
+                    File.Exists(issuesPath) &&
+                    File.GetLastWriteTimeUtc(issuesPath) == _slaIssuesCache.lastMod)
+                {
+                    issues = _slaIssuesCache.issues;
+                }
+                else
+                {
+                    issues = LoadJsonArray(issuesPath);
+                    _slaIssuesCache = (issuesPath,
+                        File.Exists(issuesPath) ? File.GetLastWriteTimeUtc(issuesPath) : DateTime.MinValue,
+                        issues);
+                }
                 foreach (var issue in issues)
                 {
                     string status = issue["status"]?.ToString() ?? "";
@@ -767,7 +785,7 @@ namespace StingTools.BIMManager
                 bool exists = register.Any(r => r["file_name"]?.ToString() == fileName);
                 if (exists) return;
 
-                string nextId = $"DOC-{(register.Count + 1):D4}";
+                string nextId = NextIdFromArray(register, "DOC", "document_id");
                 var entry = new JObject
                 {
                     ["document_id"] = nextId,
@@ -796,12 +814,15 @@ namespace StingTools.BIMManager
         /// <summary>
         /// Phase 75: Auto-close compliance issues when compliance reaches GREEN.
         /// Matches issues auto-raised by AutoRaiseComplianceIssues.
+        /// HIGH-02: Accepts pre-computed scanResult to avoid a second ComplianceScan.Scan(doc) call
+        /// when invoked from AutoRaiseComplianceIssues which already has the result.
         /// </summary>
-        internal static int AutoCloseComplianceIssues(Document doc)
+        internal static int AutoCloseComplianceIssues(Document doc, ComplianceScan.ComplianceResult scanResult = null)
         {
             try
             {
-                var scanResult = ComplianceScan.Scan(doc);
+                // HIGH-02: Use passed-in result if available; only scan when called standalone
+                if (scanResult == null) scanResult = ComplianceScan.Scan(doc);
                 if (scanResult == null || scanResult.RAGStatus != "GREEN") return 0;
 
                 string issuesPath = GetBIMManagerFilePath(doc, "issues.json");
@@ -845,7 +866,8 @@ namespace StingTools.BIMManager
                 if (scanResult == null || scanResult.RAGStatus == "GREEN")
                 {
                     // Phase 75: Auto-close any previously raised compliance issues
-                    AutoCloseComplianceIssues(doc);
+                    // HIGH-02: Pass scanResult to avoid redundant ComplianceScan.Scan(doc) inside
+                    AutoCloseComplianceIssues(doc, scanResult);
                     return 0;
                 }
 
@@ -953,7 +975,7 @@ namespace StingTools.BIMManager
                 ["project_stage"] = ribaStage >= 0 && ribaStage <= 7
                     ? $"{ribaStage} — {RIBAStages[ribaStage]}" : "2 — Concept Design",
                 ["bep_preset"] = presetKey,
-                ["preset_description"] = BEPPresets.ContainsKey(presetKey) ? BEPPresets[presetKey] : ""
+                ["preset_description"] = BEPPresets.TryGetValue(presetKey, out string presetDesc) ? presetDesc : ""
             };
             bep["project_information"] = projInfo;
 
@@ -968,7 +990,7 @@ namespace StingTools.BIMManager
             {
                 foreach (string disc in disciplines)
                 {
-                    string role = RoleCodes.ContainsKey(disc) ? RoleCodes[disc] : disc;
+                    string role = RoleCodes.TryGetValue(disc, out string roleVal) ? roleVal : disc;
                     team.Add(CreateTeamMember(role, disc, role, "", "", ""));
                 }
             }
@@ -1073,7 +1095,7 @@ namespace StingTools.BIMManager
                 var milestone = new JObject
                 {
                     ["stage"] = s,
-                    ["stage_name"] = RIBAStages.ContainsKey(s) ? RIBAStages[s] : $"Stage {s}",
+                    ["stage_name"] = RIBAStages.TryGetValue(s, out string rsName) ? rsName : $"Stage {s}",
                     ["target_date"] = "",
                     ["responsibility"] = "",
                     ["suitability"] = s <= 2 ? "S3" : (s <= 4 ? "S4" : "S6")
@@ -1934,9 +1956,11 @@ namespace StingTools.BIMManager
             modelData["number_of_levels"] = levels.Count;
             if (levels.Count > 0)
             {
-                modelData["lowest_level"] = levels.First().Name;
-                modelData["highest_level"] = levels.Last().Name;
-                modelData["building_height_m"] = Math.Round((levels.Last().Elevation - levels.First().Elevation) * 0.3048, 1);
+                var lowestLevel = levels[0];
+                var highestLevel = levels[levels.Count - 1];
+                modelData["lowest_level"] = lowestLevel.Name;
+                modelData["highest_level"] = highestLevel.Name;
+                modelData["building_height_m"] = Math.Round((highestLevel.Elevation - lowestLevel.Elevation) * 0.3048, 1);
             }
 
             var rooms = new FilteredElementCollector(doc)
@@ -1981,14 +2005,12 @@ namespace StingTools.BIMManager
                 {
                     string catName = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(catName)) continue;
-                    if (!countByCategory.ContainsKey(catName)) countByCategory[catName] = 0;
-                    countByCategory[catName]++;
+                    countByCategory.TryGetValue(catName, out int ccVal); countByCategory[catName] = ccVal + 1;
 
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!countByDisc.ContainsKey(disc)) countByDisc[disc] = 0;
-                        countByDisc[disc]++;
+                        countByDisc.TryGetValue(disc, out int cdVal); countByDisc[disc] = cdVal + 1;
                     }
 
                     string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2078,11 +2100,11 @@ namespace StingTools.BIMManager
                 ["doc_id"] = docId,
                 ["title"] = title,
                 ["type"] = type,
-                ["type_description"] = DocumentTypes.ContainsKey(type) ? DocumentTypes[type] : type,
+                ["type_description"] = DocumentTypes.TryGetValue(type, out string dtDesc) ? dtDesc : type,
                 ["originator"] = originator,
-                ["originator_role"] = RoleCodes.ContainsKey(originator) ? RoleCodes[originator] : originator,
+                ["originator_role"] = RoleCodes.TryGetValue(originator, out string orVal) ? orVal : originator,
                 ["suitability"] = suitability,
-                ["suitability_desc"] = SuitabilityCodes.ContainsKey(suitability) ? SuitabilityCodes[suitability] : suitability,
+                ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string sdVal) ? sdVal : suitability,
                 ["cde_status"] = cdeStatus,
                 ["direction"] = direction,
                 ["revision"] = "P01",
@@ -2133,9 +2155,9 @@ namespace StingTools.BIMManager
                 history.Add(new JObject
                 {
                     ["from"] = oldSuitability,
-                    ["from_desc"] = SuitabilityCodes.ContainsKey(oldSuitability) ? SuitabilityCodes[oldSuitability] : oldSuitability,
+                    ["from_desc"] = SuitabilityCodes.TryGetValue(oldSuitability, out string fromDesc) ? fromDesc : oldSuitability,
                     ["to"] = newSuitability,
-                    ["to_desc"] = SuitabilityCodes.ContainsKey(newSuitability) ? SuitabilityCodes[newSuitability] : newSuitability,
+                    ["to_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string toDesc) ? toDesc : newSuitability,
                     ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                     ["reason"] = reason,
                     ["user"] = Environment.UserName
@@ -2143,8 +2165,8 @@ namespace StingTools.BIMManager
 
                 // Update current suitability
                 docEntry["suitability"] = newSuitability;
-                docEntry["suitability_desc"] = SuitabilityCodes.ContainsKey(newSuitability)
-                    ? SuitabilityCodes[newSuitability] : newSuitability;
+                docEntry["suitability_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string nsDesc)
+                    ? nsDesc : newSuitability;
 
                 SaveJsonFile(regPath, register);
                 StingLog.Info($"IG-03: Document '{docId}' suitability changed {oldSuitability} → {newSuitability} ({reason})");
@@ -2201,11 +2223,13 @@ namespace StingTools.BIMManager
             string title, string description, string assignedTo, string discipline,
             ICollection<ElementId> elementIds, string viewName, Document doc = null)
         {
+            // FIX: Single timestamp for consistency across all date fields
+            var now = DateTime.Now;
             return new JObject
             {
                 ["issue_id"] = issueId,
                 ["type"] = issueType,
-                ["type_description"] = IssueTypes.ContainsKey(issueType) ? IssueTypes[issueType] : issueType,
+                ["type_description"] = IssueTypes.TryGetValue(issueType, out string itDesc) ? itDesc : issueType,
                 ["priority"] = priority,
                 ["title"] = title,
                 ["description"] = description,
@@ -2214,19 +2238,19 @@ namespace StingTools.BIMManager
                 ["discipline"] = discipline,
                 ["raised_by"] = Environment.UserName,
                 ["created_by"] = Environment.UserName,
-                ["created_date"] = DateTime.Now.ToString("o"),
+                ["created_date"] = now.ToString("o"),
                 ["modified_by"] = Environment.UserName,
-                ["modified_date"] = DateTime.Now.ToString("o"),
-                ["date_raised"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                ["date_due"] = priority == "CRITICAL" ? DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") :
-                               priority == "HIGH" ? DateTime.Now.AddDays(3).ToString("yyyy-MM-dd") :
-                               priority == "MEDIUM" ? DateTime.Now.AddDays(7).ToString("yyyy-MM-dd") :
-                               DateTime.Now.AddDays(14).ToString("yyyy-MM-dd"),
+                ["modified_date"] = now.ToString("o"),
+                ["date_raised"] = now.ToString("yyyy-MM-dd HH:mm"),
+                ["date_due"] = priority == "CRITICAL" ? now.AddDays(1).ToString("yyyy-MM-dd") :
+                               priority == "HIGH" ? now.AddDays(3).ToString("yyyy-MM-dd") :
+                               priority == "MEDIUM" ? now.AddDays(7).ToString("yyyy-MM-dd") :
+                               now.AddDays(14).ToString("yyyy-MM-dd"),
                 ["date_closed"] = "",
                 ["response"] = "",
                 ["element_ids"] = new JArray(elementIds?.Select(id => id.Value.ToString()) ?? Enumerable.Empty<string>()),
                 ["view_name"] = viewName ?? "",
-                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? DateTime.Now.ToString("yyyyMMdd"),
+                ["revision"] = (doc != null ? PhaseAutoDetect.DetectProjectRevision(doc) : null) ?? now.ToString("yyyyMMdd"),
                 ["resolved_in_revision"] = "",  // GAP-013: tracks which revision resolved this issue
                 ["linked_transmittals"] = new JArray(),  // CRIT-005: cross-links to related transmittals
                 ["comments"] = new JArray()
@@ -2251,9 +2275,19 @@ namespace StingTools.BIMManager
                     var linkedTx = issue["linked_transmittals"] as JArray;
                     if (linkedTx == null) { linkedTx = new JArray(); issue["linked_transmittals"] = linkedTx; }
                     if (linkedTx.Any(t => t.ToString() == transmittalId)) continue;
-                    // Link if issue has element references (meaning it relates to model content being transmitted)
+                    // FIX: Only link issues whose title/description relates to transmitted documents,
+                    // or whose element references exist. Previously transmittalDocNames was ignored,
+                    // linking ALL open issues to every transmittal regardless of relevance.
                     var elemIds = issue["element_ids"] as JArray;
-                    if (elemIds != null && elemIds.Count > 0)
+                    bool hasElements = elemIds != null && elemIds.Count > 0;
+                    bool matchesDoc = false;
+                    if (transmittalDocNames != null)
+                    {
+                        string issueTitle = issue["title"]?.ToString() ?? "";
+                        matchesDoc = transmittalDocNames.Any(dn =>
+                            !string.IsNullOrEmpty(dn) && issueTitle.IndexOf(dn, StringComparison.OrdinalIgnoreCase) >= 0);
+                    }
+                    if (hasElements || matchesDoc)
                     {
                         linkedTx.Add(transmittalId);
                         linked++;
@@ -2281,8 +2315,8 @@ namespace StingTools.BIMManager
 
             // Resolve COBie preset for project type-specific configuration
             COBiePreset activePreset = null;
-            if (!string.IsNullOrEmpty(presetKey) && COBiePresets.ContainsKey(presetKey))
-                activePreset = COBiePresets[presetKey];
+            if (!string.IsNullOrEmpty(presetKey))
+                COBiePresets.TryGetValue(presetKey, out activePreset);
 
             // ── Instruction (COBie V2.4 standard — first worksheet) ──
             var instructions = new List<Dictionary<string, string>>();
@@ -2447,9 +2481,9 @@ namespace StingTools.BIMManager
                 string zoneCode = ParameterHelpers.GetString(room, ParamRegistry.ZONE);
                 if (string.IsNullOrEmpty(zoneCode))
                     zoneCode = room.get_Parameter(BuiltInParameter.ROOM_DEPARTMENT)?.AsString() ?? "Unassigned";
-                if (!zoneSpaceMap.ContainsKey(zoneCode))
-                    zoneSpaceMap[zoneCode] = new List<string>();
-                zoneSpaceMap[zoneCode].Add(roomName);
+                if (!zoneSpaceMap.TryGetValue(zoneCode, out var zsList))
+                    zoneSpaceMap[zoneCode] = zsList = new List<string>();
+                zsList.Add(roomName);
             }
             data["Space"] = spaces;
 
@@ -2484,8 +2518,8 @@ namespace StingTools.BIMManager
                             // cols[0]=Category, cols[3]=Unit_Rate_USD (or cols[1] for 3-col format)
                             string cat = cols[0].Trim();
                             string rate = cols.Length >= 5 ? cols[3].Trim() : cols[1].Trim();
-                            if (!string.IsNullOrEmpty(rate) && !costRateByCategory.ContainsKey(cat))
-                                costRateByCategory[cat] = rate;
+                            if (!string.IsNullOrEmpty(rate))
+                                costRateByCategory.TryAdd(cat, rate);
                         }
                     }
                     StingLog.Info($"IG-01: Loaded {costRateByCategory.Count} cost rates from cost_rates_5d.csv");
@@ -2495,8 +2529,12 @@ namespace StingTools.BIMManager
 
             var types = new List<Dictionary<string, string>>();
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-            foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+            // CRIT-03: Materialize FamilySymbol list once; reused by Spare section below
+            var allFamilySymbols = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
+                .Cast<FamilySymbol>()
                 .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
+                .ToList();
+            foreach (var fs in allFamilySymbols
                 .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()))
             {
                 // Read all available type-level STING parameters
@@ -2564,8 +2602,12 @@ namespace StingTools.BIMManager
 
             // ── Component (from tagged elements) ──
             var components = new List<Dictionary<string, string>>();
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var cobieElements = new FilteredElementCollector(doc).WhereElementIsNotElementType().ToList();
+            var cobieProgress = StingProgressDialog.Show("COBie Components", cobieElements.Count);
+            foreach (var el in cobieElements)
             {
+                if (cobieProgress.IsCancelled) break;
+                cobieProgress.Increment($"Processing {ParameterHelpers.GetCategoryName(el)}");
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!knownCats.Contains(cat)) continue;
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -2682,7 +2724,21 @@ namespace StingTools.BIMManager
                     ["Status"] = tagStatus
                 });
             }
+            try { cobieProgress.Close(); } catch (Exception ex) { StingLog.Warn($"COBie progress close: {ex.Message}"); }
             data["Component"] = components;
+
+            // CRIT-01/04: Build UniqueId → Element map once; reuse across System/Job/Impact/Attribute/Coordinate
+            // sections instead of calling doc.GetElement(extId) per section per component (~5× redundant scans).
+            var elemById = new Dictionary<string, Element>(components.Count, StringComparer.Ordinal);
+            foreach (var comp in components)
+            {
+                string cid = comp["ExternalIdentifier"];
+                if (!string.IsNullOrEmpty(cid) && !elemById.ContainsKey(cid))
+                {
+                    var cel = doc.GetElement(cid);
+                    if (cel != null) elemById[cid] = cel;
+                }
+            }
 
             // ── System (grouped by actual SYS parameter values from tagged elements) ──
             var systems = new List<Dictionary<string, string>>();
@@ -2690,14 +2746,13 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string extId = comp["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) continue;
                 string sysCode = ParameterHelpers.GetString(revitEl, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sysCode)) continue;
-                if (!sysGroups.ContainsKey(sysCode))
-                    sysGroups[sysCode] = new List<string>();
-                if (sysGroups[sysCode].Count < 50)
-                    sysGroups[sysCode].Add(comp["Name"]);
+                if (!sysGroups.TryGetValue(sysCode, out var sgList))
+                    sysGroups[sysCode] = sgList = new List<string>();
+                if (sgList.Count < 50)
+                    sgList.Add(comp["Name"]);
             }
             // Also match components by tag string if SYS param was empty
             foreach (var comp in components)
@@ -2716,8 +2771,8 @@ namespace StingTools.BIMManager
             }
             foreach (var kvp in sysGroups.OrderBy(k => k.Key))
             {
-                string sysDesc = TagConfig.SysMap.ContainsKey(kvp.Key)
-                    ? string.Join(", ", TagConfig.SysMap[kvp.Key]) : kvp.Key;
+                string sysDesc = TagConfig.SysMap.TryGetValue(kvp.Key, out var smVal)
+                    ? string.Join(", ", smVal) : kvp.Key;
                 systems.Add(new Dictionary<string, string>
                 {
                     ["Name"] = kvp.Key, ["CreatedBy"] = createdBy, ["CreatedOn"] = createdOn,
@@ -2744,8 +2799,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string compExtId = comp["ExternalIdentifier"];
-                var compEl = doc.GetElement(compExtId);
-                if (compEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(compExtId, out var compEl) || compEl == null) continue;
                 string compSys = ParameterHelpers.GetString(compEl, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(compSys) || sysMaintenanceOverrides.ContainsKey(compSys)) continue;
                 string interval = ParameterHelpers.GetString(compEl, "MNT_SERVICE_INTERVAL_TXT");
@@ -2766,7 +2821,7 @@ namespace StingTools.BIMManager
                 }
                 else
                 {
-                    var mf = defaultMaintFreq.ContainsKey(code) ? defaultMaintFreq[code] : ("12", "months");
+                    var mf = defaultMaintFreq.TryGetValue(code, out var mfVal) ? mfVal : ("12", "months");
                     freq = mf.Item1;
                     freqUnit = mf.Item2;
                 }
@@ -2943,9 +2998,8 @@ namespace StingTools.BIMManager
 
             // ── Spare (basic spare parts from type data) ──
             var spares = new List<Dictionary<string, string>>();
-            foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
-                .GroupBy(fs => fs.FamilyName).Select(g => g.First()))
+            // CRIT-03: Reuse allFamilySymbols from Type section — already filtered to knownCats
+            foreach (var fs in allFamilySymbols.GroupBy(fs => fs.FamilyName).Select(g => g.First()))
             {
                 string manufacturer = ParameterHelpers.GetString(fs, "ASS_MANUFACTURER_TXT");
                 string model = ParameterHelpers.GetString(fs, "ASS_MODEL_NR_TXT");
@@ -2988,8 +3042,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string compExtId = comp["ExternalIdentifier"];
-                var compEl = doc.GetElement(compExtId);
-                if (compEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(compExtId, out var compEl) || compEl == null) continue;
                 string carbon = ParameterHelpers.GetString(compEl, "PER_CARBON_FOOTPRINT_KG_NR");
                 string embodied = ParameterHelpers.GetString(compEl, "PER_EMBODIED_CARBON_KG_NR");
                 string energyRating = ParameterHelpers.GetString(compEl, "PER_ENERGY_RATING_TXT");
@@ -3105,8 +3159,8 @@ namespace StingTools.BIMManager
             {
                 string compName = el["Name"];
                 string extId = el["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) { attrSkippedOrphans++; continue; }
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) { attrSkippedOrphans++; continue; }
                 foreach (string pName in attrParamNames)
                 {
                     string val = ParameterHelpers.GetString(revitEl, pName);
@@ -3155,8 +3209,8 @@ namespace StingTools.BIMManager
             foreach (var comp in components)
             {
                 string extId = comp["ExternalIdentifier"];
-                var revitEl = doc.GetElement(extId);
-                if (revitEl == null) continue;
+                // CRIT-01/04: reuse elemById lookup
+                if (!elemById.TryGetValue(extId, out var revitEl) || revitEl == null) continue;
                 XYZ point = null;
                 string rotation = "0";
                 // Prefer element Location (more accurate for placed families)
@@ -3295,8 +3349,7 @@ namespace StingTools.BIMManager
                     string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                     if (!string.IsNullOrEmpty(disc))
                     {
-                        if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                        discCounts[disc]++;
+                        discCounts.TryGetValue(disc, out int dcVal); discCounts[disc] = dcVal + 1;
                     }
                 }
                 else untagged++;
@@ -3404,7 +3457,7 @@ namespace StingTools.BIMManager
                 ["to_role"] = recipientRole,
                 ["date_issued"] = DateTime.Now.ToString("yyyy-MM-dd"),
                 ["suitability_code"] = suitability,
-                ["suitability_desc"] = SuitabilityCodes.ContainsKey(suitability) ? SuitabilityCodes[suitability] : suitability,
+                ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string stDesc) ? stDesc : suitability,
                 ["reason_for_issue"] = reason,
                 ["document_ids"] = documentIds ?? new JArray(),
                 ["document_count"] = documentIds?.Count ?? 0,
@@ -3634,8 +3687,7 @@ namespace StingTools.BIMManager
         {
             // Use prefix-only key to match SyncSequentialCounter
             string key = $"{prefix}_";
-            if (!_seqCounters.ContainsKey(key)) _seqCounters[key] = 0;
-            _seqCounters[key]++;
+            _seqCounters.TryGetValue(key, out int seqVal); _seqCounters[key] = seqVal + 1;
             return $"{prefix}-{_seqCounters[key]:D4}";
         }
 
@@ -3657,6 +3709,23 @@ namespace StingTools.BIMManager
             }
             string key = $"{prefix}_";
             _seqCounters[key] = max;
+        }
+
+        /// <summary>
+        /// BIM-HIGH-01 FIX: Scan JArray for max numeric suffix of IDs matching prefix,
+        /// return next ID string. Prevents ID collision after deletions (Count+1 is non-monotonic).
+        /// </summary>
+        internal static string NextIdFromArray(JArray arr, string prefix, string idField)
+        {
+            int max = 0;
+            foreach (var item in arr)
+            {
+                string id = item[idField]?.ToString() ?? "";
+                if (id.StartsWith(prefix + "-") &&
+                    int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
+                    max = n;
+            }
+            return $"{prefix}-{(max + 1):D4}";
         }
     }
 
@@ -3889,7 +3958,7 @@ namespace StingTools.BIMManager
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     if (!knownCats.Contains(cat)) continue;
-                    string disc = TagConfig.DiscMap.ContainsKey(cat) ? TagConfig.DiscMap[cat] : "X";
+                    string disc = TagConfig.DiscMap.TryGetValue(cat, out string dmVal) ? dmVal : "X";
                     string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     bool complete = TagConfig.TagIsComplete(tag);
                     bool resolved = TagConfig.TagIsFullyResolved(tag);
@@ -3912,8 +3981,8 @@ namespace StingTools.BIMManager
                 var stageCompliance = new JObject
                 {
                     ["riba_stage"] = ribaStage,
-                    ["stage_name"] = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
-                        ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}"
+                    ["stage_name"] = BIMManagerEngine.RIBAStages.TryGetValue(ribaStage, out string snVal)
+                        ? snVal : $"Stage {ribaStage}"
                 };
                 switch (ribaStage)
                 {
@@ -4219,7 +4288,7 @@ namespace StingTools.BIMManager
                     foreach (var id in selectedIds)
                     {
                         var el = doc.GetElement(id);
-                        if (el?.Category != null && taggableCats.Contains(el.Category.Id.IntegerValue))
+                        if (el?.Category != null && taggableCats.Contains((int)el.Category.Id.Value))
                             filtered.Add(id);
                         else
                             removedCount++;
@@ -4906,9 +4975,9 @@ namespace StingTools.BIMManager
             var rows = docs.Select(d =>
             {
                 string suit = d["suitability"]?.ToString() ?? "N/A";
-                string suitDesc = BIMManagerEngine.SuitabilityCodes.ContainsKey(suit) ? BIMManagerEngine.SuitabilityCodes[suit] : suit;
+                string suitDesc = BIMManagerEngine.SuitabilityCodes.TryGetValue(suit, out string suDesc) ? suDesc : suit;
                 string statusCode = d["status_code"]?.ToString() ?? "";
-                string statusDesc = DocStatusCodes.All.ContainsKey(statusCode) ? DocStatusCodes.All[statusCode] : statusCode;
+                string statusDesc = DocStatusCodes.All.TryGetValue(statusCode, out string stcDesc) ? stcDesc : statusCode;
                 return new DocRegisterRow
                 {
                     DocId = d["doc_id"]?.ToString() ?? "",
@@ -5083,7 +5152,7 @@ namespace StingTools.BIMManager
             string docId = BIMManagerEngine.GenerateDocumentName(
                 project, "Z", "ZZ", "ZZ", docType, "Z", "Zz_99", (docs.Count + 1).ToString("D4"));
 
-            string typeDesc = BIMManagerEngine.DocumentTypes.ContainsKey(docType) ? BIMManagerEngine.DocumentTypes[docType] : docType;
+            string typeDesc = BIMManagerEngine.DocumentTypes.TryGetValue(docType, out var dtDesc) ? dtDesc : docType;
             var entry = BIMManagerEngine.CreateDocumentEntry(docId, typeDesc, docType, "Z", suitability, "WIP", direction);
 
             // GAP-013: Store current project revision in document entry
@@ -5128,7 +5197,7 @@ namespace StingTools.BIMManager
             // Phase 55: Export readiness gate — block COBie export below compliance threshold
             try
             {
-                ComplianceScan.InvalidateCache();
+                // Use cached ComplianceScan — no forced invalidation (avoids 2-5s full scan)
                 var compResult = ComplianceScan.Scan(doc);
                 if (compResult != null && compResult.CompliancePercent < 60)
                 {
@@ -5196,7 +5265,7 @@ namespace StingTools.BIMManager
                         if (!string.IsNullOrEmpty(ParameterHelpers.GetString(el, cn))) { allEmpty = false; break; }
                     }
                     if (allEmpty) staleContainerCount++;
-                    if (staleContainerCount >= 5) break; // sample check
+                    if (staleContainerCount >= 50) break; // Phase 79b: sample 50 for better diagnostic
                 }
             }
             catch (Exception scEx) { StingLog.Warn($"COBie stale container check: {scEx.Message}"); }
@@ -5257,12 +5326,12 @@ namespace StingTools.BIMManager
             var cobieData = BIMManagerEngine.BuildCOBieData(doc, settings.PresetKey);
 
             // Enhance Resource worksheet if requested
-            if (settings.IncludeResourceEnhanced && cobieData.ContainsKey("Resource"))
-                EnhanceResourceWorksheet(cobieData["Resource"]);
+            if (settings.IncludeResourceEnhanced && cobieData.TryGetValue("Resource", out var resourceWs))
+                EnhanceResourceWorksheet(resourceWs);
 
             // Enhance Impact worksheet if requested
-            if (settings.IncludeImpactEnhanced && cobieData.ContainsKey("Impact"))
-                EnhanceImpactWorksheet(doc, cobieData["Impact"]);
+            if (settings.IncludeImpactEnhanced && cobieData.TryGetValue("Impact", out var impactWs))
+                EnhanceImpactWorksheet(doc, impactWs);
 
             // Filter worksheets based on wizard selection
             if (settings.SelectedWorksheets != null && settings.SelectedWorksheets.Count > 0)
@@ -5289,15 +5358,14 @@ namespace StingTools.BIMManager
             foreach (var ws in cobieData)
             {
                 totalRows += ws.Value.Count;
-                string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                    ? BIMManagerEngine.COBieWorksheets[ws.Key]
+                string[] headers = BIMManagerEngine.COBieWorksheets.TryGetValue(ws.Key, out var wsHeaders)
+                    ? wsHeaders
                     : (ws.Value.Count > 0 ? ws.Value[0].Keys.ToArray() : Array.Empty<string>());
                 if (headers.Length == 0) { wsIdx++; continue; }
 
                 // Apply column exclusions from wizard
-                if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
+                if (settings.ExcludedColumns != null && settings.ExcludedColumns.TryGetValue(ws.Key, out var excluded))
                 {
-                    var excluded = settings.ExcludedColumns[ws.Key];
                     headers = headers.Where(h => !excluded.Contains(h)).ToArray();
                 }
 
@@ -5332,12 +5400,12 @@ namespace StingTools.BIMManager
                             string name = ws.Key.Length > 31 ? ws.Key.Substring(0, 31) : ws.Key;
                             var sheet = wb.Worksheets.Add(name);
                             if (ws.Value.Count == 0) continue;
-                            string[] headers = BIMManagerEngine.COBieWorksheets.ContainsKey(ws.Key)
-                                ? BIMManagerEngine.COBieWorksheets[ws.Key] : ws.Value[0].Keys.ToArray();
+                            string[] headers = BIMManagerEngine.COBieWorksheets.TryGetValue(ws.Key, out var xlWsH)
+                                ? xlWsH : ws.Value[0].Keys.ToArray();
 
                             // Apply column exclusions
-                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.ContainsKey(ws.Key))
-                                headers = headers.Where(h => !settings.ExcludedColumns[ws.Key].Contains(h)).ToArray();
+                            if (settings.ExcludedColumns != null && settings.ExcludedColumns.TryGetValue(ws.Key, out var xlExcl))
+                                headers = headers.Where(h => !xlExcl.Contains(h)).ToArray();
 
                             for (int c = 0; c < headers.Length; c++)
                             {
@@ -5347,7 +5415,7 @@ namespace StingTools.BIMManager
                             }
                             for (int r = 0; r < ws.Value.Count; r++)
                                 for (int c = 0; c < headers.Length; c++)
-                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].ContainsKey(headers[c]) ? ws.Value[r][headers[c]] : "";
+                                    sheet.Cell(r + 2, c + 1).Value = ws.Value[r].TryGetValue(headers[c], out var cellVal) ? cellVal : "";
                             sheet.Columns().AdjustToContents(1, 100);
                         }
                         wb.SaveAs(xlsxPath);
@@ -5662,9 +5730,9 @@ namespace StingTools.BIMManager
             {
                 try
                 {
-                    string txPath = GetBIMManagerFilePath(doc, "transmittals.json");
-                    var txArray = LoadJsonArray(txPath);
-                    string txId = $"TX-{(txArray.Count + 1):D4}";
+                    string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
+                    var txArray = BIMManagerEngine.LoadJsonArray(txPath);
+                    string txId = BIMManagerEngine.NextIdFromArray(txArray, "TX", "transmittal_id");
                     var txRec = new JObject
                     {
                         ["transmittal_id"] = txId,
@@ -5685,7 +5753,7 @@ namespace StingTools.BIMManager
                         })
                     };
                     txArray.Add(txRec);
-                    SaveJsonFile(txPath, txArray);
+                    BIMManagerEngine.SaveJsonFile(txPath, txArray);
                     txCreated = 1;
                     StingLog.Info($"CDE auto-transmittal {txId} created for {currentCDE ?? "NEW"} → {status}");
                 }
@@ -7158,12 +7226,10 @@ namespace StingTools.BIMManager
                     if (!TagConfig.DiscMap.ContainsKey(catName)) continue;
                     total++;
 
-                    if (!byCat.ContainsKey(catName)) byCat[catName] = 0;
-                    byCat[catName]++;
+                    byCat.TryGetValue(catName, out int bcVal); byCat[catName] = bcVal + 1;
 
                     string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "?";
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byDisc.TryGetValue(disc, out int bdVal2); byDisc[disc] = bdVal2 + 1;
                 }
 
                 var report = new StringBuilder();
@@ -7980,13 +8046,10 @@ namespace StingTools.BIMManager
                     suit = "S0";
                 }
 
-                if (!suitCounts.ContainsKey(suit)) suitCounts[suit] = 0;
-                suitCounts[suit]++;
+                suitCounts.TryGetValue(suit, out int scVal); suitCounts[suit] = scVal + 1;
 
-                if (!data.ByDiscipline.ContainsKey(disc)) data.ByDiscipline[disc] = 0;
-                data.ByDiscipline[disc]++;
-                if (!data.ByStatus.ContainsKey(status)) data.ByStatus[status] = 0;
-                data.ByStatus[status]++;
+                data.ByDiscipline.TryGetValue(disc, out int bdVal); data.ByDiscipline[disc] = bdVal + 1;
+                data.ByStatus.TryGetValue(status, out int bsVal); data.ByStatus[status] = bsVal + 1;
 
                 data.Items.Add(new MidpItem
                 {
@@ -8393,8 +8456,8 @@ namespace StingTools.BIMManager
             double resolvedPct = totalTaggable > 0 ? fullyResolved * 100.0 / totalTaggable : 0;
 
             // Determine pass/fail per stage
-            string stageName = BIMManagerEngine.RIBAStages.ContainsKey(ribaStage)
-                ? BIMManagerEngine.RIBAStages[ribaStage] : $"Stage {ribaStage}";
+            string stageName = BIMManagerEngine.RIBAStages.TryGetValue(ribaStage, out var rsName)
+                ? rsName : $"Stage {ribaStage}";
 
             bool passed;
             string requirement;
@@ -8595,10 +8658,8 @@ namespace StingTools.BIMManager
                     if (bracketStart >= 0 && bracketEnd > bracketStart)
                         cat = note.Substring(bracketStart + 1, bracketEnd - bracketStart - 1);
 
-                    if (!byCategory.ContainsKey(cat)) byCategory[cat] = 0;
-                    byCategory[cat]++;
-                    if (!byDisc.ContainsKey(disc)) byDisc[disc] = 0;
-                    byDisc[disc]++;
+                    byCategory.TryGetValue(cat, out int bycVal); byCategory[cat] = bycVal + 1;
+                    byDisc.TryGetValue(disc, out int bydVal); byDisc[disc] = bydVal + 1;
                 }
 
                 var sb = new StringBuilder();
@@ -9736,7 +9797,7 @@ namespace StingTools.BIMManager
                 else
                     approvals = new JArray();
 
-                string approvalId = $"APR-{(approvals.Count + 1):D4}";
+                string approvalId = BIMManagerEngine.NextIdFromArray(approvals, "APR", "approval_id");
                 var pending = new JArray();
                 foreach (string approver in requiredApprovers)
                     pending.Add(new JObject { ["user"] = approver, ["status"] = "PENDING", ["date"] = "" });
@@ -9755,7 +9816,9 @@ namespace StingTools.BIMManager
                 };
 
                 approvals.Add(record);
-                File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                string tmpPath1 = path + ".tmp";
+                File.WriteAllText(tmpPath1, approvals.ToString(Formatting.Indented));
+                File.Move(tmpPath1, path, overwrite: true);
                 StingLog.Info($"Approval requested: {approvalId} for {documentId} ({fromState}→{toState})");
                 return approvalId;
             }
@@ -9796,7 +9859,9 @@ namespace StingTools.BIMManager
                     if (allApproved || anyRejected)
                         record["completion_date"] = DateTime.Now.ToString("o");
 
-                    File.WriteAllText(path, approvals.ToString(Formatting.Indented));
+                    string tmpPath2 = path + ".tmp";
+                    File.WriteAllText(tmpPath2, approvals.ToString(Formatting.Indented));
+                    File.Move(tmpPath2, path, overwrite: true);
                     StingLog.Info($"Approval {approvalId}: {approverUser} {(approved ? "APPROVED" : "REJECTED")}");
                     return true;
                 }
@@ -10116,7 +10181,7 @@ namespace StingTools.BIMManager
                 var selectedIds = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => id.Value.ToString()).ToArray()
                     ?? Array.Empty<string>();
 
-                string taskId = $"TASK-{(tasks.Count + 1):D4}";
+                string taskId = BIMManagerEngine.NextIdFromArray(tasks, "TASK", "task_id");
                 var task = new JObject
                 {
                     ["task_id"] = taskId,
@@ -10130,7 +10195,9 @@ namespace StingTools.BIMManager
                     ["priority"] = "MEDIUM"
                 };
                 tasks.Add(task);
-                File.WriteAllText(tasksPath, tasks.ToString(Formatting.Indented));
+                string tmpTaskPath = tasksPath + ".tmp";
+                File.WriteAllText(tmpTaskPath, tasks.ToString(Formatting.Indented));
+                File.Move(tmpTaskPath, tasksPath, overwrite: true);
                 TaskDialog.Show("STING", $"Task {taskId} created with {selectedIds.Length} elements.");
             }
             else if (result == TaskDialogResult.CommandLink2)

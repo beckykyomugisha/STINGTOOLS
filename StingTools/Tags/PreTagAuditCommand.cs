@@ -160,6 +160,8 @@ namespace StingTools.Tags
 
             foreach (Element el in targetElements)
             {
+                try
+                {
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName) || !known.Contains(catName))
                     continue;
@@ -167,7 +169,7 @@ namespace StingTools.Tags
                 totalTaggable++;
 
                 string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
-                if (!discStats.ContainsKey(disc))
+                if (!discStats.TryGetValue(disc, out _))
                     discStats[disc] = (0, 0, 0, 0);
 
                 string existingTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -276,9 +278,8 @@ namespace StingTools.Tags
                     if (!string.IsNullOrEmpty(phaseDetected) && phaseDetected != currentStatus)
                         phaseMismatches++;
                 }
-                if (!statusDistribution.ContainsKey(currentStatus))
-                    statusDistribution[currentStatus] = 0;
-                statusDistribution[currentStatus]++;
+                statusDistribution.TryGetValue(currentStatus, out int sdCount);
+                statusDistribution[currentStatus] = sdCount + 1;
 
                 // Predict REV from project revision (guaranteed default: "P01")
                 string currentRev = ParameterHelpers.GetString(el, ParamRegistry.REV);
@@ -298,9 +299,9 @@ namespace StingTools.Tags
                 {
                     familyProdCount++;
                     prodSource = $"family({familyName})";
-                    if (!familyProdBreakdown.ContainsKey($"{prod}({familyName})"))
-                        familyProdBreakdown[$"{prod}({familyName})"] = 0;
-                    familyProdBreakdown[$"{prod}({familyName})"]++;
+                    string fpbKey = $"{prod}({familyName})";
+                    familyProdBreakdown.TryGetValue(fpbKey, out int fpbCount);
+                    familyProdBreakdown[fpbKey] = fpbCount + 1;
                 }
 
                 // Simulate tag generation
@@ -325,15 +326,15 @@ namespace StingTools.Tags
                     // Apply system-aware DISC correction for pipes
                     disc = TagConfig.GetSystemAwareDisc(disc, sys, catName);
                     // Ensure corrected disc key exists in stats
-                    if (!discStats.ContainsKey(disc))
+                    if (!discStats.TryGetValue(disc, out _))
                         discStats[disc] = (0, 0, 0, 0);
                     string func = TagConfig.GetSmartFuncCode(el, sys);
                     if (string.IsNullOrEmpty(func))
                         func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
 
                     string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone);
-                    if (!simCounters.ContainsKey(seqKey)) simCounters[seqKey] = 0;
-                    simCounters[seqKey]++;
+                    simCounters.TryGetValue(seqKey, out int sc);
+                    simCounters[seqKey] = sc + 1;
                     string seqSchemeCtx = TagConfig.CurrentSeqScheme == SeqScheme.ZonePrefix ? currentZone
                                         : TagConfig.CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                         : "";
@@ -402,6 +403,11 @@ namespace StingTools.Tags
                 csvRows.Add($"{el.Id},\"{catName}\",\"{familyName}\",\"{existingTag}\",\"{predictedTag}\"," +
                     $"\"{action}\",\"{locSource}\",\"{zoneSource}\",\"{prodSource}\"," +
                     $"\"{currentStatus}\",\"{statusSource}\",\"{currentRev}\",{elementIsoErrors}");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"PreTagAudit: element {el?.Id}: {ex.Message}");
+                }
             }
 
             willBeSkipped = totalTaggable - willBeTagged - alreadyTagged;

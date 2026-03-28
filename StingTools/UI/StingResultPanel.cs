@@ -280,7 +280,7 @@ namespace StingTools.UI
             var footer = new Border
             {
                 Background = BrWhite, Padding = new Thickness(12, 8, 12, 8),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD))),
                 BorderThickness = new Thickness(0, 1, 0, 0)
             };
             var footerPanel = new DockPanel();
@@ -328,7 +328,7 @@ namespace StingTools.UI
                 };
                 actionBar.Children.Add(new Border
                 {
-                    Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD))
+                    Height = 1, Background = FZ(new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)))
                 });
                 foreach (var act in b.Actions)
                 {
@@ -404,12 +404,11 @@ namespace StingTools.UI
             // Section header
             var header = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x18,
-                    section.HeaderBrush is SolidColorBrush scb ? scb.Color.R : (byte)0x1A,
-                    section.HeaderBrush is SolidColorBrush scb2 ? scb2.Color.G : (byte)0x23,
-                    section.HeaderBrush is SolidColorBrush scb3 ? scb3.Color.B : (byte)0x7E)),
+                Background = FZ(new SolidColorBrush(section.HeaderBrush is SolidColorBrush hb
+                    ? Color.FromArgb(0x18, hb.Color.R, hb.Color.G, hb.Color.B)
+                    : Color.FromArgb(0x18, 0x1A, 0x23, 0x7E))),
                 Padding = new Thickness(16, 6, 16, 6),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0))),
                 BorderThickness = new Thickness(0, 0, 0, 1)
             };
             header.Child = new TextBlock
@@ -456,7 +455,7 @@ namespace StingTools.UI
                     return new Border
                     {
                         Height = 1, Margin = new Thickness(0, 4, 0, 4),
-                        Background = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0))
+                        Background = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)))
                     };
                 default:
                     return new TextBlock { Text = item.Label ?? "" };
@@ -550,7 +549,7 @@ namespace StingTools.UI
             var track = new Border
             {
                 Width = width, Height = height,
-                Background = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)),
+                Background = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0))),
                 CornerRadius = new CornerRadius(height / 2)
             };
 
@@ -632,7 +631,7 @@ namespace StingTools.UI
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var sep = new Border
             {
-                Height = 1, Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD))
+                Height = 1, Background = FZ(new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)))
             };
             System.Windows.Controls.Grid.SetRow(sep, row);
             System.Windows.Controls.Grid.SetColumnSpan(sep, cols);
@@ -665,7 +664,7 @@ namespace StingTools.UI
 
             var border = new Border
             {
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0)),
+                BorderBrush = FZ(new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0))),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(4), Child = grid
             };

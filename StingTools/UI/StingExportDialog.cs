@@ -842,29 +842,29 @@ namespace StingTools.UI
             btnTags.Click += (s, e) =>
             {
                 foreach (var cb in paramChecks.Values) cb.IsChecked = false;
-                foreach (var p in tagParams) if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                foreach (var p in tagParams) { if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true; }
             };
             btnIdentity.Click += (s, e) =>
             {
                 foreach (var cb in paramChecks.Values) cb.IsChecked = false;
-                foreach (var p in tagParams) if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                foreach (var p in tagParams) { if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true; }
                 foreach (var p in allParams.Where(n => n.Contains("NAME") || n.Contains("TYPE") || n.Contains("FAMILY")))
-                    if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                    if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true;
             };
             btnSpatial.Click += (s, e) =>
             {
                 foreach (var cb in paramChecks.Values) cb.IsChecked = false;
-                foreach (var p in spatialParams) if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
-                foreach (var p in tagParams) if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                foreach (var p in spatialParams) { if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true; }
+                foreach (var p in tagParams) { if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true; }
             };
             btnMEP.Click += (s, e) =>
             {
                 foreach (var cb in paramChecks.Values) cb.IsChecked = false;
-                foreach (var p in tagParams) if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                foreach (var p in tagParams) { if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true; }
                 foreach (var p in allParams.Where(n => n.StartsWith("MEP_") || n.StartsWith("HVC_")
                     || n.StartsWith("ELC_") || n.StartsWith("PLM_") || n.Contains("FLOW")
                     || n.Contains("VOLTAGE") || n.Contains("POWER") || n.Contains("PRESSURE")))
-                    if (paramChecks.ContainsKey(p)) paramChecks[p].IsChecked = true;
+                    if (paramChecks.TryGetValue(p, out var cb)) cb.IsChecked = true;
             };
 
             // Splitter 2

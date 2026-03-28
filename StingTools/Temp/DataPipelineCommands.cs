@@ -96,6 +96,10 @@ namespace StingTools.Temp
                 report.AppendLine($"  [{status}] {r.CheckName} — {r.Detail}");
             }
 
+            // PERF-010: Declare csvExportPath before the write block so the
+            // directory scan below can be replaced with a direct variable reuse.
+            string csvExportPath = null;
+
             // Export to CSV
             try
             {
@@ -106,26 +110,13 @@ namespace StingTools.Temp
                 File.WriteAllLines(csvPath, csvLines);
                 StingTools.BIMManager.BIMManagerEngine.AutoRegisterExport(doc, csvPath, "RP", "BIM template validation report (45 checks)");
                 report.AppendLine($"\nCSV exported: {csvPath}");
+                // PERF-010: Capture path here; avoids the Directory.GetFiles scan below.
+                csvExportPath = csvPath;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"Validation CSV export: {ex.Message}");
             }
-
-            // Build rich result panel
-            string csvExportPath = null;
-            try
-            {
-                // Already exported CSV above — find it
-                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
-                if (Directory.Exists(exportDir))
-                {
-                    var csvFiles = Directory.GetFiles(exportDir, "STING_Validation*.csv")
-                        .OrderByDescending(f => File.GetLastWriteTime(f)).ToArray();
-                    if (csvFiles.Length > 0) csvExportPath = csvFiles[0];
-                }
-            }
-            catch (Exception ex2) { StingLog.Warn($"FindCSV: {ex2.Message}"); }
 
             double passPct = results.Count > 0 ? passed * 100.0 / results.Count : 0;
             var panel = UI.StingResultPanel.Create("Validate Template")
@@ -187,7 +178,7 @@ namespace StingTools.Temp
             foreach (string f in requiredFiles)
             {
                 string path = StingToolsApp.FindDataFile(f);
-                if (path != null && File.Exists(path))
+                if (path != null)
                     found++;
                 else
                     missing.Add(f);
@@ -678,9 +669,12 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(category))
                     continue;
 
-                if (!bindingGroups.ContainsKey(paramName))
-                    bindingGroups[paramName] = new List<(string, string)>();
-                bindingGroups[paramName].Add((category, bindType));
+                if (!bindingGroups.TryGetValue(paramName, out var bgList))
+                {
+                    bgList = new List<(string, string)>();
+                    bindingGroups[paramName] = bgList;
+                }
+                bgList.Add((category, bindType));
             }
 
             TaskDialog confirm = new TaskDialog("Dynamic Bindings");
@@ -715,6 +709,13 @@ namespace StingTools.Temp
                     if (d is ExternalDefinition ed && !defIndex.ContainsKey(d.Name))
                         defIndex[d.Name] = ed;
 
+            // PERF-005: Pre-build category dictionary ONCE before the binding loop.
+            // FindCategory() was called per (paramName × catName) combination — O(bindings × categories)
+            // linear scans of doc.Settings.Categories.  Dictionary gives O(1) lookup.
+            var catDictDynamic = new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase);
+            foreach (Category c in doc.Settings.Categories)
+                catDictDynamic[c.Name] = c;
+
             using (Transaction tx = new Transaction(doc, "STING Dynamic Parameter Bindings"))
             {
                 tx.Start();
@@ -732,12 +733,11 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Build category set
+                    // Build category set — PERF-005: O(1) dictionary lookup
                     var catSet = doc.Application.Create.NewCategorySet();
                     foreach (var (catName, _) in targets)
                     {
-                        Category cat = FindCategory(doc, catName);
-                        if (cat != null)
+                        if (catDictDynamic.TryGetValue(catName, out Category cat))
                             catSet.Insert(cat);
                     }
 
@@ -821,28 +821,8 @@ namespace StingTools.Temp
             return -1;
         }
 
-        private static ExternalDefinition FindDefinition(DefinitionFile defFile, string paramName)
-        {
-            foreach (DefinitionGroup grp in defFile.Groups)
-            {
-                foreach (Definition def in grp.Definitions)
-                {
-                    if (def.Name.Equals(paramName, StringComparison.OrdinalIgnoreCase))
-                        return def as ExternalDefinition;
-                }
-            }
-            return null;
-        }
-
-        private static Category FindCategory(Document doc, string categoryName)
-        {
-            foreach (Category cat in doc.Settings.Categories)
-            {
-                if (cat.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase))
-                    return cat;
-            }
-            return null;
-        }
+        // DEAD-001: FindDefinition removed — superseded by pre-built defIndex dictionary (above).
+        // DEAD-001: FindCategory removed — superseded by pre-built catDictDynamic dictionary (above).
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -1111,8 +1091,14 @@ namespace StingTools.Temp
             int warnings = 0;
             int zeroCostCount = 0;
             int noDescCount = 0;
+            int processed = 0;
             foreach (Element el in allElems)
             {
+                if (++processed % 500 == 0)
+                {
+                    if (EscapeChecker.IsEscapePressed()) { StingLog.Info("BOQ export cancelled by user."); break; }
+                    StingLog.Info($"BOQ export: processed {processed} elements...");
+                }
                 try
                 {
                     string catName = el.Category?.Name ?? "Uncategorised";
@@ -1892,7 +1878,7 @@ namespace StingTools.Temp
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
-                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                if (string.IsNullOrEmpty(csvPath))
                     return rates;
 
                 bool inRateSection = false;
@@ -2198,7 +2184,7 @@ namespace StingTools.Temp
 
             // Load IFC mapping from PARAMETER_REGISTRY.json
             string regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
-            if (string.IsNullOrEmpty(regPath) || !File.Exists(regPath))
+            if (string.IsNullOrEmpty(regPath))
             {
                 TaskDialog.Show("IFC Property Map", "PARAMETER_REGISTRY.json not found.");
                 return Result.Failed;
@@ -2316,7 +2302,7 @@ namespace StingTools.Temp
             {
                 // Fallback: check data directory for legacy BEP files
                 string fallback = StingToolsApp.FindDataFile("project_bep.json");
-                if (!string.IsNullOrEmpty(fallback) && File.Exists(fallback))
+                if (!string.IsNullOrEmpty(fallback))
                     bepPath = fallback;
             }
             if (!File.Exists(bepPath))
@@ -2366,9 +2352,14 @@ namespace StingTools.Temp
                 ["LOC"] = 0, ["ZONE"] = 0, ["DISC"] = 0
             };
             var sampleViolations = new List<string>();
+            int processed = 0;
 
             foreach (Element el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
+                if (++processed % 500 == 0)
+                {
+                    if (EscapeChecker.IsEscapePressed()) { StingLog.Info("BEP validation cancelled by user."); break; }
+                }
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (!known.Contains(cat)) continue;
 
@@ -2556,6 +2547,7 @@ namespace StingTools.Temp
                 foreach (var otherMep in mepElements)
                 {
                     if (otherMep.Id.Value <= mepEl.Id.Value) continue; // Avoid duplicates
+                    checked_count++;
                     BoundingBoxXYZ otherBB = otherMep.get_BoundingBox(null);
                     if (otherBB == null) continue;
 
@@ -2564,10 +2556,8 @@ namespace StingTools.Temp
                     string otherCat = otherMep.Category?.Name ?? "";
                     if (mepCat == otherCat) continue;
 
-                    string mepDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(mepEl))
-                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(mepEl)] : "";
-                    string otherDisc = TagConfig.DiscMap.ContainsKey(ParameterHelpers.GetCategoryName(otherMep))
-                        ? TagConfig.DiscMap[ParameterHelpers.GetCategoryName(otherMep)] : "";
+                    string mepDisc = TagConfig.DiscMap.TryGetValue(mepCat, out var mdVal) ? mdVal : "";
+                    string otherDisc = TagConfig.DiscMap.TryGetValue(otherCat, out var odVal) ? odVal : "";
                     if (mepDisc == otherDisc) continue;
 
                     if (BoundingBoxesOverlap(mepBB, otherBB))
@@ -2957,11 +2947,15 @@ namespace StingTools.Temp
 
             // Build element index by tag
             var tagIndex = new Dictionary<string, Element>();
+            int boqIndexCount = 0;
             foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(t) && !tagIndex.ContainsKey(t))
                     tagIndex[t] = el;
+                boqIndexCount++;
+                if (boqIndexCount % 5000 == 0)
+                    StingLog.Info($"BOQImport: indexing elements... {boqIndexCount}");
             }
 
             // Confirm
@@ -3511,6 +3505,7 @@ namespace StingTools.Temp
                 // Build tag-to-element index
                 var tagIndex = new Dictionary<string, Element>(StringComparer.OrdinalIgnoreCase);
                 var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                int stickyIndexCount = 0;
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
@@ -3518,6 +3513,9 @@ namespace StingTools.Temp
                     string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                     if (!string.IsNullOrEmpty(tag) && !tagIndex.ContainsKey(tag))
                         tagIndex[tag] = el;
+                    stickyIndexCount++;
+                    if (stickyIndexCount % 5000 == 0)
+                        StingLog.Info($"StickyImport: indexing elements... {stickyIndexCount}");
                 }
 
                 // Read notes from file
@@ -3642,16 +3640,15 @@ namespace StingTools.Temp
                 .Where(e => e.Category != null && !string.IsNullOrEmpty(e.Category.Name)))
             {
                 string catName = el.Category.Name;
-                if (!catCounts.ContainsKey(catName))
+                if (!catCounts.TryGetValue(catName, out int ccVal))
                 {
-                    catCounts[catName] = 0;
                     try
                     {
                         catBics[catName] = (BuiltInCategory)el.Category.Id.Value;
                     }
                     catch (Exception ex) { StingLog.Warn($"Cast category ID to BuiltInCategory for '{catName}': {ex.Message}"); }
                 }
-                catCounts[catName]++;
+                catCounts[catName] = ccVal + 1;
             }
 
             if (catCounts.Count == 0)
@@ -4003,6 +4000,11 @@ namespace StingTools.Temp
                     }
                 }
                 row++;
+                if ((row - 2) % 500 == 0 && EscapeChecker.IsEscapePressed())
+                {
+                    StingLog.Info($"ExcelExport: cancelled by user after {row - 2} rows");
+                    break;
+                }
             }
 
             // Auto-fit columns (cap at 40 chars wide)
@@ -4119,7 +4121,7 @@ namespace StingTools.Temp
             try
             {
                 string csvPath = StingToolsApp.FindDataFile("BOQ_TEMPLATE.csv");
-                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath)) return;
+                if (string.IsNullOrEmpty(csvPath)) return;
 
                 string currentSection = "";
                 bool headerSkipped = false;
@@ -4691,8 +4693,11 @@ namespace StingTools.Temp
 
             var violations = new List<(Element El, double ActualClearanceMm, double RequiredMm, string Direction)>();
 
+            int clearanceChecked = 0;
+            bool clearanceCancelled = false;
             foreach (var kv in MinClearanceFt)
             {
+                if (clearanceCancelled) break;
                 var elems = new FilteredElementCollector(doc)
                     .OfCategory(kv.Key)
                     .WhereElementIsNotElementType()
@@ -4744,6 +4749,18 @@ namespace StingTools.Temp
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"MEPClearance {el.Id}: {ex.Message}"); }
+
+                    clearanceChecked++;
+                    if (clearanceChecked % 500 == 0)
+                    {
+                        StingLog.Info($"MEPClearance: checked {clearanceChecked} elements, {violations.Count} violations so far");
+                        if (EscapeChecker.IsEscapePressed())
+                        {
+                            StingLog.Info("MEPClearance: cancelled by user");
+                            clearanceCancelled = true;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -4804,8 +4821,15 @@ namespace StingTools.Temp
                 .WhereElementIsNotElementType()
                 .ToList();
 
+            int processed = 0;
             foreach (var el in allElems)
             {
+                if (++processed % 500 == 0 && EscapeChecker.IsEscapePressed())
+                {
+                    StingLog.Info("IFC validation cancelled by user.");
+                    break;
+                }
+
                 // Check if element has IFC properties
                 string ifcGuid = null;
                 try

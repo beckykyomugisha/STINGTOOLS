@@ -122,6 +122,9 @@ namespace StingTools.Core
             // PERF: Clear cached last phase on document switch
             _lastPhaseDocKey = null;
             _lastPhaseCache = null;
+            // Phase 79b: Reset read-only skip counter on document switch
+            // to prevent stale counts from previous document leaking through
+            _readOnlySkipCount = 0;
         }
 
         /// <summary>PERF-05: Get a stable document key that survives Revit sessions.</summary>
@@ -1207,6 +1210,14 @@ namespace StingTools.Core
     /// </summary>
     public static class TokenAutoPopulator
     {
+        // F-10: Static readonly token arrays for CopyTokensFromNearest — avoid per-element List+ToArray allocation
+        private static readonly string[] _spatialLocOnly  = { ParamRegistry.LOC };
+        private static readonly string[] _spatialZoneOnly = { ParamRegistry.ZONE };
+        private static readonly string[] _spatialLocZone  = { ParamRegistry.LOC, ParamRegistry.ZONE };
+        private static readonly string[] _proxSysOnly     = { ParamRegistry.SYS };
+        private static readonly string[] _proxFuncOnly    = { ParamRegistry.FUNC };
+        private static readonly string[] _proxSysFunc     = { ParamRegistry.SYS, ParamRegistry.FUNC };
+
         /// <summary>
         /// FIX-B05: MEP categories that benefit from connector traversal for SYS detection.
         /// Non-MEP categories (Walls, Doors, Furniture, etc.) skip the expensive MEP detection.
@@ -1440,7 +1451,13 @@ namespace StingTools.Core
 
             string catName = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
+            {
+                // Phase 79b: Log once per unknown category to aid debugging
+                // (e.g., custom families placed in unexpected categories)
+                if (!string.IsNullOrEmpty(catName))
+                    StingLog.Info($"PopulateAll: skipping unknown category '{catName}' for element {el.Id}");
                 return result;
+            }
 
             // FIX-B05: Only run MEP connector traversal for MEP categories
             bool isMepCategory = _mepConnectorCategories.Contains(catName);
@@ -1531,6 +1548,8 @@ namespace StingTools.Core
                     bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
 
                     // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
+                    // F-04: Hoist wsName to outer scope so the logging block can reuse it (avoids double GetWorkset call)
+                    string _cachedWsName = null;
                     if (string.IsNullOrEmpty(loc) && doc.IsWorkshared)
                     {
                         try
@@ -1541,13 +1560,13 @@ namespace StingTools.Core
                                 int wsId = wsParam.AsInteger();
                                 if (wsId > 0)
                                 {
-                                    string wsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
+                                    _cachedWsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
                                     // Extract LOC code from workset name (e.g., "BLD2_Mechanical" → "BLD2")
                                     foreach (string locCode in TagConfig.LocCodes ?? new List<string>())
                                     {
-                                        if (wsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            wsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            wsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
+                                        if (_cachedWsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            _cachedWsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
+                                            _cachedWsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
                                         {
                                             loc = locCode;
                                             locFromSpatial = true; // workset-derived counts as detected
@@ -1576,17 +1595,20 @@ namespace StingTools.Core
                         ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
                         : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
                     // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
+                    // F-04: Reuse _cachedWsName from detection block above — no second GetWorkset() call needed
                     if (locFromSpatial && doc.IsWorkshared)
                     {
                         try
                         {
-                            var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
-                            if (wsCheck != null && wsCheck.AsInteger() > 0)
+                            // F-04: Use cached workset name; only fall back to a fresh lookup if cache is null
+                            if (_cachedWsName == null)
                             {
-                                string wsN = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
-                                if (wsN.Contains(loc, StringComparison.OrdinalIgnoreCase))
-                                    locSource = "Workset";
+                                var wsCheck = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                                if (wsCheck != null && wsCheck.AsInteger() > 0)
+                                    _cachedWsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsCheck.AsInteger()))?.Name ?? "";
                             }
+                            if (_cachedWsName != null && _cachedWsName.Contains(loc, StringComparison.OrdinalIgnoreCase))
+                                locSource = "Workset";
                         }
                         catch { /* keep existing source */ }
                     }
@@ -1639,10 +1661,10 @@ namespace StingTools.Core
                 bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
                 if (locDefault || zoneDefault)
                 {
-                    var spatialTokens = new List<string>();
-                    if (locDefault) spatialTokens.Add(ParamRegistry.LOC);
-                    if (zoneDefault) spatialTokens.Add(ParamRegistry.ZONE);
-                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens.ToArray());
+                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
+                    string[] spatialTokens = (locDefault && zoneDefault) ? _spatialLocZone
+                                           : locDefault ? _spatialLocOnly : _spatialZoneOnly;
+                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens);
                     result.TokensSet += spatialCopied;
                 }
             }
@@ -1671,12 +1693,8 @@ namespace StingTools.Core
             }
 
             // LOG-01: Write SYS detection layer (1-7) for confidence tracking
-            try
-            {
-                Parameter sysLayerParam = el.LookupParameter(ParamRegistry.SYS_DETECT_LAYER);
-                if (sysLayerParam != null && !sysLayerParam.IsReadOnly)
-                    sysLayerParam.Set(sysLayer);
-            }
+            // F-06: Use SetInt helper instead of manual LookupParameter + Set
+            try { ParameterHelpers.SetInt(el, ParamRegistry.SYS_DETECT_LAYER, sysLayer); }
             catch (Exception ex) { StingLog.Warn($"advisory — parameter may not be bound yet: {ex.Message}"); }
 
             // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
@@ -1716,10 +1734,10 @@ namespace StingTools.Core
                 bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
                 if (sysGeneric || funcGeneric)
                 {
-                    var tokensToInherit = new List<string>();
-                    if (sysGeneric) tokensToInherit.Add(ParamRegistry.SYS);
-                    if (funcGeneric) tokensToInherit.Add(ParamRegistry.FUNC);
-                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit.ToArray());
+                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
+                    string[] tokensToInherit = (sysGeneric && funcGeneric) ? _proxSysFunc
+                                             : sysGeneric ? _proxSysOnly : _proxFuncOnly;
+                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit);
                     result.TokensSet += proxCopied;
                 }
             }
@@ -1887,15 +1905,15 @@ namespace StingTools.Core
         // Built once per batch in PopulationContext, reused for all CopyTokensFromNearest calls.
         private static readonly Dictionary<long, List<(ElementId Id, XYZ Center, string Tag1)>>
             _spatialCandidateCache = new Dictionary<long, List<(ElementId, XYZ, string)>>();
-        private static int _spatialCacheDocHash;
+        private static string _spatialCacheDocKey;
 
         /// <summary>Build spatial candidate cache for all taggable categories. Call once per batch.</summary>
         public static void BuildSpatialCandidateCache(Document doc)
         {
-            int docHash = (doc.PathName ?? doc.Title ?? "").GetHashCode();
-            if (_spatialCacheDocHash == docHash && _spatialCandidateCache.Count > 0) return;
+            string docKey = ParameterHelpers.GetStableDocKey(doc);
+            if (_spatialCacheDocKey == docKey && _spatialCandidateCache.Count > 0) return;
             _spatialCandidateCache.Clear();
-            _spatialCacheDocHash = docHash;
+            _spatialCacheDocKey = docKey;
             try
             {
                 var catEnums = SharedParamGuids.AllCategoryEnums;
@@ -1927,6 +1945,9 @@ namespace StingTools.Core
 
         /// <summary>Invalidate spatial candidate cache (call after batch tagging completes).</summary>
         public static void InvalidateSpatialCache() { _spatialCandidateCache.Clear(); }
+
+        /// <summary>Phase 79b: Throttle counter for CopyTokensFromNearest logging.</summary>
+        [ThreadStatic] internal static int _copyTokensLogCount;
 
         /// <summary>
         /// Copies specified token values from the nearest already-tagged element of the same
@@ -1984,13 +2005,17 @@ namespace StingTools.Core
                 else
                 {
                     // Fast path: use spatial candidate cache (pre-built, no collector needed)
+                    // Phase 79b: Skip fast path for null-category elements (key 0 is a junk bucket)
                     long catKey = el.Category?.Id?.Value ?? 0;
-                    if (_spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
+                    if (catKey != 0 && _spatialCandidateCache.TryGetValue(catKey, out var cached) && cached.Count > 0)
                     {
                         ElementId nearestId = null;
-                        foreach (var (cId, cCenter, _) in cached)
+                        foreach (var (cId, cCenter, cTag1) in cached)
                         {
                             if (cId == el.Id) continue;
+                            // Cache already pre-filters to tagged elements (line 1910),
+                            // but guard against stale cache with empty TAG1
+                            if (string.IsNullOrEmpty(cTag1)) continue;
                             double dist = point.DistanceTo(cCenter);
                             if (dist < minDist && dist <= radiusFt) { minDist = dist; nearestId = cId; }
                         }
@@ -2034,7 +2059,13 @@ namespace StingTools.Core
                 }
 
                 if (copied > 0)
-                    StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+                {
+                    // Phase 79b: Throttle logging — log first 10 + every 100th to avoid
+                    // 5K+ log lines on large batches
+                    _copyTokensLogCount++;
+                    if (_copyTokensLogCount <= 10 || _copyTokensLogCount % 100 == 0)
+                        StingLog.Info($"CopyTokensFromNearest: Copied {copied} tokens from element {nearest.Id} to {el.Id} (distance: {minDist * 304.8:F0}mm)");
+                }
 
                 return copied;
             }
@@ -2367,23 +2398,22 @@ namespace StingTools.Core
         // PERF-03: BIP availability cache per category — avoids calling el.get_Parameter(bip)
         // for BuiltInParameters that don't exist on that category. Each category is checked once;
         // subsequent elements of the same category skip the Revit API call entirely.
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, HashSet<BuiltInParameter>>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<BuiltInParameter, byte>>
             _bipMissingByCategory = new();
 
         private static bool IsBipKnownMissing(Element el, BuiltInParameter bip)
         {
             string catKey = el.Category?.Name ?? "";
             if (string.IsNullOrEmpty(catKey)) return false;
-            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.Contains(bip);
+            return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.ContainsKey(bip);
         }
 
         private static void MarkBipMissing(Element el, BuiltInParameter bip)
         {
             string catKey = el.Category?.Name ?? "";
             if (string.IsNullOrEmpty(catKey)) return;
-            _bipMissingByCategory.AddOrUpdate(catKey,
-                _ => new HashSet<BuiltInParameter> { bip },
-                (_, existing) => { existing.Add(bip); return existing; });
+            var set = _bipMissingByCategory.GetOrAdd(catKey, _ => new System.Collections.Concurrent.ConcurrentDictionary<BuiltInParameter, byte>());
+            set.TryAdd(bip, 0);
         }
 
         /// <summary>Invalidate BIP availability cache (call on document switch).</summary>
@@ -2459,11 +2489,17 @@ namespace StingTools.Core
         /// <summary>Map native sheet parameters to STING shared parameters for all sheets.</summary>
         public static int MapSheets(Document doc)
         {
-            int written = 0;
             var sheets = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewSheet))
                 .Cast<ViewSheet>()
                 .ToList();
+            return MapSheets(doc, sheets);
+        }
+
+        /// <summary>Map native sheet parameters using a pre-collected sheet list.</summary>
+        public static int MapSheets(Document doc, List<ViewSheet> sheets)
+        {
+            int written = 0;
             foreach (var sheet in sheets)
             {
                 written += MapBuiltIn(sheet, BuiltInParameter.SHEET_NUMBER, ParamRegistry.SHT_NUMBER);
@@ -3387,6 +3423,21 @@ namespace StingTools.Core
     /// </summary>
     internal static class TagPipelineHelper
     {
+        // F-09: Cached timestamp string — avoids per-element DateTime.Now.ToString allocation in audit trail
+        // Refreshed at most once per second (reused within same second for batch operations)
+        [ThreadStatic] private static string _cachedTimestamp;
+        [ThreadStatic] private static long _cachedTimestampTick;
+        private static string GetCachedTimestamp()
+        {
+            long nowTick = DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond;
+            if (_cachedTimestamp == null || nowTick != _cachedTimestampTick)
+            {
+                _cachedTimestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                _cachedTimestampTick = nowTick;
+            }
+            return _cachedTimestamp;
+        }
+
         // Phase 74d: Static token-param map — eliminates 2 Dictionary allocations per element in RunFullPipeline
         private static readonly Dictionary<string, string> TokenParamMap = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -3479,7 +3530,7 @@ namespace StingTools.Core
             {
                 // MEDIUM-09: Reset read-only skip counter at pipeline entry to prevent
                 // cross-batch counter leakage from [ThreadStatic] persistence
-                ResetReadOnlySkipCount();
+                ParameterHelpers.ResetReadOnlySkipCount();
 
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName)) return false;
@@ -3487,28 +3538,20 @@ namespace StingTools.Core
                 // G1.1: Category skip list
                 if (TagConfig.CategorySkipList.Contains(catName)) return false;
 
-                // AL-06: Capture previous tag value for audit trail (timestamp written AFTER successful tag change)
-                // DI-004 FIX: Moved MODIFIED_DT write to after BuildAndWriteTag to prevent
-                // stale timestamps on partial pipeline failures
+                // Early SKIP check from CategoryTokenOverrides — before expensive TypeTokenInherit/PopulateAll
+                if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var earlyOverrides)
+                    && earlyOverrides.TryGetValue("SKIP", out string earlySkipVal)
+                    && earlySkipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // AL-06: Capture previous tag value for audit trail (READ only — write deferred to after BuildAndWriteTag)
+                // DI-004 / CRIT-PH-02: All audit trail writes (PREV_TXT, MODIFIED_DT, MODIFIED_BY)
+                // happen AFTER successful BuildAndWriteTag only, preventing false audit trail on failure
                 string _prevTag = null;
-                try
-                {
-                    _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                    if (!string.IsNullOrEmpty(_prevTag))
-                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
-                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
-                    // Phase 78 ISO-CRIT-001: Track contributor username for ISO 19650-2 §5.2 traceability
-                    try
-                    {
-                        string userName = Environment.UserName;
-                        ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", userName, overwrite: true);
-                    }
-                    catch (Exception usrEx) { StingLog.Warn($"ISO username tracking: {usrEx.Message}"); }
-                }
+                try { _prevTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1); }
                 catch (Exception auditEx)
                 {
-                    StingLog.Warn($"Tag history params not bound on {el?.Id}: {auditEx.Message}");
+                    StingLog.Warn($"Tag history read on {el?.Id}: {auditEx.Message}");
                 }
 
                 // Plugin hook: notify third-party plugins before tagging
@@ -3589,7 +3632,10 @@ namespace StingTools.Core
                             }
                         }
                     }
-                    StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)}");
+                    // Finding-5 FIX: Throttle locked token log — only log first 5 + every 100th
+                    _lockedTokenRestoreCount++;
+                    if (_lockedTokenRestoreCount <= 5 || _lockedTokenRestoreCount % 100 == 0)
+                        StingLog.Info($"TagPipeline: restored {lockedSnapshot.Count} locked tokens on {el.Id}: {string.Join(",", lockedSnapshot.Keys)} (#{_lockedTokenRestoreCount})");
                 }
 
                 // P2: Bridge Revit native params → STING shared params
@@ -3644,48 +3690,54 @@ namespace StingTools.Core
                 if (!tagWriteOk)
                 {
                     StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    // Phase 79b: Balanced hook call — notify plugins that tagging failed (null tag)
+                    StingPluginHooks.FireAfterTag(doc, el, null);
                     return false;
                 }
 
-                // DI-004 FIX: Write modification timestamp AFTER successful tag change only
+                // DI-004 / CRIT-PH-02: Write ALL audit trail AFTER successful tag change only
                 try
                 {
+                    if (!string.IsNullOrEmpty(_prevTag))
+                        ParameterHelpers.SetString(el, "ASS_TAG_PREV_TXT", _prevTag, overwrite: true);
+                    // F-09: Use cached timestamp (refreshed once per second) to avoid per-element allocation
                     ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_DT",
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), overwrite: true);
+                        GetCachedTimestamp(), overwrite: true);
+                    ParameterHelpers.SetString(el, "ASS_TAG_MODIFIED_BY_TXT", Environment.UserName, overwrite: true);
                 }
-                catch (Exception dtEx) { StingLog.Warn($"Tag modified date write: {dtEx.Message}"); }
-
-                // Plugin hook: notify third-party plugins after successful tagging
-                StingPluginHooks.FireAfterTag(doc, el, ParameterHelpers.GetString(el, ParamRegistry.TAG1));
+                catch (Exception dtEx) { StingLog.Warn($"Tag audit trail write: {dtEx.Message}"); }
 
                 // C-02 FIX: Re-read token values AFTER BuildAndWriteTag (which applies overrides
                 // and SetIfEmpty) so container retry uses ACTUAL stored values, not stale pre-override values
                 string[] tokenVals = ParamRegistry.ReadTokenValues(el);
 
-                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
-                // Previous logic only retried when ZERO containers were populated,
-                // missing partial failures where 1 of 3 containers wrote but 2 remained empty.
-                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
+                // Read TAG1 once — reused for hook, container guard, and downstream checks
                 string tag1Check = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+
+                // Plugin hook: notify third-party plugins after successful tagging
+                StingPluginHooks.FireAfterTag(doc, el, tag1Check);
+
+                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
+                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
+                // WriteContainers guards internally via ContainersForCategory — no need for redundant outer check
                 if (!string.IsNullOrEmpty(tag1Check))
                 {
-                    var catContainers = ParamRegistry.ContainersForCategory(catName);
-                    if (catContainers != null && catContainers.Length > 0)
-                    {
-                        ParamRegistry.WriteContainers(el, tokenVals, catName);
-                    }
+                    ParamRegistry.WriteContainers(el, tokenVals, catName);
                 }
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
                 // P5: Auto-populate GRID_REF if empty and grids are available
                 // LOGIC-010: Log once per session when no grids exist in document
-                if (gridLines != null && gridLines.Count > 0
-                    && string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.GRID_REF)))
+                if (gridLines != null && gridLines.Count > 0)
                 {
-                    string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
-                    if (!string.IsNullOrEmpty(gridRef))
-                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.GRID_REF, gridRef);
+                    string existingRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
+                    if (string.IsNullOrEmpty(existingRef))
+                    {
+                        string gridRef = SpatialAutoDetect.GetGridRef(el, gridLines);
+                        if (!string.IsNullOrEmpty(gridRef))
+                            ParameterHelpers.SetString(el, ParamRegistry.GRID_REF, gridRef, overwrite: false);
+                    }
                 }
                 else if ((gridLines == null || gridLines.Count == 0) && !_noGridsLoggedThisSession)
                 {
@@ -3693,10 +3745,10 @@ namespace StingTools.Core
                     StingLog.Info("TagPipeline: No grids found in document — GRID_REF will be empty. Create grid lines if grid references are required.");
                 }
 
-                // PERF-02: Inline FUNC/PROD empty tracking to avoid post-loop re-scans
-                stats?.RecordEmptyTokens(
-                    ParameterHelpers.GetString(el, ParamRegistry.FUNC),
-                    ParameterHelpers.GetString(el, ParamRegistry.PROD));
+                // PERF-02: Inline FUNC/PROD empty tracking from tokenVals (avoids 2 GetString calls per element)
+                // tokenVals: [0]=DISC [1]=LOC [2]=ZONE [3]=LVL [4]=SYS [5]=FUNC [6]=PROD [7]=SEQ
+                if (stats != null && tokenVals != null && tokenVals.Length >= 7)
+                    stats.RecordEmptyTokens(tokenVals[5], tokenVals[6]);
 
                 return true;
             }
@@ -3710,6 +3762,9 @@ namespace StingTools.Core
 
         // ── LOGIC-010: Track whether "no grids" info has been logged this session ──
         private static bool _noGridsLoggedThisSession;
+
+        // ── Finding-5: Throttle counter for locked token restoration logging ──
+        private static int _lockedTokenRestoreCount;
 
         // ── Session caches for formulas and grid lines ──
         private static List<Temp.FormulaEngine.FormulaDefinition> _cachedFormulas;
@@ -3781,6 +3836,8 @@ namespace StingTools.Core
             _cachedGridLines = null;
             _gridCacheDocKey = null;
             _noGridsLoggedThisSession = false; // LOGIC-010: Reset per-session flag
+            _lockedTokenRestoreCount = 0; // Finding-5: Reset throttle counter
+            TokenAutoPopulator._copyTokensLogCount = 0; // Phase 79b: Reset log throttle
         }
 
         // ══════════════════════════════════════════════════════════════════

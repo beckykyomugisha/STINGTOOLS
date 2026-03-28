@@ -543,8 +543,8 @@ namespace StingTools.Temp
                 foreach (string layer in layers.Keys)
                 {
                     string prefix = layer.Split(new[] { '-', '_', ' ' }, 2)[0].ToUpperInvariant();
-                    if (!prefixes.ContainsKey(prefix)) prefixes[prefix] = 0;
-                    prefixes[prefix]++;
+                    prefixes.TryGetValue(prefix, out int pc);
+                    prefixes[prefix] = pc + 1;
                 }
 
                 foreach (var kvp in prefixes.OrderByDescending(p => p.Value))

@@ -62,6 +62,22 @@ namespace StingTools.Tags
                 collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
 
             var knownCategories = new HashSet<string>(TagConfig.DiscMap.Keys);
+
+            // VT-01: Pre-cache phases to avoid per-element FilteredElementCollector in DetectStatus
+            List<Phase> cachedPhases = null;
+            ElementId lastPhaseId = ElementId.InvalidElementId;
+            try
+            {
+                cachedPhases = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Phase))
+                    .Cast<Phase>()
+                    .OrderBy(p => p.Id.Value)
+                    .ToList();
+                if (cachedPhases.Count > 0)
+                    lastPhaseId = cachedPhases.Last().Id;
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateTags: phase cache failed: {ex.Message}"); }
+
             int total = 0;
             int fullyValid = 0; // all 8 tokens + TAG_1 complete
             int tag1Valid = 0;
@@ -94,8 +110,21 @@ namespace StingTools.Tags
 
             csvRows.Add("ElementId,Category,TAG_1_Status,FullyResolved,EmptyTokens,EmptyContainers,ISOErrors,CrossValErrors,STATUS,REV,TAG_1,TAG_2,TAG_3,TAG_4,TAG_5,TAG_6");
 
+            int scanCount = 0;
             foreach (Element el in collector)
             {
+                // Progress feedback every 2000 elements + cancellation support
+                scanCount++;
+                if (scanCount % 2000 == 0)
+                {
+                    if (Core.EscapeChecker.IsEscapePressed())
+                    {
+                        StingLog.Info($"ValidateTags: cancelled by user at {scanCount} elements ({total} taggable)");
+                        break;
+                    }
+                    StingLog.Info($"ValidateTags: scanning... {scanCount} elements processed ({total} taggable so far)");
+                }
+
                 string catName = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(catName) || !knownCategories.Contains(catName))
                     continue;
@@ -116,6 +145,9 @@ namespace StingTools.Tags
                 }
 
                 // Check TAG_1
+                // VT-03: Cache completeness checks to avoid redundant string parsing
+                bool isComplete = !string.IsNullOrEmpty(tag1ForValidation) && TagConfig.TagIsComplete(tag1ForValidation);
+                bool isFullyResolved = isComplete && TagConfig.TagIsFullyResolved(tag1ForValidation);
                 string tag1Status;
                 if (string.IsNullOrEmpty(tag1))
                 {
@@ -124,14 +156,15 @@ namespace StingTools.Tags
                     tag1Status = "MISSING";
                     IncrementDict(issuesByCategory, catName);
                 }
-                else if (TagConfig.TagIsComplete(tag1ForValidation) && TagConfig.TagIsFullyResolved(tag1ForValidation))
+                // VT-03: Cache TagIsComplete/TagIsFullyResolved to avoid redundant string parsing
+                else if (isComplete && isFullyResolved)
                 {
                     tag1Valid++;
                     fullyResolved++;
                     bucketFully++;
                     tag1Status = "RESOLVED";
                 }
-                else if (TagConfig.TagIsComplete(tag1ForValidation))
+                else if (isComplete)
                 {
                     // Phase 39: Distinguish COMPLETE (8 segments but has placeholders)
                     // from RESOLVED (no placeholders). Previously both were "VALID".
@@ -183,8 +216,8 @@ namespace StingTools.Tags
                         IncrementDict(issuesByCategory, catName);
                     }
 
-                    // Cross-validate STATUS against Revit phase
-                    string phaseStatus = PhaseAutoDetect.DetectStatus(doc, el);
+                    // Cross-validate STATUS against Revit phase (VT-01: use cached phases)
+                    string phaseStatus = PhaseAutoDetect.DetectStatusCached(doc, el, cachedPhases, lastPhaseId);
                     if (!string.IsNullOrEmpty(phaseStatus) &&
                         !string.Equals(statusVal, phaseStatus, StringComparison.OrdinalIgnoreCase))
                     {
@@ -209,8 +242,9 @@ namespace StingTools.Tags
                 // Track tag uniqueness
                 if (!string.IsNullOrEmpty(tag1))
                 {
-                    if (!tagCounts.ContainsKey(tag1)) tagCounts[tag1] = 0;
-                    tagCounts[tag1]++;
+                    // VT-05: Single-lookup increment pattern
+                    tagCounts.TryGetValue(tag1, out int cnt);
+                    tagCounts[tag1] = cnt + 1;
                 }
 
                 // Single-pass ISO validation via ValidateElement
@@ -634,8 +668,8 @@ namespace StingTools.Tags
 
         private static void IncrementDict(Dictionary<string, int> dict, string key)
         {
-            if (dict.ContainsKey(key)) dict[key]++;
-            else dict[key] = 1;
+            dict.TryGetValue(key, out int c);
+            dict[key] = c + 1;
         }
 
         private static string CsvEsc(string v)

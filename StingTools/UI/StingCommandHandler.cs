@@ -25,6 +25,11 @@ namespace StingTools.UI
         private string _param1 = "";
         private string _param2 = "";
 
+        // BUG-02 FIX: Re-entrancy depth counter prevents inner Execute() calls
+        // (from wizard dialog dispatch loops) from running the finally cleanup,
+        // which would clear ExtraParams and _commandTag needed by the outer caller.
+        private int _executeDepth;
+
         // ── Named extra-param store (thread-safe) ─────────────────────────────
         // Allows WPF UI controls to pass named values to commands without
         // changing the SetCommand signature.  Usage:
@@ -57,9 +62,10 @@ namespace StingTools.UI
                 _param1 = param1 ?? "";
                 _param2 = param2 ?? "";
             }
-            // M-02 FIX: Clear stale ExtraParams from previous command to prevent
-            // unintended parameter bleed (e.g., AlignDirection from AlignTagsH affecting AutoTag)
-            ClearAllExtraParams();
+            // M-02 / BUG-04 FIX: ExtraParams are cleared in Execute() finally block
+            // (line 2464) AFTER the command runs. Do NOT clear here — Cmd_Click
+            // sets ExtraParams BEFORE calling SetCommand(), so clearing here wipes
+            // Tag Studio slider/radio values (ElbowMode, TagTextSize, PreferredTagPos, etc.).
         }
 
         public string GetName() => "STING Command Dispatcher";
@@ -82,13 +88,19 @@ namespace StingTools.UI
             // Guard: empty tag means no command was requested (cleared after previous run)
             if (string.IsNullOrEmpty(tag)) return;
 
-            // Guard: most commands require an open document
+            // Guard: most commands require an open document.
+            // CRITICAL FIX (Phase 79b): Must be BEFORE _executeDepth++ to avoid
+            // permanently leaking the depth counter on early return (no finally block).
             if (app.ActiveUIDocument == null)
             {
                 TaskDialog.Show("STING Tools",
                     "No document is open. Please open a Revit project first.");
                 return;
             }
+
+            // BUG-02 FIX: Track re-entrancy depth so inner Execute() calls
+            // (from wizard dispatch loops) skip the finally-block cleanup.
+            _executeDepth++;
 
             // PERF-CRIT: Run deferred morning briefing on first command after document open.
             // This was previously in OnDocumentOpened where it blocked the UI thread for 5-30s.
@@ -581,10 +593,13 @@ namespace StingTools.UI
                             string idsStr = GetExtraParam("SM_ElementIds");
                             if (!string.IsNullOrEmpty(idsStr))
                             {
-                                var ids = idsStr.Split(',')
-                                    .Where(s => long.TryParse(s.Trim(), out _))
-                                    .Select(s => new ElementId(long.Parse(s.Trim())))
-                                    .ToList();
+                                // SCH-MEDIUM-01: Use TryParse out-value to avoid double Trim+Parse
+                                var ids = new List<ElementId>();
+                                foreach (var s in idsStr.Split(','))
+                                {
+                                    if (long.TryParse(s.Trim(), out long idVal))
+                                        ids.Add(new ElementId(idVal));
+                                }
                                 if (ids.Count > 0)
                                     uidoc.Selection.SetElementIds(ids);
                             }
@@ -1551,6 +1566,9 @@ namespace StingTools.UI
                         var ccDoc = app.ActiveUIDocument?.Document;
                         if (ccDoc != null)
                         {
+                            // NOTE: Blocking loop on API thread is intentional for keep-dialog-open
+                            // pattern within ExternalEvent handler. The ExternalEvent handler IS the
+                            // Revit API thread — blocking here is safe and expected for modal dialogs.
                             while (true)
                             {
                                 var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
@@ -1661,7 +1679,9 @@ namespace StingTools.UI
                     case "RunWorkflow_SpatialQA":
                     {
                         // Phase 75: Robust name reconstruction — insert spaces before uppercase chars
-                        string rawName = _commandTag.Replace("RunWorkflow_", "");
+                        // SCH-CRIT-01 FIX: Use local `tag` snapshot (captured under lock at line 77),
+                        // NOT instance field `_commandTag` which can be overwritten by WPF thread
+                        string rawName = tag.Replace("RunWorkflow_", "");
                         var sb = new System.Text.StringBuilder(rawName.Length + 10);
                         for (int ci = 0; ci < rawName.Length; ci++)
                         {
@@ -2218,12 +2238,13 @@ namespace StingTools.UI
                         var dlgResult = UI.ModelCreationDialog.Show();
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.ElementType))
                         {
-                            // Store dimensions/options as ExtraParams then dispatch
+                            // SCH-HIGH-01 FIX: SetCommand FIRST (which clears ExtraParams via M-02),
+                            // THEN set ExtraParams so they survive for the dispatched command.
+                            SetCommand(dlgResult.ElementType);
                             foreach (var kv in dlgResult.Dimensions)
                                 SetExtraParam(kv.Key, kv.Value.ToString("F1"));
                             foreach (var kv in dlgResult.Options)
                                 SetExtraParam(kv.Key, kv.Value);
-                            SetCommand(dlgResult.ElementType);
                             Execute(app);
                         }
                         break;
@@ -2307,7 +2328,9 @@ namespace StingTools.UI
                     {
                         var doc = app.ActiveUIDocument?.Document;
                         if (doc == null) break;
+                        var mcf = new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums);
                         var allIds = new FilteredElementCollector(doc)
+                            .WherePasses(mcf)
                             .WhereElementIsNotElementType()
                             .Select(e => e.Id).ToList();
                         var (total, breakdown) = Model.ModelEmbodiedCarbonCalculator.CalculateForElements(doc, allIds);
@@ -2428,25 +2451,36 @@ namespace StingTools.UI
             }
             finally
             {
-                // CRASH FIX: Clear command tag after execution to prevent
-                // re-entrancy if ExternalEvent fires again without SetCommand().
-                lock (_lock)
+                _executeDepth--;
+
+                // BUG-02 FIX: Only run cleanup at outermost depth. Inner recursive
+                // calls (from wizard dialog dispatch loops like DocumentManager,
+                // DocWizard, ModelWizard, ScheduleWizard) must NOT clear state
+                // that the outer Execute() still needs.
+                if (_executeDepth <= 0)
                 {
-                    _commandTag = "";
-                    _param1 = "";
-                    _param2 = "";
+                    _executeDepth = 0; // safety clamp
+
+                    // CRASH FIX: Clear command tag after execution to prevent
+                    // re-entrancy if ExternalEvent fires again without SetCommand().
+                    lock (_lock)
+                    {
+                        _commandTag = "";
+                        _param1 = "";
+                        _param2 = "";
+                    }
+
+                    // Clear ExtraParams to prevent cross-command state pollution
+                    // (e.g., ElbowMode from tag command bleeding into next selection command)
+                    ClearAllExtraParams();
+
+                    // FIX-UI03: Notify panel that command completed so Tag Studio
+                    // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
+                    // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
+                    // was never called after execution.
+                    try { StingDockPanel.NotifyCommandComplete(); }
+                    catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
                 }
-
-                // Clear ExtraParams to prevent cross-command state pollution
-                // (e.g., ElbowMode from tag command bleeding into next selection command)
-                ClearAllExtraParams();
-
-                // FIX-UI03: Notify panel that command completed so Tag Studio
-                // sub-tabs are unfrozen. AdjustElbows / SetArrows were permanently
-                // freezing the Leader & Elbow sub-tab because UnfreezeTagSubTabs()
-                // was never called after execution.
-                try { StingDockPanel.NotifyCommandComplete(); }
-                catch (Exception ex) { StingLog.Warn($"Non-critical — panel may not be open: {ex.Message}"); }
             }
 
             // ENH-003: Compliance status bar update REMOVED from post-command hook.
@@ -2562,6 +2596,10 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
+        // BUG-05 FIX: Static reusable ElementSet — allocated once, never read by Revit
+        // since commandData is null. Eliminates per-call heap allocation.
+        private static readonly ElementSet _emptyElementSet = new ElementSet();
+
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             try
@@ -2572,13 +2610,12 @@ namespace StingTools.UI
 
                 var cmd = new T();
                 string message = "";
-                var elements = new ElementSet();
 
                 // Pass null for ExternalCommandData — commands use
                 // StingCommandHandler.CurrentApp as fallback.
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
-                cmd.Execute(null, ref message, elements);
+                cmd.Execute(null, ref message, _emptyElementSet);
 
                 StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }
@@ -2607,8 +2644,9 @@ namespace StingTools.UI
 
         // ── Inline operations ─────────────────────────────────────────
 
-        private static readonly Dictionary<string, List<ElementId>> _memorySlots =
-            new Dictionary<string, List<ElementId>>();
+        // SCH-MEDIUM-02: Use HashSet<ElementId> to prevent duplicates in O(1) instead of O(n) List.Contains
+        private static readonly Dictionary<string, HashSet<ElementId>> _memorySlots =
+            new Dictionary<string, HashSet<ElementId>>();
 
         /// <summary>
         /// CRASH FIX: Clear all static state that may hold stale references.
@@ -2644,15 +2682,13 @@ namespace StingTools.UI
             uidoc.ActiveView.HideElementsTemporary(ids);
         }
 
-        // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
-        // direct instance method in Revit 2025+ API (this plugin targets net8.0-windows).
         private static void ViewRevealHidden(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             try
             {
-                uidoc.ActiveView.EnableTemporaryViewMode(TemporaryViewMode.RevealHiddenElements);
+                uidoc.ActiveView.EnableTemporaryViewPropertiesMode(uidoc.ActiveView.Id);
             }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException)
             {
@@ -2778,8 +2814,7 @@ namespace StingTools.UI
             string curDoc = uidoc.Document?.PathName ?? uidoc.Document?.Title ?? "";
             // Phase 75: Clear slots if document changed since last save
             if (_memoryDocPath != curDoc) { _memorySlots.Clear(); _memoryDocPath = curDoc; }
-            _memorySlots[slot] = uidoc.Selection.GetElementIds()
-                .Select(id => id).ToList();
+            _memorySlots[slot] = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
             StingLog.Info($"Selection saved to {slot}: {_memorySlots[slot].Count} elements");
         }
 
@@ -2811,28 +2846,31 @@ namespace StingTools.UI
         {
             _memorySlots.TryGetValue(a, out var slotA);
             _memorySlots.TryGetValue(b, out var slotB);
-            _memorySlots[a] = slotB ?? new List<ElementId>();
-            _memorySlots[b] = slotA ?? new List<ElementId>();
+            _memorySlots[a] = slotB ?? new HashSet<ElementId>();
+            _memorySlots[b] = slotA ?? new HashSet<ElementId>();
         }
 
         private static void AddToMemory(UIApplication app, string slot)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            if (!_memorySlots.ContainsKey(slot))
-                _memorySlots[slot] = new List<ElementId>();
+            if (!_memorySlots.TryGetValue(slot, out var slotSet))
+            {
+                slotSet = new HashSet<ElementId>();
+                _memorySlots[slot] = slotSet;
+            }
+            // SCH-MEDIUM-02: HashSet.Add is idempotent — no .Contains() check needed
             foreach (var id in uidoc.Selection.GetElementIds())
-                if (!_memorySlots[slot].Contains(id))
-                    _memorySlots[slot].Add(id);
+                slotSet.Add(id);
         }
 
         private static void RemoveFromMemory(UIApplication app, string slot)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
-            if (!_memorySlots.ContainsKey(slot)) return;
+            if (!_memorySlots.TryGetValue(slot, out var memSet)) return;
             var toRemove = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
-            _memorySlots[slot].RemoveAll(id => toRemove.Contains(id));
+            memSet.RemoveWhere(id => toRemove.Contains(id));
         }
 
         private static void IntersectWithMemory(UIApplication app, string slot)
@@ -2840,9 +2878,9 @@ namespace StingTools.UI
             var uidoc = app.ActiveUIDocument;
             if (uidoc == null) return;
             if (!_memorySlots.TryGetValue(slot, out var memIds)) return;
-            var memSet = new HashSet<ElementId>(memIds);
+            // SCH-MEDIUM-02: memIds is already a HashSet — no redundant wrapper needed
             var result = uidoc.Selection.GetElementIds()
-                .Where(id => memSet.Contains(id)).ToList();
+                .Where(id => memIds.Contains(id)).ToList();
             uidoc.Selection.SetElementIds(result);
         }
 
@@ -2856,12 +2894,13 @@ namespace StingTools.UI
                 .Where(e => e != null)
                 .GroupBy(e => ParameterHelpers.GetCategoryName(e))
                 .OrderByDescending(g => g.Count());
-            var msg = $"Selected: {ids.Count} elements\n\n";
+            var msgSb = new StringBuilder();
+            msgSb.AppendLine($"Selected: {ids.Count} elements\n");
             foreach (var g in byCategory.Take(15))
-                msg += $"  {g.Key}: {g.Count()}\n";
+                msgSb.AppendLine($"  {g.Key}: {g.Count()}");
             foreach (var kvp in _memorySlots)
-                msg += $"\n  {kvp.Key}: {kvp.Value.Count} stored";
-            TaskDialog.Show("Selection Info", msg);
+                msgSb.AppendLine($"\n  {kvp.Key}: {kvp.Value.Count} stored");
+            TaskDialog.Show("Selection Info", msgSb.ToString());
         }
 
         private static void RefreshParamList(UIApplication app)
@@ -2940,7 +2979,7 @@ namespace StingTools.UI
                         }
                         ids.Add(el.Id.Value);
 
-                        if (!storageTypes.ContainsKey(val))
+                        if (!storageTypes.TryGetValue(val, out _))
                         {
                             var p = el.LookupParameter(paramName);
                             if (p != null) storageTypes[val] = p.StorageType.ToString();
@@ -3419,9 +3458,12 @@ namespace StingTools.UI
                 }
                 if (string.IsNullOrEmpty(val))
                     val = "<No Value>";
-                if (!groups.ContainsKey(val))
-                    groups[val] = new List<ElementId>();
-                groups[val].Add(el.Id);
+                if (!groups.TryGetValue(val, out var grpList))
+                {
+                    grpList = new List<ElementId>();
+                    groups[val] = grpList;
+                }
+                grpList.Add(el.Id);
             }
 
             Color[] palette = GetColorPalette(paletteName, groups.Count);
@@ -3481,9 +3523,7 @@ namespace StingTools.UI
             Color color = new Color(r, g, b);
 
             // Phase 74: Use cached solid fill pattern instead of redundant collector
-            var solidFillId = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
-            FillPatternElement solidFill = solidFillId != null && solidFillId != ElementId.InvalidElementId
-                ? uidoc.Document.GetElement(solidFillId) as FillPatternElement : null;
+            FillPatternElement solidFill = ParameterHelpers.GetSolidFillPattern(uidoc.Document);
 
             using (Transaction tx = new Transaction(uidoc.Document, "STING Color By Hex"))
             {
@@ -4316,9 +4356,12 @@ namespace StingTools.UI
                     if (surfColor.IsValid && (surfColor.Red != 0 || surfColor.Green != 0 || surfColor.Blue != 0))
                     {
                         string key = $"{surfColor.Red:D3},{surfColor.Green:D3},{surfColor.Blue:D3}";
-                        if (!colorGroups.ContainsKey(key))
-                            colorGroups[key] = (surfColor, new List<Element>());
-                        colorGroups[key].elems.Add(elem);
+                        if (!colorGroups.TryGetValue(key, out var cg))
+                        {
+                            cg = (surfColor, new List<Element>());
+                            colorGroups[key] = cg;
+                        }
+                        cg.elems.Add(elem);
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Inline op failed: {ex.Message}"); }
@@ -4937,9 +4980,8 @@ namespace StingTools.UI
                         var hostIds = tag.GetTaggedLocalElementIds();
                         if (hostIds.Count == 0) continue;
                         ElementId hostId = hostIds.First();
-                        if (!_clonedTagLayout.ContainsKey(hostId)) continue;
+                        if (!_clonedTagLayout.TryGetValue(hostId, out var layout)) continue;
 
-                        var layout = _clonedTagLayout[hostId];
                         tag.TagHeadPosition = layout.headPos;
                         tag.TagOrientation = layout.orient;
                         applied++;
@@ -5902,8 +5944,8 @@ namespace StingTools.UI
                     else
                     {
                         filled++;
-                        if (!valueCounts.ContainsKey(val)) valueCounts[val] = 0;
-                        valueCounts[val]++;
+                        valueCounts.TryGetValue(val, out int vc);
+                        valueCounts[val] = vc + 1;
                     }
                 }
 
@@ -6406,9 +6448,8 @@ namespace StingTools.UI
                         if (!string.IsNullOrEmpty(seg.ValueOverride))
                         {
                             withOverrides++;
-                            if (!overrideValues.ContainsKey(seg.ValueOverride))
-                                overrideValues[seg.ValueOverride] = 0;
-                            overrideValues[seg.ValueOverride]++;
+                            overrideValues.TryGetValue(seg.ValueOverride, out int ovc);
+                            overrideValues[seg.ValueOverride] = ovc + 1;
                         }
                     }
                 }

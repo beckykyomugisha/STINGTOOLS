@@ -181,7 +181,7 @@ namespace StingTools.Model
             // End plate thickness (simplified: from T-stub model)
             double mp = momentKNm * 1e6 / (beamDepthMm * 4); // Approximate plate moment
             double fYp = 275; // S275 plate
-            result.PlateThicknessMm = Math.Ceiling(Math.Sqrt(4 * mp / fYp));
+            result.PlateThicknessMm = Math.Ceiling(Math.Sqrt(Math.Max(4 * mp / Math.Max(fYp, 1e-10), 0)));
             result.PlateThicknessMm = Math.Max(15, Math.Min(40, result.PlateThicknessMm));
 
             // Weld sizing
@@ -223,7 +223,7 @@ namespace StingTools.Model
 
             // Required base plate area: A_req = N / fj
             double aReqMm2 = axialKN * 1000 / fj;
-            double sideLength = Math.Ceiling(Math.Sqrt(aReqMm2) / 25) * 25;
+            double sideLength = Math.Ceiling(Math.Sqrt(Math.Max(aReqMm2, 0)) / 25) * 25;
             sideLength = Math.Max(sideLength, columnDepthMm + 100);
 
             // Base plate thickness from cantilever bending
@@ -231,7 +231,7 @@ namespace StingTools.Model
             double pressureUnderPlate = axialKN * 1000 / (sideLength * sideLength);
             double mp = pressureUnderPlate * c * c / 2;
             double fYp = 275;
-            result.PlateThicknessMm = Math.Ceiling(Math.Sqrt(6 * mp / fYp));
+            result.PlateThicknessMm = Math.Ceiling(Math.Sqrt(Math.Max(6 * mp / Math.Max(fYp, 1e-10), 0)));
             result.PlateThicknessMm = Math.Max(20, Math.Min(50, result.PlateThicknessMm));
 
             // Holding-down bolts

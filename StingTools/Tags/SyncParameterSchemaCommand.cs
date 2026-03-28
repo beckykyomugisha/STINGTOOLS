@@ -104,6 +104,7 @@ namespace StingTools.Tags
 
             // Read existing bindings
             var existingLines = File.ReadAllLines(path).ToList();
+            if (existingLines.Count == 0) { StingLog.Warn("CATEGORY_BINDINGS.csv is empty"); return 0; }
             var header = existingLines.FirstOrDefault(l => !l.StartsWith("#") && l.Contains("Parameter_Name"));
             var commentLines = existingLines.Where(l => l.StartsWith("#")).ToList();
             var dataLines = existingLines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();
@@ -160,13 +161,14 @@ namespace StingTools.Tags
             }
 
             // Find orphaned bindings (in CSV but not in registry) — warn only
+            // SS-01: Pre-build HashSet for O(1) container name lookup instead of O(n) .Any() per binding
+            var registryParamNames = new HashSet<string>(
+                ParamRegistry.AllContainers.Select(c => c.ParamName), StringComparer.Ordinal);
             var orphaned = new List<string>();
             foreach (string binding in existing)
             {
                 string paramName = binding.Split('|')[0];
-                // Only check params that are in the registry (discipline-specific containers)
-                bool isRegistryParam = ParamRegistry.AllContainers.Any(c => c.ParamName == paramName);
-                if (isRegistryParam && !expected.Contains(binding))
+                if (registryParamNames.Contains(paramName) && !expected.Contains(binding))
                     orphaned.Add(binding);
             }
 
@@ -200,6 +202,7 @@ namespace StingTools.Tags
             report.AppendLine("[MR_PARAMETERS.csv]");
 
             var lines = File.ReadAllLines(path).ToList();
+            if (lines.Count == 0) { StingLog.Warn("MR_PARAMETERS.csv is empty"); return 0; }
             var commentLines = lines.Where(l => l.StartsWith("#")).ToList();
             var header = lines.FirstOrDefault(l => !l.StartsWith("#") && l.Contains("Parameter_Name"));
             var dataLines = lines.Where(l => !l.StartsWith("#") && l != header && !string.IsNullOrWhiteSpace(l)).ToList();
@@ -252,14 +255,14 @@ namespace StingTools.Tags
             if (newLines.Count > 0)
             {
                 dataLines.AddRange(newLines);
-                dataLines.Sort((a, b) =>
+                // SS-03: Schwartzian transform — pre-parse sort keys to avoid re-parsing per comparison
+                var sortKeyed = dataLines.Select(line =>
                 {
-                    string[] ca = StingToolsApp.ParseCsvLine(a);
-                    string[] cb = StingToolsApp.ParseCsvLine(b);
-                    string na = ca.Length >= 2 ? ca[1] : "";
-                    string nb = cb.Length >= 2 ? cb[1] : "";
-                    return StringComparer.Ordinal.Compare(na, nb);
-                });
+                    string[] cols = StingToolsApp.ParseCsvLine(line);
+                    string key = cols.Length >= 2 ? cols[1] : "";
+                    return (Key: key, Line: line);
+                }).OrderBy(x => x.Key, StringComparer.Ordinal).ToList();
+                dataLines = sortKeyed.Select(x => x.Line).ToList();
 
                 var output = new List<string>();
                 output.AddRange(commentLines);

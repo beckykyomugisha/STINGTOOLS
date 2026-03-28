@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **154 source files** (151 C# + 3 XAML, ~188,900 lines of code) across 10 directories
-- **692 `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **43 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard
+- **169 source files** (166 C# + 3 XAML, ~214,000 lines of code) across 10 directories
+- **750+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **49 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
+- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard + 1 BIM Coordination Center (13 tabs)
 
 ## Technology Stack
 
@@ -41,19 +41,24 @@ STINGTOOLS/
     ├── Properties/
     │   └── AssemblyInfo.cs             # Assembly metadata (v1.0.0.0)
     │
-    ├── Core/                           # Shared infrastructure (12 files, ~12,000 lines)
-    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate
+    ├── Core/                           # Shared infrastructure (17 files, ~25,000 lines)
+    │   ├── StingToolsApp.cs            # IExternalApplication — ribbon UI + dockable panel registration + ToggleDockPanelCommand + DocumentOpened quality gate + morning briefing
     │   ├── StingLog.cs                 # Thread-safe file logger (Info/Warn/Error) + EscapeChecker utility
     │   ├── ParamRegistry.cs            # Single source of truth for parameter names, GUIDs, containers, bindings (loads from PARAMETER_REGISTRY.json) + stale/cluster/display/position + COBie/asset/style constants
     │   ├── ParameterHelpers.cs         # Parameter read/write + SpatialAutoDetect + NativeParamMapper + TokenAutoPopulator + PhaseAutoDetect + TypeTokenInherit + CopyTokensFromNearest + GetInt + SetInt + CommandExecutionContext
     │   ├── SharedParamGuids.cs         # Backwards-compatible facade wrapping ParamRegistry (GUID lookups, category bindings)
     │   ├── TagConfig.cs               # ISO 19650 tag lookup tables, tag builder, TagIntelligence, TAG7 narrative builder + SeqScheme variants + BuildDisplayTag
-    │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater
-    │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + conditional steps + result persistence + WorkflowTrendCommand
-    │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline breakdown (DiscComplianceData)
+    │   ├── StingAutoTagger.cs          # IUpdater — real-time auto-tagging + visual tag placement + discipline filter + StingStaleMarker IUpdater + deferred queue
+    │   ├── WorkflowEngine.cs           # Workflow orchestration — JSON preset command chaining + 19 conditional operators + result persistence + WorkflowTrendCommand + sector-specific presets
+    │   ├── ComplianceScan.cs           # Cached compliance scan with per-discipline/phase breakdown + incremental update + compliance trend tracker
     │   ├── OutputLocationHelper.cs     # Centralized output directory management with fallback chain + timestamped paths
     │   ├── IPanelCommand.cs            # Interface for WPF dockable panel commands + SafeApp/SafeDoc/SafeUIDoc extension methods
-    │   └── PerformanceTracker.cs       # Lightweight performance profiling engine for batch operations (per-element timing, LRU slowest tracking, CSV export)
+    │   ├── PerformanceTracker.cs       # Lightweight performance profiling engine for batch operations (per-element timing, LRU slowest tracking, CSV export)
+    │   ├── WarningsManager.cs          # Comprehensive warnings management: 150+ classification rules, 16 auto-fix strategies, SLA tracking, deliverable impact analysis, baseline/trend + StingWarningHandler IFailuresPreprocessor
+    │   ├── ProjectFolderEngine.cs      # ISO 19650 project folder structure management, CDE folder generation, file monitor
+    │   ├── Phase74Enhancements.cs      # ModelCreationValidator, WarningPredictionEngine, DeliverableTracker, CoordinatorDailyPlanner, ComplianceFallDetector, ActionAuditLog
+    │   ├── Phase75Enhancements.cs      # 29 workflow/coordination enhancements: WorkflowScheduler, cross-system automation, SLA monitoring, team activity tracking, role-based access, CDE state machine
+    │   └── WorkflowMaturityEngine.cs   # Step dependency resolver (DAG), partial rollback manager, commissioning workflows, workflow validator + metrics
     │
     ├── Select/                         # Element selection + color commands (4 files, ~30+ commands)
     │   ├── CategorySelectCommands.cs   # 14 category selectors + SelectAllTaggable + CategorySelector helper
@@ -61,10 +66,10 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (24 C# files + 3 XAML, ~20,700 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (30 C# files + 3 XAML, ~30,000 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
-    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 590+ button tags to 376 command classes + inline helpers
+    │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 1100+ button tags to 750+ command classes + inline helpers
     │   ├── StingDockPanelProvider.cs   # IDockablePaneProvider — registers panel with Revit
     │   ├── StingProgressDialog.cs      # Reusable modeless WPF progress window for batch operations (cancel, ETA, progress bar)
     │   ├── StingListPicker.cs          # Reusable WPF list picker dialog with search/filter, replacing paginated TaskDialogs
@@ -72,6 +77,7 @@ STINGTOOLS/
     │   ├── StingWizardDialog.cs        # Base multi-page WPF wizard framework (448 lines) — reusable page navigation, validation, summary
     │   ├── StingDataGridDialog.cs      # Reusable WPF data grid dialog for tabular data display with search/filter
     │   ├── StingExportDialog.cs        # BIMLink-style export dialog with column mapping, preview, and format selection
+    │   ├── StingResultPanel.cs         # Reusable rich WPF result display: sections, metrics, RAG bars, tables, action buttons, CSV export
     │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, 7 operations
     │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with 11-operator condition builder
     │   ├── BulkOperationDialog.cs      # Unified WPF dialog for bulk parameter operations (replaces 5-step TaskDialog)
@@ -83,15 +89,19 @@ STINGTOOLS/
     │   ├── SmartPlacementWizard.cs     # Smart tag placement configuration wizard
     │   ├── BEPWizard.xaml              # WPF markup for BEP generation wizard
     │   ├── BEPWizard.xaml.cs           # BEP wizard code-behind
-    │   ├── DocumentManagementDialog.cs  # ISO 19650 Document Management Center — 7-tab action bar, code legend, quick workflows
+    │   ├── DocumentManagementDialog.cs  # ISO 19650 Document Management Center — 8-tab action bar, code legend, meeting manager, quick workflows
     │   ├── DocAutomationDialog.cs      # 4-tab unified doc automation dialog (Sheets/Views/Viewports/Export)
     │   ├── ModelCreationDialog.cs      # Unified model creation dialog with element type selector + dynamic options
     │   ├── ScheduleWizardDialog.cs     # Unified schedule wizard dialog (create/populate/audit/export/manage)
+    │   ├── NewSheetDialog.cs           # WPF sheet creation dialog with discipline/numbering/title block options
+    │   ├── StingDataExchangeDialog.cs  # Data exchange configuration dialog
+    │   ├── BIMCoordinationCenter.cs    # 13-tab unified BIM coordination center: overview, model health, warnings, issues, revisions, platform, workflows, QA, 4D/5D, meetings, permissions
+    │   ├── SheetManagerDialog.cs       # WPF dual-panel sheet manager dialog with TreeView navigation and context-sensitive detail views
     │   ├── ThemeManager.cs             # WPF theme engine — Light/Warm/Cool/Corporate themes with 13 color resource keys
     │   ├── ProjectSetupWizard.xaml     # WPF 7-page project setup wizard dialog
     │   └── ProjectSetupWizard.xaml.cs  # Code-behind: presets, validation, discipline config, review summary
     │
-    ├── Docs/                           # Documentation commands (10 files, ~35+ commands)
+    ├── Docs/                           # Documentation commands (20 files, ~55+ commands)
     │   ├── SheetOrganizerCommand.cs    # Group sheets by discipline prefix
     │   ├── ViewOrganizerCommand.cs     # Organize views by type/level
     │   ├── SheetIndexCommand.cs        # Create sheet index schedule
@@ -100,12 +110,15 @@ STINGTOOLS/
     │   ├── DocAutomationCommands.cs    # DeleteUnusedViews, SheetNamingCheck, AutoNumberSheets
     │   ├── DocAutomationExtCommands.cs # Batch views/sheets/sections/elevations, doc package, scope boxes, templates, drawing register, browser organizer, handover manual
     │   ├── ViewAutomationCommands.cs   # DuplicateView, BatchRename, CopySettings, AutoPlace, Crop, BatchAlign, MagicRename, ViewTabColour
-    │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (11 sheets), maintenance schedule, O&M manual, asset health report, space handover report
+    │   ├── HandoverExportCommands.cs   # FM/O&M handover: COBie 2.4 export (18 sheets), maintenance schedule, O&M manual, asset health report, space handover report
     │   ├── JournalParserCommand.cs     # Revit journal diagnostics: parse journal files for errors, crashes, command timeline, memory usage
+    │   ├── DocScheduleAutomation.cs    # DrawingRegisterSync, CrossScheduleValidator, PrintQueueManager, DocumentPackageBuilder
+    │   ├── FamilyAuditCommands.cs      # Family audit and validation commands
+    │   ├── PrintManagerCommands.cs     # Print queue management and batch print commands
+    │   ├── SpatialValidationCommands.cs # Room connectivity audit, spatial analysis, area validation (BS 6465, BCO Guide)
     │   ├── SheetManagerEngine.cs       # Core sheet manager: drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange
     │   ├── SheetManagerEngineExt.cs    # Extended: MaxRects bin packing, layout presets (JSON), viewport type rules, batch clone/renumber, overflow handling
     │   ├── SheetManagerCommands.cs     # 8 commands: SheetManager, AutoLayout, CloneSheet, PlaceUnplaced, OptimalScale, SheetAudit, BatchArrange, MoveViewport
-    │   ├── SheetManagerDialog.cs       # WPF dual-panel sheet manager dialog with TreeView navigation and context-sensitive detail views
     │   ├── SheetSetCommands.cs         # 8 commands: MaxRectsLayout, SaveLayoutPreset, ApplyLayoutPreset, BatchClone, BatchRenumber, AutoAssignVPTypes, ExportSheetSet, PlaceWithOverflow
     │   ├── SheetTemplateEngine.cs      # Sheet templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export
     │   └── SheetTemplateCommands.cs    # 8 commands: CreateFromTemplate, SaveSheetTemplate, SheetComplianceCheck, GridAlignViewports, AlignViewportEdges, DistributeViewports, BatchPrintSheets, ExportSheetRegister
@@ -144,17 +157,26 @@ STINGTOOLS/
     ├── Organise/                       # Tag management commands (1 file, 47 commands)
     │   └── TagOperationCommands.cs     # Tag Ops (7), Leaders (14), Analysis (7), Annotation Color (5), Tag Appearance (5), Tag Type (1), AnomalyAutoFix (1), Clustering (2), DisplayMode (1), DiscCompliance (1), RetagStale (1), DeclusterTags (1) + LeaderHelper + AnnotationColorHelper
     │
-    ├── BIMManager/                     # ISO 19650 BIM management + 4D/5D scheduling + Excel/Platform/Revision (5 files, 73 commands, ~14,343 lines)
+    ├── BIMManager/                     # ISO 19650 BIM management + 4D/5D scheduling + Excel/Platform/Revision + gap analysis (14 files, 120+ commands, ~22,000 lines)
     │   ├── BIMManagerCommands.cs       # 37 commands: BEP (Create/Update/Export/Generate), Issues (Raise/Dashboard/Update/SelectElements), Documents (Register/Add/ValidateNaming/Briefcase), COBie export, Transmittals, CDE status, Reviews, ISO reference, BulkExport, StickyNotes (Create/Export/Select), ModelHealth (Dashboard/Export), MidpTracker, Export4DTimeline, Export5DCostData, FullComplianceDashboard, LinkPredecessors, AssignPhaseDates, MeasuredQuantities, ElementCountSummary, SetOutputDirectory, StageComplianceGate + BIMManagerEngine
     │   ├── ExcelLinkCommands.cs        # 6 commands: ExportToExcel, ImportFromExcel, ExcelRoundTrip, ExportSchedulesToExcel, ImportSchedulesFromExcel, ExportTemplate + ExcelLinkEngine
     │   ├── PlatformLinkCommands.cs     # 6 commands: ACCPublish, CDEPackage, BCFExport, BCFImport, PlatformSync, SharePointExport + PlatformLinkEngine
     │   ├── RevisionManagementCommands.cs # 12 commands: CreateRevision, RevisionDashboard, AutoRevisionCloud, RevisionSchedule, TrackElementRevisions, RevisionCompare, IssueSheetsForRevision, RevisionNamingEnforce, RevisionTagIntegration, RevisionExport, BulkRevisionStamp, AutoRevisionOnTagChange + RevisionEngine
-    │   └── SchedulingCommands.cs       # 12 commands: AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar + Scheduling4DEngine
+    │   ├── SchedulingCommands.cs       # 12 commands: AutoSchedule4D, ImportMSProject, ViewTimeline4D, ExportSchedule4D, AutoCost5D, ImportCostRates, CostReport5D, CashFlow5D, PhaseFilter, PhaseSummary, MilestoneRegister, WorkingCalendar + Scheduling4DEngine
+    │   ├── GapFixCommands.cs           # Cross-system gap fixes: CDE approval, entity linking, streaming COBie, coordination data refresh, compliance forecasting
+    │   ├── GapAnalysisFixCommands.cs   # COBie extended import, HTML dashboard export, BEP stage validation, issue-revision linking, auto meeting minutes, tag revision diff
+    │   ├── CoordinationCenterCommands.cs # BIM Coordination Center data assembly + action processing + 3D zoom
+    │   ├── CarbonTrackingCommands.cs   # Embodied carbon tracking and reporting commands
+    │   ├── LANCollaborationCommands.cs # LAN-based model collaboration and sync commands
+    │   ├── LinkManagerCommands.cs      # Revit link management and federated model commands
+    │   ├── ParameterDiffCommands.cs    # Parameter comparison and diff between models/versions
+    │   ├── QualityAssuranceCommands.cs # QA automation: naming convention audit, MEP clearance, IFC property validation
+    │   └── WorksetAuditCommands.cs     # Workset audit and management commands
     │
-    ├── Model/                          # Auto-modeling engine (17 files, 101 commands)
+    ├── Model/                          # Auto-modeling engine (26 files, 130+ commands)
     │   ├── ModelCommands.cs            # 16 model commands: Wall, Room, Floor, Ceiling, Roof, Door, Window, Column, ColumnGrid, Beam, Duct, Pipe, Fixture, BuildingShell, DWGToModel, DWGPreview (all auto-tag via RunFullPipeline)
     │   ├── ModelEngine.cs              # Model creation engine + AutoTagCreatedElements + MEPRoutingEngine + RoomLayoutEngine + FamilyResolver
-    │   ├── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection
+    │   ├── CADToModelEngine.cs         # DWG-to-BIM conversion engine: layer mapping, geometry extraction, element auto-detection + ISO 13567 patterns
     │   ├── ArchitecturalCreationEngine.cs # StairEngine (BS 5395), RailingEngine (BS 6180), CurtainWallEngine (BS EN 13830), OpeningEngine, CoveringFireRating, CoveringMoistureRisk, CoveringThermalBridge, FullModelAutomation
     │   ├── PlasteringCommands.cs       # 9 plastering/covering commands (BS EN 13914): material browser, substrate analysis, paint system, coverage calc, smart/batch apply, room schedule, quality check, export
     │   ├── PlasteringEngine.cs         # Plastering algorithm engine: 10 material types, drying times, coverage rates, substrate compatibility, BS EN 998 mortar classification
@@ -167,10 +189,16 @@ STINGTOOLS/
     │   ├── StructuralIntelligenceEngine.cs # Smart sizing: adaptive beam/column/foundation factories, Voronoi load areas, BIM validation scoring
     │   ├── StructuralPrecisionEngine.cs # Precision: column load takedown, slab edge beams, bracing optimization, stability checks, constraint validation
     │   ├── StructuralCADPipeline.cs    # CAD-to-structural pipeline: wall detection, junction analysis, member classification, full automation
-    │   ├── StructuralCADWizard.cs      # Legacy WPF wizard for structural CAD import with tolerance config
-    │   ├── StructuralDWGWizard.cs     # Enhanced 7-page WPF wizard: layer mapping, properties, joining, tagging (~1,100 lines)
-    │   ├── StructuralDWGEngine.cs     # Precision DWG-to-BIM engine: detection, creation, joining, type creation (~900 lines)
-    │   ├── StructuralDWGCommands.cs   # 2 commands: StructuralDWGWizard + QuickStructuralDWG (~200 lines)
+    │   ├── StructuralCADWizard.cs      # Scrollable WPF wizard for structural CAD import: layer analysis, Graitec numbering, construction logic
+    │   ├── StructuralDWGWizard.cs     # Enhanced 7-page WPF wizard: layer mapping, properties, joining, tagging (~1,675 lines)
+    │   ├── StructuralDWGEngine.cs     # Precision DWG-to-BIM engine: detection, creation, joining, type creation, quality scoring (~1,457 lines)
+    │   ├── StructuralDWGCommands.cs   # 2 commands: StructuralDWGWizard + QuickStructuralDWG
+    │   ├── StructuralDeepEngine.cs     # AutoTorsionDetector, LateralTorsionalBuckling (EC3), ConnectionDetailingEngine (SCI P358), CreepDeflectionAnalysis (EC2), FabricationToleranceChecker (BS EN 1090-2)
+    │   ├── EnhancedStructuralPipeline.cs # UK steel section database (20 UB + 13 UC), StructuralAutoSizer (EC2/EC3/EC7), StructuralOptimizer (carbon), international DWG patterns
+    │   ├── ExcelStructuralEngine.cs    # Excel-to-structural import (6 sheet formats), RebarEngine (EC2 BS EN 1992-1-1), UK rebar database (BS 4449), bar bending schedule (BS 8666)
+    │   ├── AcousticAnalysisEngine.cs   # Sound insulation (BS EN 12354), reverberation (Sabine/Eyring), flanking path analysis, impact sound (Approved Document E), duct attenuation (CIBSE Guide B3)
+    │   ├── MEPIntelligenceEngine.cs    # Fitting loss calculator (26 types), Darcy-Weisbach pressure drop, Hardy Cross flow balancing, vibro-acoustic analysis (CIBSE TG6)
+    │   ├── SustainabilityEngine.cs     # BREEAM v6.0 assessment (10 categories), BS EN 15978 lifecycle carbon (A1-C4+D), ICE Database v3.0, circularity scoring
     │   └── StructuralTypeFactory.cs    # Intelligent type catalog: beam/column/slab type selection from span, load, material
     │
     ├── Temp/                           # Template commands (22 files, ~120+ commands)
@@ -199,7 +227,7 @@ STINGTOOLS/
     │   ├── RoomSpaceCommands.cs        # Room audit, department assignment, room schedule with tag integration
     │   └── StandardsEngine.cs          # Standards compliance: ISO 19650, CIBSE, BS 7671, Uniclass 2015, BS 8300, Part L
     │
-    └── Data/                           # Runtime data files (42 files)
+    └── Data/                           # Runtime data files (49 files)
         ├── BLE_MATERIALS.csv           # 815 building-element materials
         ├── MEP_MATERIALS.csv           # 464 MEP materials
         ├── MR_PARAMETERS.txt           # Shared parameter file (2,307 params, 18 groups, all data files cross-referenced)
@@ -223,6 +251,8 @@ STINGTOOLS/
         ├── STING_TAG_CONFIG_v5_0_GEN.csv     # General tag family definitions (v5.0)
         ├── STING_TAG_CONFIG_v5_0_MEP.csv     # MEP tag family definitions (v5.0, 183 warnings across 51 tag families including 6 tie-in point tags #46-#51)
         ├── STING_TAG_CONFIG_v5_0_STR.csv     # Structural tag family definitions (v5.0)
+        ├── STRUCTURAL_EXCEL_TEMPLATE.csv # Structural Excel import template (6 sheet formats: columns, beams, slabs, foundations, walls, rebar)
+        ├── PROJECT_TEAM_TEMPLATE.json  # Project team role/discipline template
         ├── PYREVIT_SCRIPT_MANIFEST.csv # Legacy pyRevit script manifest
         ├── TAG_GUIDE.xlsx              # Tag reference guide (original)
         ├── TAG GUIDE V2.xlsx           # Tag reference guide (comprehensive update)
@@ -230,6 +260,8 @@ STINGTOOLS/
         ├── TAG_PLACEMENT_PRESETS_DEFAULT.json  # Default tag placement preset (12 category rules)
         ├── TAG_STYLE_RULES.json        # Tag style engine rules (v2.0, 128 type combinations, discipline presets)
         ├── WORKFLOW_DailyQA_Enhanced.json     # Enhanced Daily QA workflow (8 conditional steps)
+        ├── WORKFLOW_MorningHealthCheck.json   # Morning health check workflow (10 adaptive steps)
+        ├── WORKFLOW_WeeklyDataDrop.json       # Weekly ISO 19650 data drop workflow (10 steps)
         ├── cost_rates_5d.csv            # 5D cost rates (7-col: Category, MAT_CODE, MAT_DISCIPLINE, rates, Unit, Description)
         ├── VALIDAT_BIM_TEMPLATE.py     # BIM template validation (45 checks, ported to C#)
         ├── COBIE_TYPE_MAP.csv          # 70+ equipment types with STING token mapping
@@ -241,8 +273,10 @@ STINGTOOLS/
         ├── COBIE_DOCUMENT_TYPES.csv    # 28 O&M document types with regulatory references
         ├── COBIE_ZONE_TYPES.csv        # 16 zone type classifications (fire, HVAC, lighting, acoustic, etc.)
         ├── project_bep.json            # Project-specific BEP configuration template
-        ├── TAGGING_GUIDE.md            # Complete tagging guide documentation
-        └── TAG_FAMILY_CREATION_GUIDE.md # End-to-end tag family creation workflow guide
+        ├── TAGGING_GUIDE.md            # Complete tagging guide documentation (1,300+ lines)
+        ├── TAG_FAMILY_CREATION_GUIDE.md # End-to-end tag family creation workflow guide
+        ├── BIM_COORDINATION_WORKFLOW_GUIDE.md # Comprehensive BIM coordinator workflow guide (2,000+ lines, 22 sections)
+        └── DWG_TO_BIM_GUIDE.md        # DWG-to-structural BIM conversion guide
 ```
 
 ## Ribbon UI Architecture (Legacy)
@@ -2991,3 +3025,52 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 757. **Deep review: 84 BIM/coordination findings** — Agent 2 identified 7 CRITICAL (unknown conditions, non-atomic writes, BCF schema, ID collisions), 42 HIGH (SLA case sensitivity, count-based IDs, duplicate rules, unfiltered collectors, revision numbering), 34 MEDIUM (timestamp sorting, dead parameters, hardcoded holidays, double-scan patterns), 1 LOW. Total across 3 agents: **165 findings** (16 CRITICAL, 68 HIGH, 79 MEDIUM, 2 LOW).
 758. **TAGGING_GUIDE.md Section 28** — Added 6 deep-dive subsections: 11-step RunFullPipeline breakdown, token derivation priority table, SEQ numbering internals, performance characteristics (1K-50K), 8-layer caching architecture with TTLs, troubleshooting patterns table.
 759. **BIM_COORDINATION_WORKFLOW_GUIDE.md Section 23** — Added 7 deep-dive subsections: compliance engine 3-layer architecture, CDE state machine with suitability codes, cross-system data flow diagram, workflow engine (19 conditions), warning classification (150+ rules), performance guide, 4-week teaching checklist for new BIM coordinators.
+
+#### Completed (Phase 78 — Deep Review: Performance, Cache Safety, Tag Placement & Structural Fixes)
+
+760. **ComplianceScan DST-immune cache (CS-01)** — All 6 `DateTime.Now` references in cache staleness math replaced with `DateTime.UtcNow` in `ComplianceScan.cs`. Daylight Saving Time transitions caused 1-hour cache invalidation gaps or stale reads. Affected: cache timestamp recording (lines 159, 170), staleness checks (lines 193, 194), trend recording (line 431), scan start tracking (line 581).
+761. **Tag placement Box2D hash dedup (GAP-STP-01)** — `SmartTagPlacementCommand.cs`: Changed `HashSet<int>` (using `GetHashCode()`) to `HashSet<Box2D>` with proper `IEquatable<Box2D>` value equality for spatial overlap detection. `GetHashCode` collisions silently dropped legitimate overlapping tags from detection, causing tags to be placed on top of each other. `Box2D` struct now implements `Equals(Box2D)` with coordinate comparison and consistent `GetHashCode` via `HashCode.Combine`.
+762. **FindTagType collector cache (GAP-STP-02)** — `TagPlacementEngine.FindTagType()` in `SmartTagPlacementCommand.cs` used uncached `FilteredElementCollector(typeof(FamilySymbol))` per element — 10K elements × full collector = 10K scans. Added `_tagTypeCache` / `_tagTypeCacheDocKey` static cache keyed by document path. `ClearTagTypeCache()` wired to `OnDocumentClosing` in `StingToolsApp.cs` to prevent cross-document stale references.
+763. **Locked token restore throttle (Finding-5)** — `ParameterHelpers.cs RunFullPipeline`: Per-element `StingLog.Info` for locked token restoration generated 50K+ log lines on large models with token locks. Added `_lockedTokenRestoreCount` static throttle — logs first 5 occurrences + every 100th thereafter. Counter reset in `InvalidateSessionCaches()`.
+
+#### Completed (Phase 79 — Critical Bug Fixes: Race Conditions, Re-Entrancy, ID Collisions)
+
+764. **SCH-CRIT-01: WorkflowPreset_ race condition** — `StingCommandHandler.cs` line ~1664: `_commandTag.Replace("RunWorkflow_", "")` read instance field outside lock, vulnerable to racing WPF thread overwrites. Fixed to use local `tag` variable (snapshot taken under lock). Prevents wrong workflow preset execution when user clicks rapidly.
+765. **BUG-02: Execute() re-entrancy guard** — `StingCommandHandler.cs`: Wizard dispatch loops (DocumentManager, DocWizard, ModelWizard, ScheduleWizard) call `SetCommand()` + `Execute()` recursively from within Execute(). The finally block cleared `_commandTag` and `ExtraParams` on inner return, breaking the outer caller's state. Added `_executeDepth` counter — finally block cleanup only runs at outermost depth (depth ≤ 0). Inner Execute() calls preserve outer caller's command tag and parameters.
+766. **SCH-HIGH-01: ModelWizard ExtraParams ordering** — `StingCommandHandler.cs` ModelWizard case: `SetExtraParam()` calls were placed BEFORE `SetCommand()`, but `SetCommand()` calls `ClearAllExtraParams()` (M-02 fix from Phase 77), wiping all dimension/option parameters before Execute() could consume them. Reordered: `SetCommand()` first (clears params), then `SetExtraParam()` calls (survive for dispatched command). Same pattern verified for DocWizard and ScheduleWizard cases.
+767. **BIM-HIGH-01: Non-monotonic ID generation** — `BIMManagerCommands.cs`: 4 locations used `JArray.Count + 1` for sequential IDs (DOC-NNNN, TX-NNNN, APR-NNNN, TASK-NNNN). After deletions from the JSON array, Count decreases but existing IDs don't — causing ID collisions (e.g., delete DOC-0003 from 3-item array → next insert generates DOC-0003 again). Added `NextIdFromArray(JArray, prefix, idField)` helper that scans for max existing numeric suffix and returns max+1. Fixed all 4 call sites.
+768. **ClearTagTypeCache wiring** — `StingToolsApp.cs OnDocumentClosing`: Added `Tags.TagPlacementEngine.ClearTagTypeCache()` call alongside existing cache cleanup methods to prevent stale tag type references when switching between Revit documents.
+769. **BUG-04: M-02 fix broke Tag Studio sliders** — `StingCommandHandler.SetCommand()`: The Phase 77 M-02 fix (entry 752) added `ClearAllExtraParams()` to `SetCommand()` to prevent parameter bleed. However, `StingDockPanel.Cmd_Click` sets ExtraParams (ElbowMode, TagTextSize, PreferredTagPos, LeaderMode, etc. — ~16 parameters from `SetLeaderElbowParams()` and `SetTagStyleParams()`) BEFORE calling `SetCommand()`, so the clear wiped all slider/radio values before `Execute()` could consume them. Fixed by removing `ClearAllExtraParams()` from `SetCommand()` — the `finally` block in `Execute()` already clears ExtraParams after execution, which is the correct location for cleanup.
+770. **BUG-05: Per-call ElementSet allocation** — `StingCommandHandler.RunCommand<T>()` allocated `new ElementSet()` on every single command invocation (~750+ command types). Since `commandData` is null, Revit never reads this object — it exists only to satisfy the `IExternalCommand.Execute()` signature. Replaced with static `_emptyElementSet` field allocated once. Eliminates per-call heap allocation.
+
+#### Completed (Phase 79b — Deep Review: Performance, Safety, Cache & Pipeline Fixes)
+
+771. **WM-H6: Dead `_loweredRules` field removed** — `WarningsManager.cs`: Removed unused `static string[] _loweredRules` field that was shadowed by `_loweredPatterns[]` (the actual precomputed array). Dead allocation on class load.
+772. **WM-H1: DateTime.UtcNow for warnings cache** — `WarningsManager.cs`: Changed `DateTime.Now` to `DateTime.UtcNow` for `_cachedReportTime` timestamp and staleness checks. DST transitions caused 1-hour cache gaps or stale reads, matching the ComplianceScan CS-01 fix pattern.
+773. **WM-C1: Strategy 1 existence check** — `WarningsManager.cs`: Added `doc.GetElement(dupId) != null` guard before `doc.Delete(dupId)` in duplicate instance auto-fix. Prevents `ArgumentException` crash when element was already deleted by a prior strategy in the same batch.
+774. **WM-C2: Strategy 2 MaxValue bail-out** — `WarningsManager.cs`: Added guard when room separation line length comparison finds zero valid lengths (both `double.MaxValue`). Prevents deleting arbitrary elements when neither line has computable geometry.
+775. **WM-C3: Strategy 3 narrowed match** — `WarningsManager.cs`: Changed overly-broad "redundant" pattern match (which would catch "redundant bracing" structural warnings) to require "redundant" in combination with room/separation/boundary context.
+776. **WM-C4: Strategy 10 exclusion** — `WarningsManager.cs`: Added `!desc.Contains("duplicate instance")` filter to Strategy 10 (duplicate marks) to prevent overlap with Strategy 4 (duplicate instances). Same warning description could trigger both strategies.
+777. **WM-H3: Strategy 8 threshold reorder** — `WarningsManager.cs`: Reordered `Math.Abs(dir.X) < threshold && Math.Abs(dir.Y) > (1.0 - threshold)` dual-bound check for clarity. No logic change but prevents future maintenance confusion about which axis is being tested.
+778. **WM-H4 + WM-H5: Strategy 11 double BoundingBox fix** — `WarningsManager.cs`: Eliminated redundant `room.get_BoundingBox(null)` call (was called twice — once for null check, once for center calculation). Added null guard before center calculation to prevent NRE on rooms without geometry.
+779. **CRITICAL: Execute() depth counter leak** — `StingCommandHandler.cs`: `_executeDepth++` was positioned BEFORE the null-document early return guard. When `doc == null`, the method returned without entering `try/finally`, permanently leaking depth by +1. After ~3 null-doc calls, `_executeDepth` exceeded 0 and the finally block stopped clearing `_commandTag`/ExtraParams, causing all subsequent commands to inherit stale parameters. Fixed by moving null-doc guard BEFORE `_executeDepth++`.
+780. **HIGH: Collision index leak on tag failure** — `TagConfig.cs BuildAndWriteTag()`: When `actualTokens.Length < 8` in non-overwrite mode, the method removed the existing tag from `existingTags` HashSet but never re-added it on the failure return path. Over a batch of 10K elements, this leaked valid tags from the collision index, allowing duplicate TAG1 values. Fixed by re-adding the removed tag before returning false.
+781. **MEDIUM: TAG7 early-exit on consecutive empties** — `TagConfig.cs WriteTag7All()`: The `consecutiveEmpty >= 4` break condition silently dropped non-empty TAG7 sections E/F when sections A-D were empty. Removed the break — all 6 sections (A-F) are now always evaluated regardless of preceding empty sections.
+782. **HIGH: Fast-cache TAG1 filter null guard** — `ParameterHelpers.cs`: Added `string.IsNullOrEmpty(cTag1)` guard before `cTag1[0]` access in the fast spatial candidate cache filter. Null/empty TAG1 values caused `IndexOutOfRangeException` during batch tagging.
+783. **_readOnlySkipCount reset on document switch** — `ParameterHelpers.cs ClearParamCache()`: Added `_readOnlySkipCount = 0` reset. Counter from previous document leaked through `[ThreadStatic]` storage on the same thread, causing throttled logging to suppress warnings from the new document.
+784. **Unknown categories logged in PopulateAll** — `ParameterHelpers.cs PopulateAll()`: Added `StingLog.Info` for non-empty category names not in `ctx.KnownCategories`. Previously returned silently, making it impossible to diagnose why elements in custom categories were never tagged.
+785. **Null-category spatial cache guard** — `ParameterHelpers.cs CopyTokensFromNearest()`: Added `catKey != 0` guard before fast-path spatial cache lookup. Elements with null category (deleted/corrupt) mapped to key 0, which is a junk bucket mixing all null-category elements regardless of actual type.
+786. **CopyTokensFromNearest log throttle** — `ParameterHelpers.cs`: Added `[ThreadStatic] _copyTokensLogCount` with first-10 + every-100th throttle pattern. Previously logged every successful copy (50K+ log lines on large models). Counter reset in `InvalidateSessionCaches()`.
+787. **COBie stale container sample threshold** — `BIMManagerCommands.cs COBieExportCommand`: Increased stale container sample from `>= 5` to `>= 50` elements before breaking the diagnostic loop. A 5-element sample on a 50K-element model is statistically meaningless for estimating container staleness.
+788. **FireAfterTag balanced hook on failure** — `ParameterHelpers.cs RunFullPipeline()`: Added `StingPluginHooks.FireAfterTag(doc, el, null)` call on the `BuildAndWriteTag` failure path. Previously, `FireBeforeTag` was called at pipeline start but `FireAfterTag` was only called on success, leaving subscribed plugins with unbalanced Before/After pairs.
+789. **CRITICAL: Hardy Cross moment zeroing** — `StructuralAnalysisEngine.cs`: Fixed `moments[j] = 0` which discarded accumulated distributed moments from prior iterations. The Hardy Cross method requires moments to retain the cumulative sum of all corrections. Changed to `moments[j] += -imbalance` which applies the balancing correction without losing history. Previous code produced incorrect support moments for continuous beams with 3+ spans.
+790. **CRITICAL: DSM shear force J-end overwrite** — `StructuralAnalysisEngine.cs`: Fixed `ShearForceJKN = ShearForceIKN` which copied I-end shear to J-end instead of computing J-end independently from the stiffness matrix. For asymmetric frames, V_J ≠ V_I. Added independent J-end elastic shear calculation using the member stiffness matrix (negated I-end expression per beam theory).
+791. **HIGH: Genetic optimizer stale fitness convergence** — `StructuralAnalysisEngine.cs`: Convergence check paired new-generation population with old-generation fitness values (fitness evaluation happens at loop start, convergence check happens after crossover/mutation). Replaced fitness-based ordering with direct spatial spread check on population values, which correctly measures convergence without requiring re-evaluation.
+792. **HIGH: R-Tree QueryNearest square vs circular radius** — `StructuralAnalysisEngine.cs`: `QueryNearest()` returned all entries within the bounding *square* of the radius, not the circular radius. Corner entries at distance up to √2 × radius were incorrectly included. Added `FindEntry()` helper and `RemoveAll` filter using actual Euclidean distance from entry center to query point.
+793. **HIGH: CreateGridFrame beams without column warning** — `StructuralModelingEngine.cs`: Added warning log when column grid creation fails (Step 1) but beam creation (Step 2) proceeds anyway. Beams placed at grid intersections without supporting columns are structurally unsupported.
+794. **HIGH: StrAutoRebar hardcoded dimensions** — `ExcelStructuralEngine.cs`: `StrAutoRebarCommand` used hardcoded 300×600mm beam and 400mm column dimensions for rebar design instead of reading actual element geometry. Now extracts `STRUCTURAL_SECTION_COMMON_WIDTH/HEIGHT` from Revit elements with fallback to defaults. Also reads column height from bounding box.
+795. **HIGH: Shrinkage curvature hardcoded depth** — `StructuralDeepEngine.cs`: Creep deflection analysis used hardcoded 250mm effective depth for shrinkage curvature calculation regardless of span. For a 12m span beam (h≈600mm, d≈510mm), this overestimated shrinkage deflection by 2×. Now derives depth from span using h≈span/20, d≈0.85h per EC2 §7.4.3.
+
+#### Completed (Phase 84 — Final Branch Consolidation)
+
+796. **All branches merged** — Consolidated all remaining remote branches into single unified branch `claude/merge-resolve-update-docs-PQNBs`. Merged `origin/claude/merge-branches-resolve-conflicts-oLzPu` (5 commits: build error fixes for CS0101/CS0102/CS0111 duplicates, MC3089 XAML, ambiguous Binding, WarningsManager refs, FillPattern types) and `origin/claude/determined-gates-Su8fP` (27 commits: Phases 79-83 performance/safety/efficiency fixes across 32+ files). 8 merge conflicts resolved across 5 files: BIMManagerCommands.cs (NextIdFromArray for collision-safe TX IDs), TagConfig.cs (HashSet for O(1) validation lookups, DefaultStatus property, RequiredTokens HashSet), HandoverExportCommands.cs (HandoverHelper.CollectTaggedElements helper — 2 locations), StructuralCADWizard.cs (TryGetValue pattern), CombineParametersCommand.cs (DISC fallback chain preserved with progress reporting). All remote branches now fully merged — `git branch -r --no-merged HEAD` returns empty.

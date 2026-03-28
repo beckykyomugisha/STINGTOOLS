@@ -737,6 +737,9 @@ namespace StingTools.Core
     /// </summary>
     internal static class WarningRootCauseAnalyser
     {
+        // MED-08: Pre-compiled regex avoids JIT regex compilation per call
+        private static readonly System.Text.RegularExpressions.Regex _digitRegex
+            = new System.Text.RegularExpressions.Regex(@"\d+", System.Text.RegularExpressions.RegexOptions.Compiled);
         /// <summary>A root cause with downstream impact count.</summary>
         internal class RootCause
         {
@@ -832,7 +835,7 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(desc)) return "";
             // Strip element-specific IDs and values to group similar warnings
-            return System.Text.RegularExpressions.Regex.Replace(desc, @"\d+", "#").Trim();
+            return _digitRegex.Replace(desc, "#").Trim();
         }
 
         private static int CalculateImpactScore(ClassifiedWarning w, int groupCount, int elementCount)
@@ -1043,7 +1046,7 @@ namespace StingTools.Core
         private static readonly Dictionary<string, int> _previousValues = new();
 
         /// <summary>Record current refresh time.</summary>
-        public static void RecordRefresh() => _lastRefreshTime = DateTime.Now;
+        public static void RecordRefresh() => _lastRefreshTime = DateTime.UtcNow;
 
         /// <summary>Get formatted last refresh time.</summary>
         public static string LastRefreshText =>
@@ -1051,7 +1054,7 @@ namespace StingTools.Core
 
         /// <summary>Seconds since last refresh.</summary>
         public static double SecondsSinceRefresh =>
-            _lastRefreshTime == DateTime.MinValue ? double.MaxValue : (DateTime.Now - _lastRefreshTime).TotalSeconds;
+            _lastRefreshTime == DateTime.MinValue ? double.MaxValue : (DateTime.UtcNow - _lastRefreshTime).TotalSeconds;
 
         /// <summary>Track a metric value and return change indicator (↑+N, ↓-N, or →0).</summary>
         public static string TrackChange(string metricName, int currentValue)
@@ -1412,9 +1415,8 @@ namespace StingTools.Core
                         }
                         return criticalCount == 0;
                     case "RetagStale":
-                        // Check if stale elements exist
-                        return !new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                            .Any(e => { try { var p = e.LookupParameter(ParamRegistry.STALE); return p != null && p.AsInteger() == 1; } catch (Exception ex) { StingLog.Warn($"StaleCheck: {ex.Message}"); return false; } });
+                        // HIGH-12: Use cached ComplianceScan.StaleCount instead of full element scan
+                        return (ComplianceScan.Scan(doc)?.StaleCount ?? 0) == 0;
                     case "SheetNamingCheck":
                         return true; // Always allow — naming check is advisory
                     case "ModelHealthDashboard":
@@ -1450,18 +1452,31 @@ namespace StingTools.Core
             public HashSet<string> ApprovalRequiredActions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Get current user's role from project_config.json.</summary>
+        // HIGH-13: Per-document cache for GetCurrentUserRole to avoid repeated file reads
+        private static string _cachedUserRole;
+        private static string _cachedUserRoleDocKey;
+
+        /// <summary>Get current user's role from project_config.json. Cached per config file path.</summary>
         public static string GetCurrentUserRole()
         {
             try
             {
                 string configPath = TagConfig.ConfigSource;
-                if (string.IsNullOrEmpty(configPath) || !File.Exists(configPath)) return "Z"; // Default: General
+                if (string.IsNullOrEmpty(configPath)) return "Z";
+                // Return cached value if config path hasn't changed
+                if (_cachedUserRoleDocKey == configPath && _cachedUserRole != null)
+                    return _cachedUserRole;
+                if (!File.Exists(configPath)) return "Z";
                 var json = JObject.Parse(File.ReadAllText(configPath));
-                return json["USER_ROLE"]?.ToString() ?? "Z";
+                _cachedUserRole = json["USER_ROLE"]?.ToString() ?? "Z";
+                _cachedUserRoleDocKey = configPath;
+                return _cachedUserRole;
             }
             catch (Exception ex) { StingLog.Warn($"GetCurrentUserRole: {ex.Message}"); return "Z"; }
         }
+
+        /// <summary>Invalidate role cache (call when config changes).</summary>
+        public static void InvalidateRoleCache() { _cachedUserRole = null; _cachedUserRoleDocKey = null; }
 
         /// <summary>CC-06: Check if action is allowed for current user role.</summary>
         public static bool IsActionAllowed(string actionTag, string userRole = null)
@@ -1567,7 +1582,7 @@ namespace StingTools.Core
     /// </summary>
     internal static class WorksetChangeNotifier
     {
-        private static readonly Dictionary<string, string> _previousOwners = new();
+        private static readonly ConcurrentDictionary<string, string> _previousOwners = new();
 
         /// <summary>ED-03: Check for workset ownership changes and log to team activity.</summary>
         public static void CheckWorksetChanges(Document doc)
@@ -1597,6 +1612,7 @@ namespace StingTools.Core
         }
 
         /// <summary>Reset tracking (document close).</summary>
+        /// <summary>Reset tracking (document close).</summary>
         public static void Reset() => _previousOwners.Clear();
     }
 
@@ -1625,9 +1641,9 @@ namespace StingTools.Core
             if (doc == null) return (0, new List<string>());
 
             // Debounce: only check every N minutes
-            if ((DateTime.Now - _lastCheck).TotalMinutes < CheckIntervalMinutes)
+            if ((DateTime.UtcNow - _lastCheck).TotalMinutes < CheckIntervalMinutes)
                 return (0, new List<string>());
-            _lastCheck = DateTime.Now;
+            _lastCheck = DateTime.UtcNow;
 
             var violations = new List<string>();
             try

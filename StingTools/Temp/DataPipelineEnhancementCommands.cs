@@ -43,7 +43,7 @@ namespace StingTools.Temp
                 var csvPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
                 var csvParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                if (!string.IsNullOrEmpty(csvPath) && File.Exists(csvPath))
+                if (!string.IsNullOrEmpty(csvPath))
                 {
                     var lines = File.ReadAllLines(csvPath);
                     foreach (var line in lines.Skip(1))
@@ -127,14 +127,14 @@ namespace StingTools.Temp
                 var matrixPath = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
                 var bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
 
-                if (string.IsNullOrEmpty(matrixPath) || !File.Exists(matrixPath))
+                if (string.IsNullOrEmpty(matrixPath))
                 {
                     sb.AppendLine("⚠ BINDING_COVERAGE_MATRIX.csv not found");
                     TaskDialog.Show("STING Binding Validation", sb.ToString());
                     return Result.Failed;
                 }
 
-                if (string.IsNullOrEmpty(bindingsPath) || !File.Exists(bindingsPath))
+                if (string.IsNullOrEmpty(bindingsPath))
                 {
                     sb.AppendLine("⚠ CATEGORY_BINDINGS.csv not found");
                     TaskDialog.Show("STING Binding Validation", sb.ToString());
@@ -218,13 +218,18 @@ namespace StingTools.Temp
             try
             {
                 var path = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                if (string.IsNullOrEmpty(path))
                 {
                     TaskDialog.Show("STING Parameter Metadata", "PARAMETER__CATEGORIES.csv not found.");
                     return Result.Failed;
                 }
 
                 var lines = File.ReadAllLines(path);
+                if (lines.Length == 0)
+                {
+                    TaskDialog.Show("STING", "PARAMETER__CATEGORIES.csv is empty.");
+                    return Result.Failed;
+                }
                 var header = StingToolsApp.ParseCsvLine(lines[0]);
 
                 var sb = new StringBuilder();
@@ -303,7 +308,7 @@ namespace StingTools.Temp
             try
             {
                 var path = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                if (string.IsNullOrEmpty(path))
                 {
                     TaskDialog.Show("STING Family Bindings", "FAMILY_PARAMETER_BINDINGS.csv not found.");
                     return Result.Failed;
@@ -497,7 +502,7 @@ namespace StingTools.Temp
 
                 // PARAMETER_REGISTRY.json
                 var regPath = StingToolsApp.FindDataFile("PARAMETER_REGISTRY.json");
-                if (!string.IsNullOrEmpty(regPath) && File.Exists(regPath))
+                if (!string.IsNullOrEmpty(regPath))
                 {
                     var regSize = new FileInfo(regPath).Length / 1024;
                     sb.AppendLine($"[PRIMARY] PARAMETER_REGISTRY.json — {regSize}KB");
@@ -507,7 +512,7 @@ namespace StingTools.Temp
 
                 // CATEGORY_BINDINGS.csv
                 var catPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-                if (!string.IsNullOrEmpty(catPath) && File.Exists(catPath))
+                if (!string.IsNullOrEmpty(catPath))
                 {
                     int rows = File.ReadLines(catPath).Count() - 1;
                     sb.AppendLine($"\n[ACTIVE] CATEGORY_BINDINGS.csv — {rows} bindings");
@@ -516,7 +521,7 @@ namespace StingTools.Temp
 
                 // BINDING_COVERAGE_MATRIX.csv
                 var matPath = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
-                if (!string.IsNullOrEmpty(matPath) && File.Exists(matPath))
+                if (!string.IsNullOrEmpty(matPath))
                 {
                     int rows = File.ReadLines(matPath).Count() - 1;
                     sb.AppendLine($"\n[VALIDATION] BINDING_COVERAGE_MATRIX.csv — {rows} parameters");
@@ -525,7 +530,7 @@ namespace StingTools.Temp
 
                 // FAMILY_PARAMETER_BINDINGS.csv
                 var famPath = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
-                if (!string.IsNullOrEmpty(famPath) && File.Exists(famPath))
+                if (!string.IsNullOrEmpty(famPath))
                 {
                     int rows = File.ReadLines(famPath).Count() - 1;
                     sb.AppendLine($"\n[ACTIVE] FAMILY_PARAMETER_BINDINGS.csv — {rows} bindings");
@@ -534,7 +539,7 @@ namespace StingTools.Temp
 
                 // PARAMETER__CATEGORIES.csv
                 var pcPath = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
-                if (!string.IsNullOrEmpty(pcPath) && File.Exists(pcPath))
+                if (!string.IsNullOrEmpty(pcPath))
                 {
                     int rows = File.ReadLines(pcPath).Count() - 1;
                     sb.AppendLine($"\n[REFERENCE] PARAMETER__CATEGORIES.csv — {rows} parameters");
@@ -551,7 +556,7 @@ namespace StingTools.Temp
                 foreach (var fileName in otherFiles)
                 {
                     var fPath = StingToolsApp.FindDataFile(fileName);
-                    if (!string.IsNullOrEmpty(fPath) && File.Exists(fPath))
+                    if (!string.IsNullOrEmpty(fPath))
                     {
                         var fSize = new FileInfo(fPath).Length / 1024;
                         sb.AppendLine($"  {fileName} — {fSize}KB");
@@ -607,7 +612,7 @@ namespace StingTools.Temp
 
                 // Add CSV binding summary
                 var catBindPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-                if (!string.IsNullOrEmpty(catBindPath) && File.Exists(catBindPath))
+                if (!string.IsNullOrEmpty(catBindPath))
                 {
                     var bindingCount = File.ReadLines(catBindPath).Count() - 1;
                     registry["category_bindings_count"] = bindingCount;
@@ -615,7 +620,7 @@ namespace StingTools.Temp
                 }
 
                 var famBindPath = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
-                if (!string.IsNullOrEmpty(famBindPath) && File.Exists(famBindPath))
+                if (!string.IsNullOrEmpty(famBindPath))
                 {
                     var famCount = File.ReadLines(famBindPath).Count() - 1;
                     registry["family_bindings_count"] = famCount;

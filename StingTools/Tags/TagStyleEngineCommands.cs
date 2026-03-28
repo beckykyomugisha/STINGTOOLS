@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -61,7 +62,7 @@ namespace StingTools.Tags
             var result = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
 
             string path = StingToolsApp.FindDataFile("TAG_STYLE_RULES.json");
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            if (string.IsNullOrEmpty(path))
             {
                 StingLog.Warn("TagStyleEngine: TAG_STYLE_RULES.json not found");
                 return result;
@@ -233,12 +234,10 @@ namespace StingTools.Tags
             foreach (var fs in tagTypes)
             {
                 // Index by type name (e.g. "2BOLD_RED") and by "Family: Type"
-                if (!index.ContainsKey(fs.Name))
-                    index[fs.Name] = fs.Id;
+                index.TryAdd(fs.Name, fs.Id);
 
                 string fullName = $"{fs.Family.Name}: {fs.Name}";
-                if (!index.ContainsKey(fullName))
-                    index[fullName] = fs.Id;
+                index.TryAdd(fullName, fs.Id);
             }
 
             return index;
@@ -290,9 +289,8 @@ namespace StingTools.Tags
 
                 string targetTypeName = ResolveTagType(doc, host, preset);
 
-                if (!result.TypeDistribution.ContainsKey(targetTypeName))
-                    result.TypeDistribution[targetTypeName] = 0;
-                result.TypeDistribution[targetTypeName]++;
+                result.TypeDistribution.TryGetValue(targetTypeName, out int tdCount);
+                result.TypeDistribution[targetTypeName] = tdCount + 1;
 
                 if (!typeIndex.TryGetValue(targetTypeName, out ElementId targetTypeId))
                 {
@@ -411,9 +409,8 @@ namespace StingTools.Tags
 
                         string targetTypeName = TagStyleRuleEngine.ResolveTagType(doc, host, preset);
 
-                        if (!typeCounts.ContainsKey(targetTypeName))
-                            typeCounts[targetTypeName] = 0;
-                        typeCounts[targetTypeName]++;
+                        typeCounts.TryGetValue(targetTypeName, out int tcCount);
+                        typeCounts[targetTypeName] = tcCount + 1;
 
                         if (!typeIndex.TryGetValue(targetTypeName, out ElementId targetTypeId))
                         {
@@ -743,11 +740,10 @@ namespace StingTools.Tags
                 Element typeEl = doc.GetElement(tag.GetTypeId());
                 string typeName = typeEl?.Name ?? "Unknown";
 
-                if (!discToTypes.ContainsKey(disc))
-                    discToTypes[disc] = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                if (!discToTypes[disc].ContainsKey(typeName))
-                    discToTypes[disc][typeName] = 0;
-                discToTypes[disc][typeName]++;
+                if (!discToTypes.TryGetValue(disc, out var innerDict))
+                    discToTypes[disc] = innerDict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                innerDict.TryGetValue(typeName, out int innerCount);
+                innerDict[typeName] = innerCount + 1;
             }
 
             // Find the dominant tag type per discipline
@@ -1528,9 +1524,9 @@ namespace StingTools.Tags
                 if (host == null) continue;
                 long hid = host.Id.Value;
                 hostElements[hid] = host;
-                if (!tagsByHost.ContainsKey(hid))
-                    tagsByHost[hid] = new List<IndependentTag>();
-                tagsByHost[hid].Add(tag);
+                if (!tagsByHost.TryGetValue(hid, out var hostTagList))
+                    tagsByHost[hid] = hostTagList = new List<IndependentTag>();
+                hostTagList.Add(tag);
             }
 
             // If no tags but selection has elements, apply params directly
@@ -1598,8 +1594,8 @@ namespace StingTools.Tags
                         string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                         string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                         string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                        if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                        distribution[key]++;
+                        distribution.TryGetValue(key, out int dv);
+                        distribution[key] = dv + 1;
                     }
                     catch (Exception ex)
                     {
@@ -1669,8 +1665,8 @@ namespace StingTools.Tags
                 string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                 string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                 string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                distribution[key]++;
+                distribution.TryGetValue(key, out int dv);
+                distribution[key] = dv + 1;
             }
 
             var sb = new StringBuilder();
@@ -1833,21 +1829,24 @@ namespace StingTools.Tags
                 Element host = TagStyleRuleEngine.GetTagHost(tag, doc);
                 if (host == null) continue;
                 long hid = host.Id.Value;
-                if (!tagsByHost.ContainsKey(hid))
-                    tagsByHost[hid] = new List<IndependentTag>();
-                tagsByHost[hid].Add(tag);
+                if (!tagsByHost.TryGetValue(hid, out var hostTagList2))
+                    tagsByHost[hid] = hostTagList2 = new List<IndependentTag>();
+                hostTagList2.Add(tag);
             }
 
             int paramsWritten = 0;
             int colorsApplied = 0;
             var distribution = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+            var batchStyleProgress = StingProgressDialog.Show("Batch Param-Driven Styles", allElements.Count);
             using (Transaction tx = new Transaction(doc, "STING Batch Param-Driven Styles"))
             {
                 tx.Start();
 
                 foreach (var el in allElements)
                 {
+                    if (batchStyleProgress.IsCancelled) break;
+                    batchStyleProgress.Increment("Applying styles...");
                     try
                     {
                         var (size, weight, colorIdx) = ParamDrivenStyleEngine.ResolveStyle(doc, el, preset);
@@ -1869,14 +1868,15 @@ namespace StingTools.Tags
                         string weightLabel = ParamDrivenStyleEngine.WeightLabels.TryGetValue(weight, out string wl) ? wl : $"{weight}";
                         string colorLabel = ParamDrivenStyleEngine.ColorIndex.TryGetValue(colorIdx, out string cl) ? cl : $"{colorIdx}";
                         string key = $"{sizeLabel} {weightLabel} {colorLabel}";
-                        if (!distribution.ContainsKey(key)) distribution[key] = 0;
-                        distribution[key]++;
+                        distribution.TryGetValue(key, out int dv);
+                        distribution[key] = dv + 1;
                     }
                     catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }
 
                 tx.Commit();
             }
+            try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
 
             TaskDialog.Show("Batch Apply Param-Driven Styles",
                 ParamDrivenStyleEngine.FormatStyleReport(

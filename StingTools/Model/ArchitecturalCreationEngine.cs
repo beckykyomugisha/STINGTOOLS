@@ -336,7 +336,7 @@ namespace StingTools.Model
                 ProtectionType = protectionType,
             };
 
-            double hp = threeSided ? perimeterMm - (Math.Sqrt(areaMm2) * 0.5) : perimeterMm;
+            double hp = threeSided ? perimeterMm - (Math.Sqrt(Math.Max(areaMm2, 0)) * 0.5) : perimeterMm;
             result.SectionFactorM = hp / areaMm2 * 1000; // m⁻¹
 
             if (protectionType == "intumescent")

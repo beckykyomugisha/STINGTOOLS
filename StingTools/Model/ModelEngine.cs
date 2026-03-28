@@ -315,7 +315,17 @@ namespace StingTools.Model
 
         public void EnsureActive(FamilySymbol symbol)
         {
-            if (!symbol.IsActive)
+            if (symbol.IsActive) return;
+            // ME-CRIT-01: Guard against nested transaction if caller already has an open transaction.
+            // Opening a nested Transaction inside an active outer Transaction throws
+            // InvalidOperationException in the Revit 2025+ API.
+            if (_doc.IsModifiable)
+            {
+                // Already inside a transaction — activate directly without wrapper.
+                symbol.Activate();
+                _doc.Regenerate();
+            }
+            else
             {
                 using (var tx = new Transaction(_doc, "STING MODEL: Activate Symbol"))
                 {
@@ -576,7 +586,7 @@ namespace StingTools.Model
                     tg.Start();
 
                     // Transaction 1: Create 4 walls
-                    using (var tx = new Transaction(_doc, "Create Walls"))
+                    using (var tx = new Transaction(_doc, "STING Create Walls"))
                     {
                         AttachFailureHandler(tx, fh);
                         tx.Start();
@@ -602,7 +612,7 @@ namespace StingTools.Model
                     }
 
                     // Transaction 2: Join wall corners
-                    using (var tx = new Transaction(_doc, "Join Corners"))
+                    using (var tx = new Transaction(_doc, "STING Join Corners"))
                     {
                         tx.Start();
                         try
@@ -618,7 +628,7 @@ namespace StingTools.Model
                     // Transaction 3: Place room element
                     if (placeRoom)
                     {
-                        using (var tx = new Transaction(_doc, "Place Room"))
+                        using (var tx = new Transaction(_doc, "STING Place Room"))
                         {
                             tx.Start();
                             try
@@ -1493,8 +1503,8 @@ namespace StingTools.Model
         public static double SizeDuctDiameterMm(double airflowLps, bool lowVelocity = true)
         {
             double targetVel = lowVelocity ? 5.0 : 8.0; // m/s
-            double areaM2 = (airflowLps / 1000.0) / targetVel;
-            double diamM = Math.Sqrt(4.0 * areaM2 / Math.PI);
+            double areaM2 = (airflowLps / 1000.0) / Math.Max(targetVel, 1e-10);
+            double diamM = Math.Sqrt(Math.Max(4.0 * areaM2 / Math.PI, 0));
             double diamMm = diamM * 1000.0;
 
             // Round up to standard duct sizes per BS EN 12237
@@ -1512,8 +1522,8 @@ namespace StingTools.Model
         public static double SizePipeDiameterMm(double flowLps, bool mainsPressure = false)
         {
             double targetVel = mainsPressure ? 2.0 : 1.0; // m/s
-            double areaM2 = (flowLps / 1000.0) / targetVel;
-            double diamM = Math.Sqrt(4.0 * areaM2 / Math.PI);
+            double areaM2 = (flowLps / 1000.0) / Math.Max(targetVel, 1e-10);
+            double diamM = Math.Sqrt(Math.Max(4.0 * areaM2 / Math.PI, 0));
             double diamMm = diamM * 1000.0;
 
             // Standard copper/steel pipe sizes
@@ -1745,9 +1755,9 @@ namespace StingTools.Model
             double maxRatio = req.MaxAspectRatio;
 
             // Start with square aspect
-            double side = Math.Sqrt(area);
+            double side = Math.Sqrt(Math.Max(area, 0));
             double width = Math.Max(side, minW);
-            double depth = area / width;
+            double depth = area / Math.Max(width, 1e-10);
 
             // Enforce aspect ratio
             if (width / depth > maxRatio) { depth = width / maxRatio; }
@@ -2035,8 +2045,8 @@ namespace StingTools.Model
                 {
                     if (room.Area <= 0) continue;
                     string lvl = room.Level?.Name ?? "Unknown";
-                    if (!roomsByLevel.ContainsKey(lvl)) roomsByLevel[lvl] = 0;
-                    roomsByLevel[lvl] += room.Area * Units.SqFtToSqM;
+                    roomsByLevel.TryGetValue(lvl, out double roomArea);
+                    roomsByLevel[lvl] = roomArea + room.Area * Units.SqFtToSqM;
                 }
 
                 // Estimate gross from floor elements
@@ -2051,8 +2061,8 @@ namespace StingTools.Model
                         if (areaParam == null) continue;
                         double area = areaParam.AsDouble() * Units.SqFtToSqM;
                         string lvl = (doc.GetElement(floor.LevelId) as Level)?.Name ?? "Unknown";
-                        if (!floorsByLevel.ContainsKey(lvl)) floorsByLevel[lvl] = 0;
-                        floorsByLevel[lvl] += area;
+                        floorsByLevel.TryGetValue(lvl, out double floorArea);
+                        floorsByLevel[lvl] = floorArea + area;
                     }
                     catch (Exception ex) { StingLog.Warn($"Floor area: {ex.Message}"); }
                 }
@@ -2100,8 +2110,8 @@ namespace StingTools.Model
                     .WhereElementIsNotElementType())
                 {
                     string cat = el.Category?.Name ?? "Uncategorized";
-                    if (!byCategory.ContainsKey(cat)) byCategory[cat] = 0;
-                    byCategory[cat]++;
+                    byCategory.TryGetValue(cat, out int catCount);
+                    byCategory[cat] = catCount + 1;
                     totalElements++;
                 }
 
@@ -2163,8 +2173,8 @@ namespace StingTools.Model
                             try { area = el.GetMaterialArea(matId, false) * 0.092903; } // ft² → m²
                             catch (Exception ex) { StingLog.Warn($"MatArea: {ex.Message}"); }
 
-                            if (!quantities.ContainsKey(name)) quantities[name] = (0, 0, 0);
-                            var current = quantities[name];
+                            if (!quantities.TryGetValue(name, out var current))
+                                current = (0, 0, 0);
                             quantities[name] = (current.Item1 + vol, current.Item2 + area, current.Item3);
                         }
                     }

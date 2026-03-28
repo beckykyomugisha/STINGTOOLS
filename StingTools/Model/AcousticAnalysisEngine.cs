@@ -703,7 +703,7 @@ namespace StingTools.Model
                         double volumeM3 = areaM2 * heightM;
 
                         // Estimate absorption: bare room ~0.1, furnished ~0.3
-                        double totalSurface = 2 * areaM2 + 2 * (Math.Sqrt(areaM2) * 2) * heightM;
+                        double totalSurface = 2 * areaM2 + 2 * (Math.Sqrt(Math.Max(areaM2, 0)) * 2) * heightM;
                         double avgAlpha = 0.15; // bare typical
                         double totalAbsorption = totalSurface * avgAlpha;
 

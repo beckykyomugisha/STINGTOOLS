@@ -112,7 +112,7 @@ namespace StingTools.Core
                         var doc = e.Document;
                         if (doc != null && !doc.IsFamilyDocument)
                         {
-                            WarningsManager.WarningsEngine.SaveBaseline(doc);
+                            WarningsEngine.SaveBaseline(doc);
                             StingLog.Info("DocumentClosing: auto-saved warning baseline");
                         }
                     }
@@ -130,7 +130,12 @@ namespace StingTools.Core
                 StingAutoTagger.ClearDeferredQueue();
                 // PERF-CRIT: Clear stale marker room index cache
                 StingStaleMarker.ClearRoomIndexCache();
-                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, and deferred caches");
+                // GAP-STP-02: Clear cached tag types on document close
+                Tags.TagPlacementEngine.ClearTagTypeCache();
+                // ME-HIGH-01: Clear per-document workset ID cache to prevent stale workset IDs
+                // from the closed document being applied to subsequently opened documents.
+                Model.ModelWorksetAssigner.ClearCache();
+                StingLog.Info("DocumentClosing: cleared parameter, compliance, formula, selection, deferred, and workset caches");
             }
             catch (Exception ex)
             {
@@ -341,7 +346,7 @@ namespace StingTools.Core
                     // Idling event fires repeatedly when Revit is idle — we use a flag to run once
                     if (!_briefingSubscribed)
                     {
-                        var uiApp = sender as Autodesk.Revit.ApplicationServices.Application;
+                        _briefingSubscribed = true;
                         // We can't subscribe to Idling from ControlledApplication — use static flag
                         // and check in StingCommandHandler's first Execute() call instead
                         _briefingPending = true;

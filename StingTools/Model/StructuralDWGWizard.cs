@@ -99,6 +99,14 @@ namespace StingTools.Model
         public ElementId BaseLevelId { get; set; }
         public ElementId TopLevelId { get; set; }
 
+        /// <summary>Additional levels to copy/repeat detected structural elements to.
+        /// Each level gets the same structural layout as the base level.</summary>
+        public List<ElementId> RepeatToLevelIds { get; set; } = new();
+
+        /// <summary>When true, columns extend through all repeat levels continuously
+        /// instead of being created per-level.</summary>
+        public bool ColumnsContinuousThrough { get; set; } = false;
+
         // ── Tagging ──
         public bool AutoTag { get; set; } = true;
         public bool AutoNumber { get; set; } = true;
@@ -197,6 +205,8 @@ namespace StingTools.Model
 
         // Levels
         private ComboBox _baseLevelCombo, _topLevelCombo;
+        private readonly List<CheckBox> _repeatLevelCheckboxes = new();
+        private CheckBox _columnsContinuousCheck;
 
         private static readonly string[] PageTitles = {
             "DWG Selection & Layer Analysis",
@@ -508,6 +518,19 @@ namespace StingTools.Model
                 Config.BaseLevelId = baseId;
             if (_topLevelCombo?.SelectedItem is ComboBoxItem topItem && topItem.Tag is ElementId topId)
                 Config.TopLevelId = topId;
+
+            // Repeat levels
+            Config.RepeatToLevelIds.Clear();
+            foreach (var cb in _repeatLevelCheckboxes)
+            {
+                if (cb.IsChecked == true && cb.Tag is ElementId lvlId)
+                {
+                    // Don't repeat to the base level itself
+                    if (lvlId != Config.BaseLevelId)
+                        Config.RepeatToLevelIds.Add(lvlId);
+                }
+            }
+            Config.ColumnsContinuousThrough = _columnsContinuousCheck?.IsChecked == true;
         }
 
         private void UpdateStepIndicator()
@@ -866,6 +889,40 @@ namespace StingTools.Model
 
             mainStack.Children.Add(MakeCard("Level Configuration", levelGrid));
 
+            // Repeat to other levels
+            var repeatStack = new StackPanel();
+            repeatStack.Children.Add(new TextBlock
+            {
+                Text = "Copy/repeat the structural layout to additional levels:",
+                FontSize = 11, Foreground = new SolidColorBrush(TextSecondary),
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            _repeatLevelCheckboxes.Clear();
+            var repeatWrap = new WrapPanel();
+            foreach (var lvl in levels)
+            {
+                var cb = new CheckBox
+                {
+                    Content = lvl.Name, Tag = lvl.Id,
+                    FontSize = 11, Foreground = new SolidColorBrush(TextPrimary),
+                    Margin = new Thickness(0, 0, 12, 4), MinWidth = 100,
+                };
+                _repeatLevelCheckboxes.Add(cb);
+                repeatWrap.Children.Add(cb);
+            }
+            repeatStack.Children.Add(repeatWrap);
+
+            _columnsContinuousCheck = new CheckBox
+            {
+                Content = "Columns continuous through all repeat levels (single tall column)",
+                FontSize = 11, Foreground = new SolidColorBrush(TextPrimary),
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            repeatStack.Children.Add(_columnsContinuousCheck);
+
+            mainStack.Children.Add(MakeCard("Repeat to Other Levels", repeatStack));
+
             return WrapScroll(mainStack);
         }
 
@@ -1204,8 +1261,11 @@ namespace StingTools.Model
 
         private string GetComboText(string key, string fallback)
         {
-            if (_propCombos.TryGetValue(key, out var combo) && combo.SelectedItem is ComboBoxItem item)
-                return item.Content?.ToString() ?? fallback;
+            if (!_propCombos.TryGetValue(key, out var combo) || combo.SelectedItem == null)
+                return fallback;
+            // DWG-CRIT-01: Handle both raw string items and ComboBoxItem wrappers
+            if (combo.SelectedItem is string s) return s;
+            if (combo.SelectedItem is ComboBoxItem item) return item.Content?.ToString() ?? fallback;
             return fallback;
         }
 

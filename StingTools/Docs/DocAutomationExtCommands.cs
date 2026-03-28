@@ -790,7 +790,7 @@ namespace StingTools.Docs
             FamilySymbol titleBlock = titleBlocks[0];
             if (!titleBlock.IsActive)
             {
-                using (Transaction activateTx = new Transaction(doc, "Activate Title Block"))
+                using (Transaction activateTx = new Transaction(doc, "STING Activate Title Block"))
                 {
                     activateTx.Start();
                     titleBlock.Activate();
@@ -1145,8 +1145,8 @@ namespace StingTools.Docs
                         if (sbId != null && sbId != ElementId.InvalidElementId)
                         {
                             viewsWithScopeBox++;
-                            if (usage.ContainsKey(sbId))
-                                usage[sbId].Add(v.Name);
+                            if (usage.TryGetValue(sbId, out var sbList))
+                                sbList.Add(v.Name);
                         }
                         else
                         {
@@ -2115,8 +2115,8 @@ namespace StingTools.Docs
                 if (num.Length >= 2 && num[1] != '-' && !char.IsDigit(num[1]))
                     disc = num.Substring(0, 2).ToUpperInvariant();
 
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dcc);
+                discCounts[disc] = dcc + 1;
 
                 // Get revision info
                 var revIds = sheet.GetAllRevisionIds();
@@ -2672,16 +2672,28 @@ namespace StingTools.Docs
                     if (TagConfig.TagIsComplete(tag1)) tagged++; else untagged++;
 
                     string discKey = string.IsNullOrEmpty(disc) ? "Unassigned" : disc;
-                    if (!byDisc.ContainsKey(discKey)) byDisc[discKey] = new List<Element>();
-                    byDisc[discKey].Add(el);
+                    if (!byDisc.TryGetValue(discKey, out var discList))
+                    {
+                        discList = new List<Element>();
+                        byDisc[discKey] = discList;
+                    }
+                    discList.Add(el);
 
                     string sysKey = string.IsNullOrEmpty(sys) ? "Unassigned" : sys;
-                    if (!bySys.ContainsKey(sysKey)) bySys[sysKey] = new List<Element>();
-                    bySys[sysKey].Add(el);
+                    if (!bySys.TryGetValue(sysKey, out var sysList))
+                    {
+                        sysList = new List<Element>();
+                        bySys[sysKey] = sysList;
+                    }
+                    sysList.Add(el);
 
                     string lvlKey = string.IsNullOrEmpty(lvl) ? "Unknown" : lvl;
-                    if (!byLevel.ContainsKey(lvlKey)) byLevel[lvlKey] = new List<Element>();
-                    byLevel[lvlKey].Add(el);
+                    if (!byLevel.TryGetValue(lvlKey, out var lvlList))
+                    {
+                        lvlList = new List<Element>();
+                        byLevel[lvlKey] = lvlList;
+                    }
+                    lvlList.Add(el);
                 }
 
                 // Collect rooms

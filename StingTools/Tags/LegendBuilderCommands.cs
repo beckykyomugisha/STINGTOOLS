@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Tags
 {
@@ -153,10 +154,18 @@ namespace StingTools.Tags
             if (entries == null || entries.Count == 0) return null;
 
             // Generate unique view name
+            // TAG-M-06: Pre-build a HashSet of all existing view names so the uniqueness loop
+            // is O(n) total instead of O(n×k) where n=iterations, k=view count per scan.
+            var existingViewNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>())
+            {
+                if (v.Name != null) existingViewNames.Add(v.Name);
+            }
             string baseName = $"STING Legend - {config.Title}";
             string viewName = baseName;
             int suffix = 1;
-            while (ViewNameExists(doc, viewName) || ViewNameExistsAnyType(doc, viewName))
+            while (existingViewNames.Contains(viewName))
             {
                 viewName = $"{baseName} ({suffix++})";
             }
@@ -394,7 +403,7 @@ namespace StingTools.Tags
             var entries = new List<LegendEntry>();
             foreach (var kvp in colorMap.OrderBy(k => k.Key))
             {
-                int count = groups.ContainsKey(kvp.Key) ? groups[kvp.Key].Count : 0;
+                int count = groups.TryGetValue(kvp.Key, out var grp) ? grp.Count : 0;
                 entries.Add(new LegendEntry
                 {
                     Color = kvp.Value,
@@ -543,7 +552,13 @@ namespace StingTools.Tags
         /// </summary>
         public static List<LegendEntry> AutoFromProject(Document doc, string colorBy = "Discipline")
         {
+            // TAG-L-02: Pre-filter with ElementMulticategoryFilter to restrict collection to
+            // taggable categories before the LINQ Where clause. Avoids iterating all model
+            // elements (walls, annotations, levels, grids, etc.) when only tagged elements are needed.
+            var categoryFilter = new ElementMulticategoryFilter(
+                new List<BuiltInCategory>(SharedParamGuids.AllCategoryEnums));
             var elems = new FilteredElementCollector(doc)
+                .WherePasses(categoryFilter)
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
                 .ToList();
@@ -2188,10 +2203,11 @@ namespace StingTools.Tags
                     label = colorKey;
 
                 // Group by color, keep best label (shortest non-RGB label wins)
-                if (!colorGroups.ContainsKey(colorKey))
+                if (!colorGroups.TryGetValue(colorKey, out var existing))
+                {
                     colorGroups[colorKey] = (overrideColor, 0, label);
-
-                var existing = colorGroups[colorKey];
+                    existing = colorGroups[colorKey];
+                }
                 // Prefer discipline codes over category names over RGB strings
                 string bestLabel = existing.bestLabel;
                 if (label.Length < bestLabel.Length && !label.Contains(","))
@@ -2612,6 +2628,7 @@ namespace StingTools.Tags
 
             int placed = 0;
             int skipped = 0;
+            var legendProgress = StingProgressDialog.Show("Place Legend on Sheets", sheets.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Place Legend on All Sheets"))
             {
@@ -2619,6 +2636,8 @@ namespace StingTools.Tags
 
                 foreach (var s in sheets)
                 {
+                    if (legendProgress.IsCancelled) break;
+                    legendProgress.Increment($"Sheet {s.SheetNumber}");
                     if (!Viewport.CanAddViewToSheet(doc, s.Id, selectedLegend.Id))
                     {
                         skipped++;
@@ -2632,6 +2651,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { legendProgress.Close(); } catch (Exception ex) { StingLog.Warn($"Legend progress close: {ex.Message}"); }
 
             TaskDialog.Show("Place Legend on All Sheets",
                 $"Placed '{selectedLegend.Name}' on {placed} sheets.\n" +
@@ -2706,6 +2726,7 @@ namespace StingTools.Tags
 
             bool cancelled = false;
             int sheetIdx = 0;
+            var bscProgress = StingProgressDialog.Show("Batch Sheet Legends", sheets.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Batch Sheet Context Legends"))
             {
@@ -2713,12 +2734,14 @@ namespace StingTools.Tags
 
                 foreach (var s in sheets)
                 {
-                    if (++sheetIdx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    sheetIdx++;
+                    if (bscProgress.IsCancelled)
                     {
                         cancelled = true;
                         StingLog.Info($"Batch sheet legends: cancelled at {sheetIdx}/{sheets.Count}");
                         break;
                     }
+                    bscProgress.Increment($"Sheet {s.SheetNumber}");
 
                     var entries = LegendBuilder.FromSheetElements(doc, s, colorBy);
                     if (entries.Count == 0)
@@ -2750,6 +2773,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { bscProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchSheetLegends progress close: {ex.Message}"); }
 
             string legendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} legends.\n" :
                 $"Created {created} sheet-specific legends.\n";
@@ -4131,10 +4155,11 @@ namespace StingTools.Tags
         private static List<LegendBuilder.LegendEntry> BuildDisciplineEntries(Document doc)
         {
             var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() — FilteredElementCollector is IEnumerable;
+            // materializing to a list just to foreach over it allocates a large intermediate array.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
@@ -4145,8 +4170,8 @@ namespace StingTools.Tags
                     disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "";
                 }
                 if (string.IsNullOrEmpty(disc)) continue;
-                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                discCounts[disc]++;
+                discCounts.TryGetValue(disc, out int dc);
+                discCounts[disc] = dc + 1;
             }
 
             return LegendBuilder.FromDisciplineColors(
@@ -4377,9 +4402,9 @@ namespace StingTools.Tags
             foreach (var fs in symbols)
             {
                 string catName = fs.Category.Name;
-                if (!result.ContainsKey(catName))
-                    result[catName] = new List<FamilySymbol>();
-                result[catName].Add(fs);
+                if (!result.TryGetValue(catName, out var fsList))
+                    result[catName] = fsList = new List<FamilySymbol>();
+                fsList.Add(fs);
             }
 
             return result;
@@ -4867,17 +4892,17 @@ namespace StingTools.Tags
         private static Dictionary<string, int> CountDisciplines(Document doc)
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc)) continue;
-                if (!counts.ContainsKey(disc)) counts[disc] = 0;
-                counts[disc]++;
+                counts.TryGetValue(disc, out int dc);
+                counts[disc] = dc + 1;
             }
             return counts;
         }
@@ -4886,17 +4911,17 @@ namespace StingTools.Tags
         private static Dictionary<string, int> CountSystems(Document doc)
         {
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
                 string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 if (string.IsNullOrEmpty(sys)) continue;
-                if (!counts.ContainsKey(sys)) counts[sys] = 0;
-                counts[sys]++;
+                counts.TryGetValue(sys, out int sc);
+                counts[sys] = sc + 1;
             }
             return counts;
         }
@@ -5007,17 +5032,17 @@ namespace StingTools.Tags
 
             // Count elements by status
             var statusCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // TAG-L-01: Remove unnecessary .ToList() before foreach.
             var elems = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
-                .ToList();
+                .Where(e => e.Category != null && e.Category.HasMaterialQuantities);
 
             foreach (var el in elems)
             {
                 string status = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
                 if (string.IsNullOrEmpty(status)) status = "UNSET";
-                if (!statusCounts.ContainsKey(status)) statusCounts[status] = 0;
-                statusCounts[status]++;
+                statusCounts.TryGetValue(status, out int stc);
+                statusCounts[status] = stc + 1;
             }
 
             if (statusCounts.Count == 0)
@@ -5192,8 +5217,8 @@ namespace StingTools.Tags
                 }
                 if (string.IsNullOrEmpty(sys)) continue;
 
-                if (!sysCounts.ContainsKey(sys)) sysCounts[sys] = 0;
-                sysCounts[sys]++;
+                sysCounts.TryGetValue(sys, out int sysc);
+                sysCounts[sys] = sysc + 1;
             }
 
             var entries = new List<LegendBuilder.LegendEntry>();
@@ -5250,8 +5275,8 @@ namespace StingTools.Tags
                     sys = TagConfig.GetSysCode(catName);
                 }
                 if (string.IsNullOrEmpty(sys)) continue;
-                if (!sysCounts.ContainsKey(sys)) sysCounts[sys] = 0;
-                sysCounts[sys]++;
+                sysCounts.TryGetValue(sys, out int sysc);
+                sysCounts[sys] = sysc + 1;
             }
 
             var entries = new List<LegendBuilder.LegendEntry>();
@@ -5312,7 +5337,7 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); matColor = MaterialCategoryColors.TryGetValue(group, out Color mc)
                         ? mc : new Color(180, 180, 180); }
 
-                if (!matGroups.ContainsKey(group))
+                if (!matGroups.TryGetValue(group, out _))
                     matGroups[group] = (matColor, 0, "");
 
                 var existing = matGroups[group];
@@ -5542,8 +5567,8 @@ namespace StingTools.Tags
                 catch (Exception ex) { StingLog.Warn($"Read fire rating parameter: {ex.Message}"); }
 
                 if (string.IsNullOrEmpty(rating)) continue;
-                if (!ratingCounts.ContainsKey(rating)) ratingCounts[rating] = 0;
-                ratingCounts[rating]++;
+                ratingCounts.TryGetValue(rating, out int rtc);
+                ratingCounts[rating] = rtc + 1;
             }
 
             if (ratingCounts.Count == 0) return new List<LegendBuilder.LegendEntry>();
@@ -5656,8 +5681,8 @@ namespace StingTools.Tags
                             }
                             if (!string.IsNullOrEmpty(disc))
                             {
-                                if (!discCounts.ContainsKey(disc)) discCounts[disc] = 0;
-                                discCounts[disc]++;
+                                discCounts.TryGetValue(disc, out int dcc);
+                                discCounts[disc] = dcc + 1;
                             }
                         }
                     }
@@ -7062,6 +7087,7 @@ namespace StingTools.Tags
 
             bool cancelled = false;
             int tmplIdx = 0;
+            var btlProgress = StingProgressDialog.Show("Batch Template Legends", templates.Count);
 
             using (Transaction tx = new Transaction(doc, "STING Batch Template Legends"))
             {
@@ -7069,12 +7095,14 @@ namespace StingTools.Tags
 
                 foreach (var template in templates)
                 {
-                    if (++tmplIdx % 10 == 0 && EscapeChecker.IsEscapePressed())
+                    tmplIdx++;
+                    if (btlProgress.IsCancelled)
                     {
                         cancelled = true;
                         StingLog.Info($"Batch template legends: cancelled at {tmplIdx}/{templates.Count}");
                         break;
                     }
+                    btlProgress.Increment($"Template: {template.Name}");
 
                     var (filterEntries, categoryEntries) =
                         VGLinkedLegendBuilder.FromViewTemplate(doc, template);
@@ -7120,6 +7148,7 @@ namespace StingTools.Tags
 
                 tx.Commit();
             }
+            try { btlProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchTemplateLegends progress close: {ex.Message}"); }
 
             string btlMsg = cancelled ? $"CANCELLED — created {created} of {templates.Count} template legends.\n" :
                 $"Created {created} template legends.\n";

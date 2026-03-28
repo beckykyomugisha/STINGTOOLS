@@ -107,7 +107,18 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrRed     = FZ(0xC6, 0x28, 0x28);
         private static readonly SolidColorBrush BrPurple  = FZ(0x6A, 0x1B, 0x9A);
         private static readonly SolidColorBrush BrTeal    = FZ(0x00, 0x69, 0x5C);
-        private static readonly SolidColorBrush BrAmber   = FZ(0xFF, 0x8F, 0x00);
+        private static readonly SolidColorBrush BrAmber     = FZ(0xFF, 0x8F, 0x00);
+        private static readonly SolidColorBrush BrHeaderSub  = FZ(0xBB, 0xDE, 0xFB); // DMD-MEDIUM-01: frozen header subtitle brush
+        private static readonly SolidColorBrush BrLightGreen = FZ(0xE8, 0xF5, 0xE9);
+        private static readonly SolidColorBrush BrLightGrey  = FZ(0xF0, 0xF0, 0xF0);
+        private static readonly SolidColorBrush BrNearWhite  = FZ(0xF8, 0xF8, 0xF8);
+        private static readonly SolidColorBrush BrBlueGrey   = FZ(0xF0, 0xF4, 0xF8);
+        private static readonly SolidColorBrush BrLegendHdr  = FZ(0xE8, 0xEE, 0xF5);
+        private static readonly SolidColorBrush BrRowAlt     = FZ(0xF8, 0xF8, 0xFA);
+        private static readonly SolidColorBrush BrRowRed     = FZ(0xFF, 0xEB, 0xEE);
+        private static readonly SolidColorBrush BrRowAmber   = FZ(0xFF, 0xF3, 0xE0);
+        private static readonly SolidColorBrush BrLightE8    = FZ(0xE8, 0xE8, 0xE8);
+        private static readonly SolidColorBrush BrLightDD    = FZ(0xDD, 0xDD, 0xDD);
 
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
@@ -317,10 +328,26 @@ namespace StingTools.UI
                 }
             }
 
-            // Issue counts
-            int openIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Status == "OPEN");
-            int criticalIssues = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == "CRITICAL");
-            int overdueIssues = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
+            // DMD-HIGH-01: Single pass over _allItems for all dashboard counts
+            int openIssues = 0, criticalIssues = 0, overdueIssues = 0;
+            int revCount = 0, issuedRevs = 0, clashCount = 0, totalDocs = 0;
+            foreach (var item in _allItems)
+            {
+                switch (item.Category)
+                {
+                    case "ISSUE":
+                        if (item.Status == "OPEN")     openIssues++;
+                        if (item.Priority == "CRITICAL") criticalIssues++;
+                        if (item.IsOverdue)             overdueIssues++;
+                        break;
+                    case "REVISION":
+                        revCount++;
+                        if (item.Status == "ISSUED") issuedRevs++;
+                        break;
+                    case "CLASH":    clashCount++; break;
+                    case "DOCUMENT": totalDocs++;  break;
+                }
+            }
             _dashPanel.Children.Add(MakeDashCard($"{openIssues}",
                 "Open issues", openIssues == 0 ? BrGreen : BrOrange, "CAT:ISSUE"));
             if (criticalIssues > 0)
@@ -329,18 +356,14 @@ namespace StingTools.UI
                 _dashPanel.Children.Add(MakeDashCard($"{overdueIssues}", "Overdue", BrRed, "OVERDUE"));
 
             // Revision count
-            int revCount = _allItems.Count(i => i.Category == "REVISION");
-            int issuedRevs = _allItems.Count(i => i.Category == "REVISION" && i.Status == "ISSUED");
             _dashPanel.Children.Add(MakeDashCard($"{issuedRevs}/{revCount}",
                 "Revisions issued", BrPurple, "CAT:REVISION"));
 
             // Clash count
-            int clashCount = _allItems.Count(i => i.Category == "CLASH");
             if (clashCount > 0)
                 _dashPanel.Children.Add(MakeDashCard($"{clashCount}", "Clashes", BrRed, "CAT:CLASH"));
 
             // Document totals
-            int totalDocs = _allItems.Count(i => i.Category == "DOCUMENT");
             _dashPanel.Children.Add(MakeDashCard($"{totalDocs}", "Documents", BrTeal));
 
             // Data drop readiness (milestone tracking)
@@ -426,7 +449,7 @@ namespace StingTools.UI
             left.Children.Add(new TextBlock
             {
                 Text = $"Project: {projName}  |  ISO 19650",
-                FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0xBB, 0xDE, 0xFB)),
+                FontSize = 10, Foreground = BrHeaderSub,
                 Margin = new Thickness(0, 2, 0, 0)
             });
             System.Windows.Controls.Grid.SetColumn(left, 0);
@@ -464,54 +487,68 @@ namespace StingTools.UI
         {
             if (sender is not Button btn) return;
             string tag = btn.Tag?.ToString();
-            switch (tag)
+            try
             {
-                case "CreateFolders":
-                    int created = ProjectFolderEngine.CreateFolderStructure(_doc);
-                    MessageBox.Show($"Created {created} folders at:\n{ProjectFolderEngine.GetRootPath(_doc)}",
-                        "STING Folder Structure", MessageBoxButton.OK, MessageBoxImage.Information);
-                    RefreshData();
-                    break;
-                case "ImportFile":
-                    var dlg = new Microsoft.Win32.OpenFileDialog
-                    {
-                        Title = "Import file into STING project",
-                        Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg|BCF|*.bcfzip;*.bcf",
-                        Multiselect = true
-                    };
-                    if (dlg.ShowDialog() == true)
-                    {
-                        foreach (string file in dlg.FileNames)
-                        {
-                            string ext = Path.GetExtension(file).ToUpperInvariant().TrimStart('.');
-                            string targetFolder = "BRIEFCASE";
-                            if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
-                                targetFolder = fid;
-                            ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
-                        }
+                switch (tag)
+                {
+                    case "CreateFolders":
+                        int created = ProjectFolderEngine.CreateFolderStructure(_doc);
+                        MessageBox.Show($"Created {created} folders at:\n{ProjectFolderEngine.GetRootPath(_doc)}",
+                            "STING Folder Structure", MessageBoxButton.OK, MessageBoxImage.Information);
                         RefreshData();
-                    }
-                    break;
-                case "SetOutputDirectory":
-                    OutputLocationHelper.PromptSetPreferredDirectory();
-                    break;
-                case "Refresh":
-                    RefreshData();
-                    break;
-                case "StartWatch":
-                    ProjectFolderEngine.StartWatching(_doc, changedFile =>
-                    {
-                        // Auto-refresh on external file changes (dispatched to UI thread)
-                        try
+                        SetStatus($"Created {created} folders.");
+                        break;
+                    case "ImportFile":
+                        var dlg = new Microsoft.Win32.OpenFileDialog
                         {
-                            _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                            Title = "Import file into STING project",
+                            Filter = "All files|*.*|PDF|*.pdf|Excel|*.xlsx;*.csv|Images|*.png;*.jpg|BCF|*.bcfzip;*.bcf",
+                            Multiselect = true
+                        };
+                        if (dlg.ShowDialog() == true)
+                        {
+                            int importCount = 0;
+                            foreach (string file in dlg.FileNames)
+                            {
+                                string ext = Path.GetExtension(file).ToUpperInvariant().TrimStart('.');
+                                string targetFolder = "BRIEFCASE";
+                                if (ProjectFolderEngine.ExportTypeToFolder.TryGetValue(ext, out string fid))
+                                    targetFolder = fid;
+                                ProjectFolderEngine.ImportFile(_doc, file, targetFolder);
+                                importCount++;
+                            }
+                            RefreshData();
+                            SetStatus($"Imported {importCount} file(s).");
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                    });
-                    MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
-                        "External file changes will auto-refresh the document list.",
-                        "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
-                    break;
+                        break;
+                    case "SetOutputDirectory":
+                        OutputLocationHelper.PromptSetPreferredDirectory();
+                        SetStatus("Output directory updated.");
+                        break;
+                    case "Refresh":
+                        RefreshData();
+                        SetStatus("Refreshed.");
+                        break;
+                    case "StartWatch":
+                        ProjectFolderEngine.StartWatching(_doc, changedFile =>
+                        {
+                            // Auto-refresh on external file changes (dispatched to UI thread)
+                            try
+                            {
+                                _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData()));
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        });
+                        MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
+                            "External file changes will auto-refresh the document list.",
+                            "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocMgr header '{tag}': {ex.Message}");
+                SetStatus($"Error: {ex.Message}");
             }
         }
 
@@ -533,7 +570,7 @@ namespace StingTools.UI
             // Workflow buttons at top of tree (GAP WF-01)
             var wfPanel = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9)),
+                Background = BrLightGreen,
                 Padding = new Thickness(6, 4, 6, 4),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -558,7 +595,7 @@ namespace StingTools.UI
             // Tree header
             var treeHeader = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
+                Background = BrLightGrey,
                 Padding = new Thickness(10, 5, 10, 5)
             };
             treeHeader.Child = new TextBlock
@@ -657,6 +694,18 @@ namespace StingTools.UI
         {
             _treeView.Items.Clear();
 
+            // DMD-HIGH-02: Pre-compute all groupings in one pass to avoid 20+ separate .Count() calls
+            var issueItems   = _allItems.Where(i => i.Category == "ISSUE").ToList();
+            var byDisc       = _allItems.GroupBy(i => (i.Discipline ?? "").ToUpperInvariant())
+                                .ToDictionary(g => g.Key, g => g.Count());
+            var byCDE        = _allItems.GroupBy(i => i.CDE ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssuePri   = issueItems.GroupBy(i => i.Priority ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssueType  = issueItems.GroupBy(i => i.Type ?? "").ToDictionary(g => g.Key, g => g.Count());
+            var byIssueStatus = issueItems.GroupBy(i => i.Status ?? "").ToDictionary(g => g.Key, g => g.Count());
+            int overdueCount = issueItems.Count(i => i.IsOverdue);
+            int clashTotalCount = _allItems.Count(i => i.Category == "CLASH");
+            int stickyTotalCount = _allItems.Count(i => i.Category == "STICKY");
+
             // ── ALL ──
             var allNode = MakeTreeItem("ALL DOCUMENTS", "ALL", true);
             _treeView.Items.Add(allNode);
@@ -676,7 +725,7 @@ namespace StingTools.UI
             var discNode = MakeTreeItem("BY DISCIPLINE", "DISC_ROOT", false);
             foreach (string disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "Z" })
             {
-                int count = _allItems.Count(i => (i.Discipline ?? "").Equals(disc, StringComparison.OrdinalIgnoreCase));
+                byDisc.TryGetValue(disc.ToUpperInvariant(), out int count);
                 if (count > 0)
                     discNode.Items.Add(MakeTreeItem($"{disc} ({count})", $"DISC:{disc}", false));
             }
@@ -699,7 +748,7 @@ namespace StingTools.UI
             foreach (var (code, label) in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
                 ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
             {
-                int count = _allItems.Count(i => i.CDE == code);
+                byCDE.TryGetValue(code, out int count);
                 cdeNode.Items.Add(MakeTreeItem($"{code} ({count})", $"CDE:{code}", false));
             }
             _treeView.Items.Add(cdeNode);
@@ -721,7 +770,7 @@ namespace StingTools.UI
             var priNode = MakeTreeItem("By Priority", "ISSUE_PRI", false);
             foreach (string pri in new[] { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" })
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Priority == pri);
+                byIssuePri.TryGetValue(pri, out int count);
                 if (count > 0)
                     priNode.Items.Add(MakeTreeItem($"{pri} ({count})", $"PRIORITY:{pri}", false));
             }
@@ -730,7 +779,7 @@ namespace StingTools.UI
             var typeNode = MakeTreeItem("By Type", "ISSUE_TYPE", false);
             foreach (var kv in BIMManager.BIMManagerEngine.IssueTypes)
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Type == kv.Key);
+                byIssueType.TryGetValue(kv.Key, out int count);
                 if (count > 0)
                     typeNode.Items.Add(MakeTreeItem($"{kv.Key} ({count})", $"ISSUE:{kv.Key}", false));
             }
@@ -739,15 +788,14 @@ namespace StingTools.UI
             var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
             foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "ACCEPTED", "REJECTED", "CLOSED", "VOID" })
             {
-                int count = _allItems.Count(i => i.Category == "ISSUE" && i.Status == st);
+                byIssueStatus.TryGetValue(st, out int count);
                 if (count > 0)
                     issStatNode.Items.Add(MakeTreeItem($"{st} ({count})", $"ISSUESTATUS:{st}", false));
             }
             issuesNode.Items.Add(issStatNode);
             // Overdue (GAP NAV-02/03)
-            int overdue = _allItems.Count(i => i.Category == "ISSUE" && i.IsOverdue);
-            if (overdue > 0)
-                issuesNode.Items.Add(MakeTreeItem($"OVERDUE ({overdue})", "OVERDUE", false));
+            if (overdueCount > 0)
+                issuesNode.Items.Add(MakeTreeItem($"OVERDUE ({overdueCount})", "OVERDUE", false));
             _treeView.Items.Add(issuesNode);
 
             // ── REVISIONS ──
@@ -758,8 +806,7 @@ namespace StingTools.UI
             _treeView.Items.Add(revNode);
 
             // ── CLASHES ──
-            int clashCount = _allItems.Count(i => i.Category == "CLASH");
-            var clashNode = MakeTreeItem($"CLASHES ({clashCount})", "CAT:CLASH", false);
+            var clashNode = MakeTreeItem($"CLASHES ({clashTotalCount})", "CAT:CLASH", false);
             clashNode.Items.Add(MakeTreeItem("BCF Files", "FOLDER:CLASHES", false));
             _treeView.Items.Add(clashNode);
 
@@ -798,10 +845,9 @@ namespace StingTools.UI
             _treeView.Items.Add(MakeTreeItem("BEP", "FOLDER:BEP", false));
 
             // ── STICKY NOTES (DM-02: with category breakdown) ──
-            int stickyCount = _allItems.Count(i => i.Category == "STICKY");
-            if (stickyCount > 0)
+            if (stickyTotalCount > 0)
             {
-                var stickyNode = MakeTreeItem($"STICKY NOTES ({stickyCount})", "CAT:STICKY", false);
+                var stickyNode = MakeTreeItem($"STICKY NOTES ({stickyTotalCount})", "CAT:STICKY", false);
                 var stickyCats = _allItems.Where(i => i.Category == "STICKY")
                     .GroupBy(i => i.Status ?? "GENERAL");
                 foreach (var sg in stickyCats.OrderByDescending(g => g.Count()))
@@ -873,7 +919,7 @@ namespace StingTools.UI
             // Search bar
             var searchBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xF8)),
+                Background = BrNearWhite,
                 Padding = new Thickness(8, 5, 8, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -919,7 +965,7 @@ namespace StingTools.UI
             // Quick filter buttons
             var filterBar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF4, 0xF8)),
+                Background = BrBlueGrey,
                 Padding = new Thickness(8, 3, 8, 3),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1)
@@ -1145,7 +1191,7 @@ namespace StingTools.UI
         {
             var bar = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0)),
+                Background = BrLightGrey,
                 Padding = new Thickness(0),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
@@ -1444,8 +1490,8 @@ namespace StingTools.UI
             root.Children.Add(MakeLegendRow("SUPERSEDED", "Replaced by newer transmittal", BrFgSub));
 
             root.Children.Add(MakeLegendHeader("DISCIPLINE CODES (STING)"));
-            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", new SolidColorBrush(Colors.Blue)));
-            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", new SolidColorBrush(Colors.Goldenrod)));
+            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", Brushes.Blue));
+            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", Brushes.Goldenrod));
             root.Children.Add(MakeLegendRow("P", "Plumbing — DHW, DCW, sanitary, drainage", BrGreen));
             root.Children.Add(MakeLegendRow("A", "Architectural — walls, doors, windows, floors", BrFgSub));
             root.Children.Add(MakeLegendRow("S", "Structural — columns, beams, foundations", BrRed));
@@ -1499,7 +1545,7 @@ namespace StingTools.UI
                 Text = text, FontSize = 11, FontWeight = FontWeights.Bold,
                 Foreground = BrHeader, Margin = new Thickness(0, 10, 0, 4),
                 Padding = new Thickness(4, 2, 0, 2),
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xEE, 0xF5))
+                Background = BrLegendHdr
             };
         }
 
@@ -1843,7 +1889,7 @@ namespace StingTools.UI
             {
                 // Try loading from bundled template
                 string templatePath = StingToolsApp.FindDataFile("PROJECT_TEAM_TEMPLATE.json");
-                if (!string.IsNullOrEmpty(templatePath) && File.Exists(templatePath))
+                if (!string.IsNullOrEmpty(templatePath))
                 {
                     try
                     {
@@ -3476,7 +3522,15 @@ namespace StingTools.UI
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
                 ToolTip = GetButtonTooltip(label)
             };
-            btn.Click += handler;
+            btn.Click += (s, e) =>
+            {
+                try { handler(s, e); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr button '{label}': {ex.Message}");
+                    SetStatus($"Error: {ex.Message}");
+                }
+            };
             return btn;
         }
 
@@ -3490,7 +3544,15 @@ namespace StingTools.UI
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
                 ToolTip = GetButtonTooltip(label, op)
             };
-            btn.Click += (s, e) => { _selectedOperation = op; win.DialogResult = true; win.Close(); };
+            btn.Click += (s, e) =>
+            {
+                try { _selectedOperation = op; win.DialogResult = true; win.Close(); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr dispatch '{op}': {ex.Message}");
+                    SetStatus($"Error dispatching {label}: {ex.Message}");
+                }
+            };
             return btn;
         }
 
@@ -3595,8 +3657,7 @@ namespace StingTools.UI
 
             // Alternating row colors
             var altTrigger = new Trigger { Property = ItemsControl.AlternationIndexProperty, Value = 1 };
-            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xF8, 0xF8, 0xFA))));
+            altTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowAlt));
             style.Triggers.Add(altTrigger);
 
             // Overdue items: light red background
@@ -3604,8 +3665,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("IsOverdue"), Value = true
             };
-            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            overdueTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowRed));
             overdueTrigger.Setters.Add(new Setter(ListViewItem.ForegroundProperty, BrRed));
             style.Triggers.Add(overdueTrigger);
 
@@ -3614,8 +3674,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Priority"), Value = "CRITICAL"
             };
-            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xF3, 0xE0))));
+            critTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowAmber));
             critTrigger.Setters.Add(new Setter(ListViewItem.FontWeightProperty, FontWeights.Bold));
             style.Triggers.Add(critTrigger);
 
@@ -3624,8 +3683,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Status"), Value = "RED"
             };
-            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            redTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrRowRed));
             style.Triggers.Add(redTrigger);
 
             // GREEN compliance: light green tint
@@ -3633,8 +3691,7 @@ namespace StingTools.UI
             {
                 Binding = new Binding("Status"), Value = "GREEN"
             };
-            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty,
-                new SolidColorBrush(Color.FromRgb(0xE8, 0xF5, 0xE9))));
+            greenTrigger.Setters.Add(new Setter(ListViewItem.BackgroundProperty, BrLightGreen));
             style.Triggers.Add(greenTrigger);
 
             // CLOSED issues: grey italic
@@ -3691,8 +3748,12 @@ namespace StingTools.UI
 
         private static void OpenSelected()
         {
-            if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
-                Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to open."); return; }
+            if (!File.Exists(item.FilePath))
+            { SetStatus($"File not found: {item.FilePath}"); return; }
+            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            SetStatus($"Opened: {Path.GetFileName(item.FilePath)}");
         }
 
         private static void OpenFolder(Document doc)
@@ -3708,7 +3769,8 @@ namespace StingTools.UI
 
         private static void RenameSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to rename."); return; }
             string currentName = Path.GetFileName(item.FilePath);
             string newName = PromptForText("Rename File", "Enter new filename:", currentName);
             if (!string.IsNullOrEmpty(newName) && newName != currentName)
@@ -3731,7 +3793,8 @@ namespace StingTools.UI
 
         private static void DeleteSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to delete."); return; }
             if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 ProjectFolderEngine.LogActivity(_doc, "DELETE", item.Id ?? item.Title, item.FilePath ?? "");
@@ -3743,7 +3806,8 @@ namespace StingTools.UI
 
         private static void MoveSelected(Document doc)
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
+            { SetStatus("Select a file to move."); return; }
             var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name} — {f.Description}").ToList();
             string pick = StingListPicker.Show("Move To Folder", "Select destination:", folders);
             if (string.IsNullOrEmpty(pick)) return;
@@ -4069,7 +4133,7 @@ namespace StingTools.UI
         {
             var footer = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xE8)),
+                Background = BrLightE8,
                 Padding = new Thickness(12, 5, 12, 5),
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(0, 1, 0, 0)
@@ -4092,7 +4156,7 @@ namespace StingTools.UI
             var btnClose = new Button
             {
                 Content = "Close", Width = 80, Height = 26,
-                Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)),
+                Background = BrLightDD,
                 Foreground = BrFgDark, BorderThickness = new Thickness(0),
                 Cursor = Cursors.Hand, FontSize = 11
             };
@@ -4117,6 +4181,12 @@ namespace StingTools.UI
             int clashes = _allItems.Count(i => i.Category == "CLASH");
             string overdueStr = overdue > 0 ? $"  OVERDUE: {overdue}" : "";
             _statusText.Text = $"Root: {root}  |  {docs} docs  {issues} issues (open: {open}){overdueStr}  {revs} revisions  {clashes} clashes  |  Total: {_allItems.Count}";
+        }
+
+        /// <summary>Set a temporary status bar message visible to the user.</summary>
+        private static void SetStatus(string message)
+        {
+            if (_statusText != null) _statusText.Text = message;
         }
 
         // ══════════════════════════════════════════════════════════════════

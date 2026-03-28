@@ -231,7 +231,7 @@ namespace StingTools.BIMManager
             try
             {
                 string rulesFile = StingToolsApp.FindDataFile("QA_RULES.json");
-                if (!string.IsNullOrEmpty(rulesFile) && File.Exists(rulesFile))
+                if (!string.IsNullOrEmpty(rulesFile))
                 {
                     string json = File.ReadAllText(rulesFile);
                     var arr = Newtonsoft.Json.Linq.JArray.Parse(json);

@@ -209,7 +209,7 @@ namespace StingTools.BIMManager
                 var paramChanges = new List<ParamChange>();
                 foreach (var token in kvp.Value)
                 {
-                    string newVal = afterTokens.ContainsKey(token.Key) ? afterTokens[token.Key] : "";
+                    string newVal = afterTokens.TryGetValue(token.Key, out var atVal) ? atVal : "";
                     if (token.Value != newVal)
                     {
                         paramChanges.Add(new ParamChange
@@ -471,8 +471,8 @@ namespace StingTools.BIMManager
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc))
                     disc = TagConfig.DiscMap.TryGetValue(ParameterHelpers.GetCategoryName(el), out string d) ? d : "XX";
-                if (!result.ContainsKey(disc)) result[disc] = 0;
-                result[disc]++;
+                result.TryGetValue(disc, out int rCnt);
+                result[disc] = rCnt + 1;
             }
             return result;
         }
@@ -619,16 +619,12 @@ namespace StingTools.BIMManager
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
                         "Use 'Revision Compare' after changes to see what was modified.");
                 }
-                // Invalidate compliance cache so dashboard reflects new revision
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
-
                 // GAP-FIX: Auto-save warning baseline on revision creation
                 if (TagConfig.AutoSaveBaselineOnRevision)
                 {
                     try
                     {
-                        WarningsManager.WarningsEngine.SaveExtendedBaseline(doc);
+                        WarningsEngine.SaveExtendedBaseline(doc);
                         StingLog.Info($"Auto-saved warning baseline on revision creation ({prefix})");
                     }
                     catch (Exception wbEx) { StingLog.Warn($"Auto-save baseline on revision: {wbEx.Message}"); }
@@ -642,10 +638,11 @@ namespace StingTools.BIMManager
                     using (var revTx = new Transaction(doc, "STING Propagate REV"))
                     {
                         revTx.Start();
+                        var catEnums = SharedParamGuids.AllCategoryEnums;
                         var allTagged = new FilteredElementCollector(doc)
-                            .WhereElementIsNotElementType()
-                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
-                            .ToList();
+                            .WhereElementIsNotElementType();
+                        if (catEnums != null && catEnums.Length > 0)
+                            allTagged.WherePasses(new ElementMulticategoryFilter(catEnums));
                         foreach (var el in allTagged)
                         {
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -658,6 +655,10 @@ namespace StingTools.BIMManager
                     StingLog.Info($"GAP-R9: Propagated REV '{prefix}' to {revUpdated} tagged elements");
                 }
                 catch (Exception revEx) { StingLog.Warn($"REV propagation: {revEx.Message}"); }
+
+                // Invalidate compliance cache ONCE after all rev-related transactions
+                ComplianceScan.InvalidateCache();
+                StingAutoTagger.InvalidateContext();
 
                 // NTF-03: Notify team that revision is open
                 try
@@ -746,7 +747,7 @@ namespace StingTools.BIMManager
                 var rows = new List<RevisionRow>();
                 foreach (var rev in revisions)
                 {
-                    int numClouds = cloudsByRev.ContainsKey(rev.Id.Value) ? cloudsByRev[rev.Id.Value] : 0;
+                    int numClouds = cloudsByRev.TryGetValue(rev.Id.Value, out int cbrVal) ? cbrVal : 0;
                     int numSheets = sheets.Count(s =>
                     {
                         try { return s.GetAdditionalRevisionIds().Contains(rev.Id); }
@@ -1000,7 +1001,7 @@ namespace StingTools.BIMManager
 
                 foreach (var rev in revisions)
                 {
-                    int numClouds = clouds.ContainsKey(rev.Id.Value) ? clouds[rev.Id.Value] : 0;
+                    int numClouds = clouds.TryGetValue(rev.Id.Value, out int clVal) ? clVal : 0;
                     string numStr = "";
                     try { numStr = rev.RevisionNumber; } catch (Exception ex) { StingLog.Warn($"Revision number read failed: {ex.Message}"); }
                     string namingValid = RevisionEngine.ValidateRevisionNumber(numStr) == null ? "Valid" : "Invalid";
@@ -1072,12 +1073,15 @@ namespace StingTools.BIMManager
 
                     foreach (var change in changes)
                     {
-                        if (!elementHistory.ContainsKey(change.ElementId))
-                            elementHistory[change.ElementId] = new List<string>();
+                        if (!elementHistory.TryGetValue(change.ElementId, out var ehList))
+                        {
+                            ehList = new List<string>();
+                            elementHistory[change.ElementId] = ehList;
+                        }
                         string detail = change.ChangeType == "Modified"
                             ? $"{label}: {string.Join(", ", change.ChangedParams.Select(p => $"{p.ParamName}: {p.OldValue}→{p.NewValue}"))}"
                             : $"{label}: {change.ChangeType}";
-                        elementHistory[change.ElementId].Add(detail);
+                        ehList.Add(detail);
                     }
                 }
 
@@ -1697,7 +1701,7 @@ namespace StingTools.BIMManager
                     wsReg.Cell(row, 4).Value = rev.Description ?? "";
                     wsReg.Cell(row, 5).Value = rev.Issued ? "Yes" : "No";
                     wsReg.Cell(row, 6).Value = rev.Visibility.ToString();
-                    wsReg.Cell(row, 7).Value = cloudCounts.ContainsKey(rev.Id.Value) ? cloudCounts[rev.Id.Value] : 0;
+                    wsReg.Cell(row, 7).Value = cloudCounts.TryGetValue(rev.Id.Value, out int ccVal) ? ccVal : 0;
                     wsReg.Cell(row, 8).Value = "";
                     wsReg.Cell(row, 9).Value = RevisionEngine.ValidateRevisionNumber(numStr) == null ? "Valid" : "Invalid";
                     row++;

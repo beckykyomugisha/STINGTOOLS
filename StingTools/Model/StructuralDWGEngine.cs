@@ -38,6 +38,52 @@ namespace StingTools.Model
         private const double FeetToMm = 304.8;
         private const double MmToFeet = 1.0 / 304.8;
 
+        // DWG-HIGH-03: Pre-loaded type lookup cache.
+        // Holds all existing element types/symbols collected ONCE before the
+        // creation transaction. All FindOrCreate* methods use this cache for O(1)
+        // lookups instead of repeated FilteredElementCollector scans.
+        private sealed class TypeLookupCache
+        {
+            public Dictionary<string, WallType>     WallTypes      { get; }
+            public Dictionary<string, FamilySymbol> ColumnSymbols  { get; }
+            public Dictionary<string, FamilySymbol> BeamSymbols    { get; }
+            public Dictionary<string, FloorType>    FloorTypes     { get; }
+            public List<FamilySymbol>               FoundSymbols   { get; }
+
+            // Lazily-resolved base types (first valid entry of each category)
+            private WallType     _baseWall;
+            private FamilySymbol _baseColumn;
+            private FamilySymbol _baseBeam;
+            private FloorType    _baseFloor;
+            private FamilySymbol _baseFound;
+
+            public WallType     BaseWallType     => _baseWall     ??= WallTypes.Values.FirstOrDefault(t => t.Kind == WallKind.Basic) ?? WallTypes.Values.FirstOrDefault();
+            public FamilySymbol BaseColumnSymbol => _baseColumn   ??= ColumnSymbols.Values.FirstOrDefault();
+            public FamilySymbol BaseBeamSymbol   => _baseBeam     ??= BeamSymbols.Values.FirstOrDefault();
+            public FloorType    BaseFloorType    => _baseFloor    ??= FloorTypes.Values.FirstOrDefault();
+            public FamilySymbol BaseFoundSymbol  => _baseFound    ??= FoundSymbols.FirstOrDefault();
+
+            public TypeLookupCache(
+                Dictionary<string, WallType>     wallTypes,
+                Dictionary<string, FamilySymbol> colSymbols,
+                Dictionary<string, FamilySymbol> beamSymbols,
+                Dictionary<string, FloorType>    floorTypes,
+                List<FamilySymbol>               foundSymbols)
+            {
+                WallTypes     = wallTypes;
+                ColumnSymbols = colSymbols;
+                BeamSymbols   = beamSymbols;
+                FloorTypes    = floorTypes;
+                FoundSymbols  = foundSymbols;
+            }
+
+            // Register a newly duplicated type so subsequent calls within the same batch see it.
+            public void RegisterWall(string name, WallType t)         => WallTypes[name]     = t;
+            public void RegisterColumn(string name, FamilySymbol s)   => ColumnSymbols[name] = s;
+            public void RegisterBeam(string name, FamilySymbol s)     => BeamSymbols[name]   = s;
+            public void RegisterFloor(string name, FloorType t)       => FloorTypes[name]    = t;
+        }
+
         /// <summary>Result of the structural DWG conversion.</summary>
         public class ConversionResult
         {
@@ -52,6 +98,8 @@ namespace StingTools.Model
             public int JoinsPerformed { get; set; }
             public int TypesCreated { get; set; }
             public int ElementsTagged { get; set; }
+            public int LevelsRepeated { get; set; }
+            public int BeamPairsDetected { get; set; }
             public int Errors { get; set; }
             public List<string> Warnings { get; set; } = new();
             public List<ElementId> CreatedElementIds { get; set; } = new();
@@ -75,6 +123,8 @@ namespace StingTools.Model
                 sb.AppendLine($"  Joins:        {JoinsPerformed}");
                 sb.AppendLine($"  Types:        {TypesCreated} new");
                 sb.AppendLine($"  Tagged:       {ElementsTagged}");
+                if (LevelsRepeated > 0) sb.AppendLine($"  Levels:       {LevelsRepeated} repeated");
+                if (BeamPairsDetected > 0) sb.AppendLine($"  Beam Pairs:   {BeamPairsDetected} (width auto-detected)");
                 if (Errors > 0) sb.AppendLine($"  Errors:       {Errors}");
                 sb.AppendLine($"  Duration:     {Duration.TotalSeconds:F1}s");
                 if (Warnings.Count > 0)
@@ -120,11 +170,13 @@ namespace StingTools.Model
             public string LayerName { get; set; }
         }
 
-        /// <summary>Detected beam from lines on beam layers connecting columns.</summary>
+        /// <summary>Detected beam from parallel line pairs or single lines on beam layers.</summary>
         private class DetectedBeamLine
         {
             public XYZ Start { get; set; }
             public XYZ End { get; set; }
+            public double WidthFt { get; set; }
+            public bool WidthDetected { get; set; }
             public string LayerName { get; set; }
         }
 
@@ -172,7 +224,8 @@ namespace StingTools.Model
                 var beams = DetectBeams(mappedLines, config, result);
                 var slabs = DetectSlabs(mappedLines, config, result);
 
-                StingLog.Info($"Detected: {walls.Count} walls, {columns.Count} columns, {beams.Count} beams, {slabs.Count} slabs");
+                result.BeamPairsDetected = beams.Count(b => b.WidthDetected);
+                StingLog.Info($"Detected: {walls.Count} walls, {columns.Count} columns, {beams.Count} beams ({result.BeamPairsDetected} paired), {slabs.Count} slabs");
 
                 // 3. Pre-processing: merge collinear walls, snap to grid
                 if (config.MergeCollinearWalls)
@@ -195,6 +248,30 @@ namespace StingTools.Model
                     return result;
                 }
 
+                // DWG-HIGH-03: Pre-collect all type catalogs into dictionaries BEFORE the
+                // transaction. Each FindOrCreate* method previously ran 2 FilteredElementCollector
+                // scans: one for the exact type name, one for a base type to duplicate from.
+                // With N distinct beam widths, that was 2N collectors just for beam types.
+                // Pre-loading into lookup dictionaries reduces to a single scan per category,
+                // O(1) per type lookup inside the transaction.
+                var preloadedWallTypes      = new FilteredElementCollector(doc).OfClass(typeof(WallType))
+                    .Cast<WallType>().ToDictionary(t => t.Name, t => t, StringComparer.OrdinalIgnoreCase);
+                var preloadedColumnSymbols  = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns).OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>().GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var preloadedBeamSymbols    = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming).OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>().GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var preloadedFloorTypes     = new FilteredElementCollector(doc).OfClass(typeof(FloorType))
+                    .Cast<FloorType>().ToDictionary(t => t.Name, t => t, StringComparer.OrdinalIgnoreCase);
+                var preloadedFoundSymbols   = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFoundation).OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>().ToList();
+                var typePreload = new TypeLookupCache(preloadedWallTypes, preloadedColumnSymbols,
+                    preloadedBeamSymbols, preloadedFloorTypes, preloadedFoundSymbols);
+
                 // 5. Create elements in transaction
                 using (var tx = new Transaction(doc, "STING Structural DWG Conversion"))
                 {
@@ -207,23 +284,23 @@ namespace StingTools.Model
 
                     // 5a. Grid lines (first, so we can snap to them)
                     if (config.CreateGridLines && config.LayerMapping.ContainsKey("Grid Line"))
-                        CreateGridLines(doc, mappedLines, config, baseLevel, result);
+                        CreateGridLines(doc, mappedLines, config, baseLevel, result, typePreload);
 
                     // 5b. Walls
-                    var createdWalls = CreateWalls(doc, walls, config, baseLevel, topLevel, result);
+                    var createdWalls = CreateWalls(doc, walls, config, baseLevel, topLevel, result, typePreload);
 
                     // 5c. Columns
-                    var createdColumns = CreateColumns(doc, columns, config, baseLevel, topLevel, result);
+                    var createdColumns = CreateColumns(doc, columns, config, baseLevel, topLevel, result, typePreload);
 
                     // 5d. Beams
-                    CreateBeams(doc, beams, config, baseLevel, result);
+                    CreateBeams(doc, beams, config, baseLevel, result, typePreload);
 
                     // 5e. Slabs
-                    CreateSlabs(doc, slabs, config, baseLevel, result);
+                    CreateSlabs(doc, slabs, config, baseLevel, result, typePreload);
 
                     // 5f. Foundations below columns
                     if (config.DetectFoundations)
-                        CreateFoundations(doc, columns, config, baseLevel, result);
+                        CreateFoundations(doc, columns, config, baseLevel, result, typePreload);
 
                     // 6. Joining
                     if (config.AutoJoinWalls)
@@ -232,6 +309,55 @@ namespace StingTools.Model
                         JoinColumnsToWalls(doc, createdColumns, createdWalls, result);
 
                     tx.Commit();
+                }
+
+                // 6b. Repeat/copy structural layout to additional levels
+                if (config.RepeatToLevelIds != null && config.RepeatToLevelIds.Count > 0)
+                {
+                    var allLevels = new FilteredElementCollector(doc)
+                        .OfClass(typeof(Level)).Cast<Level>()
+                        .ToDictionary(l => l.Id);
+
+                    foreach (var levelId in config.RepeatToLevelIds)
+                    {
+                        if (levelId == null || levelId == config.BaseLevelId) continue;
+                        if (!allLevels.TryGetValue(levelId, out var repeatLevel)) continue;
+
+                        // Find the next level above this one for top constraint
+                        Level repeatTopLevel = null;
+                        if (topLevel != null)
+                        {
+                            double targetTop = repeatLevel.Elevation + (topLevel.Elevation - baseLevel.Elevation);
+                            repeatTopLevel = allLevels.Values
+                                .Where(l => l.Elevation > repeatLevel.Elevation)
+                                .OrderBy(l => Math.Abs(l.Elevation - targetTop))
+                                .FirstOrDefault();
+                        }
+
+                        StingLog.Info($"Repeating structural layout to level: {repeatLevel.Name}");
+
+                        using (var tx = new Transaction(doc, $"STING Repeat Structure to {repeatLevel.Name}"))
+                        {
+                            tx.Start();
+                            var failOpts = tx.GetFailureHandlingOptions();
+                            failOpts.SetFailuresPreprocessor(new SilentWarningDismisser());
+                            tx.SetFailureHandlingOptions(failOpts);
+
+                            var repeatWalls = CreateWalls(doc, walls, config, repeatLevel, repeatTopLevel, result);
+                            var repeatCols = CreateColumns(doc, columns, config, repeatLevel, repeatTopLevel, result);
+                            CreateBeams(doc, beams, config, repeatLevel, result);
+                            CreateSlabs(doc, slabs, config, repeatLevel, result);
+
+                            if (config.AutoJoinWalls)
+                                JoinWalls(doc, repeatWalls, result);
+                            if (config.AutoJoinColumns)
+                                JoinColumnsToWalls(doc, repeatCols, repeatWalls, result);
+
+                            tx.Commit();
+                        }
+
+                        result.LevelsRepeated++;
+                    }
                 }
 
                 // 7. Auto-tag created elements
@@ -269,6 +395,8 @@ namespace StingTools.Model
                         ["joins"] = result.JoinsPerformed,
                         ["types"] = result.TypesCreated,
                         ["tagged"] = result.ElementsTagged,
+                        ["levels_repeated"] = result.LevelsRepeated,
+                        ["beam_pairs_detected"] = result.BeamPairsDetected,
                         ["errors"] = result.Errors,
                         ["duration_s"] = result.Duration.TotalSeconds,
                         ["total_elements"] = result.CreatedElementIds.Count,
@@ -422,8 +550,17 @@ namespace StingTools.Model
                     if (overlap < minLen * 0.5) continue;
 
                     // Found a wall pair
-                    var mid1 = (a.Start + b.Start) * 0.5;
-                    var mid2 = (a.End + b.End) * 0.5;
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartW = b.Start;
+                    var bEndW = b.End;
+                    if (a.Start.DistanceTo(bEndW) < a.Start.DistanceTo(bStartW))
+                    {
+                        bStartW = b.End;
+                        bEndW = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartW) * 0.5;
+                    var mid2 = (a.End + bEndW) * 0.5;
 
                     // Determine if it's a shear wall by thickness
                     bool isShear = a.ElementType == "Shear Wall" ||
@@ -520,24 +657,104 @@ namespace StingTools.Model
             return columns;
         }
 
-        /// <summary>Detect beams from lines on beam layers.</summary>
+        /// <summary>
+        /// Detect beams from parallel line pairs on beam layers.
+        /// In AutoCAD, beams are represented by TWO parallel lines — the distance
+        /// between the lines is the beam width. This method pairs parallel lines,
+        /// measures the perpendicular distance (beam width), and uses the centerline
+        /// as the beam placement line. Falls back to single-line with default width
+        /// for unpaired lines.
+        /// </summary>
         private static List<DetectedBeamLine> DetectBeams(
             List<MappedLine> lines, StructuralDWGConfig config, ConversionResult result)
         {
             var beams = new List<DetectedBeamLine>();
             var beamLines = lines.Where(l => l.ElementType == "Beam").ToList();
             double minLen = config.MinBeamLengthMm * MmToFeet;
+            double defaultWidthFt = config.BeamWidthMm * MmToFeet;
 
-            foreach (var line in beamLines)
+            // Beam width range: 100mm to 600mm (typical RC/steel beam widths)
+            double minBeamWidthFt = 100 * MmToFeet;
+            double maxBeamWidthFt = 600 * MmToFeet;
+
+            var used = new HashSet<int>();
+
+            // Phase 1: Find parallel line pairs (accurate beam width detection)
+            for (int i = 0; i < beamLines.Count; i++)
             {
-                if (line.Length < minLen) continue;
-                beams.Add(new DetectedBeamLine
+                if (used.Contains(i)) continue;
+                var a = beamLines[i];
+                if (a.Length < minLen) continue;
+
+                var dirA = (a.End - a.Start).Normalize();
+                bool foundPair = false;
+
+                for (int j = i + 1; j < beamLines.Count; j++)
                 {
-                    Start = line.Start,
-                    End = line.End,
-                    LayerName = line.LayerName,
-                });
+                    if (used.Contains(j)) continue;
+                    var b = beamLines[j];
+                    if (b.Length < minLen) continue;
+
+                    // Check parallelism (dot product of normalized directions)
+                    var dirB = (b.End - b.Start).Normalize();
+                    double dot = Math.Abs(dirA.DotProduct(dirB));
+                    if (dot < 0.98) continue; // Not parallel enough
+
+                    // Measure perpendicular distance = beam width
+                    double dist = PointToLineDistance(a.Start, a.End, b.Start);
+                    if (dist < minBeamWidthFt || dist > maxBeamWidthFt) continue;
+
+                    // Check longitudinal overlap (paired lines must overlap significantly)
+                    double overlap = CalculateOverlap(a.Start, a.End, b.Start, b.End);
+                    if (overlap < minLen * 0.5) continue;
+
+                    // Found a beam pair — compute centerline from midpoints
+                    // CAD-CRIT-01: Fix anti-parallel line pairs — swap b endpoints if lines
+                    // run in opposite directions so midpoints connect corresponding ends.
+                    var bStartB = b.Start;
+                    var bEndB = b.End;
+                    if (a.Start.DistanceTo(bEndB) < a.Start.DistanceTo(bStartB))
+                    {
+                        bStartB = b.End;
+                        bEndB = b.Start;
+                    }
+                    var mid1 = (a.Start + bStartB) * 0.5;
+                    var mid2 = (a.End + bEndB) * 0.5;
+
+                    beams.Add(new DetectedBeamLine
+                    {
+                        Start = ProjectOntoLine(a.Start, a.End, mid1),
+                        End = ProjectOntoLine(a.Start, a.End, mid2),
+                        WidthFt = dist,
+                        WidthDetected = true,
+                        LayerName = a.LayerName,
+                    });
+
+                    used.Add(i);
+                    used.Add(j);
+                    foundPair = true;
+                    break;
+                }
+
+                // Phase 2: Single line fallback (use default beam width from config)
+                if (!foundPair && !used.Contains(i))
+                {
+                    beams.Add(new DetectedBeamLine
+                    {
+                        Start = a.Start,
+                        End = a.End,
+                        WidthFt = defaultWidthFt,
+                        WidthDetected = false,
+                        LayerName = a.LayerName,
+                    });
+                    used.Add(i);
+                }
             }
+
+            int pairedCount = beams.Count(b => b.WidthDetected);
+            int singleCount = beams.Count - pairedCount;
+            if (pairedCount > 0)
+                StingLog.Info($"DetectBeams: {pairedCount} beam pairs detected (width measured), {singleCount} single-line fallbacks");
 
             return beams;
         }
@@ -578,13 +795,14 @@ namespace StingTools.Model
 
         /// <summary>Create Revit walls from detected wall segments.</summary>
         private static List<Wall> CreateWalls(Document doc, List<DetectedWallSegment> walls,
-            StructuralDWGConfig config, Level baseLevel, Level topLevel, ConversionResult result)
+            StructuralDWGConfig config, Level baseLevel, Level topLevel, ConversionResult result,
+            TypeLookupCache cache = null)
         {
             var created = new List<Wall>();
             double heightFt = config.WallHeightMm * MmToFeet;
 
-            // Find or create wall type
-            var wallType = FindOrCreateWallType(doc, config, result);
+            // DWG-HIGH-03: Use pre-loaded cache for O(1) type lookup.
+            var wallType = FindOrCreateWallType(doc, config, result, cache);
 
             foreach (var ws in walls)
             {
@@ -628,13 +846,14 @@ namespace StingTools.Model
 
         /// <summary>Create Revit structural columns from detected positions.</summary>
         private static List<FamilyInstance> CreateColumns(Document doc, List<DetectedColumnPos> columns,
-            StructuralDWGConfig config, Level baseLevel, Level topLevel, ConversionResult result)
+            StructuralDWGConfig config, Level baseLevel, Level topLevel, ConversionResult result,
+            TypeLookupCache cache = null)
         {
             var created = new List<FamilyInstance>();
             double heightFt = config.ColumnHeightMm * MmToFeet;
 
-            // Find column family symbol
-            var colSymbol = FindOrCreateColumnType(doc, config, result);
+            // DWG-HIGH-03: Use pre-loaded cache for O(1) type lookup.
+            var colSymbol = FindOrCreateColumnType(doc, config, result, cache);
             if (colSymbol == null)
             {
                 result.Warnings.Add("No column family found. Columns will be skipped.");
@@ -703,23 +922,36 @@ namespace StingTools.Model
             return created;
         }
 
-        /// <summary>Create Revit structural beams.</summary>
+        /// <summary>Create Revit structural beams, using detected width when available.</summary>
         private static void CreateBeams(Document doc, List<DetectedBeamLine> beams,
-            StructuralDWGConfig config, Level level, ConversionResult result)
+            StructuralDWGConfig config, Level level, ConversionResult result,
+            TypeLookupCache cache = null)
         {
-            var beamSymbol = FindOrCreateBeamType(doc, config, result);
-            if (beamSymbol == null)
-            {
-                result.Warnings.Add("No beam family found. Beams will be skipped.");
-                return;
-            }
-
-            if (!beamSymbol.IsActive) beamSymbol.Activate();
+            // Cache beam types by width to avoid duplicate type creation
+            var typeCache = new Dictionary<string, FamilySymbol>();
 
             foreach (var beam in beams)
             {
                 try
                 {
+                    // Use detected width if available, otherwise config default
+                    double widthMm = beam.WidthDetected
+                        ? beam.WidthFt / MmToFeet
+                        : config.BeamWidthMm;
+
+                    string typeKey = $"{widthMm:F0}x{config.BeamDepthMm:F0}";
+                    if (!typeCache.TryGetValue(typeKey, out var beamSymbol))
+                    {
+                        beamSymbol = FindOrCreateBeamType(doc, config, widthMm, result, cache);
+                        if (beamSymbol == null)
+                        {
+                            result.Warnings.Add("No beam family found. Beams will be skipped.");
+                            return;
+                        }
+                        if (!beamSymbol.IsActive) beamSymbol.Activate();
+                        typeCache[typeKey] = beamSymbol;
+                    }
+
                     var line = Line.CreateBound(
                         new XYZ(beam.Start.X, beam.Start.Y, level.Elevation + config.WallHeightMm * MmToFeet),
                         new XYZ(beam.End.X, beam.End.Y, level.Elevation + config.WallHeightMm * MmToFeet));
@@ -743,9 +975,11 @@ namespace StingTools.Model
 
         /// <summary>Create floor slabs from detected boundary loops.</summary>
         private static void CreateSlabs(Document doc, List<DetectedSlabLoop> slabs,
-            StructuralDWGConfig config, Level level, ConversionResult result)
+            StructuralDWGConfig config, Level level, ConversionResult result,
+            TypeLookupCache cache = null)
         {
-            var floorType = FindOrCreateFloorType(doc, config, result);
+            // DWG-HIGH-03: Use pre-loaded cache for O(1) type lookup.
+            var floorType = FindOrCreateFloorType(doc, config, result, cache);
             if (floorType == null) return;
 
             foreach (var slab in slabs)
@@ -792,23 +1026,67 @@ namespace StingTools.Model
 
         /// <summary>Create grid lines from long straight lines.</summary>
         private static void CreateGridLines(Document doc, List<MappedLine> lines,
-            StructuralDWGConfig config, Level level, ConversionResult result)
+            StructuralDWGConfig config, Level level, ConversionResult result,
+            TypeLookupCache cache = null)
         {
             var gridLines = lines.Where(l => l.ElementType == "Grid Line")
                 .OrderByDescending(l => l.Length).ToList();
 
+            // DWG-MED-01: Build index of already-existing model grids so we never create duplicates.
+            // Pre-collect once outside the loop; Grid.Curve gives the grid's defining line.
+            var existingGridEndpoints = new List<(XYZ A, XYZ B)>();
+            try
+            {
+                var modelGrids = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Grid))
+                    .Cast<Autodesk.Revit.DB.Grid>()
+                    .ToList();
+
+                foreach (var mg in modelGrids)
+                {
+                    try
+                    {
+                        if (mg.Curve is Line gl2)
+                            existingGridEndpoints.Add((gl2.GetEndPoint(0), gl2.GetEndPoint(1)));
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Grid endpoint read: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Existing grid pre-scan: {ex.Message}"); }
+
+            // Tracks candidate lines processed in THIS batch (combined with existing model grids).
+            var usedPositions = new List<(XYZ, XYZ)>(existingGridEndpoints);
+
+            // Determine starting name counters by scanning existing names to avoid collisions.
             int gridNum = 1;
             char gridChar = 'A';
-            var usedPositions = new List<(XYZ, XYZ)>();
+            try
+            {
+                var modelGrids2 = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Grid))
+                    .Cast<Autodesk.Revit.DB.Grid>();
+
+                foreach (var mg in modelGrids2)
+                {
+                    if (int.TryParse(mg.Name, out int n) && n >= gridNum)
+                        gridNum = n + 1;
+                    else if (mg.Name?.Length == 1 && char.IsLetter(mg.Name[0])
+                             && mg.Name[0] >= gridChar)
+                        gridChar = (char)(mg.Name[0] + 1);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Grid name counter init: {ex.Message}"); }
+
+            const double GridDupeTolFt = 1.0; // ~300mm — same endpoint tolerance as before
 
             foreach (var gl in gridLines)
             {
                 if (gl.Length < 3.0) continue; // Min 3 ft (~1m) for a grid
 
-                // Check for duplicates
+                // DWG-MED-01: Check against BOTH model grids AND previously-created grids this batch.
                 bool isDupe = usedPositions.Any(p =>
-                    (p.Item1.DistanceTo(gl.Start) < 1.0 && p.Item2.DistanceTo(gl.End) < 1.0) ||
-                    (p.Item1.DistanceTo(gl.End) < 1.0 && p.Item2.DistanceTo(gl.Start) < 1.0));
+                    (p.Item1.DistanceTo(gl.Start) < GridDupeTolFt && p.Item2.DistanceTo(gl.End) < GridDupeTolFt) ||
+                    (p.Item1.DistanceTo(gl.End) < GridDupeTolFt && p.Item2.DistanceTo(gl.Start) < GridDupeTolFt));
                 if (isDupe) continue;
 
                 try
@@ -820,7 +1098,7 @@ namespace StingTools.Model
                     var grid = Autodesk.Revit.DB.Grid.Create(doc, line);
                     if (grid != null)
                     {
-                        // Name: horizontal = numbers, vertical = letters
+                        // Name: horizontal = numbers, vertical = letters (per BS 1192 convention).
                         var dir = (gl.End - gl.Start).Normalize();
                         bool isHorizontal = Math.Abs(dir.X) > Math.Abs(dir.Y);
 
@@ -842,16 +1120,35 @@ namespace StingTools.Model
             }
         }
 
-        /// <summary>Create foundations below column positions.</summary>
+        /// <summary>Create pad foundations below column positions, sized to match column dimensions.</summary>
         private static void CreateFoundations(Document doc, List<DetectedColumnPos> columns,
-            StructuralDWGConfig config, Level level, ConversionResult result)
+            StructuralDWGConfig config, Level level, ConversionResult result,
+            TypeLookupCache cache = null)
         {
-            // Find foundation family
-            var foundSymbol = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFoundation)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault();
+            // DWG-HIGH-03: Use pre-loaded cache; inline fallback when none.
+            var allFoundSymbols = cache?.FoundSymbols
+                ?? new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFoundation)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .ToList();
+
+            if (allFoundSymbols == null || allFoundSymbols.Count == 0)
+            {
+                result.Warnings.Add("No foundation family loaded. Foundations skipped.");
+                return;
+            }
+
+            // DWG-HIGH-02: Foundation name suffix to find by column size.
+            // EC7 §6.5.2 pad footings typically sized at 2–3× column width; we match family
+            // names that include the column dimensions (b × h in mm) so that, e.g., a
+            // 400×400 column uses a "Pad 400x400" family if available.
+            string colSuffix = $"{config.ColumnWidthMm:F0}x{config.ColumnDepthMm:F0}";
+
+            // DWG-HIGH-02: Prefer a symbol whose name contains the column dimensions.
+            var foundSymbol = allFoundSymbols.FirstOrDefault(s =>
+                    s.Name.IndexOf(colSuffix, StringComparison.OrdinalIgnoreCase) >= 0)
+                ?? allFoundSymbols.FirstOrDefault(); // fall back to first available
 
             if (foundSymbol == null)
             {
@@ -861,16 +1158,44 @@ namespace StingTools.Model
 
             if (!foundSymbol.IsActive) foundSymbol.Activate();
 
+            // Foundation base level is at the underside of the base slab.
+            // Per EC7 §6.5.2 and BS EN 1997-1 Table A3 (DA1):
+            // foundation level = ground level − minimum embedment.
+            // We place at the current import level; structural engineer to adjust embedment.
+            double foundElevFt = level.Elevation;
+
             foreach (var col in columns)
             {
                 try
                 {
-                    var pt = new XYZ(col.Center.X, col.Center.Y, level.Elevation);
+                    var pt = new XYZ(col.Center.X, col.Center.Y, foundElevFt);
                     var fi = doc.Create.NewFamilyInstance(
                         pt, foundSymbol, level, StructuralType.Footing);
 
                     if (fi != null)
                     {
+                        // DWG-HIGH-02: Set foundation plan dimensions to match column size.
+                        // Typical pad footing plan ≈ 2.5× column width per EC7 §6.5.2 guidance.
+                        // If the family exposes Width/Depth parameters we set them; otherwise
+                        // the engineer sizes the foundation in the native Revit type.
+                        try
+                        {
+                            double padWidthFt  = config.ColumnWidthMm  * MmToFeet * 2.5;
+                            double padDepthFt  = config.ColumnDepthMm  * MmToFeet * 2.5;
+                            double padHeightFt = config.FoundationDepthMm * MmToFeet;
+
+                            (fi.LookupParameter("Width")  ?? fi.LookupParameter("b"))?.Set(padWidthFt);
+                            (fi.LookupParameter("Length") ?? fi.LookupParameter("d")
+                                ?? fi.LookupParameter("Depth"))?.Set(padDepthFt);
+                            (fi.LookupParameter("Height") ?? fi.LookupParameter("h")
+                                ?? fi.LookupParameter("Thickness"))?.Set(padHeightFt);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Non-fatal — family may not expose these parameters.
+                            StingLog.Warn($"Foundation dimension set skipped: {ex.Message}");
+                        }
+
                         result.CreatedElementIds.Add(fi.Id);
                         result.FoundationsCreated++;
                     }
@@ -887,37 +1212,52 @@ namespace StingTools.Model
         // TYPE CREATION
         // ══════════════════════════════════════════════════════════════════
 
-        private static WallType FindOrCreateWallType(Document doc, StructuralDWGConfig config, ConversionResult result)
+        // DWG-HIGH-03: Accept TypeLookupCache for O(1) lookup; inline collector only when cache==null.
+        private static WallType FindOrCreateWallType(Document doc, StructuralDWGConfig config,
+            ConversionResult result, TypeLookupCache cache = null)
         {
             double thickFt = config.WallThicknessMm * MmToFeet;
             string typeName = $"{config.TypeNamingPrefix} {config.WallMaterial} Wall {config.WallThicknessMm:F0}mm";
 
-            // Try to find existing type
-            var existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(WallType))
-                .Cast<WallType>()
-                .FirstOrDefault(t => t.Name == typeName);
+            // 1. O(1) cache hit.
+            if (cache != null && cache.WallTypes.TryGetValue(typeName, out var cached))
+                return cached;
+
+            // 2. Inline fallback (no cache provided, or cache miss on first call).
+            var existing = cache != null
+                ? null  // cache was built from a full collector — if not in cache it doesn't exist yet
+                : new FilteredElementCollector(doc)
+                    .OfClass(typeof(WallType))
+                    .Cast<WallType>()
+                    .FirstOrDefault(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null) return existing;
 
-            // Find a structural wall type to duplicate
-            var baseType = new FilteredElementCollector(doc)
-                .OfClass(typeof(WallType))
-                .Cast<WallType>()
-                .FirstOrDefault(t => t.Kind == WallKind.Basic) ??
-                new FilteredElementCollector(doc)
-                .OfClass(typeof(WallType))
-                .Cast<WallType>()
-                .FirstOrDefault();
+            // 3. Base type: prefer Basic structural wall.
+            WallType baseType = cache?.BaseWallType;
+            if (baseType == null)
+            {
+                WallType fallback = null;
+                foreach (var wt in new FilteredElementCollector(doc)
+                    .OfClass(typeof(WallType)).Cast<WallType>())
+                {
+                    fallback ??= wt;
+                    if (wt.Kind == WallKind.Basic) { baseType = wt; break; }
+                }
+                baseType ??= fallback;
+            }
 
             if (baseType == null) return null;
-
             if (!config.CreateNewTypes) return baseType;
 
             try
             {
                 var newType = baseType.Duplicate(typeName) as WallType;
-                if (newType != null) result.TypesCreated++;
+                if (newType != null)
+                {
+                    result.TypesCreated++;
+                    cache?.RegisterWall(typeName, newType); // keep cache coherent within batch
+                }
                 return newType ?? baseType;
             }
             catch (Exception ex)
@@ -927,23 +1267,33 @@ namespace StingTools.Model
             }
         }
 
-        private static FamilySymbol FindOrCreateColumnType(Document doc, StructuralDWGConfig config, ConversionResult result)
+        // DWG-HIGH-03: Accept TypeLookupCache for O(1) lookup.
+        private static FamilySymbol FindOrCreateColumnType(Document doc, StructuralDWGConfig config,
+            ConversionResult result, TypeLookupCache cache = null)
         {
             string typeName = $"{config.TypeNamingPrefix} {config.ColumnMaterial} Col {config.ColumnWidthMm:F0}x{config.ColumnDepthMm:F0}";
 
-            var existing = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault(s => s.Name == typeName);
+            // 1. O(1) cache hit.
+            if (cache != null && cache.ColumnSymbols.TryGetValue(typeName, out var cached))
+                return cached;
+
+            // 2. Inline fallback.
+            var existing = cache != null
+                ? null
+                : new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(s => s.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null) return existing;
 
-            var baseSymbol = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault();
+            var baseSymbol = cache?.BaseColumnSymbol
+                ?? new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault();
 
             if (baseSymbol == null) return null;
             if (!config.CreateNewTypes) return baseSymbol;
@@ -953,7 +1303,7 @@ namespace StingTools.Model
                 var newType = baseSymbol.Duplicate(typeName) as FamilySymbol;
                 if (newType != null)
                 {
-                    // Try to set dimensions
+                    // Set b/h dimensions for column cross-section.
                     try
                     {
                         var wParam = newType.LookupParameter("b") ?? newType.LookupParameter("Width");
@@ -964,6 +1314,7 @@ namespace StingTools.Model
                     catch (Exception ex) { StingLog.Warn($"Column type dims: {ex.Message}"); }
 
                     result.TypesCreated++;
+                    cache?.RegisterColumn(typeName, newType);
                 }
                 return newType ?? baseSymbol;
             }
@@ -974,23 +1325,33 @@ namespace StingTools.Model
             }
         }
 
-        private static FamilySymbol FindOrCreateBeamType(Document doc, StructuralDWGConfig config, ConversionResult result)
+        // DWG-HIGH-03: Accept TypeLookupCache for O(1) lookup.
+        private static FamilySymbol FindOrCreateBeamType(Document doc, StructuralDWGConfig config,
+            double widthMm, ConversionResult result, TypeLookupCache cache = null)
         {
-            string typeName = $"{config.TypeNamingPrefix} {config.BeamMaterial} Beam {config.BeamWidthMm:F0}x{config.BeamDepthMm:F0}";
+            string typeName = $"{config.TypeNamingPrefix} {config.BeamMaterial} Beam {widthMm:F0}x{config.BeamDepthMm:F0}";
 
-            var existing = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault(s => s.Name == typeName);
+            // 1. O(1) cache hit.
+            if (cache != null && cache.BeamSymbols.TryGetValue(typeName, out var cached))
+                return cached;
+
+            // 2. Inline fallback.
+            var existing = cache != null
+                ? null
+                : new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(s => s.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null) return existing;
 
-            var baseSymbol = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                .OfClass(typeof(FamilySymbol))
-                .Cast<FamilySymbol>()
-                .FirstOrDefault();
+            var baseSymbol = cache?.BaseBeamSymbol
+                ?? new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault();
 
             if (baseSymbol == null) return null;
             if (!config.CreateNewTypes) return baseSymbol;
@@ -1003,13 +1364,14 @@ namespace StingTools.Model
                     try
                     {
                         var wParam = newType.LookupParameter("b") ?? newType.LookupParameter("Width");
-                        wParam?.Set(config.BeamWidthMm * MmToFeet);
+                        wParam?.Set(widthMm * MmToFeet);
                         var dParam = newType.LookupParameter("h") ?? newType.LookupParameter("Depth");
                         dParam?.Set(config.BeamDepthMm * MmToFeet);
                     }
                     catch (Exception ex) { StingLog.Warn($"Beam type dims: {ex.Message}"); }
 
                     result.TypesCreated++;
+                    cache?.RegisterBeam(typeName, newType);
                 }
                 return newType ?? baseSymbol;
             }
@@ -1020,21 +1382,31 @@ namespace StingTools.Model
             }
         }
 
-        private static FloorType FindOrCreateFloorType(Document doc, StructuralDWGConfig config, ConversionResult result)
+        // DWG-HIGH-03: Accept TypeLookupCache for O(1) lookup.
+        private static FloorType FindOrCreateFloorType(Document doc, StructuralDWGConfig config,
+            ConversionResult result, TypeLookupCache cache = null)
         {
             string typeName = $"{config.TypeNamingPrefix} {config.SlabMaterial} Slab {config.SlabThicknessMm:F0}mm";
 
-            var existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(FloorType))
-                .Cast<FloorType>()
-                .FirstOrDefault(t => t.Name == typeName);
+            // 1. O(1) cache hit.
+            if (cache != null && cache.FloorTypes.TryGetValue(typeName, out var cached))
+                return cached;
+
+            // 2. Inline fallback.
+            var existing = cache != null
+                ? null
+                : new FilteredElementCollector(doc)
+                    .OfClass(typeof(FloorType))
+                    .Cast<FloorType>()
+                    .FirstOrDefault(t => t.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null) return existing;
 
-            var baseType = new FilteredElementCollector(doc)
-                .OfClass(typeof(FloorType))
-                .Cast<FloorType>()
-                .FirstOrDefault();
+            var baseType = cache?.BaseFloorType
+                ?? new FilteredElementCollector(doc)
+                    .OfClass(typeof(FloorType))
+                    .Cast<FloorType>()
+                    .FirstOrDefault();
 
             if (baseType == null) return null;
             if (!config.CreateNewTypes) return baseType;
@@ -1042,7 +1414,11 @@ namespace StingTools.Model
             try
             {
                 var newType = baseType.Duplicate(typeName) as FloorType;
-                if (newType != null) result.TypesCreated++;
+                if (newType != null)
+                {
+                    result.TypesCreated++;
+                    cache?.RegisterFloor(typeName, newType);
+                }
                 return newType ?? baseType;
             }
             catch (Exception ex)
@@ -1122,8 +1498,14 @@ namespace StingTools.Model
                 var dir = (current.End - current.Start).Normalize();
                 var start = current.Start;
                 var end = current.End;
+                // DWG-CRIT-01: Track max thickness across all merged segments instead of using first only
+                double maxThickness = current.ThicknessFt;
+                bool isShearWall = current.IsShearWall;
 
                 bool didMerge;
+                // DWG-MED-01: Add convergence limit to prevent infinite merge loops
+                int maxPasses = 10;
+                int pass = 0;
                 do
                 {
                     didMerge = false;
@@ -1137,40 +1519,49 @@ namespace StingTools.Model
                         if (Math.Abs(dir.DotProduct(otherDir)) < 0.98) continue;
 
                         // Check if endpoints connect
+                        bool merged_j = false;
                         if (end.DistanceTo(other.Start) < tolerance)
                         {
                             end = other.End;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (end.DistanceTo(other.End) < tolerance)
                         {
                             end = other.Start;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (start.DistanceTo(other.End) < tolerance)
                         {
                             start = other.Start;
-                            used.Add(j);
-                            didMerge = true;
+                            merged_j = true;
                         }
                         else if (start.DistanceTo(other.Start) < tolerance)
                         {
                             start = other.End;
+                            merged_j = true;
+                        }
+
+                        if (merged_j)
+                        {
                             used.Add(j);
                             didMerge = true;
+                            // DWG-CRIT-01: Use maximum thickness of merged segments
+                            if (other.ThicknessFt > maxThickness)
+                                maxThickness = other.ThicknessFt;
+                            if (other.IsShearWall)
+                                isShearWall = true;
                         }
                     }
-                } while (didMerge);
+                    pass++;
+                } while (didMerge && pass < maxPasses);
 
                 used.Add(i);
                 merged.Add(new DetectedWallSegment
                 {
                     Start = start,
                     End = end,
-                    ThicknessFt = current.ThicknessFt,
-                    IsShearWall = current.IsShearWall,
+                    ThicknessFt = maxThickness,
+                    IsShearWall = isShearWall,
                     LayerName = current.LayerName,
                 });
             }
@@ -1282,21 +1673,59 @@ namespace StingTools.Model
             // Mark as used
             foreach (int idx in candidates) used.Add(idx);
 
-            // Calculate center and dimensions
+            // DWG-HIGH-03: Compute oriented bounding box using direction of longest side
             var allPts = new List<XYZ>();
             foreach (int idx in candidates) { allPts.Add(lines[idx].Start); allPts.Add(lines[idx].End); }
             double cx = allPts.Average(p => p.X);
             double cy = allPts.Average(p => p.Y);
 
-            double minX = allPts.Min(p => p.X), maxX = allPts.Max(p => p.X);
-            double minY = allPts.Min(p => p.Y), maxY = allPts.Max(p => p.Y);
+            // Find longest side to determine rotation
+            double maxLen = 0;
+            XYZ longestDir = XYZ.BasisX;
+            foreach (int idx in candidates)
+            {
+                var seg = lines[idx];
+                double len = seg.Start.DistanceTo(seg.End);
+                if (len > maxLen)
+                {
+                    maxLen = len;
+                    longestDir = (seg.End - seg.Start).Normalize();
+                }
+            }
+
+            // Compute rotation angle from X-axis
+            double rotation = Math.Atan2(longestDir.Y, longestDir.X);
+
+            // Project all points onto the oriented axes to get true width/height
+            var perpDir = new XYZ(-longestDir.Y, longestDir.X, 0);
+            double minAlongMain = double.MaxValue, maxAlongMain = double.MinValue;
+            double minAlongPerp = double.MaxValue, maxAlongPerp = double.MinValue;
+            foreach (var pt in allPts)
+            {
+                double projMain = pt.X * longestDir.X + pt.Y * longestDir.Y;
+                double projPerp = pt.X * perpDir.X + pt.Y * perpDir.Y;
+                if (projMain < minAlongMain) minAlongMain = projMain;
+                if (projMain > maxAlongMain) maxAlongMain = projMain;
+                if (projPerp < minAlongPerp) minAlongPerp = projPerp;
+                if (projPerp > maxAlongPerp) maxAlongPerp = projPerp;
+            }
+
+            double width = maxAlongMain - minAlongMain;
+            double height = maxAlongPerp - minAlongPerp;
+
+            // Ensure width >= height (width is along the longest side)
+            if (height > width)
+            {
+                var tmp = width; width = height; height = tmp;
+                rotation += Math.PI / 2;
+            }
 
             return new RectResult
             {
                 Center = new XYZ(cx, cy, 0),
-                Width = maxX - minX,
-                Height = maxY - minY,
-                Rotation = 0,
+                Width = width,
+                Height = height,
+                Rotation = rotation,
             };
         }
 
@@ -1313,7 +1742,8 @@ namespace StingTools.Model
                 for (int j = i + 1; j < columns.Count; j++)
                 {
                     if (used.Contains(j)) continue;
-                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 3)
+                    // DWG-HIGH-04: Reduced from tol*3 to tol*1.5 to avoid merging distinct columns
+                    if (columns[i].Center.DistanceTo(columns[j].Center) < tol * 1.5)
                     {
                         // Keep the one with larger area (more accurate detection)
                         if (columns[j].WidthFt * columns[j].DepthFt > best.WidthFt * best.DepthFt)

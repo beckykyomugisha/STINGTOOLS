@@ -2660,10 +2660,12 @@
                                             ToolTip="GAP-03: Import COBie Type, System, Job + Component worksheets for full round-trip"/>
                                 </WrapPanel>
                             </StackPanel>
+                        </Border>
 
-                            <!-- GAP ANALYSIS FIXES — Phase 68 -->
+                        <!-- GAP ANALYSIS FIXES — Phase 68 -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="GAP ANALYSIS — AUTOMATION"/>
+                        <Border Style="{StaticResource GroupBorder}">
                             <StackPanel>
-                                <TextBlock Text="GAP ANALYSIS — AUTOMATION" Foreground="{DynamicResource PanelFg}" FontWeight="Bold" FontSize="10" Margin="0,6,0,3"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource BlueBtn}" Content="Dashboard Export" Tag="ExportDashboardHTML" Click="Cmd_Click"
                                             ToolTip="GAP-04: Export BIM dashboard as self-contained HTML report for stakeholder sharing"/>
