@@ -1571,11 +1571,18 @@ namespace StingTools.UI
                             // Revit API thread — blocking here is safe and expected for modal dialogs.
                             while (true)
                             {
-                                var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
-                                if (ccData == null) break;
-                                string ccAction = UI.BIMCoordinationCenter.Show(ccData);
-                                if (string.IsNullOrEmpty(ccAction)) break; // User closed
-                                Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                                try
+                                {
+                                    var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
+                                    if (ccData == null) break;
+                                    string ccAction = UI.BIMCoordinationCenter.Show(ccData);
+                                    if (string.IsNullOrEmpty(ccAction)) break; // User closed
+                                    Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"BIM Coordination Center action failed: {ex.Message}");
+                                }
                             }
                         }
                         break;

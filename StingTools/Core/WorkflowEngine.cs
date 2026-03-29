@@ -1505,7 +1505,7 @@ namespace StingTools.Core
                         {
                             if (oi["status"]?.ToString() != "OPEN") continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
-                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created"]?.ToString(), out var created)) continue;
+                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created_date"]?.ToString(), out var created)) continue;
                             int ageH = (int)(DateTime.Now - created).TotalHours;
                             int threshold = slaHrs.GetValueOrDefault(pri, 336);
                             if (ageH > threshold) return true;

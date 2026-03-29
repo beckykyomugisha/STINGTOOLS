@@ -4196,20 +4196,27 @@ namespace StingTools.UI
         private static void LoadAllData(Document doc)
         {
             _allItems.Clear();
-            LoadProjectFiles(doc);
-            LoadDocumentRegister(doc);
-            LoadIssues(doc);          // Enhanced with aging/SLA
-            LoadRevisions(doc);
-            LoadClashData(doc);
-            LoadTransmittals(doc);
-            LoadComplianceData(doc);
-            LoadStickyNotes(doc);     // GAP DM-05
-            LoadModelHealthTrend(doc); // GAP DM-06
-            LoadActivityLog(doc);      // Activity feed
-            LoadDataDropStatus(doc);   // Data drop milestones
-            LoadBEPData(doc);          // BEP documents
-            LoadExportIndex(doc);      // STING_Exports indexing
-            LinkIssuesAndRevisions();  // CROSS-01: Issue ↔ Revision join
+            try
+            {
+                LoadProjectFiles(doc);
+                LoadDocumentRegister(doc);
+                LoadIssues(doc);          // Enhanced with aging/SLA
+                LoadRevisions(doc);
+                LoadClashData(doc);
+                LoadTransmittals(doc);
+                LoadComplianceData(doc);
+                LoadStickyNotes(doc);     // GAP DM-05
+                LoadModelHealthTrend(doc); // GAP DM-06
+                LoadActivityLog(doc);      // Activity feed
+                LoadDataDropStatus(doc);   // Data drop milestones
+                LoadBEPData(doc);          // BEP documents
+                LoadExportIndex(doc);      // STING_Exports indexing
+                LinkIssuesAndRevisions();  // CROSS-01: Issue ↔ Revision join
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DocMgr LoadAllData partial failure: {ex.Message}");
+            }
         }
 
         private static void LoadProjectFiles(Document doc)
