@@ -1913,21 +1913,21 @@ namespace StingTools.UI
                     // Document Management Center
                     case "DocumentManager":
                     {
-                        var dmDoc = app.ActiveUIDocument?.Document;
-                        if (dmDoc != null)
+                        // Keep-dialog-open loop: re-open after each dispatched command
+                        // Phase 87: Re-acquire document each iteration — recursive Execute() may switch documents
+                        while (true)
                         {
-                            // Keep-dialog-open loop: re-open after each dispatched command
-                            while (true)
-                            {
-                                var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
-                                if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
-                                    break; // User closed — exit loop
+                            var dmDoc = app.ActiveUIDocument?.Document;
+                            if (dmDoc == null) break;
 
-                                // Execute the dispatched sub-operation
-                                SetCommand(dmResult.Operation);
-                                Execute(app);
-                                // Loop re-opens the dialog automatically
-                            }
+                            var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
+                            if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
+                                break; // User closed — exit loop
+
+                            // Execute the dispatched sub-operation
+                            SetCommand(dmResult.Operation);
+                            Execute(app);
+                            // Loop re-opens the dialog automatically
                         }
                         break;
                     }

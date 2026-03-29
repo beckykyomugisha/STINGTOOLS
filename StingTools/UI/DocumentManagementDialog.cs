@@ -151,8 +151,9 @@ namespace StingTools.UI
             _allItems = new ObservableCollection<DocItemVM>();
             var result = new DocumentManagementResult();
 
-            // Pre-load compliance scan
-            try { _complianceResult = ComplianceScan.Scan(doc); }
+            // Pre-load compliance scan — use cached result to avoid blocking UI for 2-5s on large models
+            // Phase 87: GetCached() returns 30-second TTL result; only full-scan when cache is empty
+            try { _complianceResult = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc); }
             catch (Exception ex) { StingLog.Warn($"DocMgr compliance scan: {ex.Message}"); }
 
             // Initialize team registry for member picker dropdowns
