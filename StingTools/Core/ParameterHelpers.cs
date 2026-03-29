@@ -2243,8 +2243,9 @@ namespace StingTools.Core
                 written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET, "ASS_ROOM_HEIGHT_MM", ftToMmW);
 
             // BLE_STAIR_HEADROOM_MM — Stair headroom
-            if (catUpperW.Contains("STAIR"))
-                written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_TREAD_DEPTH, "BLE_STAIR_HEADROOM_MM", ftToMmW);
+            // Phase 87: Removed incorrect mapping. STAIRS_ACTUAL_TREAD_DEPTH is horizontal step depth,
+            // NOT vertical clearance above stair. Revit has no built-in headroom parameter — headroom
+            // is computed from geometry (stair-to-floor-above clearance), not stored as a BIP.
 
             // BLE_RAIL_HEIGHT_MM — Railing height
             if (catUpperW.Contains("RAILING"))
