@@ -189,10 +189,13 @@ namespace StingTools.Core
                 }
             }
 
+            // Phase 87: Set _lastScanStart immediately after CAS success to close race window
+            // where another thread could see stale timestamp and premature-reset _scanning flag
+            _lastScanStart = DateTime.UtcNow;
+
             try
             {
-                _lastScanStart = DateTime.UtcNow;
-                var result = new ComplianceResult { ScanTime = DateTime.UtcNow };
+                var result = new ComplianceResult { ScanTime = _lastScanStart };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
                 if (known.Count == 0)
                 {

@@ -683,6 +683,7 @@ namespace StingTools.Core
             _cachedReport = null;
             _reportCacheTime = DateTime.MinValue;
             _cachedReportDocKey = null;
+            _classificationCache.Clear(); // Phase 87: Prevent cross-document classification bleed
         }
 
         // ── FULL SCAN ──
@@ -940,15 +941,18 @@ namespace StingTools.Core
                                 }
 
                                 // Find unique mark by numeric increment
-                                string newMark = current;
                                 for (int attempt = 2; attempt < 1000; attempt++)
                                 {
-                                    newMark = $"{current}_{attempt}";
-                                    if (!existingMarks.Contains(newMark)) break;
+                                    string newMark = $"{current}_{attempt}";
+                                    if (!existingMarks.Contains(newMark))
+                                    {
+                                        markParam.Set(newMark);
+                                        existingMarks.Add(newMark);
+                                        return true;
+                                    }
                                 }
-                                markParam.Set(newMark);
-                                existingMarks.Add(newMark); // Phase 85: Keep cache current
-                                return true;
+                                StingLog.Warn($"Strategy 4: exhausted 998 suffix attempts for mark '{current}'");
+                                return false; // Do not write duplicate
                             }
                         }
                     }
@@ -1771,7 +1775,7 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"CheckWarningGate: {ex.Message}");
-                return (true, "Warning gate check failed — proceeding by default.");
+                return (false, $"Warning gate check failed: {ex.Message}");
             }
         }
 
@@ -2570,6 +2574,7 @@ namespace StingTools.Core
                     "_bim_manager", "issues.json");
 
                 var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int maxExistingId = 0;
                 if (File.Exists(issuesPath))
                 {
                     try
@@ -2580,6 +2585,11 @@ namespace StingTools.Core
                         {
                             string desc = item["description"]?.ToString() ?? "";
                             existingIssues.Add(desc);
+                            // Scan for max numeric ID suffix to prevent collision after deletions
+                            string idStr = item["id"]?.ToString() ?? "";
+                            int dashIdx = idStr.LastIndexOf('-');
+                            if (dashIdx >= 0 && int.TryParse(idStr.Substring(dashIdx + 1), out int num) && num > maxExistingId)
+                                maxExistingId = num;
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
@@ -2596,7 +2606,7 @@ namespace StingTools.Core
                     .Take(20); // Cap at 20 issue types
 
                 var newIssues = new List<object>();
-                int nextId = existingIssues.Count + 1;
+                int nextId = maxExistingId + 1;
 
                 foreach (var group in grouped)
                 {
@@ -2648,7 +2658,13 @@ namespace StingTools.Core
                     foreach (var issue in newIssues)
                         arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
 
-                    File.WriteAllText(issuesPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    // Phase 87: Atomic write to prevent corruption on crash
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (File.Exists(issuesPath))
+                        File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
+                    else
+                        File.Move(tmpPath, issuesPath);
                     StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
                 }
             }
