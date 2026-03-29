@@ -714,8 +714,9 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            char sepChar = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator[0] : '-';
-            string[] parts = tag.Split(sepChar);
+            // Phase 86b: Use full separator string for multi-char separator support
+            string sepStr = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator : "-";
+            string[] parts = tag.Split(new[] { sepStr }, StringSplitOptions.None);
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -1981,12 +1982,13 @@ namespace StingTools.Core
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
                     ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
-                    ["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled
                 };
 
                 // FIX-B10: Persist auto-tagger state
                 if (AutoTaggerEnabled.HasValue) data["AUTO_TAGGER_ENABLED"] = AutoTaggerEnabled.Value;
+                // Phase 86b: Removed duplicate AUTO_TAGGER_VISUAL from initial dict — this is the single write point
                 if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
+                else data["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled;
                 if (AutoTaggerStaleMarker.HasValue) data["AUTO_TAGGER_STALE_MARKER"] = AutoTaggerStaleMarker.Value;
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -2764,11 +2766,15 @@ namespace StingTools.Core
             }
 
             // PERF-R11: Validate segment count by counting separators instead of allocating split array.
-            // Previously: String.Split created 8-12 string array per element (50K = 400K+ allocations).
+            // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
             int sepCount = 0;
-            char sepCh = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            for (int ci = 0; ci < tag.Length; ci++)
-                if (tag[ci] == sepCh) sepCount++;
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            int sIdx = 0;
+            while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+            {
+                sepCount++;
+                sIdx += sepStr.Length;
+            }
             if (sepCount < 7) // 8 segments = 7 separators
             {
                 StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");

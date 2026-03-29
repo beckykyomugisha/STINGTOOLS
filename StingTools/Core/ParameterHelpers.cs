@@ -1104,8 +1104,11 @@ namespace StingTools.Core
                 text.Contains("-DEMO") || text.Contains(" DEMOLISHED"))
                 return "DEMOLISHED";
 
-            if (text.StartsWith("TEMP") || text.Contains("_TEMP") ||
-                text.Contains("-TEMP") || text.Contains(" TEMPORARY"))
+            // Phase 86b: Exclude "TEMPLATE" false positive — StartsWith("TEMP") matched "TEMPLATE" worksets
+            if ((text.StartsWith("TEMP") && !text.StartsWith("TEMPLATE")) ||
+                (text.Contains("_TEMP") && !text.Contains("_TEMPLATE")) ||
+                (text.Contains("-TEMP") && !text.Contains("-TEMPLATE")) ||
+                text.Contains(" TEMPORARY"))
                 return "TEMPORARY";
 
             if (text.StartsWith("NEW") || text.Contains("_NEW") ||
