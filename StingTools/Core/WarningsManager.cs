@@ -692,7 +692,7 @@ namespace StingTools.Core
         internal static WarningReport ScanWarnings(Document doc)
         {
             // PERF: Return cached report if recent (30-second TTL) and same document
-            string docKey = doc.PathName ?? doc.Title ?? "";
+            string docKey = doc.PathName ?? $"{doc.Title}_{doc.GetHashCode()}";
             if (_cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
 
@@ -920,18 +920,22 @@ namespace StingTools.Core
                             if (markParam != null && !markParam.IsReadOnly)
                             {
                                 string current = markParam.AsString() ?? "";
-                                // Build set of existing marks to avoid creating new collisions
-                                var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                                try
+                                // Phase 85: Use pre-built cached marks if available, else build fresh
+                                var existingMarks = _cachedExistingMarks;
+                                if (existingMarks == null)
                                 {
-                                    foreach (Element e in new FilteredElementCollector(doc)
-                                        .WhereElementIsNotElementType())
+                                    existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                    try
                                     {
-                                        string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
-                                        if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                        foreach (Element e in new FilteredElementCollector(doc)
+                                            .WhereElementIsNotElementType())
+                                        {
+                                            string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                            if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                        }
                                     }
+                                    catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
                                 }
-                                catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
 
                                 // Find unique mark by numeric increment
                                 string newMark = current;
@@ -941,6 +945,7 @@ namespace StingTools.Core
                                     if (!existingMarks.Contains(newMark)) break;
                                 }
                                 markParam.Set(newMark);
+                                existingMarks.Add(newMark); // Phase 85: Keep cache current
                                 return true;
                             }
                         }

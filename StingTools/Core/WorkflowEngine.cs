@@ -559,6 +559,10 @@ namespace StingTools.Core
                         continue;
                     }
 
+                    // Phase 85: RequiresWorksharedModel moved outside Condition block so it always runs
+                    if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                    { RecordSkip("not workshared"); continue; }
+
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
                         // Normalize condition to lowercase for case-insensitive matching
@@ -582,9 +586,6 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
-                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
-                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        { RecordSkip("not workshared"); continue; }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {

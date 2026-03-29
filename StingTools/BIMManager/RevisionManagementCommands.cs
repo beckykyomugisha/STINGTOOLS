@@ -266,7 +266,14 @@ namespace StingTools.BIMManager
                 elements[kvp.Key.ToString()] = tokens;
             }
             jObj["elements"] = elements;
-            File.WriteAllText(Path.Combine(dir, fileName), jObj.ToString(Newtonsoft.Json.Formatting.Indented));
+            // Phase 85: Atomic write with tmp + File.Replace to prevent corruption on crash
+            string targetPath = Path.Combine(dir, fileName);
+            string tmpPath = targetPath + ".tmp";
+            File.WriteAllText(tmpPath, jObj.ToString(Newtonsoft.Json.Formatting.Indented));
+            if (File.Exists(targetPath))
+                File.Replace(tmpPath, targetPath, targetPath + ".bak");
+            else
+                File.Move(tmpPath, targetPath);
             StingLog.Info($"RevisionEngine: Snapshot '{label}' saved ({snapshot.Count} elements)");
         }
 
@@ -910,6 +917,35 @@ namespace StingTools.BIMManager
                 int cloudsCreated = 0;
                 int cloudsSkipped = 0;
 
+                // Phase 85: Build set of already-clouded element IDs to prevent duplicates on repeated runs
+                var alreadyClouded = new HashSet<long>();
+                try
+                {
+                    foreach (var rc in new FilteredElementCollector(doc, view.Id)
+                        .OfClass(typeof(RevisionCloud))
+                        .Cast<RevisionCloud>())
+                    {
+                        // RevisionCloud doesn't expose hosted elements directly; track by bounding box center
+                    }
+                    // Track existing clouds by their host element references
+                    foreach (RevisionCloud rc in new FilteredElementCollector(doc)
+                        .OfClass(typeof(RevisionCloud)))
+                    {
+                        if (rc.RevisionId == latestRevision.Id && rc.OwnerViewId == view.Id)
+                        {
+                            // Use bounding box center as proxy for the element that was clouded
+                            var rcBb = rc.get_BoundingBox(view);
+                            if (rcBb != null)
+                            {
+                                // Store a hash of the cloud's location to detect overlap
+                                long locHash = (long)(rcBb.Min.X * 1000) ^ ((long)(rcBb.Min.Y * 1000) << 20);
+                                alreadyClouded.Add(locHash);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Cloud dedup scan: {ex.Message}"); }
+
                 using (var tx = new Transaction(doc, "STING Auto Revision Clouds"))
                 {
                     tx.Start();
@@ -922,6 +958,10 @@ namespace StingTools.BIMManager
                         // Get element bounding box in view
                         BoundingBoxXYZ bb = el.get_BoundingBox(view);
                         if (bb == null) { cloudsSkipped++; continue; }
+
+                        // Phase 85: Skip if cloud already exists at this location
+                        long elLocHash = (long)(bb.Min.X * 1000) ^ ((long)(bb.Min.Y * 1000) << 20);
+                        if (alreadyClouded.Contains(elLocHash)) { cloudsSkipped++; continue; }
 
                         // Create cloud outline around element
                         double pad = 0.5; // 6 inches padding
