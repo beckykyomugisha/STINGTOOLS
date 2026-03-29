@@ -3371,7 +3371,7 @@ namespace StingTools.Core
                         break;
                 }
 
-                if (string.IsNullOrEmpty(val) || val == "0") return 0;
+                if (string.IsNullOrEmpty(val)) return 0;
 
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);

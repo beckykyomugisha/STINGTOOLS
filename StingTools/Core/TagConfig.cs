@@ -2001,21 +2001,29 @@ namespace StingTools.Core
             }
         }
 
+        private static readonly object _configWriteLock = new object();
+
         /// <summary>FIX-10.1: Set a single config key and persist to project_config.json (if ConfigSource is a file path).</summary>
         public static void SetConfigValue(string key, object value)
         {
-            try
+            lock (_configWriteLock)
             {
-                if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
-                string json = File.ReadAllText(ConfigSource);
-                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>();
-                data[key] = value;
-                File.WriteAllText(ConfigSource, JsonConvert.SerializeObject(data, Formatting.Indented));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
+                try
+                {
+                    if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
+                    string json = File.ReadAllText(ConfigSource);
+                    var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                        ?? new Dictionary<string, object>();
+                    data[key] = value;
+                    string tmp = ConfigSource + ".tmp";
+                    File.WriteAllText(tmp, JsonConvert.SerializeObject(data, Formatting.Indented));
+                    try { File.Replace(tmp, ConfigSource, ConfigSource + ".bak"); }
+                    catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch { } }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
+                }
             }
         }
 
@@ -2369,8 +2377,8 @@ namespace StingTools.Core
             int adjusted = expectedTokens
                 + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
                 + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
-            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            string[] parts = tagValue.Split(new[] { sepChar });
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            string[] parts = tagValue.Split(new[] { sepStr }, StringSplitOptions.None);
 
             if (parts.Length != adjusted)
             {
@@ -2437,8 +2445,8 @@ namespace StingTools.Core
         {
             if (!TagIsComplete(tagValue, expectedTokens))
                 return false;
-            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            string[] parts = tagValue.Split(new[] { sepChar });
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            string[] parts = tagValue.Split(new[] { sepStr }, StringSplitOptions.None);
             // Reject placeholder segments
             var placeholders = _placeholders;
             for (int i = 0; i < parts.Length; i++)
