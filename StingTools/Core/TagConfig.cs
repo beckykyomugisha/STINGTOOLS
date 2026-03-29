@@ -2687,7 +2687,9 @@ namespace StingTools.Core
                 // so stale entries don't cause false collisions for other elements
                 if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
                     existingTags.Remove(existingTag);
-                existingTags.Add(tag);
+                // BUG-10 FIX: Do NOT add tentative tag here — if collision increments SEQ,
+                // the un-incremented tag would permanently block that value from reuse.
+                // The final written tag is added at line 2784 after successful TAG1 write.
             }
 
             // F-03: Track whether we already have a fresh ReadTokenValues result from the non-overwrite branch

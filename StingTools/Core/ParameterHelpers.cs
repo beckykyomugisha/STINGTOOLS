@@ -3717,13 +3717,10 @@ namespace StingTools.Core
                 // Plugin hook: notify third-party plugins after successful tagging
                 StingPluginHooks.FireAfterTag(doc, el, tag1Check);
 
-                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
-                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
-                // WriteContainers guards internally via ContainersForCategory — no need for redundant outer check
-                if (!string.IsNullOrEmpty(tag1Check))
-                {
-                    ParamRegistry.WriteContainers(el, tokenVals, catName);
-                }
+                // LOGIC-004 / BUG-01 FIX: Removed redundant WriteContainers call here.
+                // BuildAndWriteTag already writes all 53 containers at TagConfig.cs:2834
+                // using fresh ReadTokenValues. This second call was doubling SetString calls
+                // (53 × 2 = 106 per element, 5.3M redundant calls on 50K-element batches).
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 
