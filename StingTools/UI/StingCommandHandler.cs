@@ -2604,10 +2604,6 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
-        // BUG-05 FIX: Static reusable ElementSet — allocated once, never read by Revit
-        // since commandData is null. Eliminates per-call heap allocation.
-        private static readonly ElementSet _emptyElementSet = new ElementSet();
-
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             try
@@ -2618,12 +2614,16 @@ namespace StingTools.UI
 
                 var cmd = new T();
                 string message = "";
+                // Phase 87: Per-call ElementSet — if any IExternalCommand.Execute() mutates
+                // the set, elements must not persist to subsequent commands. ElementSet is
+                // lightweight (empty wrapper), so per-call allocation is negligible.
+                var elSet = new ElementSet();
 
                 // Pass null for ExternalCommandData — commands use
                 // StingCommandHandler.CurrentApp as fallback.
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
-                cmd.Execute(null, ref message, _emptyElementSet);
+                cmd.Execute(null, ref message, elSet);
 
                 StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }
