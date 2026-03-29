@@ -78,14 +78,12 @@ namespace StingTools.Core
                     {
                         StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
                         _overrideSegmentOrder = null;
-                        _cachedSegmentOrder = null; // PERF-05: Invalidate on rejection too
                         StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
                         return;
                     }
                 }
                 _overrideSegmentOrder = (string[])segmentOrder.Clone();
             }
-            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -97,7 +95,6 @@ namespace StingTools.Core
             _overrideSeparator = null;
             _overrideNumPad = null;
             _overrideSegmentOrder = null;
-            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
         }
 
         // ── Source token definitions ────────────────────────────────────
@@ -1089,7 +1086,6 @@ namespace StingTools.Core
                     _baseSeparator = fmt["separator"]?.ToString() ?? "-";
                     _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
                     _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
-                    _cachedSegmentOrder = null; // PERF-05: Invalidate cache after loading base values
                 }
 
                 StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
@@ -1590,7 +1586,6 @@ namespace StingTools.Core
             _baseSeparator = "-";
             _baseNumPad = 4;
             _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
-            _cachedSegmentOrder = null; // PERF-05: Invalidate cache when defaults are reloaded
 
             AllTokenParams = new[]
             {
