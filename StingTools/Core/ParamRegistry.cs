@@ -43,17 +43,12 @@ namespace StingTools.Core
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
-        /// <summary>PERF-05: Cached read-only segment order — avoids Clone() on every access.</summary>
-        private static volatile string[] _cachedSegmentOrder;
+        /// <summary>CR-03 FIX: Returns defensive clone every time to prevent callers from mutating shared state.</summary>
         public static string[] SegmentOrder
         {
             get
             {
-                var cached = _cachedSegmentOrder;
-                if (cached != null) return cached;
-                cached = (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
-                _cachedSegmentOrder = cached;
-                return cached;
+                return (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
             }
         }
 

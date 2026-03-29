@@ -570,11 +570,15 @@ namespace StingTools.Core
                 {
                     if (!_cached.ByDisc.TryGetValue(disc, out var dd))
                     {
-                        dd = new DiscComplianceData { Total = 1 };
+                        // ME-01 FIX: Initialize Tagged/Untagged based on current element state
+                        dd = new DiscComplianceData { Total = 1, Tagged = isTagged ? 1 : 0, Untagged = isTagged ? 0 : 1 };
                         _cached.ByDisc[disc] = dd;
                     }
-                    if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
-                    else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                    else
+                    {
+                        if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
+                        else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                    }
                 }
 
                 // CS-01 FIX: Use UtcNow consistently for cache staleness (DST-safe)
