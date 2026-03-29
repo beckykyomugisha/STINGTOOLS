@@ -146,6 +146,8 @@ namespace StingTools.UI
         {
             _doc = doc;
             _selectedOperation = null;
+            _currentFilter = "ALL";
+            _searchText = "";
             _allItems = new ObservableCollection<DocItemVM>();
             var result = new DocumentManagementResult();
 
@@ -251,6 +253,20 @@ namespace StingTools.UI
                 result.Confirmed = true;
                 result.Operation = _selectedOperation;
             }
+
+            // F01 FIX: Release static references to prevent GC leak of entire document graph
+            _doc = null;
+            _allItems = null;
+            _view = null;
+            _listView = null;
+            _treeView = null;
+            _dashPanel = null;
+            _complianceResult = null;
+            _searchBox = null;
+            _statusText = null;
+            _countText = null;
+            _selectedOperation = null;
+
             return result;
         }
 

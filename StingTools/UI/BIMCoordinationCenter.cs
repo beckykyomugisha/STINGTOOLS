@@ -388,7 +388,7 @@ namespace StingTools.UI
                 { ResultAction = "ExportReport"; Close(); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
                 { NavigateTo("QA DASHBOARD"); e.Handled = true; }
-                if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S)
+                if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
                 { NavigateTo("4D/5D"); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
                 { NavigateTo("DELIVERABLES"); e.Handled = true; }
@@ -400,7 +400,8 @@ namespace StingTools.UI
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
                 { NavigateTo("MEETINGS"); e.Handled = true; }
                 string[] tabKeys = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D" };
-                if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None)
+                if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None
+                    && !(e.OriginalSource is System.Windows.Controls.TextBox))
                 {
                     int idx = (int)(e.Key - Key.D1);
                     if (idx < tabKeys.Length) { NavigateTo(tabKeys[idx]); e.Handled = true; }
