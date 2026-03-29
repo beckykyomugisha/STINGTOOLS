@@ -904,9 +904,11 @@ namespace StingTools.Core
                             break;
                         }
                         // GAP-06: If rollback_on_optional_failure, stop on ANY failure including optional
+                        // Phase 86: Don't double-count — step was already counted as skipped (optional) or failed above
                         if (preset.RollbackOnOptionalFailure && stepResult == Result.Failed)
                         {
-                            failed++; // count optional failures too
+                            // Reclassify: optional failure was counted as 'skipped' above, move to 'failed'
+                            if (step.Optional) { skipped = Math.Max(0, skipped - 1); failed++; }
                             report.AppendLine($"\n  *** Step failed (rollback_on_optional_failure) — rolling back all changes ***");
                             break;
                         }

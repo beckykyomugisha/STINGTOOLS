@@ -672,7 +672,9 @@ namespace StingTools.Core
                     errors.Add(new ValidationError(funcProdError, ValidationErrorType.CrossValidation));
             }
 
-            return errors;
+            // Phase 86: Return defensive copy — raw [ThreadStatic] reference would be
+            // cleared on next call, corrupting any caller that stored the result.
+            return new List<ValidationError>(errors);
         }
 
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
@@ -724,28 +726,29 @@ namespace StingTools.Core
             }
 
             // Validate ALL 8 segments against their respective rules
-            string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
+            // Phase 86: Use cached validation for O(1) repeated lookups
+            string discError = ValidateTokenCached(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
-            string locError = ValidateToken(ParamRegistry.LOC, parts[1]);
+            string locError = ValidateTokenCached(ParamRegistry.LOC, parts[1]);
             if (locError != null) return locError;
 
-            string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
+            string zoneError = ValidateTokenCached(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
 
-            string lvlError = ValidateToken(ParamRegistry.LVL, parts[3]);
+            string lvlError = ValidateTokenCached(ParamRegistry.LVL, parts[3]);
             if (lvlError != null) return lvlError;
 
-            string sysError = ValidateToken(ParamRegistry.SYS, parts[4]);
+            string sysError = ValidateTokenCached(ParamRegistry.SYS, parts[4]);
             if (sysError != null) return sysError;
 
-            string funcError = ValidateToken(ParamRegistry.FUNC, parts[5]);
+            string funcError = ValidateTokenCached(ParamRegistry.FUNC, parts[5]);
             if (funcError != null) return funcError;
 
-            string prodError = ValidateToken(ParamRegistry.PROD, parts[6]);
+            string prodError = ValidateTokenCached(ParamRegistry.PROD, parts[6]);
             if (prodError != null) return prodError;
 
-            string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
+            string seqError = ValidateTokenCached(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
 
             return null; // valid

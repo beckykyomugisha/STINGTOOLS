@@ -565,6 +565,18 @@ namespace StingTools.Core
                 if (!wasIncomplete && isIncomplete) _cached.TaggedIncomplete++;
                 else if (wasIncomplete && !isIncomplete) _cached.TaggedIncomplete = Math.Max(0, _cached.TaggedIncomplete - 1);
 
+                // Phase 86: Track FullyResolved (complete + no placeholders) to prevent StrictPercent drift
+                bool wasResolved = wasComplete && !TagConfig.TagHasPlaceholders(oldTag ?? "");
+                bool isResolved = isComplete && !TagConfig.TagHasPlaceholders(newTag ?? "");
+                if (!wasResolved && isResolved) _cached.FullyResolved++;
+                else if (wasResolved && !isResolved) _cached.FullyResolved = Math.Max(0, _cached.FullyResolved - 1);
+
+                // Also track placeholder transitions
+                bool wasPlaceholder = wasComplete && !wasResolved;
+                bool isPlaceholder = isComplete && !isResolved;
+                if (!wasPlaceholder && isPlaceholder) _cached.PlaceholderCount++;
+                else if (wasPlaceholder && !isPlaceholder) _cached.PlaceholderCount = Math.Max(0, _cached.PlaceholderCount - 1);
+
                 // Update per-discipline counts
                 if (!string.IsNullOrEmpty(disc) && _cached.ByDisc != null)
                 {
