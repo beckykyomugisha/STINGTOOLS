@@ -309,7 +309,7 @@ namespace StingTools.Core
             ("lifecycle", WarningCategory.Sustainability, WarningSeverity.Medium, "Complete BS EN 15978 lifecycle assessment", false),
             ("circularity", WarningCategory.Sustainability, WarningSeverity.Low, "Review material circularity and recyclability", false),
             // Phase 70: MEP intelligence classification rules
-            ("pressure drop", WarningCategory.MEP, WarningSeverity.Medium, "Check pressure drop exceeds system capacity", false),
+            // Note: "pressure drop" already defined at line 283 — first-match-wins makes duplicates dead code
             ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "Review fitting loss coefficient at transition", false),
             ("flow balance", WarningCategory.MEP, WarningSeverity.High, "System requires rebalancing per CIBSE TM39", false),
             ("vibration", WarningCategory.MEP, WarningSeverity.Medium, "Check vibration isolation for rotating equipment", false),
@@ -329,7 +329,7 @@ namespace StingTools.Core
             ("unbalanced system", WarningCategory.MEP, WarningSeverity.High, "MEP branch system unbalanced — run Hardy Cross rebalancing", false),
             ("silencer required", WarningCategory.MEP, WarningSeverity.Medium, "NC rating exceeds room target — add silencer or increase duct", false),
             ("isolation mount", WarningCategory.MEP, WarningSeverity.Medium, "Equipment vibration transmissibility >10% — upgrade isolation mounts", false),
-            ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "High fitting loss concentration — consider routing optimization", false),
+            // Note: "fitting loss" already defined at line 313 — first-match-wins makes duplicates dead code
             ("flex duct", WarningCategory.MEP, WarningSeverity.Medium, "Flexible duct >3m causes excessive pressure drop per DW/144", false),
             // Phase 74/77: Sustainability rules (now using Sustainability category)
             ("LETI target", WarningCategory.Sustainability, WarningSeverity.Medium, "Embodied carbon exceeds LETI 2030 target of 350 kgCO2e/m²", false),
@@ -401,8 +401,7 @@ namespace StingTools.Core
             // Sustainability & environmental
             ("U-value", WarningCategory.Compliance, WarningSeverity.High, "Check U-value meets Part L thermal requirements", false),
             ("airtightness", WarningCategory.Compliance, WarningSeverity.High, "Verify airtightness per Part L/ATTMA TS1", false),
-            ("BREEAM", WarningCategory.Compliance, WarningSeverity.Medium, "Review BREEAM credit requirement", false),
-            ("embodied carbon", WarningCategory.Compliance, WarningSeverity.Medium, "Review embodied carbon per RICS Whole Life Carbon", false),
+            // Note: "BREEAM" and "embodied carbon" already defined at lines 308/307 with Sustainability category — first-match-wins makes these dead code
 
             // MEP design intelligence
             ("undersized", WarningCategory.MEP, WarningSeverity.High, "Element undersized for design load — verify sizing", false),
@@ -501,15 +500,18 @@ namespace StingTools.Core
             try
             {
                 string raw = TagConfig.GetConfigValue("WARNING_SUPPRESS_PATTERNS");
-                _suppressedPatterns.Clear();
+                var newSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (!string.IsNullOrEmpty(raw))
                 {
                     foreach (string p in raw.Split('|'))
                     {
                         string trimmed = p.Trim();
-                        if (trimmed.Length > 0) _suppressedPatterns.Add(trimmed);
+                        if (trimmed.Length > 0) newSet.Add(trimmed);
                     }
                 }
+                // Phase 86: Atomic swap prevents race where concurrent IsSuppressed reads
+                // see a half-cleared set during Clear+Add sequence
+                System.Threading.Interlocked.Exchange(ref _suppressedPatterns, newSet);
             }
             catch (Exception ex) { StingLog.Warn($"LoadSuppressions: {ex.Message}"); }
         }
@@ -614,7 +616,7 @@ namespace StingTools.Core
         /// <summary>Build a ClassifiedWarning from a Revit FailureMessage with full element context.</summary>
         private static ClassifiedWarning BuildClassified(Document doc, FailureMessage fm)
         {
-            string desc = fm.GetDescriptionText();
+            string desc = GetWarningDesc(fm);
             var (cat, sev, fix, autoFix) = ClassifyWarning(desc);
 
             var failing = fm.GetFailingElements();
@@ -1731,7 +1733,10 @@ namespace StingTools.Core
                         jsonSb.AppendLine();
                     }
                     jsonSb.AppendLine("]");
-                    File.WriteAllText(issuesPath, jsonSb.ToString(), Encoding.UTF8);
+                    // Phase 86: Atomic write — prevents sidecar corruption on crash mid-write
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, jsonSb.ToString(), Encoding.UTF8);
+                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
                     StingLog.Info($"Issues file updated: {issuesPath} ({existingEntries.Count} total entries)");
                 }
                 catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings write", ex); }
