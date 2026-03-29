@@ -1641,8 +1641,29 @@ namespace StingTools.Core
                     catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex.Message}"); }
                 }
 
-                // Determine next issue ID
-                int nextId = existingEntries.Count + 1;
+                // Determine next issue ID — scan for max existing numeric suffix
+                // B05 FIX: existingEntries.Count + 1 causes ID collisions after deletions.
+                // Scan all existing entries for highest numeric suffix instead.
+                int nextId = existingEntries.Count + 1; // fallback
+                try
+                {
+                    foreach (var entry in existingEntries)
+                    {
+                        // Look for "id":"NCR-0042" or "id":"SI-0007" patterns
+                        int idIdx = entry.IndexOf("\"id\"", StringComparison.OrdinalIgnoreCase);
+                        if (idIdx < 0) continue;
+                        int colonIdx = entry.IndexOf(':', idIdx + 4);
+                        if (colonIdx < 0) continue;
+                        int q1 = entry.IndexOf('"', colonIdx + 1);
+                        int q2 = q1 >= 0 ? entry.IndexOf('"', q1 + 1) : -1;
+                        if (q1 < 0 || q2 < 0) continue;
+                        string idVal = entry.Substring(q1 + 1, q2 - q1 - 1);
+                        int dashIdx = idVal.LastIndexOf('-');
+                        if (dashIdx >= 0 && int.TryParse(idVal.Substring(dashIdx + 1), out int num) && num >= nextId)
+                            nextId = num + 1;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings ID scan: {ex.Message}"); }
                 string revision = "";
                 try { revision = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings revision: {ex.Message}"); }
