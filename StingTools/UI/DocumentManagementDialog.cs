@@ -255,6 +255,8 @@ namespace StingTools.UI
             }
 
             // F01 FIX: Release static references to prevent GC leak of entire document graph
+            // Phase 85 BUG-9: Stop file watcher before clearing _doc to prevent callbacks on disposed document
+            try { ProjectFolderEngine.StopWatching(); } catch (Exception ex) { StingLog.Warn($"DocMgr stop watcher: {ex.Message}"); }
             _doc = null;
             _allItems = null;
             _view = null;
@@ -266,6 +268,8 @@ namespace StingTools.UI
             _statusText = null;
             _countText = null;
             _selectedOperation = null;
+            // Phase 85 BUG-6: Clear ProjectTeamRegistry static doc reference
+            try { ProjectTeamRegistry.SetLastDoc(null); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             return result;
         }
@@ -1722,7 +1726,10 @@ namespace StingTools.UI
                 try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
                 catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
 
-                string transId = $"TX-{arr.Count + 1:D4}";
+                // Phase 85 BUG-5: Use max-suffix pattern instead of arr.Count+1 to prevent ID collisions after deletions
+                int maxNum = 0;
+                foreach (var t in arr) { if (int.TryParse(t["id"]?.ToString()?.Replace("TX-", ""), out int n) && n > maxNum) maxNum = n; }
+                string transId = $"TX-{maxNum + 1:D4}";
                 string suitCode = (suitCombo.SelectedItem?.ToString() ?? "S2").Split(' ')[0];
                 var docList = new JArray(selected.Select(s => s.Title).ToArray());
 
@@ -1814,7 +1821,15 @@ namespace StingTools.UI
                 try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
                 catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
 
-                string issueId = $"{issueType}-{arr.Count(i => i["type"]?.ToString() == issueType) + 1:D4}";
+                // Phase 85 BUG-5: Use max-suffix pattern to prevent ID collisions after deletions
+                int maxIssueNum = 0;
+                foreach (var iss in arr)
+                {
+                    if (iss["type"]?.ToString() != issueType) continue;
+                    string idStr = iss["id"]?.ToString()?.Replace($"{issueType}-", "");
+                    if (int.TryParse(idStr, out int n) && n > maxIssueNum) maxIssueNum = n;
+                }
+                string issueId = $"{issueType}-{maxIssueNum + 1:D4}";
                 DateTime now = DateTime.Now;
 
                 // Calculate SLA deadline
@@ -4817,7 +4832,9 @@ namespace StingTools.UI
         private static void RefreshData()
         {
             if (_doc == null) return;
-            try { _complianceResult = ComplianceScan.Scan(_doc); }
+            // Phase 85 BUG-1: Use cached ComplianceScan result for file-watcher-triggered refreshes.
+            // Scan() has 30s TTL cache but still involves FilteredElementCollector when stale.
+            try { _complianceResult = ComplianceScan.GetCached() ?? _complianceResult; }
             catch (Exception ex) { StingLog.Warn($"DocMgr refresh scan: {ex.Message}"); }
             _allItems.Clear();
             LoadAllData(_doc);
