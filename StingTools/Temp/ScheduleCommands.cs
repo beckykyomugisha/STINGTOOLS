@@ -15,11 +15,11 @@ namespace StingTools.Temp
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — Batch Create Schedules.
     /// Multi-discipline schedule creation from MR_SCHEDULES.csv definition file.
-    /// Now uses ALL 15 CSV columns:
-    ///   0: Source_File, 1: Discipline, 2: Schedule_Name, 3: Category,
-    ///   4: Schedule_Type (Material Takeoff), 5: Multi_Categories,
-    ///   6: Fields, 7: Filters, 8: Sorting, 9: Grouping, 10: Totals,
-    ///   11: Formulas (field header aliases), 12-14: Header/Text/Background Color (reserved)
+    /// Now uses ALL 16 CSV columns:
+    ///   0: Record_Type, 1: Source_File, 2: Discipline, 3: Schedule_Name,
+    ///   4: Category, 5: Schedule_Type (Material Takeoff), 6: Multi_Categories,
+    ///   7: Fields, 8: Filters, 9: Sorting, 10: Grouping, 11: Totals,
+    ///   12: Formulas (field header aliases), 13-15: Header/Text/Background Color (reserved)
     /// Also loads SCHEDULE_FIELD_REMAP.csv for deprecated field name auto-remapping.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -236,6 +236,15 @@ namespace StingTools.Temp
                         {
                             remapped += ScheduleHelper.AddFieldsTracked(
                                 doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
+
+                            // If no fields were added but fields were specified,
+                            // shared parameters likely aren't bound yet
+                            if (addedFieldIds.Count == 0)
+                            {
+                                StingLog.Warn($"Schedule '{name}': No fields added from spec " +
+                                    $"'{fieldsSpec}'. Run 'Load Params' first to bind " +
+                                    "shared parameters to project categories.");
+                            }
                         }
 
                         // Apply column heading overrides from Formulas column

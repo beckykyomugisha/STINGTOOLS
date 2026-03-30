@@ -2251,7 +2251,38 @@ namespace StingTools.UI
                     }
                     case "ScheduleWizard":
                     {
-                        var dlgResult = UI.ScheduleWizardDialog.Show();
+                        // Load CSV definitions and existing schedule names for the wizard
+                        var csvDefs = new List<string>();
+                        var existingScheds = new List<string>();
+                        try
+                        {
+                            string csvPath = Core.StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+                            if (!string.IsNullOrEmpty(csvPath) && System.IO.File.Exists(csvPath))
+                            {
+                                foreach (string line in System.IO.File.ReadAllLines(csvPath))
+                                {
+                                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                                    string[] parts = Core.StingToolsApp.ParseCsvLine(line);
+                                    if (parts.Length > 3 && parts[0].Trim().Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string schedName = parts[3].Trim();
+                                        if (!string.IsNullOrEmpty(schedName))
+                                            csvDefs.Add(schedName);
+                                    }
+                                }
+                            }
+                            if (doc != null)
+                            {
+                                existingScheds = new FilteredElementCollector(doc)
+                                    .OfClass(typeof(ViewSchedule))
+                                    .Cast<ViewSchedule>()
+                                    .Select(s => s.Name)
+                                    .ToList();
+                            }
+                        }
+                        catch (Exception ex) { Core.StingLog.Warn($"ScheduleWizard CSV load: {ex.Message}"); }
+
+                        var dlgResult = UI.ScheduleWizardDialog.Show(csvDefs, existingScheds);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
                         {
                             SetCommand(dlgResult.Operation);

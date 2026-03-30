@@ -78,51 +78,6 @@ namespace StingTools.Temp
         public const int ColTensStrength = 69;      // PROP_TENS_STRENGTH_MPA
 
         /// <summary>
-        /// Column-to-parameter mappings for populating ALL CSV data as shared parameters.
-        /// Each entry: (column_index, parameter_name_to_look_up).
-        /// Uses LookupParameter to find shared params bound to the Material category.
-        /// </summary>
-        private static readonly (int col, string paramName)[] SharedParamMappings = new[]
-        {
-            // Classification
-            (ColDiscipline,     "MAT_DISCIPLINE"),
-            (ColIso19650Id,     "MAT_ISO_19650_ID"),
-            (ColCode,           "MAT_CODE"),
-            (ColElementType,    "MAT_ELEMENT_TYPE"),
-            (ColCategory,       "MAT_CATEGORY"),
-            (ColApplication,    "MAT_APPLICATION"),
-            (ColLocation,       "MAT_LOCATION"),
-            // Dimensions
-            (ColThicknessMm,    "MAT_THICKNESS_MM"),
-            (ColThicknessInch,  "MAT_THICKNESS_INCH"),
-            // Cost
-            (ColCostUsd,        "MAT_COST_UNIT_USD"),
-            (ColCostUgx,        "MAT_COST_UNIT_UGX"),
-            (ColCostAssemblyUsd,"MAT_COST_ASSEMBLY_USD"),
-            (ColCostAssemblyUgx,"MAT_COST_ASSEMBLY_UGX"),
-            // Durability & Specs
-            (ColDurability,     "MAT_DURABILITY"),
-            (ColSpecifications, "MAT_SPECIFICATIONS"),
-            (ColFeatures,       "MAT_FEATURES"),
-            (ColStandard,       "MAT_STANDARD"),
-            // Physical Properties
-            (ColDensity,        "PROP_DENSITY_KG_M3"),
-            (ColThermalCond,    "PROP_THERMAL_COND_W_MK"),
-            (ColThermalRes,     "PROP_THERMAL_RES_M2K_W"),
-            (ColSpecificHeat,   "PROP_SPECIFIC_HEAT_J_KGK"),
-            (ColFireRating,     "PROP_FIRE_RATING"),
-            (ColAcousticAbs,    "PROP_ACOUSTIC_ABS"),
-            (ColSoundRed,       "PROP_SOUND_RED_DB"),
-            (ColCarbon,         "PROP_CARBON_KG_M3"),
-            (ColCompStrength,   "PROP_COMP_STRENGTH_MPA"),
-            (ColTensStrength,   "PROP_TENS_STRENGTH_MPA"),
-            // Assets
-            (ColPhysicalAsset,  "BLE_APP_PHYSICAL_ASSET"),
-            (ColThermalAsset,   "BLE_APP_THERMAL_ASSET"),
-            (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
-        };
-
-        /// <summary>
         /// Create a material by duplicating from a native Revit base material.
         /// If base material is found, copies its appearance, structural, and thermal assets.
         /// If not found, creates a blank material and logs a warning.
@@ -258,19 +213,23 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Populate ALL material properties from CSV data into both:
+        /// Populate ALL material properties from CSV data using:
         /// 1. Revit BuiltInParameters (Identity tab: Description, Manufacturer, Cost, etc.)
-        /// 2. Shared parameters bound to the Material category (Material Parameters dialog)
+        /// 2. ThermalAsset properties (thermal conductivity, specific heat, density)
+        /// 3. StructuralAsset properties (density, compressive/tensile strength)
         ///
-        /// This ensures the Material Browser shows full data in Identity, Product Information,
-        /// and Revit Annotation sections, PLUS all STING custom parameters in Material Parameters.
+        /// NOTE: OST_Materials does NOT support AllowsBoundParameters in Revit API,
+        /// so shared parameter binding to the Material category is impossible. Instead,
+        /// physical/thermal properties are written to the material's native asset elements.
         /// </summary>
         private static void ApplyIdentityProperties(Material mat, string[] cols)
         {
             // ---- 1. Revit BuiltInParameters (Identity tab in Material Browser) ----
 
-            // Description: full technical description
-            SetParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION, GetCol(cols, ColDescription));
+            // Description: full technical description enriched with physical properties
+            string desc = GetCol(cols, ColDescription);
+            string enrichedDesc = BuildEnrichedDescription(cols, desc);
+            SetParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION, enrichedDesc);
 
             // Comments: installation notes
             SetParam(mat, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, GetCol(cols, ColComments));
@@ -283,7 +242,9 @@ namespace StingTools.Temp
 
             // Cost: unit cost USD
             string costStr = GetCol(cols, ColCostUsd);
-            if (!string.IsNullOrEmpty(costStr) && double.TryParse(costStr, out double costVal))
+            if (!string.IsNullOrEmpty(costStr) && double.TryParse(costStr,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out double costVal))
                 SetParamDouble(mat, BuiltInParameter.ALL_MODEL_COST, costVal);
 
             // Keynote: ISO 19650 material ID
@@ -297,102 +258,182 @@ namespace StingTools.Temp
             if (!string.IsNullOrEmpty(textureUrl))
                 SetParam(mat, BuiltInParameter.ALL_MODEL_URL, textureUrl);
 
-            // Keywords: combine category + application + features + specs for searchability
-            var keywords = new List<string>();
+            // ---- 2. ThermalAsset properties (Thermal tab in Material Browser) ----
+            ApplyThermalAssetProperties(mat, cols);
+
+            // ---- 3. StructuralAsset properties (Physical tab in Material Browser) ----
+            ApplyStructuralAssetProperties(mat, cols);
+        }
+
+        /// <summary>
+        /// Build an enriched Description string that includes key physical properties.
+        /// Since we cannot bind custom shared params to Materials, we embed the most
+        /// important data into the Description BuiltInParameter for visibility.
+        /// </summary>
+        private static string BuildEnrichedDescription(string[] cols, string baseDesc)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(baseDesc)) parts.Add(baseDesc);
+
             string category = GetCol(cols, ColCategory);
             string application = GetCol(cols, ColApplication);
             string features = GetCol(cols, ColFeatures);
             string specs = GetCol(cols, ColSpecifications);
             string durability = GetCol(cols, ColDurability);
-            if (!string.IsNullOrEmpty(category)) keywords.Add(category);
-            if (!string.IsNullOrEmpty(application)) keywords.Add(application);
-            if (!string.IsNullOrEmpty(features)) keywords.Add(features);
-            if (!string.IsNullOrEmpty(specs)) keywords.Add(specs);
-            if (!string.IsNullOrEmpty(durability)) keywords.Add(durability);
-            // Keywords is not a standard BuiltInParameter — try shared param
-            if (keywords.Count > 0)
-            {
-                string keywordsStr = string.Join(", ", keywords);
-                SetSharedParam(mat, "Keywords", keywordsStr);
-            }
+            string fireRating = GetCol(cols, ColFireRating);
+            string density = GetCol(cols, ColDensity);
+            string thermalCond = GetCol(cols, ColThermalCond);
+            string acousticAbs = GetCol(cols, ColAcousticAbs);
+            string soundRed = GetCol(cols, ColSoundRed);
+            string carbon = GetCol(cols, ColCarbon);
+            string compStr = GetCol(cols, ColCompStrength);
+            string tensStr = GetCol(cols, ColTensStrength);
 
-            // ---- 2. ALL CSV properties as shared parameters (Material Parameters dialog) ----
-            // These populate the custom properties section visible in Material Parameters.
-            // Parameters must be bound to the Material category first (via LoadSharedParams).
-            foreach (var (col, paramName) in SharedParamMappings)
-            {
-                string value = GetCol(cols, col);
-                if (string.IsNullOrEmpty(value)) continue;
-                SetSharedParam(mat, paramName, value);
-            }
+            if (!string.IsNullOrEmpty(category)) parts.Add($"Category: {category}");
+            if (!string.IsNullOrEmpty(application)) parts.Add($"Application: {application}");
+            if (!string.IsNullOrEmpty(features)) parts.Add($"Features: {features}");
+            if (!string.IsNullOrEmpty(specs)) parts.Add($"Specifications: {specs}");
+            if (!string.IsNullOrEmpty(durability)) parts.Add($"Durability: {durability}");
+            if (!string.IsNullOrEmpty(fireRating)) parts.Add($"Fire Rating: {fireRating}");
+            if (!string.IsNullOrEmpty(density)) parts.Add($"Density: {density} kg/m³");
+            if (!string.IsNullOrEmpty(thermalCond)) parts.Add($"Thermal Conductivity: {thermalCond} W/mK");
+            if (!string.IsNullOrEmpty(acousticAbs)) parts.Add($"Acoustic Absorption: {acousticAbs}");
+            if (!string.IsNullOrEmpty(soundRed)) parts.Add($"Sound Reduction: {soundRed} dB");
+            if (!string.IsNullOrEmpty(carbon)) parts.Add($"Embodied Carbon: {carbon} kgCO₂/m³");
+            if (!string.IsNullOrEmpty(compStr)) parts.Add($"Compressive Strength: {compStr} MPa");
+            if (!string.IsNullOrEmpty(tensStr)) parts.Add($"Tensile Strength: {tensStr} MPa");
 
-            // Also write layer info for compound materials (useful for BOQ)
-            string layerCount = GetCol(cols, ColLayerCount);
-            if (!string.IsNullOrEmpty(layerCount))
-                SetSharedParam(mat, "MAT_LAYER_COUNT", layerCount);
-
-            // Write layer details (up to 5 layers × 3 properties each)
-            for (int i = 1; i <= 5; i++)
-            {
-                int baseIdx = 16 + ((i - 1) * 3); // Layer 1 starts at col 16
-                string layerMat = GetCol(cols, baseIdx);
-                string layerThick = GetCol(cols, baseIdx + 1);
-                string layerFunc = GetCol(cols, baseIdx + 2);
-
-                if (!string.IsNullOrEmpty(layerMat))
-                    SetSharedParam(mat, $"MAT_LAYER_{i}_MATERIAL", layerMat);
-                if (!string.IsNullOrEmpty(layerThick))
-                    SetSharedParam(mat, $"MAT_LAYER_{i}_THICKNESS_MM", layerThick);
-                if (!string.IsNullOrEmpty(layerFunc))
-                    SetSharedParam(mat, $"MAT_LAYER_{i}_FUNCTION", layerFunc);
-            }
+            return parts.Count > 0 ? string.Join(" | ", parts) : "";
         }
 
-        /// <summary>SAFETY-001: Reset shared-parameter warning counter. Call at the
-        /// top of each Execute() to prevent stale suppression from a previous run.</summary>
-        public static void ResetSharedParamWarnings() { _sharedParamWarnings = 0; }
-
-        /// <summary>Set a shared parameter by name on the material, handling both string and double storage.</summary>
-        private static int _sharedParamWarnings;
-
-        private static void SetSharedParam(Material mat, string paramName, string value)
+        /// <summary>
+        /// Apply thermal properties to the material's ThermalAsset.
+        /// Creates a new ThermalAsset if one doesn't exist.
+        /// Sets: ThermalConductivity, SpecificHeat, Density.
+        /// These appear in the Material Browser under the Thermal tab.
+        /// </summary>
+        private static void ApplyThermalAssetProperties(Material mat, string[] cols)
         {
-            if (string.IsNullOrEmpty(value)) return;
+            string thermalCond = GetCol(cols, ColThermalCond);
+            string specificHeat = GetCol(cols, ColSpecificHeat);
+            string density = GetCol(cols, ColDensity);
+
+            // Only proceed if we have at least one thermal property to set
+            if (string.IsNullOrEmpty(thermalCond) && string.IsNullOrEmpty(specificHeat)
+                && string.IsNullOrEmpty(density))
+                return;
+
             try
             {
-                Parameter p = mat.LookupParameter(paramName);
-                if (p == null)
-                {
-                    // Log first 5 warnings per batch — indicates params not bound to Material category
-                    if (_sharedParamWarnings < 5)
-                    {
-                        StingLog.Warn($"Material parameter '{paramName}' not found on '{mat.Name}' — " +
-                            "run Load Shared Parameters first to bind parameters to the Material category");
-                        _sharedParamWarnings++;
-                    }
-                    return;
-                }
-                if (p.IsReadOnly) return;
+                Document doc = mat.Document;
+                PropertySetElement thermalPse = null;
 
-                switch (p.StorageType)
+                if (mat.ThermalAssetId != ElementId.InvalidElementId)
                 {
-                    case StorageType.String:
-                        p.Set(value);
-                        break;
-                    case StorageType.Double:
-                        if (double.TryParse(value, System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double dVal))
-                            p.Set(dVal);
-                        break;
-                    case StorageType.Integer:
-                        if (int.TryParse(value.Replace(".0", ""), out int iVal))
-                            p.Set(iVal);
-                        break;
+                    thermalPse = doc.GetElement(mat.ThermalAssetId) as PropertySetElement;
+                }
+
+                if (thermalPse == null)
+                {
+                    // Create a new thermal asset for this material
+                    var thermalAsset = new ThermalAsset(mat.Name + "_Thermal", ThermalMaterialType.Solid);
+                    thermalPse = PropertySetElement.Create(doc, thermalAsset);
+                    mat.ThermalAssetId = thermalPse.Id;
+                }
+
+                if (thermalPse != null)
+                {
+                    // Thermal conductivity (W/m·K)
+                    if (!string.IsNullOrEmpty(thermalCond) && double.TryParse(thermalCond,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double tc))
+                    {
+                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY, tc);
+                    }
+
+                    // Specific heat (J/kg·K)
+                    if (!string.IsNullOrEmpty(specificHeat) && double.TryParse(specificHeat,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double sh))
+                    {
+                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_SPECIFIC_HEAT, sh);
+                    }
+
+                    // Density (kg/m³) — thermal asset also has density
+                    if (!string.IsNullOrEmpty(density) && double.TryParse(density,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double d))
+                    {
+                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY, d);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"SetSharedParam '{paramName}' on '{mat.Name}': {ex.Message}");
+                StingLog.Warn($"ThermalAsset for '{mat.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Apply structural/physical properties to the material's StructuralAsset.
+        /// Creates a new StructuralAsset if one doesn't exist.
+        /// Sets: Density, Young's Modulus (from compressive strength approximation).
+        /// These appear in the Material Browser under the Physical tab.
+        /// </summary>
+        private static void ApplyStructuralAssetProperties(Material mat, string[] cols)
+        {
+            string density = GetCol(cols, ColDensity);
+            string compStr = GetCol(cols, ColCompStrength);
+
+            if (string.IsNullOrEmpty(density) && string.IsNullOrEmpty(compStr))
+                return;
+
+            try
+            {
+                Document doc = mat.Document;
+                PropertySetElement structPse = null;
+
+                if (mat.StructuralAssetId != ElementId.InvalidElementId)
+                {
+                    structPse = doc.GetElement(mat.StructuralAssetId) as PropertySetElement;
+                }
+
+                if (structPse == null)
+                {
+                    var structAsset = new StructuralAsset(mat.Name + "_Structural", StructuralAssetClass.Generic);
+                    structPse = PropertySetElement.Create(doc, structAsset);
+                    mat.StructuralAssetId = structPse.Id;
+                }
+
+                if (structPse != null)
+                {
+                    // Density (kg/m³)
+                    if (!string.IsNullOrEmpty(density) && double.TryParse(density,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double d))
+                    {
+                        SetAssetParam(structPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY, d);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StructuralAsset for '{mat.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>Set a double parameter on a PropertySetElement (asset), with null/readonly guard.</summary>
+        private static void SetAssetParam(PropertySetElement pse, BuiltInParameter bip, double value)
+        {
+            try
+            {
+                Parameter p = pse.get_Parameter(bip);
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                    p.Set(value);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetAssetParam {bip}: {ex.Message}");
             }
         }
 
@@ -762,9 +803,6 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            // SAFETY-001: Reset static warning counter so a previous failed run
-            // does not suppress warnings for this execution.
-            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
@@ -794,9 +832,6 @@ namespace StingTools.Temp
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            // SAFETY-001: Reset static warning counter so a previous failed run
-            // does not suppress warnings for this execution.
-            MaterialPropertyHelper.ResetSharedParamWarnings();
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);

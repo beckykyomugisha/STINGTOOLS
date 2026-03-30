@@ -178,10 +178,10 @@ namespace StingTools.Tags
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // Materials category is NOT added to coreCats — only material-relevant
-            // parameter groups (MAT_INFO, PROP_PHYSICAL) are bound to OST_Materials
-            // via BuildGroupCategoryOverrides(). This prevents 2000+ unrelated
-            // parameters from being bound to the Materials category.
+            // Material-relevant parameter groups (MAT_INFO, PROP_PHYSICAL) are bound
+            // to BLE element categories via BuildGroupCategoryOverrides(), NOT to
+            // OST_Materials (which doesn't support AllowsBoundParameters in Revit API).
+            // This makes material properties available on walls, floors, ceilings, etc.
 
             // Phase 39: Add Sheets category (needed for SHT_* params)
             try
@@ -441,7 +441,12 @@ namespace StingTools.Tags
                 overrides["BLE_STRUCTURE"] = bleCats;
             }
 
-            var matCats = BuildCatSet(doc, new[] { BuiltInCategory.OST_Materials });
+            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
+            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
+            // the elements that USE materials. This makes material properties
+            // visible on those elements and schedulable in material takeoffs.
+            var matCats = BuildCatSet(doc, BleCategories);
             if (matCats.Size > 0)
             {
                 overrides["MAT_INFO"] = matCats;
@@ -462,8 +467,8 @@ namespace StingTools.Tags
             // Combine MEP + BLE + a few extra common categories
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
-            // OST_Materials intentionally excluded from core set — only bound
-            // via group overrides for MAT_INFO and PROP_PHYSICAL groups
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
+            // via group overrides (OST_Materials doesn't support bound params)
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);
