@@ -69,9 +69,9 @@ namespace StingTools.Temp
             {
                 string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
                 if (rawCols.Length < 4) continue;
-                string discCol = rawCols.Length > 1 ? rawCols[1].Trim() : "General";
-                string nameCol = rawCols[2].Trim();
-                string catCol = rawCols[3].Trim();
+                string discCol = rawCols.Length > 2 ? rawCols[2].Trim() : "General";
+                string nameCol = rawCols.Length > 3 ? rawCols[3].Trim() : "";
+                string catCol = rawCols.Length > 4 ? rawCols[4].Trim() : "";
                 if (string.IsNullOrEmpty(nameCol)) continue;
                 scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
             }
@@ -185,17 +185,20 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Parse all 15 columns
-                    string name = cols[2].Trim();
-                    string category = cols[3].Trim();
-                    string scheduleType = cols.Length > 4 ? cols[4].Trim() : "";
-                    string multiCats = cols.Length > 5 ? cols[5].Trim() : "";
-                    string fieldsSpec = cols.Length > 6 ? cols[6].Trim() : "";
-                    string filterSpec = cols.Length > 7 ? cols[7].Trim() : "";
-                    string sortSpec = cols.Length > 8 ? cols[8].Trim() : "";
-                    string groupSpec = cols.Length > 9 ? cols[9].Trim() : "";
-                    string totalSpec = cols.Length > 10 ? cols[10].Trim() : "";
-                    string formulaSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    // Parse all 16 columns (Record_Type[0], Source_File[1], Discipline[2],
+                    // Schedule_Name[3], Category[4], Schedule_Type[5], Multi_Categories[6],
+                    // Fields[7], Filters[8], Sorting[9], Grouping[10], Totals[11],
+                    // Formulas[12], Header_Color[13], Text_Color[14], Background_Color[15])
+                    string name = cols.Length > 3 ? cols[3].Trim() : "";
+                    string category = cols.Length > 4 ? cols[4].Trim() : "";
+                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
+                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
+                    string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
+                    string filterSpec = cols.Length > 8 ? cols[8].Trim() : "";
+                    string sortSpec = cols.Length > 9 ? cols[9].Trim() : "";
+                    string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
+                    string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
 
                     if (string.IsNullOrEmpty(name)) continue;
                     if (existingNames.Contains(name))
