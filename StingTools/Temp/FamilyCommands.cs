@@ -228,7 +228,7 @@ namespace StingTools.Temp
 
                     // Build a type name from MAT_NAME to ensure uniqueness
                     // (MAT_CATEGORY alone is not unique — many rows share a category)
-                    string typeName = $"STING - {matName}";
+                    string typeName = matName;
 
                     if (existingTypeNames.Contains(typeName))
                     {

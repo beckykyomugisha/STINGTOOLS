@@ -435,7 +435,8 @@ namespace StingTools.Temp
             formulas.Sort((a, b) => a.DependencyLevel.CompareTo(b.DependencyLevel));
 
             // Cycle detection via topological sort (Kahn's algorithm)
-            var formulaByName = formulas.ToDictionary(f => f.ParameterName, StringComparer.OrdinalIgnoreCase);
+            var formulaByName = formulas.GroupBy(f => f.ParameterName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
             var adjList = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var inDegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 

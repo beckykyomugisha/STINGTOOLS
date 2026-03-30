@@ -15,11 +15,11 @@ namespace StingTools.Temp
     /// <summary>
     /// Ported from STINGTemp 5_Schedules.panel — Batch Create Schedules.
     /// Multi-discipline schedule creation from MR_SCHEDULES.csv definition file.
-    /// Now uses ALL 15 CSV columns:
-    ///   0: Source_File, 1: Discipline, 2: Schedule_Name, 3: Category,
-    ///   4: Schedule_Type (Material Takeoff), 5: Multi_Categories,
-    ///   6: Fields, 7: Filters, 8: Sorting, 9: Grouping, 10: Totals,
-    ///   11: Formulas (field header aliases), 12-14: Header/Text/Background Color (reserved)
+    /// Now uses ALL 16 CSV columns:
+    ///   0: Record_Type, 1: Source_File, 2: Discipline, 3: Schedule_Name,
+    ///   4: Category, 5: Schedule_Type (Material Takeoff), 6: Multi_Categories,
+    ///   7: Fields, 8: Filters, 9: Sorting, 10: Grouping, 11: Totals,
+    ///   12: Formulas (field header aliases), 13-15: Header/Text/Background Color (reserved)
     /// Also loads SCHEDULE_FIELD_REMAP.csv for deprecated field name auto-remapping.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -236,6 +236,16 @@ namespace StingTools.Temp
                         {
                             remapped += ScheduleHelper.AddFieldsTracked(
                                 doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
+
+                            // If no STING fields resolved, add common built-in Revit fields
+                            // so the schedule isn't completely empty
+                            if (addedFieldIds.Count == 0)
+                            {
+                                StingLog.Warn($"Schedule '{name}': No STING fields from spec " +
+                                    $"'{fieldsSpec}'. Adding built-in fallback fields. " +
+                                    "Run 'Load Params' first to bind shared parameters.");
+                                ScheduleHelper.AddBuiltInFallbackFields(doc, vs, addedFieldIds);
+                            }
                         }
 
                         // Apply column heading overrides from Formulas column
@@ -544,8 +554,42 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// Maps STING shared parameter names to built-in Revit field equivalents.
+        /// Used as Tier 4 fallback when STING params are not bound to the schedule category.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> StingToBuiltInFallback =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Identity / tagging
+            ["ASS_ID_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_TAG_1_TXT"] = new[] { "Type Mark", "Mark" },
+            ["ASS_DESCRIPTION_TXT"] = new[] { "Description", "Type Comments" },
+            ["ASS_CAT_TXT"] = new[] { "Family", "Family and Type" },
+            ["ASS_EQUIPMENT_TAG_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_MANUFACTURER_TXT"] = new[] { "Manufacturer" },
+            ["ASS_MODEL_NR_TXT"] = new[] { "Model" },
+            // Spatial
+            ["ASS_LOC_TXT"] = new[] { "Level" },
+            ["ASS_LVL_COD_TXT"] = new[] { "Level" },
+            ["ASS_ZONE_TXT"] = new[] { "Level" },
+            ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = new[] { "Department" },
+            ["BLE_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
+            ["ASS_RM_COD_TXT"] = new[] { "Number", "Room Number" },
+            // System / discipline
+            ["ASS_SYSTEM_TYPE_TXT"] = new[] { "System Type", "System Name", "System Classification" },
+            ["ASS_DISCIPLINE_COD_TXT"] = new[] { "Family and Type", "Family" },
+            ["ASS_PRODCT_COD_TXT"] = new[] { "Type", "Type Name" },
+            // Comments
+            ["PRJ_COMMENTS_TXT"] = new[] { "Comments" },
+            ["PRJ_AREA_NAME_TXT"] = new[] { "Area", "Name" },
+            // Cost
+            ["ASS_CST_QUANTITY_NR"] = new[] { "Count" },
+        };
+
+        /// <summary>
         /// Add fields to schedule from comma-separated field spec, tracking field IDs by name.
-        /// Uses three-tier fallback: (1) exact name, (2) deprecated remap, (3) formula alias.
+        /// Uses four-tier fallback: (1) exact name, (2) deprecated remap, (3) formula alias,
+        /// (4) built-in Revit equivalent for known STING parameter names.
         /// </summary>
         /// <returns>Number of fields that were remapped from deprecated names.</returns>
         public static int AddFieldsTracked(Document doc, ViewSchedule vs, string fieldSpec,
@@ -577,7 +621,7 @@ namespace StingTools.Temp
                     SchedulableField sf = null;
                     string resolvedName = fieldName;
 
-                    // Tier 1: Try exact name
+                    // Tier 1: Try exact name (works when STING params are bound)
                     if (fieldLookup.TryGetValue(fieldName, out sf))
                     {
                         resolvedName = fieldName;
@@ -596,16 +640,50 @@ namespace StingTools.Temp
                     {
                         resolvedName = builtinName;
                     }
+                    // Tier 4: Try built-in Revit equivalent for known STING param names
+                    else if (StingToBuiltInFallback.TryGetValue(fieldName, out string[] builtinAlts))
+                    {
+                        foreach (string alt in builtinAlts)
+                        {
+                            if (fieldLookup.TryGetValue(alt, out sf))
+                            {
+                                resolvedName = alt;
+                                StingLog.Info($"Schedule field '{fieldName}' → built-in '{alt}'");
+                                break;
+                            }
+                        }
+                    }
 
                     if (sf != null)
                     {
+                        // Skip if we already added a field with this resolved name
+                        if (addedFieldIds.ContainsKey(resolvedName))
+                            continue;
+
                         ScheduleField added = vs.Definition.AddField(sf);
-                        if (added != null && !addedFieldIds.ContainsKey(fieldName))
-                            addedFieldIds[fieldName] = added.FieldId;
-                        // Also register by the resolved name for sort/group lookups
-                        if (added != null && resolvedName != fieldName
-                            && !addedFieldIds.ContainsKey(resolvedName))
-                            addedFieldIds[resolvedName] = added.FieldId;
+                        if (added != null)
+                        {
+                            if (!addedFieldIds.ContainsKey(fieldName))
+                                addedFieldIds[fieldName] = added.FieldId;
+                            // Also register by the resolved name for sort/group lookups
+                            if (resolvedName != fieldName
+                                && !addedFieldIds.ContainsKey(resolvedName))
+                                addedFieldIds[resolvedName] = added.FieldId;
+
+                            // If this was a Tier 4 fallback, set the column heading
+                            // to the formula alias if available, for user-friendly display
+                            if (resolvedName != fieldName
+                                && formulaMap.TryGetValue(fieldName, out string heading)
+                                && !string.IsNullOrEmpty(heading))
+                            {
+                                added.ColumnHeading = heading;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Schedule field '{fieldName}' not found in schedulable fields. " +
+                            "Run 'Load Params' to bind shared parameters to project categories.");
                     }
                 }
                 catch (Exception ex)
@@ -615,6 +693,44 @@ namespace StingTools.Temp
             }
 
             return remappedCount;
+        }
+
+        /// <summary>
+        /// Add common built-in Revit fields as fallback when no STING shared params
+        /// could be resolved. Ensures schedules are never completely empty.
+        /// </summary>
+        public static void AddBuiltInFallbackFields(Document doc, ViewSchedule vs,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Common built-in field names that exist on most categories
+            string[] fallbackNames = { "Family and Type", "Family", "Type", "Type Mark",
+                "Mark", "Level", "Count", "Comments", "Description" };
+
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            foreach (string fname in fallbackNames)
+            {
+                if (fieldLookup.TryGetValue(fname, out SchedulableField sf))
+                {
+                    try
+                    {
+                        ScheduleField added = vs.Definition.AddField(sf);
+                        if (added != null && !addedFieldIds.ContainsKey(fname))
+                            addedFieldIds[fname] = added.FieldId;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Fallback field '{fname}': {ex.Message}"); }
+                }
+            }
+
+            if (addedFieldIds.Count > 0)
+                StingLog.Info($"Schedule: Added {addedFieldIds.Count} built-in fallback fields");
         }
 
         /// <summary>
