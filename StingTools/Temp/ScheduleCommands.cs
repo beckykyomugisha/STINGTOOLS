@@ -554,8 +554,42 @@ namespace StingTools.Temp
         }
 
         /// <summary>
+        /// Maps STING shared parameter names to built-in Revit field equivalents.
+        /// Used as Tier 4 fallback when STING params are not bound to the schedule category.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> StingToBuiltInFallback =
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            // Identity / tagging
+            ["ASS_ID_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_TAG_1_TXT"] = new[] { "Type Mark", "Mark" },
+            ["ASS_DESCRIPTION_TXT"] = new[] { "Description", "Type Comments" },
+            ["ASS_CAT_TXT"] = new[] { "Family", "Family and Type" },
+            ["ASS_EQUIPMENT_TAG_TXT"] = new[] { "Mark", "Type Mark" },
+            ["ASS_MANUFACTURER_TXT"] = new[] { "Manufacturer" },
+            ["ASS_MODEL_NR_TXT"] = new[] { "Model" },
+            // Spatial
+            ["ASS_LOC_TXT"] = new[] { "Level" },
+            ["ASS_LVL_COD_TXT"] = new[] { "Level" },
+            ["ASS_ZONE_TXT"] = new[] { "Level" },
+            ["ASS_DEPARTMENT_ASSIGNMENT_TXT"] = new[] { "Department" },
+            ["BLE_ROOM_NUM_TXT"] = new[] { "Number", "Room Number" },
+            ["ASS_RM_COD_TXT"] = new[] { "Number", "Room Number" },
+            // System / discipline
+            ["ASS_SYSTEM_TYPE_TXT"] = new[] { "System Type", "System Name", "System Classification" },
+            ["ASS_DISCIPLINE_COD_TXT"] = new[] { "Family and Type", "Family" },
+            ["ASS_PRODCT_COD_TXT"] = new[] { "Type", "Type Name" },
+            // Comments
+            ["PRJ_COMMENTS_TXT"] = new[] { "Comments" },
+            ["PRJ_AREA_NAME_TXT"] = new[] { "Area", "Name" },
+            // Cost
+            ["ASS_CST_QUANTITY_NR"] = new[] { "Count" },
+        };
+
+        /// <summary>
         /// Add fields to schedule from comma-separated field spec, tracking field IDs by name.
-        /// Uses three-tier fallback: (1) exact name, (2) deprecated remap, (3) formula alias.
+        /// Uses four-tier fallback: (1) exact name, (2) deprecated remap, (3) formula alias,
+        /// (4) built-in Revit equivalent for known STING parameter names.
         /// </summary>
         /// <returns>Number of fields that were remapped from deprecated names.</returns>
         public static int AddFieldsTracked(Document doc, ViewSchedule vs, string fieldSpec,
@@ -587,7 +621,7 @@ namespace StingTools.Temp
                     SchedulableField sf = null;
                     string resolvedName = fieldName;
 
-                    // Tier 1: Try exact name
+                    // Tier 1: Try exact name (works when STING params are bound)
                     if (fieldLookup.TryGetValue(fieldName, out sf))
                     {
                         resolvedName = fieldName;
@@ -606,16 +640,45 @@ namespace StingTools.Temp
                     {
                         resolvedName = builtinName;
                     }
+                    // Tier 4: Try built-in Revit equivalent for known STING param names
+                    else if (StingToBuiltInFallback.TryGetValue(fieldName, out string[] builtinAlts))
+                    {
+                        foreach (string alt in builtinAlts)
+                        {
+                            if (fieldLookup.TryGetValue(alt, out sf))
+                            {
+                                resolvedName = alt;
+                                StingLog.Info($"Schedule field '{fieldName}' → built-in '{alt}'");
+                                break;
+                            }
+                        }
+                    }
 
                     if (sf != null)
                     {
+                        // Skip if we already added a field with this resolved name
+                        if (addedFieldIds.ContainsKey(resolvedName))
+                            continue;
+
                         ScheduleField added = vs.Definition.AddField(sf);
-                        if (added != null && !addedFieldIds.ContainsKey(fieldName))
-                            addedFieldIds[fieldName] = added.FieldId;
-                        // Also register by the resolved name for sort/group lookups
-                        if (added != null && resolvedName != fieldName
-                            && !addedFieldIds.ContainsKey(resolvedName))
-                            addedFieldIds[resolvedName] = added.FieldId;
+                        if (added != null)
+                        {
+                            if (!addedFieldIds.ContainsKey(fieldName))
+                                addedFieldIds[fieldName] = added.FieldId;
+                            // Also register by the resolved name for sort/group lookups
+                            if (resolvedName != fieldName
+                                && !addedFieldIds.ContainsKey(resolvedName))
+                                addedFieldIds[resolvedName] = added.FieldId;
+
+                            // If this was a Tier 4 fallback, set the column heading
+                            // to the formula alias if available, for user-friendly display
+                            if (resolvedName != fieldName
+                                && formulaMap.TryGetValue(fieldName, out string heading)
+                                && !string.IsNullOrEmpty(heading))
+                            {
+                                added.ColumnHeading = heading;
+                            }
+                        }
                     }
                     else
                     {
@@ -662,7 +725,7 @@ namespace StingTools.Temp
                         if (added != null && !addedFieldIds.ContainsKey(fname))
                             addedFieldIds[fname] = added.FieldId;
                     }
-                    catch { /* skip if field can't be added */ }
+                    catch (Exception ex) { StingLog.Warn($"Fallback field '{fname}': {ex.Message}"); }
                 }
             }
 
