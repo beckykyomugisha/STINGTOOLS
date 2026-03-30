@@ -237,13 +237,14 @@ namespace StingTools.Temp
                             remapped += ScheduleHelper.AddFieldsTracked(
                                 doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
 
-                            // If no fields were added but fields were specified,
-                            // shared parameters likely aren't bound yet
+                            // If no STING fields resolved, add common built-in Revit fields
+                            // so the schedule isn't completely empty
                             if (addedFieldIds.Count == 0)
                             {
-                                StingLog.Warn($"Schedule '{name}': No fields added from spec " +
-                                    $"'{fieldsSpec}'. Run 'Load Params' first to bind " +
-                                    "shared parameters to project categories.");
+                                StingLog.Warn($"Schedule '{name}': No STING fields from spec " +
+                                    $"'{fieldsSpec}'. Adding built-in fallback fields. " +
+                                    "Run 'Load Params' first to bind shared parameters.");
+                                ScheduleHelper.AddBuiltInFallbackFields(doc, vs, addedFieldIds);
                             }
                         }
 
@@ -616,6 +617,11 @@ namespace StingTools.Temp
                             && !addedFieldIds.ContainsKey(resolvedName))
                             addedFieldIds[resolvedName] = added.FieldId;
                     }
+                    else
+                    {
+                        StingLog.Warn($"Schedule field '{fieldName}' not found in schedulable fields. " +
+                            "Run 'Load Params' to bind shared parameters to project categories.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -624,6 +630,44 @@ namespace StingTools.Temp
             }
 
             return remappedCount;
+        }
+
+        /// <summary>
+        /// Add common built-in Revit fields as fallback when no STING shared params
+        /// could be resolved. Ensures schedules are never completely empty.
+        /// </summary>
+        public static void AddBuiltInFallbackFields(Document doc, ViewSchedule vs,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Common built-in field names that exist on most categories
+            string[] fallbackNames = { "Family and Type", "Family", "Type", "Type Mark",
+                "Mark", "Level", "Count", "Comments", "Description" };
+
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            foreach (string fname in fallbackNames)
+            {
+                if (fieldLookup.TryGetValue(fname, out SchedulableField sf))
+                {
+                    try
+                    {
+                        ScheduleField added = vs.Definition.AddField(sf);
+                        if (added != null && !addedFieldIds.ContainsKey(fname))
+                            addedFieldIds[fname] = added.FieldId;
+                    }
+                    catch { /* skip if field can't be added */ }
+                }
+            }
+
+            if (addedFieldIds.Count > 0)
+                StingLog.Info($"Schedule: Added {addedFieldIds.Count} built-in fallback fields");
         }
 
         /// <summary>
