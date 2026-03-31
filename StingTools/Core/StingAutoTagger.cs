@@ -478,8 +478,9 @@ namespace StingTools.Core
 
                 try
                 {
-                    // Rebuild context if needed
-                    if (_contextInvalid || _cachedCtx == null)
+                    // HI-01 FIX: Add TTL check matching synchronous handler pattern
+                    bool ttlExpired = (DateTime.UtcNow - _contextCacheTime).TotalMilliseconds > ContextCacheTtlMs;
+                    if (_contextInvalid || _cachedCtx == null || ttlExpired)
                     {
                         _cachedCtx = TokenAutoPopulator.PopulationContext.Build(doc);
                         // H-03 FIX: Validate context in queue handler too
@@ -495,6 +496,7 @@ namespace StingTools.Core
                         _formulas = TagPipelineHelper.LoadFormulas();
                         _gridLines = TagPipelineHelper.LoadGridLines(doc);
                         _contextInvalid = false;
+                        _contextCacheTime = DateTime.UtcNow;
                         StingLog.Info($"AutoTagger: context rebuilt ({_cachedExistingTags.Count} existing tags, {_formulas.Count} formulas)");
                     }
                     var ctx = _cachedCtx;

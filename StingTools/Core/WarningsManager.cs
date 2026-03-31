@@ -309,7 +309,7 @@ namespace StingTools.Core
             ("lifecycle", WarningCategory.Sustainability, WarningSeverity.Medium, "Complete BS EN 15978 lifecycle assessment", false),
             ("circularity", WarningCategory.Sustainability, WarningSeverity.Low, "Review material circularity and recyclability", false),
             // Phase 70: MEP intelligence classification rules
-            ("pressure drop", WarningCategory.MEP, WarningSeverity.Medium, "Check pressure drop exceeds system capacity", false),
+            // Note: "pressure drop" already defined at line 283 — first-match-wins makes duplicates dead code
             ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "Review fitting loss coefficient at transition", false),
             ("flow balance", WarningCategory.MEP, WarningSeverity.High, "System requires rebalancing per CIBSE TM39", false),
             ("vibration", WarningCategory.MEP, WarningSeverity.Medium, "Check vibration isolation for rotating equipment", false),
@@ -329,7 +329,7 @@ namespace StingTools.Core
             ("unbalanced system", WarningCategory.MEP, WarningSeverity.High, "MEP branch system unbalanced — run Hardy Cross rebalancing", false),
             ("silencer required", WarningCategory.MEP, WarningSeverity.Medium, "NC rating exceeds room target — add silencer or increase duct", false),
             ("isolation mount", WarningCategory.MEP, WarningSeverity.Medium, "Equipment vibration transmissibility >10% — upgrade isolation mounts", false),
-            ("fitting loss", WarningCategory.MEP, WarningSeverity.Low, "High fitting loss concentration — consider routing optimization", false),
+            // Note: "fitting loss" already defined at line 313 — first-match-wins makes duplicates dead code
             ("flex duct", WarningCategory.MEP, WarningSeverity.Medium, "Flexible duct >3m causes excessive pressure drop per DW/144", false),
             // Phase 74/77: Sustainability rules (now using Sustainability category)
             ("LETI target", WarningCategory.Sustainability, WarningSeverity.Medium, "Embodied carbon exceeds LETI 2030 target of 350 kgCO2e/m²", false),
@@ -401,8 +401,7 @@ namespace StingTools.Core
             // Sustainability & environmental
             ("U-value", WarningCategory.Compliance, WarningSeverity.High, "Check U-value meets Part L thermal requirements", false),
             ("airtightness", WarningCategory.Compliance, WarningSeverity.High, "Verify airtightness per Part L/ATTMA TS1", false),
-            ("BREEAM", WarningCategory.Compliance, WarningSeverity.Medium, "Review BREEAM credit requirement", false),
-            ("embodied carbon", WarningCategory.Compliance, WarningSeverity.Medium, "Review embodied carbon per RICS Whole Life Carbon", false),
+            // Note: "BREEAM" and "embodied carbon" already defined at lines 308/307 with Sustainability category — first-match-wins makes these dead code
 
             // MEP design intelligence
             ("undersized", WarningCategory.MEP, WarningSeverity.High, "Element undersized for design load — verify sizing", false),
@@ -501,15 +500,18 @@ namespace StingTools.Core
             try
             {
                 string raw = TagConfig.GetConfigValue("WARNING_SUPPRESS_PATTERNS");
-                _suppressedPatterns.Clear();
+                var newSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (!string.IsNullOrEmpty(raw))
                 {
                     foreach (string p in raw.Split('|'))
                     {
                         string trimmed = p.Trim();
-                        if (trimmed.Length > 0) _suppressedPatterns.Add(trimmed);
+                        if (trimmed.Length > 0) newSet.Add(trimmed);
                     }
                 }
+                // Phase 86: Atomic swap prevents race where concurrent IsSuppressed reads
+                // see a half-cleared set during Clear+Add sequence
+                System.Threading.Interlocked.Exchange(ref _suppressedPatterns, newSet);
             }
             catch (Exception ex) { StingLog.Warn($"LoadSuppressions: {ex.Message}"); }
         }
@@ -614,7 +616,7 @@ namespace StingTools.Core
         /// <summary>Build a ClassifiedWarning from a Revit FailureMessage with full element context.</summary>
         private static ClassifiedWarning BuildClassified(Document doc, FailureMessage fm)
         {
-            string desc = fm.GetDescriptionText();
+            string desc = GetWarningDesc(fm);
             var (cat, sev, fix, autoFix) = ClassifyWarning(desc);
 
             var failing = fm.GetFailingElements();
@@ -681,6 +683,7 @@ namespace StingTools.Core
             _cachedReport = null;
             _reportCacheTime = DateTime.MinValue;
             _cachedReportDocKey = null;
+            _classificationCache.Clear(); // Phase 87: Prevent cross-document classification bleed
         }
 
         // ── FULL SCAN ──
@@ -692,7 +695,7 @@ namespace StingTools.Core
         internal static WarningReport ScanWarnings(Document doc)
         {
             // PERF: Return cached report if recent (30-second TTL) and same document
-            string docKey = doc.PathName ?? doc.Title ?? "";
+            string docKey = doc.PathName ?? $"{doc.Title}_{doc.GetHashCode()}";
             if (_cachedReport != null && _cachedReportDocKey == docKey && (DateTime.UtcNow - _reportCacheTime) < ReportCacheLifetime)
                 return _cachedReport;
 
@@ -920,28 +923,36 @@ namespace StingTools.Core
                             if (markParam != null && !markParam.IsReadOnly)
                             {
                                 string current = markParam.AsString() ?? "";
-                                // Build set of existing marks to avoid creating new collisions
-                                var existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                                try
+                                // Phase 85: Use pre-built cached marks if available, else build fresh
+                                var existingMarks = _cachedExistingMarks;
+                                if (existingMarks == null)
                                 {
-                                    foreach (Element e in new FilteredElementCollector(doc)
-                                        .WhereElementIsNotElementType())
+                                    existingMarks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                    try
                                     {
-                                        string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
-                                        if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                        foreach (Element e in new FilteredElementCollector(doc)
+                                            .WhereElementIsNotElementType())
+                                        {
+                                            string m = e.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                            if (!string.IsNullOrEmpty(m)) existingMarks.Add(m);
+                                        }
                                     }
+                                    catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
                                 }
-                                catch (Exception ex2) { StingLog.Warn($"Mark collection: {ex2.Message}"); }
 
                                 // Find unique mark by numeric increment
-                                string newMark = current;
                                 for (int attempt = 2; attempt < 1000; attempt++)
                                 {
-                                    newMark = $"{current}_{attempt}";
-                                    if (!existingMarks.Contains(newMark)) break;
+                                    string newMark = $"{current}_{attempt}";
+                                    if (!existingMarks.Contains(newMark))
+                                    {
+                                        markParam.Set(newMark);
+                                        existingMarks.Add(newMark);
+                                        return true;
+                                    }
                                 }
-                                markParam.Set(newMark);
-                                return true;
+                                StingLog.Warn($"Strategy 4: exhausted 998 suffix attempts for mark '{current}'");
+                                return false; // Do not write duplicate
                             }
                         }
                     }
@@ -1641,8 +1652,29 @@ namespace StingTools.Core
                     catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings parse: {ex.Message}"); }
                 }
 
-                // Determine next issue ID
-                int nextId = existingEntries.Count + 1;
+                // Determine next issue ID — scan for max existing numeric suffix
+                // B05 FIX: existingEntries.Count + 1 causes ID collisions after deletions.
+                // Scan all existing entries for highest numeric suffix instead.
+                int nextId = existingEntries.Count + 1; // fallback
+                try
+                {
+                    foreach (var entry in existingEntries)
+                    {
+                        // Look for "id":"NCR-0042" or "id":"SI-0007" patterns
+                        int idIdx = entry.IndexOf("\"id\"", StringComparison.OrdinalIgnoreCase);
+                        if (idIdx < 0) continue;
+                        int colonIdx = entry.IndexOf(':', idIdx + 4);
+                        if (colonIdx < 0) continue;
+                        int q1 = entry.IndexOf('"', colonIdx + 1);
+                        int q2 = q1 >= 0 ? entry.IndexOf('"', q1 + 1) : -1;
+                        if (q1 < 0 || q2 < 0) continue;
+                        string idVal = entry.Substring(q1 + 1, q2 - q1 - 1);
+                        int dashIdx = idVal.LastIndexOf('-');
+                        if (dashIdx >= 0 && int.TryParse(idVal.Substring(dashIdx + 1), out int num) && num >= nextId)
+                            nextId = num + 1;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings ID scan: {ex.Message}"); }
                 string revision = "";
                 try { revision = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex) { StingLog.Warn($"CreateIssuesFromWarnings revision: {ex.Message}"); }
@@ -1705,7 +1737,10 @@ namespace StingTools.Core
                         jsonSb.AppendLine();
                     }
                     jsonSb.AppendLine("]");
-                    File.WriteAllText(issuesPath, jsonSb.ToString(), Encoding.UTF8);
+                    // Phase 86: Atomic write — prevents sidecar corruption on crash mid-write
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, jsonSb.ToString(), Encoding.UTF8);
+                    File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
                     StingLog.Info($"Issues file updated: {issuesPath} ({existingEntries.Count} total entries)");
                 }
                 catch (Exception ex) { StingLog.Error("CreateIssuesFromWarnings write", ex); }
@@ -1740,7 +1775,7 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"CheckWarningGate: {ex.Message}");
-                return (true, "Warning gate check failed — proceeding by default.");
+                return (false, $"Warning gate check failed: {ex.Message}");
             }
         }
 
@@ -2539,6 +2574,7 @@ namespace StingTools.Core
                     "_bim_manager", "issues.json");
 
                 var existingIssues = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int maxExistingId = 0;
                 if (File.Exists(issuesPath))
                 {
                     try
@@ -2549,6 +2585,11 @@ namespace StingTools.Core
                         {
                             string desc = item["description"]?.ToString() ?? "";
                             existingIssues.Add(desc);
+                            // Scan for max numeric ID suffix to prevent collision after deletions
+                            string idStr = item["id"]?.ToString() ?? "";
+                            int dashIdx = idStr.LastIndexOf('-');
+                            if (dashIdx >= 0 && int.TryParse(idStr.Substring(dashIdx + 1), out int num) && num > maxExistingId)
+                                maxExistingId = num;
                         }
                     }
                     catch (Exception ex) { StingLog.Warn($"Load issues for dedup: {ex.Message}"); }
@@ -2565,7 +2606,7 @@ namespace StingTools.Core
                     .Take(20); // Cap at 20 issue types
 
                 var newIssues = new List<object>();
-                int nextId = existingIssues.Count + 1;
+                int nextId = maxExistingId + 1;
 
                 foreach (var group in grouped)
                 {
@@ -2617,7 +2658,13 @@ namespace StingTools.Core
                     foreach (var issue in newIssues)
                         arr.Add(Newtonsoft.Json.Linq.JObject.FromObject(issue));
 
-                    File.WriteAllText(issuesPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    // Phase 87: Atomic write to prevent corruption on crash
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (File.Exists(issuesPath))
+                        File.Replace(tmpPath, issuesPath, issuesPath + ".bak");
+                    else
+                        File.Move(tmpPath, issuesPath);
                     StingLog.Info($"AutoCreateIssuesFromWarnings: created {created} issues from {minSeverity}+ warnings");
                 }
             }

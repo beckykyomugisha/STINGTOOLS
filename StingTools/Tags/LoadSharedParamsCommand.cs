@@ -160,12 +160,33 @@ namespace StingTools.Tags
 
             StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}");
 
+            // ── Always clean material bindings, even when nothing new to bind ──
+            // CRITICAL: This must run BEFORE the early return below. Prior sessions
+            // may have bound ALL 2300+ params to OST_Materials via coreCats. This
+            // cleanup removes Materials from non-material params and adds it to
+            // material-relevant params (MAT_*, PROP_*, BLE_APP-*, BLE_MAT_*, COMP_MAT_*).
+            int matRemovedEarly = 0, matAddedEarly = 0;
+            try
+            {
+                (matRemovedEarly, matAddedEarly) = CleanMaterialBindings(doc, app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings (early) failed", ex);
+            }
+
             if (totalToBind == 0)
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    $"All {totalDefs} parameters are already bound — nothing to do.\n\n" +
-                    $"{alreadyBound} parameters already present in project.\n" +
-                    $"\nSource: {spFile}");
+                var earlyMsg = new StringBuilder();
+                earlyMsg.AppendLine($"All {totalDefs} parameters are already bound — nothing to do.");
+                earlyMsg.AppendLine($"{alreadyBound} parameters already present in project.");
+                if (matRemovedEarly > 0 || matAddedEarly > 0)
+                {
+                    earlyMsg.AppendLine();
+                    earlyMsg.AppendLine($"Material cleanup: removed Materials from {matRemovedEarly} params, added to {matAddedEarly} params.");
+                }
+                earlyMsg.AppendLine($"\nSource: {spFile}");
+                TaskDialog.Show("STING Tools - Load Shared Params", earlyMsg.ToString());
                 return Result.Succeeded;
             }
 
@@ -178,14 +199,13 @@ namespace StingTools.Tags
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // Add Materials category (needed for MAT_* params)
-            try
-            {
-                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
-                if (matCat != null && matCat.AllowsBoundParameters && !coreCats.Contains(matCat))
-                    coreCats.Insert(matCat);
-            }
-            catch (Exception ex) { StingLog.Warn($"Add Materials category to core set: {ex.Message}"); }
+            // NOTE: OST_Materials is NOT added to coreCats.
+            // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
+            // via dedicated matCats override in BuildGroupCategoryOverrides() to BLE
+            // element categories (walls, floors, ceilings, etc.), NOT to OST_Materials
+            // (which doesn't support AllowsBoundParameters in Revit API).
+            // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
+            // polluting every material's custom properties panel.
 
             // Phase 39: Add Sheets category (needed for SHT_* params)
             try
@@ -223,6 +243,12 @@ namespace StingTools.Tags
             InstanceBinding coreBinding = app.Create.NewInstanceBinding(coreCats);
             foreach (var kvp in groupCatOverrides)
                 groupBindings[kvp.Key] = app.Create.NewInstanceBinding(kvp.Value);
+
+            // Pre-build a material-only binding for per-parameter overrides
+            // (BLE_APP-*, BLE_MAT_* params in CST_PROC group that need Materials binding)
+            InstanceBinding matOnlyBinding = null;
+            if (groupCatOverrides.TryGetValue("MAT_INFO", out CategorySet matOverrideCats))
+                matOnlyBinding = app.Create.NewInstanceBinding(matOverrideCats);
 
             // ── Step 5: Bind ONE GROUP per transaction ──
             int bound = 0;
@@ -262,10 +288,19 @@ namespace StingTools.Tags
                         {
                             try
                             {
-                                // Use the pre-built group binding — NEVER create
-                                // new InstanceBinding or call BuildCategorySet here
+                                // Per-parameter override: if this param is material-relevant
+                                // (BLE_APP-*, BLE_MAT_*) but the group binding targets core cats,
+                                // use the material-only binding instead so it binds to OST_Materials.
+                                InstanceBinding paramBinding = binding;
+                                if (matOnlyBinding != null
+                                    && !groupCatOverrides.ContainsKey(groupName)
+                                    && IsMaterialRelevantParam(extDef.Name))
+                                {
+                                    paramBinding = matOnlyBinding;
+                                }
+
                                 bool result = doc.ParameterBindings.Insert(
-                                    extDef, binding, GroupTypeId.General);
+                                    extDef, paramBinding, GroupTypeId.General);
 
                                 if (result)
                                     groupBound++;
@@ -295,6 +330,75 @@ namespace StingTools.Tags
                 }
             }
 
+            // ── Step 6: Clean material bindings (second pass) ──
+            // Run again after new bindings — new params may have been bound to
+            // non-material groups that include OST_Materials by mistake.
+            int matRemoved = matRemovedEarly, matAdded = matAddedEarly;
+            try
+            {
+                var (r2, a2) = CleanMaterialBindings(doc, app);
+                matRemoved += r2;
+                matAdded += a2;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings (post-bind) failed", ex);
+                errors.Add($"Material cleanup: {ex.Message}");
+            }
+
+            // ── Step 6b: Remove ALL remaining shared parameter bindings from OST_Materials ──
+            // Materials should use native Revit properties (Color, Transparency,
+            // ThermalAsset, StructuralAsset) — NOT shared parameter bindings.
+            // Previous versions incorrectly included OST_Materials in CategoryEnumMap,
+            // causing all 2300+ shared parameters to be bound to every material.
+            int materialsUnbound = 0;
+            try
+            {
+                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat != null)
+                {
+                    // Collect all bindings that include OST_Materials
+                    var toFix = new List<(Definition def, ElementBinding binding)>();
+                    var scanIter = doc.ParameterBindings.ForwardIterator();
+                    while (scanIter.MoveNext())
+                    {
+                        if (scanIter.Current is ElementBinding eb && eb.Categories.Contains(matCat))
+                            toFix.Add((scanIter.Key, eb));
+                    }
+
+                    if (toFix.Count > 0)
+                    {
+                        StingLog.Info($"Cleaning up {toFix.Count} parameter bindings from OST_Materials");
+                        using (Transaction txClean = new Transaction(doc, "STING Remove Material Bindings"))
+                        {
+                            txClean.Start();
+                            foreach (var (def, eb) in toFix)
+                            {
+                                try
+                                {
+                                    eb.Categories.Erase(matCat);
+                                    if (eb.Categories.Size > 0)
+                                        doc.ParameterBindings.ReInsert(def, eb);
+                                    else
+                                        doc.ParameterBindings.Remove(def);
+                                    materialsUnbound++;
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Warn($"Failed to unbind '{def.Name}' from Materials: {ex2.Message}");
+                                }
+                            }
+                            txClean.Commit();
+                        }
+                        StingLog.Info($"Removed {materialsUnbound} parameter bindings from OST_Materials");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Material binding cleanup: {ex.Message}");
+            }
+
             // ── Report ──
             var report = new StringBuilder();
             report.AppendLine($"Bound: {bound} parameters");
@@ -303,6 +407,10 @@ namespace StingTools.Tags
             report.AppendLine($"Total in file: {totalDefs}");
             report.AppendLine($"Categories: {coreCats.Size}");
             report.AppendLine($"Groups processed: {groupsToProcess.Count}");
+            if (matRemoved > 0 || matAdded > 0)
+                report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
+            if (materialsUnbound > 0)
+                report.AppendLine($"Material cleanup: removed {materialsUnbound} stale bindings from OST_Materials");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
@@ -445,14 +553,312 @@ namespace StingTools.Tags
                 overrides["BLE_STRUCTURE"] = bleCats;
             }
 
-            var matCats = BuildCatSet(doc, new[] { BuiltInCategory.OST_Materials });
+            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
+            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
+            // the elements that USE materials. This makes material properties
+            // visible on those elements and schedulable in material takeoffs.
+            var matCats = BuildCatSet(doc, BleCategories);
             if (matCats.Size > 0)
             {
                 overrides["MAT_INFO"] = matCats;
                 overrides["PROP_PHYSICAL"] = matCats;
+                // NOTE: Individual BLE_APP-* and BLE_MAT_* params from CST_PROC group
+                // are handled per-parameter in the binding loop via IsMaterialRelevantParam(),
+                // since the CST_PROC group also contains 100+ non-material params that
+                // should NOT be bound to Materials.
             }
 
             return overrides;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Material binding cleanup
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Determines whether a parameter name is material-relevant and should
+        /// be bound to OST_Materials. Only these prefixes/groups belong on materials.
+        /// </summary>
+        private static bool IsMaterialRelevantParam(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+
+            // Group 12 (MAT_INFO): all MAT_ prefixed params
+            if (paramName.StartsWith("MAT_", StringComparison.Ordinal)) return true;
+
+            // Group 14 (PROP_PHYSICAL): all PROP_ prefixed params
+            if (paramName.StartsWith("PROP_", StringComparison.Ordinal)) return true;
+
+            // Group 2 (CST_PROC) material-relevant subsets:
+            // 23 BLE_APP-* appearance/asset params (hyphens in names)
+            if (paramName.StartsWith("BLE_APP-", StringComparison.Ordinal)) return true;
+
+            // 19 BLE_MAT_* material metadata params
+            if (paramName.StartsWith("BLE_MAT_", StringComparison.Ordinal)) return true;
+
+            // Composite material tags
+            if (paramName.StartsWith("COMP_MAT_", StringComparison.Ordinal)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// NUCLEAR material binding cleanup — completely removes and rebinds every
+        /// parameter that has wrong Materials category assignment.
+        ///
+        /// Strategy: for each wrongly-bound param, look up its ExternalDefinition
+        /// from the shared parameter FILE (not from the BindingMap iterator — those
+        /// references become invalid after Remove). Then Remove the old binding and
+        /// Insert a fresh one with the correct CategorySet.
+        ///
+        /// This is the only approach that reliably works in the Revit API because:
+        /// - ReInsert() silently fails to actually change categories in many cases
+        /// - Remove+Insert using ExternalDefinition from file FAILS silently
+        /// - ReInsert using ExternalDefinition FAILS silently
+        /// - The BindingMap is keyed by InternalDefinition, NOT ExternalDefinition
+        ///
+        /// APPROACH (6th attempt — InternalDefinition via SharedParameterElement):
+        /// Use SharedParameterElement.GetDefinition() to get the project-internal
+        /// Definition reference. This is the actual key in the BindingMap. Then use
+        /// ReInsert(internalDef, newBinding) to change the category set.
+        ///
+        /// Returns (removed, added) counts.
+        /// </summary>
+        private static (int removed, int added) CleanMaterialBindings(
+            Document doc, Autodesk.Revit.ApplicationServices.Application app)
+        {
+            Category matCat;
+            try
+            {
+                matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+            }
+            catch (Exception ex) { StingLog.Warn($"Cannot get OST_Materials: {ex.Message}"); return (0, 0); }
+
+            if (matCat == null || !matCat.AllowsBoundParameters)
+                return (0, 0);
+
+            long matCatIdVal = matCat.Id.Value;
+
+            // ── Step A: Build name→SharedParameterElement lookup ──
+            // SharedParameterElement.GetDefinition() returns InternalDefinition,
+            // which is the ACTUAL key used by the BindingMap. All prior approaches
+            // used ExternalDefinition (from the .txt file) which is a DIFFERENT
+            // object identity — that's why Remove/Insert/ReInsert all failed silently.
+            var speByName = new Dictionary<string, SharedParameterElement>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
+                {
+                    InternalDefinition intDef = spe.GetDefinition();
+                    if (intDef != null && !string.IsNullOrEmpty(intDef.Name))
+                        speByName[intDef.Name] = spe;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Cannot collect SharedParameterElements: {ex.Message}");
+                return (0, 0);
+            }
+
+            StingLog.Info($"Material cleanup: found {speByName.Count} SharedParameterElements in project");
+
+            if (speByName.Count == 0)
+                return (0, 0);
+
+            // ── Step B: Classify params by current binding vs desired ──
+            var toRemoveMat = new List<string>(); // params that HAVE Materials but SHOULDN'T
+            var toAddMat = new List<string>();     // params that LACK Materials but SHOULD have it
+
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                var def = iter.Key;
+                if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                if (!(iter.Current is InstanceBinding ib)) continue;
+
+                bool hasMat = false;
+                foreach (Category c in ib.Categories)
+                {
+                    if (c.Id.Value == matCatIdVal)
+                    { hasMat = true; break; }
+                }
+
+                bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
+
+                if (hasMat && !shouldHaveMat)
+                    toRemoveMat.Add(def.Name);
+                else if (!hasMat && shouldHaveMat)
+                    toAddMat.Add(def.Name);
+            }
+
+            StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove Materials, {toAddMat.Count} to add Materials");
+
+            if (toRemoveMat.Count == 0 && toAddMat.Count == 0)
+                return (0, 0);
+
+            int removed = 0, added = 0;
+            int removeFailed = 0, addFailed = 0;
+
+            // ── Step C: Remove Materials from non-material params using InternalDefinition ──
+            // Process in individual transactions for safety.
+            foreach (string name in toRemoveMat)
+            {
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
+                {
+                    removeFailed++;
+                    if (removeFailed <= 5)
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot rebind");
+                    continue;
+                }
+
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { removeFailed++; continue; }
+
+                // Read current binding via the InternalDefinition key
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { removeFailed++; continue; }
+
+                // Build new CategorySet WITHOUT Materials
+                var newCats = app.Create.NewCategorySet();
+                int kept = 0;
+                foreach (Category c in currentIB.Categories)
+                {
+                    if (c.Id.Value != matCatIdVal)
+                    { newCats.Insert(c); kept++; }
+                }
+                if (kept == 0) continue; // must keep at least one category
+
+                using (Transaction tx = new Transaction(doc, $"STING Fix Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        // ReInsert using InternalDefinition — the actual BindingMap key
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
+                        {
+                            removed++;
+                        }
+                        else
+                        {
+                            removeFailed++;
+                            if (removeFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) failed for '{name}'");
+                        }
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        removeFailed++;
+                        if (removeFailed <= 5)
+                            StingLog.Warn($"Remove mat from '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
+                }
+            }
+
+            // ── Step D: Add Materials to material-relevant params using InternalDefinition ──
+            foreach (string name in toAddMat)
+            {
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
+                {
+                    addFailed++;
+                    if (addFailed <= 5)
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot add Materials");
+                    continue;
+                }
+
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { addFailed++; continue; }
+
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { addFailed++; continue; }
+
+                // Build new CategorySet WITH Materials added
+                var newCats = app.Create.NewCategorySet();
+                foreach (Category c in currentIB.Categories)
+                    newCats.Insert(c);
+                newCats.Insert(matCat);
+
+                using (Transaction tx = new Transaction(doc, $"STING Add Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
+                        {
+                            added++;
+                        }
+                        else
+                        {
+                            addFailed++;
+                            if (addFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) add-mat failed for '{name}'");
+                        }
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        addFailed++;
+                        if (addFailed <= 5)
+                            StingLog.Warn($"Add mat to '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
+                }
+            }
+
+            StingLog.Info($"Material cleanup done: removed={removed} (failed={removeFailed}), added={added} (failed={addFailed})");
+
+            // ── Step E: Verification pass ──
+            int stillPolluted = 0;
+            int materialParamsMissing = 0;
+            var verifyIter = doc.ParameterBindings.ForwardIterator();
+            while (verifyIter.MoveNext())
+            {
+                var vDef = verifyIter.Key;
+                if (vDef == null || string.IsNullOrEmpty(vDef.Name)) continue;
+                if (!(verifyIter.Current is InstanceBinding vib)) continue;
+
+                bool hasMat = false;
+                foreach (Category c in vib.Categories)
+                {
+                    if (c.Id.Value == matCatIdVal)
+                    { hasMat = true; break; }
+                }
+
+                bool shouldHaveMat = IsMaterialRelevantParam(vDef.Name);
+
+                if (hasMat && !shouldHaveMat) stillPolluted++;
+                if (!hasMat && shouldHaveMat) materialParamsMissing++;
+            }
+
+            if (stillPolluted > 0)
+                StingLog.Warn($"VERIFICATION FAILED: {stillPolluted} non-material params STILL have Materials bound — " +
+                    "InternalDefinition approach may need SharedParameterElement deletion as nuclear fallback");
+            else if (removed > 0)
+                StingLog.Info("VERIFICATION PASSED: All non-material params cleaned of Materials binding");
+
+            if (materialParamsMissing > 0)
+                StingLog.Warn($"VERIFICATION: {materialParamsMissing} material-relevant params still missing Materials binding");
+            else if (added > 0)
+                StingLog.Info("VERIFICATION PASSED: All material-relevant params have Materials binding");
+
+            return (removed, added);
         }
 
         /// <summary>
@@ -464,9 +870,12 @@ namespace StingTools.Tags
         {
             var set = new CategorySet();
             // Combine MEP + BLE + a few extra common categories
+            // NOTE: OST_Materials is NOT added here — material params are bound
+            // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
-            TryInsert(doc, set, BuiltInCategory.OST_Materials);
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
+            // via group overrides (OST_Materials doesn't support bound params)
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);

@@ -43,17 +43,12 @@ namespace StingTools.Core
 
         public static string Separator => _overrideSeparator ?? _baseSeparator;
         public static int NumPad => _overrideNumPad ?? _baseNumPad;
-        /// <summary>PERF-05: Cached read-only segment order — avoids Clone() on every access.</summary>
-        private static volatile string[] _cachedSegmentOrder;
+        /// <summary>CR-03 FIX: Returns defensive clone every time to prevent callers from mutating shared state.</summary>
         public static string[] SegmentOrder
         {
             get
             {
-                var cached = _cachedSegmentOrder;
-                if (cached != null) return cached;
-                cached = (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
-                _cachedSegmentOrder = cached;
-                return cached;
+                return (string[])(_overrideSegmentOrder ?? _baseSegmentOrder).Clone();
             }
         }
 
@@ -83,14 +78,12 @@ namespace StingTools.Core
                     {
                         StingLog.Warn($"Invalid segment name '{seg}' in tag format override — ignoring segment order override");
                         _overrideSegmentOrder = null;
-                        _cachedSegmentOrder = null; // PERF-05: Invalidate on rejection too
                         StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length} (segment order rejected)");
                         return;
                     }
                 }
                 _overrideSegmentOrder = (string[])segmentOrder.Clone();
             }
-            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
             StingLog.Info($"Tag format override applied: sep='{Separator}', pad={NumPad}, segments={SegmentOrder.Length}");
         }
 
@@ -102,7 +95,6 @@ namespace StingTools.Core
             _overrideSeparator = null;
             _overrideNumPad = null;
             _overrideSegmentOrder = null;
-            _cachedSegmentOrder = null; // PERF-05: invalidate cached order
         }
 
         // ── Source token definitions ────────────────────────────────────
@@ -1094,7 +1086,6 @@ namespace StingTools.Core
                     _baseSeparator = fmt["separator"]?.ToString() ?? "-";
                     _baseNumPad = fmt["num_pad"]?.Value<int>() ?? 4;
                     _baseSegmentOrder = fmt["segment_order"]?.ToObject<string[]>() ?? _baseSegmentOrder;
-                    _cachedSegmentOrder = null; // PERF-05: Invalidate cache after loading base values
                 }
 
                 StingLog.Info("ParamRegistry.LoadFromFile: tag_format loaded");
@@ -1271,9 +1262,14 @@ namespace StingTools.Core
 
                 StingLog.Info($"ParamRegistry.LoadFromFile: {CategoryEnumMap.Count} category enum mappings loaded");
 
-                // Universal categories
-                UniversalCategories = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
-                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded");
+                // Universal categories — exclude "Materials" which is handled separately
+                // via BuildGroupCategoryOverrides() in LoadSharedParamsCommand.
+                // Including it here would bind ALL params to OST_Materials.
+                var rawUCats = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
+                UniversalCategories = rawUCats
+                    .Where(c => !c.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded (Materials excluded)");
 
                 // Load extended params
                 LoadExtendedParams(root);
@@ -1595,7 +1591,6 @@ namespace StingTools.Core
             _baseSeparator = "-";
             _baseNumPad = 4;
             _baseSegmentOrder = new[] { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
-            _cachedSegmentOrder = null; // PERF-05: Invalidate cache when defaults are reloaded
 
             AllTokenParams = new[]
             {
@@ -1887,7 +1882,9 @@ namespace StingTools.Core
                 { "MEP Fabrication Hangers", "OST_FabricationHangers" },
                 { "MEP Fabrication Pipework", "OST_FabricationPipework" },
                 { "Mass", "OST_Mass" },
-                { "Materials", "OST_Materials" },
+                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
+                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
+                // MaterialCommands.cs, NOT shared parameter bindings.
                 { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
                 { "Mechanical Equipment", "OST_MechanicalEquipment" },
                 { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
@@ -1962,7 +1959,13 @@ namespace StingTools.Core
 
             // Set UniversalCategories to the full category list so
             // ResolveUniversalCategoryEnums returns all categories even without JSON.
-            UniversalCategories = CategoryEnumMap.Keys.ToArray();
+            // CRITICAL: Exclude "Materials" — material-specific params are bound via
+            // BuildGroupCategoryOverrides() in LoadSharedParamsCommand. Including Materials
+            // here would bind ALL 2300+ parameters to OST_Materials, polluting every
+            // material's custom properties panel in Revit.
+            UniversalCategories = CategoryEnumMap.Keys
+                .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
             StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
         }

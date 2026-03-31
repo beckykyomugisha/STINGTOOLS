@@ -228,7 +228,7 @@ namespace StingTools.Temp
 
                     // Build a type name from MAT_NAME to ensure uniqueness
                     // (MAT_CATEGORY alone is not unique — many rows share a category)
-                    string typeName = $"STING - {matName}";
+                    string typeName = matName;
 
                     if (existingTypeNames.Contains(typeName))
                     {
@@ -393,8 +393,16 @@ namespace StingTools.Temp
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
             if (layers.Count > 0)
             {
-                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                newType.SetCompoundStructure(cs);
+                try
+                {
+                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                    newType.SetCompoundStructure(cs);
+                }
+                catch (Exception ex)
+                {
+                    // Layer validation error (too thin, all-finish, etc.) — type created without layers
+                    StingLog.Warn($"Wall '{typeName}' compound structure failed: {ex.Message}");
+                }
             }
 
             return true;
@@ -587,7 +595,9 @@ namespace StingTools.Temp
 
                     // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
                     if (layerThickMm > 500) continue;
+                    // Revit requires minimum ~0.8mm layer thickness; enforce 1mm floor
                     if (layerThickMm <= 0) layerThickMm = 10;
+                    if (layerThickMm < 1.0) layerThickMm = 1.0;
 
                     // Convert mm to feet (Revit internal units)
                     double thickFeet = layerThickMm / 304.8;
@@ -628,10 +638,35 @@ namespace StingTools.Temp
             if (layers.Count == 0)
             {
                 double thickFeet = defaultThickMm / 304.8;
+                if (thickFeet < 1.0 / 304.8) thickFeet = 1.0 / 304.8; // min 1mm
                 layers.Add(new CompoundStructureLayer(
                     thickFeet,
                     MaterialFunctionAssignment.Structure,
                     defaultMatId));
+            }
+            else
+            {
+                // Revit compound structures require at least one STRUCTURE layer.
+                // If all layers are FINISH/MEMBRANE/etc., promote the thickest to STRUCTURE.
+                bool hasStructure = false;
+                for (int li = 0; li < layers.Count; li++)
+                {
+                    if (layers[li].Function == MaterialFunctionAssignment.Structure)
+                    { hasStructure = true; break; }
+                }
+                if (!hasStructure)
+                {
+                    int thickestIdx = 0;
+                    double maxThick = layers[0].Width;
+                    for (int li = 1; li < layers.Count; li++)
+                    {
+                        if (layers[li].Width > maxThick)
+                        { maxThick = layers[li].Width; thickestIdx = li; }
+                    }
+                    var old = layers[thickestIdx];
+                    layers[thickestIdx] = new CompoundStructureLayer(
+                        old.Width, MaterialFunctionAssignment.Structure, old.MaterialId);
+                }
             }
 
             return layers;

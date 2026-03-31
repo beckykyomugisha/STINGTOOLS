@@ -5292,6 +5292,7 @@ namespace StingTools.BIMManager
                             .WherePasses(new ElementMulticategoryFilter(
                                 new List<BuiltInCategory>(SharedParamGuids.AllCategoryEnums)))
                             .ToList();
+                        int cobieSkippedContainers = 0;
                         using (var combTx = new Transaction(doc, "STING WriteContainers pre-COBie"))
                         {
                             combTx.Start();
@@ -5305,12 +5306,16 @@ namespace StingTools.BIMManager
                                         string catName = ParameterHelpers.GetCategoryName(el);
                                         ParamRegistry.WriteContainers(el, toks, catName, overwrite: true, skipParam: ParamRegistry.TAG7);
                                     }
+                                    else
+                                    {
+                                        cobieSkippedContainers++;
+                                    }
                                 }
                                 catch (Exception elEx) { StingLog.Warn($"COBie pre-export container write: {elEx.Message}"); }
                             }
                             combTx.Commit();
                         }
-                        StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements");
+                        StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements, {cobieSkippedContainers} skipped (incomplete tokens)");
                         // GAP-1B: Invalidate caches after pre-export WriteContainers
                         ComplianceScan.InvalidateCache();
                         StingAutoTagger.InvalidateContext();

@@ -512,6 +512,8 @@ Generic Models,CST_S_CON_CURING_DAYS_NR,a64ca95a-acf1-57f1-a531-4e6790fb4d31,TEX
 Generic Models,MAT_DISCIPLINE,80a2b25a-3312-520c-911f-ad8c1d5f760b,TEXT,MAT_INFO,Type,Mat Discipline [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MAT_L2_FUNC_TXT,d3677a5b-1ddf-54ef-ad6d-b081034e22e8,TEXT,CST_PROC,Type,Ble Mat L2 Func Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,MAT_COST_UGX,1ffd7a5b-353c-5634-bfe1-1a32c7ab44a1,TEXT,MAT_INFO,Type,Mat Cost Ugx [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,MAT_COST_ASSEMBLY_USD,a3c7b92d-8f14-4e6a-b5d1-7c2e9a4f8b31,TEXT,MAT_INFO,Type,Material assembly cost in USD per unit [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,MAT_COST_ASSEMBLY_UGX,b4d8ca3e-9025-4f7b-c6e2-8d3f0b5a9c42,TEXT,MAT_INFO,Type,Material assembly cost in UGX per unit [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PRJ_TB_APVD_BY_TXT,9891e45b-6840-5af7-897c-2db80a7bfe3f,TEXT,PRJ_INFORMATION,Type,Prj Tb Apvd By Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PER_THERM_SHADING_DEVICE_TXT,780b285c-b46d-5772-9cfe-0a2ee43cd998,TEXT,PER_SUST,Type,Per Therm Shading Device Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,PLM_ACC_CONNECTION_TYPE_TXT,1518965c-0236-5179-8bcd-8536cede46c2,TEXT,PLM_DRN,Type,Plm Acc Connection Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0

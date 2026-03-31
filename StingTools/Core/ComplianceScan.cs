@@ -189,10 +189,13 @@ namespace StingTools.Core
                 }
             }
 
+            // Phase 87: Set _lastScanStart immediately after CAS success to close race window
+            // where another thread could see stale timestamp and premature-reset _scanning flag
+            _lastScanStart = DateTime.UtcNow;
+
             try
             {
-                _lastScanStart = DateTime.UtcNow;
-                var result = new ComplianceResult { ScanTime = DateTime.UtcNow };
+                var result = new ComplianceResult { ScanTime = _lastScanStart };
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
                 if (known.Count == 0)
                 {
@@ -565,16 +568,32 @@ namespace StingTools.Core
                 if (!wasIncomplete && isIncomplete) _cached.TaggedIncomplete++;
                 else if (wasIncomplete && !isIncomplete) _cached.TaggedIncomplete = Math.Max(0, _cached.TaggedIncomplete - 1);
 
+                // Phase 86: Track FullyResolved (complete + no placeholders) to prevent StrictPercent drift
+                bool wasResolved = wasComplete && !TagConfig.TagHasPlaceholders(oldTag ?? "");
+                bool isResolved = isComplete && !TagConfig.TagHasPlaceholders(newTag ?? "");
+                if (!wasResolved && isResolved) _cached.FullyResolved++;
+                else if (wasResolved && !isResolved) _cached.FullyResolved = Math.Max(0, _cached.FullyResolved - 1);
+
+                // Also track placeholder transitions
+                bool wasPlaceholder = wasComplete && !wasResolved;
+                bool isPlaceholder = isComplete && !isResolved;
+                if (!wasPlaceholder && isPlaceholder) _cached.PlaceholderCount++;
+                else if (wasPlaceholder && !isPlaceholder) _cached.PlaceholderCount = Math.Max(0, _cached.PlaceholderCount - 1);
+
                 // Update per-discipline counts
                 if (!string.IsNullOrEmpty(disc) && _cached.ByDisc != null)
                 {
                     if (!_cached.ByDisc.TryGetValue(disc, out var dd))
                     {
-                        dd = new DiscComplianceData { Total = 1 };
+                        // ME-01 FIX: Initialize Tagged/Untagged based on current element state
+                        dd = new DiscComplianceData { Total = 1, Tagged = isTagged ? 1 : 0, Untagged = isTagged ? 0 : 1 };
                         _cached.ByDisc[disc] = dd;
                     }
-                    if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
-                    else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                    else
+                    {
+                        if (!wasTagged && isTagged) { dd.Tagged++; dd.Untagged = Math.Max(0, dd.Untagged - 1); }
+                        else if (wasTagged && !isTagged) { dd.Tagged = Math.Max(0, dd.Tagged - 1); dd.Untagged++; }
+                    }
                 }
 
                 // CS-01 FIX: Use UtcNow consistently for cache staleness (DST-safe)
