@@ -556,17 +556,15 @@ namespace StingTools.Tags
             {
                 matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
             }
-            catch { return (0, 0); }
+            catch (Exception ex) { StingLog.Warn($"Cannot get OST_Materials: {ex.Message}"); return (0, 0); }
 
             if (matCat == null || !matCat.AllowsBoundParameters)
                 return (0, 0);
 
             int removed = 0, added = 0;
 
-            // Collect all bindings first (can't modify while iterating)
-            var toRemoveMat = new List<(Definition def, InstanceBinding binding)>();
-            var toAddMat = new List<(Definition def, InstanceBinding binding)>();
-
+            // Snapshot all bindings (can't modify BindingMap while iterating)
+            var entries = new List<(Definition def, InstanceBinding binding, ForgeTypeId groupId)>();
             var iter = doc.ParameterBindings.ForwardIterator();
             while (iter.MoveNext())
             {
@@ -574,16 +572,34 @@ namespace StingTools.Tags
                 if (def == null || string.IsNullOrEmpty(def.Name)) continue;
                 if (!(iter.Current is InstanceBinding ib)) continue;
 
+                // Preserve the original parameter group for re-insertion
+                ForgeTypeId grp = GroupTypeId.General;
+                try
+                {
+                    if (def is InternalDefinition idef)
+                        grp = idef.GetGroupTypeId() ?? GroupTypeId.General;
+                }
+                catch { /* keep General fallback */ }
+
+                entries.Add((def, ib, grp));
+            }
+
+            // Classify: which need Materials removed, which need it added
+            var toRemoveMat = new List<(Definition def, InstanceBinding binding, ForgeTypeId groupId)>();
+            var toAddMat = new List<(Definition def, InstanceBinding binding, ForgeTypeId groupId)>();
+
+            foreach (var (def, ib, grp) in entries)
+            {
                 bool hasMat = ib.Categories.Contains(matCat);
                 bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
 
                 if (hasMat && !shouldHaveMat)
-                    toRemoveMat.Add((def, ib));
+                    toRemoveMat.Add((def, ib, grp));
                 else if (!hasMat && shouldHaveMat)
-                    toAddMat.Add((def, ib));
+                    toAddMat.Add((def, ib, grp));
             }
 
-            StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove, {toAddMat.Count} to add");
+            StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove Materials, {toAddMat.Count} to add Materials");
 
             if (toRemoveMat.Count == 0 && toAddMat.Count == 0)
                 return (0, 0);
@@ -597,37 +613,63 @@ namespace StingTools.Tags
                 tx.Start();
                 try
                 {
-                    // Remove Materials from non-material params
-                    foreach (var (def, ib) in toRemoveMat)
+                    // ── Remove Materials from non-material params ──
+                    // Build a FRESH CategorySet copying everything except Materials,
+                    // then Remove + Insert (ReInsert with wrong group can fail silently).
+                    foreach (var (def, ib, grp) in toRemoveMat)
                     {
                         try
                         {
-                            var cats = ib.Categories;
-                            if (cats.Contains(matCat))
+                            // Build fresh set without Materials
+                            var newCats = app.Create.NewCategorySet();
+                            foreach (Category c in ib.Categories)
                             {
-                                cats.Erase(matCat);
-                                if (cats.Size > 0)
-                                {
-                                    var newBinding = app.Create.NewInstanceBinding(cats);
-                                    doc.ParameterBindings.ReInsert(def, newBinding, GroupTypeId.General);
-                                    removed++;
-                                }
-                                // If Materials was the ONLY category, leave it (param needs at least one)
+                                if (c.Id.Value != matCat.Id.Value)
+                                    newCats.Insert(c);
+                            }
+
+                            if (newCats.Size == 0)
+                                continue; // param must keep at least one category
+
+                            var newBinding = app.Create.NewInstanceBinding(newCats);
+
+                            // Remove then Insert — more reliable than ReInsert
+                            doc.ParameterBindings.Remove(def);
+                            if (doc.ParameterBindings.Insert(def, newBinding, grp))
+                            {
+                                removed++;
+                            }
+                            else
+                            {
+                                // Insert failed — try ReInsert as fallback
+                                doc.ParameterBindings.ReInsert(def, newBinding, grp);
+                                removed++;
                             }
                         }
                         catch (Exception ex) { StingLog.Warn($"Remove mat from '{def.Name}': {ex.Message}"); }
                     }
 
-                    // Add Materials to material-relevant params missing it
-                    foreach (var (def, ib) in toAddMat)
+                    // ── Add Materials to material-relevant params missing it ──
+                    foreach (var (def, ib, grp) in toAddMat)
                     {
                         try
                         {
-                            var cats = ib.Categories;
-                            cats.Insert(matCat);
-                            var newBinding = app.Create.NewInstanceBinding(cats);
-                            doc.ParameterBindings.ReInsert(def, newBinding, GroupTypeId.General);
-                            added++;
+                            var newCats = app.Create.NewCategorySet();
+                            foreach (Category c in ib.Categories)
+                                newCats.Insert(c);
+                            newCats.Insert(matCat);
+
+                            var newBinding = app.Create.NewInstanceBinding(newCats);
+                            doc.ParameterBindings.Remove(def);
+                            if (doc.ParameterBindings.Insert(def, newBinding, grp))
+                            {
+                                added++;
+                            }
+                            else
+                            {
+                                doc.ParameterBindings.ReInsert(def, newBinding, grp);
+                                added++;
+                            }
                         }
                         catch (Exception ex) { StingLog.Warn($"Add mat to '{def.Name}': {ex.Message}"); }
                     }
