@@ -201,7 +201,9 @@ namespace StingTools.Tags
 
             // NOTE: OST_Materials is NOT added to coreCats.
             // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
-            // via dedicated matCats override in BuildGroupCategoryOverrides().
+            // via dedicated matCats override in BuildGroupCategoryOverrides() to BLE
+            // element categories (walls, floors, ceilings, etc.), NOT to OST_Materials
+            // (which doesn't support AllowsBoundParameters in Revit API).
             // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
             // polluting every material's custom properties panel.
 
@@ -344,6 +346,59 @@ namespace StingTools.Tags
                 errors.Add($"Material cleanup: {ex.Message}");
             }
 
+            // ── Step 6b: Remove ALL remaining shared parameter bindings from OST_Materials ──
+            // Materials should use native Revit properties (Color, Transparency,
+            // ThermalAsset, StructuralAsset) — NOT shared parameter bindings.
+            // Previous versions incorrectly included OST_Materials in CategoryEnumMap,
+            // causing all 2300+ shared parameters to be bound to every material.
+            int materialsUnbound = 0;
+            try
+            {
+                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat != null)
+                {
+                    // Collect all bindings that include OST_Materials
+                    var toFix = new List<(Definition def, ElementBinding binding)>();
+                    var scanIter = doc.ParameterBindings.ForwardIterator();
+                    while (scanIter.MoveNext())
+                    {
+                        if (scanIter.Current is ElementBinding eb && eb.Categories.Contains(matCat))
+                            toFix.Add((scanIter.Key, eb));
+                    }
+
+                    if (toFix.Count > 0)
+                    {
+                        StingLog.Info($"Cleaning up {toFix.Count} parameter bindings from OST_Materials");
+                        using (Transaction txClean = new Transaction(doc, "STING Remove Material Bindings"))
+                        {
+                            txClean.Start();
+                            foreach (var (def, eb) in toFix)
+                            {
+                                try
+                                {
+                                    eb.Categories.Erase(matCat);
+                                    if (eb.Categories.Size > 0)
+                                        doc.ParameterBindings.ReInsert(def, eb);
+                                    else
+                                        doc.ParameterBindings.Remove(def);
+                                    materialsUnbound++;
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Warn($"Failed to unbind '{def.Name}' from Materials: {ex2.Message}");
+                                }
+                            }
+                            txClean.Commit();
+                        }
+                        StingLog.Info($"Removed {materialsUnbound} parameter bindings from OST_Materials");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Material binding cleanup: {ex.Message}");
+            }
+
             // ── Report ──
             var report = new StringBuilder();
             report.AppendLine($"Bound: {bound} parameters");
@@ -354,6 +409,8 @@ namespace StingTools.Tags
             report.AppendLine($"Groups processed: {groupsToProcess.Count}");
             if (matRemoved > 0 || matAdded > 0)
                 report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
+            if (materialsUnbound > 0)
+                report.AppendLine($"Material cleanup: removed {materialsUnbound} stale bindings from OST_Materials");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
@@ -496,7 +553,12 @@ namespace StingTools.Tags
                 overrides["BLE_STRUCTURE"] = bleCats;
             }
 
-            var matCats = BuildCatSet(doc, new[] { BuiltInCategory.OST_Materials });
+            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
+            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
+            // the elements that USE materials. This makes material properties
+            // visible on those elements and schedulable in material takeoffs.
+            var matCats = BuildCatSet(doc, BleCategories);
             if (matCats.Size > 0)
             {
                 overrides["MAT_INFO"] = matCats;
@@ -812,6 +874,8 @@ namespace StingTools.Tags
             // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
+            // via group overrides (OST_Materials doesn't support bound params)
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);

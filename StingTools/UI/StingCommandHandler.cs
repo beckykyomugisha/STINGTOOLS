@@ -715,8 +715,10 @@ namespace StingTools.UI
                     case "CreateConduits": RunCommand<Temp.CreateConduitsCommand>(app); break;
 
                     // ── Schedules ──
-                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
-                    case "BatchSchedules": RunCommand<Temp.BatchSchedulesCommand>(app); break;
+                    case "FullAutoPopulate":
+                    case "FullAuto": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
+                    case "BatchSchedules":
+                    case "CreateBatch": RunCommand<Temp.BatchSchedulesCommand>(app); break;
                     case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
                     case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
@@ -2251,10 +2253,48 @@ namespace StingTools.UI
                     }
                     case "ScheduleWizard":
                     {
-                        var dlgResult = UI.ScheduleWizardDialog.Show();
+                        // Load CSV definitions and existing schedule names for the wizard
+                        var doc = app.ActiveUIDocument?.Document;
+                        var csvDefs = new List<string>();
+                        var existingScheds = new List<string>();
+                        try
+                        {
+                            string csvPath = Core.StingToolsApp.FindDataFile("MR_SCHEDULES.csv");
+                            if (!string.IsNullOrEmpty(csvPath) && System.IO.File.Exists(csvPath))
+                            {
+                                foreach (string line in System.IO.File.ReadAllLines(csvPath))
+                                {
+                                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+                                    string[] parts = Core.StingToolsApp.ParseCsvLine(line);
+                                    if (parts.Length > 3 && parts[0].Trim().Equals("SCHEDULE", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        string schedName = parts[3].Trim();
+                                        if (!string.IsNullOrEmpty(schedName))
+                                            csvDefs.Add(schedName);
+                                    }
+                                }
+                            }
+                            if (doc != null)
+                            {
+                                existingScheds = new FilteredElementCollector(doc)
+                                    .OfClass(typeof(ViewSchedule))
+                                    .Cast<ViewSchedule>()
+                                    .Select(s => s.Name)
+                                    .ToList();
+                            }
+                        }
+                        catch (Exception ex) { Core.StingLog.Warn($"ScheduleWizard CSV load: {ex.Message}"); }
+
+                        var dlgResult = UI.ScheduleWizardDialog.Show(csvDefs, existingScheds);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
                         {
+                            // Dashboard returns operation strings that map directly to dispatch case labels
+                            // e.g. "CreateBatch", "ScheduleAudit", "ScheduleCompare", "ExportCSV",
+                            //      "SchedAutoFit", "CorporateTitleBlock", "PanelSchedule", "MEPScheduleHVAC", etc.
                             SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
                             Execute(app);
                         }
                         break;
