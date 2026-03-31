@@ -160,12 +160,33 @@ namespace StingTools.Tags
 
             StingLog.Info($"To bind: {totalToBind}, already bound: {alreadyBound}");
 
+            // ── Always clean material bindings, even when nothing new to bind ──
+            // CRITICAL: This must run BEFORE the early return below. Prior sessions
+            // may have bound ALL 2300+ params to OST_Materials via coreCats. This
+            // cleanup removes Materials from non-material params and adds it to
+            // material-relevant params (MAT_*, PROP_*, BLE_APP-*, BLE_MAT_*, COMP_MAT_*).
+            int matRemovedEarly = 0, matAddedEarly = 0;
+            try
+            {
+                (matRemovedEarly, matAddedEarly) = CleanMaterialBindings(doc, app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings (early) failed", ex);
+            }
+
             if (totalToBind == 0)
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    $"All {totalDefs} parameters are already bound — nothing to do.\n\n" +
-                    $"{alreadyBound} parameters already present in project.\n" +
-                    $"\nSource: {spFile}");
+                var earlyMsg = new StringBuilder();
+                earlyMsg.AppendLine($"All {totalDefs} parameters are already bound — nothing to do.");
+                earlyMsg.AppendLine($"{alreadyBound} parameters already present in project.");
+                if (matRemovedEarly > 0 || matAddedEarly > 0)
+                {
+                    earlyMsg.AppendLine();
+                    earlyMsg.AppendLine($"Material cleanup: removed Materials from {matRemovedEarly} params, added to {matAddedEarly} params.");
+                }
+                earlyMsg.AppendLine($"\nSource: {spFile}");
+                TaskDialog.Show("STING Tools - Load Shared Params", earlyMsg.ToString());
                 return Result.Succeeded;
             }
 
@@ -307,18 +328,19 @@ namespace StingTools.Tags
                 }
             }
 
-            // ── Step 6: Clean material bindings ──
-            // Remove OST_Materials from non-material params that were bound in prior
-            // sessions (when coreCats mistakenly included Materials), and ensure
-            // material-relevant BLE_APP-*/BLE_MAT_* params ARE bound to Materials.
-            int matRemoved = 0, matAdded = 0;
+            // ── Step 6: Clean material bindings (second pass) ──
+            // Run again after new bindings — new params may have been bound to
+            // non-material groups that include OST_Materials by mistake.
+            int matRemoved = matRemovedEarly, matAdded = matAddedEarly;
             try
             {
-                (matRemoved, matAdded) = CleanMaterialBindings(doc, app);
+                var (r2, a2) = CleanMaterialBindings(doc, app);
+                matRemoved += r2;
+                matAdded += a2;
             }
             catch (Exception ex)
             {
-                StingLog.Error("CleanMaterialBindings failed", ex);
+                StingLog.Error("CleanMaterialBindings (post-bind) failed", ex);
                 errors.Add($"Material cleanup: {ex.Message}");
             }
 
