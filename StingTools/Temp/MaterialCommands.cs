@@ -37,6 +37,21 @@ namespace StingTools.Temp
         public const int ColDurability = 13;        // MAT_DURABILITY
         public const int ColSpecifications = 14;    // MAT_SPECIFICATIONS
         public const int ColLayerCount = 15;        // MAT_LAYER_COUNT
+        public const int ColLayer1Material = 16;    // MAT_LAYER_1_MATERIAL
+        public const int ColLayer1Thickness = 17;   // MAT_LAYER_1_THICKNESS_MM
+        public const int ColLayer1Function = 18;    // MAT_LAYER_1_FUNCTION
+        public const int ColLayer2Material = 19;    // MAT_LAYER_2_MATERIAL
+        public const int ColLayer2Thickness = 20;   // MAT_LAYER_2_THICKNESS_MM
+        public const int ColLayer2Function = 21;    // MAT_LAYER_2_FUNCTION
+        public const int ColLayer3Material = 22;    // MAT_LAYER_3_MATERIAL
+        public const int ColLayer3Thickness = 23;   // MAT_LAYER_3_THICKNESS_MM
+        public const int ColLayer3Function = 24;    // MAT_LAYER_3_FUNCTION
+        public const int ColLayer4Material = 25;    // MAT_LAYER_4_MATERIAL
+        public const int ColLayer4Thickness = 26;   // MAT_LAYER_4_THICKNESS_MM
+        public const int ColLayer4Function = 27;    // MAT_LAYER_4_FUNCTION
+        public const int ColLayer5Material = 28;    // MAT_LAYER_5_MATERIAL
+        public const int ColLayer5Thickness = 29;   // MAT_LAYER_5_THICKNESS_MM
+        public const int ColLayer5Function = 30;    // MAT_LAYER_5_FUNCTION
         public const int ColManufacturer = 31;      // MAT_MANUFACTURER
         public const int ColStandard = 32;          // MAT_STANDARD
         public const int ColFeatures = 33;          // MAT_FEATURES
@@ -100,6 +115,26 @@ namespace StingTools.Temp
             (ColCostUgx,        "MAT_COST_UGX"),
             (ColCostAssemblyUsd,"MAT_COST_ASSEMBLY_USD"),
             (ColCostAssemblyUgx,"MAT_COST_ASSEMBLY_UGX"),
+            // Identity
+            (ColName,           "MAT_NAME"),
+            (ColManufacturer,   "MAT_MANUFACTURER"),
+            // Layer composition
+            (ColLayerCount,     "MAT_LAYER_COUNT"),
+            (ColLayer1Material, "MAT_LAYER_1_MATERIAL"),
+            (ColLayer1Thickness,"MAT_LAYER_1_THICKNESS_MM"),
+            (ColLayer1Function, "MAT_LAYER_1_FUNCTION"),
+            (ColLayer2Material, "MAT_LAYER_2_MATERIAL"),
+            (ColLayer2Thickness,"MAT_LAYER_2_THICKNESS_MM"),
+            (ColLayer2Function, "MAT_LAYER_2_FUNCTION"),
+            (ColLayer3Material, "MAT_LAYER_3_MATERIAL"),
+            (ColLayer3Thickness,"MAT_LAYER_3_THICKNESS_MM"),
+            (ColLayer3Function, "MAT_LAYER_3_FUNCTION"),
+            (ColLayer4Material, "MAT_LAYER_4_MATERIAL"),
+            (ColLayer4Thickness,"MAT_LAYER_4_THICKNESS_MM"),
+            (ColLayer4Function, "MAT_LAYER_4_FUNCTION"),
+            (ColLayer5Material, "MAT_LAYER_5_MATERIAL"),
+            (ColLayer5Thickness,"MAT_LAYER_5_THICKNESS_MM"),
+            (ColLayer5Function, "MAT_LAYER_5_FUNCTION"),
             // Durability & Specs
             (ColDurability,     "MAT_DURABILITY"),
             (ColSpecifications, "MAT_SPECIFICATIONS"),
