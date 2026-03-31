@@ -744,10 +744,10 @@ namespace StingTools.UI
                 MaxHeight = 180,
                 BorderBrush = BrBorder,
                 BorderThickness = new Thickness(1),
-                Background = BrWhite,
-                VirtualizingPanel.IsVirtualizing = true,
-                VirtualizingPanel.VirtualizationMode = VirtualizationMode.Recycling
+                Background = BrWhite
             };
+            VirtualizingPanel.SetIsVirtualizing(listBox, true);
+            VirtualizingPanel.SetVirtualizationMode(listBox, VirtualizationMode.Recycling);
 
             foreach (var item in items)
             {
