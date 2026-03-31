@@ -1271,9 +1271,14 @@ namespace StingTools.Core
 
                 StingLog.Info($"ParamRegistry.LoadFromFile: {CategoryEnumMap.Count} category enum mappings loaded");
 
-                // Universal categories
-                UniversalCategories = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
-                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded");
+                // Universal categories — exclude "Materials" which is handled separately
+                // via BuildGroupCategoryOverrides() in LoadSharedParamsCommand.
+                // Including it here would bind ALL params to OST_Materials.
+                var rawUCats = root["universal_categories"]?.ToObject<string[]>() ?? Array.Empty<string>();
+                UniversalCategories = rawUCats
+                    .Where(c => !c.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                StingLog.Info($"ParamRegistry.LoadFromFile: {UniversalCategories.Length} universal categories loaded (Materials excluded)");
 
                 // Load extended params
                 LoadExtendedParams(root);
@@ -1962,7 +1967,13 @@ namespace StingTools.Core
 
             // Set UniversalCategories to the full category list so
             // ResolveUniversalCategoryEnums returns all categories even without JSON.
-            UniversalCategories = CategoryEnumMap.Keys.ToArray();
+            // CRITICAL: Exclude "Materials" — material-specific params are bound via
+            // BuildGroupCategoryOverrides() in LoadSharedParamsCommand. Including Materials
+            // here would bind ALL 2300+ parameters to OST_Materials, polluting every
+            // material's custom properties panel in Revit.
+            UniversalCategories = CategoryEnumMap.Keys
+                .Where(k => !k.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
             StingLog.Info($"LoadDefaults: {_guidByName.Count} GUIDs, {CategoryEnumMap.Count} categories (v5.0), {UniversalParams.Length} universal params");
         }
