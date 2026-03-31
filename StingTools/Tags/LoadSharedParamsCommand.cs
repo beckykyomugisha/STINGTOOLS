@@ -542,13 +542,20 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Post-binding cleanup: iterates ALL existing parameter bindings in the project
-        /// and (a) removes OST_Materials from non-material params that were mistakenly
-        /// bound in prior sessions, (b) adds OST_Materials to material-relevant params
-        /// (BLE_APP-*, BLE_MAT_*) that are missing it.
+        /// NUCLEAR material binding cleanup — completely removes and rebinds every
+        /// parameter that has wrong Materials category assignment.
         ///
-        /// Uses BindingMap.ReInsert() to update bindings IN-PLACE. The Remove+Insert
-        /// pattern fails because the Definition reference becomes invalid after Remove.
+        /// Strategy: for each wrongly-bound param, look up its ExternalDefinition
+        /// from the shared parameter FILE (not from the BindingMap iterator — those
+        /// references become invalid after Remove). Then Remove the old binding and
+        /// Insert a fresh one with the correct CategorySet.
+        ///
+        /// This is the only approach that reliably works in the Revit API because:
+        /// - ReInsert() silently fails to actually change categories in many cases
+        /// - Remove+Insert using iterator Definition refs fails because Remove
+        ///   invalidates the Definition reference
+        /// - Only ExternalDefinition from DefinitionFile survives Remove()
+        ///
         /// Returns (removed, added) counts.
         /// </summary>
         private static (int removed, int added) CleanMaterialBindings(
@@ -566,33 +573,58 @@ namespace StingTools.Tags
 
             long matCatIdVal = matCat.Id.Value;
 
-            int removed = 0, added = 0;
-            int removeFailed = 0, addFailed = 0;
+            // ── Step A: Build a lookup of ExternalDefinitions from the shared param FILE ──
+            // These are the ONLY Definition references that survive a BindingMap.Remove().
+            DefinitionFile defFile = null;
+            try { defFile = app.OpenSharedParameterFile(); }
+            catch (Exception ex) { StingLog.Warn($"Cannot open shared param file for cleanup: {ex.Message}"); }
 
-            // Snapshot all bindings (can't modify BindingMap while iterating)
-            var entries = new List<(Definition def, InstanceBinding binding)>();
+            var freshDefs = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
+            if (defFile != null)
+            {
+                foreach (DefinitionGroup grp in defFile.Groups)
+                {
+                    foreach (Definition d in grp.Definitions)
+                    {
+                        if (d is ExternalDefinition ext && !string.IsNullOrEmpty(ext.Name))
+                            freshDefs[ext.Name] = ext;
+                    }
+                }
+            }
+            StingLog.Info($"Material cleanup: loaded {freshDefs.Count} ExternalDefinitions from file");
+
+            if (freshDefs.Count == 0)
+            {
+                StingLog.Warn("Material cleanup: no ExternalDefinitions found — cannot rebind");
+                return (0, 0);
+            }
+
+            // ── Step B: Snapshot current bindings and classify ──
+            var toRemoveMat = new List<(string name, CategorySet existingCats)>();
+            var toAddMat = new List<(string name, CategorySet existingCats)>();
+
             var iter = doc.ParameterBindings.ForwardIterator();
             while (iter.MoveNext())
             {
                 var def = iter.Key;
                 if (def == null || string.IsNullOrEmpty(def.Name)) continue;
                 if (!(iter.Current is InstanceBinding ib)) continue;
-                entries.Add((def, ib));
-            }
 
-            // Classify: which need Materials removed, which need it added
-            var toRemoveMat = new List<(Definition def, InstanceBinding binding)>();
-            var toAddMat = new List<(Definition def, InstanceBinding binding)>();
+                bool hasMat = false;
+                var cats = app.Create.NewCategorySet();
+                foreach (Category c in ib.Categories)
+                {
+                    if (c.Id.Value == matCatIdVal)
+                        hasMat = true;
+                    cats.Insert(c);
+                }
 
-            foreach (var (def, ib) in entries)
-            {
-                bool hasMat = ib.Categories.Contains(matCat);
                 bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
 
                 if (hasMat && !shouldHaveMat)
-                    toRemoveMat.Add((def, ib));
+                    toRemoveMat.Add((def.Name, cats));
                 else if (!hasMat && shouldHaveMat)
-                    toAddMat.Add((def, ib));
+                    toAddMat.Add((def.Name, cats));
             }
 
             StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove Materials, {toAddMat.Count} to add Materials");
@@ -600,127 +632,168 @@ namespace StingTools.Tags
             if (toRemoveMat.Count == 0 && toAddMat.Count == 0)
                 return (0, 0);
 
-            using (Transaction tx = new Transaction(doc, "STING Clean Material Bindings"))
+            int removed = 0, added = 0;
+            int removeFailed = 0, addFailed = 0;
+
+            // ── Step C: Remove Materials from non-material params ──
+            // Process in individual transactions for maximum reliability.
+            // Each param: Remove old binding → Insert new binding with fresh ExternalDefinition.
+            foreach (var (name, existingCats) in toRemoveMat)
             {
-                var failOpts = tx.GetFailureHandlingOptions();
-                failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
-                tx.SetFailureHandlingOptions(failOpts);
-
-                tx.Start();
-                try
+                if (!freshDefs.TryGetValue(name, out ExternalDefinition freshDef))
                 {
-                    // ── Remove Materials from non-material params ──
-                    // Build a FRESH CategorySet copying everything EXCEPT Materials,
-                    // then use ReInsert to update the binding in-place.
-                    // CRITICAL: Do NOT use Remove+Insert — the Definition reference
-                    // from the iterator becomes invalid after Remove, causing Insert
-                    // to silently fail and leaving the binding unchanged.
-                    foreach (var (def, ib) in toRemoveMat)
+                    removeFailed++;
+                    if (removeFailed <= 5)
+                        StingLog.Warn($"No ExternalDefinition found for '{name}' — cannot rebind");
+                    continue;
+                }
+
+                // Build new CategorySet without Materials
+                var newCats = app.Create.NewCategorySet();
+                foreach (Category c in existingCats)
+                {
+                    if (c.Id.Value != matCatIdVal)
+                        newCats.Insert(c);
+                }
+                if (newCats.Size == 0)
+                    continue; // must keep at least one category
+
+                using (Transaction tx = new Transaction(doc, $"STING Fix Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
                     {
-                        try
+                        // Remove old binding
+                        doc.ParameterBindings.Remove(freshDef);
+
+                        // Insert fresh binding WITHOUT Materials
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        if (doc.ParameterBindings.Insert(freshDef, newBinding, GroupTypeId.General))
                         {
-                            var newCats = app.Create.NewCategorySet();
-                            foreach (Category c in ib.Categories)
-                            {
-                                if (c.Id.Value != matCatIdVal)
-                                    newCats.Insert(c);
-                            }
-
-                            if (newCats.Size == 0)
-                                continue; // param must keep at least one category
-
-                            var newBinding = app.Create.NewInstanceBinding(newCats);
-
-                            // ReInsert updates the existing binding's categories in-place
-                            if (doc.ParameterBindings.ReInsert(def, newBinding))
-                            {
+                            removed++;
+                        }
+                        else
+                        {
+                            // Insert returned false — try ReInsert as last resort
+                            if (doc.ParameterBindings.ReInsert(freshDef, newBinding))
                                 removed++;
-                            }
                             else
                             {
                                 removeFailed++;
                                 if (removeFailed <= 5)
-                                    StingLog.Warn($"ReInsert failed for '{def.Name}' (remove Materials)");
+                                    StingLog.Warn($"Remove+Insert AND ReInsert both failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            removeFailed++;
-                            if (removeFailed <= 5)
-                                StingLog.Warn($"Remove mat from '{def.Name}': {ex.Message}");
-                        }
+
+                        tx.Commit();
                     }
-
-                    // ── Add Materials to material-relevant params missing it ──
-                    foreach (var (def, ib) in toAddMat)
+                    catch (Exception ex)
                     {
-                        try
+                        removeFailed++;
+                        if (removeFailed <= 5)
+                            StingLog.Warn($"Remove mat from '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
+                }
+            }
+
+            // ── Step D: Add Materials to material-relevant params missing it ──
+            foreach (var (name, existingCats) in toAddMat)
+            {
+                if (!freshDefs.TryGetValue(name, out ExternalDefinition freshDef))
+                {
+                    addFailed++;
+                    if (addFailed <= 5)
+                        StingLog.Warn($"No ExternalDefinition found for '{name}' — cannot add Materials");
+                    continue;
+                }
+
+                // Build new CategorySet with Materials added
+                var newCats = app.Create.NewCategorySet();
+                foreach (Category c in existingCats)
+                    newCats.Insert(c);
+                newCats.Insert(matCat);
+
+                using (Transaction tx = new Transaction(doc, $"STING Add Mat: {name}"))
+                {
+                    var failOpts = tx.GetFailureHandlingOptions();
+                    failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                    tx.SetFailureHandlingOptions(failOpts);
+
+                    tx.Start();
+                    try
+                    {
+                        doc.ParameterBindings.Remove(freshDef);
+
+                        var newBinding = app.Create.NewInstanceBinding(newCats);
+                        if (doc.ParameterBindings.Insert(freshDef, newBinding, GroupTypeId.General))
                         {
-                            var newCats = app.Create.NewCategorySet();
-                            foreach (Category c in ib.Categories)
-                                newCats.Insert(c);
-                            newCats.Insert(matCat);
-
-                            var newBinding = app.Create.NewInstanceBinding(newCats);
-
-                            if (doc.ParameterBindings.ReInsert(def, newBinding))
-                            {
+                            added++;
+                        }
+                        else
+                        {
+                            if (doc.ParameterBindings.ReInsert(freshDef, newBinding))
                                 added++;
-                            }
                             else
                             {
                                 addFailed++;
                                 if (addFailed <= 5)
-                                    StingLog.Warn($"ReInsert failed for '{def.Name}' (add Materials)");
+                                    StingLog.Warn($"Remove+Insert AND ReInsert both failed for '{name}'");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            addFailed++;
-                            if (addFailed <= 5)
-                                StingLog.Warn($"Add mat to '{def.Name}': {ex.Message}");
-                        }
+
+                        tx.Commit();
                     }
-
-                    tx.Commit();
-                    StingLog.Info($"Material cleanup committed: removed={removed} (failed={removeFailed}), added={added} (failed={addFailed})");
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Error("Material cleanup transaction failed", ex);
-                    if (tx.HasStarted() && !tx.HasEnded())
-                        tx.RollBack();
-                    return (0, 0);
+                    catch (Exception ex)
+                    {
+                        addFailed++;
+                        if (addFailed <= 5)
+                            StingLog.Warn($"Add mat to '{name}': {ex.Message}");
+                        if (tx.HasStarted() && !tx.HasEnded())
+                            tx.RollBack();
+                    }
                 }
             }
 
-            // ── Verification pass: confirm Materials was actually removed ──
-            if (removed > 0 || added > 0)
+            StingLog.Info($"Material cleanup done: removed={removed} (failed={removeFailed}), added={added} (failed={addFailed})");
+
+            // ── Step E: Verification pass ──
+            int stillPolluted = 0;
+            int materialParamsMissing = 0;
+            var verifyIter = doc.ParameterBindings.ForwardIterator();
+            while (verifyIter.MoveNext())
             {
-                int stillPolluted = 0;
-                int materialParamsMissing = 0;
-                var verifyIter = doc.ParameterBindings.ForwardIterator();
-                while (verifyIter.MoveNext())
+                var vDef = verifyIter.Key;
+                if (vDef == null || string.IsNullOrEmpty(vDef.Name)) continue;
+                if (!(verifyIter.Current is InstanceBinding vib)) continue;
+
+                bool hasMat = false;
+                foreach (Category c in vib.Categories)
                 {
-                    var def = verifyIter.Key;
-                    if (def == null || string.IsNullOrEmpty(def.Name)) continue;
-                    if (!(verifyIter.Current is InstanceBinding vib)) continue;
-
-                    bool hasMat = vib.Categories.Contains(matCat);
-                    bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
-
-                    if (hasMat && !shouldHaveMat) stillPolluted++;
-                    if (!hasMat && shouldHaveMat) materialParamsMissing++;
+                    if (c.Id.Value == matCatIdVal)
+                    { hasMat = true; break; }
                 }
 
-                if (stillPolluted > 0)
-                    StingLog.Warn($"VERIFICATION: {stillPolluted} non-material params STILL have Materials bound — ReInsert may not be effective");
-                else
-                    StingLog.Info("VERIFICATION: All non-material params successfully cleaned of Materials binding");
+                bool shouldHaveMat = IsMaterialRelevantParam(vDef.Name);
 
-                if (materialParamsMissing > 0)
-                    StingLog.Warn($"VERIFICATION: {materialParamsMissing} material-relevant params still missing Materials binding");
+                if (hasMat && !shouldHaveMat) stillPolluted++;
+                if (!hasMat && shouldHaveMat) materialParamsMissing++;
             }
+
+            if (stillPolluted > 0)
+                StingLog.Warn($"VERIFICATION FAILED: {stillPolluted} non-material params STILL have Materials bound");
+            else if (removed > 0)
+                StingLog.Info("VERIFICATION PASSED: All non-material params cleaned of Materials binding");
+
+            if (materialParamsMissing > 0)
+                StingLog.Warn($"VERIFICATION: {materialParamsMissing} material-relevant params still missing Materials binding");
+            else if (added > 0)
+                StingLog.Info("VERIFICATION PASSED: All material-relevant params have Materials binding");
 
             return (removed, added);
         }
