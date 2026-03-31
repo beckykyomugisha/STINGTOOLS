@@ -63,15 +63,16 @@ namespace StingTools.Temp
                 .Skip(1)
                 .ToList();
 
-            // Extract unique disciplines and categories from CSV column 1 (Discipline) and 3 (Category)
+            // Extract unique disciplines and categories from CSV columns:
+            // col[0]=Record_Type, col[1]=Source_File, col[2]=Discipline, col[3]=Schedule_Name, col[4]=Category
             var scheduleDefs = new List<(string discipline, string name, string category, string line)>();
             foreach (string rawLine in allLines)
             {
                 string[] rawCols = StingToolsApp.ParseCsvLine(rawLine);
-                if (rawCols.Length < 4) continue;
-                string discCol = rawCols.Length > 1 ? rawCols[1].Trim() : "General";
-                string nameCol = rawCols[2].Trim();
-                string catCol = rawCols[3].Trim();
+                if (rawCols.Length < 5) continue;
+                string discCol = rawCols.Length > 2 ? rawCols[2].Trim() : "General";
+                string nameCol = rawCols.Length > 3 ? rawCols[3].Trim() : "";
+                string catCol = rawCols.Length > 4 ? rawCols[4].Trim() : "";
                 if (string.IsNullOrEmpty(nameCol)) continue;
                 scheduleDefs.Add((discCol, nameCol, catCol, rawLine));
             }
@@ -146,7 +147,7 @@ namespace StingTools.Temp
                     }
 
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 4) continue;
+                    if (cols.Length < 5) continue;
 
                     // DAT-004: Handle VIEW_FILTER records
                     string recordType = cols[0].Trim();
@@ -185,17 +186,21 @@ namespace StingTools.Temp
                         continue;
                     }
 
-                    // Parse all 15 columns
-                    string name = cols[2].Trim();
-                    string category = cols[3].Trim();
-                    string scheduleType = cols.Length > 4 ? cols[4].Trim() : "";
-                    string multiCats = cols.Length > 5 ? cols[5].Trim() : "";
-                    string fieldsSpec = cols.Length > 6 ? cols[6].Trim() : "";
-                    string filterSpec = cols.Length > 7 ? cols[7].Trim() : "";
-                    string sortSpec = cols.Length > 8 ? cols[8].Trim() : "";
-                    string groupSpec = cols.Length > 9 ? cols[9].Trim() : "";
-                    string totalSpec = cols.Length > 10 ? cols[10].Trim() : "";
-                    string formulaSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    // Parse all 16 columns (0-indexed):
+                    // 0=Record_Type, 1=Source_File, 2=Discipline, 3=Schedule_Name,
+                    // 4=Category, 5=Schedule_Type, 6=Multi_Categories, 7=Fields,
+                    // 8=Filters, 9=Sorting, 10=Grouping, 11=Totals, 12=Formulas,
+                    // 13=Header_Color, 14=Text_Color, 15=Background_Color
+                    string name = cols[3].Trim();
+                    string category = cols.Length > 4 ? cols[4].Trim() : "";
+                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
+                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
+                    string fieldsSpec = cols.Length > 7 ? cols[7].Trim() : "";
+                    string filterSpec = cols.Length > 8 ? cols[8].Trim() : "";
+                    string sortSpec = cols.Length > 9 ? cols[9].Trim() : "";
+                    string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
+                    string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
+                    string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
 
                     if (string.IsNullOrEmpty(name)) continue;
                     if (existingNames.Contains(name))
@@ -233,6 +238,14 @@ namespace StingTools.Temp
                         {
                             remapped += ScheduleHelper.AddFieldsTracked(
                                 doc, vs, fieldsSpec, fieldRemaps, formulaMap, addedFieldIds);
+                        }
+
+                        // Warn if schedule was created with zero fields
+                        if (addedFieldIds.Count == 0 && !string.IsNullOrEmpty(fieldsSpec))
+                        {
+                            StingLog.Warn($"Schedule '{name}' (category={category}): " +
+                                "created with ZERO fields. Shared parameters may not be bound to this category. " +
+                                "Run 'Load Params' to bind parameters before creating schedules.");
                         }
 
                         // Apply column heading overrides from Formulas column
@@ -562,7 +575,24 @@ namespace StingTools.Temp
                     fieldLookup[sfName] = sf;
             }
 
+            StingLog.Info($"Schedule '{vs.Name}': {available.Count} schedulable fields available, " +
+                $"{fieldEntries.Length} fields requested from CSV");
+
+            // Log available field names when few are found (diagnostic for binding issues)
+            if (available.Count < 20)
+            {
+                var availNames = new List<string>();
+                foreach (var sf in available)
+                {
+                    string n = sf.GetName(doc);
+                    if (!string.IsNullOrEmpty(n)) availNames.Add(n);
+                }
+                StingLog.Info($"  Available fields: {string.Join(", ", availNames)}");
+            }
+
             int remappedCount = 0;
+            int fieldsAdded = 0;
+            var missingFields = new List<string>();
 
             foreach (string entry in fieldEntries)
             {
@@ -597,18 +627,48 @@ namespace StingTools.Temp
                     if (sf != null)
                     {
                         ScheduleField added = vs.Definition.AddField(sf);
-                        if (added != null && !addedFieldIds.ContainsKey(fieldName))
-                            addedFieldIds[fieldName] = added.FieldId;
-                        // Also register by the resolved name for sort/group lookups
-                        if (added != null && resolvedName != fieldName
-                            && !addedFieldIds.ContainsKey(resolvedName))
-                            addedFieldIds[resolvedName] = added.FieldId;
+                        if (added != null)
+                        {
+                            fieldsAdded++;
+                            if (!addedFieldIds.ContainsKey(fieldName))
+                                addedFieldIds[fieldName] = added.FieldId;
+                            // Also register by the resolved name for sort/group lookups
+                            if (resolvedName != fieldName
+                                && !addedFieldIds.ContainsKey(resolvedName))
+                                addedFieldIds[resolvedName] = added.FieldId;
+                        }
+                    }
+                    else
+                    {
+                        missingFields.Add(fieldName);
                     }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Schedule field add '{fieldName}': {ex.Message}");
+                    missingFields.Add(fieldName);
                 }
+            }
+
+            // Diagnostic: log missing fields so users can diagnose binding issues
+            if (missingFields.Count > 0)
+            {
+                string sample = string.Join(", ", missingFields.Count <= 10
+                    ? missingFields : missingFields.GetRange(0, 10));
+                StingLog.Warn($"Schedule '{vs.Name}': {missingFields.Count}/{fieldEntries.Length} fields NOT FOUND " +
+                    $"in schedulable fields. Missing: {sample}" +
+                    (missingFields.Count > 10 ? $" (+{missingFields.Count - 10} more)" : "") +
+                    ". Ensure shared parameters are bound to this schedule's category via Load Params.");
+            }
+
+            if (fieldsAdded == 0 && fieldEntries.Length > 0)
+            {
+                StingLog.Warn($"Schedule '{vs.Name}': ZERO fields added out of {fieldEntries.Length} requested! " +
+                    "The schedule will have no columns. Run 'Load Params' first to bind shared parameters.");
+            }
+            else
+            {
+                StingLog.Info($"Schedule '{vs.Name}': {fieldsAdded}/{fieldEntries.Length} fields added successfully");
             }
 
             return remappedCount;

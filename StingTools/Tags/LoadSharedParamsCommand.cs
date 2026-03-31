@@ -552,9 +552,14 @@ namespace StingTools.Tags
         ///
         /// This is the only approach that reliably works in the Revit API because:
         /// - ReInsert() silently fails to actually change categories in many cases
-        /// - Remove+Insert using iterator Definition refs fails because Remove
-        ///   invalidates the Definition reference
-        /// - Only ExternalDefinition from DefinitionFile survives Remove()
+        /// - Remove+Insert using ExternalDefinition from file FAILS silently
+        /// - ReInsert using ExternalDefinition FAILS silently
+        /// - The BindingMap is keyed by InternalDefinition, NOT ExternalDefinition
+        ///
+        /// APPROACH (6th attempt — InternalDefinition via SharedParameterElement):
+        /// Use SharedParameterElement.GetDefinition() to get the project-internal
+        /// Definition reference. This is the actual key in the BindingMap. Then use
+        /// ReInsert(internalDef, newBinding) to change the category set.
         ///
         /// Returns (removed, added) counts.
         /// </summary>
@@ -573,35 +578,38 @@ namespace StingTools.Tags
 
             long matCatIdVal = matCat.Id.Value;
 
-            // ── Step A: Build a lookup of ExternalDefinitions from the shared param FILE ──
-            // These are the ONLY Definition references that survive a BindingMap.Remove().
-            DefinitionFile defFile = null;
-            try { defFile = app.OpenSharedParameterFile(); }
-            catch (Exception ex) { StingLog.Warn($"Cannot open shared param file for cleanup: {ex.Message}"); }
-
-            var freshDefs = new Dictionary<string, ExternalDefinition>(StringComparer.OrdinalIgnoreCase);
-            if (defFile != null)
+            // ── Step A: Build name→SharedParameterElement lookup ──
+            // SharedParameterElement.GetDefinition() returns InternalDefinition,
+            // which is the ACTUAL key used by the BindingMap. All prior approaches
+            // used ExternalDefinition (from the .txt file) which is a DIFFERENT
+            // object identity — that's why Remove/Insert/ReInsert all failed silently.
+            var speByName = new Dictionary<string, SharedParameterElement>(StringComparer.OrdinalIgnoreCase);
+            try
             {
-                foreach (DefinitionGroup grp in defFile.Groups)
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
                 {
-                    foreach (Definition d in grp.Definitions)
-                    {
-                        if (d is ExternalDefinition ext && !string.IsNullOrEmpty(ext.Name))
-                            freshDefs[ext.Name] = ext;
-                    }
+                    InternalDefinition intDef = spe.GetDefinition();
+                    if (intDef != null && !string.IsNullOrEmpty(intDef.Name))
+                        speByName[intDef.Name] = spe;
                 }
             }
-            StingLog.Info($"Material cleanup: loaded {freshDefs.Count} ExternalDefinitions from file");
-
-            if (freshDefs.Count == 0)
+            catch (Exception ex)
             {
-                StingLog.Warn("Material cleanup: no ExternalDefinitions found — cannot rebind");
+                StingLog.Warn($"Cannot collect SharedParameterElements: {ex.Message}");
                 return (0, 0);
             }
 
-            // ── Step B: Snapshot current bindings and classify ──
-            var toRemoveMat = new List<(string name, CategorySet existingCats)>();
-            var toAddMat = new List<(string name, CategorySet existingCats)>();
+            StingLog.Info($"Material cleanup: found {speByName.Count} SharedParameterElements in project");
+
+            if (speByName.Count == 0)
+                return (0, 0);
+
+            // ── Step B: Classify params by current binding vs desired ──
+            var toRemoveMat = new List<string>(); // params that HAVE Materials but SHOULDN'T
+            var toAddMat = new List<string>();     // params that LACK Materials but SHOULD have it
 
             var iter = doc.ParameterBindings.ForwardIterator();
             while (iter.MoveNext())
@@ -611,20 +619,18 @@ namespace StingTools.Tags
                 if (!(iter.Current is InstanceBinding ib)) continue;
 
                 bool hasMat = false;
-                var cats = app.Create.NewCategorySet();
                 foreach (Category c in ib.Categories)
                 {
                     if (c.Id.Value == matCatIdVal)
-                        hasMat = true;
-                    cats.Insert(c);
+                    { hasMat = true; break; }
                 }
 
                 bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
 
                 if (hasMat && !shouldHaveMat)
-                    toRemoveMat.Add((def.Name, cats));
+                    toRemoveMat.Add(def.Name);
                 else if (!hasMat && shouldHaveMat)
-                    toAddMat.Add((def.Name, cats));
+                    toAddMat.Add(def.Name);
             }
 
             StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove Materials, {toAddMat.Count} to add Materials");
@@ -635,28 +641,34 @@ namespace StingTools.Tags
             int removed = 0, added = 0;
             int removeFailed = 0, addFailed = 0;
 
-            // ── Step C: Remove Materials from non-material params ──
-            // Process in individual transactions for maximum reliability.
-            // Each param: Remove old binding → Insert new binding with fresh ExternalDefinition.
-            foreach (var (name, existingCats) in toRemoveMat)
+            // ── Step C: Remove Materials from non-material params using InternalDefinition ──
+            // Process in individual transactions for safety.
+            foreach (string name in toRemoveMat)
             {
-                if (!freshDefs.TryGetValue(name, out ExternalDefinition freshDef))
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
                 {
                     removeFailed++;
                     if (removeFailed <= 5)
-                        StingLog.Warn($"No ExternalDefinition found for '{name}' — cannot rebind");
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot rebind");
                     continue;
                 }
 
-                // Build new CategorySet without Materials
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { removeFailed++; continue; }
+
+                // Read current binding via the InternalDefinition key
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { removeFailed++; continue; }
+
+                // Build new CategorySet WITHOUT Materials
                 var newCats = app.Create.NewCategorySet();
-                foreach (Category c in existingCats)
+                int kept = 0;
+                foreach (Category c in currentIB.Categories)
                 {
                     if (c.Id.Value != matCatIdVal)
-                        newCats.Insert(c);
+                    { newCats.Insert(c); kept++; }
                 }
-                if (newCats.Size == 0)
-                    continue; // must keep at least one category
+                if (kept == 0) continue; // must keep at least one category
 
                 using (Transaction tx = new Transaction(doc, $"STING Fix Mat: {name}"))
                 {
@@ -667,28 +679,18 @@ namespace StingTools.Tags
                     tx.Start();
                     try
                     {
-                        // Remove old binding
-                        doc.ParameterBindings.Remove(freshDef);
-
-                        // Insert fresh binding WITHOUT Materials
                         var newBinding = app.Create.NewInstanceBinding(newCats);
-                        if (doc.ParameterBindings.Insert(freshDef, newBinding, GroupTypeId.General))
+                        // ReInsert using InternalDefinition — the actual BindingMap key
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
                         {
                             removed++;
                         }
                         else
                         {
-                            // Insert returned false — try ReInsert as last resort
-                            if (doc.ParameterBindings.ReInsert(freshDef, newBinding))
-                                removed++;
-                            else
-                            {
-                                removeFailed++;
-                                if (removeFailed <= 5)
-                                    StingLog.Warn($"Remove+Insert AND ReInsert both failed for '{name}'");
-                            }
+                            removeFailed++;
+                            if (removeFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) failed for '{name}'");
                         }
-
                         tx.Commit();
                     }
                     catch (Exception ex)
@@ -702,20 +704,26 @@ namespace StingTools.Tags
                 }
             }
 
-            // ── Step D: Add Materials to material-relevant params missing it ──
-            foreach (var (name, existingCats) in toAddMat)
+            // ── Step D: Add Materials to material-relevant params using InternalDefinition ──
+            foreach (string name in toAddMat)
             {
-                if (!freshDefs.TryGetValue(name, out ExternalDefinition freshDef))
+                if (!speByName.TryGetValue(name, out SharedParameterElement spe))
                 {
                     addFailed++;
                     if (addFailed <= 5)
-                        StingLog.Warn($"No ExternalDefinition found for '{name}' — cannot add Materials");
+                        StingLog.Warn($"No SharedParameterElement for '{name}' — cannot add Materials");
                     continue;
                 }
 
-                // Build new CategorySet with Materials added
+                InternalDefinition intDef = spe.GetDefinition();
+                if (intDef == null) { addFailed++; continue; }
+
+                Binding currentBinding = doc.ParameterBindings.get_Item(intDef);
+                if (!(currentBinding is InstanceBinding currentIB)) { addFailed++; continue; }
+
+                // Build new CategorySet WITH Materials added
                 var newCats = app.Create.NewCategorySet();
-                foreach (Category c in existingCats)
+                foreach (Category c in currentIB.Categories)
                     newCats.Insert(c);
                 newCats.Insert(matCat);
 
@@ -728,25 +736,17 @@ namespace StingTools.Tags
                     tx.Start();
                     try
                     {
-                        doc.ParameterBindings.Remove(freshDef);
-
                         var newBinding = app.Create.NewInstanceBinding(newCats);
-                        if (doc.ParameterBindings.Insert(freshDef, newBinding, GroupTypeId.General))
+                        if (doc.ParameterBindings.ReInsert(intDef, newBinding))
                         {
                             added++;
                         }
                         else
                         {
-                            if (doc.ParameterBindings.ReInsert(freshDef, newBinding))
-                                added++;
-                            else
-                            {
-                                addFailed++;
-                                if (addFailed <= 5)
-                                    StingLog.Warn($"Remove+Insert AND ReInsert both failed for '{name}'");
-                            }
+                            addFailed++;
+                            if (addFailed <= 5)
+                                StingLog.Warn($"ReInsert(InternalDef) add-mat failed for '{name}'");
                         }
-
                         tx.Commit();
                     }
                     catch (Exception ex)
@@ -786,7 +786,8 @@ namespace StingTools.Tags
             }
 
             if (stillPolluted > 0)
-                StingLog.Warn($"VERIFICATION FAILED: {stillPolluted} non-material params STILL have Materials bound");
+                StingLog.Warn($"VERIFICATION FAILED: {stillPolluted} non-material params STILL have Materials bound — " +
+                    "InternalDefinition approach may need SharedParameterElement deletion as nuclear fallback");
             else if (removed > 0)
                 StingLog.Info("VERIFICATION PASSED: All non-material params cleaned of Materials binding");
 
