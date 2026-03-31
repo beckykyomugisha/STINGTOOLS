@@ -95,9 +95,9 @@ namespace StingTools.Temp
             // Dimensions
             (ColThicknessMm,    "MAT_THICKNESS_MM"),
             (ColThicknessInch,  "MAT_THICKNESS_INCH"),
-            // Cost
-            (ColCostUsd,        "MAT_COST_UNIT_USD"),
-            (ColCostUgx,        "MAT_COST_UNIT_UGX"),
+            // Cost — names must match MR_PARAMETERS.txt exactly
+            (ColCostUsd,        "MAT_COST_USD"),
+            (ColCostUgx,        "MAT_COST_UGX"),
             (ColCostAssemblyUsd,"MAT_COST_ASSEMBLY_USD"),
             (ColCostAssemblyUgx,"MAT_COST_ASSEMBLY_UGX"),
             // Durability & Specs
@@ -116,9 +116,9 @@ namespace StingTools.Temp
             (ColCarbon,         "PROP_CARBON_KG_M3"),
             (ColCompStrength,   "PROP_COMP_STRENGTH_MPA"),
             (ColTensStrength,   "PROP_TENS_STRENGTH_MPA"),
-            // Assets
-            (ColPhysicalAsset,  "BLE_APP_PHYSICAL_ASSET"),
-            (ColThermalAsset,   "BLE_APP_THERMAL_ASSET"),
+            // Assets — hyphens, not underscores (must match MR_PARAMETERS.txt)
+            (ColPhysicalAsset,  "BLE_APP-PHYSICAL-ASSET"),
+            (ColThermalAsset,   "BLE_APP-THERMAL-ASSET"),
             (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
         };
 

@@ -221,6 +221,12 @@ namespace StingTools.Tags
             foreach (var kvp in groupCatOverrides)
                 groupBindings[kvp.Key] = app.Create.NewInstanceBinding(kvp.Value);
 
+            // Pre-build a material-only binding for per-parameter overrides
+            // (BLE_APP-*, BLE_MAT_* params in CST_PROC group that need Materials binding)
+            InstanceBinding matOnlyBinding = null;
+            if (groupCatOverrides.TryGetValue("MAT_INFO", out CategorySet matOverrideCats))
+                matOnlyBinding = app.Create.NewInstanceBinding(matOverrideCats);
+
             // ── Step 5: Bind ONE GROUP per transaction ──
             int bound = 0;
             int skipped = 0;
@@ -259,10 +265,19 @@ namespace StingTools.Tags
                         {
                             try
                             {
-                                // Use the pre-built group binding — NEVER create
-                                // new InstanceBinding or call BuildCategorySet here
+                                // Per-parameter override: if this param is material-relevant
+                                // (BLE_APP-*, BLE_MAT_*) but the group binding targets core cats,
+                                // use the material-only binding instead so it binds to OST_Materials.
+                                InstanceBinding paramBinding = binding;
+                                if (matOnlyBinding != null
+                                    && !groupCatOverrides.ContainsKey(groupName)
+                                    && IsMaterialRelevantParam(extDef.Name))
+                                {
+                                    paramBinding = matOnlyBinding;
+                                }
+
                                 bool result = doc.ParameterBindings.Insert(
-                                    extDef, binding, GroupTypeId.General);
+                                    extDef, paramBinding, GroupTypeId.General);
 
                                 if (result)
                                     groupBound++;
@@ -292,6 +307,21 @@ namespace StingTools.Tags
                 }
             }
 
+            // ── Step 6: Clean material bindings ──
+            // Remove OST_Materials from non-material params that were bound in prior
+            // sessions (when coreCats mistakenly included Materials), and ensure
+            // material-relevant BLE_APP-*/BLE_MAT_* params ARE bound to Materials.
+            int matRemoved = 0, matAdded = 0;
+            try
+            {
+                (matRemoved, matAdded) = CleanMaterialBindings(doc, app);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CleanMaterialBindings failed", ex);
+                errors.Add($"Material cleanup: {ex.Message}");
+            }
+
             // ── Report ──
             var report = new StringBuilder();
             report.AppendLine($"Bound: {bound} parameters");
@@ -300,6 +330,8 @@ namespace StingTools.Tags
             report.AppendLine($"Total in file: {totalDefs}");
             report.AppendLine($"Categories: {coreCats.Size}");
             report.AppendLine($"Groups processed: {groupsToProcess.Count}");
+            if (matRemoved > 0 || matAdded > 0)
+                report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)
@@ -447,9 +479,149 @@ namespace StingTools.Tags
             {
                 overrides["MAT_INFO"] = matCats;
                 overrides["PROP_PHYSICAL"] = matCats;
+                // NOTE: Individual BLE_APP-* and BLE_MAT_* params from CST_PROC group
+                // are handled per-parameter in the binding loop via IsMaterialRelevantParam(),
+                // since the CST_PROC group also contains 100+ non-material params that
+                // should NOT be bound to Materials.
             }
 
             return overrides;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Material binding cleanup
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Determines whether a parameter name is material-relevant and should
+        /// be bound to OST_Materials. Only these prefixes/groups belong on materials.
+        /// </summary>
+        private static bool IsMaterialRelevantParam(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+
+            // Group 12 (MAT_INFO): all MAT_ prefixed params
+            if (paramName.StartsWith("MAT_", StringComparison.Ordinal)) return true;
+
+            // Group 14 (PROP_PHYSICAL): all PROP_ prefixed params
+            if (paramName.StartsWith("PROP_", StringComparison.Ordinal)) return true;
+
+            // Group 2 (CST_PROC) material-relevant subsets:
+            // 23 BLE_APP-* appearance/asset params (hyphens in names)
+            if (paramName.StartsWith("BLE_APP-", StringComparison.Ordinal)) return true;
+
+            // 19 BLE_MAT_* material metadata params
+            if (paramName.StartsWith("BLE_MAT_", StringComparison.Ordinal)) return true;
+
+            // Composite material tags
+            if (paramName.StartsWith("COMP_MAT_", StringComparison.Ordinal)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Post-binding cleanup: iterates ALL existing parameter bindings in the project
+        /// and (a) removes OST_Materials from non-material params that were mistakenly
+        /// bound in prior sessions, (b) adds OST_Materials to material-relevant params
+        /// (BLE_APP-*, BLE_MAT_*) that are missing it.
+        /// Returns (removed, added) counts.
+        /// </summary>
+        private static (int removed, int added) CleanMaterialBindings(
+            Document doc, Autodesk.Revit.ApplicationServices.Application app)
+        {
+            Category matCat;
+            try
+            {
+                matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+            }
+            catch { return (0, 0); }
+
+            if (matCat == null || !matCat.AllowsBoundParameters)
+                return (0, 0);
+
+            int removed = 0, added = 0;
+
+            // Collect all bindings first (can't modify while iterating)
+            var toRemoveMat = new List<(Definition def, InstanceBinding binding)>();
+            var toAddMat = new List<(Definition def, InstanceBinding binding)>();
+
+            var iter = doc.ParameterBindings.ForwardIterator();
+            while (iter.MoveNext())
+            {
+                var def = iter.Key;
+                if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                if (!(iter.Current is InstanceBinding ib)) continue;
+
+                bool hasMat = ib.Categories.Contains(matCat);
+                bool shouldHaveMat = IsMaterialRelevantParam(def.Name);
+
+                if (hasMat && !shouldHaveMat)
+                    toRemoveMat.Add((def, ib));
+                else if (!hasMat && shouldHaveMat)
+                    toAddMat.Add((def, ib));
+            }
+
+            StingLog.Info($"Material cleanup: {toRemoveMat.Count} to remove, {toAddMat.Count} to add");
+
+            if (toRemoveMat.Count == 0 && toAddMat.Count == 0)
+                return (0, 0);
+
+            using (Transaction tx = new Transaction(doc, "STING Clean Material Bindings"))
+            {
+                var failOpts = tx.GetFailureHandlingOptions();
+                failOpts.SetFailuresPreprocessor(new BindingWarningSwallower());
+                tx.SetFailureHandlingOptions(failOpts);
+
+                tx.Start();
+                try
+                {
+                    // Remove Materials from non-material params
+                    foreach (var (def, ib) in toRemoveMat)
+                    {
+                        try
+                        {
+                            var cats = ib.Categories;
+                            if (cats.Contains(matCat))
+                            {
+                                cats.Erase(matCat);
+                                if (cats.Size > 0)
+                                {
+                                    var newBinding = app.Create.NewInstanceBinding(cats);
+                                    doc.ParameterBindings.ReInsert(def, newBinding, GroupTypeId.General);
+                                    removed++;
+                                }
+                                // If Materials was the ONLY category, leave it (param needs at least one)
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Remove mat from '{def.Name}': {ex.Message}"); }
+                    }
+
+                    // Add Materials to material-relevant params missing it
+                    foreach (var (def, ib) in toAddMat)
+                    {
+                        try
+                        {
+                            var cats = ib.Categories;
+                            cats.Insert(matCat);
+                            var newBinding = app.Create.NewInstanceBinding(cats);
+                            doc.ParameterBindings.ReInsert(def, newBinding, GroupTypeId.General);
+                            added++;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"Add mat to '{def.Name}': {ex.Message}"); }
+                    }
+
+                    tx.Commit();
+                    StingLog.Info($"Material cleanup committed: {removed} removed, {added} added");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error("Material cleanup transaction failed", ex);
+                    if (tx.HasStarted() && !tx.HasEnded())
+                        tx.RollBack();
+                }
+            }
+
+            return (removed, added);
         }
 
         /// <summary>
