@@ -704,7 +704,6 @@ namespace StingTools.Model
             const double parallelTol = 0.05; // ~3° tolerance
             double minBeamWidthFt = 100 * Units.MmToFeet;  // 100mm min beam width
             double maxBeamWidthFt = 600 * Units.MmToFeet;  // 600mm max beam width
-            double minLenFt = MinBeamLengthMm * Units.MmToFeet;
             const double overlapRatio = 0.5; // 50% longitudinal overlap required
             const double dirToleranceRad = 5.0 * Math.PI / 180.0; // 5° direction clustering
 

@@ -104,7 +104,8 @@ namespace StingTools.UI
 
             // PERF-CRIT: Run deferred morning briefing on first command after document open.
             // This was previously in OnDocumentOpened where it blocked the UI thread for 5-30s.
-            if (Core.StingToolsApp._briefingPending)
+            // F05 FIX: Only run at outermost depth to prevent briefing inside recursive wizard loops.
+            if (_executeDepth == 1 && Core.StingToolsApp._briefingPending)
             {
                 try { Core.StingToolsApp.RunDeferredMorningBriefing(app.ActiveUIDocument.Document); }
                 catch (Exception mbEx) { Core.StingLog.Warn($"Deferred briefing: {mbEx.Message}"); }
@@ -1573,11 +1574,18 @@ namespace StingTools.UI
                             // Revit API thread — blocking here is safe and expected for modal dialogs.
                             while (true)
                             {
-                                var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
-                                if (ccData == null) break;
-                                string ccAction = UI.BIMCoordinationCenter.Show(ccData);
-                                if (string.IsNullOrEmpty(ccAction)) break; // User closed
-                                Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                                try
+                                {
+                                    var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
+                                    if (ccData == null) break;
+                                    string ccAction = UI.BIMCoordinationCenter.Show(ccData);
+                                    if (string.IsNullOrEmpty(ccAction)) break; // User closed
+                                    Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"BIM Coordination Center action failed: {ex.Message}");
+                                }
                             }
                         }
                         break;
@@ -1907,21 +1915,21 @@ namespace StingTools.UI
                     // Document Management Center
                     case "DocumentManager":
                     {
-                        var dmDoc = app.ActiveUIDocument?.Document;
-                        if (dmDoc != null)
+                        // Keep-dialog-open loop: re-open after each dispatched command
+                        // Phase 87: Re-acquire document each iteration — recursive Execute() may switch documents
+                        while (true)
                         {
-                            // Keep-dialog-open loop: re-open after each dispatched command
-                            while (true)
-                            {
-                                var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
-                                if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
-                                    break; // User closed — exit loop
+                            var dmDoc = app.ActiveUIDocument?.Document;
+                            if (dmDoc == null) break;
 
-                                // Execute the dispatched sub-operation
-                                SetCommand(dmResult.Operation);
-                                Execute(app);
-                                // Loop re-opens the dialog automatically
-                            }
+                            var dmResult = UI.DocumentManagementDialog.Show(dmDoc);
+                            if (dmResult == null || !dmResult.Confirmed || string.IsNullOrEmpty(dmResult.Operation))
+                                break; // User closed — exit loop
+
+                            // Execute the dispatched sub-operation
+                            SetCommand(dmResult.Operation);
+                            Execute(app);
+                            // Loop re-opens the dialog automatically
                         }
                         break;
                     }
@@ -2636,10 +2644,6 @@ namespace StingTools.UI
 
         // ── Generic command runner ────────────────────────────────────
 
-        // BUG-05 FIX: Static reusable ElementSet — allocated once, never read by Revit
-        // since commandData is null. Eliminates per-call heap allocation.
-        private static readonly ElementSet _emptyElementSet = new ElementSet();
-
         private static void RunCommand<T>(UIApplication app) where T : IExternalCommand, new()
         {
             try
@@ -2650,12 +2654,16 @@ namespace StingTools.UI
 
                 var cmd = new T();
                 string message = "";
+                // Phase 87: Per-call ElementSet — if any IExternalCommand.Execute() mutates
+                // the set, elements must not persist to subsequent commands. ElementSet is
+                // lightweight (empty wrapper), so per-call allocation is negligible.
+                var elSet = new ElementSet();
 
                 // Pass null for ExternalCommandData — commands use
                 // StingCommandHandler.CurrentApp as fallback.
                 // This avoids the fragile RuntimeHelpers.GetUninitializedObject
                 // reflection hack that breaks across Revit versions.
-                cmd.Execute(null, ref message, _emptyElementSet);
+                cmd.Execute(null, ref message, elSet);
 
                 StingLog.Info($"RunCommand<{typeof(T).Name}>: done");
             }

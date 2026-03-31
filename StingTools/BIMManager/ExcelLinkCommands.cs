@@ -252,7 +252,8 @@ namespace StingTools.BIMManager
                 string prod = group.FirstOrDefault(c => c.Column == "PROD")?.NewValue;
 
                 // Only cross-validate if at least 2 related tokens are being changed
-                if ((disc != null || sys != null) && (func != null || sys != null))
+                int changedTokenCount = new[] { disc, sys, func, prod }.Count(v => v != null);
+                if (changedTokenCount >= 2)
                 {
                     string crossError = ValidateTokenCrossRefs(disc ?? "", sys ?? "", func ?? "", prod ?? "");
                     if (crossError != null)

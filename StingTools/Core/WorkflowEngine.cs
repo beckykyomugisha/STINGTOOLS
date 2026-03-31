@@ -559,6 +559,10 @@ namespace StingTools.Core
                         continue;
                     }
 
+                    // Phase 85: RequiresWorksharedModel moved outside Condition block so it always runs
+                    if (step.RequiresWorksharedModel && !doc.IsWorkshared)
+                    { RecordSkip("not workshared"); continue; }
+
                     if (!string.IsNullOrEmpty(step.Condition))
                     {
                         // Normalize condition to lowercase for case-insensitive matching
@@ -582,9 +586,6 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
-                        // Phase 39: WorkflowStep.RequiresWorksharedModel condition
-                        if (step.RequiresWorksharedModel && !doc.IsWorkshared)
-                        { RecordSkip("not workshared"); continue; }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -703,11 +704,8 @@ namespace StingTools.Core
                         bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
                         if (!compoundResult)
                         {
-                            skipped++;
                             string logic = isOr ? "OR" : "AND";
-                            report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compound {logic}: {string.Join(", ", step.Conditions)})");
-                            previousStepSkipped = true;
-                            stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "SKIPPED" });
+                            RecordSkip($"compound {logic}: {string.Join(", ", step.Conditions)}");
                             continue;
                         }
                     }
@@ -784,25 +782,19 @@ namespace StingTools.Core
                             double pct = cachedCompliancePct();
                             if (step.MaxCompliancePct.HasValue && pct > step.MaxCompliancePct.Value)
                             {
-                                StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% > max {step.MaxCompliancePct.Value}%");
-                                report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% above {step.MaxCompliancePct.Value}%)");
-                                skipped++;
+                                RecordSkip($"compliance {pct:F0}% above {step.MaxCompliancePct.Value}%");
                                 continue;
                             }
                             if (step.MinCompliancePct.HasValue && pct < step.MinCompliancePct.Value)
                             {
-                                StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — compliance {pct:F0}% < min {step.MinCompliancePct.Value}%");
-                                report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (compliance {pct:F0}% below {step.MinCompliancePct.Value}%)");
-                                skipped++;
+                                RecordSkip($"compliance {pct:F0}% below {step.MinCompliancePct.Value}%");
                                 continue;
                             }
                             if (step.RequiresStaleElements)
                             {
                                 if (!cachedHasStale())
                                 {
-                                    StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — no stale elements found");
-                                    report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (no stale elements)");
-                                    skipped++;
+                                    RecordSkip("no stale elements");
                                     continue;
                                 }
                             }
@@ -888,10 +880,11 @@ namespace StingTools.Core
                         else
                             failed++;
 
-                        // C-03 FIX: Reset previousStepSkipped after each executed step.
-                        // Previously never reset to false, causing cascade-skip to permanently
-                        // lock after the first skipped step.
-                        previousStepSkipped = (stepResult != Result.Succeeded && stepResult != Result.Cancelled);
+                        // B03 FIX: Only set previousStepSkipped for actual skips, not failures.
+                        // Failed steps should NOT trigger SkipIfPreviousSkipped cascade —
+                        // that flag is specifically for skipped (condition-gated) steps.
+                        // Executed steps (whether succeeded or failed) reset the skip flag.
+                        previousStepSkipped = false;
 
                         StingLog.Info($"Workflow step {stepNum}: {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
 
@@ -911,9 +904,11 @@ namespace StingTools.Core
                             break;
                         }
                         // GAP-06: If rollback_on_optional_failure, stop on ANY failure including optional
+                        // Phase 86: Don't double-count — step was already counted as skipped (optional) or failed above
                         if (preset.RollbackOnOptionalFailure && stepResult == Result.Failed)
                         {
-                            failed++; // count optional failures too
+                            // Reclassify: optional failure was counted as 'skipped' above, move to 'failed'
+                            if (step.Optional) { skipped = Math.Max(0, skipped - 1); failed++; }
                             report.AppendLine($"\n  *** Step failed (rollback_on_optional_failure) — rolling back all changes ***");
                             break;
                         }
@@ -1505,7 +1500,7 @@ namespace StingTools.Core
                         {
                             if (oi["status"]?.ToString() != "OPEN") continue;
                             string pri = oi["priority"]?.ToString() ?? "MEDIUM";
-                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created"]?.ToString(), out var created)) continue;
+                            if (!DateTime.TryParse(oi["date_raised"]?.ToString() ?? oi["created_date"]?.ToString(), out var created)) continue;
                             int ageH = (int)(DateTime.Now - created).TotalHours;
                             int threshold = slaHrs.GetValueOrDefault(pri, 336);
                             if (ageH > threshold) return true;

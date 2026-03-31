@@ -1104,8 +1104,11 @@ namespace StingTools.Core
                 text.Contains("-DEMO") || text.Contains(" DEMOLISHED"))
                 return "DEMOLISHED";
 
-            if (text.StartsWith("TEMP") || text.Contains("_TEMP") ||
-                text.Contains("-TEMP") || text.Contains(" TEMPORARY"))
+            // Phase 86b: Exclude "TEMPLATE" false positive — StartsWith("TEMP") matched "TEMPLATE" worksets
+            if ((text.StartsWith("TEMP") && !text.StartsWith("TEMPLATE")) ||
+                (text.Contains("_TEMP") && !text.Contains("_TEMPLATE")) ||
+                (text.Contains("-TEMP") && !text.Contains("-TEMPLATE")) ||
+                text.Contains(" TEMPORARY"))
                 return "TEMPORARY";
 
             if (text.StartsWith("NEW") || text.Contains("_NEW") ||
@@ -2240,8 +2243,9 @@ namespace StingTools.Core
                 written += MapDimension(el, BuiltInParameter.ROOM_UPPER_OFFSET, "ASS_ROOM_HEIGHT_MM", ftToMmW);
 
             // BLE_STAIR_HEADROOM_MM — Stair headroom
-            if (catUpperW.Contains("STAIR"))
-                written += MapDimension(el, BuiltInParameter.STAIRS_ACTUAL_TREAD_DEPTH, "BLE_STAIR_HEADROOM_MM", ftToMmW);
+            // Phase 87: Removed incorrect mapping. STAIRS_ACTUAL_TREAD_DEPTH is horizontal step depth,
+            // NOT vertical clearance above stair. Revit has no built-in headroom parameter — headroom
+            // is computed from geometry (stair-to-floor-above clearance), not stored as a BIP.
 
             // BLE_RAIL_HEIGHT_MM — Railing height
             if (catUpperW.Contains("RAILING"))
@@ -3371,7 +3375,7 @@ namespace StingTools.Core
                         break;
                 }
 
-                if (string.IsNullOrEmpty(val) || val == "0") return 0;
+                if (string.IsNullOrEmpty(val)) return 0;
 
                 Element writeTarget = target ?? source;
                 return SetIfEmptyInt(writeTarget, targetParamName, val);
@@ -3717,13 +3721,10 @@ namespace StingTools.Core
                 // Plugin hook: notify third-party plugins after successful tagging
                 StingPluginHooks.FireAfterTag(doc, el, tag1Check);
 
-                // LOGIC-004 FIX (Phase 55): Always write containers after tag change.
-                // WriteContainers is idempotent (skips non-empty unless overwrite) so always-write is safe.
-                // WriteContainers guards internally via ContainersForCategory — no need for redundant outer check
-                if (!string.IsNullOrEmpty(tag1Check))
-                {
-                    ParamRegistry.WriteContainers(el, tokenVals, catName);
-                }
+                // LOGIC-004 / BUG-01 FIX: Removed redundant WriteContainers call here.
+                // BuildAndWriteTag already writes all 53 containers at TagConfig.cs:2834
+                // using fresh ReadTokenValues. This second call was doubling SetString calls
+                // (53 × 2 = 106 per element, 5.3M redundant calls on 50K-element batches).
 
                 TagConfig.WriteTag7All(doc, el, catName, tokenVals, overwrite: overwrite);
 

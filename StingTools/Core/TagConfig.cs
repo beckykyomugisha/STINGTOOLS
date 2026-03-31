@@ -672,7 +672,9 @@ namespace StingTools.Core
                     errors.Add(new ValidationError(funcProdError, ValidationErrorType.CrossValidation));
             }
 
-            return errors;
+            // Phase 86: Return defensive copy — raw [ThreadStatic] reference would be
+            // cleared on next call, corrupting any caller that stored the result.
+            return new List<ValidationError>(errors);
         }
 
         /// <summary>Phase 66b: Validate FUNC→PROD pair consistency.
@@ -712,8 +714,9 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return "Tag is empty";
 
-            char sepChar = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator[0] : '-';
-            string[] parts = tag.Split(sepChar);
+            // Phase 86b: Use full separator string for multi-char separator support
+            string sepStr = !string.IsNullOrEmpty(TagConfig.Separator) ? TagConfig.Separator : "-";
+            string[] parts = tag.Split(new[] { sepStr }, StringSplitOptions.None);
             if (parts.Length != 8)
                 return $"Tag has {parts.Length} segments (expected 8): {tag}";
 
@@ -724,28 +727,29 @@ namespace StingTools.Core
             }
 
             // Validate ALL 8 segments against their respective rules
-            string discError = ValidateToken(ParamRegistry.DISC, parts[0]);
+            // Phase 86: Use cached validation for O(1) repeated lookups
+            string discError = ValidateTokenCached(ParamRegistry.DISC, parts[0]);
             if (discError != null) return discError;
 
-            string locError = ValidateToken(ParamRegistry.LOC, parts[1]);
+            string locError = ValidateTokenCached(ParamRegistry.LOC, parts[1]);
             if (locError != null) return locError;
 
-            string zoneError = ValidateToken(ParamRegistry.ZONE, parts[2]);
+            string zoneError = ValidateTokenCached(ParamRegistry.ZONE, parts[2]);
             if (zoneError != null) return zoneError;
 
-            string lvlError = ValidateToken(ParamRegistry.LVL, parts[3]);
+            string lvlError = ValidateTokenCached(ParamRegistry.LVL, parts[3]);
             if (lvlError != null) return lvlError;
 
-            string sysError = ValidateToken(ParamRegistry.SYS, parts[4]);
+            string sysError = ValidateTokenCached(ParamRegistry.SYS, parts[4]);
             if (sysError != null) return sysError;
 
-            string funcError = ValidateToken(ParamRegistry.FUNC, parts[5]);
+            string funcError = ValidateTokenCached(ParamRegistry.FUNC, parts[5]);
             if (funcError != null) return funcError;
 
-            string prodError = ValidateToken(ParamRegistry.PROD, parts[6]);
+            string prodError = ValidateTokenCached(ParamRegistry.PROD, parts[6]);
             if (prodError != null) return prodError;
 
-            string seqError = ValidateToken(ParamRegistry.SEQ, parts[7]);
+            string seqError = ValidateTokenCached(ParamRegistry.SEQ, parts[7]);
             if (seqError != null) return seqError;
 
             return null; // valid
@@ -1978,12 +1982,13 @@ namespace StingTools.Core
                     ["SEPARATOR_HISTORY"] = SeparatorHistory,
                     ["AUTO_RUN_WORKFLOW_ON_OPEN"] = AutoRunWorkflowOnOpen ?? "",
                     ["CATEGORY_TOKEN_OVERRIDES"] = CategoryTokenOverrides,
-                    ["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled
                 };
 
                 // FIX-B10: Persist auto-tagger state
                 if (AutoTaggerEnabled.HasValue) data["AUTO_TAGGER_ENABLED"] = AutoTaggerEnabled.Value;
+                // Phase 86b: Removed duplicate AUTO_TAGGER_VISUAL from initial dict — this is the single write point
                 if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
+                else data["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled;
                 if (AutoTaggerStaleMarker.HasValue) data["AUTO_TAGGER_STALE_MARKER"] = AutoTaggerStaleMarker.Value;
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
@@ -2001,21 +2006,29 @@ namespace StingTools.Core
             }
         }
 
+        private static readonly object _configWriteLock = new object();
+
         /// <summary>FIX-10.1: Set a single config key and persist to project_config.json (if ConfigSource is a file path).</summary>
         public static void SetConfigValue(string key, object value)
         {
-            try
+            lock (_configWriteLock)
             {
-                if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
-                string json = File.ReadAllText(ConfigSource);
-                var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>();
-                data[key] = value;
-                File.WriteAllText(ConfigSource, JsonConvert.SerializeObject(data, Formatting.Indented));
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
+                try
+                {
+                    if (string.IsNullOrEmpty(ConfigSource) || !File.Exists(ConfigSource)) return;
+                    string json = File.ReadAllText(ConfigSource);
+                    var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
+                        ?? new Dictionary<string, object>();
+                    data[key] = value;
+                    string tmp = ConfigSource + ".tmp";
+                    File.WriteAllText(tmp, JsonConvert.SerializeObject(data, Formatting.Indented));
+                    try { File.Replace(tmp, ConfigSource, ConfigSource + ".bak"); }
+                    catch { File.Copy(tmp, ConfigSource, true); try { File.Delete(tmp); } catch { } }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SetConfigValue '{key}': {ex.Message}");
+                }
             }
         }
 
@@ -2369,8 +2382,8 @@ namespace StingTools.Core
             int adjusted = expectedTokens
                 + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
                 + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
-            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            string[] parts = tagValue.Split(new[] { sepChar });
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            string[] parts = tagValue.Split(new[] { sepStr }, StringSplitOptions.None);
 
             if (parts.Length != adjusted)
             {
@@ -2437,8 +2450,8 @@ namespace StingTools.Core
         {
             if (!TagIsComplete(tagValue, expectedTokens))
                 return false;
-            char sepChar = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            string[] parts = tagValue.Split(new[] { sepChar });
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            string[] parts = tagValue.Split(new[] { sepStr }, StringSplitOptions.None);
             // Reject placeholder segments
             var placeholders = _placeholders;
             for (int i = 0; i < parts.Length; i++)
@@ -2687,7 +2700,9 @@ namespace StingTools.Core
                 // so stale entries don't cause false collisions for other elements
                 if (!string.IsNullOrEmpty(existingTag) && existingTag != tag)
                     existingTags.Remove(existingTag);
-                existingTags.Add(tag);
+                // BUG-10 FIX: Do NOT add tentative tag here — if collision increments SEQ,
+                // the un-incremented tag would permanently block that value from reuse.
+                // The final written tag is added at line 2784 after successful TAG1 write.
             }
 
             // F-03: Track whether we already have a fresh ReadTokenValues result from the non-overwrite branch
@@ -2751,11 +2766,15 @@ namespace StingTools.Core
             }
 
             // PERF-R11: Validate segment count by counting separators instead of allocating split array.
-            // Previously: String.Split created 8-12 string array per element (50K = 400K+ allocations).
+            // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
             int sepCount = 0;
-            char sepCh = !string.IsNullOrEmpty(Separator) ? Separator[0] : '-';
-            for (int ci = 0; ci < tag.Length; ci++)
-                if (tag[ci] == sepCh) sepCount++;
+            string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            int sIdx = 0;
+            while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+            {
+                sepCount++;
+                sIdx += sepStr.Length;
+            }
             if (sepCount < 7) // 8 segments = 7 separators
             {
                 StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
