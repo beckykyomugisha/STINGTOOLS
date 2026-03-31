@@ -1562,7 +1562,9 @@ namespace StingTools.Temp
                 // Try to find specific sizes
                 foreach (var tnt in textTypes)
                 {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                     double height = tnt.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? 0;
+#pragma warning restore CS0618
                     double heightMm = height * 304.8;
                     if (heightMm >= 5 && heightMm < 8 && headerTypeId == bodyTypeId)
                         headerTypeId = tnt.Id;
@@ -1825,8 +1827,10 @@ namespace StingTools.Temp
 
                     if (titleBlocks != null)
                     {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                         double width = titleBlocks.get_Parameter(BuiltInParameter.SHEET_WIDTH)?.AsDouble() ?? 0;
                         double height = titleBlocks.get_Parameter(BuiltInParameter.SHEET_HEIGHT)?.AsDouble() ?? 0;
+#pragma warning restore CS0618
                         double widthMm = width * 304.8;
                         double heightMm = height * 304.8;
                         row.PaperSize = ClassifyPaperSize(widthMm, heightMm);
@@ -1861,9 +1865,11 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(row.RevDate)) row.RevDate = "-";
 
                 // Sheet parameters
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                 row.DrawnBy = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
                 row.CheckedBy = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
                 row.ApprovedBy = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
+#pragma warning restore CS0618
 
                 // STING tag parameters (if bound to sheets)
                 row.StingTag = ParameterHelpers.GetString(sheet, ParamRegistry.TAG1);

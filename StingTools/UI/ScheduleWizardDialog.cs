@@ -22,30 +22,27 @@ namespace StingTools.UI
     }
 
     /// <summary>
-    /// Unified WPF dialog for schedule management operations.
-    /// 3-section layout: operation selector, schedule list, dynamic options.
-    /// Replaces multi-step TaskDialog chains with a single-window interface.
+    /// Comprehensive Scheduling Dashboard combining ALL scheduling tools:
+    /// CREATE & POPULATE, AUDIT & ANALYSIS, MANAGE, EXPORT, FORMAT, CORPORATE/MEP.
+    /// Replaces the original 6-operation wizard with a full tabbed dashboard.
     /// </summary>
     internal static class ScheduleWizardDialog
     {
-        // ── Operations ──────────────────────────────────────────────────
-        private const string OpCreateBatch = "CreateBatch";
-        private const string OpAutoPopulate = "AutoPopulate";
-        private const string OpFullAuto = "FullAuto";
-        private const string OpAudit = "Audit";
-        private const string OpExportCsv = "ExportCSV";
-        private const string OpManage = "Manage";
-
-        // ── Theme colours (light theme) ─────────────────────────────────
+        // ── Theme colours (light corporate) ─────────────────────────────
         private static readonly Color BgColor = Color.FromRgb(0xF5, 0xF5, 0xF5);
         private static readonly Color PanelBg = Colors.White;
-        private static readonly Color HeaderBg = Color.FromRgb(0x33, 0x33, 0x33);
+        private static readonly Color HeaderBg = Color.FromRgb(0x1A, 0x23, 0x7E);
         private static readonly Color AccentOrange = Color.FromRgb(0xE8, 0x91, 0x2D);
         private static readonly Color FgDark = Color.FromRgb(0x22, 0x22, 0x22);
         private static readonly Color FgDim = Color.FromRgb(0x88, 0x88, 0x88);
         private static readonly Color BorderClr = Color.FromRgb(0xD0, 0xD0, 0xD0);
         private static readonly Color SelectedBg = Color.FromRgb(0xFD, 0xF0, 0xDD);
-        private static readonly Color HoverBg = Color.FromRgb(0xF0, 0xF0, 0xF0);
+        private static readonly Color TabActiveBg = Color.FromRgb(0xFF, 0xFF, 0xFF);
+        private static readonly Color TabInactiveBg = Color.FromRgb(0xE8, 0xE8, 0xE8);
+        private static readonly Color SectionHeaderBg = Color.FromRgb(0xF0, 0xF0, 0xF0);
+        private static readonly Color GreenAccent = Color.FromRgb(0x4C, 0xAF, 0x50);
+        private static readonly Color BlueAccent = Color.FromRgb(0x42, 0x9E, 0xE6);
+        private static readonly Color RedAccent = Color.FromRgb(0xE5, 0x39, 0x35);
 
         private static SolidColorBrush FZ(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
         private static readonly SolidColorBrush BrBg = FZ(BgColor);
@@ -57,15 +54,25 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrBorder = FZ(BorderClr);
         private static readonly SolidColorBrush BrSelected = FZ(SelectedBg);
         private static readonly SolidColorBrush BrWhite = FZ(Colors.White);
-        private static readonly SolidColorBrush BrTransparent = Brushes.Transparent;
+        private static readonly SolidColorBrush BrTabActive = FZ(TabActiveBg);
+        private static readonly SolidColorBrush BrTabInactive = FZ(TabInactiveBg);
+        private static readonly SolidColorBrush BrSectionHeader = FZ(SectionHeaderBg);
+        private static readonly SolidColorBrush BrGreen = FZ(GreenAccent);
+        private static readonly SolidColorBrush BrBlue = FZ(BlueAccent);
+        private static readonly SolidColorBrush BrRed = FZ(RedAccent);
 
-        private static readonly HashSet<string> _listOps = new HashSet<string> { OpCreateBatch, OpAudit, OpExportCsv, OpManage };
+        // ── Schedule item model ─────────────────────────────────────────
+        private class ScheduleItem
+        {
+            public string Name { get; set; } = string.Empty;
+            public bool ExistsInProject { get; set; }
+            public bool ExistsInCsv { get; set; }
+            public bool IsSelected { get; set; }
+        }
 
         /// <summary>
-        /// Show the schedule wizard dialog.
+        /// Show the comprehensive scheduling dashboard.
         /// </summary>
-        /// <param name="csvDefinitions">Schedule names from CSV definitions.</param>
-        /// <param name="existingSchedules">Schedule names already in the project.</param>
         public static ScheduleWizardResult Show(
             List<string> csvDefinitions = null,
             List<string> existingSchedules = null)
@@ -78,38 +85,29 @@ namespace StingTools.UI
 
             var win = new Window
             {
-                Title = "STING Schedule Wizard",
-                Width = 650,
-                Height = 500,
-                MinWidth = 550,
-                MinHeight = 400,
+                Title = "STING Scheduling Dashboard",
+                Width = 850,
+                Height = 620,
+                MinWidth = 750,
+                MinHeight = 520,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 Background = BrBg,
                 FontFamily = new FontFamily("Segoe UI"),
                 ResizeMode = ResizeMode.CanResizeWithGrip
             };
 
-            // Set Revit as owner
             try
             {
                 var handle = Process.GetCurrentProcess().MainWindowHandle;
                 if (handle != IntPtr.Zero)
                     new System.Windows.Interop.WindowInteropHelper(win).Owner = handle;
             }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ScheduleWizardDialog: Could not set owner — {ex.Message}");
-            }
+            catch (Exception ex) { StingLog.Warn($"ScheduleWizardDialog: Could not set owner — {ex.Message}"); }
 
-            // ── Root layout ─────────────────────────────────────────────
-            var root = new Grid();
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });               // 0: header
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });               // 1: operation selector
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // 2: schedule list
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });               // 3: options panel
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });               // 4: buttons
+            // ── Root layout: header + body + footer ─────────────────────
+            var root = new DockPanel { LastChildFill = true };
 
-            // ── Row 0: Header ───────────────────────────────────────────
+            // ── Header ──────────────────────────────────────────────────
             var header = new Border
             {
                 Background = BrHeader,
@@ -118,554 +116,362 @@ namespace StingTools.UI
             var headerStack = new StackPanel();
             headerStack.Children.Add(new TextBlock
             {
-                Text = "Schedule Wizard",
-                FontSize = 16,
+                Text = "Scheduling Dashboard",
+                FontSize = 17,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = BrWhite
             });
             headerStack.Children.Add(new TextBlock
             {
-                Text = $"{csvDefinitions.Count} definitions available | {existingSchedules.Count} existing",
+                Text = $"{csvDefinitions.Count} CSV definitions  |  {existingSchedules.Count} project schedules",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xBB, 0xBB, 0xBB)),
+                Foreground = FZ(Color.FromRgb(0xBB, 0xBB, 0xBB)),
                 Margin = new Thickness(0, 2, 0, 0)
             });
             header.Child = headerStack;
-            Grid.SetRow(header, 0);
+            DockPanel.SetDock(header, Dock.Top);
             root.Children.Add(header);
 
-            // ── Row 1: Operation selector ───────────────────────────────
-            string selectedOp = OpCreateBatch;
-            var opPanel = new Border
-            {
-                Background = BrPanel,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                Padding = new Thickness(12, 8, 12, 8)
-            };
-            var opLabel = new TextBlock
-            {
-                Text = "OPERATION",
-                FontSize = 10,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = BrFgDim,
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            var opWrap = new WrapPanel { Orientation = Orientation.Horizontal };
-
-            var opButtons = new Dictionary<string, Border>();
-            var opDefs = new[]
-            {
-                (OpCreateBatch,   "Create Batch",   "Create schedules from CSV definitions"),
-                (OpAutoPopulate,  "Auto-Populate",   "Fill schedule fields with token data"),
-                (OpFullAuto,      "Full Auto",       "Zero-input: populate + create + formulas"),
-                (OpAudit,         "Audit",           "Compare existing vs CSV definitions"),
-                (OpExportCsv,     "Export CSV",       "Export schedule data to file"),
-                (OpManage,        "Manage",          "Duplicate, delete, refresh, compare")
-            };
-
-            // Panels that need the schedule list
-            var listOps = _listOps;
-
-            // Controls we need to reference across closures
-            Border scheduleSection = null;
-            StackPanel optionsContainer = null;
-            ListBox scheduleListBox = null;
-            TextBox searchBox = null;
-            TextBlock matchCountText = null;
-            var scheduleItems = new List<ScheduleItem>(allItems);
-
-            // Dynamic options controls
-            // Create
-            CheckBox chkDiscM = null, chkDiscE = null, chkDiscP = null, chkDiscA = null, chkDiscS = null, chkDiscFP = null;
-            // AutoPopulate
-            CheckBox chkOverwrite = null, chkFormulas = null;
-            // Export
-            TextBox txtExportPath = null;
-            ComboBox cmbFormat = null;
-            // Manage
-            ComboBox cmbManageOp = null;
-
-            void UpdateOptionsPanel()
-            {
-                if (optionsContainer == null) return;
-                optionsContainer.Children.Clear();
-
-                switch (selectedOp)
-                {
-                    case OpCreateBatch:
-                        BuildCreateOptions(optionsContainer, ref chkDiscM, ref chkDiscE, ref chkDiscP, ref chkDiscA, ref chkDiscS, ref chkDiscFP);
-                        break;
-                    case OpAutoPopulate:
-                        BuildAutoPopulateOptions(optionsContainer, ref chkOverwrite, ref chkFormulas);
-                        break;
-                    case OpExportCsv:
-                        BuildExportOptions(optionsContainer, ref txtExportPath, ref cmbFormat);
-                        break;
-                    case OpManage:
-                        BuildManageOptions(optionsContainer, ref cmbManageOp);
-                        break;
-                    case OpFullAuto:
-                        optionsContainer.Children.Add(new TextBlock
-                        {
-                            Text = "Full Auto will populate tokens, create all schedules, and evaluate formulas in one step. No additional options required.",
-                            Foreground = BrFgDim,
-                            FontSize = 11,
-                            TextWrapping = TextWrapping.Wrap,
-                            Margin = new Thickness(4)
-                        });
-                        break;
-                    case OpAudit:
-                        optionsContainer.Children.Add(new TextBlock
-                        {
-                            Text = "Audit compares existing project schedules against CSV definitions and reports missing, extra, and mismatched fields.",
-                            Foreground = BrFgDim,
-                            FontSize = 11,
-                            TextWrapping = TextWrapping.Wrap,
-                            Margin = new Thickness(4)
-                        });
-                        break;
-                }
-            }
-
-            void SelectOperation(string op)
-            {
-                selectedOp = op;
-                foreach (var kvp in opButtons)
-                {
-                    bool isSel = kvp.Key == op;
-                    kvp.Value.BorderBrush = isSel ? BrAccent : BrBorder;
-                    kvp.Value.BorderThickness = new Thickness(isSel ? 2 : 1);
-                    kvp.Value.Background = isSel ? BrSelected : BrPanel;
-                }
-                // Show/hide schedule list
-                if (scheduleSection != null)
-                    scheduleSection.Visibility = listOps.Contains(op) ? Visibility.Visible : Visibility.Collapsed;
-
-                UpdateOptionsPanel();
-            }
-
-            foreach (var (code, label, tooltip) in opDefs)
-            {
-                var btn = new Border
-                {
-                    BorderBrush = BrBorder,
-                    BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(3),
-                    Background = BrPanel,
-                    Padding = new Thickness(10, 6, 10, 6),
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Cursor = Cursors.Hand,
-                    ToolTip = tooltip
-                };
-                var btnText = new TextBlock
-                {
-                    Text = label,
-                    FontSize = 11.5,
-                    Foreground = BrFg,
-                    FontWeight = FontWeights.Medium
-                };
-                btn.Child = btnText;
-                opButtons[code] = btn;
-
-                string capturedCode = code;
-                btn.MouseLeftButtonDown += (_, __) => SelectOperation(capturedCode);
-                opWrap.Children.Add(btn);
-            }
-
-            var opStack = new StackPanel();
-            opStack.Children.Add(opLabel);
-            opStack.Children.Add(opWrap);
-            opPanel.Child = opStack;
-            Grid.SetRow(opPanel, 1);
-            root.Children.Add(opPanel);
-
-            // ── Row 2: Schedule list ────────────────────────────────────
-            scheduleSection = new Border
-            {
-                Padding = new Thickness(12, 8, 12, 4),
-                Visibility = Visibility.Visible
-            };
-            var listStack = new StackPanel();
-
-            // Search row
-            var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            searchBox = new TextBox
-            {
-                FontSize = 12,
-                Padding = new Thickness(6, 4, 6, 4),
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(1),
-                Background = BrWhite
-            };
-
-            matchCountText = new TextBlock
-            {
-                FontSize = 11,
-                Foreground = BrFgDim,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0),
-                Text = $"{allItems.Count} items"
-            };
-            DockPanel.SetDock(matchCountText, Dock.Right);
-            searchRow.Children.Add(matchCountText);
-            searchRow.Children.Add(searchBox);
-            listStack.Children.Add(searchRow);
-
-            // Select All / Clear All
-            var selRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            var btnSelectAll = CreateLinkButton("Select All");
-            var btnClearAll = CreateLinkButton("Clear All");
-            selRow.Children.Add(btnSelectAll);
-            selRow.Children.Add(new TextBlock
-            {
-                Text = " | ",
-                Foreground = BrFgDim,
-                FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            selRow.Children.Add(btnClearAll);
-            listStack.Children.Add(selRow);
-
-            // ListBox
-            scheduleListBox = new ListBox
-            {
-                Height = 300,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(1),
-                Background = BrWhite,
-                SelectionMode = SelectionMode.Multiple,
-                FontSize = 12
-            };
-
-            void RefreshList(string filter)
-            {
-                scheduleListBox.Items.Clear();
-                var filtered = string.IsNullOrWhiteSpace(filter)
-                    ? scheduleItems
-                    : scheduleItems.Where(s => s.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-
-                foreach (var item in filtered)
-                {
-                    var cb = new CheckBox
-                    {
-                        Content = FormatScheduleItem(item),
-                        Tag = item,
-                        IsChecked = item.IsSelected,
-                        FontSize = 12,
-                        Foreground = BrFg,
-                        Margin = new Thickness(2)
-                    };
-                    cb.Checked += (_, __) => { item.IsSelected = true; UpdateMatchCount(); };
-                    cb.Unchecked += (_, __) => { item.IsSelected = false; UpdateMatchCount(); };
-                    scheduleListBox.Items.Add(cb);
-                }
-                UpdateMatchCount();
-            }
-
-            void UpdateMatchCount()
-            {
-                int sel = scheduleItems.Count(s => s.IsSelected);
-                int vis = scheduleListBox.Items.Count;
-                matchCountText.Text = $"{sel} selected | {vis} shown";
-            }
-
-            searchBox.TextChanged += (_, __) => RefreshList(searchBox.Text);
-
-            btnSelectAll.MouseLeftButtonDown += (_, __) =>
-            {
-                foreach (var item in scheduleItems) item.IsSelected = true;
-                RefreshList(searchBox.Text);
-            };
-            btnClearAll.MouseLeftButtonDown += (_, __) =>
-            {
-                foreach (var item in scheduleItems) item.IsSelected = false;
-                RefreshList(searchBox.Text);
-            };
-
-            listStack.Children.Add(scheduleListBox);
-            scheduleSection.Child = listStack;
-            Grid.SetRow(scheduleSection, 2);
-            root.Children.Add(scheduleSection);
-
-            // ── Row 3: Options panel ────────────────────────────────────
-            var optionsBorder = new Border
-            {
-                Background = BrPanel,
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                Padding = new Thickness(12, 8, 12, 8)
-            };
-            var optionsOuter = new StackPanel();
-            optionsOuter.Children.Add(new TextBlock
-            {
-                Text = "OPTIONS",
-                FontSize = 10,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = BrFgDim,
-                Margin = new Thickness(0, 0, 0, 6)
-            });
-            optionsContainer = new StackPanel();
-            optionsOuter.Children.Add(optionsContainer);
-            optionsBorder.Child = optionsOuter;
-            Grid.SetRow(optionsBorder, 3);
-            root.Children.Add(optionsBorder);
-
-            // ── Row 4: Action buttons ───────────────────────────────────
-            var btnRow = new Border
-            {
-                Padding = new Thickness(12, 8, 12, 10)
-            };
-            var btnPanel = new DockPanel { LastChildFill = false };
+            // ── Footer: action buttons ──────────────────────────────────
+            var footer = new Border { Padding = new Thickness(12, 8, 12, 10), Background = BrPanel };
+            var footerPanel = new DockPanel { LastChildFill = false };
 
             var btnCancel = new Button
             {
-                Content = "Cancel",
-                Width = 80,
-                Height = 30,
-                FontSize = 12,
-                Background = BrWhite,
-                BorderBrush = BrBorder,
-                Cursor = Cursors.Hand
+                Content = "Close",
+                Width = 80, Height = 30, FontSize = 12,
+                Background = BrWhite, BorderBrush = BrBorder, Cursor = Cursors.Hand
             };
             btnCancel.Click += (_, __) => { win.DialogResult = false; };
             DockPanel.SetDock(btnCancel, Dock.Right);
-            btnPanel.Children.Add(btnCancel);
+            footerPanel.Children.Add(btnCancel);
 
             var btnExecute = new Button
             {
                 Content = "Execute",
-                Width = 100,
-                Height = 30,
-                FontSize = 12,
+                Width = 110, Height = 30, FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Background = BrAccent,
-                Foreground = BrWhite,
-                BorderBrush = BrAccent,
-                Cursor = Cursors.Hand,
-                Margin = new Thickness(0, 0, 8, 0)
+                Background = BrAccent, Foreground = BrWhite, BorderBrush = BrAccent,
+                Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0)
             };
+            DockPanel.SetDock(btnExecute, Dock.Right);
+            footerPanel.Children.Add(btnExecute);
+
+            var statusText = new TextBlock
+            {
+                Text = string.Empty, FontSize = 11,
+                Foreground = BrFgDim, VerticalAlignment = VerticalAlignment.Center
+            };
+            footerPanel.Children.Add(statusText);
+            footer.Child = footerPanel;
+            DockPanel.SetDock(footer, Dock.Bottom);
+            root.Children.Add(footer);
+
+            // ── Body: left nav + right content ──────────────────────────
+            var body = new Grid();
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
+            body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // ── Left navigation panel ───────────────────────────────────
+            var navBorder = new Border
+            {
+                Background = BrPanel,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(0, 0, 1, 0),
+                Padding = new Thickness(0, 8, 0, 8)
+            };
+            var navStack = new StackPanel();
+
+            string selectedTab = "create";
+            var tabButtons = new Dictionary<string, Border>();
+            var contentPanels = new Dictionary<string, UIElement>();
+
+            var navItems = new[]
+            {
+                ("create",    "CREATE & POPULATE", "Batch create, auto-populate, full auto"),
+                ("audit",     "AUDIT & ANALYSIS",  "Audit, compare, stats, report"),
+                ("manage",    "MANAGE",            "Duplicate, delete, refresh, field manager"),
+                ("export",    "EXPORT",            "CSV/XLSX export, schedule-to-Excel"),
+                ("format",    "FORMAT",            "Column widths, alignment, visibility"),
+                ("corporate", "CORPORATE / MEP",   "Title block, register, MEP schedules")
+            };
+
+            // Content area
+            var contentBorder = new Border { Padding = new Thickness(16, 12, 16, 12) };
+            var contentHost = new Grid();
+            contentBorder.Child = contentHost;
+            Grid.SetColumn(contentBorder, 1);
+            body.Children.Add(contentBorder);
+
+            // Build all content panels
+            var scheduleItems = new List<ScheduleItem>(allItems);
+            contentPanels["create"] = BuildCreateTab(scheduleItems, csvDefinitions, statusText);
+            contentPanels["audit"] = BuildAuditTab(scheduleItems, statusText);
+            contentPanels["manage"] = BuildManageTab(scheduleItems, statusText);
+            contentPanels["export"] = BuildExportTab(scheduleItems, statusText);
+            contentPanels["format"] = BuildFormatTab(statusText);
+            contentPanels["corporate"] = BuildCorporateMepTab(statusText);
+
+            foreach (var kvp in contentPanels)
+            {
+                kvp.Value.Visibility = Visibility.Collapsed;
+                contentHost.Children.Add(kvp.Value);
+            }
+
+            void SelectTab(string tab)
+            {
+                selectedTab = tab;
+                foreach (var kvp in tabButtons)
+                {
+                    bool sel = kvp.Key == tab;
+                    kvp.Value.Background = sel ? BrSelected : BrPanel;
+                    var sp = kvp.Value.Child as StackPanel;
+                    if (sp != null && sp.Children.Count > 0)
+                    {
+                        var lbl = sp.Children[0] as TextBlock;
+                        if (lbl != null) lbl.FontWeight = sel ? FontWeights.SemiBold : FontWeights.Normal;
+                    }
+                }
+                foreach (var kvp in contentPanels)
+                    kvp.Value.Visibility = kvp.Key == tab ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            foreach (var (code, label, tooltip) in navItems)
+            {
+                var navBtn = new Border
+                {
+                    Background = BrPanel,
+                    Padding = new Thickness(14, 8, 14, 8),
+                    Cursor = Cursors.Hand,
+                    ToolTip = tooltip
+                };
+                var navBtnStack = new StackPanel();
+                navBtnStack.Children.Add(new TextBlock
+                {
+                    Text = label, FontSize = 11.5, Foreground = BrFg
+                });
+                navBtn.Child = navBtnStack;
+                navBtn.MouseEnter += (_, __) => { if (code != selectedTab) navBtn.Background = FZ(Color.FromRgb(0xF0, 0xF0, 0xF0)); };
+                navBtn.MouseLeave += (_, __) => { if (code != selectedTab) navBtn.Background = BrPanel; };
+                string cap = code;
+                navBtn.MouseLeftButtonDown += (_, __) => SelectTab(cap);
+                tabButtons[code] = navBtn;
+                navStack.Children.Add(navBtn);
+            }
+
+            navBorder.Child = navStack;
+            Grid.SetColumn(navBorder, 0);
+            body.Children.Add(navBorder);
+
+            root.Children.Add(body);
+            win.Content = root;
+
+            // ── Execute button wiring ────────────────────────────────────
             btnExecute.Click += (_, __) =>
             {
                 result.Confirmed = true;
-                result.Operation = selectedOp;
+                result.Operation = CollectOperation(selectedTab, contentPanels);
                 result.SelectedSchedules = scheduleItems.Where(s => s.IsSelected).Select(s => s.Name).ToList();
-                result.Options = CollectOptions(selectedOp,
-                    chkDiscM, chkDiscE, chkDiscP, chkDiscA, chkDiscS, chkDiscFP,
-                    chkOverwrite, chkFormulas,
-                    txtExportPath, cmbFormat,
-                    cmbManageOp);
+                result.Options = CollectAllOptions(selectedTab, contentPanels);
                 win.DialogResult = true;
             };
-            DockPanel.SetDock(btnExecute, Dock.Right);
-            btnPanel.Children.Add(btnExecute);
-
-            // Progress area (hidden, reserved for future use)
-            var progressText = new TextBlock
-            {
-                Text = string.Empty,
-                FontSize = 11,
-                Foreground = BrFgDim,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            btnPanel.Children.Add(progressText);
-
-            btnRow.Child = btnPanel;
-            Grid.SetRow(btnRow, 4);
-            root.Children.Add(btnRow);
-
-            win.Content = root;
 
             // Initialise
-            SelectOperation(OpCreateBatch);
-            RefreshList(null);
+            SelectTab("create");
 
-            // Keyboard shortcut
             win.KeyDown += (_, e) =>
             {
-                if (e.Key == Key.Escape)
-                    win.DialogResult = false;
+                if (e.Key == Key.Escape) win.DialogResult = false;
             };
 
             bool? dlgResult = false;
-            try
-            {
-                dlgResult = win.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"ScheduleWizardDialog: ShowDialog failed — {ex.Message}");
-            }
+            try { dlgResult = win.ShowDialog(); }
+            catch (Exception ex) { StingLog.Warn($"ScheduleWizardDialog: ShowDialog failed — {ex.Message}"); }
 
-            if (dlgResult != true)
-            {
-                result.Confirmed = false;
-            }
-
+            if (dlgResult != true) result.Confirmed = false;
             return result;
         }
 
-        // ── Schedule item model ─────────────────────────────────────────
-        private class ScheduleItem
+        // ════════════════════════════════════════════════════════════════
+        // TAB 1: CREATE & POPULATE
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildCreateTab(List<ScheduleItem> items, List<string> csvDefs, TextBlock status)
         {
-            public string Name { get; set; } = string.Empty;
-            public bool ExistsInProject { get; set; }
-            public bool ExistsInCsv { get; set; }
-            public bool IsSelected { get; set; }
-        }
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
 
-        private static List<ScheduleItem> BuildScheduleItems(List<string> csvDefs, List<string> existing)
-        {
-            var existingSet = new HashSet<string>(existing, StringComparer.OrdinalIgnoreCase);
-            var csvSet = new HashSet<string>(csvDefs, StringComparer.OrdinalIgnoreCase);
-            var allNames = new HashSet<string>(csvDefs, StringComparer.OrdinalIgnoreCase);
-            foreach (var e in existing) allNames.Add(e);
+            // ── Operation selector ──────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("OPERATION"));
+            var opGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
 
-            return allNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .Select(n => new ScheduleItem
-                {
-                    Name = n,
-                    ExistsInProject = existingSet.Contains(n),
-                    ExistsInCsv = csvSet.Contains(n),
-                    IsSelected = false
-                })
-                .ToList();
-        }
+            var rbCreateBatch = new RadioButton { Content = "Batch Create — Create schedules from CSV definitions", FontSize = 12, Foreground = BrFg, IsChecked = true, Margin = new Thickness(0, 2, 0, 2), GroupName = "CreateOp", Tag = "CreateBatch" };
+            var rbAutoPopulate = new RadioButton { Content = "Auto-Populate — Fill schedule fields with token data", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "CreateOp", Tag = "AutoPopulate" };
+            var rbFullAuto = new RadioButton { Content = "Full Auto — Zero-input: populate + create + formulas", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "CreateOp", Tag = "FullAuto" };
 
-        private static object FormatScheduleItem(ScheduleItem item)
-        {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal };
-            sp.Children.Add(new TextBlock
+            opGroup.Children.Add(rbCreateBatch);
+            opGroup.Children.Add(rbAutoPopulate);
+            opGroup.Children.Add(rbFullAuto);
+            stack.Children.Add(opGroup);
+
+            // ── Discipline filter ───────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("DISCIPLINE FILTER"));
+            var discWrap = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            var chkM = MakeCheckBox("M - Mechanical", true);
+            var chkE = MakeCheckBox("E - Electrical", true);
+            var chkP = MakeCheckBox("P - Plumbing", true);
+            var chkA = MakeCheckBox("A - Architectural", true);
+            var chkS = MakeCheckBox("S - Structural", true);
+            var chkFP = MakeCheckBox("FP - Fire Protection", true);
+            discWrap.Children.Add(chkM); discWrap.Children.Add(chkE); discWrap.Children.Add(chkP);
+            discWrap.Children.Add(chkA); discWrap.Children.Add(chkS); discWrap.Children.Add(chkFP);
+            stack.Children.Add(discWrap);
+
+            // ── Auto-populate options ────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("AUTO-POPULATE OPTIONS"));
+            var chkOverwrite = MakeCheckBox("Overwrite existing values", false);
+            var chkFormulas = MakeCheckBox("Include formula evaluation", true);
+            stack.Children.Add(chkOverwrite);
+            stack.Children.Add(chkFormulas);
+
+            // ── Schedule list ───────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("SCHEDULES"));
+            var listPanel = BuildScheduleListPanel(items);
+            stack.Children.Add(listPanel);
+
+            // Store controls for collection
+            stack.Tag = new CreateTabState
             {
-                Text = item.Name,
-                FontSize = 12,
-                Foreground = BrFg,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            if (item.ExistsInProject && item.ExistsInCsv)
-            {
-                sp.Children.Add(MakeTag("CSV + Project", Color.FromRgb(0x4C, 0xAF, 0x50)));
-            }
-            else if (item.ExistsInProject)
-            {
-                sp.Children.Add(MakeTag("Project", Color.FromRgb(0x42, 0x9E, 0xE6)));
-            }
-            else if (item.ExistsInCsv)
-            {
-                sp.Children.Add(MakeTag("CSV", Color.FromRgb(0xFF, 0x98, 0x00)));
-            }
-
-            return sp;
-        }
-
-        private static TextBlock MakeTag(string text, Color color)
-        {
-            return new TextBlock
-            {
-                Text = text,
-                FontSize = 9,
-                Foreground = new SolidColorBrush(color),
-                FontWeight = FontWeights.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0)
+                RbCreateBatch = rbCreateBatch, RbAutoPopulate = rbAutoPopulate, RbFullAuto = rbFullAuto,
+                ChkM = chkM, ChkE = chkE, ChkP = chkP, ChkA = chkA, ChkS = chkS, ChkFP = chkFP,
+                ChkOverwrite = chkOverwrite, ChkFormulas = chkFormulas
             };
+
+            scroll.Content = stack;
+            return scroll;
         }
 
-        // ── Options builders ────────────────────────────────────────────
-
-        private static void BuildCreateOptions(StackPanel container,
-            ref CheckBox m, ref CheckBox e, ref CheckBox p, ref CheckBox a, ref CheckBox s, ref CheckBox fp)
+        private class CreateTabState
         {
-            container.Children.Add(new TextBlock
-            {
-                Text = "Discipline filter:",
-                FontSize = 11,
-                Foreground = BrFg,
-                Margin = new Thickness(0, 0, 0, 4)
-            });
-
-            var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
-            m = MakeFilterCheckBox("M - Mechanical", true);
-            e = MakeFilterCheckBox("E - Electrical", true);
-            p = MakeFilterCheckBox("P - Plumbing", true);
-            a = MakeFilterCheckBox("A - Architectural", true);
-            s = MakeFilterCheckBox("S - Structural", true);
-            fp = MakeFilterCheckBox("FP - Fire Protection", true);
-
-            wrap.Children.Add(m);
-            wrap.Children.Add(e);
-            wrap.Children.Add(p);
-            wrap.Children.Add(a);
-            wrap.Children.Add(s);
-            wrap.Children.Add(fp);
-            container.Children.Add(wrap);
+            public RadioButton RbCreateBatch, RbAutoPopulate, RbFullAuto;
+            public CheckBox ChkM, ChkE, ChkP, ChkA, ChkS, ChkFP;
+            public CheckBox ChkOverwrite, ChkFormulas;
         }
 
-        private static void BuildAutoPopulateOptions(StackPanel container,
-            ref CheckBox overwrite, ref CheckBox formulas)
+        // ════════════════════════════════════════════════════════════════
+        // TAB 2: AUDIT & ANALYSIS
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildAuditTab(List<ScheduleItem> items, TextBlock status)
         {
-            overwrite = new CheckBox
-            {
-                Content = "Overwrite existing values",
-                FontSize = 11,
-                Foreground = BrFg,
-                IsChecked = false,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            formulas = new CheckBox
-            {
-                Content = "Include formula evaluation",
-                FontSize = 11,
-                Foreground = BrFg,
-                IsChecked = true,
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            container.Children.Add(overwrite);
-            container.Children.Add(formulas);
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
+
+            stack.Children.Add(MakeSectionHeader("OPERATION"));
+            var opGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var rbAudit = new RadioButton { Content = "Audit — Compare existing schedules against CSV definitions", FontSize = 12, Foreground = BrFg, IsChecked = true, Margin = new Thickness(0, 2, 0, 2), GroupName = "AuditOp", Tag = "ScheduleAudit" };
+            var rbCompare = new RadioButton { Content = "Compare — Side-by-side field comparison between two schedules", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "AuditOp", Tag = "ScheduleCompare" };
+            var rbStats = new RadioButton { Content = "Statistics — Row/field counts, data coverage, value distribution", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "AuditOp", Tag = "ScheduleStats" };
+            var rbReport = new RadioButton { Content = "Report — Comprehensive schedule health report with RAG status", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "AuditOp", Tag = "ScheduleReport" };
+
+            opGroup.Children.Add(rbAudit);
+            opGroup.Children.Add(rbCompare);
+            opGroup.Children.Add(rbStats);
+            opGroup.Children.Add(rbReport);
+            stack.Children.Add(opGroup);
+
+            // ── Schedule selection for audit/compare ─────────────────────
+            stack.Children.Add(MakeSectionHeader("SELECT SCHEDULES"));
+            var listPanel = BuildScheduleListPanel(items);
+            stack.Children.Add(listPanel);
+
+            stack.Tag = new AuditTabState { RbAudit = rbAudit, RbCompare = rbCompare, RbStats = rbStats, RbReport = rbReport };
+
+            scroll.Content = stack;
+            return scroll;
         }
 
-        private static void BuildExportOptions(StackPanel container,
-            ref TextBox pathBox, ref ComboBox formatCombo)
+        private class AuditTabState
         {
-            // Output path
-            container.Children.Add(new TextBlock
-            {
-                Text = "Output path:",
-                FontSize = 11,
-                Foreground = BrFg,
-                Margin = new Thickness(0, 0, 0, 4)
-            });
+            public RadioButton RbAudit, RbCompare, RbStats, RbReport;
+        }
 
+        // ════════════════════════════════════════════════════════════════
+        // TAB 3: MANAGE
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildManageTab(List<ScheduleItem> items, TextBlock status)
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
+
+            stack.Children.Add(MakeSectionHeader("OPERATION"));
+            var opGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var rbDuplicate = new RadioButton { Content = "Duplicate — Copy selected schedules with new names", FontSize = 12, Foreground = BrFg, IsChecked = true, Margin = new Thickness(0, 2, 0, 2), GroupName = "ManageOp", Tag = "ScheduleDuplicate" };
+            var rbDelete = new RadioButton { Content = "Delete — Remove selected schedules from project", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "ManageOp", Tag = "ScheduleDelete" };
+            var rbRefresh = new RadioButton { Content = "Refresh — Rebuild fields from CSV definitions", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "ManageOp", Tag = "ScheduleRefresh" };
+            var rbFieldMgr = new RadioButton { Content = "Field Manager — Add, remove, reorder schedule fields", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "ManageOp", Tag = "ScheduleFieldMgr" };
+
+            opGroup.Children.Add(rbDuplicate);
+            opGroup.Children.Add(rbDelete);
+            opGroup.Children.Add(rbRefresh);
+            opGroup.Children.Add(rbFieldMgr);
+            stack.Children.Add(opGroup);
+
+            stack.Children.Add(MakeSectionHeader("SELECT SCHEDULES"));
+            var listPanel = BuildScheduleListPanel(items);
+            stack.Children.Add(listPanel);
+
+            stack.Tag = new ManageTabState { RbDuplicate = rbDuplicate, RbDelete = rbDelete, RbRefresh = rbRefresh, RbFieldMgr = rbFieldMgr };
+
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        private class ManageTabState
+        {
+            public RadioButton RbDuplicate, RbDelete, RbRefresh, RbFieldMgr;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // TAB 4: EXPORT
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildExportTab(List<ScheduleItem> items, TextBlock status)
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
+
+            stack.Children.Add(MakeSectionHeader("EXPORT OPERATION"));
+            var opGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var rbExportCsv = new RadioButton { Content = "Export CSV — Export schedule data to CSV file", FontSize = 12, Foreground = BrFg, IsChecked = true, Margin = new Thickness(0, 2, 0, 2), GroupName = "ExportOp", Tag = "ExportCSV" };
+            var rbExportExcel = new RadioButton { Content = "Export to Excel — Export schedules to XLSX workbook", FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 2, 0, 2), GroupName = "ExportOp", Tag = "ScheduleToExcel" };
+
+            opGroup.Children.Add(rbExportCsv);
+            opGroup.Children.Add(rbExportExcel);
+            stack.Children.Add(opGroup);
+
+            // ── Output path ─────────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("OUTPUT"));
             var pathRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             var browseBtn = new Button
             {
-                Content = "Browse...",
-                Width = 70,
-                Height = 24,
-                FontSize = 11,
-                Background = BrWhite,
-                BorderBrush = BrBorder,
-                Cursor = Cursors.Hand,
+                Content = "Browse...", Width = 80, Height = 26, FontSize = 11,
+                Background = BrWhite, BorderBrush = BrBorder, Cursor = Cursors.Hand,
                 Margin = new Thickness(6, 0, 0, 0)
             };
             DockPanel.SetDock(browseBtn, Dock.Right);
             pathRow.Children.Add(browseBtn);
 
-            pathBox = new TextBox
+            var txtPath = new TextBox
             {
-                FontSize = 11,
-                Padding = new Thickness(4, 3, 4, 3),
-                BorderBrush = BrBorder,
-                BorderThickness = new Thickness(1),
-                Background = BrWhite,
+                FontSize = 11, Padding = new Thickness(4, 3, 4, 3),
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1), Background = BrWhite,
                 Text = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
             };
-            pathRow.Children.Add(pathBox);
-            container.Children.Add(pathRow);
+            pathRow.Children.Add(txtPath);
+            stack.Children.Add(pathRow);
 
-            // Capture for closure
-            var capturedPathBox = pathBox;
+            var capturedPath = txtPath;
             browseBtn.Click += (_, __) =>
             {
                 try
@@ -673,130 +479,505 @@ namespace StingTools.UI
                     var dlg = new Microsoft.Win32.SaveFileDialog
                     {
                         Title = "Export Schedule Data",
-                        InitialDirectory = capturedPathBox.Text,
+                        InitialDirectory = System.IO.Path.GetDirectoryName(capturedPath.Text) ?? capturedPath.Text,
                         Filter = "CSV Files (*.csv)|*.csv|Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*",
                         FileName = "STING_Schedules"
                     };
                     if (dlg.ShowDialog() == true)
-                        capturedPathBox.Text = dlg.FileName;
+                        capturedPath.Text = dlg.FileName;
                 }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"ScheduleWizardDialog: Browse failed — {ex.Message}");
-                }
+                catch (Exception ex) { StingLog.Warn($"ScheduleWizardDialog: Browse failed — {ex.Message}"); }
             };
 
             // Format
-            var fmtRow = new StackPanel { Orientation = Orientation.Horizontal };
-            fmtRow.Children.Add(new TextBlock
-            {
-                Text = "Format:",
-                FontSize = 11,
-                Foreground = BrFg,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            });
-            formatCombo = new ComboBox
-            {
-                Width = 100,
-                FontSize = 11,
-                SelectedIndex = 0
-            };
-            formatCombo.Items.Add("CSV");
-            formatCombo.Items.Add("XLSX");
-            fmtRow.Children.Add(formatCombo);
-            container.Children.Add(fmtRow);
+            var fmtRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            fmtRow.Children.Add(new TextBlock { Text = "Format:", FontSize = 11, Foreground = BrFg, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+            var cmbFormat = new ComboBox { Width = 100, FontSize = 11, SelectedIndex = 0 };
+            cmbFormat.Items.Add("CSV");
+            cmbFormat.Items.Add("XLSX");
+            fmtRow.Children.Add(cmbFormat);
+            stack.Children.Add(fmtRow);
+
+            // Schedule selection
+            stack.Children.Add(MakeSectionHeader("SELECT SCHEDULES TO EXPORT"));
+            var listPanel = BuildScheduleListPanel(items);
+            stack.Children.Add(listPanel);
+
+            stack.Tag = new ExportTabState { RbExportCsv = rbExportCsv, RbExportExcel = rbExportExcel, TxtPath = txtPath, CmbFormat = cmbFormat };
+
+            scroll.Content = stack;
+            return scroll;
         }
 
-        private static void BuildManageOptions(StackPanel container, ref ComboBox manageCombo)
+        private class ExportTabState
         {
-            container.Children.Add(new TextBlock
-            {
-                Text = "Sub-operation:",
-                FontSize = 11,
-                Foreground = BrFg,
-                Margin = new Thickness(0, 0, 0, 4)
-            });
-            manageCombo = new ComboBox
-            {
-                Width = 200,
-                FontSize = 11,
-                SelectedIndex = 0
-            };
-            manageCombo.Items.Add("Duplicate");
-            manageCombo.Items.Add("Delete");
-            manageCombo.Items.Add("Refresh");
-            manageCombo.Items.Add("Compare");
-            container.Children.Add(manageCombo);
+            public RadioButton RbExportCsv, RbExportExcel;
+            public TextBox TxtPath;
+            public ComboBox CmbFormat;
         }
 
-        // ── Collect options from controls ────────────────────────────────
-
-        private static Dictionary<string, string> CollectOptions(string operation,
-            CheckBox discM, CheckBox discE, CheckBox discP, CheckBox discA, CheckBox discS, CheckBox discFP,
-            CheckBox overwrite, CheckBox formulas,
-            TextBox exportPath, ComboBox formatCombo,
-            ComboBox manageCombo)
+        // ════════════════════════════════════════════════════════════════
+        // TAB 5: FORMAT
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildFormatTab(TextBlock status)
         {
-            var opts = new Dictionary<string, string>();
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
 
-            switch (operation)
+            stack.Children.Add(MakeSectionHeader("COLUMN FORMATTING"));
+            stack.Children.Add(new TextBlock
             {
-                case OpCreateBatch:
-                    var discs = new List<string>();
-                    if (discM?.IsChecked == true) discs.Add("M");
-                    if (discE?.IsChecked == true) discs.Add("E");
-                    if (discP?.IsChecked == true) discs.Add("P");
-                    if (discA?.IsChecked == true) discs.Add("A");
-                    if (discS?.IsChecked == true) discs.Add("S");
-                    if (discFP?.IsChecked == true) discs.Add("FP");
-                    opts["DisciplineFilter"] = string.Join(",", discs);
-                    break;
+                Text = "Select a formatting operation to apply to the active schedule view.",
+                FontSize = 11, Foreground = BrFgDim, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 12)
+            });
 
-                case OpAutoPopulate:
-                    opts["Overwrite"] = (overwrite?.IsChecked == true).ToString();
-                    opts["IncludeFormulas"] = (formulas?.IsChecked == true).ToString();
-                    break;
+            var opGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
 
-                case OpExportCsv:
-                    opts["OutputPath"] = exportPath?.Text ?? string.Empty;
-                    opts["Format"] = (formatCombo?.SelectedItem as string) ?? "CSV";
-                    break;
+            var formatOps = new[]
+            {
+                ("SchedAutoFit",      "Auto-Fit Columns",         "Automatically size columns to fit content"),
+                ("SchedMatchWidest",  "Match Widest",             "Set all columns to match the widest column"),
+                ("SchedEqualise",     "Equalise Widths",          "Make all columns the same width"),
+                ("SchedSetWidth",     "Set Column Width",         "Set a specific width for selected columns"),
+                ("SchedSyncPos",      "Sync Column Positions",    "Synchronise column positions across schedules"),
+                ("SchedSyncRot",      "Sync Column Rotation",     "Synchronise column rotation across schedules"),
+                ("SchedToggleHidden", "Toggle Hidden Columns",    "Show or hide columns in the active schedule"),
+                ("SchedShowHidden",   "Show All Hidden",          "Reveal all hidden columns in the schedule"),
+            };
 
-                case OpManage:
-                    opts["SubOperation"] = (manageCombo?.SelectedItem as string) ?? "Duplicate";
-                    break;
+            RadioButton firstRb = null;
+            foreach (var (tag, label, tip) in formatOps)
+            {
+                var rb = new RadioButton
+                {
+                    Content = $"{label} — {tip}",
+                    FontSize = 12, Foreground = BrFg,
+                    Margin = new Thickness(0, 3, 0, 3),
+                    GroupName = "FormatOp", Tag = tag
+                };
+                if (firstRb == null) { firstRb = rb; rb.IsChecked = true; }
+                opGroup.Children.Add(rb);
+            }
+            stack.Children.Add(opGroup);
+
+            // ── Color formatting section ────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("COLOR FORMATTING"));
+            var rbColor = new RadioButton
+            {
+                Content = "Schedule Color — Apply color rules to schedule rows/cells",
+                FontSize = 12, Foreground = BrFg,
+                Margin = new Thickness(0, 3, 0, 3),
+                GroupName = "FormatOp", Tag = "ScheduleColor"
+            };
+            stack.Children.Add(rbColor);
+
+            stack.Tag = "format_tab";
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // TAB 6: CORPORATE / MEP
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildCorporateMepTab(TextBlock status)
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
+
+            // ── Corporate schedules ─────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("CORPORATE SCHEDULES"));
+            var corpGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 16) };
+
+            var corpOps = new[]
+            {
+                ("CorporateTitleBlock",     "Corporate Title Block Schedule",  "Create title block schedule with project metadata"),
+                ("DrawingRegisterSchedule", "Drawing Register Schedule",       "Create ISO 19650 drawing register"),
+                ("MaterialSchedules",       "Material Schedules",              "Create BLE/MEP material quantity schedules"),
+            };
+
+            RadioButton firstCorpRb = null;
+            foreach (var (tag, label, tip) in corpOps)
+            {
+                var rb = new RadioButton
+                {
+                    Content = $"{label} — {tip}",
+                    FontSize = 12, Foreground = BrFg,
+                    Margin = new Thickness(0, 3, 0, 3),
+                    GroupName = "CorpMepOp", Tag = tag
+                };
+                if (firstCorpRb == null) { firstCorpRb = rb; rb.IsChecked = true; }
+                corpGroup.Children.Add(rb);
+            }
+            stack.Children.Add(corpGroup);
+
+            // ── MEP schedules ───────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("MEP SCHEDULES"));
+            var mepGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var mepOps = new[]
+            {
+                ("PanelSchedule",            "Panel Schedule",             "Electrical panel schedule with circuits"),
+                ("LightingFixtureSchedule",  "Lighting Fixture Schedule",  "Lighting fixture quantities and specifications"),
+                ("ElectricalDeviceSchedule", "Electrical Device Schedule", "Electrical devices, outlets, switches"),
+                ("MechEquipSchedule",        "Mechanical Equipment",       "HVAC equipment with capacity data"),
+                ("PlumbingFixtureSchedule",  "Plumbing Fixture Schedule",  "Plumbing fixtures and drainage"),
+                ("FireDeviceSchedule",       "Fire Device Schedule",       "Fire alarm and suppression devices"),
+            };
+
+            foreach (var (tag, label, tip) in mepOps)
+            {
+                var rb = new RadioButton
+                {
+                    Content = $"{label} — {tip}",
+                    FontSize = 12, Foreground = BrFg,
+                    Margin = new Thickness(0, 3, 0, 3),
+                    GroupName = "CorpMepOp", Tag = tag
+                };
+                mepGroup.Children.Add(rb);
+            }
+            stack.Children.Add(mepGroup);
+
+            // ── MEP bulk section ────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("MEP BULK OPERATIONS"));
+            var bulkGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            var bulkOps = new[]
+            {
+                ("MEPScheduleHVAC",  "All HVAC Schedules",      "Create all HVAC-related schedules"),
+                ("MEPScheduleElec",  "All Electrical Schedules", "Create all electrical schedules"),
+                ("MEPSchedulePlumb", "All Plumbing Schedules",   "Create all plumbing schedules"),
+                ("MEPScheduleFire",  "All Fire Schedules",       "Create all fire protection schedules"),
+            };
+
+            foreach (var (tag, label, tip) in bulkOps)
+            {
+                var rb = new RadioButton
+                {
+                    Content = $"{label} — {tip}",
+                    FontSize = 12, Foreground = BrFg,
+                    Margin = new Thickness(0, 3, 0, 3),
+                    GroupName = "CorpMepOp", Tag = tag
+                };
+                bulkGroup.Children.Add(rb);
+            }
+            stack.Children.Add(bulkGroup);
+
+            stack.Tag = "corpmep_tab";
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Build schedule items from CSV + existing project schedules
+        // ════════════════════════════════════════════════════════════════
+        private static List<ScheduleItem> BuildScheduleItems(List<string> csvDefs, List<string> existing)
+        {
+            var map = new Dictionary<string, ScheduleItem>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string name in csvDefs)
+            {
+                string key = name.Trim();
+                if (string.IsNullOrEmpty(key)) continue;
+                if (!map.ContainsKey(key))
+                    map[key] = new ScheduleItem { Name = key };
+                map[key].ExistsInCsv = true;
             }
 
-            return opts;
+            foreach (string name in existing)
+            {
+                string key = name.Trim();
+                if (string.IsNullOrEmpty(key)) continue;
+                if (!map.ContainsKey(key))
+                    map[key] = new ScheduleItem { Name = key };
+                map[key].ExistsInProject = true;
+            }
+
+            return map.Values.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
-        // ── Helper controls ─────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Build reusable schedule list panel with search + checkboxes
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildScheduleListPanel(List<ScheduleItem> items)
+        {
+            var container = new StackPanel();
 
-        private static CheckBox MakeFilterCheckBox(string label, bool isChecked)
+            // Search box
+            var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var searchBox = new TextBox
+            {
+                FontSize = 11, Padding = new Thickness(4, 3, 4, 3),
+                BorderBrush = BrBorder, BorderThickness = new Thickness(1),
+                Background = BrWhite, Tag = "search"
+            };
+
+            // Watermark
+            var watermark = new TextBlock
+            {
+                Text = "Search schedules...", FontSize = 11,
+                Foreground = BrFgDim, IsHitTestVisible = false,
+                Margin = new Thickness(6, 4, 0, 0)
+            };
+            var searchGrid = new Grid();
+            searchGrid.Children.Add(searchBox);
+            searchGrid.Children.Add(watermark);
+            searchBox.TextChanged += (_, __) =>
+            {
+                watermark.Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
+            };
+            searchRow.Children.Add(searchGrid);
+            container.Children.Add(searchRow);
+
+            // Select All / Clear All
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            var lnkSelectAll = CreateLinkButton("Select All");
+            var lnkClearAll = CreateLinkButton("Clear All");
+            lnkClearAll.Margin = new Thickness(12, 0, 0, 0);
+            btnRow.Children.Add(lnkSelectAll);
+            btnRow.Children.Add(lnkClearAll);
+            container.Children.Add(btnRow);
+
+            // ListBox with checkboxes
+            var listBox = new ListBox
+            {
+                MaxHeight = 180,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(1),
+                Background = BrWhite,
+                VirtualizingPanel.IsVirtualizing = true,
+                VirtualizingPanel.VirtualizationMode = VirtualizationMode.Recycling
+            };
+
+            foreach (var item in items)
+            {
+                var chk = new CheckBox
+                {
+                    IsChecked = item.IsSelected,
+                    Margin = new Thickness(2),
+                    Tag = item,
+                    Content = FormatScheduleItem(item)
+                };
+                chk.Checked += (_, __) => item.IsSelected = true;
+                chk.Unchecked += (_, __) => item.IsSelected = false;
+                listBox.Items.Add(chk);
+            }
+
+            // Search filtering
+            searchBox.TextChanged += (_, __) =>
+            {
+                string filter = searchBox.Text?.Trim().ToLowerInvariant() ?? "";
+                foreach (var obj in listBox.Items)
+                {
+                    if (obj is CheckBox cb && cb.Tag is ScheduleItem si)
+                    {
+                        cb.Visibility = string.IsNullOrEmpty(filter) || si.Name.ToLowerInvariant().Contains(filter)
+                            ? Visibility.Visible
+                            : Visibility.Collapsed;
+                    }
+                }
+            };
+
+            // Select All / Clear All wiring
+            lnkSelectAll.MouseLeftButtonDown += (_, __) =>
+            {
+                foreach (var obj in listBox.Items)
+                {
+                    if (obj is CheckBox cb && cb.Visibility == Visibility.Visible)
+                        cb.IsChecked = true;
+                }
+            };
+            lnkClearAll.MouseLeftButtonDown += (_, __) =>
+            {
+                foreach (var obj in listBox.Items)
+                {
+                    if (obj is CheckBox cb && cb.Visibility == Visibility.Visible)
+                        cb.IsChecked = false;
+                }
+            };
+
+            container.Children.Add(listBox);
+
+            var countText = new TextBlock
+            {
+                Text = $"{items.Count} schedules available",
+                FontSize = 10, Foreground = BrFgDim,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            container.Children.Add(countText);
+
+            return container;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Format a schedule item with coloured status tag
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement FormatScheduleItem(ScheduleItem item)
+        {
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(new TextBlock
+            {
+                Text = item.Name, FontSize = 11, Foreground = BrFg,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            if (item.ExistsInCsv && item.ExistsInProject)
+                sp.Children.Add(MakeTag("CSV + Project", BrGreen));
+            else if (item.ExistsInProject)
+                sp.Children.Add(MakeTag("Project", BrBlue));
+            else if (item.ExistsInCsv)
+                sp.Children.Add(MakeTag("CSV", BrAccent));
+
+            return sp;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Coloured tag badge
+        // ════════════════════════════════════════════════════════════════
+        private static TextBlock MakeTag(string text, SolidColorBrush color)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 9,
+                Foreground = BrWhite,
+                Background = color,
+                Padding = new Thickness(4, 1, 4, 1),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Section header
+        // ════════════════════════════════════════════════════════════════
+        private static TextBlock MakeSectionHeader(string text)
+        {
+            return new TextBlock
+            {
+                Text = text, FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrFgDim,
+                Margin = new Thickness(0, 10, 0, 6),
+                Padding = new Thickness(4, 3, 4, 3),
+                Background = BrSectionHeader
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Styled checkbox
+        // ════════════════════════════════════════════════════════════════
+        private static CheckBox MakeCheckBox(string label, bool isChecked)
         {
             return new CheckBox
             {
                 Content = label,
+                IsChecked = isChecked,
                 FontSize = 11,
                 Foreground = BrFg,
-                IsChecked = isChecked,
-                Margin = new Thickness(0, 0, 14, 4)
+                Margin = new Thickness(0, 2, 12, 2)
             };
         }
 
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Clickable link-style TextBlock
+        // ════════════════════════════════════════════════════════════════
         private static TextBlock CreateLinkButton(string text)
         {
             var tb = new TextBlock
             {
                 Text = text,
                 FontSize = 11,
-                Foreground = BrAccent,
+                Foreground = BrBlue,
                 Cursor = Cursors.Hand,
-                TextDecorations = TextDecorations.Underline,
-                Margin = new Thickness(0, 0, 4, 0)
+                TextDecorations = TextDecorations.Underline
             };
+            tb.MouseEnter += (_, __) => tb.Foreground = BrAccent;
+            tb.MouseLeave += (_, __) => tb.Foreground = BrBlue;
             return tb;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // COLLECTION: Get selected operation from active tab
+        // ════════════════════════════════════════════════════════════════
+        private static string CollectOperation(string activeTab, Dictionary<string, UIElement> panels)
+        {
+            if (!panels.TryGetValue(activeTab, out var panel)) return string.Empty;
+
+            // For format/corporate tabs, find the checked RadioButton directly
+            var stack = FindStack(panel);
+            if (stack == null) return string.Empty;
+
+            // Walk all RadioButtons in the stack and find the checked one
+            var checkedRb = FindCheckedRadioButton(stack);
+            return checkedRb?.Tag as string ?? string.Empty;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // COLLECTION: Get all options from active tab controls
+        // ════════════════════════════════════════════════════════════════
+        private static Dictionary<string, string> CollectAllOptions(string activeTab, Dictionary<string, UIElement> panels)
+        {
+            var opts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (!panels.TryGetValue(activeTab, out var panel)) return opts;
+            var stack = FindStack(panel);
+            if (stack == null) return opts;
+
+            switch (activeTab)
+            {
+                case "create":
+                    if (stack.Tag is CreateTabState cs)
+                    {
+                        opts["DiscFilter_M"]  = (cs.ChkM?.IsChecked  == true) ? "1" : "0";
+                        opts["DiscFilter_E"]  = (cs.ChkE?.IsChecked  == true) ? "1" : "0";
+                        opts["DiscFilter_P"]  = (cs.ChkP?.IsChecked  == true) ? "1" : "0";
+                        opts["DiscFilter_A"]  = (cs.ChkA?.IsChecked  == true) ? "1" : "0";
+                        opts["DiscFilter_S"]  = (cs.ChkS?.IsChecked  == true) ? "1" : "0";
+                        opts["DiscFilter_FP"] = (cs.ChkFP?.IsChecked == true) ? "1" : "0";
+                        opts["Overwrite"]     = (cs.ChkOverwrite?.IsChecked == true) ? "1" : "0";
+                        opts["Formulas"]      = (cs.ChkFormulas?.IsChecked  == true) ? "1" : "0";
+                    }
+                    break;
+
+                case "export":
+                    if (stack.Tag is ExportTabState es)
+                    {
+                        opts["OutputPath"] = es.TxtPath?.Text ?? "";
+                        opts["Format"]     = es.CmbFormat?.SelectedItem?.ToString() ?? "CSV";
+                    }
+                    break;
+
+                // audit, manage, format, corporate — operation tag is sufficient, no extra options
+            }
+
+            return opts;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Find the StackPanel inside a ScrollViewer
+        // ════════════════════════════════════════════════════════════════
+        private static StackPanel FindStack(UIElement element)
+        {
+            if (element is StackPanel sp) return sp;
+            if (element is ScrollViewer sv && sv.Content is StackPanel ssp) return ssp;
+            return null;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPER: Recursively find the checked RadioButton in a panel
+        // ════════════════════════════════════════════════════════════════
+        private static RadioButton FindCheckedRadioButton(Panel parent)
+        {
+            foreach (var child in parent.Children)
+            {
+                if (child is RadioButton rb && rb.IsChecked == true) return rb;
+                if (child is Panel p)
+                {
+                    var found = FindCheckedRadioButton(p);
+                    if (found != null) return found;
+                }
+            }
+            return null;
         }
     }
 }

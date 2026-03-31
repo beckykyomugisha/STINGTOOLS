@@ -326,6 +326,19 @@ namespace StingTools.Temp
             try
             {
                 Document doc = mat.Document;
+
+                // Parse values up front
+                double tcVal = 0, shVal = 0, dVal = 0;
+                bool hasTc = !string.IsNullOrEmpty(thermalCond) && double.TryParse(thermalCond,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out tcVal);
+                bool hasSh = !string.IsNullOrEmpty(specificHeat) && double.TryParse(specificHeat,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out shVal);
+                bool hasD = !string.IsNullOrEmpty(density) && double.TryParse(density,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out dVal);
+
                 PropertySetElement thermalPse = null;
 
                 if (mat.ThermalAssetId != ElementId.InvalidElementId)
@@ -335,36 +348,37 @@ namespace StingTools.Temp
 
                 if (thermalPse == null)
                 {
-                    // Create a new thermal asset for this material
+                    // Create a new thermal asset with properties pre-set
                     var thermalAsset = new ThermalAsset(mat.Name + "_Thermal", ThermalMaterialType.Solid);
+                    if (hasTc) thermalAsset.ThermalConductivity = tcVal;
+                    if (hasSh) thermalAsset.SpecificHeat = shVal;
+                    if (hasD) thermalAsset.Density = dVal;
                     thermalPse = PropertySetElement.Create(doc, thermalAsset);
                     mat.ThermalAssetId = thermalPse.Id;
                 }
-
-                if (thermalPse != null)
+                else
                 {
-                    // Thermal conductivity (W/m·K)
-                    if (!string.IsNullOrEmpty(thermalCond) && double.TryParse(thermalCond,
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double tc))
+                    // Update existing thermal asset via BuiltInParameters where available
+                    if (hasTc)
+                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY, tcVal);
+                    if (hasD)
+                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY, dVal);
+                    // Specific heat: set via schema parameter lookup since no BuiltInParameter exists
+                    if (hasSh)
                     {
-                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY, tc);
-                    }
-
-                    // Specific heat (J/kg·K)
-                    if (!string.IsNullOrEmpty(specificHeat) && double.TryParse(specificHeat,
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double sh))
-                    {
-                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_SPECIFIC_HEAT, sh);
-                    }
-
-                    // Density (kg/m³) — thermal asset also has density
-                    if (!string.IsNullOrEmpty(density) && double.TryParse(density,
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double d))
-                    {
-                        SetAssetParam(thermalPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY, d);
+                        try
+                        {
+                            foreach (Parameter p in thermalPse.GetOrderedParameters())
+                            {
+                                if (p.Definition?.Name == "Specific Heat" && !p.IsReadOnly
+                                    && p.StorageType == StorageType.Double)
+                                {
+                                    p.Set(shVal);
+                                    break;
+                                }
+                            }
+                        }
+                        catch (Exception ex) { StingLog.Warn($"SpecificHeat param: {ex.Message}"); }
                     }
                 }
             }
@@ -427,7 +441,9 @@ namespace StingTools.Temp
         {
             try
             {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                 Parameter p = pse.get_Parameter(bip);
+#pragma warning restore CS0618
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
                     p.Set(value);
             }
@@ -443,7 +459,9 @@ namespace StingTools.Temp
             if (string.IsNullOrEmpty(value)) return;
             try
             {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                 Parameter p = mat.get_Parameter(bip);
+#pragma warning restore CS0618
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                     p.Set(value);
             }
@@ -455,7 +473,9 @@ namespace StingTools.Temp
         {
             try
             {
+#pragma warning disable CS0618 // BuiltInParameter overload still functional in Revit 2025+
                 Parameter p = mat.get_Parameter(bip);
+#pragma warning restore CS0618
                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
                     p.Set(value);
             }
@@ -565,7 +585,7 @@ namespace StingTools.Temp
         public static Result CreateMaterialsFromCsv(Document doc, string csvFileName,
             string dialogTitle)
         {
-            _sharedParamWarnings = 0; // Reset per batch
+            // (shared param warnings tracking removed — using ThermalAsset/StructuralAsset approach)
             string csvPath = StingToolsApp.FindDataFile(csvFileName);
             if (csvPath == null)
             {

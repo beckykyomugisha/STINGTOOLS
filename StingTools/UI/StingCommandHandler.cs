@@ -715,8 +715,10 @@ namespace StingTools.UI
                     case "CreateConduits": RunCommand<Temp.CreateConduitsCommand>(app); break;
 
                     // ── Schedules ──
-                    case "FullAutoPopulate": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
-                    case "BatchSchedules": RunCommand<Temp.BatchSchedulesCommand>(app); break;
+                    case "FullAutoPopulate":
+                    case "FullAuto": RunCommand<Temp.FullAutoPopulateCommand>(app); break;
+                    case "BatchSchedules":
+                    case "CreateBatch": RunCommand<Temp.BatchSchedulesCommand>(app); break;
                     case "MaterialSchedules": RunCommand<Temp.CreateMaterialSchedulesCommand>(app); break;
                     case "AutoPopulate": RunCommand<Temp.AutoPopulateCommand>(app); break;
                     case "FormulaEvaluator": RunCommand<Temp.FormulaEvaluatorCommand>(app); break;
@@ -2252,6 +2254,7 @@ namespace StingTools.UI
                     case "ScheduleWizard":
                     {
                         // Load CSV definitions and existing schedule names for the wizard
+                        var doc = app.ActiveUIDocument?.Document;
                         var csvDefs = new List<string>();
                         var existingScheds = new List<string>();
                         try
@@ -2285,7 +2288,13 @@ namespace StingTools.UI
                         var dlgResult = UI.ScheduleWizardDialog.Show(csvDefs, existingScheds);
                         if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
                         {
+                            // Dashboard returns operation strings that map directly to dispatch case labels
+                            // e.g. "CreateBatch", "ScheduleAudit", "ScheduleCompare", "ExportCSV",
+                            //      "SchedAutoFit", "CorporateTitleBlock", "PanelSchedule", "MEPScheduleHVAC", etc.
                             SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
                             Execute(app);
                         }
                         break;
