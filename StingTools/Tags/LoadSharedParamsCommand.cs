@@ -178,14 +178,11 @@ namespace StingTools.Tags
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // Add Materials category (needed for MAT_* params)
-            try
-            {
-                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
-                if (matCat != null && matCat.AllowsBoundParameters && !coreCats.Contains(matCat))
-                    coreCats.Insert(matCat);
-            }
-            catch (Exception ex) { StingLog.Warn($"Add Materials category to core set: {ex.Message}"); }
+            // NOTE: OST_Materials is NOT added to coreCats.
+            // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
+            // via dedicated matCats override in BuildGroupCategoryOverrides().
+            // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
+            // polluting every material's custom properties panel.
 
             // Phase 39: Add Sheets category (needed for SHT_* params)
             try
@@ -464,9 +461,10 @@ namespace StingTools.Tags
         {
             var set = new CategorySet();
             // Combine MEP + BLE + a few extra common categories
+            // NOTE: OST_Materials is NOT added here — material params are bound
+            // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
-            TryInsert(doc, set, BuiltInCategory.OST_Materials);
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);
