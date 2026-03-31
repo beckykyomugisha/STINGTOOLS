@@ -291,6 +291,59 @@ namespace StingTools.Tags
                 }
             }
 
+            // ── Step 6: Remove ALL shared parameter bindings from OST_Materials ──
+            // Materials should use native Revit properties (Color, Transparency,
+            // ThermalAsset, StructuralAsset) — NOT shared parameter bindings.
+            // Previous versions incorrectly included OST_Materials in CategoryEnumMap,
+            // causing all 2300+ shared parameters to be bound to every material.
+            int materialsUnbound = 0;
+            try
+            {
+                Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
+                if (matCat != null)
+                {
+                    // Collect all bindings that include OST_Materials
+                    var toFix = new List<(Definition def, ElementBinding binding)>();
+                    var scanIter = doc.ParameterBindings.ForwardIterator();
+                    while (scanIter.MoveNext())
+                    {
+                        if (scanIter.Current is ElementBinding eb && eb.Categories.Contains(matCat))
+                            toFix.Add((scanIter.Key, eb));
+                    }
+
+                    if (toFix.Count > 0)
+                    {
+                        StingLog.Info($"Cleaning up {toFix.Count} parameter bindings from OST_Materials");
+                        using (Transaction txClean = new Transaction(doc, "STING Remove Material Bindings"))
+                        {
+                            txClean.Start();
+                            foreach (var (def, eb) in toFix)
+                            {
+                                try
+                                {
+                                    eb.Categories.Erase(matCat);
+                                    if (eb.Categories.Size > 0)
+                                        doc.ParameterBindings.ReInsert(def, eb);
+                                    else
+                                        doc.ParameterBindings.Remove(def);
+                                    materialsUnbound++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    StingLog.Warn($"Failed to unbind '{def.Name}' from Materials: {ex.Message}");
+                                }
+                            }
+                            txClean.Commit();
+                        }
+                        StingLog.Info($"Removed {materialsUnbound} parameter bindings from OST_Materials");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Material binding cleanup: {ex.Message}");
+            }
+
             // ── Report ──
             var report = new StringBuilder();
             report.AppendLine($"Bound: {bound} parameters");
@@ -299,6 +352,8 @@ namespace StingTools.Tags
             report.AppendLine($"Total in file: {totalDefs}");
             report.AppendLine($"Categories: {coreCats.Size}");
             report.AppendLine($"Groups processed: {groupsToProcess.Count}");
+            if (materialsUnbound > 0)
+                report.AppendLine($"Material cleanup: removed {materialsUnbound} stale bindings from OST_Materials");
             report.AppendLine();
 
             if (boundByGroup.Count > 0)

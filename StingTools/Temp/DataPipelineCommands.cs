@@ -734,9 +734,12 @@ namespace StingTools.Temp
                     }
 
                     // Build category set — PERF-005: O(1) dictionary lookup
+                    // Exclude OST_Materials — materials use native Revit properties, not shared params
                     var catSet = doc.Application.Create.NewCategorySet();
                     foreach (var (catName, _) in targets)
                     {
+                        if (catName.Equals("Materials", StringComparison.OrdinalIgnoreCase))
+                            continue;
                         if (catDictDynamic.TryGetValue(catName, out Category cat))
                             catSet.Insert(cat);
                     }
