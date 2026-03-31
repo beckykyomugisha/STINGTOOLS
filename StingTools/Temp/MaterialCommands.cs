@@ -411,15 +411,16 @@ namespace StingTools.Temp
                 }
 
                 // Parse values up front
+                double dVal = 0, compVal = 0, tensVal = 0;
                 bool hasD = !string.IsNullOrEmpty(density) && double.TryParse(density,
                     System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out double dVal);
+                    System.Globalization.CultureInfo.InvariantCulture, out dVal);
                 bool hasComp = !string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
                     System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out double compVal);
+                    System.Globalization.CultureInfo.InvariantCulture, out compVal);
                 bool hasTens = !string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
                     System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out double tensVal);
+                    System.Globalization.CultureInfo.InvariantCulture, out tensVal);
 
                 // Determine structural asset class from material category
                 StructuralAssetClass assetClass = InferStructuralAssetClass(
@@ -434,16 +435,17 @@ namespace StingTools.Temp
                     {
                         // MPa → Pa for Revit internal units (Pa)
                         structAsset.MinimumYieldStress = compVal * 1e6;
-                        // Approximate Young's modulus from compressive strength
-                        // EC2: Ecm ≈ 22 × (fck/10)^0.3 GPa for concrete
-                        // General: E ≈ 1000 × fck (rough approximation)
-                        structAsset.YoungModulusX = compVal * 1000.0 * 1e6;
-                        structAsset.YoungModulusY = compVal * 1000.0 * 1e6;
-                        structAsset.YoungModulusZ = compVal * 1000.0 * 1e6;
                     }
                     if (hasTens) structAsset.MinimumTensileStrength = tensVal * 1e6;
                     structPse = PropertySetElement.Create(doc, structAsset);
                     mat.StructuralAssetId = structPse.Id;
+                    // Set Young's modulus via PropertySetElement (not available on StructuralAsset directly)
+                    if (hasComp)
+                    {
+                        // Approximate: E ≈ 1000 × fck (rough), MPa → Pa
+                        double youngsPa = compVal * 1000.0 * 1e6;
+                        SetAssetParamByName(structPse, "Young's Modulus X", youngsPa);
+                    }
                 }
                 else
                 {
@@ -551,7 +553,7 @@ namespace StingTools.Temp
         // ── READ helpers (for export CSV round-trip) ──────────────────────
 
         /// <summary>Read a string BuiltInParameter from a material. Returns empty string on failure.</summary>
-        private static string ReadMatParam(Material mat, BuiltInParameter bip)
+        internal static string ReadMatParam(Material mat, BuiltInParameter bip)
         {
             try
             {
@@ -568,7 +570,7 @@ namespace StingTools.Temp
         }
 
         /// <summary>Read a double BuiltInParameter from a material, formatted as string.</summary>
-        private static string ReadMatParamDouble(Material mat, BuiltInParameter bip)
+        internal static string ReadMatParamDouble(Material mat, BuiltInParameter bip)
         {
             try
             {
@@ -588,7 +590,7 @@ namespace StingTools.Temp
         }
 
         /// <summary>Read a double from a PropertySetElement (thermal/structural asset) by BuiltInParameter.</summary>
-        private static string ReadAssetParam(PropertySetElement pse, BuiltInParameter bip)
+        internal static string ReadAssetParam(PropertySetElement pse, BuiltInParameter bip)
         {
             if (pse == null) return "";
             try
@@ -607,7 +609,7 @@ namespace StingTools.Temp
         }
 
         /// <summary>Read a double from a PropertySetElement (thermal/structural asset) by parameter name.</summary>
-        private static string ReadAssetParamByName(PropertySetElement pse, string paramName)
+        internal static string ReadAssetParamByName(PropertySetElement pse, string paramName)
         {
             if (pse == null) return "";
             try
@@ -1125,13 +1127,13 @@ namespace StingTools.Temp
                         try { shininess = mat.Shininess; } catch (Exception ex) { StingLog.Warn($"Read material shininess: {ex.Message}"); }
 
                         // Read BuiltInParameters (Identity tab)
-                        string desc = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                        string mfr = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
-                        string model = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
-                        string cost = ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
-                        string keynote = ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
-                        string mark = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
-                        string url = ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
+                        string desc = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                        string mfr = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MANUFACTURER);
+                        string model = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MODEL);
+                        string cost = MaterialPropertyHelper.ReadMatParamDouble(mat, BuiltInParameter.ALL_MODEL_COST);
+                        string keynote = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.KEYNOTE_PARAM);
+                        string mark = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_MARK);
+                        string url = MaterialPropertyHelper.ReadMatParam(mat, BuiltInParameter.ALL_MODEL_URL);
 
                         // Read ThermalAsset properties
                         string density = "", thermalCond = "", specificHeat = "";
@@ -1142,9 +1144,9 @@ namespace StingTools.Temp
                                 var tPse = doc.GetElement(mat.ThermalAssetId) as PropertySetElement;
                                 if (tPse != null)
                                 {
-                                    density = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                                    thermalCond = ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
-                                    specificHeat = ReadAssetParamByName(tPse, "Specific Heat");
+                                    density = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                                    thermalCond = MaterialPropertyHelper.ReadAssetParam(tPse, BuiltInParameter.PHY_MATERIAL_PARAM_THERMAL_CONDUCTIVITY);
+                                    specificHeat = MaterialPropertyHelper.ReadAssetParamByName(tPse, "Specific Heat");
                                 }
                             }
                         }
@@ -1160,13 +1162,13 @@ namespace StingTools.Temp
                                 if (sPse != null)
                                 {
                                     if (string.IsNullOrEmpty(density))
-                                        density = ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
-                                    compStr = ReadAssetParamByName(sPse, "Minimum Yield Stress");
+                                        density = MaterialPropertyHelper.ReadAssetParam(sPse, BuiltInParameter.PHY_MATERIAL_PARAM_STRUCTURAL_DENSITY);
+                                    compStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Yield Stress");
                                     if (!string.IsNullOrEmpty(compStr) && double.TryParse(compStr,
                                         System.Globalization.NumberStyles.Any,
                                         System.Globalization.CultureInfo.InvariantCulture, out double cVal))
                                         compStr = (cVal / 1e6).ToString("F1"); // Pa → MPa
-                                    tensStr = ReadAssetParamByName(sPse, "Minimum Tensile Strength");
+                                    tensStr = MaterialPropertyHelper.ReadAssetParamByName(sPse, "Minimum Tensile Strength");
                                     if (!string.IsNullOrEmpty(tensStr) && double.TryParse(tensStr,
                                         System.Globalization.NumberStyles.Any,
                                         System.Globalization.CultureInfo.InvariantCulture, out double tVal))
