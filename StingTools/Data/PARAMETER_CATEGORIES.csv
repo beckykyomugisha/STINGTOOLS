@@ -241,7 +241,7 @@ BLE_CEILING_GRID_SZ_MM,Ceiling Grid Size,LENGTH,Type,"Ceilings, Generic Models",
 BLE_CEILING_HEIGHT_MM,Ceiling Height,LENGTH,Type,"Ceilings, Generic Models",CST_PROC,b1eaf7da-66bc-50d7-8261-eba13ac865e6,Ble Ceiling Height Mm [ISO 19650-1:2018]
 BLE_CEILING_LIGHT_REFLECTANCE_PCT,Ceiling Light Reflectance,NUMBER,Type,"Ceilings, Generic Models",CST_PROC,711abfdb-7127-56c1-b3f5-7f318171812d,Ble Ceiling Light Reflectance Pct [ISO 19650-1:2018]
 BLE_CEILING_MAT_TXT,Ceiling Material,TEXT,Type,"Ceilings, Generic Models",CST_PROC,38f20d97-20e0-5896-a8c5-ac8e20d9beb3,Ble Ceiling Mat Txt [ISO 19650-1:2018]
-BLE_CEILING_NOISE_REDCTION_COEFFICIENT_NRC_NR,Ceiling Noise Redction Coefficient Nrc,NUMBER,Type,"Ceilings, Generic Models",CST_PROC,9d7fa63d-6e32-508e-9487-30ed356c33dd,Ble Ceiling Noise Redction Coefficient Nrc Nr [ISO 19650-1:2018]
+BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR,Ceiling Noise Reduction Coefficient Nrc,NUMBER,Type,"Ceilings, Generic Models",CST_PROC,9d7fa63d-6e32-508e-9487-30ed356c33dd,Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018]
 BLE_CEILING_PLENUM_HEIGHT_MM,Ceiling Plenum Height,LENGTH,Type,"Ceilings, Generic Models",CST_PROC,89086f07-8684-5f07-9d15-dcdd19a6bdfd,Ble Ceiling Plenum Height Mm [ISO 19650-1:2018]
 BLE_CEILING_SYSTEM_TXT,Ceiling System,TEXT,Type,"Ceilings, Generic Models",CST_PROC,aa702475-9c87-54f6-9c71-11f91f22f3b0,Ble Ceiling System Txt [ISO 19650-1:2018]
 BLE_CEILING_TYPE_CLASSIFICATION_TXT,Ceiling Type Classification,TEXT,Type,"Ceilings, Generic Models",CST_PROC,8ffdf285-c7d0-5751-99d5-049f16349af2,Ble Ceiling Type Classification Txt [ISO 19650-1:2018]
