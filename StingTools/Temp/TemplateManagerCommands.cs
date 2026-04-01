@@ -3341,6 +3341,10 @@ namespace StingTools.Temp
     /// Creates the 13 TPL_Schedule_Metadata schedules from MR_SCHEDULES.csv.
     /// These track template configuration metadata: filters, styles, phases,
     /// worksets, and audit trail data.
+    /// Uses the same 16-column parsing and ScheduleHelper methods as BatchSchedulesCommand
+    /// for full feature parity (4-tier field resolution, formula headers, sorting,
+    /// grouping, filters, totals).
+    /// Also loads TPL_SCHEDULE_METADATA.csv rows as Generic Model instances when available.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -3360,22 +3364,43 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            var tplEntries = new List<(string scheduleName, string category, string fields)>();
+            // Load field remaps for 4-tier field resolution
+            var fieldRemaps = ScheduleHelper.LoadFieldRemaps();
+
+            // Parse TPL entries from MR_SCHEDULES.csv using correct 16-column layout:
+            // 0=Record_Type, 1=Source_File, 2=Discipline, 3=Schedule_Name,
+            // 4=Category, 5=Schedule_Type, 6=Multi_Categories, 7=Fields,
+            // 8=Filters, 9=Sorting, 10=Grouping, 11=Totals, 12=Formulas,
+            // 13=Header_Color, 14=Text_Color, 15=Background_Color
+            var tplEntries = new List<(string name, string category, string scheduleType,
+                string multiCats, string fields, string filters, string sorting,
+                string grouping, string totals, string formulas)>();
             try
             {
                 foreach (string line in File.ReadAllLines(csvPath))
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 7) continue;
-                    if (cols[0].Trim() != "TPL_Schedule_Metadata") continue;
+                    if (cols.Length < 8) continue;
 
-                    string schedName = cols[2].Trim();
-                    string category = cols[3].Trim();
-                    string fields = cols[6].Trim();
+                    // col[1] = Source_File — filter for TPL_Schedule_Metadata entries
+                    if (!string.Equals(cols[1].Trim(), "TPL_Schedule_Metadata",
+                        StringComparison.OrdinalIgnoreCase)) continue;
 
-                    if (!string.IsNullOrEmpty(schedName) && !string.IsNullOrEmpty(fields))
-                        tplEntries.Add((schedName, category, fields));
+                    string name = cols.Length > 3 ? cols[3].Trim() : "";
+                    string category = cols.Length > 4 ? cols[4].Trim() : "";
+                    string scheduleType = cols.Length > 5 ? cols[5].Trim() : "";
+                    string multiCats = cols.Length > 6 ? cols[6].Trim() : "";
+                    string fields = cols.Length > 7 ? cols[7].Trim() : "";
+                    string filters = cols.Length > 8 ? cols[8].Trim() : "";
+                    string sorting = cols.Length > 9 ? cols[9].Trim() : "";
+                    string grouping = cols.Length > 10 ? cols[10].Trim() : "";
+                    string totals = cols.Length > 11 ? cols[11].Trim() : "";
+                    string formulas = cols.Length > 12 ? cols[12].Trim() : "";
+
+                    if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(fields))
+                        tplEntries.Add((name, category, scheduleType, multiCats,
+                            fields, filters, sorting, grouping, totals, formulas));
                 }
             }
             catch (Exception ex)
@@ -3388,50 +3413,92 @@ namespace StingTools.Temp
             if (tplEntries.Count == 0)
             {
                 TaskDialog.Show("Template Schedules",
-                    "No TPL_Schedule_Metadata entries found in MR_SCHEDULES.csv.");
+                    "No TPL_Schedule_Metadata entries found in MR_SCHEDULES.csv.\n" +
+                    "Check that Source_File column (col 1) contains 'TPL_Schedule_Metadata'.");
                 return Result.Failed;
             }
 
-            var existing = new HashSet<string>(
+            var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSchedule)).Select(e => e.Name));
 
-            int created = 0, skipped = 0;
+            int created = 0, skipped = 0, formatted = 0, remapped = 0;
 
             using (Transaction tx = new Transaction(doc, "STING Create Template Schedules"))
             {
                 tx.Start();
-                foreach (var (schedName, category, fields) in tplEntries)
+                foreach (var entry in tplEntries)
                 {
-                    string fullName = $"STING - {schedName}";
-                    if (existing.Contains(fullName)) { skipped++; continue; }
-
-                    BuiltInCategory bic = BuiltInCategory.OST_GenericModel;
-                    if (TemplateManager.CategoryNameToEnum.TryGetValue(category, out BuiltInCategory mapped))
-                        bic = mapped;
+                    string fullName = $"STING - {entry.name}";
+                    if (existingNames.Contains(fullName)) { skipped++; continue; }
 
                     try
                     {
-                        ViewSchedule vs = ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
+                        bool isMaterialTakeoff = entry.scheduleType.Equals(
+                            "Material Takeoff", StringComparison.OrdinalIgnoreCase);
+
+                        // Create schedule using ScheduleHelper.TryGetCategory (same as BatchSchedulesCommand)
+                        ViewSchedule vs = CreateTplSchedule(
+                            doc, isMaterialTakeoff, entry.category, entry.multiCats);
+
+                        if (vs == null)
+                        {
+                            StingLog.Warn($"Template schedule '{fullName}': " +
+                                $"could not resolve category '{entry.category}'.");
+                            skipped++;
+                            continue;
+                        }
+
                         vs.Name = fullName;
 
-                        string[] fieldNames = fields.Split(',')
-                            .Select(f => f.Trim()).Where(f => f.Length > 0).ToArray();
-                        ScheduleDefinition sd = vs.Definition;
-                        foreach (string fieldName in fieldNames)
+                        // Build formula map for human-readable column headers
+                        var formulaMap = ScheduleHelper.ParseFormulaSpec(entry.formulas);
+
+                        // 4-tier field resolution: exact → remap → formula alias → built-in fallback
+                        var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
+                            StringComparer.OrdinalIgnoreCase);
+
+                        if (!string.IsNullOrEmpty(entry.fields))
                         {
-                            try
+                            remapped += ScheduleHelper.AddFieldsTracked(
+                                doc, vs, entry.fields, fieldRemaps, formulaMap, addedFieldIds);
+
+                            if (addedFieldIds.Count == 0)
                             {
-                                foreach (SchedulableField sf in sd.GetSchedulableFields())
-                                {
-                                    if (string.Equals(sf.GetName(doc), fieldName,
-                                        StringComparison.OrdinalIgnoreCase))
-                                    { sd.AddField(sf); break; }
-                                }
+                                StingLog.Warn($"Template schedule '{fullName}': " +
+                                    "No fields resolved. Run 'Load Params' first.");
+                                ScheduleHelper.AddBuiltInFallbackFields(doc, vs, addedFieldIds);
                             }
-                            catch (Exception ex) { StingLog.Warn($"Add schedule field '{fieldName}': {ex.Message}"); }
                         }
+
+                        // Apply human-readable column header overrides from Formulas column
+                        bool didFormat = false;
+                        if (formulaMap.Count > 0)
+                            didFormat |= ScheduleHelper.ApplyFieldHeaders(vs, formulaMap);
+
+                        // Apply grouping (inserts as first sort field with ShowHeader)
+                        if (!string.IsNullOrEmpty(entry.grouping))
+                            didFormat |= ScheduleHelper.ApplyGrouping(
+                                doc, vs, entry.grouping, addedFieldIds);
+
+                        // Apply sorting
+                        if (!string.IsNullOrEmpty(entry.sorting))
+                            didFormat |= ScheduleHelper.ApplySorting(
+                                doc, vs, entry.sorting, addedFieldIds);
+
+                        // Apply totals
+                        if (!string.IsNullOrEmpty(entry.totals))
+                            didFormat |= ScheduleHelper.ApplyTotals(
+                                vs, entry.totals, addedFieldIds);
+
+                        // Apply filters
+                        if (!string.IsNullOrEmpty(entry.filters))
+                            didFormat |= ScheduleHelper.ApplyFilters(
+                                doc, vs, entry.filters, addedFieldIds);
+
+                        if (didFormat) formatted++;
                         created++;
+                        existingNames.Add(fullName);
                     }
                     catch (Exception ex)
                     {
@@ -3442,10 +3509,176 @@ namespace StingTools.Temp
                 tx.Commit();
             }
 
+            // ── TPL_SCHEDULE_METADATA.csv integration ──
+            // Load metadata rows, create Generic Model instances to populate schedules
+            int tplInstances = 0;
+            string tplNote = "";
+            string tplMetaPath = StingToolsApp.FindDataFile("TPL_SCHEDULE_METADATA.csv");
+            if (!string.IsNullOrEmpty(tplMetaPath))
+            {
+                try
+                {
+                    var metaRows = TPLMetadataLoader.LoadGrouped(tplMetaPath);
+                    int totalMetaRows = metaRows.Values.Sum(g => g.Count);
+                    tplNote = $"\nTPL metadata library: {totalMetaRows} rows across {metaRows.Count} tables.";
+
+                    // Map Source_Table → schedule name (for schedules that exist)
+                    var tableToSchedule = TPLMetadataLoader.BuildTableScheduleMap();
+
+                    using (Transaction tplTx = new Transaction(doc, "STING Populate TPL Metadata"))
+                    {
+                        tplTx.Start();
+
+                        // Find Generic Model family for instance creation
+                        FamilySymbol gmSymbol = new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_GenericModel)
+                            .OfClass(typeof(FamilySymbol))
+                            .Cast<FamilySymbol>()
+                            .FirstOrDefault();
+
+                        if (gmSymbol != null)
+                        {
+                            if (!gmSymbol.IsActive) gmSymbol.Activate();
+
+                            // Get a level for placement
+                            Level lvl = new FilteredElementCollector(doc)
+                                .OfClass(typeof(Level))
+                                .Cast<Level>()
+                                .OrderBy(l => l.Elevation)
+                                .FirstOrDefault();
+
+                            if (lvl != null)
+                            {
+                                foreach (var kvp in metaRows)
+                                {
+                                    string sourceTable = kvp.Key;
+                                    var rows = kvp.Value;
+                                    if (rows.Count == 0) continue;
+
+                                    // Get the STING param mapping for this Source_Table type
+                                    var paramMap = TPLMetadataLoader.GetParamMapping(sourceTable);
+                                    if (paramMap == null || paramMap.Count == 0) continue;
+
+                                    foreach (var row in rows)
+                                    {
+                                        try
+                                        {
+                                            // Create Generic Model instance at origin
+                                            FamilyInstance fi = doc.Create.NewFamilyInstance(
+                                                new XYZ(0, 0, 0), gmSymbol, lvl,
+                                                Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+
+                                            if (fi == null) continue;
+
+                                            // Write each mapped parameter value
+                                            int paramsWritten = 0;
+                                            foreach (var mapping in paramMap)
+                                            {
+                                                int csvCol = mapping.Key;
+                                                string stingParam = mapping.Value;
+
+                                                if (csvCol >= row.Length) continue;
+                                                string val = row[csvCol]?.Trim() ?? "";
+                                                if (string.IsNullOrEmpty(val)) continue;
+
+                                                ParameterHelpers.SetString(fi, stingParam, val, true);
+                                                paramsWritten++;
+                                            }
+
+                                            // Write COLOR_R/G/B_INT from Color_Hex column
+                                            var rgb = TPLMetadataLoader.ParseColorHex(row);
+                                            if (rgb.HasValue)
+                                            {
+                                                ParameterHelpers.SetString(fi, "COLOR_R_INT", rgb.Value.R, true);
+                                                ParameterHelpers.SetString(fi, "COLOR_G_INT", rgb.Value.G, true);
+                                                ParameterHelpers.SetString(fi, "COLOR_B_INT", rgb.Value.B, true);
+                                                paramsWritten++;
+                                            }
+
+                                            // Write FLT_RULES_TXT for filters
+                                            if (sourceTable.Equals("filters", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                string rules = TPLMetadataLoader.BuildRulesString(row);
+                                                if (!string.IsNullOrEmpty(rules))
+                                                {
+                                                    ParameterHelpers.SetString(fi, "FLT_RULES_TXT", rules, true);
+                                                    paramsWritten++;
+                                                }
+                                            }
+
+                                            if (paramsWritten > 0) tplInstances++;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            StingLog.Warn($"TPL instance creation ({sourceTable}): {ex.Message}");
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                StingLog.Warn("TPL metadata: No levels found for instance placement.");
+                            }
+                        }
+                        else
+                        {
+                            tplNote += "\nNo Generic Model family loaded — cannot populate schedule data rows.";
+                            StingLog.Warn("TPL metadata: No Generic Model family symbol found.");
+                        }
+
+                        tplTx.Commit();
+                    }
+
+                    if (tplInstances > 0)
+                        tplNote += $"\nCreated {tplInstances} Generic Model instances with metadata.";
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TPL_SCHEDULE_METADATA.csv integration: {ex.Message}");
+                    tplNote = $"\nTPL metadata error: {ex.Message}";
+                }
+            }
+            else
+            {
+                tplNote = "\nTPL_SCHEDULE_METADATA.csv not found in Data folder.";
+            }
+
             TaskDialog.Show("Template Schedules",
-                $"Created {created} template metadata schedules.\nSkipped {skipped}.\n" +
-                $"TPL entries in CSV: {tplEntries.Count}");
+                $"Created {created} template metadata schedules.\n" +
+                $"Skipped {skipped} (already exist).\n" +
+                $"Fields remapped: {remapped}.\n" +
+                $"Formatted (headers/sort/group/filter/totals): {formatted}.\n" +
+                $"TPL entries in CSV: {tplEntries.Count}{tplNote}");
             return Result.Succeeded;
+        }
+
+        /// <summary>Create schedule or material takeoff from category name string.</summary>
+        private static ViewSchedule CreateTplSchedule(Document doc,
+            bool isMaterialTakeoff, string category, string multiCats)
+        {
+            if (isMaterialTakeoff)
+            {
+                ElementId catId = ElementId.InvalidElementId;
+                if (!string.IsNullOrEmpty(multiCats))
+                {
+                    string firstCat = multiCats.Split(';')[0].Trim();
+                    if (ScheduleHelper.TryGetCategory(firstCat, out BuiltInCategory bic))
+                        catId = new ElementId((long)bic);
+                }
+                else if (!string.IsNullOrEmpty(category) &&
+                    ScheduleHelper.TryGetCategory(category, out BuiltInCategory singleBic))
+                {
+                    catId = new ElementId((long)singleBic);
+                }
+                return ViewSchedule.CreateMaterialTakeoff(doc, catId);
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(category)) return null;
+                if (!ScheduleHelper.TryGetCategory(category, out BuiltInCategory bic))
+                    return null;
+                return ViewSchedule.CreateSchedule(doc, new ElementId((long)bic));
+            }
         }
     }
 
@@ -4139,6 +4372,341 @@ namespace StingTools.Temp
                 $"{viewsReset} views reset, {elementsCleared} overrides cleared");
 
             return Result.Succeeded;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TPLMetadataLoader — loads TPL_SCHEDULE_METADATA.csv and maps
+    //  CSV column indices to STING shared parameter names per Source_Table
+    // ═══════════════════════════════════════════════════════════════════════
+
+    internal static class TPLMetadataLoader
+    {
+        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).</summary>
+        public static Dictionary<string, List<string[]>> LoadGrouped(string path)
+        {
+            var groups = new Dictionary<string, List<string[]>>(StringComparer.OrdinalIgnoreCase);
+            var lines = System.IO.File.ReadAllLines(path);
+            if (lines.Length < 2) return groups;
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                string[] cols = StingToolsApp.ParseCsvLine(line);
+                if (cols.Length < 6) continue;
+                string sourceTable = (cols[1] ?? "").Trim();
+                if (string.IsNullOrEmpty(sourceTable)) continue;
+                if (!groups.ContainsKey(sourceTable))
+                    groups[sourceTable] = new List<string[]>();
+                groups[sourceTable].Add(cols);
+            }
+            return groups;
+        }
+
+        /// <summary>Maps Source_Table names to their MR_SCHEDULES schedule names.</summary>
+        public static Dictionary<string, string> BuildTableScheduleMap()
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "dimension_styles", "Dimension Style Schedule" },
+                { "filters",          "Filter Schedule" },
+                { "line_styles",      "Line Style Schedule" },
+                { "object_styles",    "Object Style Schedule" },
+                { "phases",           "Phase Schedule" },
+                { "text_styles",      "Text Style Schedule" },
+                { "worksets",         "Workset Schedule" },
+            };
+        }
+
+        /// <summary>
+        /// Returns CSV column index → STING parameter name mapping for a Source_Table type.
+        /// Column indices are 0-based matching TPL_SCHEDULE_METADATA.csv header order.
+        /// </summary>
+        public static Dictionary<int, string> GetParamMapping(string sourceTable)
+        {
+            switch ((sourceTable ?? "").ToLowerInvariant())
+            {
+                case "dimension_styles": return DimensionStylesMapping();
+                case "filters":          return FiltersMapping();
+                case "line_styles":      return LineStylesMapping();
+                case "object_styles":    return ObjectStylesMapping();
+                case "phases":           return PhasesMapping();
+                case "text_styles":      return TextStylesMapping();
+                case "worksets":         return WorksetsMapping();
+                case "arrowheads":       return ArrowheadsMapping();
+                case "line_patterns":    return LinePatternsMapping();
+                case "line_weights":     return LineWeightsMapping();
+                case "phase_filters":    return PhaseFiltersMapping();
+                case "schedule_parameters": return ScheduleParametersMapping();
+                case "schedule_templates":  return ScheduleTemplatesMapping();
+                case "view_templates":      return ViewTemplatesMapping();
+                default: return CommonMapping();
+            }
+        }
+
+        /// <summary>Parses Color_Hex (col 11) into R, G, B integer strings.
+        /// Returns null if hex is empty or invalid.</summary>
+        public static (string R, string G, string B)? ParseColorHex(string[] row)
+        {
+            if (row.Length <= 11) return null;
+            string hex = (row[11] ?? "").Trim().TrimStart('#');
+            if (hex.Length < 6) return null;
+            try
+            {
+                int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+                int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+                int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+                return (r.ToString(), g.ToString(), b.ToString());
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>
+        public static string BuildRulesString(string[] row)
+        {
+            if (row.Length < 40) return "";
+            string param = (row.Length > 37 ? row[37] : "") ?? "";
+            string op    = (row.Length > 38 ? row[38] : "") ?? "";
+            string val   = (row.Length > 39 ? row[39] : "") ?? "";
+            if (string.IsNullOrWhiteSpace(param)) return "";
+            return $"{param.Trim()} {op.Trim()} {val.Trim()}".Trim();
+        }
+
+        // ── Common metadata columns present in all Source_Table types ──
+        private static Dictionary<int, string> CommonMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },    // Name
+                { 6,  "MA_NOTES_TXT" },            // Description
+                { 7,  "WS_DISCIPLINE_TXT" },       // Discipline
+                { 15, "MA_STATUS_TXT" },           // Status
+                { 17, "PH_NUMBER_INT" },           // Sort_Order
+            };
+        }
+
+        // ── dimension_styles → Dimension Style Schedule ──
+        // Schedule fields: DS_NAME_TXT, DS_TYPE_TXT, DS_TEXT_SIZE_NR, DS_TEXT_FONT_TXT,
+        //   DS_TICK_MARK_TXT, DS_TICK_SIZE_NR, DS_UNITS_FORMAT_TXT, DS_PRECISION_TXT, USAGE_TXT
+        private static Dictionary<int, string> DimensionStylesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "DS_NAME_TXT" },             // Name
+                { 23, "DS_TYPE_TXT" },             // Type
+                { 27, "DS_TEXT_SIZE_NR" },          // Text_Size_mm
+                { 83, "DS_TEXT_FONT_TXT" },        // Font_Name
+                { 31, "DS_TICK_MARK_TXT" },        // Tick_Mark_Style
+                { 32, "DS_TICK_SIZE_NR" },         // Tick_Mark_Size_mm
+                { 33, "DS_UNITS_FORMAT_TXT" },     // Units_Format
+                { 34, "DS_PRECISION_TXT" },        // Precision
+                { 6,  "USAGE_TXT" },               // Description → Usage
+            };
+        }
+
+        // ── filters → Filter Schedule ──
+        // Schedule fields: FLT_NAME_TXT, FLT_CATEGORIES_TXT, FLT_RULES_TXT,
+        //   FLT_LINE_COLOR_R/G/B_INT, FLT_LINE_WEIGHT_INT, FLT_SURFACE_PATTERN_TXT,
+        //   FLT_CUT_PATTERN_TXT, FLT_TRANSPARENCY_INT, FLT_USED_IN_TEMPLATES_TXT, FLT_STATUS_TXT
+        private static Dictionary<int, string> FiltersMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "FLT_NAME_TXT" },            // Name
+                { 36, "FLT_CATEGORIES_TXT" },      // Categories
+                { 40, "FLT_LINE_WEIGHT_INT" },     // Override_Lines_Weight
+                { 41, "FLT_SURFACE_PATTERN_TXT" }, // Override_Surface_Pattern
+                { 42, "FLT_TRANSPARENCY_INT" },    // Override_Transparency
+                { 43, "FLT_USED_IN_TEMPLATES_TXT" }, // Apply_To
+                { 15, "FLT_STATUS_TXT" },          // Status
+            };
+            // Note: FLT_RULES_TXT is built from cols 37+38+39 via BuildRulesString()
+            // Note: FLT_LINE_COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+        }
+
+        // ── line_styles → Line Style Schedule ──
+        // Schedule fields: LS_NAME_TXT, LS_WEIGHT_INT, COLOR_R/G/B_INT,
+        //   LS_PATTERN_TXT, USAGE_TXT, LS_STATUS_TXT
+        private static Dictionary<int, string> LineStylesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "LS_NAME_TXT" },             // Name
+                { 53, "LS_WEIGHT_INT" },           // Line_Weight
+                { 54, "LS_PATTERN_TXT" },          // Line_Pattern
+                { 6,  "USAGE_TXT" },               // Description → Usage
+                { 15, "LS_STATUS_TXT" },           // Status
+            };
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+        }
+
+        // ── object_styles → Object Style Schedule ──
+        // Schedule fields: OS_CATEGORY_TXT, OS_SUBCATEGORY_TXT, OS_PROJECTION_WEIGHT_INT,
+        //   OS_CUT_WEIGHT_INT, COLOR_R/G/B_INT, OS_PATTERN_TXT, OS_MATERIAL_TXT
+        private static Dictionary<int, string> ObjectStylesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 59, "OS_CATEGORY_TXT" },          // Category
+                { 60, "OS_SUBCATEGORY_TXT" },       // Subcategory
+                { 61, "OS_PROJECTION_WEIGHT_INT" }, // Line_Weight_Projection
+                { 62, "OS_CUT_WEIGHT_INT" },        // Line_Weight_Cut
+                { 54, "OS_PATTERN_TXT" },           // Line_Pattern
+                { 63, "OS_MATERIAL_TXT" },          // Material
+            };
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+        }
+
+        // ── phases → Phase Schedule ──
+        // Schedule fields: PH_NAME_TXT, PH_NUMBER_INT, PH_DESCRIPTION_TXT,
+        //   PH_START_DATE_TXT, PH_END_DATE_TXT, PH_STATUS_TXT, COLOR_R/G/B_INT
+        private static Dictionary<int, string> PhasesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "PH_NAME_TXT" },             // Name
+                { 69, "PH_NUMBER_INT" },           // Sequence_Number
+                { 6,  "PH_DESCRIPTION_TXT" },     // Description
+                { 15, "PH_STATUS_TXT" },           // Status
+            };
+            // Note: COLOR_R/G/B_INT parsed from Color_Hex(11) via ParseColorHex()
+        }
+
+        // ── text_styles → Text Style Schedule ──
+        // Schedule fields: TS_NAME_TXT, TS_FONT_NAME_TXT, TS_FONT_SIZE_NR,
+        //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_UNDERLINE_BOOL, TS_WIDTH_FACTOR_NR,
+        //   USAGE_TXT, TS_STATUS_TXT
+        private static Dictionary<int, string> TextStylesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "TS_NAME_TXT" },             // Name
+                { 83, "TS_FONT_NAME_TXT" },        // Font_Name
+                { 27, "TS_FONT_SIZE_NR" },         // Text_Size_mm
+                { 84, "TS_BOLD_BOOL" },            // Bold
+                { 85, "TS_ITALIC_BOOL" },          // Italic
+                { 86, "TS_WIDTH_FACTOR_NR" },      // Width_Factor
+                { 6,  "USAGE_TXT" },               // Description → Usage
+                { 15, "TS_STATUS_TXT" },           // Status
+            };
+        }
+
+        // ── worksets → Workset Schedule ──
+        // Schedule fields: WS_NAME_TXT, WS_DISCIPLINE_TXT, WS_TYPE_TXT,
+        //   WS_OWNER_TXT, WS_DESCRIPTION_TXT, WS_EDITABLE_DEFAULT_BOOL, WS_VISIBLE_DEFAULT_BOOL
+        private static Dictionary<int, string> WorksetsMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,   "WS_NAME_TXT" },             // Name
+                { 7,   "WS_DISCIPLINE_TXT" },       // Discipline
+                { 59,  "WS_TYPE_TXT" },             // Category → Type
+                { 6,   "WS_DESCRIPTION_TXT" },      // Description
+                { 108, "WS_EDITABLE_DEFAULT_BOOL" }, // Editable_Default
+            };
+        }
+
+        // ── arrowheads (no dedicated schedule — use common metadata params) ──
+        private static Dictionary<int, string> ArrowheadsMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 23, "DS_TYPE_TXT" },             // Type (Arrow/Dot/etc.)
+                { 24, "DS_TEXT_SIZE_NR" },         // Angle_Degrees (reuse numeric)
+                { 25, "DS_TICK_SIZE_NR" },         // Size_mm (reuse numeric)
+                { 26, "DS_PRECISION_TXT" },        // Fill (reuse text)
+                { 6,  "MA_NOTES_TXT" },            // Description
+            };
+        }
+
+        // ── line_patterns (no dedicated schedule) ──
+        private static Dictionary<int, string> LinePatternsMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 44, "LS_PATTERN_TXT" },          // Segment_1_Type
+                { 45, "LS_WEIGHT_INT" },           // Segment_1_Length_mm (reuse numeric)
+                { 52, "DS_TICK_SIZE_NR" },         // Space_Length_mm (reuse numeric)
+                { 6,  "MA_NOTES_TXT" },            // Description
+            };
+        }
+
+        // ── line_weights (no dedicated schedule) ──
+        private static Dictionary<int, string> LineWeightsMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 55, "PH_NUMBER_INT" },           // Line_Number
+                { 56, "DS_TICK_SIZE_NR" },         // Thickness_mm
+                { 57, "USAGE_TXT" },               // Projection_Use
+                { 58, "MA_NOTES_TXT" },            // Cut_Use
+            };
+        }
+
+        // ── phase_filters (no dedicated schedule) ──
+        private static Dictionary<int, string> PhaseFiltersMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 64, "FLT_RULES_TXT" },           // New
+                { 65, "FLT_CATEGORIES_TXT" },      // Existing
+                { 66, "FLT_SURFACE_PATTERN_TXT" }, // Demolished
+                { 67, "FLT_CUT_PATTERN_TXT" },     // Temporary
+                { 68, "MA_NOTES_TXT" },            // Future
+            };
+        }
+
+        // ── schedule_parameters (814 rows — no dedicated schedule) ──
+        private static Dictionary<int, string> ScheduleParametersMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 71, "SPARE_PARAM_01_TXT" },      // GUID
+                { 72, "SPARE_PARAM_02_TXT" },      // Data_Type
+                { 73, "SPARE_PARAM_03_TXT" },      // Group_Name
+                { 74, "MA_STATUS_TXT" },           // Visible
+                { 75, "MA_PRIORITY_TXT" },         // User_Modifiable
+                { 77, "MA_ACTION_REQUIRED_TXT" },  // Schedule_Recommended
+                { 6,  "MA_NOTES_TXT" },            // Description
+            };
+        }
+
+        // ── schedule_templates (no dedicated schedule) ──
+        private static Dictionary<int, string> ScheduleTemplatesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 59, "MA_ELEMENT_CATEGORY_TXT" }, // Category
+                { 78, "MA_ISSUES_FOUND_TXT" },     // Parameters
+                { 79, "MA_ACTION_REQUIRED_TXT" },  // Group_By
+                { 80, "MA_PRIORITY_TXT" },         // Sort_By
+                { 81, "FLT_RULES_TXT" },           // Filter
+                { 82, "MA_NOTES_TXT" },            // Totals
+                { 6,  "MA_TEMPLATE_COMPLIANCE_TXT" }, // Description
+            };
+        }
+
+        // ── view_templates (no dedicated schedule) ──
+        private static Dictionary<int, string> ViewTemplatesMapping()
+        {
+            return new Dictionary<int, string>
+            {
+                { 5,  "MA_ELEMENT_NAME_TXT" },     // Name
+                { 91, "SPARE_PARAM_01_TXT" },      // View_Type
+                { 92, "SPARE_PARAM_02_TXT" },      // Detail_Level
+                { 93, "SPARE_PARAM_03_TXT" },      // Visual_Style
+                { 94, "DS_TEXT_SIZE_NR" },          // Scale (reuse numeric)
+                { 95, "FLT_RULES_TXT" },           // Filters_Applied
+                { 96, "FLT_NAME_TXT" },            // Phase_Filter
+                { 6,  "MA_NOTES_TXT" },            // Description
+            };
         }
     }
 }

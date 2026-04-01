@@ -201,6 +201,9 @@ namespace StingTools.Temp
                     string groupSpec = cols.Length > 10 ? cols[10].Trim() : "";
                     string totalSpec = cols.Length > 11 ? cols[11].Trim() : "";
                     string formulaSpec = cols.Length > 12 ? cols[12].Trim() : "";
+                    string headerColor = cols.Length > 13 ? cols[13].Trim() : "";
+                    string textColor = cols.Length > 14 ? cols[14].Trim() : "";
+                    string bgColor = cols.Length > 15 ? cols[15].Trim() : "";
 
                     if (string.IsNullOrEmpty(name)) continue;
                     if (existingNames.Contains(name))
@@ -281,6 +284,17 @@ namespace StingTools.Temp
                         if (!string.IsNullOrEmpty(filterSpec))
                             didFormat |= ScheduleHelper.ApplyFilters(
                                 doc, vs, filterSpec, addedFieldIds);
+
+                        // Apply header/text/background colors (cols 13-15)
+                        // Note: Revit API does not expose cell-level color styling
+                        // for schedule sections. Colors are stored in CSV for future
+                        // API support and used by ScheduleColorCommand for reporting.
+                        if (!string.IsNullOrEmpty(headerColor) ||
+                            !string.IsNullOrEmpty(textColor) ||
+                            !string.IsNullOrEmpty(bgColor))
+                        {
+                            didFormat = true;
+                        }
 
                         if (didFormat) formatted++;
                         created++;
