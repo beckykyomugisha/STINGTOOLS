@@ -15893,3 +15893,9 @@ WARN_STR_WLD_THROAT_MM,Generic Models,Type,True
 WARN_STR_WLD_THROAT_MM,Structural Columns,Type,True
 WARN_STR_WLD_THROAT_MM,Structural Foundations,Type,True
 WARN_STR_WLD_THROAT_MM,Structural Framing,Type,True
+WARN_SHT_DISC_MISSING,Generic Models,Type,True
+WARN_SHT_MULTI_DISC_MEP,Generic Models,Type,True
+WARN_SHT_NAMING_ARCH,Generic Models,Type,True
+WARN_SHT_NAMING_STR,Generic Models,Type,True
+WARN_SHT_REV_MISSING,Generic Models,Type,True
+WARN_SHT_TAG1_EMPTY,Generic Models,Type,True
