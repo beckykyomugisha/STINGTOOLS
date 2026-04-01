@@ -346,29 +346,37 @@ namespace StingTools.Tags
                 errors.Add($"Material cleanup: {ex.Message}");
             }
 
-            // ── Step 6b: Remove ALL remaining shared parameter bindings from OST_Materials ──
-            // Materials should use native Revit properties (Color, Transparency,
-            // ThermalAsset, StructuralAsset) — NOT shared parameter bindings.
-            // Previous versions incorrectly included OST_Materials in CategoryEnumMap,
-            // causing all 2300+ shared parameters to be bound to every material.
+            // ── Step 6b: Remove NON-MATERIAL shared parameter bindings from OST_Materials ──
+            // Only material-relevant params (MAT_*, PROP_*, BLE_APP-*, BLE_MAT_*, COMP_MAT_*)
+            // should be bound to OST_Materials. All others are removed to prevent
+            // 2300+ irrelevant parameters appearing on every material element.
             int materialsUnbound = 0;
+            int materialsKept = 0;
             try
             {
                 Category matCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Materials);
                 if (matCat != null)
                 {
-                    // Collect all bindings that include OST_Materials
+                    // Collect bindings that include OST_Materials but are NOT material-relevant
                     var toFix = new List<(Definition def, ElementBinding binding)>();
                     var scanIter = doc.ParameterBindings.ForwardIterator();
                     while (scanIter.MoveNext())
                     {
                         if (scanIter.Current is ElementBinding eb && eb.Categories.Contains(matCat))
+                        {
+                            string paramName = scanIter.Key?.Name ?? "";
+                            if (IsMaterialRelevantParam(paramName))
+                            {
+                                materialsKept++;
+                                continue; // Keep material-relevant params bound to OST_Materials
+                            }
                             toFix.Add((scanIter.Key, eb));
+                        }
                     }
 
                     if (toFix.Count > 0)
                     {
-                        StingLog.Info($"Cleaning up {toFix.Count} parameter bindings from OST_Materials");
+                        StingLog.Info($"Cleaning up {toFix.Count} non-material parameter bindings from OST_Materials (keeping {materialsKept} material-relevant)");
                         using (Transaction txClean = new Transaction(doc, "STING Remove Material Bindings"))
                         {
                             txClean.Start();
@@ -390,7 +398,7 @@ namespace StingTools.Tags
                             }
                             txClean.Commit();
                         }
-                        StingLog.Info($"Removed {materialsUnbound} parameter bindings from OST_Materials");
+                        StingLog.Info($"Removed {materialsUnbound} non-material parameter bindings from OST_Materials, kept {materialsKept} material-relevant");
                     }
                 }
             }

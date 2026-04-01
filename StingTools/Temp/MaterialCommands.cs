@@ -630,6 +630,52 @@ namespace StingTools.Temp
             catch (Exception ex) { StingLog.Warn($"param not available on this material: {ex.Message}"); }
         }
 
+        // ── SHARED PARAMETER VALUE WRITER ─────────────────────────────────
+
+        /// <summary>
+        /// Write CSV column values to material shared parameters using the
+        /// SharedParamMappings array.  Parameters must already be bound to
+        /// OST_Materials (via LoadSharedParamsCommand / CleanMaterialBindings).
+        /// </summary>
+        private static void ApplySharedParamValues(Material mat, string[] cols)
+        {
+            if (mat == null) return;
+
+            foreach (var (col, paramName) in SharedParamMappings)
+            {
+                string value = GetCol(cols, col);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                try
+                {
+                    Parameter p = mat.LookupParameter(paramName);
+                    if (p == null || p.IsReadOnly) continue;
+
+                    switch (p.StorageType)
+                    {
+                        case StorageType.String:
+                            p.Set(value);
+                            break;
+
+                        case StorageType.Double:
+                            if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+                                p.Set(dVal);
+                            break;
+
+                        case StorageType.Integer:
+                            if (int.TryParse(value, out int iVal))
+                                p.Set(iVal);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SharedParam '{paramName}' on '{mat.Name}': {ex.Message}");
+                }
+            }
+        }
+
         // ── READ helpers (for export CSV round-trip) ──────────────────────
 
         /// <summary>Read a string BuiltInParameter from a material. Returns empty string on failure.</summary>
@@ -894,6 +940,7 @@ namespace StingTools.Temp
                                 if (newMat != null)
                                 {
                                     ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                                    ApplySharedParamValues(newMat, cols);
 
                                     string baseMatName = GetCol(cols, ColBaseMaterial);
                                     if (!string.IsNullOrEmpty(baseMatName) &&
