@@ -250,6 +250,9 @@ namespace StingTools.Temp
                             }
                         }
 
+                        // Add standard project & document info fields to every schedule
+                        ScheduleHelper.AddStandardProjectFields(doc, vs, addedFieldIds);
+
                         // Warn if schedule was created with zero fields
                         if (addedFieldIds.Count == 0 && !string.IsNullOrEmpty(fieldsSpec))
                         {
@@ -744,6 +747,81 @@ namespace StingTools.Temp
             }
 
             return remappedCount;
+        }
+
+        /// <summary>
+        /// Add standard project &amp; document information fields to every schedule.
+        /// These are ISO 19650 project information parameters from the PRJ_INFORMATION
+        /// group that provide consistent project context across all schedules.
+        /// Fields already present in addedFieldIds are skipped.
+        /// </summary>
+        public static void AddStandardProjectFields(Document doc, ViewSchedule vs,
+            Dictionary<string, ScheduleFieldId> addedFieldIds)
+        {
+            // Curated subset of PRJ_ fields — project identity, document info, and key metadata
+            string[] standardFields = {
+                "PRJ_NAME_TXT",
+                "PRJ_DRAWING_NR_TXT",
+                "PRJ_DRAWING_TITLE_TXT",
+                "PRJ_STATUS_COD_TXT",
+                "PRJ_TB_DISCIPLINE_TXT",
+                "PRJ_TB_REVISION_NR_TXT",
+                "PRJ_TB_REVISION_DATE_TXT",
+                "PRJ_DWG_ISSUE_PURPOSE_TXT",
+                "PRJ_TB_CLIENT_NAME_TXT",
+                "PRJ_COMMENTS_TXT"
+            };
+
+            // Display-friendly column headings for the standard fields
+            var standardHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PRJ_NAME_TXT", "Project Name" },
+                { "PRJ_DRAWING_NR_TXT", "Drawing No." },
+                { "PRJ_DRAWING_TITLE_TXT", "Drawing Title" },
+                { "PRJ_STATUS_COD_TXT", "Status" },
+                { "PRJ_TB_DISCIPLINE_TXT", "Discipline" },
+                { "PRJ_TB_REVISION_NR_TXT", "Revision" },
+                { "PRJ_TB_REVISION_DATE_TXT", "Revision Date" },
+                { "PRJ_DWG_ISSUE_PURPOSE_TXT", "Issue Purpose" },
+                { "PRJ_TB_CLIENT_NAME_TXT", "Client" },
+                { "PRJ_COMMENTS_TXT", "Comments" }
+            };
+
+            var available = vs.Definition.GetSchedulableFields();
+            var fieldLookup = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sf in available)
+            {
+                string sfName = sf.GetName(doc);
+                if (!string.IsNullOrEmpty(sfName) && !fieldLookup.ContainsKey(sfName))
+                    fieldLookup[sfName] = sf;
+            }
+
+            int added = 0;
+            foreach (string fname in standardFields)
+            {
+                // Skip if already added by the CSV field spec
+                if (addedFieldIds.ContainsKey(fname)) continue;
+
+                if (fieldLookup.TryGetValue(fname, out SchedulableField sf))
+                {
+                    try
+                    {
+                        ScheduleField field = vs.Definition.AddField(sf);
+                        if (field != null)
+                        {
+                            addedFieldIds[fname] = field.FieldId;
+                            // Apply human-readable column heading
+                            if (standardHeaders.TryGetValue(fname, out string header))
+                                field.ColumnHeading = header;
+                            added++;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Standard field '{fname}': {ex.Message}"); }
+                }
+            }
+
+            if (added > 0)
+                StingLog.Info($"Schedule '{vs.Name}': Added {added} standard project/document info fields");
         }
 
         /// <summary>
