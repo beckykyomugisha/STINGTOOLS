@@ -4409,13 +4409,20 @@ namespace StingTools.Temp
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                { "dimension_styles", "Dimension Style Schedule" },
-                { "filters",          "Filter Schedule" },
-                { "line_styles",      "Line Style Schedule" },
-                { "object_styles",    "Object Style Schedule" },
-                { "phases",           "Phase Schedule" },
-                { "text_styles",      "Text Style Schedule" },
-                { "worksets",         "Workset Schedule" },
+                { "dimension_styles",    "Dimension Style Schedule" },
+                { "filters",             "Filter Schedule" },
+                { "line_styles",         "Line Style Schedule" },
+                { "object_styles",       "Object Style Schedule" },
+                { "phases",              "Phase Schedule" },
+                { "text_styles",         "Text Style Schedule" },
+                { "worksets",            "Workset Schedule" },
+                { "arrowheads",          "Arrowhead Schedule" },
+                { "line_patterns",       "Line Pattern Schedule" },
+                { "line_weights",        "Line Weight Schedule" },
+                { "phase_filters",       "Phase Filter Schedule" },
+                { "schedule_parameters", "Schedule Parameter Schedule" },
+                { "schedule_templates",  "Schedule Template Schedule" },
+                { "view_templates",      "View Template Schedule" },
             };
         }
 
