@@ -1295,6 +1295,8 @@ namespace StingTools.UI
 
             // ── TAB 4: REVISIONS ──
             var revWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            revWrap.Children.Add(MakeDispatchBtn("★ Revision Dashboard", "RevisionManagerDashboard", BrGreen, win));
+            revWrap.Children.Add(MakeSep());
             revWrap.Children.Add(MakeSectionLabel("CREATE"));
             revWrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
             revWrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
