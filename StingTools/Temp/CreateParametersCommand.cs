@@ -20,8 +20,7 @@ namespace StingTools.Temp
             try
             {
                 // Ensure CurrentApp is set for downstream GetApp(null) fallback
-                if (app != null && UI.StingCommandHandler.CurrentApp == null)
-                    UI.StingCommandHandler.CurrentApp = app;
+                // CurrentApp is set by StingCommandHandler.Execute() — no need to set here
                 var cmd = new Tags.LoadSharedParamsCommand();
                 string message = "";
                 var elements = new ElementSet();

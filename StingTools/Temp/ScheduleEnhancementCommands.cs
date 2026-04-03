@@ -251,12 +251,12 @@ namespace StingTools.Temp
             // Pick first schedule via list picker
             var names = schedules.Select(s => s.Name).ToList();
 
-            string pickA = UI.StingListPicker.Show("Schedule Compare — Select First",
+            string pickA = Select.StingListPicker.Show("Schedule Compare — Select First",
                 "Select the FIRST schedule to compare:", names);
             if (pickA == null) return Result.Cancelled;
             int idxA = names.IndexOf(pickA);
 
-            string pickB = UI.StingListPicker.Show("Schedule Compare — Select Second",
+            string pickB = Select.StingListPicker.Show("Schedule Compare — Select Second",
                 "Select the SECOND schedule to compare:", names);
             if (pickB == null) return Result.Cancelled;
             int idxB = names.IndexOf(pickB);

@@ -1578,7 +1578,7 @@ namespace StingTools.Temp
             // Let user pick the base template to compare against
             var sortedNames = stingTemplates.Keys.OrderBy(k => k).ToList();
 
-            string baseName = UI.StingListPicker.Show("Template Diff — Select Base",
+            string baseName = Select.StingListPicker.Show("Template Diff — Select Base",
                 "Select the BASE template to compare others against:", sortedNames);
             if (baseName == null) return Result.Cancelled;
 
