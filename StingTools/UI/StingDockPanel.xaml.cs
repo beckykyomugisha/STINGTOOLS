@@ -677,9 +677,13 @@ namespace StingTools.UI
             {
                 try
                 {
-                    PopulateCombo(inst.cmbBulkParam, list);
-                    PopulateCombo(inst.cmbLookupParam, list);
-                    PopulateCombo(inst.cmbAnomalyParam, list);
+                    // R2-UI-02: Re-check _instance inside dispatcher callback — inst may reference
+                    // a disposed Page if document switched between BeginInvoke queue and execution
+                    var current = _instance;
+                    if (current == null || !current.IsLoaded) return;
+                    PopulateCombo(current.cmbBulkParam, list);
+                    PopulateCombo(current.cmbLookupParam, list);
+                    PopulateCombo(current.cmbAnomalyParam, list);
                     Core.StingLog.Info($"Dropdowns populated with {list.Count} params");
                 }
                 catch (Exception ex)

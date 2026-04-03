@@ -946,6 +946,12 @@ namespace StingTools.Core
             if (segmentOrder != null && segmentOrder.Length > 0) _overrideSegmentOrder = segmentOrder;
         }
 
+        /// <summary>R2-FIX: Clear container-for-category cache so reloaded schema is reflected.</summary>
+        public static void ClearContainerCache()
+        {
+            lock (_lock) { _containerForCategoryCache = null; }
+        }
+
         /// <summary>Force reload from disk. Call after editing PARAMETER_REGISTRY.json.</summary>
         public static void Reload()
         {

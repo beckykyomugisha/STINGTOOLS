@@ -155,6 +155,8 @@ namespace StingTools.Core
             // FIX-N04: Reset failure counter so auto-tagger can recover after external fixes
             _consecutiveFailures = 0;
             WasAutoDisabled = false;
+            // R2-FIX: Clear container cache so reloaded ParamRegistry is reflected
+            ParamRegistry.ClearContainerCache();
             // A3: Clear processed cache on context invalidation to prevent stale-skip on document reload
             lock (_recentlyProcessed)
             {

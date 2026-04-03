@@ -2200,11 +2200,11 @@ namespace StingTools.Core
                 sb.Append("]");
                 sb.Append("}");
 
-                // Atomic write
+                // R2-FIX: Atomic write using File.Replace (no crash window between Delete and Move)
                 string tempPath = path + ".tmp";
                 File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(tempPath, path);
+                try { File.Replace(tempPath, path, path + ".bak"); }
+                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch { } } }
 
                 StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }

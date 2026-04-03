@@ -736,6 +736,7 @@ namespace StingTools.BIMManager
             string role, List<string> scopes, List<string> disciplines)
         {
             if (_policy == null) Load(doc);
+            if (_policy == null) { StingLog.Warn("AccessControl: Cannot add user — policy failed to load"); return; }
             _policy.Users.Add(new UserAccess
             {
                 Name = name, Email = email, CompanyId = companyId,
