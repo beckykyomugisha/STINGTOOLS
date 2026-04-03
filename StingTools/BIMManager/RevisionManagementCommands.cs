@@ -54,6 +54,10 @@ namespace StingTools.BIMManager
                 var match = System.Text.RegularExpressions.Regex.Match(desc, @"REV-[A-Z0-9]+-(\d{3})-");
                 if (match.Success && int.TryParse(match.Groups[1].Value, out int seq))
                     max = Math.Max(max, seq);
+
+                // DI-03 FIX: Also check Revit's built-in SequenceNumber to prevent
+                // duplicate sequence numbers when non-STING revisions exist
+                max = Math.Max(max, rev.SequenceNumber);
             }
             return max + 1;
         }

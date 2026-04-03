@@ -1167,8 +1167,11 @@ namespace StingTools.UI
                 if (note != null)
                 {
                     note["text"] = newText;
-                    note["modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
+                    // M-03: Atomic file write to prevent corruption on crash
+                    string tmp = stickyPath + ".tmp";
+                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    File.Replace(tmp, stickyPath, stickyPath + ".bak");
                     ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
                     item.Title = newText;
                     _view?.Refresh();

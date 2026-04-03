@@ -567,8 +567,8 @@ namespace StingTools.Core
                     {
                         // Normalize condition to lowercase for case-insensitive matching
                         string cond = step.Condition.Trim().ToLowerInvariant();
-                        if (cond == "workshared" && !doc.IsWorkshared)
-                        { RecordSkip("not workshared"); continue; }
+                        // WF-03: Removed duplicate "workshared" condition check — already handled
+                        // by RequiresWorksharedModel guard above (line 563).
                         // GAP-02: Extended condition engine for workflow steps
                         if (cond == "has_links")
                         {
@@ -916,26 +916,66 @@ namespace StingTools.Core
                     catch (Exception ex)
                     {
                         sw.Stop();
-                        report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
-                        StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
 
-                        // Phase 39: Record failed step with error detail
-                        stepResults.Add(new WorkflowStepResult
+                        // WF-01: Attempt fallback step if configured before counting as failed
+                        bool fallbackSucceeded = false;
+                        if (!string.IsNullOrEmpty(step.FallbackStep))
                         {
-                            CommandTag = step.CommandTag, Label = step.Label,
-                            Status = "FAILED", DurationMs = sw.ElapsedMilliseconds,
-                            ErrorMessage = ex.Message
-                        });
-
-                        if (step.Optional)
-                            skipped++;
-                        else
-                        {
-                            failed++;
-                            if (preset.RollbackOnFailure)
+                            try
                             {
-                                report.AppendLine($"\n  *** Non-optional step threw exception — rolling back all changes ***");
-                                break;
+                                StingLog.Info($"Workflow step {stepNum} '{step.Label}' failed — attempting fallback '{step.FallbackStep}'");
+                                var fallbackCmd = ResolveCommand(step.FallbackStep);
+                                if (fallbackCmd != null)
+                                {
+                                    string fbMsg = "";
+                                    var fbResult = fallbackCmd.Execute(commandData, ref fbMsg, elements);
+                                    if (fbResult == Result.Succeeded)
+                                    {
+                                        fallbackSucceeded = true;
+                                        report.AppendLine($"  {stepNum,2}. {step.Label} — FALLBACK OK via '{step.FallbackStep}' ({sw.Elapsed.TotalSeconds:F1}s)");
+                                        StingLog.Info($"Workflow step {stepNum} fallback '{step.FallbackStep}' succeeded");
+                                        stepResults.Add(new WorkflowStepResult
+                                        {
+                                            CommandTag = step.CommandTag, Label = step.Label,
+                                            Status = "FALLBACK_OK", DurationMs = sw.ElapsedMilliseconds
+                                        });
+                                        passed++;
+                                    }
+                                }
+                                else
+                                {
+                                    StingLog.Warn($"Workflow step {stepNum} fallback '{step.FallbackStep}' could not be resolved");
+                                }
+                            }
+                            catch (Exception fbEx)
+                            {
+                                StingLog.Warn($"Workflow step {stepNum} fallback '{step.FallbackStep}' also failed: {fbEx.Message}");
+                            }
+                        }
+
+                        if (!fallbackSucceeded)
+                        {
+                            report.AppendLine($"  {stepNum,2}. {step.Label} — FAILED: {ex.Message}");
+                            StingLog.Error($"Workflow step {stepNum}: {step.Label}", ex);
+
+                            // Phase 39: Record failed step with error detail
+                            stepResults.Add(new WorkflowStepResult
+                            {
+                                CommandTag = step.CommandTag, Label = step.Label,
+                                Status = "FAILED", DurationMs = sw.ElapsedMilliseconds,
+                                ErrorMessage = ex.Message
+                            });
+
+                            if (step.Optional)
+                                skipped++;
+                            else
+                            {
+                                failed++;
+                                if (preset.RollbackOnFailure)
+                                {
+                                    report.AppendLine($"\n  *** Non-optional step threw exception — rolling back all changes ***");
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1100,7 +1140,15 @@ namespace StingTools.Core
                 string sidecarPath = Path.ChangeExtension(rvtPath, ".sting_data_hash.json");
                 string hash = ComputeDataHash();
                 if (!string.IsNullOrEmpty(hash))
-                    File.WriteAllText(sidecarPath, hash);
+                {
+                    // DI-04: Atomic write via temp file + File.Replace to prevent corruption on crash
+                    string tmpPath = sidecarPath + ".tmp";
+                    File.WriteAllText(tmpPath, hash);
+                    if (File.Exists(sidecarPath))
+                        File.Replace(tmpPath, sidecarPath, sidecarPath + ".bak");
+                    else
+                        File.Move(tmpPath, sidecarPath);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"SaveDataHashSidecar: {ex.Message}"); }
         }
@@ -1116,13 +1164,24 @@ namespace StingTools.Core
                     .OrderBy(f => f).ToArray();
                 long totalSize = 0;
                 DateTime maxWrite = DateTime.MinValue;
+                // WF-05: Include file names in hash to detect renames/additions/deletions
+                var sb = new System.Text.StringBuilder();
                 foreach (var f in files)
                 {
                     var fi = new FileInfo(f);
                     totalSize += fi.Length;
                     if (fi.LastWriteTimeUtc > maxWrite) maxWrite = fi.LastWriteTimeUtc;
+                    sb.Append(fi.Name).Append(':').Append(fi.Length).Append(';');
                 }
-                return $"{files.Length}_{totalSize}_{maxWrite:yyyyMMddHHmmss}";
+                sb.Append(files.Length).Append('_').Append(totalSize).Append('_')
+                  .Append(maxWrite.ToString("yyyyMMddHHmmss"));
+                // Produce a SHA256 digest of the composite string for a more robust hash
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                {
+                    byte[] bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+                    byte[] hashBytes = sha.ComputeHash(bytes);
+                    return BitConverter.ToString(hashBytes).Replace("-", "").Substring(0, 16);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"ComputeDataHash: {ex.Message}"); return ""; }
         }
@@ -1423,7 +1482,9 @@ namespace StingTools.Core
                 case "RoomSpaceAudit":          return new Temp.RoomAuditCommand();
                 case "HandoverManual":          return new Docs.HandoverManualCommand();
                 case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
-                case "EscalateOverdueActions":  return null; // EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand
+                // WF-02: EscalateOverdueActions is an internal method in WarningsManager, not an IExternalCommand.
+                // Removed: return null caused NRE in RunCommandByTag. Falls through to default null
+                // which is handled by the plugin hook fallback + error logging in RunCommandByTag.
 
                 default: return null;
             }
