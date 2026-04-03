@@ -1030,10 +1030,12 @@ namespace StingTools.Temp
 
         // ── Category → discipline mapping for items without DISC token ──
         // Delegates to TagConfig.DiscMap as single source of truth, with BOQ-specific fallbacks
+        private static Dictionary<string, string> _categoryDiscCache;
         private static Dictionary<string, string> CategoryDisc
         {
             get
             {
+                if (_categoryDiscCache != null) return _categoryDiscCache;
                 var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 // Pull from TagConfig.DiscMap (the authoritative source for all category→discipline mappings)
                 foreach (var kvp in TagConfig.DiscMap)
@@ -1043,6 +1045,7 @@ namespace StingTools.Temp
                 if (!map.ContainsKey("Ramps")) map["Ramps"] = "A";
                 if (!map.ContainsKey("Railings")) map["Railings"] = "A";
                 if (!map.ContainsKey("Topography")) map["Topography"] = "G";
+                _categoryDiscCache = map;
                 return map;
             }
         }
@@ -2955,10 +2958,11 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Build element index by tag
+            // Build element index by tag — filter to taggable categories only
             var tagIndex = new Dictionary<string, Element>();
             int boqIndexCount = 0;
-            foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            var boqCatFilter = new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums);
+            foreach (var el in new FilteredElementCollector(doc).WherePasses(boqCatFilter).WhereElementIsNotElementType())
             {
                 string t = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(t) && !tagIndex.ContainsKey(t))
@@ -3080,7 +3084,7 @@ namespace StingTools.Temp
             catch (Exception ioEx)
             {
                 StingLog.Error($"Failed to write keynote file '{knoPath}': {ioEx.Message}");
-                return;
+                return Result.Failed;
             }
 
             // Keynote file generated — user loads via Annotate > Keynoting Settings

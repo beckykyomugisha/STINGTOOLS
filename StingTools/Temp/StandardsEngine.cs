@@ -269,6 +269,30 @@ namespace StingTools.Temp
                 double maxDrop = isLighting ? 3.0 : 5.0;
                 if (vDrop > maxDrop)
                     issues.Add((id, name, $"Voltage drop {vDrop:F1}% exceeds {maxDrop}% limit (BS 7671)"));
+
+                // HIGH-SE-02: Validate load and cable size against Bs7671CircuitReqs lookup table
+                string nameLower = name.ToLower();
+                string matchedCircuitType = null;
+                foreach (var reqKey in Bs7671CircuitReqs.Keys)
+                {
+                    if (nameLower.Contains(reqKey.ToLower()))
+                    {
+                        matchedCircuitType = reqKey;
+                        break;
+                    }
+                }
+                if (matchedCircuitType != null)
+                {
+                    var reqs = Bs7671CircuitReqs[matchedCircuitType];
+                    if (rating > 0 && rating > reqs.MaxLoad)
+                        issues.Add((id, name, $"Rating ({rating:F0}A) exceeds max for {matchedCircuitType} ({reqs.MaxLoad:F0}A) per BS 7671"));
+                    if (!string.IsNullOrEmpty(wireSize) && double.TryParse(
+                        System.Text.RegularExpressions.Regex.Match(wireSize, @"[\d.]+").Value, out double wireMm2))
+                    {
+                        if (wireMm2 < reqs.MinCableSize)
+                            issues.Add((id, name, $"Cable size ({wireMm2}mm²) below min {reqs.MinCableSize}mm² for {matchedCircuitType} per BS 7671"));
+                    }
+                }
             }
 
             return issues;
@@ -305,17 +329,20 @@ namespace StingTools.Temp
                 [BuiltInCategory.OST_StructuralFraming] = ("Ss_20_10", "Structural framing"),
             };
 
-            foreach (var kvp in catMapping)
-            {
-                var elements = new FilteredElementCollector(doc)
-                    .OfCategory(kvp.Key)
-                    .WhereElementIsNotElementType()
-                    .ToList();
+            // HIGH-SE-03: Single multi-category collector instead of 18 separate per-category scans
+            var uniclassCatFilter = new ElementMulticategoryFilter(new List<BuiltInCategory>(catMapping.Keys));
+            var allElements = new FilteredElementCollector(doc)
+                .WherePasses(uniclassCatFilter)
+                .WhereElementIsNotElementType();
 
-                foreach (var el in elements)
+            foreach (var el in allElements)
+            {
+                if (el.Category == null) continue;
+                var bic = (BuiltInCategory)el.Category.Id.Value;
+                if (catMapping.TryGetValue(bic, out var mapping))
                 {
-                    string catName = el.Category?.Name ?? "Unknown";
-                    results.Add((el.Id, catName, kvp.Value.Code, kvp.Value.Desc));
+                    string catName = el.Category.Name ?? "Unknown";
+                    results.Add((el.Id, catName, mapping.Code, mapping.Desc));
                 }
             }
 
@@ -393,10 +420,27 @@ namespace StingTools.Temp
                 string typeKey = name.ToLower().Contains("curtain") ? "Curtain Wall" : "External Wall";
                 double maxU = PartLUValues[typeKey];
 
-                // Try to get thermal resistance from compound structure
+                // HIGH-SE-04: Compute approximate U-value from compound structure layers
                 var cs = wt.GetCompoundStructure();
-                string status = cs != null ? "CHECK MANUALLY" : "NO STRUCTURE";
-                results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", status));
+                if (cs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, cs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                    }
+                    else
+                    {
+                        results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", "CHECK MANUALLY"));
+                    }
+                }
+                else
+                {
+                    results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", "NO STRUCTURE"));
+                }
             }
 
             // Check roof types
@@ -408,6 +452,19 @@ namespace StingTools.Temp
             foreach (var rt in roofTypes)
             {
                 double maxU = PartLUValues["Roof"];
+                var rcs = rt.GetCompoundStructure();
+                if (rcs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, rcs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Roof: {rt.Name}", "Roof", $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                        continue;
+                    }
+                }
                 results.Add(($"Roof: {rt.Name}", "Roof", $"{maxU} W/m²K", "CHECK MANUALLY"));
             }
 
@@ -422,10 +479,69 @@ namespace StingTools.Temp
                 string name = ft.Name ?? "";
                 if (!name.ToLower().Contains("ground") && !name.ToLower().Contains("slab")) continue;
                 double maxU = PartLUValues["Ground Floor"];
+                var fcs = ft.GetCompoundStructure();
+                if (fcs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, fcs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Floor: {name}", "Ground Floor", $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                        continue;
+                    }
+                }
                 results.Add(($"Floor: {name}", "Ground Floor", $"{maxU} W/m²K", "CHECK MANUALLY"));
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// Calculate total thermal resistance (m²K/W) from compound structure layers.
+        /// Includes internal (0.13) and external (0.04) surface resistances per BS EN ISO 6946.
+        /// Returns 0 if thermal conductivity is unavailable for any layer.
+        /// </summary>
+        private static double CalculateCompoundR(Document doc, CompoundStructure cs)
+        {
+            const double Rsi = 0.13; // internal surface resistance
+            const double Rse = 0.04; // external surface resistance
+            double totalR = Rsi + Rse;
+
+            foreach (var layer in cs.GetLayers())
+            {
+                double thicknessM = layer.Width * 0.3048; // ft to m
+                if (thicknessM <= 0) continue;
+
+                var matId = layer.MaterialId;
+                if (matId == null || matId == ElementId.InvalidElementId) return 0;
+
+                var mat = doc.GetElement(matId) as Material;
+                if (mat == null) return 0;
+
+                var thermalAsset = mat.ThermalAssetId != ElementId.InvalidElementId
+                    ? doc.GetElement(mat.ThermalAssetId) as PropertySetElement
+                    : null;
+
+                if (thermalAsset != null)
+                {
+                    var conductivityParam = thermalAsset.LookupParameter("Thermal Conductivity");
+                    if (conductivityParam != null && conductivityParam.HasValue)
+                    {
+                        double conductivity = conductivityParam.AsDouble(); // W/(m·K) in Revit internal units
+                        if (conductivity > 0)
+                        {
+                            totalR += thicknessM / conductivity;
+                            continue;
+                        }
+                    }
+                }
+                // If we can't get conductivity for any layer, bail out
+                return 0;
+            }
+
+            return totalR;
         }
     }
 
@@ -484,12 +600,13 @@ namespace StingTools.Temp
                 report.AppendLine($"  Incomplete tags: {incomplete}");
                 report.AppendLine($"  Untagged elements: {untagged}");
 
-                // Summary score
-                double totalChecks = projChecks.Count + namingIssues.Count + allElements.Count;
-                double passed = projPass + (allElements.Count - namingIssues.Count) + tagged;
-                double score = totalChecks > 0 ? (passed / totalChecks) * 100 : 0;
+                // Summary score — weighted average of 3 independent sections
+                double projScore = projChecks.Count > 0 ? (double)projPass / projChecks.Count * 100 : 0;
+                double namingScore = namingIssues.Count == 0 ? 100 : Math.Max(0, 100 - namingIssues.Count * 5);
+                double tagScore = allElements.Count > 0 ? (double)tagged / allElements.Count * 100 : 0;
+                double score = (projScore + namingScore + tagScore) / 3.0;
                 report.AppendLine($"\n══ OVERALL COMPLIANCE SCORE: {score:F0}% ══");
-                report.AppendLine($"Project Info: {projPass}/{projChecks.Count} | Naming Issues: {namingIssues.Count} | Tags: {tagged}/{allElements.Count}");
+                report.AppendLine($"Project Info: {projPass}/{projChecks.Count} ({projScore:F0}%) | Naming: {namingScore:F0}% ({namingIssues.Count} issues) | Tags: {tagged}/{allElements.Count} ({tagScore:F0}%)");
 
                 TaskDialog.Show("ISO 19650 Deep Compliance", report.ToString());
                 StingLog.Info($"ISO 19650 deep compliance: {score:F0}%");

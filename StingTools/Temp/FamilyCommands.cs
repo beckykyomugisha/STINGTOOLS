@@ -602,7 +602,11 @@ namespace StingTools.Temp
                     }
 
                     // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
-                    if (layerThickMm > 500) continue;
+                    if (layerThickMm > 500)
+                    {
+                        StingLog.Warn($"CompoundTypeCreator: Skipping layer '{layerMatName}' with thickness {layerThickMm}mm (>500mm, likely cable cross-section area)");
+                        continue;
+                    }
                     // Revit requires minimum ~0.8mm layer thickness; enforce 1mm floor
                     if (layerThickMm <= 0) layerThickMm = 10;
                     if (layerThickMm < 1.0) layerThickMm = 1.0;

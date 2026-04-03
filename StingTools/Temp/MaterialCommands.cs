@@ -257,25 +257,25 @@ namespace StingTools.Temp
                 // Transparency (column 37): 0-100
                 string transStr = GetCol(cols, ColTransparency);
                 if (!string.IsNullOrEmpty(transStr) &&
-                    int.TryParse(transStr.Replace(".0", ""), out int transparency))
+                    double.TryParse(transStr, out double transparencyD))
                 {
-                    mat.Transparency = Math.Max(0, Math.Min(100, transparency));
+                    mat.Transparency = Math.Max(0, Math.Min(100, (int)transparencyD));
                 }
 
                 // Smoothness (column 38): 0-100
                 string smoothStr = GetCol(cols, ColSmoothness);
                 if (!string.IsNullOrEmpty(smoothStr) &&
-                    int.TryParse(smoothStr.Replace(".0", ""), out int smoothness))
+                    double.TryParse(smoothStr, out double smoothnessD))
                 {
-                    mat.Smoothness = Math.Max(0, Math.Min(100, smoothness));
+                    mat.Smoothness = Math.Max(0, Math.Min(100, (int)smoothnessD));
                 }
 
                 // Shininess (column 39): 0-128
                 string shinyStr = GetCol(cols, ColShininess);
                 if (!string.IsNullOrEmpty(shinyStr) &&
-                    int.TryParse(shinyStr.Replace(".0", ""), out int shininess))
+                    double.TryParse(shinyStr, out double shininessD))
                 {
-                    mat.Shininess = Math.Max(0, Math.Min(128, shininess));
+                    mat.Shininess = Math.Max(0, Math.Min(128, (int)shininessD));
                 }
 
                 // --- Identity properties (populates Material Browser fields) ---
