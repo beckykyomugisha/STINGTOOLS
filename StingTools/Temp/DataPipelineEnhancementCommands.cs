@@ -432,6 +432,8 @@ namespace StingTools.Temp
                 var currentHashes = new Dictionary<string, string>();
                 int changed = 0;
 
+                // SHA256 reused across files — safe because ComputeHash(Stream) calls Initialize() internally.
+                // Do NOT change to incremental TransformBlock/TransformFinalBlock without per-file Initialize().
                 using var sha = SHA256.Create();
 
                 foreach (var file in files)
@@ -605,13 +607,11 @@ namespace StingTools.Temp
         {
             try
             {
-                var saveDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Title = "Export Unified Parameter Registry",
-                    Filter = "JSON Files (*.json)|*.json",
-                    FileName = "STING_UNIFIED_REGISTRY.json"
-                };
-                if (saveDialog.ShowDialog() != true) return Result.Cancelled;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                Document doc = _ctx?.Doc;
+                string exportPath = OutputLocationHelper.PromptForExportPath(
+                    doc, "STING_UNIFIED_REGISTRY.json", "JSON Files (*.json)|*.json", "UnifiedRegistry");
+                if (string.IsNullOrEmpty(exportPath)) return Result.Cancelled;
 
                 var registry = new Dictionary<string, object>();
 
@@ -648,10 +648,10 @@ namespace StingTools.Temp
                 registry["export_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 registry["version"] = "1.0.0";
 
-                File.WriteAllText(saveDialog.FileName, JsonConvert.SerializeObject(registry, Formatting.Indented));
+                File.WriteAllText(exportPath, JsonConvert.SerializeObject(registry, Formatting.Indented));
 
                 TaskDialog.Show("STING Unified Registry",
-                    $"Registry exported to:\n{saveDialog.FileName}\n\n" +
+                    $"Registry exported to:\n{exportPath}\n\n" +
                     $"Parameters: {parameters.Count}\n" +
                     $"Format: JSON");
 

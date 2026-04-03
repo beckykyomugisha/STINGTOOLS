@@ -87,6 +87,7 @@ namespace StingTools.Temp
             int stepNum = 0;
             int passed = 0;
             int failed = 0;
+            int skipped = 0;
             var totalSw = Stopwatch.StartNew();
 
                 // ════════════════════════════════════════════════════
@@ -120,6 +121,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Grids — SKIPPED (not selected)");
+                    skipped++;
                 }
 
                 // Step: Set True North
@@ -133,6 +135,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Set True North — SKIPPED (0°)");
+                    skipped++;
                 }
 
                 // Step: Enable Worksharing
@@ -145,11 +148,13 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Enable Worksharing — SKIPPED (already workshared)");
+                    skipped++;
                 }
                 else
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Enable Worksharing — SKIPPED (not selected)");
+                    skipped++;
                 }
 
                 // Critical check: if levels failed, offer rollback
@@ -160,14 +165,16 @@ namespace StingTools.Temp
                     critDlg.MainInstruction = "Foundation steps had issues";
                     critDlg.MainContent =
                         "Some foundation steps (project info / levels) did not succeed.\n" +
-                        "Continue with remaining automation or rollback?";
+                        "Continue with remaining automation or stop here?";
                     critDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                         "Continue anyway", "Proceed with remaining steps");
                     critDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                        "Rollback all", "Undo all changes");
+                        "Stop here", "Stop setup — use Ctrl+Z to undo completed steps individually");
                     if (critDlg.Show() == TaskDialogResult.CommandLink2)
                     {
-                        TaskDialog.Show("Project Setup", "Setup aborted. Use Ctrl+Z to undo.");
+                        TaskDialog.Show("Project Setup",
+                            "Setup stopped. Completed steps are committed.\n" +
+                            "Use Ctrl+Z (Undo) to revert individual steps if needed.");
                         return Result.Cancelled;
                     }
                 }
@@ -187,6 +194,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Load Shared Parameters — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create BLE + MEP Materials
@@ -201,6 +209,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Materials — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Family Types (walls, floors, ceilings, roofs, ducts, pipes)
@@ -227,6 +236,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Family Types — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Batch Create Schedules
@@ -241,6 +251,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Schedules — SKIPPED");
+                    skipped++;
                 }
 
                 // ════════════════════════════════════════════════════
@@ -268,6 +279,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Styles — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create View Filters
@@ -280,6 +292,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Filters — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create View Templates
@@ -296,6 +309,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Templates — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Phases (report only — API limitation)
@@ -308,6 +322,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Phases — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Worksets
@@ -320,6 +335,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
+                    skipped++;
                 }
 
                 // ════════════════════════════════════════════════════
@@ -338,6 +354,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Views — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Dependent Views
@@ -350,6 +367,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Dependents — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Sheets
@@ -362,6 +380,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Sheets — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Sections from Grids
@@ -374,6 +393,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Sections — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Create Elevations
@@ -386,6 +406,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Elevations — SKIPPED");
+                    skipped++;
                 }
 
                 // Step: Organize project browser and create sheet index
@@ -417,6 +438,7 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Auto-Assign Templates — SKIPPED");
+                    skipped++;
                 }
 
                 // Full auto-populate: tokens + dimensions + MEP + formulas + tags + combine
@@ -434,16 +456,16 @@ namespace StingTools.Temp
 
                 // ── Finalize ─────────────────────────────────────────
 
-                failed = stepNum - passed;
+                failed = stepNum - passed - skipped;
                 totalSw.Stop();
 
+                report.AppendLine(new string('─', 55));
+                report.AppendLine($"  {passed}/{stepNum} succeeded" +
+                    (skipped > 0 ? $", {skipped} skipped" : "") +
+                    (failed > 0 ? $", {failed} FAILED" : ""));
+                report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
                 if (failed > 0)
-                {
-                    report.AppendLine(new string('─', 55));
-                    report.AppendLine($"  {passed}/{stepNum} succeeded, {failed} failed");
-                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
                     report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
-                }
 
             // GAP-006: Persist wizard settings to project_config.json
             // Update TagConfig with wizard LOC/ZONE codes before saving
@@ -452,7 +474,13 @@ namespace StingTools.Temp
             if (data.ZoneCodes.Count > 0)
                 TagConfig.ZoneCodes = data.ZoneCodes;
 
-            string configPath = Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
+            // Prefer project-adjacent path to prevent config bleed between projects (Phase 15b)
+            string configDir = !string.IsNullOrEmpty(doc.PathName)
+                ? Path.GetDirectoryName(doc.PathName)
+                : null;
+            string configPath = !string.IsNullOrEmpty(configDir)
+                ? Path.Combine(configDir, "project_config.json")
+                : Path.Combine(StingToolsApp.DataPath ?? "", "project_config.json");
 
             // UX-02: Warn before overwriting existing project_config.json
             if (File.Exists(configPath))

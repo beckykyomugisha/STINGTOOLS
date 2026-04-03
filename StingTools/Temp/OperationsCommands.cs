@@ -736,15 +736,21 @@ namespace StingTools.Temp
                 report.AppendLine($"  Families: {families.Count} ({inPlace} in-place)");
                 if (inPlace > 20) { score -= 10; issues.Add($"High in-place families: {inPlace}"); }
 
-                // Tag coverage
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                var taggable = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                // Tag coverage — use ElementMulticategoryFilter for Revit API-level filtering
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var taggable = (catEnums != null && catEnums.Length > 0)
+                    ? new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(
+                            (ICollection<BuiltInCategory>)catEnums))
+                        .ToList()
+                    : new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(e);
+                            return !string.IsNullOrEmpty(cat) && TagConfig.DiscMap.ContainsKey(cat);
+                        }).ToList();
                 int taggedCount = taggable.Count(e =>
                     !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
                 double tagCoverage = taggable.Count > 0 ? (double)taggedCount / taggable.Count : 0;
@@ -913,15 +919,28 @@ namespace StingTools.Temp
                 report.AppendLine($"  Project: {proj?.Name ?? "Unnamed"}");
                 report.AppendLine($"  File: {doc.PathName ?? "Not saved"}");
 
-                // Element counts
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                var allElems = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                // Element counts — use ElementMulticategoryFilter for API-level filtering
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                List<Element> allElems;
+                if (catEnums != null && catEnums.Length > 0)
+                {
+                    allElems = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(
+                            (ICollection<BuiltInCategory>)catEnums))
+                        .ToList();
+                }
+                else
+                {
+                    var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                    allElems = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(e);
+                            return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
+                        }).ToList();
+                }
 
                 report.AppendLine($"\n-- Elements ({allElems.Count} taggable) --");
                 var byCat = allElems.GroupBy(e => ParameterHelpers.GetCategoryName(e))
@@ -929,28 +948,36 @@ namespace StingTools.Temp
                 foreach (var g in byCat.Take(15))
                     report.AppendLine($"  {g.Key}: {g.Count()}");
 
-                // Tag coverage
-                int tagged = allElems.Count(e =>
-                    !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                // Tag coverage + discipline counts in a single pass
+                int tagged = 0;
+                var discCounts = new Dictionary<string, int>();
+                foreach (var el in allElems)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) tagged++;
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        discCounts.TryGetValue(disc, out int cnt);
+                        discCounts[disc] = cnt + 1;
+                    }
+                }
                 double cov = allElems.Count > 0 ? (double)tagged / allElems.Count * 100 : 0;
                 report.AppendLine($"\n-- Tag Coverage: {cov:F1}% ({tagged}/{allElems.Count}) --");
 
-                // By discipline
                 report.AppendLine("\n-- By Discipline --");
-                var byDisc = allElems
-                    .GroupBy(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
-                    .Where(g => !string.IsNullOrEmpty(g.Key))
-                    .OrderByDescending(g => g.Count());
-                foreach (var g in byDisc)
-                    report.AppendLine($"  {g.Key}: {g.Count()}");
+                foreach (var kvp in discCounts.OrderByDescending(k => k.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
 
-                // Document metrics
-                int viewCount = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View)).Cast<View>()
-                    .Count(v => !v.IsTemplate && v.ViewType != ViewType.Internal);
-                int sheetCount = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount();
-                int schedCount = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).GetElementCount();
-                int levelCount = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount();
+                // Document metrics — single collector pass for views/sheets/schedules/levels
+                int viewCount = 0, sheetCount = 0, schedCount = 0, levelCount = 0;
+                foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    if (e is ViewSheet) { sheetCount++; continue; }
+                    if (e is ViewSchedule) { schedCount++; continue; }
+                    if (e is Level) { levelCount++; continue; }
+                    if (e is View v && !v.IsTemplate && v.ViewType != ViewType.Internal) viewCount++;
+                }
                 int warnCount = doc.GetWarnings()?.Count() ?? 0;
 
                 report.AppendLine($"\n-- Document Metrics --");
@@ -1069,6 +1096,8 @@ namespace StingTools.Temp
                         return Result.Cancelled;
                     }
 
+                    // TransactionGroup used ONLY for rollback-on-cancel; Assimilate merges committed chunks.
+                    // Individual Transaction.Commit() per chunk is the real commit — Assimilate just closes the group.
                     tg.Assimilate();
                 }
 

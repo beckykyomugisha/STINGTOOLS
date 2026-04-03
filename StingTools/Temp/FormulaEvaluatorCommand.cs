@@ -446,32 +446,30 @@ namespace StingTools.Temp
                 if (!inDegree.ContainsKey(f.ParameterName)) inDegree[f.ParameterName] = 0;
             }
 
-            // PERF-002: Use word-boundary regex to detect dependencies.
-            // f.Expression.Contains(dep.ParameterName) was a substring match that falsely detected
-            // "AREA" inside "FLOOR_AREA_M2", corrupting the topological sort order.
-            // Pre-compile one Regex per formula name to avoid repeated compilation in the inner loop.
-            var depRegexes = new Dictionary<string, System.Text.RegularExpressions.Regex>(
-                StringComparer.OrdinalIgnoreCase);
-            foreach (var f in formulas)
-            {
-                if (!depRegexes.ContainsKey(f.ParameterName))
-                    depRegexes[f.ParameterName] = new System.Text.RegularExpressions.Regex(
-                        $@"\b{System.Text.RegularExpressions.Regex.Escape(f.ParameterName)}\b",
-                        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            }
+            // PERF-002: Detect dependencies by extracting word tokens from each expression
+            // and checking against the set of formula parameter names — O(n) total instead of O(n²).
+            // Previous approach ran a regex per (formula × formula) pair = 199² = ~40K regex evaluations.
+            var formulaNameSet = new HashSet<string>(
+                formulas.Select(f => f.ParameterName), StringComparer.OrdinalIgnoreCase);
+            var wordTokenRegex = new System.Text.RegularExpressions.Regex(
+                @"\b[A-Za-z_][A-Za-z0-9_]*\b", System.Text.RegularExpressions.RegexOptions.Compiled);
 
             foreach (var f in formulas)
             {
-                foreach (var dep in formulas)
+                if (string.IsNullOrEmpty(f.Expression)) continue;
+                var matches = wordTokenRegex.Matches(f.Expression);
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (System.Text.RegularExpressions.Match m in matches)
                 {
-                    if (dep.ParameterName == f.ParameterName) continue;
-                    if (f.Expression != null && depRegexes.TryGetValue(dep.ParameterName, out var rx)
-                        && rx.IsMatch(f.Expression))
-                    {
-                        if (!adjList.ContainsKey(dep.ParameterName)) adjList[dep.ParameterName] = new List<string>();
-                        adjList[dep.ParameterName].Add(f.ParameterName);
-                        inDegree[f.ParameterName] = inDegree.GetValueOrDefault(f.ParameterName) + 1;
-                    }
+                    string token = m.Value;
+                    if (string.Equals(token, f.ParameterName, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!formulaNameSet.Contains(token)) continue;
+                    if (!seen.Add(token)) continue; // deduplicate within same expression
+
+                    // token is a dependency of f (f depends on token)
+                    if (!adjList.ContainsKey(token)) adjList[token] = new List<string>();
+                    adjList[token].Add(f.ParameterName);
+                    inDegree[f.ParameterName] = inDegree.GetValueOrDefault(f.ParameterName) + 1;
                 }
             }
 
@@ -773,42 +771,42 @@ namespace StingTools.Temp
 
             switch (unit.Trim().ToUpperInvariant())
             {
-                // Length → feet
+                // Length → feet (exact: 1 ft = 0.3048 m)
                 case "M":
                 case "METERS":
                 case "METRES":
-                    return value * 3.28084;
+                    return value / 0.3048;
                 case "MM":
                 case "MILLIMETERS":
                 case "MILLIMETRES":
-                    return value * 0.00328084;
+                    return value / 304.8;
                 case "CM":
                 case "CENTIMETERS":
                 case "CENTIMETRES":
-                    return value * 0.0328084;
+                    return value / 30.48;
                 case "IN":
                 case "INCHES":
                     return value / 12.0;
 
-                // Area → ft2
+                // Area → ft² (exact: 1 ft² = 0.3048² m² = 0.09290304 m²)
                 case "M2":
                 case "SQ_M":
                 case "SQUARE_METERS":
-                    return value * 10.7639;
+                    return value / (0.3048 * 0.3048);
                 case "MM2":
                 case "SQ_MM":
                 case "SQUARE_MILLIMETERS":
-                    return value * 0.00001076391;
+                    return value / (304.8 * 304.8);
 
-                // Volume → ft3
+                // Volume → ft³ (exact: 1 ft³ = 0.3048³ m³)
                 case "M3":
                 case "CU_M":
                 case "CUBIC_METERS":
-                    return value * 35.3147;
+                    return value / (0.3048 * 0.3048 * 0.3048);
                 case "L":
                 case "LITERS":
                 case "LITRES":
-                    return value * 0.0353147;
+                    return value / (0.3048 * 0.3048 * 0.3048 * 1000.0);
 
                 // Temperature → Rankine (Revit internal for some parameters)
                 case "C":
@@ -859,16 +857,15 @@ namespace StingTools.Temp
         }
 
         /// <summary>Write numeric result to parameter, handling type conversion.
-        /// Value should already be in Revit internal units (use ConvertToInternalUnits first).</summary>
-        public static bool WriteNumericResult(Parameter param, double value)
+        /// Value should already be in Revit internal units (use ConvertToInternalUnits first).
+        /// When overwrite is false (default), only writes if current value is empty/zero.</summary>
+        public static bool WriteNumericResult(Parameter param, double value, bool overwrite = false)
         {
             try
             {
-
-                // Only write if currently empty/zero
                 if (param.StorageType == StorageType.Double)
                 {
-                    if (Math.Abs(param.AsDouble()) < 0.0001)
+                    if (overwrite || Math.Abs(param.AsDouble()) < 0.0001)
                     {
                         param.Set(value);
                         return true;
@@ -876,7 +873,7 @@ namespace StingTools.Temp
                 }
                 else if (param.StorageType == StorageType.Integer)
                 {
-                    if (param.AsInteger() == 0)
+                    if (overwrite || param.AsInteger() == 0)
                     {
                         param.Set((int)Math.Round(value));
                         return true;
@@ -885,7 +882,7 @@ namespace StingTools.Temp
                 else if (param.StorageType == StorageType.String)
                 {
                     string current = param.AsString();
-                    if (string.IsNullOrEmpty(current))
+                    if (overwrite || string.IsNullOrEmpty(current))
                     {
                         param.Set(value.ToString("G6", CultureInfo.InvariantCulture));
                         return true;

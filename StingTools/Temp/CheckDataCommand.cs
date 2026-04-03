@@ -230,7 +230,12 @@ namespace StingTools.Temp
                         int pipe = afterHash.IndexOf('|');
                         string verPart = (pipe > 0 ? afterHash.Substring(0, pipe) : afterHash).Trim();
                         if (verPart.StartsWith("v"))
-                            return verPart.Substring(1); // strip leading 'v'
+                        {
+                            string ver = verPart.Substring(1); // strip leading 'v'
+                            // Validate version format (e.g., "2.3", "5.0", "1.2.3")
+                            if (System.Text.RegularExpressions.Regex.IsMatch(ver, @"^\d+(\.\d+)+$"))
+                                return ver;
+                        }
                     }
                 }
             }
@@ -341,8 +346,9 @@ namespace StingTools.Temp
                     return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"ComputeFullHash failed for {filePath}: {ex.Message}");
                 return "error";
             }
         }
