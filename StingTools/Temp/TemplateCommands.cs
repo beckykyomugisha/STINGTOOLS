@@ -95,6 +95,7 @@ namespace StingTools.Temp
             BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting,
             BuiltInCategory.OST_CableTray, BuiltInCategory.OST_CableTrayFitting,
             BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment,
+            BuiltInCategory.OST_Rooms, BuiltInCategory.OST_StructuralStiffener,
         };
 
         /// <summary>
@@ -1056,7 +1057,9 @@ namespace StingTools.Temp
                 }
 
                 // Presentation templates: set to Fine detail, no filter overrides
-                if (discipline.StartsWith("PRES") || discipline.StartsWith("SEC_P"))
+                // MED-04: Removed dead SEC_P check — SEC_P is already handled and returned
+                // in the elevation/section block above, so it never reaches here.
+                if (discipline.StartsWith("PRES"))
                 {
                     template.DetailLevel = ViewDetailLevel.Fine;
                     // Presentation: halftone MEP, show architectural
