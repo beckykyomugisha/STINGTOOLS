@@ -179,7 +179,8 @@ namespace StingTools.Temp
                     if (scopeId != ElementId.InvalidElementId)
                     {
                         Element scopeBox = view.Document.GetElement(scopeId);
-                        if (scopeBox != null)
+                        // R3-FIX-05: Also check IsValidObject — element may be stale/deleted
+                        if (scopeBox != null && scopeBox.IsValidObject)
                         {
                             string scopeName = scopeBox.Name ?? "";
                             foreach (var (pattern, templateName, viewType) in AssignmentRules)

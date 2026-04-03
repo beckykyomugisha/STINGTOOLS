@@ -722,7 +722,14 @@ namespace StingTools.UI
                 {
                     inst.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        try { inst.UpdateStatus(statusText); }
+                        try
+                        {
+                            // R3-FIX-02: Re-check _instance inside dispatcher callback — inst may reference
+                            // a disposed Page if document switched between BeginInvoke queue and execution
+                            var current = _instance;
+                            if (current == null || !current.IsLoaded) return;
+                            current.UpdateStatus(statusText);
+                        }
                         catch (Exception ex) { StingLog.Warn($"Status bar update failed: {ex.Message}"); }
                     }));
                 }
@@ -776,8 +783,12 @@ namespace StingTools.UI
                     // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
                     inst.txtStatus.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        inst.txtStatus.Text = statusText;
-                        inst.txtStatus.Foreground = brush;
+                        // R3-FIX-03: Re-check _instance inside dispatcher callback — inst may reference
+                        // a disposed Page if document switched between BeginInvoke queue and execution
+                        var current = _instance;
+                        if (current?.txtStatus == null || !current.IsLoaded) return;
+                        current.txtStatus.Text = statusText;
+                        current.txtStatus.Foreground = brush;
                     }));
                 }
                 else
