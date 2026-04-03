@@ -1239,7 +1239,7 @@ namespace StingTools.UI
                         var descNode = new TreeViewItem
                         {
                             Header = new TextBlock { Text = $"({count}) {desc}", FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxWidth = 600 },
-                            Tag = $"SelectWarning_{catKv.Key}_{desc}",
+                            Tag = $"SelectWarning_{catKv.Key}|{desc}",
                             Cursor = Cursors.Hand,
                             ToolTip = "Double-click to zoom to a 3D section box around affected elements\nRight-click → Select to highlight in current view"
                         };
@@ -1607,8 +1607,25 @@ namespace StingTools.UI
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { ResultAction = $"ViewRevision_{rev.Id}"; DialogResult = true; Close(); }
+                    { ResultAction = $"SelectRevision_{rev.Id}"; DialogResult = true; Close(); }
                 };
+                // Right-click context menu for revision rows
+                var revCtx = new ContextMenu();
+                var revSelectItem = new MenuItem { Header = "Select Revision Clouds" };
+                revSelectItem.Click += (s2, e2) =>
+                {
+                    if (dg.SelectedItem is RevisionRow rev)
+                    { ResultAction = $"SelectRevision_{rev.Id}"; DialogResult = true; Close(); }
+                };
+                var revZoomItem = new MenuItem { Header = "Zoom to Revision Clouds (3D)" };
+                revZoomItem.Click += (s2, e2) =>
+                {
+                    if (dg.SelectedItem is RevisionRow rev)
+                    { ResultAction = $"ZoomToRevision_{rev.Id}"; DialogResult = true; Close(); }
+                };
+                revCtx.Items.Add(revSelectItem);
+                revCtx.Items.Add(revZoomItem);
+                dg.ContextMenu = revCtx;
                 root.Children.Add(dg);
             }
             else
