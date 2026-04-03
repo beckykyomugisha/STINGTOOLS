@@ -2307,6 +2307,59 @@ namespace StingTools.UI
                         }
                         break;
                     }
+                    case "TemplateDashboard":
+                    {
+                        var dlgResult = UI.TemplateManagerDashboard.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "SchedulingCostDashboard":
+                    {
+                        var dlgResult = UI.SchedulingCostDashboard.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "RevisionManagerDashboard":
+                    {
+                        var doc = app.ActiveUIDocument?.Document;
+                        var dlgResult = UI.RevisionManagerDashboard.Show(doc);
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
+                            Execute(app);
+                        }
+                        break;
+                    }
+                    case "WarningsDashboardDialog":
+                    {
+                        var dlgResult = UI.WarningsDashboardDialog.Show();
+                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        {
+                            SetCommand(dlgResult.Operation);
+                            if (dlgResult.Options != null)
+                                foreach (var kv in dlgResult.Options)
+                                    SetExtraParam(kv.Key, kv.Value);
+                            Execute(app);
+                        }
+                        break;
+                    }
 
                     // ── Phase 37: Quality Assurance Commands ──
                     case "WarningReview": RunCommand<BIMManager.WarningReviewCommand>(app); break;
