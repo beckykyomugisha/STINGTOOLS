@@ -669,15 +669,17 @@ namespace StingTools.UI
         /// </summary>
         public static void PopulateParamDropdowns(IEnumerable<string> paramNames)
         {
-            if (_instance == null) return;
+            // R1-UI-02: Snapshot to local to prevent race on _instance
+            var inst = _instance;
+            if (inst == null) return;
             var list = paramNames is IList<string> l ? l : new List<string>(paramNames);
-            _instance.Dispatcher.BeginInvoke(new Action(() =>
+            inst.Dispatcher.BeginInvoke(new Action(() =>
             {
                 try
                 {
-                    PopulateCombo(_instance.cmbBulkParam, list);
-                    PopulateCombo(_instance.cmbLookupParam, list);
-                    PopulateCombo(_instance.cmbAnomalyParam, list);
+                    PopulateCombo(inst.cmbBulkParam, list);
+                    PopulateCombo(inst.cmbLookupParam, list);
+                    PopulateCombo(inst.cmbAnomalyParam, list);
                     Core.StingLog.Info($"Dropdowns populated with {list.Count} params");
                 }
                 catch (Exception ex)
@@ -707,20 +709,22 @@ namespace StingTools.UI
         /// </summary>
         public static void NotifyCommandComplete(string statusText = "Ready")
         {
-            if (_instance == null) return;
+            // R1-UI-03: Snapshot to local to prevent race on _instance
+            var inst = _instance;
+            if (inst == null) return;
             try
             {
-                if (!_instance.Dispatcher.CheckAccess())
+                if (!inst.Dispatcher.CheckAccess())
                 {
-                    _instance.Dispatcher.BeginInvoke(new Action(() =>
+                    inst.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        try { _instance.UpdateStatus(statusText); }
+                        try { inst.UpdateStatus(statusText); }
                         catch (Exception ex) { StingLog.Warn($"Status bar update failed: {ex.Message}"); }
                     }));
                 }
                 else
                 {
-                    _instance.UpdateStatus(statusText);
+                    inst.UpdateStatus(statusText);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }
@@ -749,7 +753,9 @@ namespace StingTools.UI
         /// </summary>
         public static void UpdateComplianceStatus(string statusText, string ragStatus)
         {
-            if (_instance?.txtStatus == null) return;
+            // R1-UI-01: Snapshot _instance to local to prevent race between null check and use
+            var inst = _instance;
+            if (inst?.txtStatus == null) return;
             try
             {
                 // SDP-HIGH-02: Use pre-allocated frozen brushes instead of new SolidColorBrush per call
@@ -761,19 +767,19 @@ namespace StingTools.UI
                     _       => _complianceDefaultBrush,
                 };
 
-                if (!_instance.txtStatus.Dispatcher.CheckAccess())
+                if (!inst.txtStatus.Dispatcher.CheckAccess())
                 {
                     // CRASH FIX: Use BeginInvoke to avoid deadlock (see UpdateStatus).
-                    _instance.txtStatus.Dispatcher.BeginInvoke(new Action(() =>
+                    inst.txtStatus.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        _instance.txtStatus.Text = statusText;
-                        _instance.txtStatus.Foreground = brush;
+                        inst.txtStatus.Text = statusText;
+                        inst.txtStatus.Foreground = brush;
                     }));
                 }
                 else
                 {
-                    _instance.txtStatus.Text = statusText;
-                    _instance.txtStatus.Foreground = brush;
+                    inst.txtStatus.Text = statusText;
+                    inst.txtStatus.Foreground = brush;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Non-critical UI update: {ex.Message}"); }

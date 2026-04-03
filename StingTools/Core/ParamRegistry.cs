@@ -827,9 +827,14 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(categoryName)) return _allContainers.Where(c => c.Categories == null).ToArray();
 
             // F-02: Cache result per category — ContainersForCategory is called per-element in hot loops
-            if (_containerForCategoryCache == null)
-                _containerForCategoryCache = new System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>(StringComparer.OrdinalIgnoreCase);
-            return _containerForCategoryCache.GetOrAdd(categoryName, key =>
+            // R1-PR-01: Snapshot to local to avoid race between null check and use during Reload()
+            var cache = _containerForCategoryCache;
+            if (cache == null)
+            {
+                cache = new System.Collections.Concurrent.ConcurrentDictionary<string, ContainerParamDef[]>(StringComparer.OrdinalIgnoreCase);
+                _containerForCategoryCache = cache;
+            }
+            return cache.GetOrAdd(categoryName, key =>
             {
                 var result = new List<ContainerParamDef>();
                 // Universal containers (null categories) always apply
