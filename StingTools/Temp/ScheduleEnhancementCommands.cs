@@ -245,39 +245,21 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Build selection list
-            var names = schedules.Select((s, i) => $"{i + 1}. {s.Name}").ToList();
-            string nameList = string.Join("\n", names.Take(40));
-            if (names.Count > 40) nameList += $"\n... ({names.Count - 40} more)";
+            // Pick first schedule via list picker
+            var names = schedules.Select(s => s.Name).ToList();
 
-            // Ask for first schedule
-            TaskDialog dlg1 = new TaskDialog("Schedule Compare — Select First");
-            dlg1.MainInstruction = "Enter the number of the FIRST schedule:";
-            dlg1.MainContent = nameList;
-            dlg1.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (dlg1.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+            string pickA = UI.StingListPicker.Show("Schedule Compare — Select First",
+                "Select the FIRST schedule to compare:", names);
+            if (pickA == null) return Result.Cancelled;
+            int idxA = names.IndexOf(pickA);
 
-            // Use first two STING schedules as defaults or pick by name
-            // For simplicity, compare active schedule with the next one alphabetically
-            ViewSchedule schedA = null;
-            ViewSchedule schedB = null;
+            string pickB = UI.StingListPicker.Show("Schedule Compare — Select Second",
+                "Select the SECOND schedule to compare:", names);
+            if (pickB == null) return Result.Cancelled;
+            int idxB = names.IndexOf(pickB);
 
-            if (doc.ActiveView is ViewSchedule activeSched)
-            {
-                schedA = activeSched;
-                // Pick the next schedule alphabetically
-                int idx = schedules.FindIndex(s => s.Id == activeSched.Id);
-                if (idx >= 0 && idx + 1 < schedules.Count)
-                    schedB = schedules[idx + 1];
-                else if (schedules.Count >= 2)
-                    schedB = schedules.First(s => s.Id != activeSched.Id);
-            }
-            else
-            {
-                // Default: compare first two schedules
-                schedA = schedules[0];
-                schedB = schedules[1];
-            }
+            ViewSchedule schedA = schedules[idxA];
+            ViewSchedule schedB = schedules[idxB];
 
             if (schedA == null || schedB == null)
             {

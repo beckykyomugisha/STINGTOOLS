@@ -145,20 +145,6 @@ namespace StingTools.Temp
             ("STING - QA: Missing Function", ParamRegistry.FUNC, "HasNoValue", ""),
             ("STING - QA: Missing Product", ParamRegistry.PROD, "HasNoValue", ""),
             ("STING - QA: No Level", ParamRegistry.LVL, "HasNoValue", ""),
-            // System-specific filters (parameter-based for MEP subsystem isolation)
-            ("STING - Sys: HVAC", ParamRegistry.SYS, "Equals", "HVAC"),
-            ("STING - Sys: DCW", ParamRegistry.SYS, "Equals", "DCW"),
-            ("STING - Sys: HWS", ParamRegistry.SYS, "Equals", "HWS"),
-            ("STING - Sys: SAN", ParamRegistry.SYS, "Equals", "SAN"),
-            ("STING - Sys: RWD", ParamRegistry.SYS, "Equals", "RWD"),
-            ("STING - Sys: GAS", ParamRegistry.SYS, "Equals", "GAS"),
-            ("STING - Sys: FP", ParamRegistry.SYS, "Equals", "FP"),
-            ("STING - Sys: FLS", ParamRegistry.SYS, "Equals", "FLS"),
-            ("STING - Sys: COM", ParamRegistry.SYS, "Equals", "COM"),
-            ("STING - Sys: ICT", ParamRegistry.SYS, "Equals", "ICT"),
-            ("STING - Sys: NCL", ParamRegistry.SYS, "Equals", "NCL"),
-            ("STING - Sys: SEC", ParamRegistry.SYS, "Equals", "SEC"),
-            ("STING - Sys: LV", ParamRegistry.SYS, "Equals", "LV"),
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -615,6 +601,8 @@ namespace StingTools.Temp
             { "STING - Fire Protection", new Color(255, 100, 0) },  // Orange
             { "STING - Low Voltage", new Color(160, 0, 200) },      // Purple
             { "STING - Conduits & Cable Trays", new Color(180, 180, 0) }, // Olive
+            { "STING - Rooms & Spaces", new Color(100, 200, 255) }, // Light Blue
+            { "STING - Generic & Specialty", new Color(128, 128, 128) }, // Mid Grey
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -966,7 +954,12 @@ namespace StingTools.Temp
                         try
                         {
                             template.AddFilter(kvp.Value.Id);
-                            if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
+                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
+                            {
+                                // Arch/Struct filters shown as halftone in MEP 3D views
+                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                            }
+                            else if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
                             {
                                 var colorOgs3d = new OverrideGraphicSettings();
                                 colorOgs3d.SetProjectionLineColor(col3d);
@@ -977,8 +970,6 @@ namespace StingTools.Temp
                                 }
                                 template.SetFilterOverrides(kvp.Value.Id, colorOgs3d);
                             }
-                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
                         catch (Exception ex) { StingLog.Warn($"Add/override MEP 3D filter '{kvp.Key}': {ex.Message}"); }
                     }

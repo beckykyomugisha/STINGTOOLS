@@ -36,8 +36,7 @@ namespace StingTools.Temp
             ["Full Setup"] = new[] { "LoadParams", "CreateMaterials", "CreateFamilies", "CreateSchedules", "ViewTemplates", "MasterSetup" },
             ["Tag Pipeline"] = new[] { "LoadParams", "FamilyStagePopulate", "PreTagAudit", "BatchTag", "Validate", "CombineParams" },
             ["Export Package"] = new[] { "SheetNamingCheck", "Validate", "ExportCSV", "TransmittalReport" },
-            ["Quality Check"] = new[] { "Validate", "PreTagAudit", "HighlightInvalid", "FindDuplicates", "CompletenessDash" },
-            ["MEP Audit"] = new[] { "MEPSystemAudit", "MEPSizingCheck", "CibseVelocityCheck" },
+            ["Quality Check"] = new[] { "Validate", "PreTagAudit", "HighlightInvalid", "FindDuplicates", "CompletenessDash", "MEPSystemAudit", "MEPSizingCheck", "CibseVelocityCheck" },
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -222,7 +221,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Export project to IFC with IFCExportOptions, maps STING params to Psets.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class IFCExportEnhancedCommand : IExternalCommand
     {
@@ -998,14 +997,10 @@ namespace StingTools.Temp
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = _ctx.Doc;
 
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                    .ToList();
 
                 if (allElements.Count == 0)
                 {

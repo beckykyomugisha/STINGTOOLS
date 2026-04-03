@@ -1518,20 +1518,20 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Sort templates alphabetically for consistent ordering
+            // Let user pick the base template to compare against
             var sortedNames = stingTemplates.Keys.OrderBy(k => k).ToList();
 
-            // Compare all adjacent pairs, or first vs all others
+            string baseName = UI.StingListPicker.Show("Template Diff — Select Base",
+                "Select the BASE template to compare others against:", sortedNames);
+            if (baseName == null) return Result.Cancelled;
+
             var report = new StringBuilder();
             report.AppendLine("STING Template VG Comparison");
             report.AppendLine(new string('═', 55));
-
-            // Compare first template with each other
-            string baseName = sortedNames[0];
             var baseSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[baseName]);
 
             int totalDiffs = 0;
-            foreach (string otherName in sortedNames.Skip(1))
+            foreach (string otherName in sortedNames.Where(n => n != baseName))
             {
                 var otherSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[otherName]);
                 var diffs = TemplateManager.DiffSnapshots(baseSnap, otherSnap);
@@ -2853,13 +2853,13 @@ namespace StingTools.Temp
 
             string previousSpf = app.SharedParametersFilename;
             app.SharedParametersFilename = spfPath;
+            try
+            {
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
             {
                 TaskDialog.Show("Family Parameter Processor",
                     "Failed to open shared parameter file.");
-                // Restore to MR_PARAMETERS.txt (not the previous file which may be wrong)
-                app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2882,8 +2882,6 @@ namespace StingTools.Temp
             {
                 TaskDialog.Show("Family Parameter Processor",
                     "FAMILY_PARAMETER_BINDINGS.csv not found or empty.");
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2975,16 +2973,12 @@ namespace StingTools.Temp
             }
             else
             {
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
             if (familyPaths.Count == 0)
             {
                 TaskDialog.Show("Family Parameter Processor", "No family files selected.");
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
@@ -3225,10 +3219,6 @@ namespace StingTools.Temp
                 }
             }
 
-            // Restore previous shared parameter file
-            if (!string.IsNullOrEmpty(previousSpf))
-                app.SharedParametersFilename = spfPath;
-
             // ── Step 5: Report ──────────────────────────────────────────────
             var report = new StringBuilder();
             report.AppendLine("Family Parameter Processor");
@@ -3251,6 +3241,12 @@ namespace StingTools.Temp
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
+            }
+            finally
+            {
+                // Restore the original shared parameter file path
+                app.SharedParametersFilename = previousSpf;
+            }
         }
 
         /// <summary>
@@ -3559,13 +3555,14 @@ namespace StingTools.Temp
                                     var paramMap = TPLMetadataLoader.GetParamMapping(sourceTable);
                                     if (paramMap == null || paramMap.Count == 0) continue;
 
-                                    foreach (var row in rows)
+                                    for (int ri = 0; ri < rows.Count; ri++)
                                     {
+                                        var row = rows[ri];
                                         try
                                         {
                                             // Create Generic Model instance — offset each row to avoid stacking
                                             FamilyInstance fi = doc.Create.NewFamilyInstance(
-                                                new XYZ(rows.IndexOf(row) * 3.0, 0, 0), gmSymbol, lvl,
+                                                new XYZ(ri * 3.0, 0, 0), gmSymbol, lvl,
                                                 Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
                                             if (fi == null) continue;
@@ -3848,10 +3845,12 @@ namespace StingTools.Temp
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
                     report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
                 }
-
-            report.AppendLine(new string('─', 55));
-            report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
-            report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+                else
+                {
+                    report.AppendLine(new string('─', 55));
+                    report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
+                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+                }
 
             TaskDialog td = new TaskDialog("STING Template Setup Wizard");
             td.MainInstruction = $"Template Setup: {passed}/{stepNum} steps complete";

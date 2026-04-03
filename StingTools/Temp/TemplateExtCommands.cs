@@ -186,16 +186,72 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
+            // Discipline prefixes used in STING filter and template names
+            var disciplinePrefixes = new[] { "Mechanical", "Electrical", "Plumbing", "Architectural", "Structural", "Fire", "Low Voltage", "Coordination" };
+
+            // Extract discipline keyword from a STING name (filter or template).
+            // Returns null when the name has no discipline — meaning it is discipline-neutral.
+            static string ExtractDiscipline(string name, string[] prefixes)
+            {
+                foreach (string p in prefixes)
+                {
+                    if (name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return p;
+                }
+                // Also check short discipline code prefixes like "M_", "E_", "P_", "A_", "S_"
+                // These appear after "STING - " prefix (16 chars) in some filter names
+                string afterSting = name.StartsWith("STING - ", StringComparison.OrdinalIgnoreCase)
+                    ? name.Substring(8).TrimStart()
+                    : name;
+                if (afterSting.Length >= 2 && afterSting[1] == '_')
+                {
+                    char code = char.ToUpperInvariant(afterSting[0]);
+                    return code switch
+                    {
+                        'M' => "Mechanical",
+                        'E' => "Electrical",
+                        'P' => "Plumbing",
+                        'A' => "Architectural",
+                        'S' => "Structural",
+                        _ => null
+                    };
+                }
+                // Check "Disc:" prefix filters like "STING - Disc: Mechanical"
+                if (name.Contains("Disc:", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string p in prefixes)
+                    {
+                        if (name.Contains(p, StringComparison.OrdinalIgnoreCase))
+                            return p;
+                    }
+                }
+                return null;
+            }
+
             int applied = 0;
             using (Transaction tx = new Transaction(doc, "STING Apply Filters to Views"))
             {
                 tx.Start();
                 foreach (View template in templates)
                 {
+                    string templateDisc = ExtractDiscipline(template.Name, disciplinePrefixes);
+
                     foreach (var filter in filters)
                     {
                         try
                         {
+                            string filterDisc = ExtractDiscipline(filter.Name, disciplinePrefixes);
+
+                            // Apply filter if:
+                            // 1. Filter is discipline-neutral (no discipline prefix) — applies to all templates
+                            // 2. Filter discipline matches template discipline
+                            // 3. Template is discipline-neutral — receives all filters
+                            if (filterDisc != null && templateDisc != null &&
+                                !string.Equals(filterDisc, templateDisc, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue; // Skip: discipline mismatch
+                            }
+
                             if (!template.GetFilters().Contains(filter.Id))
                             {
                                 template.AddFilter(filter.Id);
