@@ -78,7 +78,10 @@ namespace StingTools.Temp
                 // SCH-04: Classify schedule record type
                 try
                 {
-                    if (sched.Definition.IsItemized == false && sched.Definition.GetSortGroupFieldCount() > 0)
+                    // Use KeyScheduleParameterName for accurate key schedule detection
+                    // (non-empty means it IS a key schedule) rather than the heuristic
+                    // of !IsItemized + sort groups which can misclassify grouped schedules
+                    if (!string.IsNullOrEmpty(sched.KeyScheduleParameterName))
                         keyScheduleCount++;
                     else if (sched.Definition.IsMaterialTakeoff)
                         materialTakeoffCount++;
@@ -516,25 +519,25 @@ namespace StingTools.Temp
                             catch (Exception ex) { StingLog.Warn($"Read schedule field name at index {i}: {ex.Message}"); }
                         }
 
-                        // Add missing fields
+                        // Build field ID map once — used for field additions, sort, and filter
+                        var fieldIdMap = new Dictionary<string, ScheduleFieldId>(
+                            StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
+                        {
+                            try
+                            {
+                                var field = sched.Definition.GetField(i);
+                                string name = field.GetName();
+                                if (!string.IsNullOrEmpty(name))
+                                    fieldIdMap[name] = field.FieldId;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
+                        }
+
+                        // Add missing fields from CSV definition
                         if (!string.IsNullOrEmpty(def.Fields))
                         {
                             var formulaMap = ScheduleHelper.ParseFormulaSpec(def.Formulas);
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
-
-                            // Build tracked IDs from existing fields (shared across add/sort/filter)
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                            {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    string name = field.GetName();
-                                    if (!string.IsNullOrEmpty(name))
-                                        addedFieldIds[name] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
-                            }
 
                             // Build schedulable field lookup once for CSV field additions
                             var available = sched.Definition.GetSchedulableFields();
@@ -563,7 +566,7 @@ namespace StingTools.Temp
                                     if (added != null)
                                     {
                                         fieldsAdded++;
-                                        addedFieldIds[fieldName] = added.FieldId;
+                                        fieldIdMap[fieldName] = added.FieldId;
                                     }
                                 }
                                 else if (fieldRemaps.TryGetValue(fieldName, out string remapped) &&
@@ -573,7 +576,7 @@ namespace StingTools.Temp
                                     if (added != null)
                                     {
                                         fieldsAdded++;
-                                        addedFieldIds[remapped] = added.FieldId;
+                                        fieldIdMap[remapped] = added.FieldId;
                                     }
                                 }
                             }
@@ -581,21 +584,6 @@ namespace StingTools.Temp
                             // Re-apply column headers + auto-humanize
                             ScheduleHelper.ApplyFieldHeaders(sched,
                                 formulaMap != null && formulaMap.Count > 0 ? formulaMap : null);
-                        }
-
-                        // Rebuild field ID map after potential additions (shared for sort/filter)
-                        var fieldIdMap = new Dictionary<string, ScheduleFieldId>(
-                            StringComparer.OrdinalIgnoreCase);
-                        for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                        {
-                            try
-                            {
-                                var field = sched.Definition.GetField(i);
-                                string name = field.GetName();
-                                if (!string.IsNullOrEmpty(name))
-                                    fieldIdMap[name] = field.FieldId;
-                            }
-                            catch (Exception ex) { StingLog.Warn($"Read field for sort/filter at index {i}: {ex.Message}"); }
                         }
 
                         // Re-apply sorting if none exists
@@ -914,10 +902,20 @@ namespace StingTools.Temp
                     break;
                 }
             }
-            // Convert underscores to spaces and title case
+            // Convert underscores to spaces and title-case each word
             clean = clean.Replace("_", " ").Trim();
             if (clean.Length > 0)
-                clean = char.ToUpper(clean[0]) + clean.Substring(1).ToLower();
+            {
+                var words = clean.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                for (int w = 0; w < words.Length; w++)
+                {
+                    if (words[w].Length <= 3 && words[w] == words[w].ToUpperInvariant())
+                        continue; // Preserve short acronyms like "ID", "COD", "REF"
+                    words[w] = char.ToUpper(words[w][0])
+                        + words[w].Substring(1).ToLowerInvariant();
+                }
+                clean = string.Join(" ", words);
+            }
             return clean;
         }
     }
@@ -1022,10 +1020,10 @@ namespace StingTools.Temp
                     // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                     // Header and body section cell styling is a no-op until API support is added.
 
-                    StingLog.Info($"Schedule '{sched.Name}': applied header color #{def.HeaderColor}");
+                    StingLog.Info($"Schedule '{sched.Name}': header color #{def.HeaderColor} parsed but not applied (API limitation).");
                 }
 
-                return 1;
+                return 0;
             }
             catch (Exception ex)
             {
@@ -1063,7 +1061,8 @@ namespace StingTools.Temp
                 // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                 // Header and body section cell styling is a no-op until API support is added.
 
-                return 1;
+                StingLog.Info($"Discipline color for '{sched.Name}' computed but not applied (API limitation).");
+                return 0;
             }
             catch (Exception ex)
             {
@@ -1334,9 +1333,21 @@ namespace StingTools.Temp
                     doc.Delete(deleteIds);
                     deleted = deleteIds.Count;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var sched in targets)
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Batch delete failed, falling back to per-element: {ex.Message}");
+                    foreach (var sched in targets)
                     {
-                        try { doc.Delete(sched.Id); deleted++; }
+                        try
+                        {
+                            // Check element still exists before delete — batch may have
+                            // partially succeeded before throwing
+                            if (doc.GetElement(sched.Id) != null)
+                            {
+                                doc.Delete(sched.Id);
+                                deleted++;
+                            }
+                        }
                         catch (Exception ex2) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex2.Message}"); }
                     }
                 }
