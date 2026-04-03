@@ -2576,7 +2576,7 @@ namespace StingTools.Core
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
 
             // P-01/A-01: Hoist GetAllViewports() + view resolution once for all derive methods
-            IList<ElementId> vpIds = null;
+            ICollection<ElementId> vpIds = null;
             List<View> vpViews = null;
             try
             {
