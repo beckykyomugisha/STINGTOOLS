@@ -41,6 +41,27 @@ namespace StingTools.Temp
             ["Condensate"] = (0.3, 1.5),
         };
 
+        /// <summary>Match a Revit system type string to the best CIBSE velocity key.
+        /// Prefers exact match, then longest key contained in the system type.</summary>
+        internal static string MatchCibseKey(string sysType, string fallback)
+        {
+            if (string.IsNullOrEmpty(sysType)) return fallback;
+            // Exact match first
+            if (CibseVelocityLimits.ContainsKey(sysType)) return sysType;
+            // Longest key that is a substring of the system type (prefer "Supply Duct - Branch" over "Supply Duct - Main")
+            string best = null;
+            int bestLen = 0;
+            foreach (var k in CibseVelocityLimits.Keys)
+            {
+                if (sysType.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0 && k.Length > bestLen)
+                {
+                    best = k;
+                    bestLen = k.Length;
+                }
+            }
+            return best ?? fallback;
+        }
+
         // BS 7671 circuit protection requirements
         internal static readonly Dictionary<string, (double MaxLoad, double MinCableSize)> Bs7671CircuitReqs = new()
         {
@@ -190,7 +211,7 @@ namespace StingTools.Temp
                     velocity = velParam.AsDouble() * 0.3048; // ft/s to m/s
 
                 string sysType = ParameterHelpers.GetString(duct, "System Type") ?? "Supply Duct - Main";
-                string key = CibseVelocityLimits.Keys.FirstOrDefault(k => sysType.Contains(k.Split('-')[0].Trim())) ?? "Supply Duct - Main";
+                string key = MatchCibseKey(sysType, "Supply Duct - Main");
 
                 if (CibseVelocityLimits.TryGetValue(key, out var limits))
                 {
@@ -218,7 +239,7 @@ namespace StingTools.Temp
                     velocity = velParam.AsDouble() * 0.3048;
 
                 string sysType = ParameterHelpers.GetString(pipe, "System Type") ?? "Domestic Cold Water";
-                string key = CibseVelocityLimits.Keys.FirstOrDefault(k => sysType.Contains(k.Split(' ')[0])) ?? "Domestic Cold Water";
+                string key = MatchCibseKey(sysType, "Domestic Cold Water");
 
                 if (CibseVelocityLimits.TryGetValue(key, out var limits))
                 {
@@ -861,6 +882,14 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class StandardsDashboardCommand : IExternalCommand
     {
+        // Lightweight cache to avoid redundant computation on rapid re-clicks
+        private static string _cachedReport;
+        private static string _cachedDocPath;
+        private static DateTime _cachedTime = DateTime.MinValue;
+        private const int CacheTtlSeconds = 10;
+
+        internal static void InvalidateCache() { _cachedTime = DateTime.MinValue; }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -868,6 +897,16 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
+
+                // Return cached report if still fresh and same document
+                string docKey = doc.PathName ?? doc.Title ?? "";
+                if (_cachedReport != null && docKey == _cachedDocPath
+                    && (DateTime.UtcNow - _cachedTime).TotalSeconds < CacheTtlSeconds)
+                {
+                    TaskDialog.Show("Standards Dashboard", _cachedReport);
+                    return Result.Succeeded;
+                }
+
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("════════════════════════════════════════");
                 report.AppendLine("   STING STANDARDS COMPLIANCE DASHBOARD");
@@ -911,7 +950,12 @@ namespace StingTools.Temp
                 double overall = (isoScore + cibseScore + accScore) / 3.0;
                 report.AppendLine($"\n════ OVERALL SCORE: {overall:F0}% ════");
 
-                TaskDialog.Show("Standards Dashboard", report.ToString());
+                string reportText = report.ToString();
+                _cachedReport = reportText;
+                _cachedDocPath = docKey;
+                _cachedTime = DateTime.UtcNow;
+
+                TaskDialog.Show("Standards Dashboard", reportText);
                 StingLog.Info($"Standards dashboard: overall {overall:F0}%");
                 return Result.Succeeded;
             }

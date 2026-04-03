@@ -203,8 +203,18 @@ namespace StingTools.Temp
                             }
                             catch (Exception ex)
                             {
-                                StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset instead): {ex.Message}");
-                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
+                                // Retry with a unique suffix (name collision is the most common cause)
+                                try
+                                {
+                                    string retryName = matName + "_App_" + DateTime.UtcNow.Ticks.ToString().Substring(10);
+                                    AppearanceAssetElement retryAsset = baseAsset.Duplicate(retryName);
+                                    newMat.AppearanceAssetId = retryAsset.Id;
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {ex.Message} / retry: {ex2.Message}");
+                                    newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
+                                }
                             }
                         }
                     }
@@ -525,8 +535,7 @@ namespace StingTools.Temp
                     // Set Young's modulus via PropertySetElement (not available on StructuralAsset directly)
                     if (hasComp)
                     {
-                        // Approximate: E ≈ 1000 × fck (rough), MPa → Pa
-                        double youngsPa = compVal * 1000.0 * 1e6;
+                        double youngsPa = EstimateYoungsModulusPa(assetClass, compVal);
                         SetAssetParamByName(structPse, "Young's Modulus X", youngsPa);
                     }
                 }
@@ -538,7 +547,7 @@ namespace StingTools.Temp
                     if (hasComp)
                     {
                         SetAssetParamByName(structPse, "Minimum Yield Stress", compVal * 1e6);
-                        SetAssetParamByName(structPse, "Young's Modulus X", compVal * 1000.0 * 1e6);
+                        SetAssetParamByName(structPse, "Young's Modulus X", EstimateYoungsModulusPa(assetClass, compVal));
                     }
                     if (hasTens)
                         SetAssetParamByName(structPse, "Minimum Tensile Strength", tensVal * 1e6);
@@ -567,6 +576,39 @@ namespace StingTools.Temp
             if (combined.Contains("plastic") || combined.Contains("polymer"))
                 return StructuralAssetClass.Plastic;
             return StructuralAssetClass.Generic;
+        }
+
+        /// <summary>
+        /// Estimate Young's modulus (Pa) from compressive strength (MPa) using
+        /// material-class-specific formulas instead of a blanket E=1000×fck.
+        /// Concrete: Ecm = 22000 × (fck/10)^0.3 per EC2 Table 3.1.
+        /// Steel/Metal: 210 GPa (BS EN 1993). Timber: 11 GPa (BS EN 1995 C24 mean).
+        /// Plastic: 2.5 GPa typical. Generic fallback: E = 1000 × fck.
+        /// </summary>
+        private static double EstimateYoungsModulusPa(StructuralAssetClass assetClass, double compStrengthMPa)
+        {
+            double eMPa;
+            switch (assetClass)
+            {
+                case StructuralAssetClass.Concrete:
+                    // EC2 Table 3.1: Ecm = 22000 × (fcm/10)^0.3 where fcm = fck + 8
+                    double fcm = compStrengthMPa + 8.0;
+                    eMPa = 22000.0 * Math.Pow(fcm / 10.0, 0.3);
+                    break;
+                case StructuralAssetClass.Metal:
+                    eMPa = 210000.0; // 210 GPa for structural steel per BS EN 1993-1-1
+                    break;
+                case StructuralAssetClass.Wood:
+                    eMPa = 11000.0; // C24 mean modulus per BS EN 338
+                    break;
+                case StructuralAssetClass.Plastic:
+                    eMPa = 2500.0; // typical engineering plastic
+                    break;
+                default:
+                    eMPa = compStrengthMPa * 1000.0; // generic fallback
+                    break;
+            }
+            return eMPa * 1e6; // MPa → Pa
         }
 
         /// <summary>Set a double parameter on a PropertySetElement by parameter name.</summary>

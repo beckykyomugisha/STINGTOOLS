@@ -2335,6 +2335,9 @@ namespace StingTools.Temp
             var allowedLoc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var allowedZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var allowedDisc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var allowedSys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var allowedFunc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var allowedProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (bep["allowed_loc"] is JArray locArr)
                 foreach (string v in locArr) allowedLoc.Add(v);
@@ -2342,8 +2345,15 @@ namespace StingTools.Temp
                 foreach (string v in zoneArr) allowedZone.Add(v);
             if (bep["allowed_disc"] is JArray discArr)
                 foreach (string v in discArr) allowedDisc.Add(v);
+            if (bep["allowed_sys"] is JArray sysArr)
+                foreach (string v in sysArr) allowedSys.Add(v);
+            if (bep["allowed_func"] is JArray funcArr)
+                foreach (string v in funcArr) allowedFunc.Add(v);
+            if (bep["allowed_prod"] is JArray prodArr)
+                foreach (string v in prodArr) allowedProd.Add(v);
 
-            if (allowedLoc.Count == 0 && allowedZone.Count == 0 && allowedDisc.Count == 0)
+            if (allowedLoc.Count == 0 && allowedZone.Count == 0 && allowedDisc.Count == 0
+                && allowedSys.Count == 0 && allowedFunc.Count == 0 && allowedProd.Count == 0)
             {
                 TaskDialog.Show("BEP Validation", "BEP file contains no allowed code lists.");
                 return Result.Succeeded;
@@ -2355,7 +2365,8 @@ namespace StingTools.Temp
             int violations = 0;
             var violationsByType = new Dictionary<string, int>
             {
-                ["LOC"] = 0, ["ZONE"] = 0, ["DISC"] = 0
+                ["LOC"] = 0, ["ZONE"] = 0, ["DISC"] = 0,
+                ["SYS"] = 0, ["FUNC"] = 0, ["PROD"] = 0
             };
             var sampleViolations = new List<string>();
             int processed = 0;
@@ -2376,6 +2387,9 @@ namespace StingTools.Temp
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                 string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+                string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
 
                 bool hasViolation = false;
 
@@ -2394,12 +2408,27 @@ namespace StingTools.Temp
                     violationsByType["ZONE"]++;
                     hasViolation = true;
                 }
+                if (allowedSys.Count > 0 && !string.IsNullOrEmpty(sys) && sys != "GEN" && !allowedSys.Contains(sys))
+                {
+                    violationsByType["SYS"]++;
+                    hasViolation = true;
+                }
+                if (allowedFunc.Count > 0 && !string.IsNullOrEmpty(func) && func != "GEN" && !allowedFunc.Contains(func))
+                {
+                    violationsByType["FUNC"]++;
+                    hasViolation = true;
+                }
+                if (allowedProd.Count > 0 && !string.IsNullOrEmpty(prod) && prod != "GEN" && !allowedProd.Contains(prod))
+                {
+                    violationsByType["PROD"]++;
+                    hasViolation = true;
+                }
 
                 if (hasViolation)
                 {
                     violations++;
                     if (sampleViolations.Count < 10)
-                        sampleViolations.Add($"  {el.Id}: {tag} (DISC={disc}, LOC={loc}, ZONE={zone})");
+                        sampleViolations.Add($"  {el.Id}: {tag} (DISC={disc}, LOC={loc}, ZONE={zone}, SYS={sys}, FUNC={func}, PROD={prod})");
                 }
             }
 
@@ -2417,6 +2446,12 @@ namespace StingTools.Temp
                 report.AppendLine($"  Allowed LOC:  {string.Join(", ", allowedLoc)} — violations: {violationsByType["LOC"]}");
             if (allowedZone.Count > 0)
                 report.AppendLine($"  Allowed ZONE: {string.Join(", ", allowedZone)} — violations: {violationsByType["ZONE"]}");
+            if (allowedSys.Count > 0)
+                report.AppendLine($"  Allowed SYS:  {string.Join(", ", allowedSys)} — violations: {violationsByType["SYS"]}");
+            if (allowedFunc.Count > 0)
+                report.AppendLine($"  Allowed FUNC: {string.Join(", ", allowedFunc)} — violations: {violationsByType["FUNC"]}");
+            if (allowedProd.Count > 0)
+                report.AppendLine($"  Allowed PROD: {string.Join(", ", allowedProd)} — violations: {violationsByType["PROD"]}");
 
             if (sampleViolations.Count > 0)
             {
@@ -2753,7 +2788,7 @@ namespace StingTools.Temp
                 ifcOptions.AddOption("ExportUserDefinedPsets", "true");
                 ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
 
-                string exportDir = Path.GetDirectoryName(doc.PathName);
+                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
                 doc.Export(exportDir, ifcFileName, ifcOptions);
 
                 string version = useIfc4 ? "IFC 4" : "IFC 2x3";
