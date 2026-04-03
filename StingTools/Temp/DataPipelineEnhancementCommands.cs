@@ -143,6 +143,11 @@ namespace StingTools.Temp
 
                 // Parse matrix
                 var matrixLines = File.ReadAllLines(matrixPath);
+                if (matrixLines.Length == 0)
+                {
+                    TaskDialog.Show("STING", "BINDING_COVERAGE_MATRIX.csv is empty.");
+                    return Result.Failed;
+                }
                 var matrixHeader = StingToolsApp.ParseCsvLine(matrixLines[0]);
                 var matrixCategories = matrixHeader.Skip(1).Select(h => h.Trim()).ToList();
                 int matrixParams = matrixLines.Length - 1;
@@ -516,20 +521,27 @@ namespace StingTools.Temp
                     sb.AppendLine($"  Status: ✓ Loaded at startup by ParamRegistry.cs");
                 }
 
+                // Helper to count CSV data rows safely
+                int CountCsvRows(string path)
+                {
+                    try { return File.ReadLines(path).Count() - 1; }
+                    catch (Exception ex) { StingLog.Warn($"Count lines in '{Path.GetFileName(path)}': {ex.Message}"); return -1; }
+                }
+
                 // CATEGORY_BINDINGS.csv
                 var catPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
                 if (!string.IsNullOrEmpty(catPath))
                 {
-                    int rows = File.ReadLines(catPath).Count() - 1;
+                    int rows = CountCsvRows(catPath);
                     sb.AppendLine($"\n[ACTIVE] CATEGORY_BINDINGS.csv — {rows} bindings");
                     sb.AppendLine($"  Used by: LoadSharedParamsCommand, DynamicBindingsCommand");
                 }
 
                 // BINDING_COVERAGE_MATRIX.csv
-                var matPath = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
-                if (!string.IsNullOrEmpty(matPath))
+                var matPath2 = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
+                if (!string.IsNullOrEmpty(matPath2))
                 {
-                    int rows = File.ReadLines(matPath).Count() - 1;
+                    int rows = CountCsvRows(matPath2);
                     sb.AppendLine($"\n[VALIDATION] BINDING_COVERAGE_MATRIX.csv — {rows} parameters");
                     sb.AppendLine($"  Used by: ValidateTemplateCommand only");
                 }
@@ -538,7 +550,7 @@ namespace StingTools.Temp
                 var famPath = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
                 if (!string.IsNullOrEmpty(famPath))
                 {
-                    int rows = File.ReadLines(famPath).Count() - 1;
+                    int rows = CountCsvRows(famPath);
                     sb.AppendLine($"\n[ACTIVE] FAMILY_PARAMETER_BINDINGS.csv — {rows} bindings");
                     sb.AppendLine($"  Used by: BatchAddFamilyParamsCommand");
                 }
@@ -547,7 +559,7 @@ namespace StingTools.Temp
                 var pcPath = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
                 if (!string.IsNullOrEmpty(pcPath))
                 {
-                    int rows = File.ReadLines(pcPath).Count() - 1;
+                    int rows = CountCsvRows(pcPath);
                     sb.AppendLine($"\n[REFERENCE] PARAMETER__CATEGORIES.csv — {rows} parameters");
                     sb.AppendLine($"  Used by: ViewParameterMetadataCommand (human-readable reference)");
                 }

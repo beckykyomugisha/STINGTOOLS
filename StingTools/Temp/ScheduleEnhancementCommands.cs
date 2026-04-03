@@ -541,7 +541,7 @@ namespace StingTools.Temp
                             var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
                                 StringComparer.OrdinalIgnoreCase);
 
-                            // Build tracked IDs from existing fields
+                            // Build tracked IDs from existing fields (shared across add/sort/filter)
                             for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
                             {
                                 try
@@ -554,6 +554,18 @@ namespace StingTools.Temp
                                 catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
                             }
 
+                            // Build schedulable field lookup once for CSV field additions
+                            var available = sched.Definition.GetSchedulableFields();
+                            var fieldLookup = new Dictionary<string, SchedulableField>(
+                                StringComparer.OrdinalIgnoreCase);
+                            foreach (var sf in available)
+                            {
+                                string sfName = sf.GetName(doc);
+                                if (!string.IsNullOrEmpty(sfName) &&
+                                    !fieldLookup.ContainsKey(sfName))
+                                    fieldLookup[sfName] = sf;
+                            }
+
                             // Add any fields from CSV that are missing
                             string[] csvFields = def.Fields.Split(
                                 new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -561,18 +573,6 @@ namespace StingTools.Temp
                             {
                                 string fieldName = fieldEntry.Trim();
                                 if (existingFields.Contains(fieldName)) continue;
-
-                                // Try to add the field
-                                var available = sched.Definition.GetSchedulableFields();
-                                var fieldLookup = new Dictionary<string, SchedulableField>(
-                                    StringComparer.OrdinalIgnoreCase);
-                                foreach (var sf in available)
-                                {
-                                    string sfName = sf.GetName(doc);
-                                    if (!string.IsNullOrEmpty(sfName) &&
-                                        !fieldLookup.ContainsKey(sfName))
-                                        fieldLookup[sfName] = sf;
-                                }
 
                                 SchedulableField toAdd = null;
                                 if (fieldLookup.TryGetValue(fieldName, out toAdd))
@@ -598,47 +598,38 @@ namespace StingTools.Temp
 
                             // Re-apply column headers + auto-humanize
                             ScheduleHelper.ApplyFieldHeaders(sched,
-                                formulaMap.Count > 0 ? formulaMap : null);
+                                formulaMap != null && formulaMap.Count > 0 ? formulaMap : null);
+                        }
+
+                        // Rebuild field ID map after potential additions (shared for sort/filter)
+                        var fieldIdMap = new Dictionary<string, ScheduleFieldId>(
+                            StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
+                        {
+                            try
+                            {
+                                var field = sched.Definition.GetField(i);
+                                string name = field.GetName();
+                                if (!string.IsNullOrEmpty(name))
+                                    fieldIdMap[name] = field.FieldId;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Read field for sort/filter at index {i}: {ex.Message}"); }
                         }
 
                         // Re-apply sorting if none exists
                         if (sched.Definition.GetSortGroupFieldCount() == 0 &&
                             !string.IsNullOrEmpty(def.Sorting))
                         {
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                            {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    addedFieldIds[field.GetName()] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field for sorting at index {i}: {ex.Message}"); }
-                            }
-
                             if (!string.IsNullOrEmpty(def.Grouping))
-                                ScheduleHelper.ApplyGrouping(doc, sched, def.Grouping, addedFieldIds);
-                            ScheduleHelper.ApplySorting(doc, sched, def.Sorting, addedFieldIds);
+                                ScheduleHelper.ApplyGrouping(doc, sched, def.Grouping, fieldIdMap);
+                            ScheduleHelper.ApplySorting(doc, sched, def.Sorting, fieldIdMap);
                         }
 
                         // Re-apply filters if none exist
                         if (sched.Definition.GetFilterCount() == 0 &&
                             !string.IsNullOrEmpty(def.Filters))
                         {
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                            {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    addedFieldIds[field.GetName()] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field for filter at index {i}: {ex.Message}"); }
-                            }
-
-                            ScheduleHelper.ApplyFilters(doc, sched, def.Filters, addedFieldIds);
+                            ScheduleHelper.ApplyFilters(doc, sched, def.Filters, fieldIdMap);
                             filtersApplied++;
                         }
 

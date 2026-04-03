@@ -430,9 +430,9 @@ namespace StingTools.Temp
                         break;
                     case "CorrectDiscipline":
                         string match = FindMatchingTemplate(view);
-                        if (hasTemplate)
+                        if (hasTemplate && templateView != null)
                         {
-                            earned = (templateView != null && match != null &&
+                            earned = (match != null &&
                                 string.Equals(templateView.Name, match, StringComparison.OrdinalIgnoreCase))
                                 ? weight : weight * 0.3;
                         }

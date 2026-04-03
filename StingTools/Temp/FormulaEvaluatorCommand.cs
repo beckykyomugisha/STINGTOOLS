@@ -504,8 +504,10 @@ namespace StingTools.Temp
                         ? string.Join(", ", cn.InputParameters) : "(none)";
                     StingLog.Error($"Formula cycle detected: {cn.ParameterName} (level {cn.DependencyLevel}, depends on: {inputs}, expression: {cn.Expression})");
                 }
-                // Add cycle nodes at the end so they still execute (with potentially wrong values)
+                // Add cycle nodes at the end — they execute with potentially stale/wrong input values
                 sorted.AddRange(cycleNodes);
+                StingLog.Warn($"Formula cycle: {cycleNodes.Count} formula(s) in dependency cycle — results may be inaccurate: {string.Join(", ", cycleNodes.Select(c => c.ParameterName))}");
+
             }
             formulas = sorted;
 
@@ -571,6 +573,10 @@ namespace StingTools.Temp
         {
             var context = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             bool hasAnyInput = false;
+
+            // Constant formulas (no inputs) should still evaluate
+            if (formula.InputParameters == null || formula.InputParameters.Length == 0)
+                return context;
 
             // Resolve shared/instance parameter values
             foreach (string inputName in formula.InputParameters)

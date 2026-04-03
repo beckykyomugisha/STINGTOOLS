@@ -82,7 +82,28 @@ namespace StingTools.Temp
                     try
                     {
                         foreach (string step in steps)
-                            stepResults.Add($"  [{step}] Queued");
+                        {
+                            try
+                            {
+                                var cmd = WorkflowEngine.ResolveCommandPublic(step);
+                                if (cmd != null)
+                                {
+                                    string msg = "";
+                                    var res = cmd.Execute(commandData, ref msg, elements);
+                                    stepResults.Add($"  [{step}] {res}");
+                                }
+                                else
+                                {
+                                    stepResults.Add($"  [{step}] SKIPPED (unknown command)");
+                                    StingLog.Warn($"Workflow '{preset}': unknown step '{step}'");
+                                }
+                            }
+                            catch (Exception stepEx)
+                            {
+                                stepResults.Add($"  [{step}] FAILED: {stepEx.Message}");
+                                StingLog.Error($"Workflow step '{step}' failed: {stepEx.Message}");
+                            }
+                        }
 
                         tg.Assimilate();
                     }
@@ -98,7 +119,7 @@ namespace StingTools.Temp
 
                 sw.Stop();
                 var report = new StringBuilder();
-                report.AppendLine($"Workflow '{preset}' Prepared");
+                report.AppendLine($"Workflow '{preset}' Complete");
                 report.AppendLine(new string('=', 50));
                 report.AppendLine($"  Steps: {string.Join(" -> ", steps)}");
                 report.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
@@ -365,7 +386,13 @@ namespace StingTools.Temp
                         taggedColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
                     var tagged = taggedColl
                         .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
-                        .Take(10000).ToList();
+                        .Take(10001).ToList();
+                    bool truncated = tagged.Count > 10000;
+                    if (truncated)
+                    {
+                        tagged = tagged.Take(10000).ToList();
+                        StingLog.Warn("COBie export: Component list truncated to 10,000 elements");
+                    }
                     componentCount = tagged.Count;
                     row = 2;
                     foreach (var el in tagged)
@@ -731,11 +758,15 @@ namespace StingTools.Temp
                 report.AppendLine($"  Design options: {designOpts}");
                 if (designOpts > 0) { score -= 5; issues.Add($"Design options: {designOpts}"); }
 
-                // Sheets, schedules, levels, links
-                int sheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount();
-                int schedules = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).GetElementCount();
-                int levelCount = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount();
-                int links = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount();
+                // Sheets, schedules, levels, links — single collector pass with type counting
+                int sheets = 0, schedules = 0, levelCount = 0, links = 0;
+                foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    if (e is ViewSheet) sheets++;
+                    else if (e is ViewSchedule) schedules++;
+                    else if (e is Level) levelCount++;
+                    else if (e is RevitLinkInstance) links++;
+                }
                 report.AppendLine($"  Sheets: {sheets}");
                 report.AppendLine($"  Schedules: {schedules}");
                 report.AppendLine($"  Levels: {levelCount}");

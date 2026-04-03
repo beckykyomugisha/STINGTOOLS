@@ -952,16 +952,17 @@ namespace StingTools.Temp
                         }
                     }
 
-                    if (applied)
-                    {
-                        vs.Definition.ShowGrandTotal = true;
-                        vs.Definition.ShowGrandTotalTitle = true;
-                    }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Apply total '{entry.Trim()}': {ex.Message}");
                 }
+            }
+
+            if (applied)
+            {
+                vs.Definition.ShowGrandTotal = true;
+                vs.Definition.ShowGrandTotalTitle = true;
             }
             return applied;
         }
