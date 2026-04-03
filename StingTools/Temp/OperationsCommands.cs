@@ -245,7 +245,7 @@ namespace StingTools.Temp
                 {
                     t.Start();
                     doc.Export(outputDir, fileName, ifcOptions);
-                    t.RollBack();
+                    t.Commit();
                 }
 
                 var report = new StringBuilder();
@@ -536,17 +536,55 @@ namespace StingTools.Temp
                     .Concat(CollectWithBB(doc, BuiltInCategory.OST_Floors))
                     .ToList();
 
+                // Spatial grid pre-filter: partition structural elements into cells
+                // to reduce O(n*m) to O(n * avg_candidates_per_cell)
+                const double cellSize = 10.0; // ~3m cells in Revit internal feet
+                var structGrid = new Dictionary<(int, int, int), List<(Element El, BoundingBoxXYZ BB)>>();
+                foreach (var item in structural)
+                {
+                    int minX = (int)Math.Floor(item.BB.Min.X / cellSize);
+                    int minY = (int)Math.Floor(item.BB.Min.Y / cellSize);
+                    int minZ = (int)Math.Floor(item.BB.Min.Z / cellSize);
+                    int maxX = (int)Math.Floor(item.BB.Max.X / cellSize);
+                    int maxY = (int)Math.Floor(item.BB.Max.Y / cellSize);
+                    int maxZ = (int)Math.Floor(item.BB.Max.Z / cellSize);
+                    for (int x = minX; x <= maxX; x++)
+                        for (int y = minY; y <= maxY; y++)
+                            for (int z = minZ; z <= maxZ; z++)
+                            {
+                                var key = (x, y, z);
+                                if (!structGrid.TryGetValue(key, out var list))
+                                { list = new List<(Element, BoundingBoxXYZ)>(); structGrid[key] = list; }
+                                list.Add(item);
+                            }
+                }
+
                 var clashes = new List<(Element Mep, Element Str, XYZ Point)>();
+                var seenPairs = new HashSet<long>();
                 foreach (var (mep, mepBB) in mepElements)
                 {
-                    foreach (var (str, strBB) in structural)
-                    {
-                        if (BoxesIntersect(mepBB, strBB))
-                        {
-                            XYZ mid = (mepBB.Min + mepBB.Max) / 2.0;
-                            clashes.Add((mep, str, mid));
-                        }
-                    }
+                    int minX = (int)Math.Floor(mepBB.Min.X / cellSize);
+                    int minY = (int)Math.Floor(mepBB.Min.Y / cellSize);
+                    int minZ = (int)Math.Floor(mepBB.Min.Z / cellSize);
+                    int maxX = (int)Math.Floor(mepBB.Max.X / cellSize);
+                    int maxY = (int)Math.Floor(mepBB.Max.Y / cellSize);
+                    int maxZ = (int)Math.Floor(mepBB.Max.Z / cellSize);
+                    for (int x = minX; x <= maxX; x++)
+                        for (int y = minY; y <= maxY; y++)
+                            for (int z = minZ; z <= maxZ; z++)
+                            {
+                                if (!structGrid.TryGetValue((x, y, z), out var candidates)) continue;
+                                foreach (var (str, strBB) in candidates)
+                                {
+                                    long pairKey = ((long)mep.Id.Value << 32) | (uint)str.Id.Value;
+                                    if (!seenPairs.Add(pairKey)) continue;
+                                    if (BoxesIntersect(mepBB, strBB))
+                                    {
+                                        XYZ mid = (mepBB.Min + mepBB.Max) / 2.0;
+                                        clashes.Add((mep, str, mid));
+                                    }
+                                }
+                            }
                 }
 
                 sw.Stop();

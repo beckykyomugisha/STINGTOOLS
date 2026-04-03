@@ -499,7 +499,11 @@ namespace StingTools.Temp
                     sorted.Select(s => s.ParameterName), StringComparer.OrdinalIgnoreCase);
                 var cycleNodes = formulas.Where(f => !sortedNames.Contains(f.ParameterName)).ToList();
                 foreach (var cn in cycleNodes)
-                    StingLog.Error($"Formula cycle detected: {cn.ParameterName} (level {cn.DependencyLevel})");
+                {
+                    string inputs = cn.InputParameters != null && cn.InputParameters.Length > 0
+                        ? string.Join(", ", cn.InputParameters) : "(none)";
+                    StingLog.Error($"Formula cycle detected: {cn.ParameterName} (level {cn.DependencyLevel}, depends on: {inputs}, expression: {cn.Expression})");
+                }
                 // Add cycle nodes at the end so they still execute (with potentially wrong values)
                 sorted.AddRange(cycleNodes);
             }

@@ -936,17 +936,19 @@ namespace StingTools.Temp
 
                     string fieldName = trimmed.Substring(0, colonIdx).Trim();
 
-                    // Find the field in the schedule
-                    int fieldCount = vs.Definition.GetFieldCount();
-                    for (int i = 0; i < fieldCount; i++)
+                    // O(1) lookup via addedFieldIds dictionary instead of O(n) field scan
+                    if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId targetId))
                     {
-                        ScheduleField field = vs.Definition.GetField(i);
-                        if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId targetId)
-                            && field.FieldId == targetId)
+                        int fieldCount = vs.Definition.GetFieldCount();
+                        for (int i = 0; i < fieldCount; i++)
                         {
-                            field.DisplayType = ScheduleFieldDisplayType.Totals;
-                            applied = true;
-                            break;
+                            ScheduleField field = vs.Definition.GetField(i);
+                            if (field.FieldId == targetId)
+                            {
+                                field.DisplayType = ScheduleFieldDisplayType.Totals;
+                                applied = true;
+                                break;
+                            }
                         }
                     }
 
