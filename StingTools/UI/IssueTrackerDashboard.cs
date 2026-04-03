@@ -293,13 +293,71 @@ namespace StingTools.UI
 
             var cmbAssign = new ComboBox
             {
-                Margin = new Thickness(0, 4, 0, 16),
+                IsEditable = true,
+                IsTextSearchEnabled = true,
+                Margin = new Thickness(0, 4, 0, 0),
                 Padding = new Thickness(8, 6, 8, 6),
                 FontSize = 12
             };
             foreach (var a in Assignees) cmbAssign.Items.Add(a);
+            cmbAssign.Items.Add("── Custom ──");
             cmbAssign.SelectedIndex = 6; // Unassigned
             stack.Children.Add(cmbAssign);
+
+            var hintText = new TextBlock
+            {
+                Text = "Type a name directly in the box above, or pick a role from the dropdown",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            stack.Children.Add(hintText);
+
+            // Custom assignee panel — shown when "── Custom ──" is picked
+            var customPanel = new StackPanel { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+            var lblCustom = new TextBlock
+            {
+                Text = "Assignee Name:",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = FgDarkBrush,
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            customPanel.Children.Add(lblCustom);
+            var txtCustomAssignee = new TextBox
+            {
+                Padding = new Thickness(8, 6, 8, 6),
+                FontSize = 12,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+                BorderThickness = new Thickness(1)
+            };
+            customPanel.Children.Add(txtCustomAssignee);
+            var lblCustomHint = new TextBlock
+            {
+                Text = "Enter the person's full name or email",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            customPanel.Children.Add(lblCustomHint);
+            stack.Children.Add(customPanel);
+
+            cmbAssign.SelectionChanged += (s, e) =>
+            {
+                string sel = cmbAssign.SelectedItem?.ToString() ?? "";
+                if (sel == "── Custom ──")
+                {
+                    customPanel.Visibility = Visibility.Visible;
+                    txtCustomAssignee.Focus();
+                }
+                else
+                {
+                    customPanel.Visibility = Visibility.Collapsed;
+                }
+            };
+
+            // spacer before button
+            stack.Children.Add(new Border { Height = 10 });
 
             // ── Raise Button ────────────────────────────────────────────
             var btnRaise = new Button
@@ -341,7 +399,22 @@ namespace StingTools.UI
                 result.Options["Discipline"] = discCode;
                 result.Options["Location"] = txtLocation.Text?.Trim() ?? "";
                 result.Options["DueDate"] = txtDue.Text?.Trim() ?? "";
-                result.Options["AssignedTo"] = cmbAssign.SelectedItem?.ToString() ?? "Unassigned";
+                // Resolve assignee: custom name field > editable combo text > selected item
+                string assignee = "Unassigned";
+                string customName = txtCustomAssignee.Text?.Trim() ?? "";
+                string comboText = cmbAssign.Text?.Trim() ?? "";
+                string comboItem = cmbAssign.SelectedItem?.ToString() ?? "";
+
+                if (!string.IsNullOrEmpty(customName))
+                    assignee = customName;
+                else if (comboItem == "── Custom ──")
+                    assignee = "Unassigned";
+                else if (!string.IsNullOrEmpty(comboText) && comboText != "── Custom ──")
+                    assignee = comboText;
+                else if (!string.IsNullOrEmpty(comboItem))
+                    assignee = comboItem;
+
+                result.Options["AssignedTo"] = assignee;
 
                 win.DialogResult = true;
             };

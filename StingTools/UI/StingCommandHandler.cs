@@ -2309,94 +2309,138 @@ namespace StingTools.UI
                     }
                     case "TemplateDashboard":
                     {
-                        var dlgResult = UI.TemplateManagerDashboard.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        // Keep-dialog-open loop: re-open after each dispatched command
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.TemplateManagerDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("TemplateDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
                     case "SchedulingCostDashboard":
                     {
-                        var dlgResult = UI.SchedulingCostDashboard.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.SchedulingCostDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("SchedulingCostDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
                     case "RevisionManagerDashboard":
                     {
-                        var doc = app.ActiveUIDocument?.Document;
-                        var dlgResult = UI.RevisionManagerDashboard.Show(doc);
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var revDoc = app.ActiveUIDocument?.Document;
+                                if (revDoc == null) break;
+                                var dlgResult = UI.RevisionManagerDashboard.Show(revDoc);
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("RevisionManagerDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
                     case "WarningsDashboardDialog":
                     {
-                        var dlgResult = UI.WarningsDashboardDialog.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.WarningsDashboardDialog.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("WarningsDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
 
                     case "BEPDashboard":
                     {
-                        var dlgResult = UI.BEPDashboard.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.BEPDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("BEPDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
                     case "COBieExportDashboard":
                     {
-                        var dlgResult = UI.COBieExportDashboard.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.COBieExportDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("COBieExportDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }
                     case "IssueTrackerDashboard":
                     {
-                        var dlgResult = UI.IssueTrackerDashboard.Show();
-                        if (dlgResult != null && dlgResult.Confirmed && !string.IsNullOrEmpty(dlgResult.Operation))
+                        while (true)
                         {
-                            SetCommand(dlgResult.Operation);
-                            if (dlgResult.Options != null)
-                                foreach (var kv in dlgResult.Options)
-                                    SetExtraParam(kv.Key, kv.Value);
-                            Execute(app);
+                            try
+                            {
+                                var dlgResult = UI.IssueTrackerDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("IssueTrackerDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }

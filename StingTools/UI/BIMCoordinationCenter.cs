@@ -53,6 +53,26 @@ namespace StingTools.UI
 
         private static SolidColorBrush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
+        // M-02: Cached hover/alternate brushes for discipline row events
+        private static readonly SolidColorBrush RowHoverBrush = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
+        private static readonly SolidColorBrush RowAltBrush = Br(Color.FromRgb(0xF5, 0xF5, 0xF5));
+
+        // M-05: Tab name constants — single source of truth for all navigation references
+        private const string TabOverview     = "OVERVIEW";
+        private const string TabModelHealth  = "MODEL HEALTH";
+        private const string TabWarnings     = "WARNINGS";
+        private const string TabIssues       = "ISSUES";
+        private const string TabRevisions    = "REVISIONS";
+        private const string TabPlatform     = "PLATFORM";
+        private const string TabWorkflows    = "WORKFLOWS";
+        private const string TabQA           = "QA DASHBOARD";
+        private const string Tab4D5D         = "4D/5D";
+        private const string TabDeliverables = "DELIVERABLES";
+        private const string TabMeetings     = "MEETINGS";
+        private const string TabPermissions  = "PERMISSIONS";
+        private const string TabCoordLog     = "COORD LOG";
+        private const string TabTeam         = "TEAM";
+
         // ── Data ──
         private CoordData _data;
         private readonly ContentControl _contentArea;
@@ -61,7 +81,7 @@ namespace StingTools.UI
         private Button _activeNav;
 
         // Phase 75: Persist last-viewed tab across dialog reopens
-        private static string _lastViewedTab = "OVERVIEW";
+        private static string _lastViewedTab = TabOverview;
 
         // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
         private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
@@ -69,7 +89,7 @@ namespace StingTools.UI
         // BCC-HIGH-01: Live-data tabs are cleared from cache on NavigateTo so they always reflect current state.
         // Layout-only tabs (PLATFORM, 4D/5D, DELIVERABLES, PERMISSIONS, COORD LOG, TEAM, MEETINGS) are cached.
         private static readonly HashSet<string> _liveDataTabs = new HashSet<string>(StringComparer.Ordinal)
-            { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "WORKFLOWS", "QA DASHBOARD" };
+            { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabWorkflows, TabQA };
 
         /// <summary>Result action tag returned to the command handler.</summary>
         public string ResultAction { get; set; }
@@ -383,23 +403,23 @@ namespace StingTools.UI
             KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Escape) Close();
-                if (e.Key == Key.F5) { NavigateTo("OVERVIEW"); e.Handled = true; }
+                if (e.Key == Key.F5) { NavigateTo(TabOverview); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
                 { ResultAction = "ExportReport"; Close(); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
-                { NavigateTo("QA DASHBOARD"); e.Handled = true; }
+                { NavigateTo(TabQA); e.Handled = true; }
                 if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
-                { NavigateTo("4D/5D"); e.Handled = true; }
+                { NavigateTo(Tab4D5D); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
-                { NavigateTo("DELIVERABLES"); e.Handled = true; }
+                { NavigateTo(TabDeliverables); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.L)
-                { NavigateTo("COORD LOG"); e.Handled = true; }
+                { NavigateTo(TabCoordLog); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.T)
-                { NavigateTo("TEAM"); e.Handled = true; }
+                { NavigateTo(TabTeam); e.Handled = true; }
                 // Quick-nav: 1-9 for tab by number (first 9 tabs)
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
-                { NavigateTo("MEETINGS"); e.Handled = true; }
-                string[] tabKeys = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D" };
+                { NavigateTo(TabMeetings); e.Handled = true; }
+                string[] tabKeys = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D };
                 if (e.Key >= Key.D1 && e.Key <= Key.D9 && Keyboard.Modifiers == ModifierKeys.None
                     && !(e.OriginalSource is System.Windows.Controls.TextBox))
                 {
@@ -409,7 +429,7 @@ namespace StingTools.UI
             };
 
             // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
-            NavigateTo(_lastViewedTab ?? "OVERVIEW");
+            NavigateTo(_lastViewedTab ?? TabOverview);
         }
 
         private string BuildStatusText()
@@ -484,7 +504,7 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { "OVERVIEW", "MODEL HEALTH", "WARNINGS", "ISSUES", "REVISIONS", "PLATFORM", "WORKFLOWS", "QA DASHBOARD", "4D/5D", "DELIVERABLES", "MEETINGS", "PERMISSIONS", "COORD LOG", "TEAM" };
+            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabPermissions, TabCoordLog, TabTeam };
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
@@ -594,20 +614,20 @@ namespace StingTools.UI
             {
                 tabContent = tabName switch
                 {
-                    "OVERVIEW"      => BuildOverviewTab(),
-                    "MODEL HEALTH"  => BuildModelHealthTab(),
-                    "WARNINGS"      => BuildWarningsTab(),
-                    "ISSUES"        => BuildIssuesTab(),
-                    "REVISIONS"     => BuildRevisionsTab(),
-                    "PLATFORM"      => BuildPlatformTab(),
-                    "WORKFLOWS"     => BuildWorkflowsTab(),
-                    "QA DASHBOARD"  => BuildQADashboardTab(),
-                    "4D/5D"         => Build4D5DTab(),
-                    "DELIVERABLES"  => BuildDeliverablesTab(),
-                    "MEETINGS"      => BuildMeetingsTab(),
-                    "PERMISSIONS"   => BuildPermissionsTab(),
-                    "COORD LOG"     => BuildCoordLogTab(),
-                    "TEAM"          => BuildTeamTab(),
+                    TabOverview     => BuildOverviewTab(),
+                    TabModelHealth  => BuildModelHealthTab(),
+                    TabWarnings     => BuildWarningsTab(),
+                    TabIssues       => BuildIssuesTab(),
+                    TabRevisions    => BuildRevisionsTab(),
+                    TabPlatform     => BuildPlatformTab(),
+                    TabWorkflows    => BuildWorkflowsTab(),
+                    TabQA           => BuildQADashboardTab(),
+                    Tab4D5D         => Build4D5DTab(),
+                    TabDeliverables => BuildDeliverablesTab(),
+                    TabMeetings     => BuildMeetingsTab(),
+                    TabPermissions  => BuildPermissionsTab(),
+                    TabCoordLog     => BuildCoordLogTab(),
+                    TabTeam         => BuildTeamTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -761,8 +781,8 @@ namespace StingTools.UI
                         {
                             if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{disc}"; DialogResult = true; Close(); }
                         };
-                        tb.MouseEnter += (s, e) => tb.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD));
-                        tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : Br(Color.FromRgb(0xF5, 0xF5, 0xF5));
+                        tb.MouseEnter += (s, e) => tb.Background = RowHoverBrush;
+                        tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : RowAltBrush;
                     }
                     row++;
                 }

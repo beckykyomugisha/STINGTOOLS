@@ -103,10 +103,13 @@ namespace StingTools.BIMManager
             string linksPath = Path.Combine(GetBimDir(doc), "entity_links.json");
             var links = LoadJsonArray(linksPath);
 
+            // CS-01 FIX: Check both orderings for bidirectional dedup
             var existing = links.OfType<JObject>().FirstOrDefault(l =>
                 (l["source_type"]?.ToString() == sourceType && l["source_id"]?.ToString() == sourceId &&
-                 l["target_type"]?.ToString() == targetType && l["target_id"]?.ToString() == targetId));
-            if (existing != null) return; // Already linked
+                 l["target_type"]?.ToString() == targetType && l["target_id"]?.ToString() == targetId) ||
+                (l["source_type"]?.ToString() == targetType && l["source_id"]?.ToString() == targetId &&
+                 l["target_type"]?.ToString() == sourceType && l["target_id"]?.ToString() == sourceId));
+            if (existing != null) return; // Already linked (either direction)
 
             links.Add(new JObject
             {
@@ -473,7 +476,8 @@ namespace StingTools.BIMManager
                         ["propagated_at"] = DateTime.Now.ToString("o"),
                         ["propagated_by"] = Environment.UserName
                     };
-                    File.WriteAllText(sidecarPath, sidecar.ToString(Formatting.Indented));
+                    // CS-03 FIX: Use atomic write pattern instead of File.WriteAllText
+                    SaveJson(sidecarPath, sidecar);
                     propagated++;
                 }
                 catch (Exception ex) { StingLog.Warn($"RevisionPropagation: {ex.Message}"); }

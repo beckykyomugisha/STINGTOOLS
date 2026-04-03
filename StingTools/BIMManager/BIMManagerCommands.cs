@@ -322,7 +322,8 @@ namespace StingTools.BIMManager
 
                     if (DateTime.TryParse(createdStr, out DateTime created))
                     {
-                        double elapsed = (DateTime.Now - created).TotalHours;
+                        // CS-05 FIX: Use UTC to avoid DST issues with parsed timestamps
+                        double elapsed = (DateTime.UtcNow - created.ToUniversalTime()).TotalHours;
                         if (elapsed > slaHours)
                         {
                             overdue.Add((
@@ -739,9 +740,38 @@ namespace StingTools.BIMManager
 
         internal static JArray LoadJsonArray(string path)
         {
-            if (!File.Exists(path)) return new JArray();
+            if (!File.Exists(path))
+            {
+                // DI-01 FIX: Try .bak backup if primary file doesn't exist
+                string bakPath = path + ".bak";
+                if (File.Exists(bakPath))
+                {
+                    try
+                    {
+                        StingLog.Warn($"BIMManager: primary JSON missing, loading backup: {Path.GetFileName(bakPath)}");
+                        return JArray.Parse(File.ReadAllText(bakPath));
+                    }
+                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup also failed: {bex.Message}"); }
+                }
+                return new JArray();
+            }
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}"); return new JArray(); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}");
+                // DI-01 FIX: Fall back to .bak backup on parse failure
+                string bakPath = path + ".bak";
+                if (File.Exists(bakPath))
+                {
+                    try
+                    {
+                        StingLog.Warn($"BIMManager: trying backup file: {Path.GetFileName(bakPath)}");
+                        return JArray.Parse(File.ReadAllText(bakPath));
+                    }
+                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup parse also failed: {bex.Message}"); }
+                }
+                return new JArray();
+            }
         }
 
         internal static void SaveJsonFile(string path, JToken data)

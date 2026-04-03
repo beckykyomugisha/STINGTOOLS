@@ -1724,6 +1724,8 @@ namespace StingTools.Core
 
                 ConfigSource = path;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
+                try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
+                catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -1778,6 +1780,8 @@ namespace StingTools.Core
             CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
             ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets
+            try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches
+            catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
             ComplianceGatePct = 0;
             SeparatorHistory = new List<string>();
             AutoRunWorkflowOnOpen = string.Empty;

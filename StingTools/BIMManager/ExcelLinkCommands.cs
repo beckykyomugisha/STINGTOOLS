@@ -115,6 +115,15 @@ namespace StingTools.BIMManager
         private static HashSet<string> EnsureValidFunc() => _cachedValidFunc ??= new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
         private static HashSet<string> EnsureValidProd() => _cachedValidProd ??= new HashSet<string>(TagConfig.ProdMap.Values, StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>DI-02 FIX: Invalidate cached validation sets when config changes (e.g., after TagConfig.LoadFromFile).
+        /// Should be called from TagConfig.LoadFromFile() or any config reload path.</summary>
+        internal static void InvalidateValidationCache()
+        {
+            _cachedValidDisc = null;
+            _cachedValidFunc = null;
+            _cachedValidProd = null;
+        }
+
         internal static string ValidateValue(string column, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null; // empty is allowed

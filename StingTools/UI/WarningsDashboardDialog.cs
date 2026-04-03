@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using StingTools.Core;
@@ -199,6 +200,7 @@ namespace StingTools.UI
             };
 
             tabs.Items.Add(BuildOverviewTab());
+            tabs.Items.Add(BuildBrowseSelectTab());
             tabs.Items.Add(BuildAutoFixTab());
             tabs.Items.Add(BuildSelectInspectTab());
             tabs.Items.Add(BuildBaselineSLATab());
@@ -272,7 +274,555 @@ namespace StingTools.UI
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // TAB 2: AUTO-FIX
+        // TAB 2: BROWSE & SELECT
+        // ═══════════════════════════════════════════════════════════════
+        private static TabItem BuildBrowseSelectTab()
+        {
+            var tab = MakeTab("BROWSE & SELECT");
+
+            // Main layout: left TreeView (60%) + right detail panel (40%)
+            var mainGrid = new Grid { Margin = new Thickness(8, 8, 8, 8) };
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+            mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+
+            // ── Left panel: severity-grouped TreeView with checkboxes ──
+            var leftPanel = new DockPanel();
+
+            // Toolbar: Select All / Deselect All / Zoom / Select in Model
+            var toolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(toolbar, Dock.Top);
+
+            var btnSelectAll = MakeSmallButton("Select All");
+            var btnDeselectAll = MakeSmallButton("Deselect All");
+            var btnZoom = MakeSmallButton("Zoom to Selected");
+            btnZoom.Background = BrAccent;
+            btnZoom.Foreground = BrFgWhite;
+            var btnSelectInModel = MakeSmallButton("Select in Model");
+
+            toolbar.Children.Add(btnSelectAll);
+            toolbar.Children.Add(btnDeselectAll);
+            toolbar.Children.Add(btnZoom);
+            toolbar.Children.Add(btnSelectInModel);
+            leftPanel.Children.Add(toolbar);
+
+            // Count label
+            var countLabel = new TextBlock
+            {
+                Text = "0 warnings selected",
+                FontSize = 10,
+                Foreground = BrFgSubtle,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            DockPanel.SetDock(countLabel, Dock.Bottom);
+            leftPanel.Children.Add(countLabel);
+
+            // TreeView
+            var tree = new TreeView
+            {
+                Background = BrBgWhite,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(1)
+            };
+            // Enable virtualisation for large warning lists
+            VirtualizingPanel.SetIsVirtualizing(tree, true);
+
+            // Track all warning checkboxes for batch select/deselect
+            var allWarningChecks = new List<CheckBox>();
+
+            // Severity groups: CRITICAL, HIGH, MEDIUM, LOW
+            var severityGroups = new[]
+            {
+                ("CRITICAL", Color.FromRgb(0xE5, 0x39, 0x35), "Immediate action required — blocking issues"),
+                ("HIGH",     Color.FromRgb(0xFB, 0x8C, 0x00), "Should be resolved within 24 hours"),
+                ("MEDIUM",   Color.FromRgb(0xFD, 0xD8, 0x35), "Plan resolution within 1 week"),
+                ("LOW",      Color.FromRgb(0x43, 0xA0, 0x47), "Address when convenient — minor issues")
+            };
+
+            // Detail panel elements (will be populated on selection)
+            var detailTitle = new TextBlock
+            {
+                Text = "Select a warning to view details",
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = BrFgDark,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var detailStack = new StackPanel();
+
+            foreach (var (severity, color, hint) in severityGroups)
+            {
+                // Group header with severity checkbox
+                var groupCheck = new CheckBox
+                {
+                    IsChecked = false,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 6, 0)
+                };
+
+                var groupHeader = new StackPanel { Orientation = Orientation.Horizontal };
+
+                // Severity dot
+                var severityDot = new Border
+                {
+                    Width = 10,
+                    Height = 10,
+                    CornerRadius = new CornerRadius(5),
+                    Background = FZ(color),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                groupHeader.Children.Add(groupCheck);
+                groupHeader.Children.Add(severityDot);
+                groupHeader.Children.Add(new TextBlock
+                {
+                    Text = severity,
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = BrFgDark,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                var groupCountLabel = new TextBlock
+                {
+                    Text = "",
+                    FontSize = 10,
+                    Foreground = BrFgSubtle,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                groupHeader.Children.Add(groupCountLabel);
+
+                var groupItem = new TreeViewItem
+                {
+                    Header = groupHeader,
+                    IsExpanded = (severity == "CRITICAL" || severity == "HIGH"),
+                    Margin = new Thickness(0, 2, 0, 2)
+                };
+
+                // Store per-group checkbox list
+                var groupChecks = new List<CheckBox>();
+
+                // Sample warning items — these will be populated at runtime by the dispatch handler
+                // which reads actual Revit warnings. Here we create placeholder structure.
+                string[] sampleWarnings;
+                switch (severity)
+                {
+                    case "CRITICAL":
+                        sampleWarnings = new[]
+                        {
+                            "Host has been deleted|Data|1",
+                            "Room is not in a properly enclosed region|Spatial|3",
+                            "Highlighted walls overlap|Geometric|2",
+                            "Elements have duplicate instance values|Data|5"
+                        };
+                        break;
+                    case "HIGH":
+                        sampleWarnings = new[]
+                        {
+                            "Room separation line overlaps another|Spatial|4",
+                            "Duplicate mark values|Data|8",
+                            "Elements are joined but do not intersect|Geometric|2",
+                            "Cannot be placed on non-structural host|Geometric|1",
+                            "Minimum clearance not met|Compliance|3"
+                        };
+                        break;
+                    case "MEDIUM":
+                        sampleWarnings = new[]
+                        {
+                            "Wall is slightly off axis|Geometric|6",
+                            "Room tag is outside of its room|Spatial|2",
+                            "Calculated size not available|MEP|4",
+                            "Model Line is too short|Geometric|3",
+                            "Opening cut is not perpendicular|Geometric|1"
+                        };
+                        break;
+                    default: // LOW
+                        sampleWarnings = new[]
+                        {
+                            "Wall join produces an odd result|Geometric|7",
+                            "Wall is attached|Geometric|2",
+                            "Coincident lines or edges|Geometric|3",
+                            "Not properly associated|Data|1"
+                        };
+                        break;
+                }
+
+                int groupTotal = 0;
+                foreach (var warningInfo in sampleWarnings)
+                {
+                    var parts = warningInfo.Split('|');
+                    string desc = parts[0];
+                    string category = parts.Length > 1 ? parts[1] : "Unknown";
+                    int elementCount = parts.Length > 2 && int.TryParse(parts[2], out int ec) ? ec : 1;
+                    groupTotal += elementCount;
+
+                    // Per-warning checkbox item
+                    var warnCheck = new CheckBox
+                    {
+                        IsChecked = false,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(0, 2, 6, 0)
+                    };
+                    allWarningChecks.Add(warnCheck);
+                    groupChecks.Add(warnCheck);
+
+                    var warnPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    warnPanel.Children.Add(warnCheck);
+
+                    var warnTextStack = new StackPanel();
+                    warnTextStack.Children.Add(new TextBlock
+                    {
+                        Text = desc,
+                        FontSize = 11,
+                        Foreground = BrFgDark,
+                        TextWrapping = TextWrapping.Wrap,
+                        MaxWidth = 320
+                    });
+
+                    // Meta line: category + element count
+                    var metaPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                    metaPanel.Children.Add(new TextBlock
+                    {
+                        Text = category,
+                        FontSize = 9,
+                        Foreground = FZ(Color.FromRgb(0x55, 0x77, 0xAA)),
+                        FontWeight = FontWeights.SemiBold,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    });
+                    metaPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"{elementCount} element{(elementCount != 1 ? "s" : "")}",
+                        FontSize = 9,
+                        Foreground = BrFgSubtle
+                    });
+                    warnTextStack.Children.Add(metaPanel);
+
+                    warnPanel.Children.Add(warnTextStack);
+
+                    var warnItem = new TreeViewItem
+                    {
+                        Header = warnPanel,
+                        Tag = warningInfo, // store for detail panel
+                        Margin = new Thickness(0, 1, 0, 1)
+                    };
+
+                    // Click to show detail
+                    string capturedSeverity = severity;
+                    string capturedDesc = desc;
+                    string capturedCategory = category;
+                    int capturedCount = elementCount;
+                    warnItem.Selected += (s, e) =>
+                    {
+                        e.Handled = true; // prevent bubble to parent
+                        PopulateDetailPanel(detailTitle, detailStack, capturedDesc,
+                            capturedSeverity, capturedCategory, capturedCount);
+                    };
+
+                    groupItem.Items.Add(warnItem);
+                }
+
+                groupCountLabel.Text = $"({sampleWarnings.Length} types, {groupTotal} elements)";
+
+                // Group checkbox toggles all children
+                groupCheck.Checked += (s, e) =>
+                {
+                    foreach (var cb in groupChecks) cb.IsChecked = true;
+                    UpdateSelectedCount(allWarningChecks, countLabel);
+                };
+                groupCheck.Unchecked += (s, e) =>
+                {
+                    foreach (var cb in groupChecks) cb.IsChecked = false;
+                    UpdateSelectedCount(allWarningChecks, countLabel);
+                };
+
+                // Individual checkbox change updates count
+                foreach (var cb in groupChecks)
+                {
+                    cb.Checked += (s, e) => UpdateSelectedCount(allWarningChecks, countLabel);
+                    cb.Unchecked += (s, e) => UpdateSelectedCount(allWarningChecks, countLabel);
+                }
+
+                tree.Items.Add(groupItem);
+            }
+
+            leftPanel.Children.Add(tree);
+            Grid.SetColumn(leftPanel, 0);
+            mainGrid.Children.Add(leftPanel);
+
+            // ── Splitter ──
+            var splitter = new GridSplitter
+            {
+                Width = 5,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Background = BrBorder
+            };
+            Grid.SetColumn(splitter, 1);
+            mainGrid.Children.Add(splitter);
+
+            // ── Right panel: Warning detail ──
+            var rightPanel = new Border
+            {
+                Background = BrBgWhite,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 10, 12, 10)
+            };
+
+            var rightScroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+
+            var rightContent = new StackPanel();
+            rightContent.Children.Add(new TextBlock
+            {
+                Text = "WARNING DETAILS",
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrAccent,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+            rightContent.Children.Add(detailTitle);
+            rightContent.Children.Add(detailStack);
+
+            rightScroll.Content = rightContent;
+            rightPanel.Child = rightScroll;
+            Grid.SetColumn(rightPanel, 2);
+            mainGrid.Children.Add(rightPanel);
+
+            // ── Button handlers ──
+            btnSelectAll.Click += (s, e) =>
+            {
+                foreach (var cb in allWarningChecks) cb.IsChecked = true;
+                UpdateSelectedCount(allWarningChecks, countLabel);
+            };
+            btnDeselectAll.Click += (s, e) =>
+            {
+                foreach (var cb in allWarningChecks) cb.IsChecked = false;
+                UpdateSelectedCount(allWarningChecks, countLabel);
+            };
+            btnZoom.Click += (s, e) =>
+            {
+                _selectedOperation = "ZoomToWarnings";
+                if (_statusText != null)
+                {
+                    int sel = allWarningChecks.Count(c => c.IsChecked == true);
+                    _statusText.Foreground = BrFgSubtle;
+                    _statusText.Text = $"Zoom to {sel} selected warning(s). Click Run to execute.";
+                }
+            };
+            btnSelectInModel.Click += (s, e) =>
+            {
+                _selectedOperation = "WarningsSelectElements";
+                if (_statusText != null)
+                {
+                    int sel = allWarningChecks.Count(c => c.IsChecked == true);
+                    _statusText.Foreground = BrFgSubtle;
+                    _statusText.Text = $"Select elements for {sel} warning(s). Click Run to execute.";
+                }
+            };
+
+            tab.Content = mainGrid;
+            return tab;
+        }
+
+        /// <summary>
+        /// Update the "N warnings selected" label based on checkbox states.
+        /// </summary>
+        private static void UpdateSelectedCount(List<CheckBox> checks, TextBlock label)
+        {
+            int count = checks.Count(c => c.IsChecked == true);
+            label.Text = $"{count} warning{(count != 1 ? "s" : "")} selected";
+            label.Foreground = count > 0 ? BrAccent : BrFgSubtle;
+        }
+
+        /// <summary>
+        /// Populate the right-hand detail panel with information about a selected warning.
+        /// </summary>
+        private static void PopulateDetailPanel(TextBlock titleBlock, StackPanel detailPanel,
+            string description, string severity, string category, int elementCount)
+        {
+            titleBlock.Text = description;
+            detailPanel.Children.Clear();
+
+            // Severity badge
+            var severityColor = severity switch
+            {
+                "CRITICAL" => Color.FromRgb(0xE5, 0x39, 0x35),
+                "HIGH"     => Color.FromRgb(0xFB, 0x8C, 0x00),
+                "MEDIUM"   => Color.FromRgb(0xFD, 0xD8, 0x35),
+                _          => Color.FromRgb(0x43, 0xA0, 0x47)
+            };
+
+            var badgePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            badgePanel.Children.Add(new Border
+            {
+                Background = FZ(severityColor),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(0, 0, 8, 0),
+                Child = new TextBlock
+                {
+                    Text = severity,
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = severity == "MEDIUM" ? BrFgDark : BrFgWhite
+                }
+            });
+            badgePanel.Children.Add(new Border
+            {
+                Background = FZ(Color.FromRgb(0xE0, 0xE8, 0xF0)),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(8, 2, 8, 2),
+                Child = new TextBlock
+                {
+                    Text = category,
+                    FontSize = 10,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = FZ(Color.FromRgb(0x44, 0x66, 0x88))
+                }
+            });
+            detailPanel.Children.Add(badgePanel);
+
+            // Detail rows
+            AddDetailRow(detailPanel, "Affected Elements", $"{elementCount}");
+            AddDetailRow(detailPanel, "Category", category);
+            AddDetailRow(detailPanel, "Severity", severity);
+
+            // Auto-fix assessment
+            string fixable = category == "Data" || category == "Spatial" ? "Yes — auto-fix available" : "Manual review required";
+            var fixColor = fixable.StartsWith("Yes") ? Color.FromRgb(0x43, 0xA0, 0x47) : Color.FromRgb(0xFB, 0x8C, 0x00);
+            AddDetailRow(detailPanel, "Auto-fixable", fixable, fixColor);
+
+            // SLA info
+            string sla = severity switch
+            {
+                "CRITICAL" => "4 hours",
+                "HIGH" => "24 hours",
+                "MEDIUM" => "1 week",
+                _ => "2 weeks"
+            };
+            AddDetailRow(detailPanel, "SLA Target", sla);
+
+            // Recommendation
+            detailPanel.Children.Add(new TextBlock
+            {
+                Text = "RECOMMENDATION",
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrAccent,
+                Margin = new Thickness(0, 12, 0, 4)
+            });
+
+            string recommendation = category switch
+            {
+                "Data" => "Run Auto-Fix to resolve duplicate marks and data inconsistencies. Review elements for incorrect parameter values.",
+                "Spatial" => "Check room boundaries and separation lines. Use Auto-Fix for overlapping room separation lines.",
+                "Geometric" => "Inspect element geometry. Walls may need manual joining or axis correction.",
+                "MEP" => "Verify MEP system connections and sizing. Check duct/pipe routing for clearance.",
+                "Compliance" => "Review against relevant standard requirements. May need design changes to comply.",
+                _ => "Review the affected elements and determine appropriate corrective action."
+            };
+            detailPanel.Children.Add(new TextBlock
+            {
+                Text = recommendation,
+                FontSize = 11,
+                Foreground = BrFgDark,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            // Deliverable impact
+            detailPanel.Children.Add(new TextBlock
+            {
+                Text = "DELIVERABLE IMPACT",
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrAccent,
+                Margin = new Thickness(0, 4, 0, 4)
+            });
+
+            var impacts = new List<string>();
+            if (category == "Data" || category == "Spatial") impacts.Add("COBie Export");
+            if (category == "Geometric" || category == "MEP") impacts.Add("IFC Export");
+            if (category == "Compliance") impacts.Add("FM Handover");
+            if (severity == "CRITICAL" || severity == "HIGH") impacts.Add("Clash Detection");
+            if (impacts.Count == 0) impacts.Add("Minor — no direct deliverable impact");
+
+            foreach (var impact in impacts)
+            {
+                var impactRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+                impactRow.Children.Add(new TextBlock
+                {
+                    Text = "•",
+                    FontSize = 11,
+                    Foreground = BrAccent,
+                    Margin = new Thickness(0, 0, 6, 0)
+                });
+                impactRow.Children.Add(new TextBlock
+                {
+                    Text = impact,
+                    FontSize = 11,
+                    Foreground = BrFgDark
+                });
+                detailPanel.Children.Add(impactRow);
+            }
+        }
+
+        /// <summary>Adds a label-value row to the detail panel.</summary>
+        private static void AddDetailRow(StackPanel panel, string label, string value, Color? valueColor = null)
+        {
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var lbl = new TextBlock
+            {
+                Text = label,
+                FontSize = 11,
+                Foreground = BrFgSubtle,
+                FontWeight = FontWeights.SemiBold
+            };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+
+            var val = new TextBlock
+            {
+                Text = value,
+                FontSize = 11,
+                Foreground = valueColor.HasValue ? FZ(valueColor.Value) : BrFgDark,
+                FontWeight = valueColor.HasValue ? FontWeights.SemiBold : FontWeights.Normal,
+                TextWrapping = TextWrapping.Wrap
+            };
+            Grid.SetColumn(val, 1);
+            row.Children.Add(val);
+
+            panel.Children.Add(row);
+        }
+
+        /// <summary>Creates a small toolbar button.</summary>
+        private static Button MakeSmallButton(string text)
+        {
+            return new Button
+            {
+                Content = text,
+                FontSize = 10,
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(0, 0, 4, 0),
+                Cursor = Cursors.Hand,
+                Background = BrBgWhite,
+                Foreground = BrFgDark,
+                BorderBrush = BrBorder,
+                BorderThickness = new Thickness(1)
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB 3: AUTO-FIX
         // ═══════════════════════════════════════════════════════════════
         private static TabItem BuildAutoFixTab()
         {

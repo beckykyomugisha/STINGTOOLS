@@ -591,7 +591,7 @@ namespace StingTools.Core
             // Phase 56: Log once when no rooms found so BIM coordinators know LOC detection
             // will fall back to project-level defaults instead of room-based spatial detection
             if (index.Count == 0)
-                StingLog.Info("BuildRoomIndex: no placed rooms found — LOC detection will use project-level defaults");
+                StingLog.Info("BuildRoomIndex: no placed rooms found — spatial detection (LOC/ZONE) will use project-level defaults");
             return index;
         }
 
@@ -1613,7 +1613,7 @@ namespace StingTools.Core
                             if (_cachedWsName != null && _cachedWsName.Contains(loc, StringComparison.OrdinalIgnoreCase))
                                 locSource = "Workset";
                         }
-                        catch { /* keep existing source */ }
+                        catch (Exception ex) { StingLog.Warn($"PopulateAll LOC_SOURCE workset check: {ex.Message}"); }
                     }
                     ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, locSource);
                 }
@@ -2180,7 +2180,8 @@ namespace StingTools.Core
                             if (phase.Name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                 phase.Name.IndexOf("Construction", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
-                                installContext = DateTime.Now.ToString("yyyy-MM-dd");
+                                // D-01: Use UtcNow for timestamp consistency across codebase
+                                installContext = DateTime.UtcNow.ToString("yyyy-MM-dd");
                             }
                             ParameterHelpers.SetIfEmpty(el, "ASS_INSTALLATION_DATE_TXT", installContext);
                             written++;
@@ -2574,21 +2575,50 @@ namespace StingTools.Core
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
 
+            // P-01/A-01: Hoist GetAllViewports() + view resolution once for all derive methods
+            IList<ElementId> vpIds = null;
+            List<View> vpViews = null;
+            try
+            {
+                vpIds = sheet.GetAllViewports();
+                if (vpIds != null && vpIds.Count > 0)
+                {
+                    vpViews = new List<View>(vpIds.Count);
+                    foreach (ElementId vpId in vpIds)
+                    {
+                        var vp = doc.GetElement(vpId) as Viewport;
+                        if (vp == null) continue;
+                        View view = doc.GetElement(vp.ViewId) as View;
+                        if (view != null) vpViews.Add(view);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TagSheet viewport resolution: {ex.Message}"); }
+            vpViews ??= new List<View>();
+
+            // D-03: Source tokens use SetIfEmptyStr to preserve user corrections
             // 2. Derive DISC from viewport element discipline majority vote
-            string disc = DeriveSheetDiscipline(doc, sheet);
-            written += SetStr(sheet, ParamRegistry.SHT_DISC, disc);
+            string disc = DeriveSheetDiscipline(doc, sheet, vpViews);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_DISC, disc);
+            // Re-read actual stored value for TAG1 assembly (may differ if user-set)
+            disc = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
+            if (string.IsNullOrEmpty(disc)) disc = "GEN";
 
             // 3. Derive FORM from viewport view types
-            string form = DeriveSheetForm(doc, sheet);
-            written += SetStr(sheet, ParamRegistry.SHT_FORM, form);
+            string form = DeriveSheetForm(vpViews);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_FORM, form);
+            form = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_FORM);
+            if (string.IsNullOrEmpty(form)) form = "DR";
 
             // 4. Derive LEVEL from viewport view associated levels
-            string level = DeriveSheetLevel(doc, sheet);
-            written += SetStr(sheet, ParamRegistry.SHT_LEVEL, level);
+            string level = DeriveSheetLevel(vpViews);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_LEVEL, level);
+            level = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_LEVEL);
+            if (string.IsNullOrEmpty(level)) level = "XX";
 
             // 5. Write project-level tokens
-            written += SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
-            written += SetStr(sheet, ParamRegistry.SHT_REV, rev);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
+            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_REV, rev);
 
             // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
             // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
@@ -2597,7 +2627,7 @@ namespace StingTools.Core
             written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
 
             // 7. Build SHT_TAG_7 narrative
-            string tag7 = BuildSheetNarrative(doc, sheet, disc, form, level, rev);
+            string tag7 = BuildSheetNarrative(sheet, disc, form, level, rev, vpViews.Count);
             written += SetStr(sheet, ParamRegistry.SHT_TAG_7, tag7);
 
             // INT-12: Performance warning for slow sheets
@@ -2665,24 +2695,18 @@ namespace StingTools.Core
         /// <summary>
         /// Derive sheet discipline by majority vote of element DISC codes
         /// across all viewports on the sheet.
+        /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetDiscipline(Document doc, ViewSheet sheet)
+        private static string DeriveSheetDiscipline(Document doc, ViewSheet sheet, List<View> vpViews)
         {
             try
             {
-                var vpIds = sheet.GetAllViewports();
-                if (vpIds == null || vpIds.Count == 0) return "GEN";
+                if (vpViews == null || vpViews.Count == 0) return DeriveDiscFromSheetName(sheet);
 
                 var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (ElementId vpId in vpIds)
+                foreach (View view in vpViews)
                 {
-                    var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp == null) continue;
-
-                    View view = doc.GetElement(vp.ViewId) as View;
-                    if (view == null) continue;
-
                     // Use view-level discipline detection first
                     var viewDiscs = TagConfig.GetViewRelevantDisciplines(view);
                     if (viewDiscs != null && viewDiscs.Count > 0)
@@ -2695,10 +2719,11 @@ namespace StingTools.Core
                         continue;
                     }
 
-                    // Fallback: sample elements in the view
+                    // P-02: Fallback: sample elements in the view with category filter
                     try
                     {
                         var elements = new FilteredElementCollector(doc, view.Id)
+                            .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                             .WhereElementIsNotElementType()
                             .ToElements();
 
@@ -2752,23 +2777,18 @@ namespace StingTools.Core
         /// <summary>
         /// Derive document form code from view types on the sheet.
         /// DR=Drawing, SH=Schedule, M3=3D Model, SP=Specification, LG=Legend.
+        /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetForm(Document doc, ViewSheet sheet)
+        private static string DeriveSheetForm(List<View> vpViews)
         {
             try
             {
-                var vpIds = sheet.GetAllViewports();
-                if (vpIds == null || vpIds.Count == 0) return "DR";
+                if (vpViews == null || vpViews.Count == 0) return "DR";
 
                 bool hasSchedule = false, has3D = false, hasLegend = false;
 
-                foreach (ElementId vpId in vpIds)
+                foreach (View view in vpViews)
                 {
-                    var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp == null) continue;
-                    View view = doc.GetElement(vp.ViewId) as View;
-                    if (view == null) continue;
-
                     switch (view.ViewType)
                     {
                         case ViewType.Schedule:
@@ -2796,30 +2816,22 @@ namespace StingTools.Core
         /// <summary>
         /// Derive level code from viewport views' associated levels.
         /// Returns the most common level code, or "XX" if mixed/none.
+        /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetLevel(Document doc, ViewSheet sheet)
+        private static string DeriveSheetLevel(List<View> vpViews)
         {
             try
             {
-                var vpIds = sheet.GetAllViewports();
-                if (vpIds == null || vpIds.Count == 0) return "XX";
+                if (vpViews == null || vpViews.Count == 0) return "XX";
 
                 var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (ElementId vpId in vpIds)
+                foreach (View view in vpViews)
                 {
-                    var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp == null) continue;
-                    View view = doc.GetElement(vp.ViewId) as View;
-                    if (view == null) continue;
-
-                    // Get associated level — create a temp element lookup
-                    // via the view's GenLevel property
+                    // Get associated level via the view's GenLevel property
                     Level lvl = view.GenLevel;
                     if (lvl == null) continue;
 
-                    // Derive level code directly from level name
-                    // (can't use GetLevelCode which expects an element with LevelId)
                     string lvlCode = DeriveLevelCodeFromName(lvl.Name);
                     if (!string.IsNullOrEmpty(lvlCode))
                     {
@@ -2837,9 +2849,10 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"DeriveSheetLevel: {ex.Message}"); return "XX"; }
         }
 
-        /// <summary>Build human-readable sheet narrative for SHT_TAG_7.</summary>
-        private static string BuildSheetNarrative(Document doc, ViewSheet sheet,
-            string disc, string form, string level, string rev)
+        /// <summary>Build human-readable sheet narrative for SHT_TAG_7.
+        /// P-01/A-01: Accepts vpCount to avoid redundant GetAllViewports() call.</summary>
+        private static string BuildSheetNarrative(ViewSheet sheet,
+            string disc, string form, string level, string rev, int vpCount)
         {
             var parts = new List<string>();
 
@@ -2894,13 +2907,8 @@ namespace StingTools.Core
             parts.Add($"Rev {rev}");
 
             // Viewport count
-            try
-            {
-                var vpIds = sheet.GetAllViewports();
-                if (vpIds != null && vpIds.Count > 0)
-                    parts.Add($"{vpIds.Count} viewport{(vpIds.Count == 1 ? "" : "s")}");
-            }
-            catch { /* skip */ }
+            if (vpCount > 0)
+                parts.Add($"{vpCount} viewport{(vpCount == 1 ? "" : "s")}");
 
             return string.Join(" | ", parts);
         }
@@ -2934,7 +2942,12 @@ namespace StingTools.Core
                 if (digits.Length > 0 && digits.Length <= 3) return "L" + digits.PadLeft(2, '0');
             }
             if (lower == "ground" || lower == "ground floor" || lower == "ground level") return "GF";
-            if (lower.StartsWith("basement")) return "B1";
+            // L-02: Extract basement number instead of hardcoding B1
+            if (lower.StartsWith("basement"))
+            {
+                string bDigits = new string(name.Where(char.IsDigit).ToArray());
+                return "B" + (bDigits.Length > 0 ? bDigits : "1");
+            }
             if (lower.StartsWith("roof") || lower == "rf") return "RF";
             if (lower.StartsWith("mezzanine") || lower == "mezz") return "MZ";
             // Extract any trailing digits
