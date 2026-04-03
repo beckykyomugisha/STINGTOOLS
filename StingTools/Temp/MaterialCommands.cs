@@ -201,8 +201,11 @@ namespace StingTools.Temp
                                 AppearanceAssetElement newAsset = baseAsset.Duplicate(assetName);
                                 newMat.AppearanceAssetId = newAsset.Id;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // If duplicate name exists, share the base asset
-                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId; }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset instead): {ex.Message}");
+                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
+                            }
                         }
                     }
 

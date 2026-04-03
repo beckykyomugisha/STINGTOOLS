@@ -3563,9 +3563,9 @@ namespace StingTools.Temp
                                     {
                                         try
                                         {
-                                            // Create Generic Model instance at origin
+                                            // Create Generic Model instance — offset each row to avoid stacking
                                             FamilyInstance fi = doc.Create.NewFamilyInstance(
-                                                new XYZ(0, 0, 0), gmSymbol, lvl,
+                                                new XYZ(rows.IndexOf(row) * 3.0, 0, 0), gmSymbol, lvl,
                                                 Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
                                             if (fi == null) continue;
@@ -3577,7 +3577,11 @@ namespace StingTools.Temp
                                                 int csvCol = mapping.Key;
                                                 string stingParam = mapping.Value;
 
-                                                if (csvCol >= row.Length) continue;
+                                                if (csvCol >= row.Length)
+                                                {
+                                                    StingLog.Warn($"TPL metadata: column {csvCol} ({stingParam}) exceeds row length {row.Length}");
+                                                    continue;
+                                                }
                                                 string val = row[csvCol]?.Trim() ?? "";
                                                 if (string.IsNullOrEmpty(val)) continue;
 
@@ -4382,9 +4386,17 @@ namespace StingTools.Temp
 
     internal static class TPLMetadataLoader
     {
-        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).</summary>
+        // Cache to avoid re-reading the CSV on every call
+        private static string _cachedPath;
+        private static Dictionary<string, List<string[]>> _cachedGroups;
+
+        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).
+        /// Results are cached per file path to avoid redundant I/O.</summary>
         public static Dictionary<string, List<string[]>> LoadGrouped(string path)
         {
+            if (_cachedGroups != null && string.Equals(_cachedPath, path, StringComparison.OrdinalIgnoreCase))
+                return _cachedGroups;
+
             var groups = new Dictionary<string, List<string[]>>(StringComparer.OrdinalIgnoreCase);
             var lines = System.IO.File.ReadAllLines(path);
             if (lines.Length < 2) return groups;
@@ -4401,8 +4413,14 @@ namespace StingTools.Temp
                     groups[sourceTable] = new List<string[]>();
                 groups[sourceTable].Add(cols);
             }
+
+            _cachedPath = path;
+            _cachedGroups = groups;
             return groups;
         }
+
+        /// <summary>Invalidate the LoadGrouped cache (call after CSV edits).</summary>
+        public static void InvalidateCache() { _cachedPath = null; _cachedGroups = null; }
 
         /// <summary>Maps Source_Table names to their MR_SCHEDULES schedule names.</summary>
         public static Dictionary<string, string> BuildTableScheduleMap()
@@ -4466,7 +4484,7 @@ namespace StingTools.Temp
                 int b = Convert.ToInt32(hex.Substring(4, 2), 16);
                 return (r.ToString(), g.ToString(), b.ToString());
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"ParseColorHex: invalid hex '{(row[11] ?? "")}': {ex.Message}"); return null; }
         }
 
         /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>
@@ -4582,7 +4600,7 @@ namespace StingTools.Temp
 
         // ── text_styles → Text Style Schedule ──
         // Schedule fields: TS_NAME_TXT, TS_FONT_NAME_TXT, TS_FONT_SIZE_NR,
-        //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_UNDERLINE_BOOL, TS_WIDTH_FACTOR_NR,
+        //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_WIDTH_FACTOR_NR,
         //   USAGE_TXT, TS_STATUS_TXT
         private static Dictionary<int, string> TextStylesMapping()
         {

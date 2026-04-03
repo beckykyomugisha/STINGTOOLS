@@ -1023,6 +1023,10 @@ namespace StingTools.Temp
                             applied = true;
                         }
                     }
+                    else
+                    {
+                        StingLog.Warn($"Unrecognized filter pattern: '{entry.Trim()}'");
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -847,7 +847,8 @@ namespace StingTools.Temp
                     return value;
 
                 default:
-                    return value; // Unknown unit — pass through unchanged
+                    StingLog.Warn($"ConvertToInternalUnits: unknown unit '{unit}' — passing value through unchanged");
+                    return value;
             }
         }
 

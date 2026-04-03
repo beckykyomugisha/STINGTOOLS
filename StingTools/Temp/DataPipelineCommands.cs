@@ -2824,8 +2824,15 @@ namespace StingTools.Temp
             sb.AppendLine($"\t{costParam}\tText");
             sb.AppendLine($"\t{areaParam}\tText");
 
-            File.WriteAllText(path, sb.ToString());
-            StingLog.Info($"IFC mapping file generated: {path}");
+            try
+            {
+                File.WriteAllText(path, sb.ToString());
+                StingLog.Info($"IFC mapping file generated: {path}");
+            }
+            catch (Exception ioEx)
+            {
+                StingLog.Error($"Failed to write IFC mapping file '{path}': {ioEx.Message}");
+            }
         }
     }
 
@@ -3066,7 +3073,15 @@ namespace StingTools.Temp
                 sb.AppendLine($"{prodCode}\t\t{catName}");
             }
 
-            File.WriteAllText(knoPath, sb.ToString());
+            try
+            {
+                File.WriteAllText(knoPath, sb.ToString());
+            }
+            catch (Exception ioEx)
+            {
+                StingLog.Error($"Failed to write keynote file '{knoPath}': {ioEx.Message}");
+                return;
+            }
 
             // Keynote file generated — user loads via Annotate > Keynoting Settings
             int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count;

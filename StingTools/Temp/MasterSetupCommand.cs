@@ -298,7 +298,7 @@ namespace StingTools.Temp
             }
             catch (Exception valEx)
             {
-                StingLog.Warn($"Master Setup post-validation: {valEx.Message}");
+                StingLog.Error($"Master Setup post-validation failed: {valEx.Message}");
                 report.AppendLine($"  Post-validation: skipped ({valEx.Message})");
             }
 

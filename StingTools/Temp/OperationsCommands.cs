@@ -1188,7 +1188,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception pdfEx)
                 {
-                    StingLog.Warn($"PDF export API failed: {pdfEx.Message}");
+                    StingLog.Error($"PDF export API failed: {pdfEx.Message}");
                     TaskDialog.Show("PDF Export",
                         $"PDF export is not available in this Revit version.\n\n" +
                         $"Found {sheetIds.Count} sheet(s) for export.\n" +

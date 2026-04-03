@@ -224,7 +224,13 @@ namespace StingTools.Temp
                     return Result.Failed;
                 }
 
-                var lines = File.ReadAllLines(path);
+                string[] lines;
+                try { lines = File.ReadAllLines(path); }
+                catch (Exception ioEx)
+                {
+                    TaskDialog.Show("STING", $"Failed to read PARAMETER__CATEGORIES.csv: {ioEx.Message}");
+                    return Result.Failed;
+                }
                 if (lines.Length == 0)
                 {
                     TaskDialog.Show("STING", "PARAMETER__CATEGORIES.csv is empty.");

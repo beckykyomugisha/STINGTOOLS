@@ -653,38 +653,38 @@ namespace StingTools.Temp
 
             // Find base views for each view type to duplicate as template bases.
             // Different view types require different base views.
+            // Single collector pass for all view types to avoid repeated scans.
             var baseViews = new Dictionary<ViewType, View>();
 
-            // Floor plan base
-            var basePlan = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan);
-            if (basePlan != null) baseViews[ViewType.FloorPlan] = basePlan;
-
-            // Ceiling plan base
-            var baseRcp = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.CeilingPlan);
-            if (baseRcp != null) baseViews[ViewType.CeilingPlan] = baseRcp;
-
-            // Section base
-            var baseSection = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
-                .FirstOrDefault(v => !v.IsTemplate &&
-                    (v.ViewType == ViewType.Section || v.ViewType == ViewType.Detail));
-            if (baseSection != null) baseViews[ViewType.Section] = baseSection;
-
-            // 3D view base
-            var base3D = new FilteredElementCollector(doc)
-                .OfClass(typeof(View3D)).Cast<View3D>()
-                .FirstOrDefault(v => !v.IsTemplate);
-            if (base3D != null) baseViews[ViewType.ThreeD] = base3D;
-
-            // Elevation base
-            var baseElev = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.Elevation);
-            if (baseElev != null) baseViews[ViewType.Elevation] = baseElev;
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate))
+            {
+                switch (v.ViewType)
+                {
+                    case ViewType.FloorPlan:
+                        if (!baseViews.ContainsKey(ViewType.FloorPlan))
+                            baseViews[ViewType.FloorPlan] = v;
+                        break;
+                    case ViewType.CeilingPlan:
+                        if (!baseViews.ContainsKey(ViewType.CeilingPlan))
+                            baseViews[ViewType.CeilingPlan] = v;
+                        break;
+                    case ViewType.Section:
+                    case ViewType.Detail:
+                        if (!baseViews.ContainsKey(ViewType.Section))
+                            baseViews[ViewType.Section] = v;
+                        break;
+                    case ViewType.ThreeD:
+                        if (!baseViews.ContainsKey(ViewType.ThreeD))
+                            baseViews[ViewType.ThreeD] = v;
+                        break;
+                    case ViewType.Elevation:
+                        if (!baseViews.ContainsKey(ViewType.Elevation))
+                            baseViews[ViewType.Elevation] = v;
+                        break;
+                }
+            }
 
             if (!baseViews.ContainsKey(ViewType.FloorPlan))
             {

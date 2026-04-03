@@ -74,6 +74,10 @@ namespace StingTools.Temp
                         LinePatternElement.Create(doc, lp);
                         created++;
                     }
+                    catch (Autodesk.Revit.Exceptions.ArgumentException)
+                    {
+                        // Pattern already exists in the document — skip silently
+                    }
                     catch (Exception ex)
                     {
                         StingLog.Warn($"Line pattern '{name}': {ex.Message}");
