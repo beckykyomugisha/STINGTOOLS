@@ -1375,6 +1375,12 @@
                             </WrapPanel>
                         </Border>
 
+                        <!-- COBie EXPORT DASHBOARD -->
+                        <WrapPanel Margin="0,0,0,4">
+                            <Button Style="{StaticResource GreenBtn}" Content="★ COBie Export Dashboard" Tag="COBieExportDashboard" Click="Cmd_Click"
+                                    ToolTip="Unified COBie Export Dashboard — presets, worksheet selection, column config, and output options" FontWeight="Bold"/>
+                        </WrapPanel>
+
                         <!-- COBie REFERENCE DATA -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="COBie REFERENCE DATA"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00695C">
@@ -2459,6 +2465,8 @@
                             <StackPanel>
                                 <TextBlock Text="ISO 19650-2 §5.3 — template-driven pre-contract document" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ BEP Dashboard" Tag="BEPDashboard" Click="Cmd_Click"
+                                            ToolTip="Unified BEP Dashboard — create, configure, and manage BIM Execution Plans (ISO 19650-2 §5.3)" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Create BEP" Tag="CreateBEP" Click="Cmd_Click"
                                             ToolTip="ISO 19650-2 §5.3: Create pre-contract BEP BEFORE modelling (template + wizard input, no model data)" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Update BEP" Tag="UpdateBEP" Click="Cmd_Click"
@@ -2621,6 +2629,8 @@
                                 <TextBlock Text="BCF-compatible issue management with element linking" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <TextBlock Style="{StaticResource SubLabel}" Text="MANAGE"/>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Issue Dashboard" Tag="IssueTrackerDashboard" Click="Cmd_Click"
+                                            ToolTip="Unified Issue Tracker Dashboard — raise, manage, BCF integration, reports &amp; SLA tracking" FontWeight="Bold"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Raise Issue" Tag="RaiseIssue" Click="Cmd_Click"
                                             ToolTip="Raise RFI/Clash/Design/NCR/Snagging/Change — auto-titles, due dates, element links" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Issue Dashboard" Tag="IssueDashboard" Click="Cmd_Click"
