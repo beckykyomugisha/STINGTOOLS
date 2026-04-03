@@ -560,6 +560,14 @@ namespace StingTools.UI
         private static void OnColumnSheetChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_columnGrid == null || _columnSheetCombo == null) return;
+
+            // Remove checkboxes from their current parent Grid before clearing
+            // (WPF throws if element already has a logical parent)
+            foreach (var child in _columnGrid.Children)
+            {
+                if (child is Grid oldGrid)
+                    oldGrid.Children.Clear();
+            }
             _columnGrid.Children.Clear();
 
             var selected = _columnSheetCombo.SelectedItem as string;
