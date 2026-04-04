@@ -176,7 +176,7 @@ namespace StingTools.Core
                 double yMean = y.Average();
                 double ssRes = x.Zip(y, (xi, yi) => { double d = yi - (slope * xi + intercept); return d * d; }).Sum();
                 double ssTot = y.Sum(yi => { double d = yi - yMean; return d * d; });
-                double r2 = ssTot > 0 ? 1.0 - ssRes / ssTot : 0;
+                double r2 = ssTot > 0 ? Math.Max(0, 1.0 - ssRes / ssTot) : 0;
 
                 string trend = slope > 1 ? "Increasing" : slope < -1 ? "Decreasing" : "Stable";
                 return (predicted, trend, r2 * 100);

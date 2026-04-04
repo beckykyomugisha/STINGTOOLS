@@ -439,7 +439,7 @@ namespace StingTools.Core
                                     && wsInfo.Owner != doc.Application.Username
                                     && wsInfo.Owner != "")
                                 {
-                                    _deferredElements.Enqueue(id);
+                                    EnqueueDeferred(id);
                                     StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
                                     continue;
                                 }

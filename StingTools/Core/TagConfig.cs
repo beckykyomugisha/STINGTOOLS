@@ -1218,8 +1218,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
                 return fullTag;
 
-            char sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator[0] : '-';
-            string[] parts = fullTag.Split(sep);
+            string sepStr = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
+            string[] parts = fullTag.Split(new[] { sepStr }, StringSplitOptions.None);
             if (parts.Length < 8) return fullTag;
 
             var visible = new List<string>();
