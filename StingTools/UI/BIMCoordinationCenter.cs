@@ -1147,7 +1147,7 @@ namespace StingTools.UI
                     };
                     chipBorder.Child = new TextBlock { Text = kv.Key, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg) };
                     string discCode = kv.Key;
-                    chipBorder.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{discCode}"; _dlg.DialogResult = true; } };
+                    chipBorder.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{discCode}"; DialogResult = true; Close(); } };
                     Grid.SetRow(chipBorder, discRow); Grid.SetColumn(chipBorder, 0);
                     discGrid.Children.Add(chipBorder);
 
@@ -1243,7 +1243,7 @@ namespace StingTools.UI
                 {
                     var fixMi = new MenuItem { Header = $"Fix: {check}" };
                     string fa = checkAction;
-                    fixMi.Click += (s, e) => { ResultAction = fa; _dlg.DialogResult = true; };
+                    fixMi.Click += (s, e) => { ResultAction = fa; DialogResult = true; Close(); };
                     checkCm.Items.Add(fixMi);
                 }
                 var detailsMi = new MenuItem { Header = "Show Details" };
