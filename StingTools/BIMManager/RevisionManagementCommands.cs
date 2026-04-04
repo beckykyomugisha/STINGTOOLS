@@ -1199,8 +1199,16 @@ namespace StingTools.BIMManager
                 }
 
                 // Compare most recent two
+                // R3-FIX-04: Guard against null snapshots from corrupted/missing files
                 var before = RevisionEngine.LoadSnapshotFile(snapshotFiles[snapshotFiles.Count - 2]);
                 var after = RevisionEngine.LoadSnapshotFile(snapshotFiles[snapshotFiles.Count - 1]);
+                if (before == null || after == null)
+                {
+                    TaskDialog.Show("StingTools Revision Compare",
+                        "Failed to load one or both snapshot files.\n" +
+                        "Snapshot data may be corrupted. Try creating a new revision.");
+                    return Result.Succeeded;
+                }
                 var changes = RevisionEngine.CompareSnapshots(before, after);
                 string significance = RevisionEngine.ClassifyRevisionSignificance(changes);
                 string narrative = RevisionEngine.BuildChangeNarrative(changes);

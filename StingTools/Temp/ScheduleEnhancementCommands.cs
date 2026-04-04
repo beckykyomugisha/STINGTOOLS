@@ -78,7 +78,10 @@ namespace StingTools.Temp
                 // SCH-04: Classify schedule record type
                 try
                 {
-                    if (sched.Definition.IsItemized == false && sched.Definition.GetSortGroupFieldCount() > 0)
+                    // Use KeyScheduleParameterName for accurate key schedule detection
+                    // (non-empty means it IS a key schedule) rather than the heuristic
+                    // of !IsItemized + sort groups which can misclassify grouped schedules
+                    if (!string.IsNullOrEmpty(sched.KeyScheduleParameterName))
                         keyScheduleCount++;
                     else if (sched.Definition.IsMaterialTakeoff)
                         materialTakeoffCount++;
@@ -245,39 +248,21 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Build selection list
-            var names = schedules.Select((s, i) => $"{i + 1}. {s.Name}").ToList();
-            string nameList = string.Join("\n", names.Take(40));
-            if (names.Count > 40) nameList += $"\n... ({names.Count - 40} more)";
+            // Pick first schedule via list picker
+            var names = schedules.Select(s => s.Name).ToList();
 
-            // Ask for first schedule
-            TaskDialog dlg1 = new TaskDialog("Schedule Compare — Select First");
-            dlg1.MainInstruction = "Enter the number of the FIRST schedule:";
-            dlg1.MainContent = nameList;
-            dlg1.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (dlg1.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
+            string pickA = Select.StingListPicker.Show("Schedule Compare — Select First",
+                "Select the FIRST schedule to compare:", names);
+            if (pickA == null) return Result.Cancelled;
+            int idxA = names.IndexOf(pickA);
 
-            // Use first two STING schedules as defaults or pick by name
-            // For simplicity, compare active schedule with the next one alphabetically
-            ViewSchedule schedA = null;
-            ViewSchedule schedB = null;
+            string pickB = Select.StingListPicker.Show("Schedule Compare — Select Second",
+                "Select the SECOND schedule to compare:", names);
+            if (pickB == null) return Result.Cancelled;
+            int idxB = names.IndexOf(pickB);
 
-            if (doc.ActiveView is ViewSchedule activeSched)
-            {
-                schedA = activeSched;
-                // Pick the next schedule alphabetically
-                int idx = schedules.FindIndex(s => s.Id == activeSched.Id);
-                if (idx >= 0 && idx + 1 < schedules.Count)
-                    schedB = schedules[idx + 1];
-                else if (schedules.Count >= 2)
-                    schedB = schedules.First(s => s.Id != activeSched.Id);
-            }
-            else
-            {
-                // Default: compare first two schedules
-                schedA = schedules[0];
-                schedB = schedules[1];
-            }
+            ViewSchedule schedA = schedules[idxA];
+            ViewSchedule schedB = schedules[idxB];
 
             if (schedA == null || schedB == null)
             {
@@ -534,24 +519,36 @@ namespace StingTools.Temp
                             catch (Exception ex) { StingLog.Warn($"Read schedule field name at index {i}: {ex.Message}"); }
                         }
 
-                        // Add missing fields
+                        // Build field ID map once — used for field additions, sort, and filter
+                        var fieldIdMap = new Dictionary<string, ScheduleFieldId>(
+                            StringComparer.OrdinalIgnoreCase);
+                        for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
+                        {
+                            try
+                            {
+                                var field = sched.Definition.GetField(i);
+                                string name = field.GetName();
+                                if (!string.IsNullOrEmpty(name))
+                                    fieldIdMap[name] = field.FieldId;
+                            }
+                            catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
+                        }
+
+                        // Add missing fields from CSV definition
                         if (!string.IsNullOrEmpty(def.Fields))
                         {
                             var formulaMap = ScheduleHelper.ParseFormulaSpec(def.Formulas);
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
 
-                            // Build tracked IDs from existing fields
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
+                            // Build schedulable field lookup once for CSV field additions
+                            var available = sched.Definition.GetSchedulableFields();
+                            var fieldLookup = new Dictionary<string, SchedulableField>(
+                                StringComparer.OrdinalIgnoreCase);
+                            foreach (var sf in available)
                             {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    string name = field.GetName();
-                                    if (!string.IsNullOrEmpty(name))
-                                        addedFieldIds[name] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field ID at index {i}: {ex.Message}"); }
+                                string sfName = sf.GetName(doc);
+                                if (!string.IsNullOrEmpty(sfName) &&
+                                    !fieldLookup.ContainsKey(sfName))
+                                    fieldLookup[sfName] = sf;
                             }
 
                             // Add any fields from CSV that are missing
@@ -562,18 +559,6 @@ namespace StingTools.Temp
                                 string fieldName = fieldEntry.Trim();
                                 if (existingFields.Contains(fieldName)) continue;
 
-                                // Try to add the field
-                                var available = sched.Definition.GetSchedulableFields();
-                                var fieldLookup = new Dictionary<string, SchedulableField>(
-                                    StringComparer.OrdinalIgnoreCase);
-                                foreach (var sf in available)
-                                {
-                                    string sfName = sf.GetName(doc);
-                                    if (!string.IsNullOrEmpty(sfName) &&
-                                        !fieldLookup.ContainsKey(sfName))
-                                        fieldLookup[sfName] = sf;
-                                }
-
                                 SchedulableField toAdd = null;
                                 if (fieldLookup.TryGetValue(fieldName, out toAdd))
                                 {
@@ -581,7 +566,7 @@ namespace StingTools.Temp
                                     if (added != null)
                                     {
                                         fieldsAdded++;
-                                        addedFieldIds[fieldName] = added.FieldId;
+                                        fieldIdMap[fieldName] = added.FieldId;
                                     }
                                 }
                                 else if (fieldRemaps.TryGetValue(fieldName, out string remapped) &&
@@ -591,54 +576,30 @@ namespace StingTools.Temp
                                     if (added != null)
                                     {
                                         fieldsAdded++;
-                                        addedFieldIds[remapped] = added.FieldId;
+                                        fieldIdMap[remapped] = added.FieldId;
                                     }
                                 }
                             }
 
                             // Re-apply column headers + auto-humanize
                             ScheduleHelper.ApplyFieldHeaders(sched,
-                                formulaMap.Count > 0 ? formulaMap : null);
+                                formulaMap != null && formulaMap.Count > 0 ? formulaMap : null);
                         }
 
                         // Re-apply sorting if none exists
                         if (sched.Definition.GetSortGroupFieldCount() == 0 &&
                             !string.IsNullOrEmpty(def.Sorting))
                         {
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                            {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    addedFieldIds[field.GetName()] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field for sorting at index {i}: {ex.Message}"); }
-                            }
-
                             if (!string.IsNullOrEmpty(def.Grouping))
-                                ScheduleHelper.ApplyGrouping(doc, sched, def.Grouping, addedFieldIds);
-                            ScheduleHelper.ApplySorting(doc, sched, def.Sorting, addedFieldIds);
+                                ScheduleHelper.ApplyGrouping(doc, sched, def.Grouping, fieldIdMap);
+                            ScheduleHelper.ApplySorting(doc, sched, def.Sorting, fieldIdMap);
                         }
 
                         // Re-apply filters if none exist
                         if (sched.Definition.GetFilterCount() == 0 &&
                             !string.IsNullOrEmpty(def.Filters))
                         {
-                            var addedFieldIds = new Dictionary<string, ScheduleFieldId>(
-                                StringComparer.OrdinalIgnoreCase);
-                            for (int i = 0; i < sched.Definition.GetFieldCount(); i++)
-                            {
-                                try
-                                {
-                                    var field = sched.Definition.GetField(i);
-                                    addedFieldIds[field.GetName()] = field.FieldId;
-                                }
-                                catch (Exception ex) { StingLog.Warn($"Read field for filter at index {i}: {ex.Message}"); }
-                            }
-
-                            ScheduleHelper.ApplyFilters(doc, sched, def.Filters, addedFieldIds);
+                            ScheduleHelper.ApplyFilters(doc, sched, def.Filters, fieldIdMap);
                             filtersApplied++;
                         }
 
@@ -941,10 +902,20 @@ namespace StingTools.Temp
                     break;
                 }
             }
-            // Convert underscores to spaces and title case
+            // Convert underscores to spaces and title-case each word
             clean = clean.Replace("_", " ").Trim();
             if (clean.Length > 0)
-                clean = char.ToUpper(clean[0]) + clean.Substring(1).ToLower();
+            {
+                var words = clean.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                for (int w = 0; w < words.Length; w++)
+                {
+                    if (words[w].Length <= 3 && words[w] == words[w].ToUpperInvariant())
+                        continue; // Preserve short acronyms like "ID", "COD", "REF"
+                    words[w] = char.ToUpper(words[w][0])
+                        + words[w].Substring(1).ToLowerInvariant();
+                }
+                clean = string.Join(" ", words);
+            }
             return clean;
         }
     }
@@ -1049,10 +1020,10 @@ namespace StingTools.Temp
                     // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                     // Header and body section cell styling is a no-op until API support is added.
 
-                    StingLog.Info($"Schedule '{sched.Name}': applied header color #{def.HeaderColor}");
+                    StingLog.Info($"Schedule '{sched.Name}': header color #{def.HeaderColor} parsed but not applied (API limitation).");
                 }
 
-                return 1;
+                return 0;
             }
             catch (Exception ex)
             {
@@ -1090,7 +1061,8 @@ namespace StingTools.Temp
                 // Cell styling requires TableCellStyle via GetTableCellStyle/SetTableCellStyle which is not available for schedule sections.
                 // Header and body section cell styling is a no-op until API support is added.
 
-                return 1;
+                StingLog.Info($"Discipline color for '{sched.Name}' computed but not applied (API limitation).");
+                return 0;
             }
             catch (Exception ex)
             {
@@ -1361,9 +1333,21 @@ namespace StingTools.Temp
                     doc.Delete(deleteIds);
                     deleted = deleteIds.Count;
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); foreach (var sched in targets)
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Batch delete failed, falling back to per-element: {ex.Message}");
+                    foreach (var sched in targets)
                     {
-                        try { doc.Delete(sched.Id); deleted++; }
+                        try
+                        {
+                            // Check element still exists before delete — batch may have
+                            // partially succeeded before throwing
+                            if (doc.GetElement(sched.Id) != null)
+                            {
+                                doc.Delete(sched.Id);
+                                deleted++;
+                            }
+                        }
                         catch (Exception ex2) { StingLog.Warn($"Delete schedule failed '{sched.Name}': {ex2.Message}"); }
                     }
                 }

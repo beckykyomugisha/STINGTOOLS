@@ -288,16 +288,11 @@ namespace StingTools.Temp
                             didFormat |= ScheduleHelper.ApplyFilters(
                                 doc, vs, filterSpec, addedFieldIds);
 
-                        // Apply header/text/background colors (cols 13-15)
-                        // Note: Revit API does not expose cell-level color styling
-                        // for schedule sections. Colors are stored in CSV for future
-                        // API support and used by ScheduleColorCommand for reporting.
-                        if (!string.IsNullOrEmpty(headerColor) ||
-                            !string.IsNullOrEmpty(textColor) ||
-                            !string.IsNullOrEmpty(bgColor))
-                        {
-                            didFormat = true;
-                        }
+                        // Note: header/text/background colors (cols 13-15) are stored
+                        // in CSV but cannot be applied via Revit API (no cell-level
+                        // color styling for schedule sections). Colors are used by
+                        // ScheduleColorCommand for reporting only — do NOT set
+                        // didFormat here to avoid inflating the formatted count.
 
                         if (didFormat) formatted++;
                         created++;
@@ -338,14 +333,16 @@ namespace StingTools.Temp
                         .ToList();
 
                     // Discipline keywords for matching filters to templates
+                    // Use full words only to prevent false partial matches
+                    // (e.g., "Arch" matching "Archive", "Mech" matching "Mechanism")
                     var disciplineKeywords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["Mechanical"] = new[] { "Mech", "HVAC", "Mechanical" },
-                        ["Electrical"] = new[] { "Elec", "Electrical", "Lighting" },
-                        ["Plumbing"] = new[] { "Plumb", "Plumbing", "Hydraulic" },
-                        ["Fire"] = new[] { "Fire", "Sprinkler" },
-                        ["Architectural"] = new[] { "Arch", "Architectural" },
-                        ["Structural"] = new[] { "Struct", "Structural" },
+                        ["Mechanical"] = new[] { "Mechanical", "HVAC" },
+                        ["Electrical"] = new[] { "Electrical", "Lighting" },
+                        ["Plumbing"] = new[] { "Plumbing", "Hydraulic" },
+                        ["Fire"] = new[] { "Fire Protection", "Sprinkler", "Fire " },
+                        ["Architectural"] = new[] { "Architectural" },
+                        ["Structural"] = new[] { "Structural" },
                     };
 
                     using (Transaction linkTx = new Transaction(doc, "STING Link Filters to Templates"))
@@ -715,13 +712,13 @@ namespace StingTools.Temp
                                 && !addedFieldIds.ContainsKey(resolvedName))
                                 addedFieldIds[resolvedName] = added.FieldId;
 
-                            // If this was a Tier 4 fallback, set the column heading
-                            // to the formula alias if available, for user-friendly display
-                            if (resolvedName != fieldName
-                                && formulaMap.TryGetValue(fieldName, out string heading)
-                                && !string.IsNullOrEmpty(heading))
+                            // If this was a Tier 4 fallback (resolved via formula alias),
+                            // set the column heading to the original CSV field name
+                            // (user-friendly) since Revit will default to the built-in
+                            // parameter name which is less readable
+                            if (resolvedName != fieldName)
                             {
-                                added.ColumnHeading = heading;
+                                added.ColumnHeading = fieldName;
                             }
                         }
                     }
@@ -883,6 +880,7 @@ namespace StingTools.Temp
         public static bool ApplyFieldHeaders(ViewSchedule vs,
             Dictionary<string, string> formulaMap)
         {
+            if (formulaMap == null || formulaMap.Count == 0) return false;
             bool applied = false;
             int fieldCount = vs.Definition.GetFieldCount();
 
@@ -1014,30 +1012,33 @@ namespace StingTools.Temp
 
                     string fieldName = trimmed.Substring(0, colonIdx).Trim();
 
-                    // Find the field in the schedule
-                    int fieldCount = vs.Definition.GetFieldCount();
-                    for (int i = 0; i < fieldCount; i++)
+                    // O(1) lookup via addedFieldIds dictionary instead of O(n) field scan
+                    if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId targetId))
                     {
-                        ScheduleField field = vs.Definition.GetField(i);
-                        if (addedFieldIds.TryGetValue(fieldName, out ScheduleFieldId targetId)
-                            && field.FieldId == targetId)
+                        int fieldCount = vs.Definition.GetFieldCount();
+                        for (int i = 0; i < fieldCount; i++)
                         {
-                            field.DisplayType = ScheduleFieldDisplayType.Totals;
-                            applied = true;
-                            break;
+                            ScheduleField field = vs.Definition.GetField(i);
+                            if (field.FieldId == targetId)
+                            {
+                                field.DisplayType = ScheduleFieldDisplayType.Totals;
+                                applied = true;
+                                break;
+                            }
                         }
                     }
 
-                    if (applied)
-                    {
-                        vs.Definition.ShowGrandTotal = true;
-                        vs.Definition.ShowGrandTotalTitle = true;
-                    }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Apply total '{entry.Trim()}': {ex.Message}");
                 }
+            }
+
+            if (applied)
+            {
+                vs.Definition.ShowGrandTotal = true;
+                vs.Definition.ShowGrandTotalTitle = true;
             }
             return applied;
         }
@@ -1099,6 +1100,10 @@ namespace StingTools.Temp
                             applied = true;
                         }
                     }
+                    else
+                    {
+                        StingLog.Warn($"Unrecognized filter pattern: '{entry.Trim()}'");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1126,8 +1131,9 @@ namespace StingTools.Temp
                 try
                 {
                     ScheduleField f = vs.Definition.GetField(i);
-                    if (f?.ColumnHeading != null &&
-                        f.ColumnHeading.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                    string fName = f?.GetName();
+                    if ((fName != null && fName.Equals(fieldName, StringComparison.OrdinalIgnoreCase)) ||
+                        (f?.ColumnHeading != null && f.ColumnHeading.Equals(fieldName, StringComparison.OrdinalIgnoreCase)))
                         return f.FieldId;
                 }
                 catch (Exception ex)

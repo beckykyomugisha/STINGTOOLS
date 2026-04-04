@@ -230,7 +230,12 @@ namespace StingTools.Temp
                         int pipe = afterHash.IndexOf('|');
                         string verPart = (pipe > 0 ? afterHash.Substring(0, pipe) : afterHash).Trim();
                         if (verPart.StartsWith("v"))
-                            return verPart.Substring(1); // strip leading 'v'
+                        {
+                            string ver = verPart.Substring(1); // strip leading 'v'
+                            // Validate version format (e.g., "2.3", "5.0", "1.2.3")
+                            if (System.Text.RegularExpressions.Regex.IsMatch(ver, @"^\d+(\.\d+)+$"))
+                                return ver;
+                        }
                     }
                 }
             }
@@ -267,7 +272,16 @@ namespace StingTools.Temp
                 {
                     // Compare against stored checksums
                     string json = File.ReadAllText(checksumPath);
-                    var stored = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    Dictionary<string, string> stored = null;
+                    try
+                    {
+                        stored = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                    }
+                    catch (Exception jsonEx)
+                    {
+                        StingLog.Warn($"Failed to parse checksum file: {jsonEx.Message}");
+                        report.AppendLine($"  ⚠ Checksum file corrupted — skipping comparison");
+                    }
                     if (stored != null)
                     {
                         foreach (var kvp in stored)
@@ -277,7 +291,9 @@ namespace StingTools.Temp
                                 if (!string.Equals(currentHash, kvp.Value, StringComparison.OrdinalIgnoreCase))
                                 {
                                     report.AppendLine($"  MODIFIED: {kvp.Key}");
-                                    StingLog.Warn($"Data integrity: {kvp.Key} checksum changed (expected {kvp.Value.Substring(0, 8)}..., got {currentHash.Substring(0, 8)}...)");
+                                    string expectedShort = kvp.Value.Length >= 8 ? kvp.Value.Substring(0, 8) : kvp.Value;
+                                    string actualShort = currentHash.Length >= 8 ? currentHash.Substring(0, 8) : currentHash;
+                                    StingLog.Warn($"Data integrity: {kvp.Key} checksum changed (expected {expectedShort}..., got {actualShort}...)");
                                     issues++;
                                 }
                             }
@@ -330,8 +346,9 @@ namespace StingTools.Temp
                     return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"ComputeFullHash failed for {filePath}: {ex.Message}");
                 return "error";
             }
         }

@@ -3685,7 +3685,7 @@ namespace StingTools.Core
                             {
                                 double? result = Temp.FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
                                 if (result.HasValue && !double.IsNaN(result.Value) && !double.IsInfinity(result.Value))
-                                    Temp.FormulaEngine.WriteNumericResult(targetParam, result.Value);
+                                    Temp.FormulaEngine.WriteNumericResult(targetParam, result.Value, overwrite);
                             }
                         }
                         catch (Exception fEx)

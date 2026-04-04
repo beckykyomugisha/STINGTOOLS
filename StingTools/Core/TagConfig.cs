@@ -6300,7 +6300,8 @@ namespace StingTools.Core
                     sysCounts[adjSys] = sc + 1;
                 }
 
-                if (withSys < 2) return null; // Need at least 2 neighbours with SYS
+                // R3-FIX-01: Guard against empty sysCounts before .First()
+                if (withSys < 2 || sysCounts.Count == 0) return null; // Need at least 2 neighbours with SYS
 
                 // Find dominant SYS
                 var dominant = sysCounts.OrderByDescending(x => x.Value).First();
