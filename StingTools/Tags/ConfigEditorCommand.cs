@@ -223,7 +223,9 @@ namespace StingTools.Tags
                 };
 
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);
-                File.WriteAllText(path, json);
+                string tmpPath = path + ".tmp";
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, path, true);
 
                 // GAP-6B: Reload config immediately after save so changes take effect
                 try

@@ -1831,7 +1831,9 @@ namespace StingTools.Core
                 {
                     string dir = Path.GetDirectoryName(issuesPath);
                     if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    File.WriteAllText(issuesPath, existingIssues.ToString(Formatting.Indented));
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, existingIssues.ToString(Formatting.Indented));
+                    File.Move(tmpPath, issuesPath, true);
                     StingLog.Info($"WarningToIssueCreator: created {created} issues from warnings");
                 }
                 catch (Exception ex) { StingLog.Warn($"WarningToIssueCreator save: {ex.Message}"); }
