@@ -76,7 +76,7 @@ STINGTOOLS/
     │   ├── StingModePicker.cs          # Reusable WPF mode picker dialog for command mode selection
     │   ├── StingWizardDialog.cs        # Base multi-page WPF wizard framework (448 lines) — reusable page navigation, validation, summary
     │   ├── StingDataGridDialog.cs      # Reusable WPF data grid dialog for tabular data display with search/filter
-    │   ├── StingExportDialog.cs        # BIMLink-style export dialog with column mapping, preview, and format selection
+    │   ├── StingExportDialog.cs        # ExLink-style export dialog with column mapping, preview, and format selection
     │   ├── StingResultPanel.cs         # Reusable rich WPF result display: sections, metrics, RAG bars, tables, action buttons, CSV export
     │   ├── BatchRenameDialog.cs        # Single-step WPF batch rename dialog with live preview, 7 operations
     │   ├── ParameterLookupDialog.cs    # Enhanced WPF parameter lookup with 11-operator condition builder
@@ -607,7 +607,7 @@ STINGTOOLS/
 | `UI/StingWizardDialog.cs` | 0 (base multi-page WPF wizard framework) | 448 |
 | `UI/StingDataGridDialog.cs` | 0 (reusable WPF data grid dialog with search/filter) | 295 |
 | `UI/DocumentManagementDialog.cs` | 0 (ISO 19650 Document Management Center: 7-tab action bar, code legend, 14 data loaders, quick transmittal/issue creation, keyboard shortcuts) | 3,100+ |
-| `UI/StingExportDialog.cs` | 0 (BIMLink-style export dialog with column mapping) | 1,020 |
+| `UI/StingExportDialog.cs` | 0 (ExLink-style export dialog with column mapping) | 1,020 |
 | `UI/BatchRenameDialog.cs` | 0 (single-step batch rename dialog with live preview) | 693 |
 | `UI/ParameterLookupDialog.cs` | 0 (enhanced parameter lookup with conditions) | 590 |
 | `UI/BulkOperationDialog.cs` | 0 (unified bulk parameter operations dialog) | 891 |
@@ -858,7 +858,7 @@ These `internal static` classes provide shared logic used by multiple commands w
 | `StingWizardDialog` | `UI/StingWizardDialog.cs` | Base multi-page WPF wizard framework with page navigation, validation, summary |
 | `StingDataGridDialog` | `UI/StingDataGridDialog.cs` | Reusable WPF data grid dialog for tabular data display with search/filter |
 | `DocumentManagementDialog` | `UI/DocumentManagementDialog.cs` | ISO 19650 Document Management Center: 7-tab action bar (FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP), code legend (all ISO 19650 codes), dashboard strip with clickable RAG metrics, navigator tree (17 grouping modes), 14 data loaders, quick transmittal/issue creation, bulk CDE/status operations, keyboard shortcuts, VirtualizingStackPanel, drag-drop import |
-| `StingExportDialog` | `UI/StingExportDialog.cs` | BIMLink-style export dialog with column mapping, preview, and format selection |
+| `StingExportDialog` | `UI/StingExportDialog.cs` | ExLink-style export dialog with column mapping, preview, and format selection |
 | `StingCommandHandler` | `UI/StingCommandHandler.cs` | `IExternalEventHandler` — dispatches 590+ dockable panel button tags to 374 command classes + ~96 inline helpers on the Revit API thread |
 | `StingDockPanel` | `UI/StingDockPanel.xaml.cs` | WPF code-behind for 8-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM) with colour swatches and status bar |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` | `IDockablePaneProvider` — registers dockable panel with Revit; PaneGuid for panel identification |
