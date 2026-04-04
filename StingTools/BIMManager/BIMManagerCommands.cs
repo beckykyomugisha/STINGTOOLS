@@ -8560,7 +8560,7 @@ namespace StingTools.BIMManager
                     var bep = Newtonsoft.Json.Linq.JObject.Parse(json);
                     string stageStr = bep["project_information"]?["project_stage"]?.ToString() ?? "";
                     if (stageStr.Length > 0 && char.IsDigit(stageStr[0]))
-                        return int.Parse(stageStr[0].ToString());
+                        return stageStr[0] - '0';
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BEP stage detection failed: {ex.Message}"); }

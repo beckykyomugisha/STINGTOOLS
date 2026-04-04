@@ -33,7 +33,10 @@ namespace StingTools.BIMManager
         // ── Helper: Get BIM manager directory ──
         internal static string GetBimDir(Document doc)
         {
-            string dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+            string docDir = string.IsNullOrEmpty(doc.PathName)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : Path.GetDirectoryName(doc.PathName);
+            string dir = Path.Combine(docDir ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "_bim_manager");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }

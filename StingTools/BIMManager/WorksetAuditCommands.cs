@@ -63,33 +63,31 @@ namespace StingTools.BIMManager
                 result.StandardWorksetStatus[kvp.Key] = exists;
             }
 
-            // Audit elements on each workset
+            // Audit elements on each workset — single pass over all elements
+            var wsInfoMap = new Dictionary<WorksetId, WorksetInfo>();
             foreach (var ws in worksets)
             {
                 var wsInfo = new WorksetInfo { Name = ws.Name, Id = ws.Id };
-
-                var collector = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType();
-
-                // Count elements per workset
-                int count = 0;
-                var categoryBreakdown = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                foreach (var el in collector)
-                {
-                    try
-                    {
-                        if (el.WorksetId == ws.Id)
-                        {
-                            count++;
-                            string catName = el.Category?.Name ?? "(no category)";
-                            categoryBreakdown[catName] = categoryBreakdown.GetValueOrDefault(catName) + 1;
-                        }
-                    }
-                    catch (Exception ex) { StingLog.Warn($"WorksetAudit element check: {ex.Message}"); }
-                }
-                wsInfo.ElementCount = count;
-                wsInfo.CategoryBreakdown = categoryBreakdown;
+                wsInfoMap[ws.Id] = wsInfo;
                 result.Worksets.Add(wsInfo);
+            }
+
+            var allElements = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType();
+            foreach (var el in allElements)
+            {
+                try
+                {
+                    if (wsInfoMap.TryGetValue(el.WorksetId, out var wsInfo))
+                    {
+                        wsInfo.ElementCount++;
+                        string catName = el.Category?.Name ?? "(no category)";
+                        if (wsInfo.CategoryBreakdown == null)
+                            wsInfo.CategoryBreakdown = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                        wsInfo.CategoryBreakdown[catName] = wsInfo.CategoryBreakdown.GetValueOrDefault(catName) + 1;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"WorksetAudit element check: {ex.Message}"); }
             }
 
             // Check for misplaced elements (categories on wrong workset)

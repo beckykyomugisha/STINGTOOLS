@@ -325,13 +325,16 @@ namespace StingTools.Model
                 else if (roomType.Contains("hospital") || roomType.Contains("theatre")) standard = "HTM 08-01";
             }
 
+            double minAllowed = _rt60Limits.TryGetValue(roomType, out var limitsForMin) && limitsForMin.Min > 0
+                ? limitsForMin.Min : 0.3;
+
             string rec = "Meets requirement";
             if (rt60 > maxAllowed)
             {
                 double extraAbsorption = 0.161 * volumeM3 / maxAllowed - totalAbsorptionM2;
                 rec = $"Add {extraAbsorption:F1} m² absorption (e.g., {extraAbsorption / 0.8:F0} m² acoustic panel α=0.8)";
             }
-            else if (rt60 < (limits.Min > 0 ? limits.Min : 0.3))
+            else if (rt60 < minAllowed)
             {
                 rec = "Room may sound overly dead — reduce absorption";
             }
