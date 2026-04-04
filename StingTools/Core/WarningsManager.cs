@@ -3698,6 +3698,26 @@ namespace StingTools.Core
                                     double slaHours = pri == "CRITICAL" ? 4 : pri == "HIGH" ? 24 : pri == "MEDIUM" ? 168 : 336;
                                     if (st == "OPEN" && (DateTime.Now - cDate).TotalHours > slaHours) { overdue = true; issuesOverdue++; }
                                 }
+                                // Multi-assignee: read "assignees" JSON array, fallback to single "assignee"
+                                var assigneeList = new List<string>();
+                                var assigneesArr = item["assignees"] as Newtonsoft.Json.Linq.JArray;
+                                if (assigneesArr != null && assigneesArr.Count > 0)
+                                {
+                                    foreach (var a in assigneesArr)
+                                    {
+                                        string av = a.Value<string>();
+                                        if (!string.IsNullOrWhiteSpace(av)) assigneeList.Add(av.Trim());
+                                    }
+                                }
+                                string singleAssignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "";
+                                if (assigneeList.Count == 0 && !string.IsNullOrWhiteSpace(singleAssignee))
+                                    assigneeList.Add(singleAssignee.Trim());
+
+                                // Element count from element_ids array
+                                int elemCount = 0;
+                                var elemArr = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                                if (elemArr != null) elemCount = elemArr.Count;
+
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
                                     Id = item.Value<string>("id") ?? "",
@@ -3705,7 +3725,12 @@ namespace StingTools.Core
                                     Type = item.Value<string>("type") ?? "",
                                     Priority = item.Value<string>("priority") ?? "",
                                     Status = st,
-                                    Assignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "",
+                                    Assignee = singleAssignee,
+                                    AssigneeList = assigneeList,
+                                    Assignees = string.Join(", ", assigneeList),
+                                    Discipline = item.Value<string>("discipline") ?? "",
+                                    Revision = item.Value<string>("revision") ?? "",
+                                    ElementCount = elemCount,
                                     Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
                                     DaysOpen = daysOpen
@@ -3792,6 +3817,19 @@ namespace StingTools.Core
                     WarningSLAViolations = warningReport.SLAViolations,
                     WarningTopByCategory = warningReport.TopWarningsByCategory
                         .ToDictionary(x => x.Key, x => x.Value.Select(v => (v.Desc, v.Count)).ToList()),
+                    // Phase 87: Extended warning data for Ideate-level Warnings tab
+                    WarningManualReview = warningReport.ManualReview,
+                    WarningAvgCriticalAgeHours = warningReport.AvgCriticalAgeHours,
+                    WarningByWorkset = warningReport.ByWorkset ?? new Dictionary<string, int>(),
+                    WarningRootCauseGroups = (warningReport.RootCauseGroups ?? new List<RootCauseGroup>())
+                        .Select(g => (g.Description, g.Category, g.Severity, g.Count, g.CanAutoFix, g.FixStrategy ?? ""))
+                        .ToList(),
+                    WarningImpactCOBie = warningReport.DeliverableImpact?.AffectsCOBie ?? 0,
+                    WarningImpactIFC = warningReport.DeliverableImpact?.AffectsIFC ?? 0,
+                    WarningImpactHandover = warningReport.DeliverableImpact?.AffectsHandover ?? 0,
+                    WarningImpactSchedules = warningReport.DeliverableImpact?.AffectsSchedules ?? 0,
+                    WarningImpactClash = warningReport.DeliverableImpact?.AffectsClash ?? 0,
+                    WarningHighestImpactArea = warningReport.DeliverableImpact?.HighestImpactArea ?? "",
                     IssuesOpen = openIssues,
                     IssuesCritical = criticalIssues,
                     IssuesOverdue = issuesOverdue,
@@ -3938,6 +3976,54 @@ namespace StingTools.Core
 
             try
             {
+                // Handle revision zoom/select actions
+                if (action.StartsWith("ViewRevision_") || action.StartsWith("ZoomToRevision_") || action.StartsWith("SelectRevision_"))
+                {
+                    string revIdStr;
+                    if (action.StartsWith("ViewRevision_")) revIdStr = action.Substring("ViewRevision_".Length);
+                    else if (action.StartsWith("ZoomToRevision_")) revIdStr = action.Substring("ZoomToRevision_".Length);
+                    else revIdStr = action.Substring("SelectRevision_".Length);
+                    bool zoom3D = action.StartsWith("ZoomToRevision_");
+                    try
+                    {
+                        var revClouds = new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_RevisionClouds)
+                            .WhereElementIsNotElementType()
+                            .ToList();
+                        var matchingIds = new List<ElementId>();
+                        foreach (var rc in revClouds)
+                        {
+                            if (rc is RevisionCloud cloud)
+                            {
+                                var revElem = doc.GetElement(cloud.RevisionId);
+                                if (revElem != null && (revElem.Id.Value.ToString() == revIdStr ||
+                                    (revElem is Revision r && r.SequenceNumber.ToString() == revIdStr)))
+                                    matchingIds.Add(rc.Id);
+                            }
+                        }
+                        if (matchingIds.Count > 0)
+                        {
+                            if (zoom3D)
+                            {
+                                ZoomToElementIn3D(doc, app, string.Join(",", matchingIds.Select(id => id.Value)));
+                            }
+                            else
+                            {
+                                var uidoc = app?.ActiveUIDocument;
+                                if (uidoc != null)
+                                {
+                                    uidoc.Selection.SetElementIds(matchingIds);
+                                    try { uidoc.ShowElements(matchingIds); } catch (Exception) { /* view may not support ShowElements */ }
+                                }
+                            }
+                        }
+                        else
+                            TaskDialog.Show("STING", $"No revision clouds found for revision {revIdStr}.");
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Revision action: {ex.Message}"); }
+                    return;
+                }
+
                 // Handle zoom-to-element actions (3D section box)
                 if (action.StartsWith("ZoomToElement_"))
                 {
@@ -4497,30 +4583,36 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>
+        /// <summary>Extract warning description from a key formatted as "Category|Description" or legacy "Category_Description".</summary>
+        private static string ExtractWarningDescription(string warningKey)
+        {
+            // Pipe delimiter (new format) — split at first pipe
+            int pipeIdx = warningKey.IndexOf('|');
+            if (pipeIdx >= 0)
+                return warningKey.Substring(pipeIdx + 1);
+            // Legacy underscore format — split at first underscore (category prefix)
+            int usIdx = warningKey.IndexOf('_');
+            if (usIdx >= 0)
+                return warningKey.Substring(usIdx + 1);
+            return warningKey;
+        }
+
         /// <summary>Find warning elements by description text and zoom to 3D section box.</summary>
         private static void ZoomToWarningIn3D(Document doc, UIApplication app, string warningKey)
         {
             try
             {
+                string descPart = ExtractWarningDescription(warningKey);
                 var warnings = doc.GetWarnings();
                 var ids = new List<ElementId>();
                 foreach (var w in warnings)
                 {
                     string desc = w.GetDescriptionText() ?? "";
-                    if (warningKey.Contains(desc) || desc.Contains(warningKey.Split('_').LastOrDefault() ?? ""))
+                    if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         ids.AddRange(w.GetFailingElements());
                         ids.AddRange(w.GetAdditionalElements());
-                    }
-                }
-                if (ids.Count == 0)
-                {
-                    // Fallback: collect all elements from matching warning category
-                    foreach (var w in warnings)
-                    {
-                        ids.AddRange(w.GetFailingElements());
-                        if (ids.Count > 50) break; // cap for performance
                     }
                 }
                 if (ids.Count > 0)
@@ -4531,17 +4623,19 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"ZoomToWarningIn3D: {ex.Message}"); }
         }
 
-        /// <summary>Select elements associated with a warning description.</summary>
+        /// <summary>Select elements associated with a warning description and zoom to show them.</summary>
         private static void SelectWarningElements(Document doc, UIApplication app, string warningKey)
         {
             try
             {
+                string descPart = ExtractWarningDescription(warningKey);
                 var warnings = doc.GetWarnings();
                 var ids = new List<ElementId>();
                 foreach (var w in warnings)
                 {
                     string desc = w.GetDescriptionText() ?? "";
-                    if (warningKey.Contains(desc) || desc.Contains(warningKey.Split('_').LastOrDefault() ?? ""))
+                    if (desc.IndexOf(descPart, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        descPart.IndexOf(desc, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         ids.AddRange(w.GetFailingElements());
                         ids.AddRange(w.GetAdditionalElements());
@@ -4549,8 +4643,12 @@ namespace StingTools.Core
                 }
                 if (ids.Count > 0)
                 {
-                    var uidoc = app?.ActiveUIDocument ?? new UIDocument(doc);
-                    uidoc.Selection.SetElementIds(ids);
+                    var uidoc = app?.ActiveUIDocument;
+                    if (uidoc != null)
+                    {
+                        uidoc.Selection.SetElementIds(ids);
+                        try { uidoc.ShowElements(ids); } catch (Exception) { /* view may not support ShowElements */ }
+                    }
                     TaskDialog.Show("STING", $"Selected {ids.Count} element(s) from matching warnings.");
                 }
                 else
