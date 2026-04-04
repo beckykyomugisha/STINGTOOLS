@@ -765,7 +765,9 @@ namespace StingTools.Core
                             {
                                 StingLog.Info($"WorkflowEngine: skipping '{step.Label}' — data files unchanged");
                                 report.AppendLine($"  {stepNum,2}. {step.Label} — SKIPPED (data files unchanged)");
+                                RecordSkip(step, stepResults, "data files unchanged");
                                 skipped++;
+                                previousStepSkipped = true;
                                 continue;
                             }
                         }

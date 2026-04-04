@@ -424,7 +424,10 @@ namespace StingTools.Organise
                         fixProgress.Increment($"Fixed {fixedCount} duplicates");
                     }
                 }
-                tx.Commit();
+                if (fixProgress.IsCancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
             try { fixProgress.Close(); } catch (Exception ex) { StingLog.Warn($"FixDuplicates progress close: {ex.Message}"); }
 
@@ -546,7 +549,10 @@ namespace StingTools.Organise
                         cleared++;
                     }
                 }
-                tx.Commit();
+                if (delProgress.IsCancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
             try { delProgress.Close(); } catch (Exception ex) { StingLog.Warn($"DeleteTags progress close: {ex.Message}"); }
             ComplianceScan.InvalidateCache();
@@ -5551,9 +5557,9 @@ namespace StingTools.Organise
                                             string[] coords = entry.Substring(colonIdx + 1).Split(',');
                                             if (coords.Length < 3) continue;
                                             var pos = new XYZ(
-                                                double.Parse(coords[0]),
-                                                double.Parse(coords[1]),
-                                                double.Parse(coords[2]));
+                                                double.Parse(coords[0], System.Globalization.CultureInfo.InvariantCulture),
+                                                double.Parse(coords[1], System.Globalization.CultureInfo.InvariantCulture),
+                                                double.Parse(coords[2], System.Globalization.CultureInfo.InvariantCulture));
 
                                             // O(1) lookup instead of collector per entry
                                             var hostElId = new ElementId(hostId);

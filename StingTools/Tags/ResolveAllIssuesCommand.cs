@@ -264,7 +264,8 @@ namespace StingTools.Tags
 
                     if (cancelled)
                     {
-                        tx.Commit();
+                        tx.RollBack();
+                        StingLog.Info($"ResolveAllIssues: batch {batchNum} rolled back (user cancelled)");
                     }
                     else
                     {
