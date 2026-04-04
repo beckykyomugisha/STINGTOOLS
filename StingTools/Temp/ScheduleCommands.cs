@@ -1249,6 +1249,9 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class AutoPopulateCommand : IExternalCommand
     {
+        // Cached formula definitions for formula evaluation in AutoPopulate
+        private static List<FormulaEngine.FormulaDefinition> _apFormulas;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -1349,6 +1352,32 @@ namespace StingTools.Temp
                                 int mapped = NativeParamMapper.MapAll(doc, el);
                                 nativeMapped += mapped;
                                 updated += mapped;
+
+                                // Layer 3: Evaluate engineering formulas (cost, area, flow, environmental)
+                                // so formula-derived schedule fields are populated without requiring
+                                // FullAutoPopulate. Uses cached formulas with 5-min TTL.
+                                if (_apFormulas == null) _apFormulas = TagPipelineHelper.LoadFormulas();
+                                foreach (var formula in _apFormulas)
+                                {
+                                    try
+                                    {
+                                        var fCtx = FormulaEngine.BuildContext(el, formula);
+                                        if (fCtx == null) continue;
+                                        Parameter targetParam = el.LookupParameter(formula.ParameterName);
+                                        if (targetParam == null || targetParam.IsReadOnly) continue;
+                                        if (formula.Type.Equals("TEXT", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            string result = FormulaEngine.EvaluateText(formula.Expression, fCtx);
+                                            if (result != null) { ParameterHelpers.SetIfEmpty(el, formula.ParameterName, result); updated++; }
+                                        }
+                                        else
+                                        {
+                                            double? result = FormulaEngine.EvaluateNumeric(formula.Expression, fCtx);
+                                            if (result.HasValue) { if (FormulaEngine.WriteNumericResult(targetParam, result.Value)) updated++; }
+                                        }
+                                    }
+                                    catch (Exception fex) { StingLog.Warn($"AutoPopulate formula '{formula.ParameterName}': {fex.Message}"); }
+                                }
                             }
                             catch (Exception ex)
                             {

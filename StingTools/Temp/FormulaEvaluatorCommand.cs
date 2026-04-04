@@ -750,6 +750,10 @@ namespace StingTools.Temp
             {
                 var parser = new ExpressionParser(expression, context);
                 double result = parser.Parse();
+                // Guard against NaN/Infinity from Math.Pow (e.g., 0^-1, (-1)^0.5)
+                // or pathological division chains that produce Infinity
+                if (double.IsNaN(result) || double.IsInfinity(result))
+                    return null;
                 return result;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
@@ -856,6 +860,9 @@ namespace StingTools.Temp
         {
             try
             {
+                // Guard against NaN/Infinity corrupting Revit parameters
+                if (double.IsNaN(value) || double.IsInfinity(value))
+                    return false;
 
                 // Only write if currently empty/zero
                 if (param.StorageType == StorageType.Double)
@@ -1015,7 +1022,9 @@ namespace StingTools.Temp
                 {
                     _pos++;
                     double exp = ParseUnary();
-                    result = Math.Pow(result, exp);
+                    double powered = Math.Pow(result, exp);
+                    // Guard: Math.Pow(0,-1)=Infinity, Math.Pow(-1,0.5)=NaN
+                    result = (double.IsNaN(powered) || double.IsInfinity(powered)) ? 0 : powered;
                 }
                 return result;
             }
