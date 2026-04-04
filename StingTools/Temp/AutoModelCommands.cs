@@ -176,7 +176,7 @@ namespace StingTools.Temp
                 var cadInstances = new FilteredElementCollector(doc, activeView.Id)
                     .OfClass(typeof(ImportInstance))
                     .Cast<ImportInstance>()
-                    .Where(i => !i.IsLinked || i.IsLinked) // get all imports/links
+                    // no filter needed — get all imports/links
                     .ToList();
 
                 if (cadInstances.Count == 0)
