@@ -497,6 +497,7 @@ namespace StingTools.Core
             StingLog.Info("STING Tools shutting down");
             StingPluginHooks.ClearAll();
             StingAutoTagger.Unregister();
+            UI.ThemeManager.ClearTarget(); // H-02: Prevent memory leak from static WPF reference
             StingLog.Shutdown();
             return Result.Succeeded;
         }

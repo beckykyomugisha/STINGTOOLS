@@ -2286,6 +2286,7 @@ namespace StingTools.Model
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var totalResult = new StructuralModelResult { Success = true };
+            UI.StingProgressDialog frameProgress = null;
 
             try
             {
@@ -2297,7 +2298,7 @@ namespace StingTools.Model
                 // Previously no feedback for 5x5 grid × 10 storeys = 1100+ beams + 275 columns.
                 int totalExpected = totalCols * storeyCount + // columns per storey
                     (baysX * (baysY + 1) + baysY * (baysX + 1)) * storeyCount; // beams per storey
-                var frameProgress = UI.StingProgressDialog.Show("STING — Grid Frame", totalExpected);
+                frameProgress = UI.StingProgressDialog.Show("STING — Grid Frame", totalExpected);
                 StingLog.Info($"StructuralModelingEngine: Creating {baysX}×{baysY} grid frame " +
                     $"({totalCols} columns, {storeyCount} storeys)");
 
@@ -2445,7 +2446,6 @@ namespace StingTools.Model
                     }
                 }
 
-                frameProgress?.Close(); // AUTO-R3: Close progress dialog
                 sw.Stop();
                 totalResult.Duration = sw.Elapsed;
                 totalResult.Summary = $"Created {baysX}×{baysY} structural grid frame ({storeyCount} storeys): " +
@@ -2460,6 +2460,10 @@ namespace StingTools.Model
             {
                 StingLog.Error("StructuralModelingEngine.CreateGridFrame", ex);
                 return StructuralModelResult.Fail($"Grid frame failed: {ex.Message}");
+            }
+            finally
+            {
+                frameProgress?.Close();
             }
         }
 

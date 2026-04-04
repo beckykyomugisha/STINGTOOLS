@@ -1272,12 +1272,15 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                if (cancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
 
             var report = new StringBuilder();
             if (cancelled)
-                report.AppendLine($"CANCELLED by user at view {viewIndex}/{views.Count}");
+                report.AppendLine($"CANCELLED by user at view {viewIndex}/{views.Count} — changes rolled back");
             report.AppendLine($"Assigned: {assigned}");
             report.AppendLine($"Already had template: {alreadyAssigned}");
             report.AppendLine($"No match: {noMatch}");
@@ -1752,12 +1755,15 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                if (cancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
 
             report.AppendLine($"\n{new string('─', 55)}");
             if (cancelled)
-                report.AppendLine("CANCELLED by user — partial results shown");
+                report.AppendLine("CANCELLED by user — changes rolled back");
             report.AppendLine($"Total issues found: {totalIssues}");
             report.AppendLine($"Auto-fixed: {totalFixed}");
             report.AppendLine($"Remaining: {totalIssues - totalFixed}");
@@ -1841,10 +1847,13 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                if (cancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
 
-            string syncMsg = cancelled ? $"CANCELLED — synced {synced} of {stingTemplates.Count}" :
+            string syncMsg = cancelled ? $"CANCELLED — changes rolled back" :
                 $"Synced VG on {synced} STING templates.";
             TaskDialog.Show("Sync Template Overrides", $"{syncMsg}\nFailed: {failed}");
             StingLog.Info($"Sync VG: {synced} synced, {failed} failed{(cancelled ? " (cancelled)" : "")}");
@@ -2769,13 +2778,16 @@ namespace StingTools.Temp
                     }
                 }
 
-                tx.Commit();
+                if (cancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
 
             // Build coverage report
             var report = new StringBuilder();
             if (cancelled)
-                report.AppendLine($"Batch Add Family Parameters — CANCELLED at group {groupIndex}/{paramGroups.Count}");
+                report.AppendLine($"Batch Add Family Parameters — CANCELLED at group {groupIndex}/{paramGroups.Count} — changes rolled back");
             else
                 report.AppendLine($"Batch Add Family Parameters");
             report.AppendLine(new string('═', 50));
@@ -4263,7 +4275,10 @@ namespace StingTools.Temp
                             report.AppendLine($"  {kvp.Key} — FAILED: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    if (phaseCancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
                 }
             }
 
@@ -4352,13 +4367,16 @@ namespace StingTools.Temp
                         }
                     }
 
-                    tx.Commit();
+                    if (phaseCancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
                 }
             }
 
             report.AppendLine($"\n{new string('─', 55)}");
             if (phaseCancelled)
-                report.AppendLine("  (Operation was cancelled by user)");
+                report.AppendLine("  (Operation was cancelled — changes rolled back)");
             if (doTemplates)
                 report.AppendLine($"  Templates standardised: {templatesSynced}");
             if (doElements)
@@ -4459,7 +4477,7 @@ namespace StingTools.Temp
                 int b = Convert.ToInt32(hex.Substring(4, 2), 16);
                 return (r.ToString(), g.ToString(), b.ToString());
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"ParseHexColor: {ex.Message}"); return null; }
         }
 
         /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>

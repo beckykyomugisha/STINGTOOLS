@@ -479,6 +479,7 @@ namespace StingTools.Model
                     double weight = WeightPerMetre.TryGetValue(size, out var w) ? w : 1.0;
                     double length = 0;
                     try { length = r.TotalLength * Units.FeetToMm; } catch (Exception ex) { StingLog.Warn($"BBS length: {ex.Message}"); }
+                    if (double.IsNaN(length) || double.IsInfinity(length)) length = 0;
 
                     ws.Cell(row, 1).Value = $"{mark:D2}";
                     ws.Cell(row, 2).Value = "H";

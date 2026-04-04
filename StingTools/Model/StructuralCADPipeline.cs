@@ -1448,6 +1448,7 @@ namespace StingTools.Model
             Level level, double heightMm, StructuralModelResult result)
         {
             int count = 0;
+            bool cancelled = false;
             var fh = new ModelFailureHandler();
             using (var tx = new Transaction(_doc, "STING STRUCT: Columns from Circles"))
             {
@@ -1480,9 +1481,9 @@ namespace StingTools.Model
                     {
                         result.Warnings.Add($"Round column: {ex.Message}");
                     }
-                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1641,6 +1642,7 @@ namespace StingTools.Model
             Level level, double heightMm, StructuralModelResult result)
         {
             int count = 0;
+            bool cancelled = false;
             var fh = new ModelFailureHandler();
             using (var tx = new Transaction(_doc, "STING STRUCT: Walls from DWG"))
             {
@@ -1668,10 +1670,10 @@ namespace StingTools.Model
                     }
                     catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
 
-                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 10 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
 
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -1986,6 +1988,7 @@ namespace StingTools.Model
             StructuralModelResult result)
         {
             int count = 0;
+            bool cancelled = false;
             var fh = new ModelFailureHandler();
             using (var tx = new Transaction(_doc, "STING STRUCT: Columns (soffit)"))
             {
@@ -2032,9 +2035,9 @@ namespace StingTools.Model
                         count++;
                     }
                     catch (Exception ex) { result.Warnings.Add($"Column (soffit): {ex.Message}"); }
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;
@@ -2215,6 +2218,7 @@ namespace StingTools.Model
             DWGConversionConfig config, StructuralModelResult result)
         {
             int count = 0;
+            bool cancelled = false;
             var fh = new ModelFailureHandler();
             using (var tx = new Transaction(_doc, "STING STRUCT: Walls from DWG"))
             {
@@ -2244,10 +2248,10 @@ namespace StingTools.Model
                         count++;
                     }
                     catch (Exception ex) { result.Warnings.Add($"Wall: {ex.Message}"); }
-                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) break;
+                    if (count % 50 == 0 && EscapeChecker.IsEscapePressed()) { cancelled = true; break; }
                 }
 
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             result.Warnings.AddRange(fh.CapturedWarnings);
             return count;

@@ -255,9 +255,15 @@ namespace StingTools.Core
                             // Parse tag segments to determine completeness
                             // PERF-R1: Use cached separator array; replace LINQ Skip/Take/All with for-loop
                             // DI-001: Rebuild separator array from ParamRegistry if null (first scan or after InvalidateCache)
-                            if (_separatorArray == null)
-                                _separatorArray = new[] { ParamRegistry.Separator };
-                            string[] parts = tag.Split(_separatorArray, StringSplitOptions.None);
+                            // Phase 88: Capture in local var to prevent race with InvalidateCache() setting null
+                            // between the null-check and the Split() call (scan runs outside _cacheLock)
+                            var sepArr = _separatorArray;
+                            if (sepArr == null)
+                            {
+                                sepArr = new[] { ParamRegistry.Separator };
+                                _separatorArray = sepArr;
+                            }
+                            string[] parts = tag.Split(sepArr, StringSplitOptions.None);
                             int po = !string.IsNullOrEmpty(TagConfig.TagPrefix) ? 1 : 0;
                             int so = !string.IsNullOrEmpty(TagConfig.TagSuffix) ? 1 : 0;
                             bool hasCorrectSegments = parts.Length >= 8 + po + so;
@@ -795,7 +801,7 @@ namespace StingTools.Core
                 string dir = delta > 2 ? "improving" : delta < -2 ? "declining" : "stable";
                 return (dir, delta);
             }
-            catch { return ("unknown", 0); }
+            catch (Exception ex) { StingLog.Warn($"Compliance trend calc: {ex.Message}"); return ("unknown", 0); }
         }
 
         private static List<TrendEntry> LoadEntries(string path)

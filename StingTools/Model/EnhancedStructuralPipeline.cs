@@ -182,11 +182,6 @@ namespace StingTools.Model
             double wUls = GammaG * 0.70 * udlKNm + GammaQ * 0.30 * udlKNm;
             double mEd = wUls * spanM * spanM / 8;
 
-            // Deflection check (SLS: span/360 for imposed)
-            double wSls = udlKNm * 0.6; // Imposed only
-            double eReq = 5.0 * wSls * Math.Pow(spanM * 1000, 4) / (384 * 210000); // I_req simplified
-            double deflLimit = spanM * 1000 / 360;
-
             var (name, mass) = UKSteelSections.SelectUBForMoment(mEd, fy);
             return (name, mass, $"M_Ed={mEd:F0}kNm, Section: {name} ({mass:F0}kg/m)");
         }

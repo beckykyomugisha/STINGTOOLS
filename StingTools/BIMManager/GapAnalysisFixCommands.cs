@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════════
 //  GAP ANALYSIS FIX COMMANDS — Phase 68
-//  Implements findings from TAGGING_PROCEDURES_GUIDE.md and BIM_MANAGEMENT_GUIDE.md
-//  gap analysis sections (Section 18 of each document).
+//  Implements gap analysis findings from Phase 68 review.
 //
 //  GAP-03: Extended COBie Import (Type, System, Job worksheets)
 //  GAP-04: Dashboard HTML Export from Coordination Center
@@ -1151,7 +1150,7 @@ namespace StingTools.BIMManager
                     ? JArray.Parse(File.ReadAllText(meetingsPath))
                     : new JArray();
             }
-            catch { meetings = new JArray(); }
+            catch (Exception ex) { StingLog.Warn($"Load meetings JSON: {ex.Message}"); meetings = new JArray(); }
 
             var existingTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (JObject m in meetings)

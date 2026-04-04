@@ -1218,8 +1218,8 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(fullTag) || string.IsNullOrEmpty(mask) || mask.Length < 8)
                 return fullTag;
 
-            char sep = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator[0] : '-';
-            string[] parts = fullTag.Split(sep);
+            string sepStr = !string.IsNullOrEmpty(ParamRegistry.Separator) ? ParamRegistry.Separator : "-";
+            string[] parts = fullTag.Split(new[] { sepStr }, StringSplitOptions.None);
             if (parts.Length < 8) return fullTag;
 
             var visible = new List<string>();
@@ -1724,6 +1724,8 @@ namespace StingTools.Core
 
                 ConfigSource = path;
                 ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets after config reload
+                try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches on config reload
+                catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
 
                 // Load category warnings and paragraph containers from LABEL_DEFINITIONS
                 LoadCategoryWarningsFromLabels();
@@ -1778,6 +1780,8 @@ namespace StingTools.Core
             CategoryTokenOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             ConfigSource = "built-in defaults";
             ISO19650Validator.InvalidateValidatorCaches(); // PERF-01: clear cached code sets
+            try { BIMManager.ExcelLinkEngine.InvalidateValidationCache(); } // DI-02: clear Excel validation caches
+            catch (Exception) { /* ExcelLinkEngine may not be loaded yet */ }
             ComplianceGatePct = 0;
             SeparatorHistory = new List<string>();
             AutoRunWorkflowOnOpen = string.Empty;

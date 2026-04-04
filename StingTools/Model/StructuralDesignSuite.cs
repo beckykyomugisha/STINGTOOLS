@@ -249,6 +249,14 @@ namespace StingTools.Model
             double totalLoad = load1KN + load2KN;
             double spacingM = spacingMm / 1000.0;
 
+            if (totalLoad <= 0)
+            {
+                result.LengthMm = spacingMm + 600;
+                result.WidthMm = 600;
+                result.ThicknessMm = 500;
+                return result;
+            }
+
             // Centroid of resultant force
             double xBar = load2KN * spacingM / totalLoad;
 

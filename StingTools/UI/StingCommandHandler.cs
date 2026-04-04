@@ -1629,7 +1629,7 @@ namespace StingTools.UI
                         var opDoc = app.ActiveUIDocument?.Document;
                         string root = Core.ProjectFolderEngine.GetRootPath(opDoc);
                         if (System.IO.Directory.Exists(root))
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true });
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
                         break;
                     }
 
@@ -2304,6 +2304,143 @@ namespace StingTools.UI
                                 foreach (var kv in dlgResult.Options)
                                     SetExtraParam(kv.Key, kv.Value);
                             Execute(app);
+                        }
+                        break;
+                    }
+                    case "TemplateDashboard":
+                    {
+                        // Keep-dialog-open loop: re-open after each dispatched command
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.TemplateManagerDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("TemplateDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+                    case "SchedulingCostDashboard":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.SchedulingCostDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("SchedulingCostDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+                    case "RevisionManagerDashboard":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var revDoc = app.ActiveUIDocument?.Document;
+                                if (revDoc == null) break;
+                                var dlgResult = UI.RevisionManagerDashboard.Show(revDoc);
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("RevisionManagerDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+                    case "WarningsDashboardDialog":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.WarningsDashboardDialog.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("WarningsDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+
+                    case "BEPDashboard":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.BEPDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("BEPDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+                    case "COBieExportDashboard":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.COBieExportDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("COBieExportDashboard loop: " + ex.Message); break; }
+                        }
+                        break;
+                    }
+                    case "IssueTrackerDashboard":
+                    {
+                        while (true)
+                        {
+                            try
+                            {
+                                var dlgResult = UI.IssueTrackerDashboard.Show();
+                                if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
+                                    break;
+                                SetCommand(dlgResult.Operation);
+                                if (dlgResult.Options != null)
+                                    foreach (var kv in dlgResult.Options)
+                                        SetExtraParam(kv.Key, kv.Value);
+                                Execute(app);
+                            }
+                            catch (Exception ex) { StingLog.Warn("IssueTrackerDashboard loop: " + ex.Message); break; }
                         }
                         break;
                     }

@@ -137,7 +137,7 @@ namespace StingTools.Tags
                             BorderThickness = new System.Windows.Thickness(1),
                             Content = new System.Windows.Controls.TextBlock
                             {
-                                Text = "Aa", FontSize = double.Parse(size) * 3.5,
+                                Text = "Aa", FontSize = double.Parse(size, System.Globalization.CultureInfo.InvariantCulture) * 3.5,
                                 Foreground = new System.Windows.Media.SolidColorBrush(
                                     color == "WHITE" || color == "YELLOW" ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White),
                                 FontStyle = style == "ITALIC" ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,

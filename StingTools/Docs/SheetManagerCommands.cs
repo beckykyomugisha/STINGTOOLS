@@ -772,18 +772,19 @@ namespace StingTools.Docs
                 .Where(s => !s.IsPlaceholder && s.GetAllViewports().Count > 0).ToList();
 
             int total = 0;
+            bool cancelled = false;
             var arrangeProgress = StingProgressDialog.Show("Batch Arrange Viewports", sheets.Count);
             using (var tx = new Transaction(doc, "STING Batch Arrange"))
             {
                 tx.Start();
                 foreach (var sheet in sheets)
                 {
-                    if (arrangeProgress.IsCancelled) break;
+                    if (arrangeProgress.IsCancelled) { cancelled = true; break; }
                     arrangeProgress.Increment($"Sheet {sheet.SheetNumber}");
                     try { total += SheetManagerEngine.ArrangeViewportsOnSheet(doc, sheet); }
                     catch (Exception ex) { StingLog.Warn($"Arrange error on {sheet.SheetNumber}: {ex.Message}"); }
                 }
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             try { arrangeProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchArrange progress close: {ex.Message}"); }
             TaskDialog.Show("Sheet Manager", $"Arranged {total} viewports across {sheets.Count} sheets.");

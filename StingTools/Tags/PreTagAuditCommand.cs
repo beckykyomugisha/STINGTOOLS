@@ -177,6 +177,7 @@ namespace StingTools.Tags
 
                 // Check token coverage
                 bool hasEmptyToken = false;
+                int elementEmptyTokens = 0;
                 foreach (string param in tokenParams)
                 {
                     string val = ParameterHelpers.GetString(el, param);
@@ -184,6 +185,7 @@ namespace StingTools.Tags
                     {
                         emptyTokenCounts[param]++;
                         hasEmptyToken = true;
+                        elementEmptyTokens++;
                     }
                 }
                 if (hasEmptyToken) missingTokenElements++;
@@ -208,7 +210,7 @@ namespace StingTools.Tags
 
                 // Collect missing-token issues
                 if (hasEmptyToken)
-                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "MISSING_TOKENS", Description = $"{emptyTokenCounts.Count(x => x.Value > 0)} tokens empty" });
+                    auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "MISSING_TOKENS", Description = $"{elementEmptyTokens} tokens empty" });
                 if (!hasTag)
                     auditIssues.Add(new AuditIssue { ElementId = el.Id, IssueType = "UNTAGGED", Description = $"No tag on {catName}" });
 
@@ -514,7 +516,7 @@ namespace StingTools.Tags
                         StringComparison.OrdinalIgnoreCase);
                     if (autoOpen)
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
-                        { UseShellExecute = true });
+                        { UseShellExecute = true })?.Dispose();
                 }
                 catch (Exception ex) { StingLog.Warn($"PreTagAudit: auto-open failed: {ex.Message}"); }
             }

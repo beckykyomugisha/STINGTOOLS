@@ -400,6 +400,11 @@ namespace StingTools.Core
                 if (ctx == null) return;
                 var existingTags = _cachedExistingTags;
                 var seqCounters = _cachedSeqCounters;
+                if (existingTags == null || seqCounters == null)
+                {
+                    StingLog.Warn("AutoTagger: null existingTags or seqCounters after context rebuild");
+                    return;
+                }
 
                 foreach (ElementId id in addedIds)
                 {
@@ -434,7 +439,7 @@ namespace StingTools.Core
                                     && wsInfo.Owner != doc.Application.Username
                                     && wsInfo.Owner != "")
                                 {
-                                    _deferredElements.Enqueue(id);
+                                    EnqueueDeferred(id);
                                     StingLog.Info($"AutoTagger: deferred {id.Value} (workset not owned by {doc.Application.Username}) — will retry after sync");
                                     continue;
                                 }

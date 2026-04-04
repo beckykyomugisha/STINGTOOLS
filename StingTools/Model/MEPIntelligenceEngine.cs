@@ -212,11 +212,12 @@ namespace StingTools.Model
         {
             var result = new PressureDropResult { SystemType = "Duct" };
 
-            // Hydraulic diameter
+            // Hydraulic diameter: Dh = 4A/P. Guard against zero perimeter (zero-size duct).
             double w = widthMm / 1000.0;
             double h = heightMm / 1000.0;
             double area = w * h;
             double perimeter = 2 * (w + h);
+            if (perimeter < 1e-10) return result; // zero-size duct — no meaningful calculation
             double dh = 4 * area / perimeter; // hydraulic diameter
 
             // Velocity

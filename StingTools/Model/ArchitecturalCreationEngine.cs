@@ -336,8 +336,15 @@ namespace StingTools.Model
                 ProtectionType = protectionType,
             };
 
-            double hp = threeSided ? perimeterMm - (Math.Sqrt(Math.Max(areaMm2, 0)) * 0.5) : perimeterMm;
-            result.SectionFactorM = hp / areaMm2 * 1000; // m⁻¹
+            // 3-sided exposure: subtract the flange width (bottom flange against slab).
+            // Ideally Hp = perimeter - flange_width, but flange width is not available
+            // as a separate parameter. √area approximates √(d×tw + 2×bf×tf) which
+            // underestimates the flange width by ~10-15% for typical UB sections.
+            // For accurate Hp/A, use section-specific data from SCI P313 / Yellow Book.
+            double flangeEstimate = Math.Sqrt(Math.Max(areaMm2, 1));
+            double hp = threeSided ? perimeterMm - flangeEstimate : perimeterMm;
+            if (hp <= 0) hp = perimeterMm * 0.75; // safety fallback
+            result.SectionFactorM = areaMm2 > 0 ? hp / areaMm2 * 1000 : 0; // m⁻¹
 
             if (protectionType == "intumescent")
             {

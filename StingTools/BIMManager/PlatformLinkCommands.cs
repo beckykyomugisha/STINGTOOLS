@@ -261,7 +261,9 @@ namespace StingTools.BIMManager
                         new XElement("ModifiedDate", DateTime.UtcNow.ToString("o")),
                         new XElement("ModifiedAuthor", Environment.UserName),
                         new XElement("AssignedTo", issue["assigned_to"]?.ToString() ?? ""),
-                        new XElement("Description", issue["description"]?.ToString() ?? "")
+                        new XElement("Description", issue["description"]?.ToString() ?? ""),
+                        // CS-02 FIX: Preserve STING issue type in BCF extension element for lossless round-trip
+                        new XElement("StingIssueType", type)
                     )
                 )
             );
@@ -370,7 +372,10 @@ namespace StingTools.BIMManager
             if (topic == null) return null;
 
             string bcfType = topic.Attribute("TopicType")?.Value ?? "Issue";
-            string stingType = BcfToStingType.TryGetValue(bcfType, out string st) ? st : "COMMENT";
+            // CS-02 FIX: Check for STING extension element first for lossless round-trip
+            string stingExtType = topic.Element("StingIssueType")?.Value;
+            string stingType = !string.IsNullOrEmpty(stingExtType) ? stingExtType
+                : BcfToStingType.TryGetValue(bcfType, out string st) ? st : "COMMENT";
 
             string bcfPriority = topic.Element("Priority")?.Value ?? "Normal";
             string stingPriority = BcfToStingPriority.TryGetValue(bcfPriority, out string sp) ? sp : "MEDIUM";
@@ -1040,7 +1045,7 @@ namespace StingTools.BIMManager
                 {
                     if (action == "OpenFolder")
                     {
-                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true }); }
+                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true })?.Dispose(); }
                         catch (Exception ex) { StingLog.Warn($"Open folder: {ex.Message}"); }
                     }
                 };

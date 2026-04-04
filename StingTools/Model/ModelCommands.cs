@@ -564,12 +564,18 @@ namespace StingTools.Model
                 int totalCols = rows * cols;
                 var progress = StingProgressDialog.Show($"Creating {totalCols} Columns", totalCols);
 
-                var engine = new ModelEngine(doc);
-                var result = engine.PlaceColumnGrid(rows, cols, spacingXMm, spacingYMm,
-                    originXMm: pt.X * Units.FeetToMm,
-                    originYMm: pt.Y * Units.FeetToMm);
-
-                progress.Close();
+                ModelResult result;
+                try
+                {
+                    var engine = new ModelEngine(doc);
+                    result = engine.PlaceColumnGrid(rows, cols, spacingXMm, spacingYMm,
+                        originXMm: pt.X * Units.FeetToMm,
+                        originYMm: pt.Y * Units.FeetToMm);
+                }
+                finally
+                {
+                    progress.Close();
+                }
 
                 if (result.Success)
                 {

@@ -295,11 +295,24 @@ namespace StingTools.Core
                             .WhereElementIsNotElementType().GetElementCount();
                         totalFederatedElements += linkElementCount;
 
-                        // Run compliance scan on linked document
-                        var linkCompliance = ComplianceScan.Scan(linkDoc);
-                        if (linkCompliance != null)
+                        // AU-05: Inline compliance check for linked doc — avoids overwriting
+                        // host document's ComplianceScan cache with linked doc data.
+                        int linkTagged = 0;
+                        var linkColl = new FilteredElementCollector(linkDoc)
+                            .WhereElementIsNotElementType();
+                        foreach (var el in linkColl)
                         {
-                            weightedCompliance += linkCompliance.CompliancePercent * linkElementCount;
+                            try
+                            {
+                                string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                                if (!string.IsNullOrEmpty(tag)) linkTagged++;
+                            }
+                            catch (Exception ex2) { StingLog.Warn($"FederatedPreFlight link compliance scan: {ex2.Message}"); }
+                        }
+                        if (linkElementCount > 0)
+                        {
+                            double linkPct = (double)linkTagged / linkElementCount * 100.0;
+                            weightedCompliance += linkPct * linkElementCount;
                             totalWeight += linkElementCount;
                         }
                     }
@@ -359,7 +372,11 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"FederatedPreFlight: {ex.Message}"); }
 
-            return (issues.Count == 0, issues);
+            // AU-04: Only set canProceed to false when federated issues are critical,
+            // don't overwrite a false canProceed from PreFlightCheck with true
+            if (issues.Count > 0)
+                canProceed = false;
+            return (canProceed, issues);
         }
     }
 
@@ -452,7 +469,7 @@ namespace StingTools.Core
                         return DateTime.Now.DayOfWeek.ToString().Equals(value, StringComparison.OrdinalIgnoreCase);
                     }
                     default:
-                        return true; // Unknown condition — allow execution
+                        return false; // Unknown condition — fail-safe: skip step
                 }
             }
             catch (Exception ex)
@@ -888,7 +905,7 @@ namespace StingTools.Core
         public DateTime? SuppressUntil { get; set; }            // Expiry date (null = permanent)
         public string Context { get; set; } = "all";            // Phase context: all/SD/DD/CD/handover
         public string SuppressedBy { get; set; } = Environment.UserName;
-        public DateTime SuppressedDate { get; set; } = DateTime.Now;
+        public DateTime SuppressedDate { get; set; } = DateTime.UtcNow;
         public string Reason { get; set; } = "";                // Why suppressed
         public bool Active { get; set; } = true;
     }
@@ -1022,7 +1039,14 @@ namespace StingTools.Core
                     }
                 }
                 json["WARNING_SUPPRESSIONS"] = arr;
-                File.WriteAllText(configPath, json.ToString(Formatting.Indented));
+                // CS-04: Atomic file write — temp + File.Replace to prevent corruption on crash
+                string content = json.ToString(Formatting.Indented);
+                string tmpPath = configPath + ".tmp";
+                File.WriteAllText(tmpPath, content);
+                if (File.Exists(configPath))
+                    File.Replace(tmpPath, configPath, configPath + ".bak");
+                else
+                    File.Move(tmpPath, configPath);
             }
             catch (Exception ex) { StingLog.Warn($"SuppressionManager.SaveToConfig: {ex.Message}"); }
         }
@@ -1092,7 +1116,7 @@ namespace StingTools.Core
         /// <summary>A team activity entry.</summary>
         internal class ActivityEntry
         {
-            public DateTime Timestamp { get; set; } = DateTime.Now;
+            public DateTime Timestamp { get; set; } = DateTime.UtcNow;
             public string UserName { get; set; }
             public string Action { get; set; }          // "Checked out", "Tagged", "Issue created", etc.
             public string Detail { get; set; }           // Workset name, discipline, issue title, etc.
@@ -1102,6 +1126,9 @@ namespace StingTools.Core
         private static readonly List<ActivityEntry> _activities = new();
         private static readonly object _lock = new object();
         private const int MaxEntries = 200;
+        // AU-03: Cache issues.json reads — only re-read if file modification time changed
+        private static DateTime _lastIssueScanMod;
+        private static List<ActivityEntry> _lastIssueEntries = new();
 
         /// <summary>Record a team activity.</summary>
         public static void Record(string user, string action, string detail, string discipline = "")
@@ -1160,8 +1187,24 @@ namespace StingTools.Core
                 string issuesPath = Path.Combine(projectDir, "_bim_manager", "issues.json");
                 if (!File.Exists(issuesPath)) return;
 
+                // AU-03: Only re-read file if modification time changed
+                DateTime fileMod = File.GetLastWriteTimeUtc(issuesPath);
+                if (fileMod == _lastIssueScanMod && _lastIssueEntries.Count > 0)
+                {
+                    // Replay cached entries
+                    lock (_lock)
+                    {
+                        foreach (var entry in _lastIssueEntries)
+                            _activities.Add(entry);
+                        while (_activities.Count > MaxEntries)
+                            _activities.RemoveAt(0);
+                    }
+                    return;
+                }
+
                 var issues = JArray.Parse(File.ReadAllText(issuesPath));
-                var cutoff = DateTime.Now.AddHours(-24);
+                var cutoff = DateTime.UtcNow.AddHours(-24);
+                var newEntries = new List<ActivityEntry>();
                 foreach (var issue in issues)
                 {
                     var created = issue["created_date"]?.ToString();
@@ -1170,9 +1213,19 @@ namespace StingTools.Core
                         string user = issue["created_by"]?.ToString() ?? "Unknown";
                         string title = issue["title"]?.ToString() ?? "";
                         string type = issue["type"]?.ToString() ?? "Issue";
+                        var entry = new ActivityEntry
+                        {
+                            Timestamp = dt,
+                            UserName = user,
+                            Action = $"{type} created",
+                            Detail = title
+                        };
+                        newEntries.Add(entry);
                         Record(user, $"{type} created", title);
                     }
                 }
+                _lastIssueScanMod = fileMod;
+                _lastIssueEntries = newEntries;
             }
             catch (Exception ex) { StingLog.Warn($"TeamActivityTracker.ScanIssues: {ex.Message}"); }
         }
@@ -1778,7 +1831,9 @@ namespace StingTools.Core
                 {
                     string dir = Path.GetDirectoryName(issuesPath);
                     if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                    File.WriteAllText(issuesPath, existingIssues.ToString(Formatting.Indented));
+                    string tmpPath = issuesPath + ".tmp";
+                    File.WriteAllText(tmpPath, existingIssues.ToString(Formatting.Indented));
+                    File.Move(tmpPath, issuesPath, true);
                     StingLog.Info($"WarningToIssueCreator: created {created} issues from warnings");
                 }
                 catch (Exception ex) { StingLog.Warn($"WarningToIssueCreator save: {ex.Message}"); }

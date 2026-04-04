@@ -223,7 +223,9 @@ namespace StingTools.Tags
                 };
 
                 string json = JsonConvert.SerializeObject(config, Formatting.Indented);
-                File.WriteAllText(path, json);
+                string tmpPath = path + ".tmp";
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, path, true);
 
                 // GAP-6B: Reload config immediately after save so changes take effect
                 try
@@ -381,7 +383,7 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true })?.Dispose(); }
             catch (Exception ex) { TaskDialog.Show("Error", ex.Message); return Result.Failed; }
 
             var wait = new TaskDialog($"Editing: {def.file}");

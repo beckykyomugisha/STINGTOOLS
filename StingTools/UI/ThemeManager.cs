@@ -152,6 +152,14 @@ namespace StingTools.UI
 
             var theme = Themes[themeName];
 
+            // H-03: Merge corporate overrides at apply-time without mutating base theme
+            if (themeName.Equals("Corporate", StringComparison.OrdinalIgnoreCase) && _corporateOverrides.Count > 0)
+            {
+                theme = new Dictionary<string, string>(theme, StringComparer.OrdinalIgnoreCase);
+                foreach (var ov in _corporateOverrides)
+                    theme[ov.Key] = ov.Value;
+            }
+
             // Set resources on the host element FIRST (direct, always works in Revit)
             ApplyToTarget(theme, _targetElement?.Resources);
 
@@ -204,10 +212,21 @@ namespace StingTools.UI
         /// <summary>Apply corporate theme with custom accent/primary from config.</summary>
         public static void ApplyCorporateOverrides(string accentHex, string primaryHex)
         {
+            // H-03: Store overrides separately, merge at apply-time instead of mutating base theme
             if (!string.IsNullOrEmpty(accentHex))
-                Themes["Corporate"]["AccentBrush"] = accentHex;
+                _corporateOverrides["AccentBrush"] = accentHex;
             if (!string.IsNullOrEmpty(primaryHex))
-                Themes["Corporate"]["HeaderBg"] = primaryHex;
+                _corporateOverrides["HeaderBg"] = primaryHex;
+        }
+
+        // H-03: Separate overrides dictionary so base Corporate theme is never mutated
+        private static readonly Dictionary<string, string> _corporateOverrides =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>H-02: Clear static reference to prevent memory leak on shutdown.</summary>
+        public static void ClearTarget()
+        {
+            _targetElement = null;
         }
 
         /// <summary>Get all available theme names.</summary>

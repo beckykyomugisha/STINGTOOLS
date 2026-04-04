@@ -325,13 +325,16 @@ namespace StingTools.Model
                 else if (roomType.Contains("hospital") || roomType.Contains("theatre")) standard = "HTM 08-01";
             }
 
+            double minAllowed = _rt60Limits.TryGetValue(roomType, out var limitsForMin) && limitsForMin.Min > 0
+                ? limitsForMin.Min : 0.3;
+
             string rec = "Meets requirement";
             if (rt60 > maxAllowed)
             {
                 double extraAbsorption = 0.161 * volumeM3 / maxAllowed - totalAbsorptionM2;
                 rec = $"Add {extraAbsorption:F1} m² absorption (e.g., {extraAbsorption / 0.8:F0} m² acoustic panel α=0.8)";
             }
-            else if (rt60 < (limits.Min > 0 ? limits.Min : 0.3))
+            else if (rt60 < minAllowed)
             {
                 rec = "Room may sound overly dead — reduce absorption";
             }
@@ -702,8 +705,14 @@ namespace StingTools.Model
                         double heightM = (room.UnboundedHeight > 0 ? room.UnboundedHeight : 10) * 0.3048;
                         double volumeM3 = areaM2 * heightM;
 
-                        // Estimate absorption: bare room ~0.1, furnished ~0.3
-                        double totalSurface = 2 * areaM2 + 2 * (Math.Sqrt(Math.Max(areaM2, 0)) * 2) * heightM;
+                        // Estimate total surface area: 2×floor/ceiling + walls×height
+                        // For unknown aspect ratio, assume 1.5:1 (typical office/classroom)
+                        // which gives perimeter = 2×(L + L/1.5) = 2×L×(1 + 1/1.5) ≈ 3.33×L
+                        // where L = √(area × 1.5), so perimeter ≈ 2×(√(1.5×area) + √(area/1.5))
+                        // This is more accurate than 4×√area which assumes a square room
+                        double sqrtArea = Math.Sqrt(Math.Max(areaM2, 0.01));
+                        double estPerimeter = 2.0 * (sqrtArea * 1.2247 + sqrtArea * 0.8165); // aspect 1.5:1
+                        double totalSurface = 2 * areaM2 + estPerimeter * heightM;
                         double avgAlpha = 0.15; // bare typical
                         double totalAbsorption = totalSurface * avgAlpha;
 

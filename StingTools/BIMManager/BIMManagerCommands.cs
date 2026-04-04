@@ -322,7 +322,8 @@ namespace StingTools.BIMManager
 
                     if (DateTime.TryParse(createdStr, out DateTime created))
                     {
-                        double elapsed = (DateTime.Now - created).TotalHours;
+                        // CS-05 FIX: Use UTC to avoid DST issues with parsed timestamps
+                        double elapsed = (DateTime.UtcNow - created.ToUniversalTime()).TotalHours;
                         if (elapsed > slaHours)
                         {
                             overdue.Add((
@@ -739,9 +740,38 @@ namespace StingTools.BIMManager
 
         internal static JArray LoadJsonArray(string path)
         {
-            if (!File.Exists(path)) return new JArray();
+            if (!File.Exists(path))
+            {
+                // DI-01 FIX: Try .bak backup if primary file doesn't exist
+                string bakPath = path + ".bak";
+                if (File.Exists(bakPath))
+                {
+                    try
+                    {
+                        StingLog.Warn($"BIMManager: primary JSON missing, loading backup: {Path.GetFileName(bakPath)}");
+                        return JArray.Parse(File.ReadAllText(bakPath));
+                    }
+                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup also failed: {bex.Message}"); }
+                }
+                return new JArray();
+            }
             try { return JArray.Parse(File.ReadAllText(path)); }
-            catch (Exception ex) { StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}"); return new JArray(); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BIMManager: failed to load JSON array {Path.GetFileName(path)}: {ex.Message}");
+                // DI-01 FIX: Fall back to .bak backup on parse failure
+                string bakPath = path + ".bak";
+                if (File.Exists(bakPath))
+                {
+                    try
+                    {
+                        StingLog.Warn($"BIMManager: trying backup file: {Path.GetFileName(bakPath)}");
+                        return JArray.Parse(File.ReadAllText(bakPath));
+                    }
+                    catch (Exception bex) { StingLog.Warn($"BIMManager: backup parse also failed: {bex.Message}"); }
+                }
+                return new JArray();
+            }
         }
 
         internal static void SaveJsonFile(string path, JToken data)
@@ -5078,7 +5108,7 @@ namespace StingTools.BIMManager
                 }
                 else if (tag == "OpenFolder")
                 {
-                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true }); }
+                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"OpenFolder: {ex.Message}"); }
                 }
                 else if (tag == "OpenFile")
@@ -5086,7 +5116,7 @@ namespace StingTools.BIMManager
                     var selected = dlg.SelectedItems.FirstOrDefault() as DocRegisterRow;
                     if (selected != null && !string.IsNullOrEmpty(selected.FilePath) && File.Exists(selected.FilePath))
                     {
-                        try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true }); }
+                        try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true })?.Dispose(); }
                         catch (Exception ex) { dlg.SetStatus($"Cannot open: {ex.Message}"); }
                     }
                     else
@@ -6217,7 +6247,7 @@ namespace StingTools.BIMManager
                     break;
 
                 case TaskDialogResult.CommandLink3:
-                    try { System.Diagnostics.Process.Start("explorer.exe", BIMManagerEngine.GetBIMManagerDir(doc)); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", BIMManagerEngine.GetBIMManagerDir(doc))?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open folder: {ex.Message}"); }
                     break;
 
@@ -6337,7 +6367,7 @@ namespace StingTools.BIMManager
                     break;
 
                 case TaskDialogResult.CommandLink2:
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(selectedItem.FilePath) { UseShellExecute = true }); }
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(selectedItem.FilePath) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open: {ex.Message}"); }
                     break;
             }
@@ -6382,7 +6412,7 @@ namespace StingTools.BIMManager
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
-                    try { System.Diagnostics.Process.Start("explorer.exe", bimDir); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", bimDir)?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open: {ex.Message}"); }
                     break;
 
@@ -6400,7 +6430,7 @@ namespace StingTools.BIMManager
                     try
                     {
                         File.WriteAllText(notePath, note.ToString());
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true });
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true })?.Dispose();
                         TaskDialog.Show("STING Briefcase", $"Note created and opened:\n{notePath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Failed: {ex.Message}"); }
@@ -8530,7 +8560,7 @@ namespace StingTools.BIMManager
                     var bep = Newtonsoft.Json.Linq.JObject.Parse(json);
                     string stageStr = bep["project_information"]?["project_stage"]?.ToString() ?? "";
                     if (stageStr.Length > 0 && char.IsDigit(stageStr[0]))
-                        return int.Parse(stageStr[0].ToString());
+                        return stageStr[0] - '0';
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BEP stage detection failed: {ex.Message}"); }
@@ -9155,7 +9185,7 @@ namespace StingTools.BIMManager
                 var tdResult = td.Show();
                 if (tdResult == TaskDialogResult.CommandLink1)
                 {
-                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\"")?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"Failed to open explorer: {ex.Message}"); }
                 }
 

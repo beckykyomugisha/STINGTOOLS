@@ -71,7 +71,9 @@ namespace StingTools.Core
                         var heightP = el.get_Parameter(BuiltInParameter.RBS_CURVE_HEIGHT_PARAM);
                         if (flowP != null && widthP != null && heightP != null)
                         {
-                            double flowM3s = flowP.AsDouble() * 0.000471947;
+                            // Revit stores duct flow in ft³/s internally.
+                            // 1 ft³/s = 0.0283168 m³/s (NOT 0.000471947 which is CFM→m³/s)
+                            double flowM3s = flowP.AsDouble() * 0.0283168;
                             double wMm = widthP.AsDouble() * 304.8;
                             double hMm = heightP.AsDouble() * 304.8;
                             double area = (wMm / 1000.0) * (hMm / 1000.0);
@@ -90,9 +92,11 @@ namespace StingTools.Core
                         if (flowP != null && diamP != null)
                         {
                             double diamM = diamP.AsDouble() * 0.3048;
-                            double flowLs = flowP.AsDouble() * 0.0283168;
+                            // Revit stores pipe flow in ft³/s internally.
+                            // 1 ft³/s = 0.0283168 m³/s. Velocity = flow(m³/s) / area(m²).
+                            double flowM3s = flowP.AsDouble() * 0.0283168;
                             double area = Math.PI * diamM * diamM / 4.0;
-                            double velocity = area > 0 ? (flowLs / 1000.0) / area : 0;
+                            double velocity = area > 0 ? flowM3s / area : 0;
                             double maxV = diamM * 1000 < 50 ? 1.5 : 3.0;
                             if (velocity > maxV)
                                 warnings.Add($"Pipe {el.Name}: velocity {velocity:F1} m/s > {maxV:F1} m/s. Increase pipe diameter.");
@@ -172,7 +176,7 @@ namespace StingTools.Core
                 double yMean = y.Average();
                 double ssRes = x.Zip(y, (xi, yi) => { double d = yi - (slope * xi + intercept); return d * d; }).Sum();
                 double ssTot = y.Sum(yi => { double d = yi - yMean; return d * d; });
-                double r2 = ssTot > 0 ? 1.0 - ssRes / ssTot : 0;
+                double r2 = ssTot > 0 ? Math.Max(0, 1.0 - ssRes / ssTot) : 0;
 
                 string trend = slope > 1 ? "Increasing" : slope < -1 ? "Decreasing" : "Stable";
                 return (predicted, trend, r2 * 100);

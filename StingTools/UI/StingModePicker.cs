@@ -62,6 +62,11 @@ namespace StingTools.UI
         private static readonly Color TextPrimary = Color.FromRgb(40, 40, 50);
         private static readonly Color TextSecondary = Color.FromRgb(120, 120, 140);
 
+        // H-01: Pre-frozen brushes for hover/focus events (avoid per-event allocation)
+        private static readonly Brush CardHoverBrush = FrzBrush(CardHover);
+        private static readonly Brush CardSelectedBrush = FrzBrush(CardSelected);
+        private static Brush FrzBrush(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
         private StingModePicker(string title, string subtitle,
             List<ModeOption> options, string extraInfo)
         {
@@ -305,7 +310,7 @@ namespace StingTools.UI
             // Hover effects
             card.MouseEnter += (s, e) =>
             {
-                card.Background = new SolidColorBrush(CardHover);
+                card.Background = CardHoverBrush;
                 SetFocusIndex(index);
             };
             card.MouseLeave += (s, e) =>
@@ -323,7 +328,7 @@ namespace StingTools.UI
                 _optionCards[_focusIndex].Background = Brushes.White;
             _focusIndex = index;
             if (_focusIndex >= 0 && _focusIndex < _optionCards.Count)
-                _optionCards[_focusIndex].Background = new SolidColorBrush(CardSelected);
+                _optionCards[_focusIndex].Background = CardSelectedBrush;
         }
 
         private void MoveFocus(int delta, List<ModeOption> options)

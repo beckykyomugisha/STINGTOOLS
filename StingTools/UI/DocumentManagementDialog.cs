@@ -1138,7 +1138,7 @@ namespace StingTools.UI
             // File: open in default app
             if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
             {
-                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); }
+                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose(); }
                 catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
                 return;
             }
@@ -1167,8 +1167,11 @@ namespace StingTools.UI
                 if (note != null)
                 {
                     note["text"] = newText;
-                    note["modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
+                    // M-03: Atomic file write to prevent corruption on crash
+                    string tmp = stickyPath + ".tmp";
+                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    File.Replace(tmp, stickyPath, stickyPath + ".bak");
                     ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
                     item.Title = newText;
                     _view?.Refresh();
@@ -1295,6 +1298,8 @@ namespace StingTools.UI
 
             // ── TAB 4: REVISIONS ──
             var revWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
+            revWrap.Children.Add(MakeDispatchBtn("★ Revision Dashboard", "RevisionManagerDashboard", BrGreen, win));
+            revWrap.Children.Add(MakeSep());
             revWrap.Children.Add(MakeSectionLabel("CREATE"));
             revWrap.Children.Add(MakeDispatchBtn("Create Rev", "CreateRevision", BrPurple, win));
             revWrap.Children.Add(MakeDispatchBtn("Auto Cloud", "AutoRevisionCloud", BrPurple, win));
@@ -3201,7 +3206,7 @@ namespace StingTools.UI
             {
                 string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
                 File.WriteAllText(exportPath, sb.ToString());
-                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
             }
             catch (Exception ex)
@@ -3784,7 +3789,7 @@ namespace StingTools.UI
             { SetStatus("Select a file to open."); return; }
             if (!File.Exists(item.FilePath))
             { SetStatus($"File not found: {item.FilePath}"); return; }
-            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose();
             SetStatus($"Opened: {Path.GetFileName(item.FilePath)}");
         }
 
@@ -3796,7 +3801,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 dir = ProjectFolderEngine.GetRootPath(doc);
             if (Directory.Exists(dir))
-                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
         }
 
         private static void RenameSelected()

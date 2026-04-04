@@ -33,7 +33,10 @@ namespace StingTools.BIMManager
         // ── Helper: Get BIM manager directory ──
         internal static string GetBimDir(Document doc)
         {
-            string dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_bim_manager");
+            string docDir = string.IsNullOrEmpty(doc.PathName)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : Path.GetDirectoryName(doc.PathName);
+            string dir = Path.Combine(docDir ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "_bim_manager");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }
@@ -103,10 +106,13 @@ namespace StingTools.BIMManager
             string linksPath = Path.Combine(GetBimDir(doc), "entity_links.json");
             var links = LoadJsonArray(linksPath);
 
+            // CS-01 FIX: Check both orderings for bidirectional dedup
             var existing = links.OfType<JObject>().FirstOrDefault(l =>
                 (l["source_type"]?.ToString() == sourceType && l["source_id"]?.ToString() == sourceId &&
-                 l["target_type"]?.ToString() == targetType && l["target_id"]?.ToString() == targetId));
-            if (existing != null) return; // Already linked
+                 l["target_type"]?.ToString() == targetType && l["target_id"]?.ToString() == targetId) ||
+                (l["source_type"]?.ToString() == targetType && l["source_id"]?.ToString() == targetId &&
+                 l["target_type"]?.ToString() == sourceType && l["target_id"]?.ToString() == sourceId));
+            if (existing != null) return; // Already linked (either direction)
 
             links.Add(new JObject
             {
@@ -160,10 +166,12 @@ namespace StingTools.BIMManager
 
         private static DateTime _lastCoordRefresh = DateTime.MinValue;
         private static string _cachedCoordSummary = "";
+        private static string _cachedCoordDocPath = "";
 
         internal static string BuildFullCoordData(Document doc)
         {
-            if ((DateTime.Now - _lastCoordRefresh).TotalSeconds < 30 && !string.IsNullOrEmpty(_cachedCoordSummary))
+            string docKey = doc?.PathName ?? doc?.Title ?? "";
+            if ((DateTime.Now - _lastCoordRefresh).TotalSeconds < 30 && !string.IsNullOrEmpty(_cachedCoordSummary) && _cachedCoordDocPath == docKey)
                 return _cachedCoordSummary;
 
             var sb = new StringBuilder();
@@ -188,11 +196,12 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"BuildFullCoordData: {ex.Message}"); }
 
             _cachedCoordSummary = sb.ToString();
+            _cachedCoordDocPath = docKey;
             _lastCoordRefresh = DateTime.Now;
             return _cachedCoordSummary;
         }
 
-        internal static void InvalidateCoordCache() { _lastCoordRefresh = DateTime.MinValue; }
+        internal static void InvalidateCoordCache() { _lastCoordRefresh = DateTime.MinValue; _cachedCoordDocPath = ""; }
 
         // ═══════════════════════════════════════════════════════════════════
         //  CRIT-04: Streaming COBie Import with Validation
@@ -473,7 +482,8 @@ namespace StingTools.BIMManager
                         ["propagated_at"] = DateTime.Now.ToString("o"),
                         ["propagated_by"] = Environment.UserName
                     };
-                    File.WriteAllText(sidecarPath, sidecar.ToString(Formatting.Indented));
+                    // CS-03 FIX: Use atomic write pattern instead of File.WriteAllText
+                    SaveJson(sidecarPath, sidecar);
                     propagated++;
                 }
                 catch (Exception ex) { StingLog.Warn($"RevisionPropagation: {ex.Message}"); }

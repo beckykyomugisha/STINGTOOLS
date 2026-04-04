@@ -440,7 +440,7 @@ namespace StingTools.Docs
 
                 if (td.Show() == TaskDialogResult.CommandLink1)
                 {
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(outputPath) { UseShellExecute = true }); }
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(outputPath) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"File open: {ex.Message}"); }
                 }
             }
