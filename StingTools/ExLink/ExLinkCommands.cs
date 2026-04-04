@@ -144,7 +144,9 @@ namespace StingTools.ExLink
 
             // Pick all .link files via list picker
             var names = files.Select(f => f.FileName).ToList();
-            var picks = StingListPicker.Show("Select .link files to export", names, multiSelect: true);
+            var pickItems = names.Select(n => new StingListPicker.ListItem { Label = n }).ToList();
+            var picks = StingListPicker.Show("Select .link files to export",
+                $"{names.Count} link definitions available", pickItems, true);
             if (picks == null || picks.Count == 0) return Result.Succeeded;
 
             var outputDir = ExLinkHelpers.PickFolderPath("Select output folder for exports");
@@ -153,7 +155,7 @@ namespace StingTools.ExLink
             int exported = 0, failed = 0;
             foreach (var pick in picks)
             {
-                var info = files.FirstOrDefault(f => f.FileName == pick);
+                var info = files.FirstOrDefault(f => f.FileName == pick.Label);
                 if (info == null) continue;
                 try
                 {
@@ -294,10 +296,10 @@ namespace StingTools.ExLink
                 "Plumbing Fixtures", "Ducts", "Pipes", "Cable Trays", "Conduits",
                 "Sheets", "Views", "Generic Models"
             };
-            var catPick = StingListPicker.Show("Select element category", categories);
-            if (catPick == null || catPick.Count == 0) return Result.Succeeded;
+            var catPick = StingListPicker.Show("Select element category", "Choose the Revit category to export", categories);
+            if (string.IsNullOrEmpty(catPick)) return Result.Succeeded;
 
-            var elementType = catPick[0];
+            var elementType = catPick;
 
             // Build a basic link definition from selected category
             var def = new LinkDefinition
