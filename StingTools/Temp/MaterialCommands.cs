@@ -289,14 +289,11 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Populate ALL material properties from CSV data using:
+        /// Populate material properties from CSV data using:
         /// 1. Revit BuiltInParameters (Identity tab: Description, Manufacturer, Cost, etc.)
         /// 2. ThermalAsset properties (thermal conductivity, specific heat, density)
         /// 3. StructuralAsset properties (density, compressive/tensile strength)
-        ///
-        /// NOTE: OST_Materials does NOT support AllowsBoundParameters in Revit API,
-        /// so shared parameter binding to the Material category is impossible. Instead,
-        /// physical/thermal properties are written to the material's native asset elements.
+        /// Shared parameters are populated separately by PopulateSharedParameters().
         /// </summary>
         private static void ApplyIdentityProperties(Material mat, string[] cols)
         {
@@ -343,8 +340,8 @@ namespace StingTools.Temp
 
         /// <summary>
         /// Build an enriched Description string that includes key physical properties.
-        /// Since we cannot bind custom shared params to Materials, we embed the most
-        /// important data into the Description BuiltInParameter for visibility.
+        /// Embeds important data into the Description BuiltInParameter for quick
+        /// visibility in the Material Browser alongside the shared parameter values.
         /// </summary>
         private static string BuildEnrichedDescription(string[] cols, string baseDesc)
         {
@@ -894,6 +891,7 @@ namespace StingTools.Temp
                                 if (newMat != null)
                                 {
                                     ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                                    PopulateSharedParameters(newMat, cols);
 
                                     string baseMatName = GetCol(cols, ColBaseMaterial);
                                     if (!string.IsNullOrEmpty(baseMatName) &&
@@ -1033,6 +1031,59 @@ namespace StingTools.Temp
         public static string GetCol(string[] cols, int index)
         {
             return (index >= 0 && index < cols.Length) ? cols[index].Trim() : "";
+        }
+
+        /// <summary>
+        /// Populate shared parameters on a Material element from CSV column data.
+        /// Uses the SharedParamMappings array to write all 43 mapped CSV columns
+        /// to their corresponding shared parameters via LookupParameter.
+        /// Requires shared parameters to be Instance-bound to OST_Materials.
+        /// </summary>
+        public static void PopulateSharedParameters(Material mat, string[] cols)
+        {
+            int written = 0;
+            foreach (var (col, paramName) in SharedParamMappings)
+            {
+                string value = GetCol(cols, col);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                try
+                {
+                    Parameter p = mat.LookupParameter(paramName);
+                    if (p == null || p.IsReadOnly) continue;
+
+                    if (p.StorageType == StorageType.String)
+                    {
+                        p.Set(value);
+                        written++;
+                    }
+                    else if (p.StorageType == StorageType.Double)
+                    {
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+                        {
+                            p.Set(dVal);
+                            written++;
+                        }
+                    }
+                    else if (p.StorageType == StorageType.Integer)
+                    {
+                        if (int.TryParse(value, out int iVal))
+                        {
+                            p.Set(iVal);
+                            written++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Material '{mat.Name}' param '{paramName}': {ex.Message}");
+                }
+            }
+
+            if (written > 0)
+                StingLog.Info($"Material '{mat.Name}': populated {written} shared parameters");
         }
     }
 
