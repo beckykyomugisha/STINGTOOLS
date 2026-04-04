@@ -244,7 +244,7 @@ namespace StingTools.ExLink
         public static List<Element> CollectElements(Document doc, LinkDefinition def)
         {
             var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            var elements = ApplyElementTypeFilter(collector, def.ElementType);
+            var elements = ApplyElementTypeFilter(collector, def.ElementType, doc);
 
             // Apply property-based filters
             if (def.Filters.Count > 0)
@@ -257,7 +257,7 @@ namespace StingTools.ExLink
             return elements;
         }
 
-        private static List<Element> ApplyElementTypeFilter(FilteredElementCollector collector, string elementType)
+        private static List<Element> ApplyElementTypeFilter(FilteredElementCollector collector, string elementType, Document doc)
         {
             if (string.IsNullOrEmpty(elementType))
                 return collector.ToList();

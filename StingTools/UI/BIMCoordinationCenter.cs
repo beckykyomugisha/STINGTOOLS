@@ -1152,7 +1152,7 @@ namespace StingTools.UI
                     discGrid.Children.Add(chipBorder);
 
                     AddCellToGrid(discGrid, $"{kv.Value.Tagged}/{kv.Value.Total}", discRow, 1);
-                    AddCellToGrid(discGrid, $"{pct:F0}%", discRow, 2, false, null, RagBrush(rag), FontWeights.Bold);
+                    AddCellToGrid(discGrid, $"{pct:F0}%", discRow, 2, false, FontWeights.Bold, RagBrush(rag));
 
                     // Coverage bar
                     var miniBarBg = new Border { Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE0)), Height = 10, CornerRadius = new CornerRadius(5), Margin = new Thickness(0, 4, 4, 4), VerticalAlignment = VerticalAlignment.Center };

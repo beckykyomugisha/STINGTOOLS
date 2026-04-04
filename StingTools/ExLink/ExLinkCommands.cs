@@ -144,8 +144,10 @@ namespace StingTools.ExLink
 
             // Pick all .link files via list picker
             var names = files.Select(f => f.FileName).ToList();
-            var picks = StingListPicker.Show("Select .link files to export", names, multiSelect: true);
-            if (picks == null || picks.Count == 0) return Result.Succeeded;
+            var pickItems = names.Select(n => new StingListPicker.ListItem { Label = n }).ToList();
+            var pickResult = StingListPicker.Show("Select .link files to export", "Choose one or more .link definitions", pickItems, true);
+            if (pickResult == null || pickResult.Count == 0) return Result.Succeeded;
+            var picks = pickResult.Select(r => r.Label).ToList();
 
             var outputDir = ExLinkHelpers.PickFolderPath("Select output folder for exports");
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
@@ -294,10 +296,10 @@ namespace StingTools.ExLink
                 "Plumbing Fixtures", "Ducts", "Pipes", "Cable Trays", "Conduits",
                 "Sheets", "Views", "Generic Models"
             };
-            var catPick = StingListPicker.Show("Select element category", categories);
-            if (catPick == null || catPick.Count == 0) return Result.Succeeded;
+            var catPick = StingListPicker.Show("Select element category", "Choose the Revit category to export", categories);
+            if (catPick == null) return Result.Succeeded;
 
-            var elementType = catPick[0];
+            var elementType = catPick;
 
             // Build a basic link definition from selected category
             var def = new LinkDefinition
@@ -327,8 +329,10 @@ namespace StingTools.ExLink
             // Add calculated properties
             paramNames.InsertRange(0, new[] { "[Element ID]", "[Category]", "[Family]", "[Type]", "[Family and Type]", "[Level]" });
 
-            var paramPicks = StingListPicker.Show("Select properties to export", paramNames, multiSelect: true);
-            if (paramPicks == null || paramPicks.Count == 0) return Result.Succeeded;
+            var paramItems = paramNames.Select(n => new StingListPicker.ListItem { Label = n }).ToList();
+            var paramPickResult = StingListPicker.Show("Select properties to export", "Choose parameters to include in the .link definition", paramItems, true);
+            if (paramPickResult == null || paramPickResult.Count == 0) return Result.Succeeded;
+            var paramPicks = paramPickResult.Select(r => r.Label).ToList();
 
             // Build properties
             foreach (var pName in paramPicks)
