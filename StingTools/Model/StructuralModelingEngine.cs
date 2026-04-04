@@ -1108,15 +1108,15 @@ namespace StingTools.Model
                 .ToList();
 
             var columns    = allStructural
-                .Where(e => e.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralColumns)
+                .Where(e => e.Category?.Id.Value == (int)BuiltInCategory.OST_StructuralColumns)
                 .OfType<FamilyInstance>()
                 .ToList();
             var beams      = allStructural
-                .Where(e => e.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFraming)
+                .Where(e => e.Category?.Id.Value == (int)BuiltInCategory.OST_StructuralFraming)
                 .OfType<FamilyInstance>()
                 .ToList();
             var foundations = allStructural
-                .Where(e => e.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralFoundation)
+                .Where(e => e.Category?.Id.Value == (int)BuiltInCategory.OST_StructuralFoundation)
                 .ToList();
 
             // Create nodes for columns
