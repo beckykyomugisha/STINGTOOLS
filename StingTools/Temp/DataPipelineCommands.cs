@@ -3666,13 +3666,13 @@ namespace StingTools.Temp
     #endregion
 
     // ════════════════════════════════════════════════════════════════════════════
-    //  EXCEL LINK EXPORT — BIMLink-style Category + Property Selector (P10)
+    //  EXCEL LINK EXPORT — ExLink-style Category + Property Selector (P10)
     //  Lets users pick categories and properties, then exports to Excel.
     //  Category multi-select → property columns → XLSX export
     // ════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// BIMLink-style Excel export: user picks categories and properties via
+    /// ExLink-style Excel export: user picks categories and properties via
     /// cascading TaskDialogs, then exports selected data to a formatted XLSX file.
     /// Supports bidirectional workflow (exported data can be re-imported via ExcelBOQImport).
     /// </summary>

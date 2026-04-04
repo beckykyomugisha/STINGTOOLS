@@ -306,58 +306,31 @@ namespace StingTools.ExLink
                 ElementType = elementType.ToUpperInvariant().Replace(" ", "_")
             };
 
-            // Collect sample element to discover available parameters
-            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
-            var sample = ExLinkEngine.CollectElements(doc, def).FirstOrDefault();
-            if (sample == null)
+            // Use universal property discovery engine to find ALL available parameters
+            var discovered = ExLinkPropertyDiscovery.DiscoverProperties(doc, def.ElementType);
+            if (discovered.Count == 0)
             {
                 TaskDialog.Show("STING — Custom Link", $"No {elementType} elements found in the model.");
                 return Result.Succeeded;
             }
 
-            // List parameters from the sample element
-            var paramNames = new List<string>();
-            foreach (Parameter p in sample.Parameters)
+            // Build picker items with source grouping for easy selection
+            var paramItems = discovered.Select(ap => new StingListPicker.ListItem
             {
-                if (p.Definition != null && !string.IsNullOrEmpty(p.Definition.Name))
-                    paramNames.Add(p.Definition.Name);
-            }
-            paramNames = paramNames.Distinct().OrderBy(n => n).ToList();
+                Label = string.IsNullOrEmpty(ap.DisplayName) ? ap.Name : $"{ap.DisplayName}  ({ap.SourceType})"
+            }).ToList();
+            var paramPickResult = StingListPicker.Show("Select properties to export",
+                $"Choose parameters for {elementType} — {discovered.Count} discovered from STING, Revit, and project sources",
+                paramItems, true);
+            if (paramPickResult == null || paramPickResult.Count == 0) return Result.Succeeded;
 
-            // Add calculated properties
-            paramNames.InsertRange(0, new[] { "[Element ID]", "[Category]", "[Family]", "[Type]", "[Family and Type]", "[Level]" });
-
-            var paramPicks = StingListPicker.Show("Select properties to export", paramNames, multiSelect: true);
-            if (paramPicks == null || paramPicks.Count == 0) return Result.Succeeded;
-
-            // Build properties
-            foreach (var pName in paramPicks)
+            // Map picked labels back to AvailableProperty and convert to PropertyDef
+            var pickedLabels = new HashSet<string>(paramPickResult.Select(r => r.Label));
+            foreach (var ap in discovered)
             {
-                var prop = new PropertyDef { Name = pName.TrimStart('[').TrimEnd(']') };
-                if (pName.StartsWith("["))
-                {
-                    prop.PropertyType = "CALCULATED_PROPERTY";
-                    prop.LookupType = "CALCULATED_PROPERTY";
-                    prop.IsReadOnly = true;
-                }
-                else
-                {
-                    var p = sample.LookupParameter(pName);
-                    if (p != null)
-                    {
-                        prop.IsReadOnly = p.IsReadOnly;
-                        if (p.Definition is Autodesk.Revit.DB.InternalDefinition intDef)
-                        {
-                            prop.PropertyType = "BUILT_IN_PARAMETER";
-                            prop.BuiltInName = intDef.BuiltInParameter.ToString();
-                        }
-                        else
-                        {
-                            prop.PropertyType = "SHARED_PARAMETER";
-                        }
-                    }
-                }
-                def.Properties.Add(prop);
+                var label = string.IsNullOrEmpty(ap.DisplayName) ? ap.Name : $"{ap.DisplayName}  ({ap.SourceType})";
+                if (pickedLabels.Contains(label))
+                    def.Properties.Add(ap.ToPropertyDef());
             }
 
             // Export with custom definition
