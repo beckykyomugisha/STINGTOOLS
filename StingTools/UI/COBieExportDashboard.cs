@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -156,7 +157,7 @@ namespace StingTools.UI
                 if (handle != IntPtr.Zero)
                     new WindowInteropHelper(_window).Owner = handle;
             }
-            catch { /* non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"COBie dashboard window owner: {ex.Message}"); }
 
             var root = new DockPanel { LastChildFill = true };
             _window.Content = root;

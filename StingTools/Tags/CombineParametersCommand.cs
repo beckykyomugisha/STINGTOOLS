@@ -141,6 +141,8 @@ namespace StingTools.Tags
             const int BatchSize = 200;
             int batchStart = 0;
 
+            try
+            {
             while (batchStart < elements.Count)
             {
                 int batchEnd = Math.Min(batchStart + BatchSize, elements.Count);
@@ -281,8 +283,11 @@ namespace StingTools.Tags
                     tx.Commit();
                 }
             } // end batched loop
-
-            progress?.Close(); // AUTO-R2: Close progress dialog
+            }
+            finally
+            {
+                progress?.Close(); // AUTO-R2: Close progress dialog
+            }
             // GAP-01: Invalidate caches after container writes
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();

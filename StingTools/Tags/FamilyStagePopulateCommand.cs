@@ -191,7 +191,7 @@ namespace StingTools.Tags
                         totalTokensSet += result.TokensSet;
                         // NG7: Bridge Revit native params to STING shared params after token population
                         try { NativeParamMapper.MapAll(doc, el); }
-                        catch (Exception nmEx7) { StingLog.Warn($"FamilyStagePopulate NativeMapper for {el?.Id}: {nmEx7.Message}"); }
+                        catch (Exception nmEx7) { StingLog.Warn($"FamilyStagePopulate NativeMapper for {el.Id}: {nmEx7.Message}"); }
                         // FIX-09: Evaluate formulas after NativeMapper so derived params are populated
                         if (fsFormulas != null && fsFormulas.Count > 0)
                         {
@@ -218,7 +218,7 @@ namespace StingTools.Tags
                                     }
                                 }
                             }
-                            catch (Exception fEx) { StingLog.Warn($"FamilyStagePopulate formula eval for {el?.Id}: {fEx.Message}"); }
+                            catch (Exception fEx) { StingLog.Warn($"FamilyStagePopulate formula eval for {el.Id}: {fEx.Message}"); }
                         }
                         // TAG-05: Write containers + TAG7 so elements have populated containers
                         // immediately after pre-population, not just after a separate Combine run.

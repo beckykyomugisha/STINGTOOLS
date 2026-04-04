@@ -5108,7 +5108,7 @@ namespace StingTools.BIMManager
                 }
                 else if (tag == "OpenFolder")
                 {
-                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true }); }
+                    try { Process.Start(new ProcessStartInfo(Path.GetDirectoryName(docsPath)) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"OpenFolder: {ex.Message}"); }
                 }
                 else if (tag == "OpenFile")
@@ -5116,7 +5116,7 @@ namespace StingTools.BIMManager
                     var selected = dlg.SelectedItems.FirstOrDefault() as DocRegisterRow;
                     if (selected != null && !string.IsNullOrEmpty(selected.FilePath) && File.Exists(selected.FilePath))
                     {
-                        try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true }); }
+                        try { Process.Start(new ProcessStartInfo(selected.FilePath) { UseShellExecute = true })?.Dispose(); }
                         catch (Exception ex) { dlg.SetStatus($"Cannot open: {ex.Message}"); }
                     }
                     else
@@ -6247,7 +6247,7 @@ namespace StingTools.BIMManager
                     break;
 
                 case TaskDialogResult.CommandLink3:
-                    try { System.Diagnostics.Process.Start("explorer.exe", BIMManagerEngine.GetBIMManagerDir(doc)); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", BIMManagerEngine.GetBIMManagerDir(doc))?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open folder: {ex.Message}"); }
                     break;
 
@@ -6367,7 +6367,7 @@ namespace StingTools.BIMManager
                     break;
 
                 case TaskDialogResult.CommandLink2:
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(selectedItem.FilePath) { UseShellExecute = true }); }
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(selectedItem.FilePath) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open: {ex.Message}"); }
                     break;
             }
@@ -6412,7 +6412,7 @@ namespace StingTools.BIMManager
             switch (result)
             {
                 case TaskDialogResult.CommandLink1:
-                    try { System.Diagnostics.Process.Start("explorer.exe", bimDir); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", bimDir)?.Dispose(); }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Could not open: {ex.Message}"); }
                     break;
 
@@ -6430,7 +6430,7 @@ namespace StingTools.BIMManager
                     try
                     {
                         File.WriteAllText(notePath, note.ToString());
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true });
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(notePath) { UseShellExecute = true })?.Dispose();
                         TaskDialog.Show("STING Briefcase", $"Note created and opened:\n{notePath}");
                     }
                     catch (Exception ex) { TaskDialog.Show("STING", $"Failed: {ex.Message}"); }
@@ -9185,7 +9185,7 @@ namespace StingTools.BIMManager
                 var tdResult = td.Show();
                 if (tdResult == TaskDialogResult.CommandLink1)
                 {
-                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
+                    try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\"")?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"Failed to open explorer: {ex.Message}"); }
                 }
 

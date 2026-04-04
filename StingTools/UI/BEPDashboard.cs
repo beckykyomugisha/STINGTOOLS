@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -91,7 +92,7 @@ namespace StingTools.UI
                 if (hwnd != IntPtr.Zero)
                     new WindowInteropHelper(win).Owner = hwnd;
             }
-            catch { /* non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"BEP dashboard window owner: {ex.Message}"); }
 
             var root = new DockPanel { LastChildFill = true };
 

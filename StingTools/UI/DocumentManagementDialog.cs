@@ -1138,7 +1138,7 @@ namespace StingTools.UI
             // File: open in default app
             if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
             {
-                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true }); }
+                try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose(); }
                 catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
                 return;
             }
@@ -3206,7 +3206,7 @@ namespace StingTools.UI
             {
                 string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
                 File.WriteAllText(exportPath, sb.ToString());
-                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
             }
             catch (Exception ex)
@@ -3789,7 +3789,7 @@ namespace StingTools.UI
             { SetStatus("Select a file to open."); return; }
             if (!File.Exists(item.FilePath))
             { SetStatus($"File not found: {item.FilePath}"); return; }
-            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose();
             SetStatus($"Opened: {Path.GetFileName(item.FilePath)}");
         }
 
@@ -3801,7 +3801,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 dir = ProjectFolderEngine.GetRootPath(doc);
             if (Directory.Exists(dir))
-                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
         }
 
         private static void RenameSelected()

@@ -370,6 +370,7 @@ namespace StingTools.UI
                     if (selectedIds != null && selectedIds.Count > 0)
                     {
                         var firstEl = _doc.GetElement(selectedIds.First());
+                        if (firstEl == null) return $"{issueType}: (element not found)";
                         string cat = ParameterHelpers.GetCategoryName(firstEl);
                         string tag = ParameterHelpers.GetString(firstEl, ParamRegistry.TAG1);
                         string title = $"{issueType}: {cat}";
@@ -391,6 +392,7 @@ namespace StingTools.UI
                     if (selectedIds != null && selectedIds.Count > 0)
                     {
                         var firstEl = _doc.GetElement(selectedIds.First());
+                        if (firstEl == null) return "Issue raised against (element not found)";
                         string cat = ParameterHelpers.GetCategoryName(firstEl);
                         string lvl = ParameterHelpers.GetString(firstEl, ParamRegistry.LVL);
                         string desc = $"Issue raised against {cat} on {(string.IsNullOrEmpty(lvl) ? "unknown level" : lvl)}";
@@ -411,6 +413,7 @@ namespace StingTools.UI
                     if (selectedIds != null && selectedIds.Count > 0)
                     {
                         var firstEl = _doc.GetElement(selectedIds.First());
+                        if (firstEl == null) return "Z";
                         string disc = ParameterHelpers.GetString(firstEl, ParamRegistry.DISC);
                         if (!string.IsNullOrEmpty(disc)) return disc;
                     }
@@ -427,6 +430,7 @@ namespace StingTools.UI
                     if (selectedIds != null && selectedIds.Count > 0)
                     {
                         var firstEl = _doc.GetElement(selectedIds.First());
+                        if (firstEl == null) return "";
                         string lvl = ParameterHelpers.GetString(firstEl, ParamRegistry.LVL);
                         string loc = ParameterHelpers.GetString(firstEl, ParamRegistry.LOC);
                         if (!string.IsNullOrEmpty(lvl) || !string.IsNullOrEmpty(loc))

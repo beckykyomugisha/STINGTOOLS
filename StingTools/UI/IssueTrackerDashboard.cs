@@ -13,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Color = System.Windows.Media.Color;
+using StingTools.Core;
 
 namespace StingTools.UI
 {
@@ -90,7 +91,7 @@ namespace StingTools.UI
                 var helper = new WindowInteropHelper(win);
                 helper.Owner = Process.GetCurrentProcess().MainWindowHandle;
             }
-            catch { /* non-critical */ }
+            catch (Exception ex) { StingLog.Warn($"Issue tracker window owner: {ex.Message}"); }
 
             var root = new DockPanel { LastChildFill = true };
 

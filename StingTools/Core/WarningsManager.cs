@@ -3753,7 +3753,7 @@ namespace StingTools.Core
                                 cloudsByRevId2[rid2] = cnt2 + 1;
                             }
                         }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Revision cloud count failed: {ex.Message}"); }
                     }
                     foreach (var rev in revisions2)
                     {

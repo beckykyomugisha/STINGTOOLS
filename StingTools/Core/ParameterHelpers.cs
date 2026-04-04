@@ -485,7 +485,7 @@ namespace StingTools.Core
                     if (phaseEl != null) return phaseEl;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el?.Id}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"GetElementPhase for {el.Id}: {ex.Message}"); }
 
             // Fallback: last phase in the project (cached per document)
             try

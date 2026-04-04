@@ -518,7 +518,7 @@ namespace StingTools.BIMManager
                         var info = new FileInfo(f);
                         currentFiles[f] = info.Length + info.LastWriteTimeUtc.Ticks;
                     }
-                    catch { /* skip locked files */ }
+                    catch (Exception ex) { StingLog.Warn($"File poll skip: {ex.Message}"); }
                 }
 
                 if (_lastPollSnapshot.Count > 0)
@@ -1500,7 +1500,7 @@ render();
                 try
                 {
                     string path = DashboardGenerator.Generate(doc);
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
                     NotificationDeliveryEngine.SendNotification(doc, "Dashboard Updated",
                         "Project dashboard has been regenerated and is available for viewing.", "LOW", "DASHBOARD");
                 }
@@ -1869,7 +1869,7 @@ render();
                 var doc = commandData.Application.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
                 string path = DashboardGenerator.Generate(doc);
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
                 return Result.Succeeded;
             }
             catch (Exception ex)

@@ -1112,6 +1112,11 @@ namespace StingTools.Organise
             }
 
             Element source = doc.GetElement(selected[0]);
+            if (source == null)
+            {
+                TaskDialog.Show("Copy Tags", "Source element could not be resolved.");
+                return Result.Failed;
+            }
             var values = new Dictionary<string, string>();
             foreach (string p in CopyParams)
                 values[p] = ParameterHelpers.GetString(source, p);

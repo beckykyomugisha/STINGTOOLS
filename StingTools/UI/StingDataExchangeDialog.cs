@@ -388,7 +388,7 @@ namespace StingTools.UI
             var tdResult = td.Show();
             if (tdResult == TaskDialogResult.CommandLink1)
             {
-                try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\""); }
+                try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{outputPath}\"")?.Dispose(); }
                 catch (Exception ex) { StingLog.Warn($"Failed to open explorer: {ex.Message}"); }
             }
         }

@@ -4459,7 +4459,7 @@ namespace StingTools.Temp
                 int b = Convert.ToInt32(hex.Substring(4, 2), 16);
                 return (r.ToString(), g.ToString(), b.ToString());
             }
-            catch { return null; }
+            catch (Exception ex) { StingLog.Warn($"ParseHexColor: {ex.Message}"); return null; }
         }
 
         /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>

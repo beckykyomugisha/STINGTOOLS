@@ -514,7 +514,7 @@ namespace StingTools.Tags
                         StringComparison.OrdinalIgnoreCase);
                     if (autoOpen)
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(csvPath)
-                        { UseShellExecute = true });
+                        { UseShellExecute = true })?.Dispose();
                 }
                 catch (Exception ex) { StingLog.Warn($"PreTagAudit: auto-open failed: {ex.Message}"); }
             }

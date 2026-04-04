@@ -1045,7 +1045,7 @@ namespace StingTools.BIMManager
                 {
                     if (action == "OpenFolder")
                     {
-                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true }); }
+                        try { Process.Start(new ProcessStartInfo { FileName = packageDir, UseShellExecute = true })?.Dispose(); }
                         catch (Exception ex) { StingLog.Warn($"Open folder: {ex.Message}"); }
                     }
                 };

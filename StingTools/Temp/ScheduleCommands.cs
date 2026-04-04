@@ -1121,61 +1121,67 @@ namespace StingTools.Temp
             var progress = UI.StingProgressDialog.Show("STING — Full Auto-Populate", allElements.Count);
 
             bool cancelled = false;
-            using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
+            try
             {
-                tx.Start();
-                foreach (Element el in allElements)
+                using (Transaction tx = new Transaction(doc, "STING Full Auto-Populate"))
                 {
-                    // GAP-WS-01: Skip elements on worksets owned by other users
-                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
-                    // GAP-PH-01: Skip demolished elements
-                    if (TagPipelineHelper.IsDemolished(el)) continue;
-
-                    string catName = ParameterHelpers.GetCategoryName(el);
-                    if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
-                        continue;
-
-                    totalElements++;
-                    // AUTO-R4: Progress + cancellation check
-                    if (totalElements % 50 == 0)
+                    tx.Start();
+                    foreach (Element el in allElements)
                     {
-                        progress?.Increment($"Processing {totalElements}: {catName}");
-                        if ((progress != null && progress.IsCancelled) || EscapeChecker.IsEscapePressed())
+                        // GAP-WS-01: Skip elements on worksets owned by other users
+                        if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                        // GAP-PH-01: Skip demolished elements
+                        if (TagPipelineHelper.IsDemolished(el)) continue;
+
+                        string catName = ParameterHelpers.GetCategoryName(el);
+                        if (string.IsNullOrEmpty(catName) || !popCtx.KnownCategories.Contains(catName))
+                            continue;
+
+                        totalElements++;
+                        // AUTO-R4: Progress + cancellation check
+                        if (totalElements % 50 == 0)
                         {
-                            cancelled = true;
-                            StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
-                            break;
+                            progress?.Increment($"Processing {totalElements}: {catName}");
+                            if ((progress != null && progress.IsCancelled) || EscapeChecker.IsEscapePressed())
+                            {
+                                cancelled = true;
+                                StingLog.Info($"FullAutoPopulate: cancelled by user at {totalElements} elements");
+                                break;
+                            }
+                        }
+
+                        try
+                        {
+                            // NP9/AL-04: Delegate to TagPipelineHelper for pipeline consistency
+                            // CategorySkipList, CategoryForceSys, and all future pipeline additions apply automatically
+                            bool fullPipelineOk = TagPipelineHelper.RunFullPipeline(
+                                doc, el, popCtx, tagIndex, seqCounters,
+                                formulas, gridLines,
+                                overwrite: true,
+                                skipComplete: false,
+                                collisionMode: TagCollisionMode.AutoIncrement);
+
+                            if (fullPipelineOk)
+                                tagged++;
+
+                            // AUTO-R4: Reduced log frequency from 500 to 5000 (saves 10% I/O on 100K models)
+                            if (totalElements % 5000 == 0)
+                                StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                            errors++;
                         }
                     }
 
-                    try
-                    {
-                        // NP9/AL-04: Delegate to TagPipelineHelper for pipeline consistency
-                        // CategorySkipList, CategoryForceSys, and all future pipeline additions apply automatically
-                        bool fullPipelineOk = TagPipelineHelper.RunFullPipeline(
-                            doc, el, popCtx, tagIndex, seqCounters,
-                            formulas, gridLines,
-                            overwrite: true,
-                            skipComplete: false,
-                            collisionMode: TagCollisionMode.AutoIncrement);
-
-                        if (fullPipelineOk)
-                            tagged++;
-
-                        // AUTO-R4: Reduced log frequency from 500 to 5000 (saves 10% I/O on 100K models)
-                        if (totalElements % 5000 == 0)
-                            StingLog.Info($"FullAutoPopulate: {totalElements} elements processed...");
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Error($"FullAutoPopulate: element {el?.Id}: {ex.Message}", ex);
-                        errors++;
-                    }
+                    tx.Commit();
                 }
-
-                tx.Commit();
             }
-            progress?.Close(); // AUTO-R4: Close progress dialog
+            finally
+            {
+                progress?.Close(); // AUTO-R4: Close progress dialog
+            }
             sw.Stop();
             // Save SEQ sidecar + invalidate caches after full auto-populate
             try { TagConfig.SaveSeqSidecar(doc, seqCounters); }
@@ -1290,72 +1296,77 @@ namespace StingTools.Temp
             const int ChunkSize = 200;
             var progress = StingProgressDialog.Show("Auto-Populate", total);
 
-            for (int batchStart = 0; batchStart < total; batchStart += ChunkSize)
+            try
             {
-                if (cancelled) break;
-
-                int batchEnd = Math.Min(batchStart + ChunkSize, total);
-                int batchNum = (batchStart / ChunkSize) + 1;
-
-                using (Transaction tx = new Transaction(doc, $"STING Auto-Populate #{batchNum}"))
+                for (int batchStart = 0; batchStart < total; batchStart += ChunkSize)
                 {
-                    tx.Start();
+                    if (cancelled) break;
 
-                    for (int idx = batchStart; idx < batchEnd; idx++)
+                    int batchEnd = Math.Min(batchStart + ChunkSize, total);
+                    int batchNum = (batchStart / ChunkSize) + 1;
+
+                    using (Transaction tx = new Transaction(doc, $"STING Auto-Populate #{batchNum}"))
                     {
-                        if (progress.IsCancelled)
+                        tx.Start();
+
+                        for (int idx = batchStart; idx < batchEnd; idx++)
                         {
-                            StingLog.Info($"AutoPopulate: cancelled by user at {idx}/{total}");
-                            cancelled = true;
-                            break;
+                            if (progress.IsCancelled)
+                            {
+                                StingLog.Info($"AutoPopulate: cancelled by user at {idx}/{total}");
+                                cancelled = true;
+                                break;
+                            }
+
+                            Element el = taggableElements[idx];
+                            string catName = ParameterHelpers.GetCategoryName(el);
+                            if (string.IsNullOrEmpty(catName)) continue;
+
+                            try
+                            {
+                                // GAP-01: Use canonical TokenAutoPopulator.PopulateAll instead of
+                                // inline SetIfEmpty calls. This ensures TypeTokenInherit, ConnectorInherit,
+                                // and CopyTokensFromNearest are all applied consistently.
+                                string prevLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+                                string prevZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
+                                string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+
+                                TokenAutoPopulator.TypeTokenInherit(doc, el);
+                                var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
+                                updated += popResult.TokensSet;
+                                if (popResult.LocDetected) locDetected++;
+                                if (popResult.ZoneDetected) zoneDetected++;
+
+                                // Check if SYS was newly detected
+                                string newSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                                if (string.IsNullOrEmpty(prevSys) && !string.IsNullOrEmpty(newSys))
+                                    sysAware++;
+
+                                // Layer 2: Native parameter mapping (Revit built-in → STING shared)
+                                int mapped = NativeParamMapper.MapAll(doc, el);
+                                nativeMapped += mapped;
+                                updated += mapped;
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
+                                apErrors++;
+                            }
+
+                            progress.Increment($"Populating {idx + 1}/{total}");
                         }
 
-                        Element el = taggableElements[idx];
-                        string catName = ParameterHelpers.GetCategoryName(el);
-                        if (string.IsNullOrEmpty(catName)) continue;
-
-                        try
-                        {
-                            // GAP-01: Use canonical TokenAutoPopulator.PopulateAll instead of
-                            // inline SetIfEmpty calls. This ensures TypeTokenInherit, ConnectorInherit,
-                            // and CopyTokensFromNearest are all applied consistently.
-                            string prevLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                            string prevZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                            string prevSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-
-                            TokenAutoPopulator.TypeTokenInherit(doc, el);
-                            var popResult = TokenAutoPopulator.PopulateAll(doc, el, popCtx, overwrite: false);
-                            updated += popResult.TokensSet;
-                            if (popResult.LocDetected) locDetected++;
-                            if (popResult.ZoneDetected) zoneDetected++;
-
-                            // Check if SYS was newly detected
-                            string newSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                            if (string.IsNullOrEmpty(prevSys) && !string.IsNullOrEmpty(newSys))
-                                sysAware++;
-
-                            // Layer 2: Native parameter mapping (Revit built-in → STING shared)
-                            int mapped = NativeParamMapper.MapAll(doc, el);
-                            nativeMapped += mapped;
-                            updated += mapped;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Error($"AutoPopulate: element {el?.Id}: {ex.Message}", ex);
-                            apErrors++;
-                        }
-
-                        progress.Increment($"Populating {idx + 1}/{total}");
+                        if (cancelled)
+                            tx.RollBack();
+                        else
+                            tx.Commit();
                     }
-
-                    if (cancelled)
-                        tx.RollBack();
-                    else
-                        tx.Commit();
                 }
             }
-
-            progress.Close();
+            finally
+            {
+                progress.Close();
+            }
 
             // CACHE-02: Invalidate caches after population so compliance dashboard
             // and auto-tagger reflect the updated token values immediately.

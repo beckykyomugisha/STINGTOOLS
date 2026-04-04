@@ -1088,7 +1088,7 @@ namespace StingTools.BIMManager
                     {
                         string dir = Path.GetDirectoryName(outputPath);
                         if (!string.IsNullOrEmpty(dir))
-                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true })?.Dispose();
                     }
                     catch (Exception ex)
                     {
@@ -1557,7 +1557,7 @@ namespace StingTools.BIMManager
                 // ── Open in default application ──
                 try
                 {
-                    Process.Start(new ProcessStartInfo { FileName = outputPath, UseShellExecute = true });
+                    Process.Start(new ProcessStartInfo { FileName = outputPath, UseShellExecute = true })?.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -1873,7 +1873,7 @@ namespace StingTools.BIMManager
 
                 StingLog.Info($"ExcelLink: Exporting {schedules.Count} schedules");
 
-                var wb = new XLWorkbook();
+                using var wb = new XLWorkbook();
 
                 // ── Create _Schedule_Index worksheet ──
                 var indexWs = wb.AddWorksheet("_Schedule_Index");
@@ -2009,7 +2009,6 @@ namespace StingTools.BIMManager
                 string outputPath = OutputLocationHelper.GetOutputPath(doc,
                     $"STING_Schedules_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 wb.SaveAs(outputPath);
-                wb.Dispose();
 
                 var resultDlg = new TaskDialog("STING Schedule Export")
                 {
@@ -2028,7 +2027,7 @@ namespace StingTools.BIMManager
                     {
                         string dir = Path.GetDirectoryName(outputPath);
                         if (!string.IsNullOrEmpty(dir))
-                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true })?.Dispose();
                     }
                     catch (Exception ex) { StingLog.Warn($"Open export folder failed: {ex.Message}"); }
                 }
@@ -2401,7 +2400,7 @@ namespace StingTools.BIMManager
 
             try
             {
-                var wb = new XLWorkbook();
+                using var wb = new XLWorkbook();
 
                 // ── Data Entry Template sheet ──
                 var ws = wb.AddWorksheet("Data_Entry_Template");
@@ -2620,7 +2619,6 @@ namespace StingTools.BIMManager
                 string outputPath = OutputLocationHelper.GetOutputPath(doc,
                     "STING_Data_Entry_Template.xlsx");
                 wb.SaveAs(outputPath);
-                wb.Dispose();
 
                 var resultDlg = new TaskDialog("STING Template Export")
                 {
@@ -2642,7 +2640,7 @@ namespace StingTools.BIMManager
                     {
                         string dir = Path.GetDirectoryName(outputPath);
                         if (!string.IsNullOrEmpty(dir))
-                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+                            Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true })?.Dispose();
                     }
                     catch (Exception ex) { StingLog.Warn($"Open template folder failed: {ex.Message}"); }
                 }

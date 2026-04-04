@@ -200,59 +200,64 @@ namespace StingTools.Tags
             // Previously, cancel rolled back ALL work. Now committed batches are preserved.
             const int ChunkSize = 200;
 
-            for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
+            try
             {
-                if (cancelled) break;
-
-                int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
-                int batchNum = (batchStart / ChunkSize) + 1;
-
-                using (Transaction tx = new Transaction(doc, $"STING Auto Tag #{batchNum}"))
+                for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
                 {
-                    tx.Start();
+                    if (cancelled) break;
 
-                    for (int idx = batchStart; idx < batchEnd; idx++)
+                    int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                    int batchNum = (batchStart / ChunkSize) + 1;
+
+                    using (Transaction tx = new Transaction(doc, $"STING Auto Tag #{batchNum}"))
                     {
-                        Element el = sorted[idx];
+                        tx.Start();
 
-                        if (progress.IsCancelled)
+                        for (int idx = batchStart; idx < batchEnd; idx++)
                         {
-                            StingLog.Info($"AutoTag: cancelled by user at {idx}/{taggable}");
-                            cancelled = true;
-                            break;
+                            Element el = sorted[idx];
+
+                            if (progress.IsCancelled)
+                            {
+                                StingLog.Info($"AutoTag: cancelled by user at {idx}/{taggable}");
+                                cancelled = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                                bool ow = (collisionMode == TagCollisionMode.Overwrite);
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                    tagIndex, sequenceCounters, formulas, gridLines,
+                                    overwrite: ow, skipComplete: skipComplete,
+                                    collisionMode: collisionMode, stats: stats);
+                                if (!pipelineOk)
+                                    StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
+                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                            }
+
+                            progress.Increment($"Tagging element {idx + 1}/{taggable}");
                         }
 
-                        try
+                        if (cancelled)
+                            tx.RollBack();
+                        else
                         {
-                            bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
-                            bool ow = (collisionMode == TagCollisionMode.Overwrite);
-                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
-                                tagIndex, sequenceCounters, formulas, gridLines,
-                                overwrite: ow, skipComplete: skipComplete,
-                                collisionMode: collisionMode, stats: stats);
-                            if (!pipelineOk)
-                                StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
+                            tx.Commit();
+                            TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                         }
-                        catch (Exception ex)
-                        {
-                            StingLog.Error($"AutoTag: failed on element {el?.Id}: {ex.Message}", ex);
-                            stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
-                        }
-
-                        progress.Increment($"Tagging element {idx + 1}/{taggable}");
-                    }
-
-                    if (cancelled)
-                        tx.RollBack();
-                    else
-                    {
-                        tx.Commit();
-                        TagConfig.SaveSeqSidecar(doc, sequenceCounters);
                     }
                 }
             }
-
-            progress.Close();
+            finally
+            {
+                progress.Close();
+            }
             TagPipelineHelper.PostTagCleanup(doc, sequenceCounters, "AutoTag");
             if (cancelled && stats.TotalTagged == 0)
             {
@@ -435,45 +440,51 @@ namespace StingTools.Tags
             // committed batches are preserved instead of losing all work.
             const int ChunkSize = 200;
             var progress = UI.StingProgressDialog.Show("Tag New Only", sorted.Count);
-            int batchNum = 0;
-            for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
+            try
             {
-                if (cancelled) break;
-                batchNum++;
-                int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
-                using (Transaction tx = new Transaction(doc, $"STING Tag New Only #{batchNum}"))
+                int batchNum = 0;
+                for (int batchStart = 0; batchStart < sorted.Count; batchStart += ChunkSize)
                 {
-                    tx.Start();
-                    for (int i = batchStart; i < batchEnd; i++)
+                    if (cancelled) break;
+                    batchNum++;
+                    int batchEnd = Math.Min(batchStart + ChunkSize, sorted.Count);
+                    using (Transaction tx = new Transaction(doc, $"STING Tag New Only #{batchNum}"))
                     {
-                        Element el = sorted[i];
-                        try
+                        tx.Start();
+                        for (int i = batchStart; i < batchEnd; i++)
                         {
-                            bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
-                                tagIndex, seqCounters, formulas, gridLines,
-                                overwrite: false, skipComplete: true,
-                                collisionMode: TagCollisionMode.Skip, stats: stats);
-                            if (!pipelineOk)
-                                StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
+                            Element el = sorted[i];
+                            try
+                            {
+                                bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
+                                    tagIndex, seqCounters, formulas, gridLines,
+                                    overwrite: false, skipComplete: true,
+                                    collisionMode: TagCollisionMode.Skip, stats: stats);
+                                if (!pipelineOk)
+                                    StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"TagNewOnly: failed on element {el?.Id}: {ex.Message}", ex);
+                                stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
+                            }
+                            progress.Increment($"Tagging {i + 1} of {sorted.Count}");
+                            if (progress.IsCancelled)
+                            {
+                                cancelled = true;
+                                tx.RollBack();
+                                StingLog.Info($"TagNewOnly: cancelled at batch #{batchNum}, element {i + 1}/{sorted.Count}");
+                                break;
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            StingLog.Error($"TagNewOnly: failed on element {el?.Id}: {ex.Message}", ex);
-                            stats.RecordWarning($"Error on element {el?.Id}: {ex.Message}");
-                        }
-                        progress.Increment($"Tagging {i + 1} of {sorted.Count}");
-                        if (progress.IsCancelled)
-                        {
-                            cancelled = true;
-                            tx.RollBack();
-                            StingLog.Info($"TagNewOnly: cancelled at batch #{batchNum}, element {i + 1}/{sorted.Count}");
-                            break;
-                        }
+                        if (!cancelled) tx.Commit();
                     }
-                    if (!cancelled) tx.Commit();
                 }
             }
-            progress.Close();
+            finally
+            {
+                progress.Close();
+            }
             sw.Stop();
             if (cancelled)
             {

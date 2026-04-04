@@ -292,7 +292,7 @@ namespace StingTools.UI
                 var openBtn = MakeFooterBtn("Open Export", BrBlue);
                 openBtn.Click += (s, e) =>
                 {
-                    try { Process.Start(new ProcessStartInfo(b.CsvExportPath) { UseShellExecute = true }); }
+                    try { Process.Start(new ProcessStartInfo(b.CsvExportPath) { UseShellExecute = true })?.Dispose(); }
                     catch (Exception ex) { StingLog.Warn($"Open export: {ex.Message}"); }
                 };
                 rightButtons.Children.Add(openBtn);

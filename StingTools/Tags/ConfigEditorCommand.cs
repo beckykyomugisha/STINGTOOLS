@@ -381,7 +381,7 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true })?.Dispose(); }
             catch (Exception ex) { TaskDialog.Show("Error", ex.Message); return Result.Failed; }
 
             var wait = new TaskDialog($"Editing: {def.file}");

@@ -1629,7 +1629,7 @@ namespace StingTools.UI
                         var opDoc = app.ActiveUIDocument?.Document;
                         string root = Core.ProjectFolderEngine.GetRootPath(opDoc);
                         if (System.IO.Directory.Exists(root))
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true });
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
                         break;
                     }
 
