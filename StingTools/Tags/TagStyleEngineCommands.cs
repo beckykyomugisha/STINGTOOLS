@@ -1874,7 +1874,7 @@ namespace StingTools.Tags
                     catch (Exception ex) { StingLog.Warn($"Batch apply param-driven style to element: {ex.Message}"); }
                 }
 
-                tx.Commit();
+                if (batchStyleProgress.IsCancelled) tx.RollBack(); else tx.Commit();
             }
             try { batchStyleProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchStyle progress close: {ex.Message}"); }
 

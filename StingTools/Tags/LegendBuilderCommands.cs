@@ -2649,7 +2649,7 @@ namespace StingTools.Tags
                     else skipped++;
                 }
 
-                tx.Commit();
+                if (legendProgress.IsCancelled) tx.RollBack(); else tx.Commit();
             }
             try { legendProgress.Close(); } catch (Exception ex) { StingLog.Warn($"Legend progress close: {ex.Message}"); }
 
@@ -2771,7 +2771,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             try { bscProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchSheetLegends progress close: {ex.Message}"); }
 
@@ -3125,7 +3125,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
 
             string tagLegendMsg = cancelled ? $"CANCELLED — created {created} of {sheets.Count} tag legends.\n" :
@@ -7146,7 +7146,7 @@ namespace StingTools.Tags
                     else skipped++;
                 }
 
-                tx.Commit();
+                if (cancelled) tx.RollBack(); else tx.Commit();
             }
             try { btlProgress.Close(); } catch (Exception ex) { StingLog.Warn($"BatchTemplateLegends progress close: {ex.Message}"); }
 
