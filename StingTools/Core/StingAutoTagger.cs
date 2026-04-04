@@ -400,6 +400,11 @@ namespace StingTools.Core
                 if (ctx == null) return;
                 var existingTags = _cachedExistingTags;
                 var seqCounters = _cachedSeqCounters;
+                if (existingTags == null || seqCounters == null)
+                {
+                    StingLog.Warn("AutoTagger: null existingTags or seqCounters after context rebuild");
+                    return;
+                }
 
                 foreach (ElementId id in addedIds)
                 {
