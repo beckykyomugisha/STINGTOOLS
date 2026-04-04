@@ -861,29 +861,29 @@ Tag Family #42: STING - Materials Tag
 TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly
-2,T1,MAT_CATEGORY,,,0,✓,---,---,---,Add directly
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
-4,T3,MAT_LAYER_3_MATERIAL,,m,1,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_3_MATERIAL, """")"
-5,T3,MAT_LAYER_4_MATERIAL,,m,1,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_4_MATERIAL, """")"
-6,T3,MAT_LAYER_5_THICKNESS_MM,,mm,1,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_5_THICKNESS_MM, """")"
-7,T3,MAT_LAYER_3_THICKNESS_MM,,mm,1,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_3_THICKNESS_MM, """")"
-8,T3,MAT_LAYER_4_THICKNESS_MM,,mm,1,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, MAT_LAYER_4_THICKNESS_MM, """")"
-9,T3,PROP_THERMAL_COND_W_MK,,m,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, PROP_THERMAL_COND_W_MK, """")"
-10,T3,PROP_DENSITY_KG_M3,,m³,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PROP_DENSITY_KG_M3, """")"
-11,T3,PROP_ACOUSTIC_ABS,,A,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PROP_ACOUSTIC_ABS, """")"
-12,T3,PROP_FIRE_RATING,,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PROP_FIRE_RATING, """")"
-13,T3,PER_SUST_RECYCLABLE_BOOL,,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_RECYCLABLE_BOOL, """")"
-14,T3,MAT_EPD_REF_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, MAT_EPD_REF_TXT, """")"
-15,T3,CST_LOCAL_MAT_BOOL,Local:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")"
-16,T3,PER_SUST_RECYCLABILITY_PCT,Recyclable:,%,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_RECYCLABILITY_PCT, """")"
-17,T3,PER_SUST_EPD_REF_TXT,| EPD:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, PER_SUST_EPD_REF_TXT, """")"
-18,T3,RGL_QA_CERTIFICATION_TXT,Cert:,,0,,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, RGL_QA_CERTIFICATION_TXT, """")"
+2,T1,MAT_NAME,,,0,✓,Common,Text,Show Tier 1 - 2,Add directly
+3,T1,MAT_CATEGORY,,,0,✓,Common,Text,Show Tier 1 - 3,Add directly
+4,T2,MAT_MANUFACTURER,Mfr:,,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MAT_MANUFACTURER, """")"
+5,T2,MAT_STANDARD,Std:,,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MAT_STANDARD, """")"
+6,T2,MAT_CODE,Code:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, MAT_CODE, """")"
+7,T2,PROP_DENSITY_KG_M3,ρ:,kg/m³,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PROP_DENSITY_KG_M3, """")"
+8,T2,PROP_FIRE_RATING,Fire:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PROP_FIRE_RATING, """")"
+9,T2,PROP_THERMAL_COND_W_MK,λ:,W/mK,0,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, PROP_THERMAL_COND_W_MK, """")"
+10,T3,PROP_THERMAL_RES_M2K_W,R:,m²K/W,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PROP_THERMAL_RES_M2K_W, """")"
+11,T3,PROP_SPECIFIC_HEAT_J_KGK,Cp:,J/kgK,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PROP_SPECIFIC_HEAT_J_KGK, """")"
+12,T3,PROP_ACOUSTIC_ABS,α:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PROP_ACOUSTIC_ABS, """")"
+13,T3,PROP_SOUND_RED_DB,Rw:,dB,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PROP_SOUND_RED_DB, """")"
+14,T3,PROP_CARBON_KG_M3,EC:,kgCO₂/m³,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PROP_CARBON_KG_M3, """")"
+15,T3,PROP_COMP_STRENGTH_MPA,fc:,MPa,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PROP_COMP_STRENGTH_MPA, """")"
+16,T3,PROP_TENS_STRENGTH_MPA,ft:,MPa,0,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PROP_TENS_STRENGTH_MPA, """")"
+17,T3,MAT_DURABILITY,Durability:,,0,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, MAT_DURABILITY, """")"
+18,T3,MAT_APPLICATION,Use:,,0,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, MAT_APPLICATION, """")"
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
-1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,Fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
-2,MEDIUM,WARN_PER_SUST_EPD_MATERIALS,EPD reference missing,ISO 14025 / EN 15804,Common,Text,⚠ Warning: Material EPD Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_EPD_MATERIALS, """")"
-3,MEDIUM,WARN_PROP_THERMAL_COND_MATERIALS,Thermal conductivity exceeds limit for insulation application,BS 5422 / CIBSE Guide A,Common,Text,⚠ Warning: Material Thermal Conductivity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_THERMAL_COND_MATERIALS, """")"
-4,LOW,WARN_PER_SUST_RECYCLABILITY_MATERIALS,Recyclability percentage < project sustainability target,BREEAM / ISO 14040,Common,Text,⚠ Warning: Material Recyclability,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_SUST_RECYCLABILITY_MATERIALS, """")"
+1,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,PROP_FIRE_RATING empty — fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
+2,MEDIUM,WARN_PROP_THERMAL_COND_MATERIALS,PROP_THERMAL_COND_W_MK empty — thermal conductivity not specified,BS 5422 / CIBSE Guide A,Common,Text,⚠ Warning: Material Thermal Conductivity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_THERMAL_COND_MATERIALS, """")"
+3,MEDIUM,WARN_GEN_MATERIAL_SPEC_MISSING,MAT_MANUFACTURER empty — material source not specified,Procurement Standards,Common,Text,⚠ Warning: Material Source Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_MATERIAL_SPEC_MISSING, """")"
+4,LOW,WARN_PROP_CARBON_MATERIALS,PROP_CARBON_KG_M3 empty — embodied carbon not specified,BS EN 15978 / ICE Database,Common,Text,⚠ Warning: Material Carbon Data,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_CARBON_MATERIALS, """")"
 
 Tag Family #43: STING - Audio Visual Devices Tag
 TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices

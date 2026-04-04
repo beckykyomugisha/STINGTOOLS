@@ -65,6 +65,7 @@ namespace StingTools.Temp
         public const int ColSurfaceFgPattern = 41;  // BLE_APP-SURFACE-FG-PATTERN
         public const int ColCutFgColor = 42;        // BLE_APP-CUT-FG-COLOR
         public const int ColCutFgPattern = 43;      // BLE_APP-CUT-FG-PATTERN
+        public const int ColImage = 44;             // BLE_APP-IMAGE
         public const int ColDescription = 45;       // BLE_APP-DESCRIPTION
         public const int ColComments = 46;          // BLE_APP-COMMENTS
         public const int ColSurfaceBgPattern = 47;  // BLE_APP-SURFACE-BG-PATTERN
@@ -155,6 +156,47 @@ namespace StingTools.Temp
             (ColPhysicalAsset,  "BLE_APP-PHYSICAL-ASSET"),
             (ColThermalAsset,   "BLE_APP-THERMAL-ASSET"),
             (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
+            // --- BLE_APP-* appearance/visual properties (stored as shared params for scheduling) ---
+            (ColBaseMaterial,       "BLE_APP-REVIT-BASE-MATERIAL"),
+            (ColIdentityClass,      "BLE_APP-IDENTITY-CLASS"),
+            (ColColor,              "BLE_APP-COLOR"),
+            (ColTransparency,       "BLE_APP-TRANSPARENCY"),
+            (ColSmoothness,         "BLE_APP-SMOOTHNESS"),
+            (ColShininess,          "BLE_APP-SHININESS"),
+            (ColSurfaceFgColor,     "BLE_APP-SURFACE-FG-COLOR"),
+            (ColSurfaceFgPattern,   "BLE_APP-SURFACE-FG-PATTERN"),
+            (ColCutFgColor,         "BLE_APP-CUT-FG-COLOR"),
+            (ColCutFgPattern,       "BLE_APP-CUT-FG-PATTERN"),
+            (ColImage,              "BLE_APP-IMAGE"),
+            (ColDescription,        "BLE_APP-DESCRIPTION"),
+            (ColComments,           "BLE_APP-COMMENTS"),
+            (ColSurfaceBgPattern,   "BLE_APP-SURFACE-BG-PATTERN"),
+            (ColSurfaceBgColor,     "BLE_APP-SURFACE-BG-COLOR"),
+            (ColCutBgPattern,       "BLE_APP-CUT-BG-PATTERN"),
+            (ColCutBgColor,         "BLE_APP-CUT-BG-COLOR"),
+            (ColCutPatternName,     "BLE_APP-CUT_PATTERN"),
+            (ColSurfacePatternName, "BLE_APP-SURFACE_PATTERN"),
+            (ColBgPatternName,      "BLE_APP-BACKGROUND_PATTERN"),
+            (ColShadingRgb,         "BLE_APP-SHADING_RGB"),
+            // --- BLE_MAT_* element-level scheduling mirrors (same CSV source as MAT_*) ---
+            (ColName,               "BLE_MAT_NAME_TXT"),
+            (ColDiscipline,         "BLE_MAT_DISCIPLINE_TXT"),
+            (ColIso19650Id,         "BLE_MAT_ID_TXT"),
+            (ColCategory,           "BLE_MAT_CATEGORY_TXT"),
+            (ColElementType,        "BLE_MAT_ELEM_TYPE_TXT"),
+            (ColApplication,        "BLE_MAT_APPLICATION_TXT"),
+            (ColManufacturer,       "BLE_MAT_MANUFACTURER_TXT"),
+            (ColThicknessMm,        "BLE_MAT_THICK_MM"),
+            (ColDurability,         "BLE_MAT_DURABILITY_TXT"),
+            (ColSpecifications,     "BLE_MAT_SPEC_TXT"),
+            (ColStandard,           "BLE_MAT_STANDARD_TXT"),
+            (ColLayerCount,         "BLE_MAT_LAYER_CNT_INT"),
+            (ColLayer1Material,     "BLE_MAT_L1_MAT_TXT"),
+            (ColLayer1Thickness,    "BLE_MAT_L1_THK_MM"),
+            (ColLayer1Function,     "BLE_MAT_L1_FUNC_TXT"),
+            (ColLayer2Material,     "BLE_MAT_L2_MAT_TXT"),
+            (ColLayer2Thickness,    "BLE_MAT_L2_THK_MM"),
+            (ColLayer2Function,     "BLE_MAT_L2_FUNC_TXT"),
         };
 
         /// <summary>
@@ -627,6 +669,52 @@ namespace StingTools.Temp
             catch (Exception ex) { StingLog.Warn($"param not available on this material: {ex.Message}"); }
         }
 
+        // ── SHARED PARAMETER VALUE WRITER ─────────────────────────────────
+
+        /// <summary>
+        /// Write CSV column values to material shared parameters using the
+        /// SharedParamMappings array.  Parameters must already be bound to
+        /// OST_Materials (via LoadSharedParamsCommand / CleanMaterialBindings).
+        /// </summary>
+        private static void ApplySharedParamValues(Material mat, string[] cols)
+        {
+            if (mat == null) return;
+
+            foreach (var (col, paramName) in SharedParamMappings)
+            {
+                string value = GetCol(cols, col);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                try
+                {
+                    Parameter p = mat.LookupParameter(paramName);
+                    if (p == null || p.IsReadOnly) continue;
+
+                    switch (p.StorageType)
+                    {
+                        case StorageType.String:
+                            p.Set(value);
+                            break;
+
+                        case StorageType.Double:
+                            if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+                                p.Set(dVal);
+                            break;
+
+                        case StorageType.Integer:
+                            if (int.TryParse(value, out int iVal))
+                                p.Set(iVal);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SharedParam '{paramName}' on '{mat.Name}': {ex.Message}");
+                }
+            }
+        }
+
         // ── READ helpers (for export CSV round-trip) ──────────────────────
 
         /// <summary>Read a string BuiltInParameter from a material. Returns empty string on failure.</summary>
@@ -891,7 +979,7 @@ namespace StingTools.Temp
                                 if (newMat != null)
                                 {
                                     ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
-                                    PopulateSharedParameters(newMat, cols);
+                                    ApplySharedParamValues(newMat, cols);
 
                                     string baseMatName = GetCol(cols, ColBaseMaterial);
                                     if (!string.IsNullOrEmpty(baseMatName) &&
