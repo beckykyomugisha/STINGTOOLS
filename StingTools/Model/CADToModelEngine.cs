@@ -62,8 +62,8 @@ namespace StingTools.Model
             ("damper", "Ducts"), ("conduit", "Electrical"),
         };
 
-        /// <summary>Counter for unmatched layer log throttling (first 10 per session).</summary>
-        private static int _unmatchedLogCount = 0;
+        /// <summary>Counter for unmatched layer log throttling (first 10 per conversion run).</summary>
+        internal static int _unmatchedLogCount = 0;
 
         /// <summary>
         /// Infers the Revit category from a DWG layer name.
@@ -263,6 +263,7 @@ namespace StingTools.Model
             try
             {
                 StingLog.Info("CADToModelEngine: Starting DWG conversion");
+                LayerMapper._unmatchedLogCount = 0; // Reset log throttle for each conversion run
 
                 // Step 1: Extract geometry
                 var extraction = ExtractGeometry(importInstance);

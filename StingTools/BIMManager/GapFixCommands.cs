@@ -166,10 +166,12 @@ namespace StingTools.BIMManager
 
         private static DateTime _lastCoordRefresh = DateTime.MinValue;
         private static string _cachedCoordSummary = "";
+        private static string _cachedCoordDocPath = "";
 
         internal static string BuildFullCoordData(Document doc)
         {
-            if ((DateTime.Now - _lastCoordRefresh).TotalSeconds < 30 && !string.IsNullOrEmpty(_cachedCoordSummary))
+            string docKey = doc?.PathName ?? doc?.Title ?? "";
+            if ((DateTime.Now - _lastCoordRefresh).TotalSeconds < 30 && !string.IsNullOrEmpty(_cachedCoordSummary) && _cachedCoordDocPath == docKey)
                 return _cachedCoordSummary;
 
             var sb = new StringBuilder();
@@ -194,11 +196,12 @@ namespace StingTools.BIMManager
             catch (Exception ex) { StingLog.Warn($"BuildFullCoordData: {ex.Message}"); }
 
             _cachedCoordSummary = sb.ToString();
+            _cachedCoordDocPath = docKey;
             _lastCoordRefresh = DateTime.Now;
             return _cachedCoordSummary;
         }
 
-        internal static void InvalidateCoordCache() { _lastCoordRefresh = DateTime.MinValue; }
+        internal static void InvalidateCoordCache() { _lastCoordRefresh = DateTime.MinValue; _cachedCoordDocPath = ""; }
 
         // ═══════════════════════════════════════════════════════════════════
         //  CRIT-04: Streaming COBie Import with Validation
