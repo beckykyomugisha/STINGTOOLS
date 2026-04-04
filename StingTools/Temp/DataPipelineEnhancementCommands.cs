@@ -143,6 +143,12 @@ namespace StingTools.Temp
 
                 // Parse matrix
                 var matrixLines = File.ReadAllLines(matrixPath);
+                if (matrixLines.Length == 0)
+                {
+                    sb.AppendLine("⚠ BINDING_COVERAGE_MATRIX.csv is empty");
+                    TaskDialog.Show("STING Binding Validation", sb.ToString());
+                    return Result.Failed;
+                }
                 var matrixHeader = StingToolsApp.ParseCsvLine(matrixLines[0]);
                 var matrixCategories = matrixHeader.Skip(1).Select(h => h.Trim()).ToList();
                 int matrixParams = matrixLines.Length - 1;
