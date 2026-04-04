@@ -6,8 +6,6 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
-using StingTools.Select;
-using StingTools.UI;
 
 namespace StingTools.ExLink
 {
@@ -143,20 +141,14 @@ namespace StingTools.ExLink
                 return Result.Succeeded;
             }
 
-            // Pick all .link files via list picker
-            var names = files.Select(f => f.FileName).ToList();
-            var pickItems = names.Select(n => new StingListPicker.ListItem { Label = n }).ToList();
-            var picks = StingListPicker.Show("Select .link files to export",
-                $"{names.Count} link definitions available", pickItems, true);
-            if (picks == null || picks.Count == 0) return Result.Succeeded;
-
+            // Export all found .link files
             var outputDir = ExLinkHelpers.PickFolderPath("Select output folder for exports");
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             int exported = 0, failed = 0;
-            foreach (var pick in picks)
+            foreach (var fileInfo in files)
             {
-                var info = files.FirstOrDefault(f => f.FileName == pick.Label);
+                var info = fileInfo;
                 if (info == null) continue;
                 try
                 {
@@ -167,7 +159,7 @@ namespace StingTools.ExLink
                 }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"Multi-export failed for {pick}: {ex.Message}");
+                    StingLog.Warn($"Multi-export failed for {info.FileName}: {ex.Message}");
                     failed++;
                 }
             }
@@ -288,19 +280,31 @@ namespace StingTools.ExLink
             var doc = uidoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
-            // Pick category
-            var categories = new List<string>
-            {
-                "Walls", "Doors", "Windows", "Rooms", "Floors", "Ceilings", "Roofs",
+            // Pick category via TaskDialog command links
+            var categories = new[] { "Walls", "Doors", "Windows", "Rooms", "Floors", "Ceilings", "Roofs",
                 "Structural Columns", "Structural Framing", "Furniture",
                 "Mechanical Equipment", "Electrical Equipment", "Lighting Fixtures",
                 "Plumbing Fixtures", "Ducts", "Pipes", "Cable Trays", "Conduits",
-                "Sheets", "Views", "Generic Models"
-            };
-            var catPick = StingListPicker.Show("Select element category", "Choose the Revit category to export", categories);
-            if (string.IsNullOrEmpty(catPick)) return Result.Succeeded;
+                "Sheets", "Views", "Generic Models" };
+            var catDlg = new TaskDialog("STING — Select Category");
+            catDlg.MainInstruction = "Select the element category to export";
+            catDlg.MainContent = string.Join("\n", categories.Select((c, i) => $"{i + 1}. {c}"));
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Architectural (Walls/Doors/Windows/Rooms/Floors/Ceilings/Roofs)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Structural (Columns/Framing/Furniture)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MEP (Mechanical/Electrical/Lighting/Plumbing/Ducts/Pipes)");
+            catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Other (Sheets/Views/Generic Models)");
+            var catResult = catDlg.Show();
 
-            var elementType = catPick;
+            // Map group selection to specific categories for discovery
+            string elementType;
+            switch (catResult)
+            {
+                case TaskDialogResult.CommandLink1: elementType = "WALLS"; break;
+                case TaskDialogResult.CommandLink2: elementType = "STRUCTURAL_COLUMNS"; break;
+                case TaskDialogResult.CommandLink3: elementType = "MECHANICAL_EQUIPMENT"; break;
+                case TaskDialogResult.CommandLink4: elementType = "SHEETS"; break;
+                default: return Result.Succeeded;
+            }
 
             // Build a basic link definition from selected category
             var def = new LinkDefinition
@@ -317,24 +321,9 @@ namespace StingTools.ExLink
                 return Result.Succeeded;
             }
 
-            // Build picker items with source grouping for easy selection
-            var paramItems = discovered.Select(ap => new StingListPicker.ListItem
-            {
-                Label = string.IsNullOrEmpty(ap.DisplayName) ? ap.Name : $"{ap.DisplayName}  ({ap.SourceType})"
-            }).ToList();
-            var paramPickResult = StingListPicker.Show("Select properties to export",
-                $"Choose parameters for {elementType} — {discovered.Count} discovered from STING, Revit, and project sources",
-                paramItems, true);
-            if (paramPickResult == null || paramPickResult.Count == 0) return Result.Succeeded;
-
-            // Map picked labels back to AvailableProperty and convert to PropertyDef
-            var pickedLabels = new HashSet<string>(paramPickResult.Select(r => r.Label));
+            // Add all discovered properties to the link definition
             foreach (var ap in discovered)
-            {
-                var label = string.IsNullOrEmpty(ap.DisplayName) ? ap.Name : $"{ap.DisplayName}  ({ap.SourceType})";
-                if (pickedLabels.Contains(label))
-                    def.Properties.Add(ap.ToPropertyDef());
-            }
+                def.Properties.Add(ap.ToPropertyDef());
 
             // Export with custom definition
             var outputPath = ExLinkHelpers.PickSavePath(def.FileName, "xlsx");
