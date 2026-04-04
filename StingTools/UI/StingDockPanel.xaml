@@ -2730,7 +2730,7 @@
                                             ToolTip="Select all elements with sticky notes"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Categories" Tag="StickyCategories" Click="Cmd_Click"
                                             ToolTip="Manage sticky note categories: Design Query, Coordination, QA, Safety, Cost"/>
-                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard" Tag="StickyDashboard" Click="Cmd_Click"
+                                    <Button Style="{StaticResource ActionBtn}" Content="Dashboard" Tag="StickyDashboardBIM" Click="Cmd_Click"
                                             ToolTip="Summary dashboard: notes by category, author, status, linked elements"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Search" Tag="StickySearch" Click="Cmd_Click"
                                             ToolTip="Search/filter sticky notes by text, category, author, date range"/>
@@ -3910,6 +3910,100 @@
 
                         </TabControl>
                 </DockPanel>
+            </TabItem>
+
+            <!-- ═══════════════════ TAB 10: EXLINK ═══════════════════ -->
+            <TabItem Header="EXLINK">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                    <StackPanel>
+
+                        <!-- HEADER -->
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <TextBlock Text="EXLINK — DATA EXCHANGE &amp; AUTOMATION" FontWeight="Bold" FontSize="11" Foreground="#6A1B9A"/>
+                                <TextBlock Text="Excel link files, batch export, model explorer, ISB schedules, sticky notes" FontSize="9" Foreground="#888"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- EXLINK BROWSER -->
+                        <TextBlock Text="EXCEL LINK FILES" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,6,0,2"/>
+                        <WrapPanel>
+                            <Button Content="★ Link Browser" Style="{StaticResource PurpleBtn}" Tag="ExLinkBrowser" Click="Cmd_Click" ToolTip="Browse and preview all .link definition files"/>
+                            <Button Content="Export" Style="{StaticResource GreenBtn}" Tag="ExLinkExport" Click="Cmd_Click" ToolTip="Export data using a .link definition to Excel"/>
+                            <Button Content="Import" Style="{StaticResource OrangeBtn}" Tag="ExLinkImport" Click="Cmd_Click" ToolTip="Import data from Excel back into model using .link definition"/>
+                            <Button Content="Multi-Export" Style="{StaticResource BlueBtn}" Tag="ExLinkMultiExport" Click="Cmd_Click" ToolTip="Export multiple .link definitions to one workbook"/>
+                            <Button Content="Quick View" Style="{StaticResource ActionBtn}" Tag="ExLinkQuickView" Click="Cmd_Click" ToolTip="Preview link data without exporting to file"/>
+                            <Button Content="Batch Export All" Style="{StaticResource ActionBtn}" Tag="ExLinkBatchExport" Click="Cmd_Click" ToolTip="Export ALL .link files to individual Excel files"/>
+                            <Button Content="Custom Link" Style="{StaticResource ActionBtn}" Tag="ExLinkCustomLink" Click="Cmd_Click" ToolTip="Create a custom .link definition from element selection"/>
+                        </WrapPanel>
+
+                        <!-- QTO &amp; DOCUMENT ISSUANCE -->
+                        <TextBlock Text="QUANTITY TAKEOFF &amp; DOCUMENTS" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="QTO Export" Style="{StaticResource GreenBtn}" Tag="ExLinkQTO" Click="Cmd_Click" ToolTip="Quantity takeoff: areas, volumes, lengths grouped by type"/>
+                            <Button Content="Doc Issuance" Style="{StaticResource BlueBtn}" Tag="ExLinkDocIssuance" Click="Cmd_Click" ToolTip="Document issuance register from sheets"/>
+                            <Button Content="COBie Sync" Style="{StaticResource OrangeBtn}" Tag="ExLinkCOBieSync" Click="Cmd_Click" ToolTip="Export COBie-aligned data via ExLink engine"/>
+                        </WrapPanel>
+
+                        <!-- DYNAMIC EXPORT -->
+                        <TextBlock Text="DYNAMIC EXPORT" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="PDF Export" Style="{StaticResource GreenBtn}" Tag="ExLinkDynamicPDF" Click="Cmd_Click" ToolTip="Export sheets to PDF"/>
+                            <Button Content="DWG Export" Style="{StaticResource BlueBtn}" Tag="ExLinkDynamicDWG" Click="Cmd_Click" ToolTip="Export views/sheets to DWG"/>
+                            <Button Content="NWC Export" Style="{StaticResource OrangeBtn}" Tag="ExLinkDynamicNWC" Click="Cmd_Click" ToolTip="Export 3D view to Navisworks NWC"/>
+                        </WrapPanel>
+
+                        <!-- BATCH AUTOMATION -->
+                        <TextBlock Text="BATCH AUTOMATION" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Batch PDF" Style="{StaticResource GreenBtn}" Tag="AutoBatchPDF" Click="Cmd_Click" ToolTip="Batch export all sheets to individual PDF files"/>
+                            <Button Content="Batch DWG" Style="{StaticResource BlueBtn}" Tag="AutoBatchDWG" Click="Cmd_Click" ToolTip="Batch export views/sheets to DWG"/>
+                            <Button Content="Batch NWC" Style="{StaticResource OrangeBtn}" Tag="AutoBatchNWC" Click="Cmd_Click" ToolTip="Batch export 3D views to Navisworks"/>
+                            <Button Content="Batch IFC" Style="{StaticResource PurpleBtn}" Tag="AutoBatchIFC" Click="Cmd_Click" ToolTip="Export model to IFC format"/>
+                            <Button Content="Model Audit" Style="{StaticResource ActionBtn}" Tag="AutoModelAudit" Click="Cmd_Click" ToolTip="Comprehensive model audit: element counts, file size, warnings"/>
+                            <Button Content="Compact/Purge" Style="{StaticResource OrangeBtn}" Tag="AutoModelCompact" Click="Cmd_Click" ToolTip="Find and purge unused families, views, groups"/>
+                            <Button Content="Backup Cleanup" Style="{StaticResource ActionBtn}" Tag="AutoBackupCleanup" Click="Cmd_Click" ToolTip="Clean up backup and journal files"/>
+                            <Button Content="Family Upgrade" Style="{StaticResource ActionBtn}" Tag="AutoFamilyUpgrade" Click="Cmd_Click" ToolTip="Check loaded families for version upgrade status"/>
+                            <Button Content="Model Stats" Style="{StaticResource BlueBtn}" Tag="AutoModelStats" Click="Cmd_Click" ToolTip="Comprehensive model statistics report"/>
+                            <Button Content="Batch Param Export" Style="{StaticResource GreenBtn}" Tag="AutoBatchParamExport" Click="Cmd_Click" ToolTip="Export parameter values for selected categories to CSV"/>
+                        </WrapPanel>
+
+                        <!-- EXPLORER -->
+                        <TextBlock Text="MODEL EXPLORER" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Family Browser" Style="{StaticResource BlueBtn}" Tag="ExplorerFamilyBrowser" Click="Cmd_Click" ToolTip="Browse all loaded families by category"/>
+                            <Button Content="Type Browser" Style="{StaticResource GreenBtn}" Tag="ExplorerTypeBrowser" Click="Cmd_Click" ToolTip="Browse all family types with instance counts"/>
+                            <Button Content="Unused Elements" Style="{StaticResource OrangeBtn}" Tag="ExplorerUnusedElements" Click="Cmd_Click" ToolTip="Detect unused families, views, rooms, groups"/>
+                            <Button Content="CAD Imports" Style="{StaticResource ActionBtn}" Tag="ExplorerCADImports" Click="Cmd_Click" ToolTip="Find all CAD imports and links in the model"/>
+                            <Button Content="In-Place Families" Style="{StaticResource ActionBtn}" Tag="ExplorerInPlaceFamilies" Click="Cmd_Click" ToolTip="Find all in-place family instances"/>
+                        </WrapPanel>
+
+                        <!-- ISB SCHEDULES -->
+                        <TextBlock Text="ISB — IN-SHEET BUILDER" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="Door Schedule" Style="{StaticResource GreenBtn}" Tag="ISBDoorSchedule" Click="Cmd_Click" ToolTip="Create door schedule from template"/>
+                            <Button Content="Window Schedule" Style="{StaticResource GreenBtn}" Tag="ISBWindowSchedule" Click="Cmd_Click" ToolTip="Create window schedule from template"/>
+                            <Button Content="Room Finish" Style="{StaticResource BlueBtn}" Tag="ISBRoomFinish" Click="Cmd_Click" ToolTip="Create room finish schedule"/>
+                            <Button Content="Wall Types" Style="{StaticResource BlueBtn}" Tag="ISBWallType" Click="Cmd_Click" ToolTip="Create wall type schedule"/>
+                            <Button Content="Floor Types" Style="{StaticResource BlueBtn}" Tag="ISBFloorType" Click="Cmd_Click" ToolTip="Create floor type schedule"/>
+                            <Button Content="Equipment" Style="{StaticResource OrangeBtn}" Tag="ISBEquipment" Click="Cmd_Click" ToolTip="Create equipment schedule"/>
+                            <Button Content="Lighting" Style="{StaticResource OrangeBtn}" Tag="ISBLighting" Click="Cmd_Click" ToolTip="Create lighting fixture schedule"/>
+                            <Button Content="Plumbing" Style="{StaticResource OrangeBtn}" Tag="ISBPlumbing" Click="Cmd_Click" ToolTip="Create plumbing fixture schedule"/>
+                            <Button Content="Electrical" Style="{StaticResource PurpleBtn}" Tag="ISBElectrical" Click="Cmd_Click" ToolTip="Create electrical panel schedule"/>
+                            <Button Content="Key Plan" Style="{StaticResource PurpleBtn}" Tag="ISBKeyPlan" Click="Cmd_Click" ToolTip="Create key plan drafting view"/>
+                        </WrapPanel>
+
+                        <!-- STICKY NOTES -->
+                        <TextBlock Text="STICKY NOTES" FontWeight="Bold" FontSize="9" Foreground="{DynamicResource PanelFg}" Margin="0,8,0,2"/>
+                        <WrapPanel>
+                            <Button Content="★ Notes Dashboard" Style="{StaticResource PurpleBtn}" Tag="StickyDashboard" Click="Cmd_Click" ToolTip="View all sticky notes: filter by status, priority, owner"/>
+                            <Button Content="Add Note" Style="{StaticResource GreenBtn}" Tag="StickyNoteCreate" Click="Cmd_Click" ToolTip="Create a sticky note on selected element"/>
+                            <Button Content="Export Notes" Style="{StaticResource BlueBtn}" Tag="StickyNoteExport" Click="Cmd_Click" ToolTip="Export all sticky notes to CSV"/>
+                            <Button Content="Bulk Update" Style="{StaticResource OrangeBtn}" Tag="StickyNoteBulkUpdate" Click="Cmd_Click" ToolTip="Bulk update status for selected elements' notes"/>
+                        </WrapPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
         </TabControl>

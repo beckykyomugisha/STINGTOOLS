@@ -1366,7 +1366,7 @@ namespace StingTools.UI
 
                     // Sticky Notes — Enhanced
                     case "StickyCategories": RunCommand<BIMManager.StickyNoteCategoriesCommand>(app); break;
-                    case "StickyDashboard": RunCommand<BIMManager.StickyNoteDashboardCommand>(app); break;
+                    case "StickyDashboardBIM": RunCommand<BIMManager.StickyNoteDashboardCommand>(app); break;
                     case "StickySearch": RunCommand<BIMManager.StickyNoteSearchCommand>(app); break;
 
                     // Issue Tracker — Enhanced
@@ -2614,6 +2614,58 @@ namespace StingTools.UI
                         TaskDialog.Show("STING — Action Plan", sb.ToString());
                         break;
                     }
+
+                    // ── ExLink commands ──
+                    case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
+                    case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
+                    case "ExLinkImport": RunCommand<ExLink.ExLinkImportCommand>(app); break;
+                    case "ExLinkMultiExport": RunCommand<ExLink.ExLinkMultiExportCommand>(app); break;
+                    case "ExLinkQuickView": RunCommand<ExLink.ExLinkQuickViewCommand>(app); break;
+                    case "ExLinkBatchExport": RunCommand<ExLink.ExLinkBatchExportCommand>(app); break;
+                    case "ExLinkCustomLink": RunCommand<ExLink.ExLinkCustomLinkCommand>(app); break;
+                    case "ExLinkQTO": RunCommand<ExLink.ExLinkQTOCommand>(app); break;
+                    case "ExLinkDocIssuance": RunCommand<ExLink.ExLinkDocIssuanceCommand>(app); break;
+                    case "ExLinkCOBieSync": RunCommand<ExLink.ExLinkCOBieSyncCommand>(app); break;
+                    case "ExLinkDynamicPDF": RunCommand<ExLink.ExLinkDynamicPDFCommand>(app); break;
+                    case "ExLinkDynamicDWG": RunCommand<ExLink.ExLinkDynamicDWGCommand>(app); break;
+                    case "ExLinkDynamicNWC": RunCommand<ExLink.ExLinkDynamicNWCCommand>(app); break;
+
+                    // ── Automation commands ──
+                    case "AutoBatchPDF": RunCommand<ExLink.BatchPDFExportCommand>(app); break;
+                    case "AutoBatchDWG": RunCommand<ExLink.BatchDWGExportCommand>(app); break;
+                    case "AutoBatchNWC": RunCommand<ExLink.BatchNWCExportCommand>(app); break;
+                    case "AutoBatchIFC": RunCommand<ExLink.BatchIFCExportCommand>(app); break;
+                    case "AutoModelAudit": RunCommand<ExLink.AutomationModelAuditCommand>(app); break;
+                    case "AutoModelCompact": RunCommand<ExLink.AutomationModelCompactCommand>(app); break;
+                    case "AutoBackupCleanup": RunCommand<ExLink.AutomationBackupCleanupCommand>(app); break;
+                    case "AutoFamilyUpgrade": RunCommand<ExLink.AutomationFamilyUpgradeCommand>(app); break;
+                    case "AutoModelStats": RunCommand<ExLink.AutomationModelStatsCommand>(app); break;
+                    case "AutoBatchParamExport": RunCommand<ExLink.AutomationBatchParamExportCommand>(app); break;
+
+                    // ── Explorer commands ──
+                    case "ExplorerFamilyBrowser": RunCommand<ExLink.FamilyBrowserCommand>(app); break;
+                    case "ExplorerTypeBrowser": RunCommand<ExLink.TypeBrowserCommand>(app); break;
+                    case "ExplorerUnusedElements": RunCommand<ExLink.UnusedElementsCommand>(app); break;
+                    case "ExplorerCADImports": RunCommand<ExLink.CADImportDetectorCommand>(app); break;
+                    case "ExplorerInPlaceFamilies": RunCommand<ExLink.InPlaceFamilyDetectorCommand>(app); break;
+
+                    // ── ISB commands ──
+                    case "ISBDoorSchedule": RunCommand<ExLink.ISBDoorScheduleCommand>(app); break;
+                    case "ISBWindowSchedule": RunCommand<ExLink.ISBWindowScheduleCommand>(app); break;
+                    case "ISBRoomFinish": RunCommand<ExLink.ISBRoomFinishCommand>(app); break;
+                    case "ISBWallType": RunCommand<ExLink.ISBWallTypeCommand>(app); break;
+                    case "ISBFloorType": RunCommand<ExLink.ISBFloorTypeCommand>(app); break;
+                    case "ISBEquipment": RunCommand<ExLink.ISBEquipmentScheduleCommand>(app); break;
+                    case "ISBLighting": RunCommand<ExLink.ISBLightingScheduleCommand>(app); break;
+                    case "ISBPlumbing": RunCommand<ExLink.ISBPlumbingScheduleCommand>(app); break;
+                    case "ISBElectrical": RunCommand<ExLink.ISBElectricalScheduleCommand>(app); break;
+                    case "ISBKeyPlan": RunCommand<ExLink.ISBKeyPlanCommand>(app); break;
+
+                    // ── Sticky Notes commands ──
+                    case "StickyNoteCreate": RunCommand<ExLink.StickyNoteCreateCommand>(app); break;
+                    case "StickyDashboard": RunCommand<ExLink.StickyNoteDashboardCommand>(app); break;
+                    case "StickyNoteExport": RunCommand<ExLink.StickyNoteExportCommand>(app); break;
+                    case "StickyNoteBulkUpdate": RunCommand<ExLink.StickyNoteBulkUpdateCommand>(app); break;
 
                     // ── Unmapped command tag ──
                     default:

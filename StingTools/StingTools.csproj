@@ -6,7 +6,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>StingTools</RootNamespace>
     <AssemblyName>StingTools</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>2.2.0</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>false</UseWindowsForms>
