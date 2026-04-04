@@ -600,7 +600,7 @@ TAG7 visibility controlled by `TAG_PARA_STATE_1/2/3_BOOL` parameters:
 - Tier 3: Full (+ technical + classification)
 - Tiers 4-10: Custom depth levels
 
-> **Note**: All `_BOOL` parameters (including `TAG_PARA_STATE_1/2/3_BOOL`, `TAG_WARN_VISIBLE_BOOL`, and `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) use **TEXT** datatype (not YESNO) in `MR_PARAMETERS.txt`. This is required for Revit calculated value formula compatibility — see TAG_FAMILY_CREATION_GUIDE.md for details.
+> **Note**: All `_BOOL` parameters (including `TAG_PARA_STATE_1/2/3_BOOL`, `TAG_WARN_VISIBLE_BOOL`, and `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) use **YESNO** datatype in `MR_PARAMETERS.txt`. This matches Revit's shared parameter type system and prevents "Inconsistent Units" errors when loading parameters into families. In calculated value formulas, the `if()` condition accepts YESNO parameters directly — see TAG_FAMILY_CREATION_GUIDE.md for details.
 
 Set via: CREATE → Presentation → Set Paragraph Depth
 
@@ -1054,7 +1054,7 @@ Create custom workflows in `data/WORKFLOW_MyWorkflow.json`:
 | **Issues** | Tags link elements to BCF issues |
 | **Revisions** | Tag snapshots track changes between revisions |
 | **Excel** | 30+ columns exported with full tag data |
-| **Schedules** | Tags populate schedule fields |
+| **Schedules** | Tags populate schedule fields; TPL_Schedule_Metadata provides column aliases |
 | **Legends** | Tag data drives legend content |
 | **BEP** | Compliance % enriches BEP auto-generation |
 | **Transmittals** | Document naming from tag data |

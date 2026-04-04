@@ -299,7 +299,7 @@ Settings: Check 'Wrap between parameters only'
 | Warning | `if(TAG_WARN_VISIBLE_BOOL, <param>, "")` | Technical and Full Specification modes |
 | TAG7 A-F | `if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7x_TXT, "")` | Full Specification mode only |
 
-> **IMPORTANT — `_BOOL` Parameter Datatype**: All parameters ending in `_BOOL` (e.g., `TAG_PARA_STATE_2_BOOL`, `TAG_WARN_VISIBLE_BOOL`, `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) are defined as **TEXT** datatype in `MR_PARAMETERS.txt`, **not** YESNO. This is required because Revit's calculated value `if()` formula demands consistent types across both branches. Since the false branch returns `""` (a TEXT value), the condition parameter must also be TEXT. Values are `"1"` (true) and `"0"` or `""` (false). If you accidentally create these as YESNO, Revit will show an **"Inconsistent Units"** error in the Edit Label dialog and the calculated value formula will fail.
+> **IMPORTANT — `_BOOL` Parameter Datatype**: All parameters ending in `_BOOL` (e.g., `TAG_PARA_STATE_2_BOOL`, `TAG_WARN_VISIBLE_BOOL`, `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) are defined as **YESNO** datatype in `MR_PARAMETERS.txt`. This matches Revit's shared parameter type system and prevents "Inconsistent Units" errors when loading shared parameters. In calculated value formulas, the `if()` condition parameter accepts YESNO directly — Revit handles the type coercion between the YESNO condition and the TEXT result branches. Values are `Yes`/`No` (or `1`/`0` when set programmatically via the API).
 
 ### TAG7 Sub-Section Styling
 
