@@ -12,7 +12,7 @@ using StingTools.Core;
 namespace StingTools.UI
 {
     /// <summary>
-    /// Reusable corporate-style WPF DataGrid dialog for BIMLink-style data views.
+    /// Reusable corporate-style WPF DataGrid dialog for ExLink-style data views.
     /// Single-page layout with filters, DataGrid, action buttons, and status bar.
     /// Used for Excel Link, CDE Browser, Revision Management, Issue Dashboard, etc.
     /// </summary>

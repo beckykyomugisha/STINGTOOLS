@@ -1839,7 +1839,7 @@ namespace StingTools.UI
                     case "ExportExcelTemplate": RunCommand<BIMManager.ExportTemplateCommand>(app); break;
                     case "ExcelExchangeWizard": RunCommand<BIMManager.ExcelExchangeWizardCommand>(app); break;
 
-                    // BIMLink-style Data Export (unified export dialog)
+                    // ExLink-style Data Export (unified export dialog)
                     case "StingDataExport":
                     case "DataExport":
                     case "UnifiedExport":

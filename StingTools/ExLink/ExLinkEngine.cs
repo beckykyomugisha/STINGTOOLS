@@ -51,6 +51,14 @@ namespace StingTools.ExLink
         public string SharedParamGuid { get; set; } = "";
         public bool IsReadOnly { get; set; }
         public string RelationshipPath { get; set; } = ""; // For ELEMENT_PROPERTY lookup chain
+
+        // ── Extended fields for ExLink Property Discovery ──
+        public string DisplayName { get; set; } = "";
+        public string DataType { get; set; } = "";         // Text, Integer, Double, YesNo, ElementId
+        public string SourceType { get; set; } = "";       // STING Shared, Revit Built-in, Project/Family, Calculated
+        public string ParameterGroup { get; set; } = "";   // Source Tokens, Tag Containers, Identity, Dimensions, etc.
+        public bool IsHidden { get; set; }
+        public List<string> ValidationList { get; set; }   // Dropdown values for STING token columns in Excel
     }
 
     internal class FilterDef
@@ -695,6 +703,23 @@ namespace StingTools.ExLink
 
                 // Auto-fit columns (cap at 50 chars width)
                 ws.Columns().AdjustToContents(1, 50);
+
+                // Add data validation dropdowns for columns with ValidationList
+                for (int c = 0; c < def.Properties.Count; c++)
+                {
+                    var vList = def.Properties[c].ValidationList;
+                    if (vList != null && vList.Count > 0 && elements.Count > 0)
+                    {
+                        var dataRange = ws.Range(2, c + 1, elements.Count + 1, c + 1);
+                        var validation = dataRange.CreateDataValidation();
+                        validation.AllowedValues = ClosedXML.Excel.XLAllowedValues.List;
+                        validation.List($"\"{string.Join(",", vList)}\"");
+                        validation.IgnoreBlanks = true;
+                        validation.ShowInputMessage = true;
+                        validation.InputTitle = def.Properties[c].DisplayName ?? def.Properties[c].Name;
+                        validation.InputMessage = $"Select from {vList.Count} valid codes";
+                    }
+                }
 
                 // Add hidden ElementId column for import round-trip
                 var idCol = def.Properties.Count + 1;

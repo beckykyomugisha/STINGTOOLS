@@ -13,7 +13,7 @@ using Visibility = System.Windows.Visibility;
 namespace StingTools.UI
 {
     // ════════════════════════════════════════════════════════════════════
-    //  StingExportDialog — BIMLink-style unified export dialog
+    //  StingExportDialog — ExLink-style unified export dialog
     //
     //  A single WPF dialog that replaces ad-hoc export workflows with a
     //  comprehensive export configurator:
@@ -60,12 +60,12 @@ namespace StingTools.UI
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  ExportLinkDefinition — Reusable export preset (BIMLink LinkDefinition)
+    //  ExportLinkDefinition — Reusable export preset (ExLink LinkDefinition)
     //
     //  Stores all export configuration for save/load/reuse.
     // ════════════════════════════════════════════════════════════════════
 
-    /// <summary>Reusable export configuration preset, analogous to BIMLink's LinkDefinition.</summary>
+    /// <summary>Reusable export configuration preset, analogous to ExLink's LinkDefinition.</summary>
     public class ExportLinkDefinition
     {
         public string Name { get; set; } = "";
@@ -475,7 +475,7 @@ namespace StingTools.UI
     }
 
     /// <summary>
-    /// BIMLink-style unified export dialog. Provides category, parameter,
+    /// ExLink-style unified export dialog. Provides category, parameter,
     /// family/type filtering and format/location selection in a single window.
     /// Includes library browser for 120+ built-in and user export presets.
     /// </summary>
