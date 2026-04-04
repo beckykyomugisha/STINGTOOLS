@@ -2259,17 +2259,49 @@ namespace StingTools.BIMManager
                             catch (Exception ex) { StingLog.Warn($"Schedule field lookup failed at index {i}: {ex.Message}"); }
                         }
 
-                        // Collect source elements for this schedule in row order
-                        var schedElements = new FilteredElementCollector(doc, sched.Id)
-                            .WhereElementIsNotElementType()
-                            .ToList();
+                        // Collect source elements for this schedule.
+                        // NOTE: FilteredElementCollector(doc, schedId) does NOT guarantee
+                        // row-order correspondence with schedule display. Build an ElementId
+                        // lookup so we can match rows by reading the element's parameter
+                        // values rather than relying on index-based access.
+                        var schedElementsById = new Dictionary<long, Element>();
+                        foreach (var se in new FilteredElementCollector(doc, sched.Id)
+                            .WhereElementIsNotElementType())
+                        {
+                            schedElementsById[se.Id.Value] = se;
+                        }
+                        var schedElementsList = schedElementsById.Values.ToList();
+
+                        // Try to find an "ElementId" or "Id" column for reliable row-to-element matching
+                        int idSchedCol = -1;
+                        for (int ci = 0; ci < schedHeaders.Count; ci++)
+                        {
+                            string h = schedHeaders[ci];
+                            if (h.Equals("ElementId", StringComparison.OrdinalIgnoreCase) ||
+                                h.Equals("Id", StringComparison.OrdinalIgnoreCase) ||
+                                h.Equals("Element Id", StringComparison.OrdinalIgnoreCase))
+                            { idSchedCol = ci; break; }
+                        }
 
                         int excelRow = 2;
                         int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                         for (int r = 0; r < rows && excelRow <= lastRow; r++, excelRow++)
                         {
-                            // Resolve source element for this row
-                            Element srcElement = (r < schedElements.Count) ? schedElements[r] : null;
+                            // Resolve source element for this row — prefer ElementId column match
+                            Element srcElement = null;
+                            if (idSchedCol >= 0)
+                            {
+                                try
+                                {
+                                    string idText = sched.GetCellText(SectionType.Body, r, idSchedCol).Trim();
+                                    if (long.TryParse(idText, out long eid) && schedElementsById.TryGetValue(eid, out var matched))
+                                        srcElement = matched;
+                                }
+                                catch (Exception ex) { StingLog.Warn($"Schedule Id column read: {ex.Message}"); }
+                            }
+                            // Fallback: index-based (may not match row order — best effort)
+                            if (srcElement == null && r < schedElementsList.Count)
+                                srcElement = schedElementsList[r];
 
                             for (int ec = 0; ec < excelHeaders.Count; ec++)
                             {

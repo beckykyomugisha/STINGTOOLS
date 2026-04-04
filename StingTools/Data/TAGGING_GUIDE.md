@@ -600,6 +600,8 @@ TAG7 visibility controlled by `TAG_PARA_STATE_1/2/3_BOOL` parameters:
 - Tier 3: Full (+ technical + classification)
 - Tiers 4-10: Custom depth levels
 
+> **Note**: All `_BOOL` parameters (including `TAG_PARA_STATE_1/2/3_BOOL`, `TAG_WARN_VISIBLE_BOOL`, and `TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) use **YESNO** datatype in `MR_PARAMETERS.txt`. This matches Revit's shared parameter type system and prevents "Inconsistent Units" errors when loading parameters into families. In calculated value formulas, the `if()` condition accepts YESNO parameters directly — see TAG_FAMILY_CREATION_GUIDE.md for details.
+
 Set via: CREATE → Presentation → Set Paragraph Depth
 
 ---
@@ -1052,7 +1054,7 @@ Create custom workflows in `data/WORKFLOW_MyWorkflow.json`:
 | **Issues** | Tags link elements to BCF issues |
 | **Revisions** | Tag snapshots track changes between revisions |
 | **Excel** | 30+ columns exported with full tag data |
-| **Schedules** | Tags populate schedule fields |
+| **Schedules** | Tags populate schedule fields; TPL_Schedule_Metadata provides column aliases |
 | **Legends** | Tag data drives legend content |
 | **BEP** | Compliance % enriches BEP auto-generation |
 | **Transmittals** | Document naming from tag data |
@@ -1455,6 +1457,21 @@ The Warnings Manager (150+ classification rules) integrates with the tagging pip
 - **Deliverable impact analysis** maps warnings to COBie/IFC/FM/Schedules/Clashes
 
 Run `WarningsDashboard` after batch tagging to verify no tag-related warnings were introduced.
+
+### 28.10 Sheet-Level Warning Parameters (`WARN_SHT_*`)
+
+Six sheet-level warning parameters detect common documentation issues:
+
+| Parameter | Description |
+|-----------|-------------|
+| `WARN_SHT_DISC_MISSING` | Sheet has no discipline code assigned |
+| `WARN_SHT_MULTI_DISC_MEP` | Sheet contains mixed MEP disciplines |
+| `WARN_SHT_NAMING_ARCH` | Sheet naming does not follow architectural convention |
+| `WARN_SHT_NAMING_STR` | Sheet naming does not follow structural convention |
+| `WARN_SHT_REV_MISSING` | Sheet has no revision information |
+| `WARN_SHT_TAG1_EMPTY` | Sheet contains elements with empty TAG1 |
+
+These are TEXT-type parameters bound to Generic Models (Type). They are used by the tag family label system via calculated value formulas with `TAG_WARN_VISIBLE_BOOL` gating.
 
 ---
 

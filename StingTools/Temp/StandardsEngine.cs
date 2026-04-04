@@ -41,6 +41,27 @@ namespace StingTools.Temp
             ["Condensate"] = (0.3, 1.5),
         };
 
+        /// <summary>Match a Revit system type string to the best CIBSE velocity key.
+        /// Prefers exact match, then longest key contained in the system type.</summary>
+        internal static string MatchCibseKey(string sysType, string fallback)
+        {
+            if (string.IsNullOrEmpty(sysType)) return fallback;
+            // Exact match first
+            if (CibseVelocityLimits.ContainsKey(sysType)) return sysType;
+            // Longest key that is a substring of the system type (prefer "Supply Duct - Branch" over "Supply Duct - Main")
+            string best = null;
+            int bestLen = 0;
+            foreach (var k in CibseVelocityLimits.Keys)
+            {
+                if (sysType.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0 && k.Length > bestLen)
+                {
+                    best = k;
+                    bestLen = k.Length;
+                }
+            }
+            return best ?? fallback;
+        }
+
         // BS 7671 circuit protection requirements
         internal static readonly Dictionary<string, (double MaxLoad, double MinCableSize)> Bs7671CircuitReqs = new()
         {
@@ -190,7 +211,7 @@ namespace StingTools.Temp
                     velocity = velParam.AsDouble() * 0.3048; // ft/s to m/s
 
                 string sysType = ParameterHelpers.GetString(duct, "System Type") ?? "Supply Duct - Main";
-                string key = CibseVelocityLimits.Keys.FirstOrDefault(k => sysType.Contains(k.Split('-')[0].Trim())) ?? "Supply Duct - Main";
+                string key = MatchCibseKey(sysType, "Supply Duct - Main");
 
                 if (CibseVelocityLimits.TryGetValue(key, out var limits))
                 {
@@ -218,7 +239,7 @@ namespace StingTools.Temp
                     velocity = velParam.AsDouble() * 0.3048;
 
                 string sysType = ParameterHelpers.GetString(pipe, "System Type") ?? "Domestic Cold Water";
-                string key = CibseVelocityLimits.Keys.FirstOrDefault(k => sysType.Contains(k.Split(' ')[0])) ?? "Domestic Cold Water";
+                string key = MatchCibseKey(sysType, "Domestic Cold Water");
 
                 if (CibseVelocityLimits.TryGetValue(key, out var limits))
                 {
@@ -269,6 +290,30 @@ namespace StingTools.Temp
                 double maxDrop = isLighting ? 3.0 : 5.0;
                 if (vDrop > maxDrop)
                     issues.Add((id, name, $"Voltage drop {vDrop:F1}% exceeds {maxDrop}% limit (BS 7671)"));
+
+                // HIGH-SE-02: Validate load and cable size against Bs7671CircuitReqs lookup table
+                string nameLower = name.ToLower();
+                string matchedCircuitType = null;
+                foreach (var reqKey in Bs7671CircuitReqs.Keys)
+                {
+                    if (nameLower.Contains(reqKey.ToLower()))
+                    {
+                        matchedCircuitType = reqKey;
+                        break;
+                    }
+                }
+                if (matchedCircuitType != null)
+                {
+                    var reqs = Bs7671CircuitReqs[matchedCircuitType];
+                    if (rating > 0 && rating > reqs.MaxLoad)
+                        issues.Add((id, name, $"Rating ({rating:F0}A) exceeds max for {matchedCircuitType} ({reqs.MaxLoad:F0}A) per BS 7671"));
+                    if (!string.IsNullOrEmpty(wireSize) && double.TryParse(
+                        System.Text.RegularExpressions.Regex.Match(wireSize, @"[\d.]+").Value, out double wireMm2))
+                    {
+                        if (wireMm2 < reqs.MinCableSize)
+                            issues.Add((id, name, $"Cable size ({wireMm2}mm²) below min {reqs.MinCableSize}mm² for {matchedCircuitType} per BS 7671"));
+                    }
+                }
             }
 
             return issues;
@@ -305,17 +350,20 @@ namespace StingTools.Temp
                 [BuiltInCategory.OST_StructuralFraming] = ("Ss_20_10", "Structural framing"),
             };
 
-            foreach (var kvp in catMapping)
-            {
-                var elements = new FilteredElementCollector(doc)
-                    .OfCategory(kvp.Key)
-                    .WhereElementIsNotElementType()
-                    .ToList();
+            // HIGH-SE-03: Single multi-category collector instead of 18 separate per-category scans
+            var uniclassCatFilter = new ElementMulticategoryFilter(new List<BuiltInCategory>(catMapping.Keys));
+            var allElements = new FilteredElementCollector(doc)
+                .WherePasses(uniclassCatFilter)
+                .WhereElementIsNotElementType();
 
-                foreach (var el in elements)
+            foreach (var el in allElements)
+            {
+                if (el.Category == null) continue;
+                var bic = (BuiltInCategory)el.Category.Id.Value;
+                if (catMapping.TryGetValue(bic, out var mapping))
                 {
-                    string catName = el.Category?.Name ?? "Unknown";
-                    results.Add((el.Id, catName, kvp.Value.Code, kvp.Value.Desc));
+                    string catName = el.Category.Name ?? "Unknown";
+                    results.Add((el.Id, catName, mapping.Code, mapping.Desc));
                 }
             }
 
@@ -393,10 +441,27 @@ namespace StingTools.Temp
                 string typeKey = name.ToLower().Contains("curtain") ? "Curtain Wall" : "External Wall";
                 double maxU = PartLUValues[typeKey];
 
-                // Try to get thermal resistance from compound structure
+                // HIGH-SE-04: Compute approximate U-value from compound structure layers
                 var cs = wt.GetCompoundStructure();
-                string status = cs != null ? "CHECK MANUALLY" : "NO STRUCTURE";
-                results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", status));
+                if (cs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, cs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                    }
+                    else
+                    {
+                        results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", "CHECK MANUALLY"));
+                    }
+                }
+                else
+                {
+                    results.Add(($"Wall: {name}", typeKey, $"{maxU} W/m²K", "NO STRUCTURE"));
+                }
             }
 
             // Check roof types
@@ -408,6 +473,19 @@ namespace StingTools.Temp
             foreach (var rt in roofTypes)
             {
                 double maxU = PartLUValues["Roof"];
+                var rcs = rt.GetCompoundStructure();
+                if (rcs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, rcs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Roof: {rt.Name}", "Roof", $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                        continue;
+                    }
+                }
                 results.Add(($"Roof: {rt.Name}", "Roof", $"{maxU} W/m²K", "CHECK MANUALLY"));
             }
 
@@ -422,10 +500,69 @@ namespace StingTools.Temp
                 string name = ft.Name ?? "";
                 if (!name.ToLower().Contains("ground") && !name.ToLower().Contains("slab")) continue;
                 double maxU = PartLUValues["Ground Floor"];
+                var fcs = ft.GetCompoundStructure();
+                if (fcs != null)
+                {
+                    double totalR = CalculateCompoundR(doc, fcs);
+                    if (totalR > 0)
+                    {
+                        double uValue = 1.0 / totalR;
+                        string status = uValue <= maxU ? "PASS" : "FAIL";
+                        results.Add(($"Floor: {name}", "Ground Floor", $"{maxU} W/m²K",
+                            $"{status} (U={uValue:F2} W/m²K)"));
+                        continue;
+                    }
+                }
                 results.Add(($"Floor: {name}", "Ground Floor", $"{maxU} W/m²K", "CHECK MANUALLY"));
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// Calculate total thermal resistance (m²K/W) from compound structure layers.
+        /// Includes internal (0.13) and external (0.04) surface resistances per BS EN ISO 6946.
+        /// Returns 0 if thermal conductivity is unavailable for any layer.
+        /// </summary>
+        private static double CalculateCompoundR(Document doc, CompoundStructure cs)
+        {
+            const double Rsi = 0.13; // internal surface resistance
+            const double Rse = 0.04; // external surface resistance
+            double totalR = Rsi + Rse;
+
+            foreach (var layer in cs.GetLayers())
+            {
+                double thicknessM = layer.Width * 0.3048; // ft to m
+                if (thicknessM <= 0) continue;
+
+                var matId = layer.MaterialId;
+                if (matId == null || matId == ElementId.InvalidElementId) return 0;
+
+                var mat = doc.GetElement(matId) as Material;
+                if (mat == null) return 0;
+
+                var thermalAsset = mat.ThermalAssetId != ElementId.InvalidElementId
+                    ? doc.GetElement(mat.ThermalAssetId) as PropertySetElement
+                    : null;
+
+                if (thermalAsset != null)
+                {
+                    var conductivityParam = thermalAsset.LookupParameter("Thermal Conductivity");
+                    if (conductivityParam != null && conductivityParam.HasValue)
+                    {
+                        double conductivity = conductivityParam.AsDouble(); // W/(m·K) in Revit internal units
+                        if (conductivity > 0)
+                        {
+                            totalR += thicknessM / conductivity;
+                            continue;
+                        }
+                    }
+                }
+                // If we can't get conductivity for any layer, bail out
+                return 0;
+            }
+
+            return totalR;
         }
     }
 
@@ -484,12 +621,13 @@ namespace StingTools.Temp
                 report.AppendLine($"  Incomplete tags: {incomplete}");
                 report.AppendLine($"  Untagged elements: {untagged}");
 
-                // Summary score
-                double totalChecks = projChecks.Count + namingIssues.Count + allElements.Count;
-                double passed = projPass + (allElements.Count - namingIssues.Count) + tagged;
-                double score = totalChecks > 0 ? (passed / totalChecks) * 100 : 0;
+                // Summary score — weighted average of 3 independent sections
+                double projScore = projChecks.Count > 0 ? (double)projPass / projChecks.Count * 100 : 0;
+                double namingScore = namingIssues.Count == 0 ? 100 : Math.Max(0, 100 - namingIssues.Count * 5);
+                double tagScore = allElements.Count > 0 ? (double)tagged / allElements.Count * 100 : 0;
+                double score = (projScore + namingScore + tagScore) / 3.0;
                 report.AppendLine($"\n══ OVERALL COMPLIANCE SCORE: {score:F0}% ══");
-                report.AppendLine($"Project Info: {projPass}/{projChecks.Count} | Naming Issues: {namingIssues.Count} | Tags: {tagged}/{allElements.Count}");
+                report.AppendLine($"Project Info: {projPass}/{projChecks.Count} ({projScore:F0}%) | Naming: {namingScore:F0}% ({namingIssues.Count} issues) | Tags: {tagged}/{allElements.Count} ({tagScore:F0}%)");
 
                 TaskDialog.Show("ISO 19650 Deep Compliance", report.ToString());
                 StingLog.Info($"ISO 19650 deep compliance: {score:F0}%");
@@ -744,6 +882,14 @@ namespace StingTools.Temp
     [Regeneration(RegenerationOption.Manual)]
     public class StandardsDashboardCommand : IExternalCommand
     {
+        // Lightweight cache to avoid redundant computation on rapid re-clicks
+        private static string _cachedReport;
+        private static string _cachedDocPath;
+        private static DateTime _cachedTime = DateTime.MinValue;
+        private const int CacheTtlSeconds = 10;
+
+        internal static void InvalidateCache() { _cachedTime = DateTime.MinValue; }
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -751,6 +897,16 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
+
+                // Return cached report if still fresh and same document
+                string docKey = doc.PathName ?? doc.Title ?? "";
+                if (_cachedReport != null && docKey == _cachedDocPath
+                    && (DateTime.UtcNow - _cachedTime).TotalSeconds < CacheTtlSeconds)
+                {
+                    TaskDialog.Show("Standards Dashboard", _cachedReport);
+                    return Result.Succeeded;
+                }
+
                 var report = new System.Text.StringBuilder();
                 report.AppendLine("════════════════════════════════════════");
                 report.AppendLine("   STING STANDARDS COMPLIANCE DASHBOARD");
@@ -794,7 +950,12 @@ namespace StingTools.Temp
                 double overall = (isoScore + cibseScore + accScore) / 3.0;
                 report.AppendLine($"\n════ OVERALL SCORE: {overall:F0}% ════");
 
-                TaskDialog.Show("Standards Dashboard", report.ToString());
+                string reportText = report.ToString();
+                _cachedReport = reportText;
+                _cachedDocPath = docKey;
+                _cachedTime = DateTime.UtcNow;
+
+                TaskDialog.Show("Standards Dashboard", reportText);
                 StingLog.Info($"Standards dashboard: overall {overall:F0}%");
                 return Result.Succeeded;
             }

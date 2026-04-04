@@ -65,6 +65,7 @@ namespace StingTools.Temp
         public const int ColSurfaceFgPattern = 41;  // BLE_APP-SURFACE-FG-PATTERN
         public const int ColCutFgColor = 42;        // BLE_APP-CUT-FG-COLOR
         public const int ColCutFgPattern = 43;      // BLE_APP-CUT-FG-PATTERN
+        public const int ColImage = 44;             // BLE_APP-IMAGE
         public const int ColDescription = 45;       // BLE_APP-DESCRIPTION
         public const int ColComments = 46;          // BLE_APP-COMMENTS
         public const int ColSurfaceBgPattern = 47;  // BLE_APP-SURFACE-BG-PATTERN
@@ -155,6 +156,47 @@ namespace StingTools.Temp
             (ColPhysicalAsset,  "BLE_APP-PHYSICAL-ASSET"),
             (ColThermalAsset,   "BLE_APP-THERMAL-ASSET"),
             (ColTextureUrl,     "BLE_MAT_TEXTURE_URL"),
+            // --- BLE_APP-* appearance/visual properties (stored as shared params for scheduling) ---
+            (ColBaseMaterial,       "BLE_APP-REVIT-BASE-MATERIAL"),
+            (ColIdentityClass,      "BLE_APP-IDENTITY-CLASS"),
+            (ColColor,              "BLE_APP-COLOR"),
+            (ColTransparency,       "BLE_APP-TRANSPARENCY"),
+            (ColSmoothness,         "BLE_APP-SMOOTHNESS"),
+            (ColShininess,          "BLE_APP-SHININESS"),
+            (ColSurfaceFgColor,     "BLE_APP-SURFACE-FG-COLOR"),
+            (ColSurfaceFgPattern,   "BLE_APP-SURFACE-FG-PATTERN"),
+            (ColCutFgColor,         "BLE_APP-CUT-FG-COLOR"),
+            (ColCutFgPattern,       "BLE_APP-CUT-FG-PATTERN"),
+            (ColImage,              "BLE_APP-IMAGE"),
+            (ColDescription,        "BLE_APP-DESCRIPTION"),
+            (ColComments,           "BLE_APP-COMMENTS"),
+            (ColSurfaceBgPattern,   "BLE_APP-SURFACE-BG-PATTERN"),
+            (ColSurfaceBgColor,     "BLE_APP-SURFACE-BG-COLOR"),
+            (ColCutBgPattern,       "BLE_APP-CUT-BG-PATTERN"),
+            (ColCutBgColor,         "BLE_APP-CUT-BG-COLOR"),
+            (ColCutPatternName,     "BLE_APP-CUT_PATTERN"),
+            (ColSurfacePatternName, "BLE_APP-SURFACE_PATTERN"),
+            (ColBgPatternName,      "BLE_APP-BACKGROUND_PATTERN"),
+            (ColShadingRgb,         "BLE_APP-SHADING_RGB"),
+            // --- BLE_MAT_* element-level scheduling mirrors (same CSV source as MAT_*) ---
+            (ColName,               "BLE_MAT_NAME_TXT"),
+            (ColDiscipline,         "BLE_MAT_DISCIPLINE_TXT"),
+            (ColIso19650Id,         "BLE_MAT_ID_TXT"),
+            (ColCategory,           "BLE_MAT_CATEGORY_TXT"),
+            (ColElementType,        "BLE_MAT_ELEM_TYPE_TXT"),
+            (ColApplication,        "BLE_MAT_APPLICATION_TXT"),
+            (ColManufacturer,       "BLE_MAT_MANUFACTURER_TXT"),
+            (ColThicknessMm,        "BLE_MAT_THICK_MM"),
+            (ColDurability,         "BLE_MAT_DURABILITY_TXT"),
+            (ColSpecifications,     "BLE_MAT_SPEC_TXT"),
+            (ColStandard,           "BLE_MAT_STANDARD_TXT"),
+            (ColLayerCount,         "BLE_MAT_LAYER_CNT_INT"),
+            (ColLayer1Material,     "BLE_MAT_L1_MAT_TXT"),
+            (ColLayer1Thickness,    "BLE_MAT_L1_THK_MM"),
+            (ColLayer1Function,     "BLE_MAT_L1_FUNC_TXT"),
+            (ColLayer2Material,     "BLE_MAT_L2_MAT_TXT"),
+            (ColLayer2Thickness,    "BLE_MAT_L2_THK_MM"),
+            (ColLayer2Function,     "BLE_MAT_L2_FUNC_TXT"),
         };
 
         /// <summary>
@@ -201,8 +243,21 @@ namespace StingTools.Temp
                                 AppearanceAssetElement newAsset = baseAsset.Duplicate(assetName);
                                 newMat.AppearanceAssetId = newAsset.Id;
                             }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); // If duplicate name exists, share the base asset
-                                newMat.AppearanceAssetId = baseMat.AppearanceAssetId; }
+                            catch (Exception ex)
+                            {
+                                // Retry with a unique suffix (name collision is the most common cause)
+                                try
+                                {
+                                    string retryName = matName + "_App_" + DateTime.UtcNow.Ticks.ToString().Substring(10);
+                                    AppearanceAssetElement retryAsset = baseAsset.Duplicate(retryName);
+                                    newMat.AppearanceAssetId = retryAsset.Id;
+                                }
+                                catch (Exception ex2)
+                                {
+                                    StingLog.Warn($"Appearance asset duplication for '{matName}' failed (sharing base asset): {ex.Message} / retry: {ex2.Message}");
+                                    newMat.AppearanceAssetId = baseMat.AppearanceAssetId;
+                                }
+                            }
                         }
                     }
 
@@ -254,25 +309,25 @@ namespace StingTools.Temp
                 // Transparency (column 37): 0-100
                 string transStr = GetCol(cols, ColTransparency);
                 if (!string.IsNullOrEmpty(transStr) &&
-                    int.TryParse(transStr.Replace(".0", ""), out int transparency))
+                    double.TryParse(transStr, out double transparencyD))
                 {
-                    mat.Transparency = Math.Max(0, Math.Min(100, transparency));
+                    mat.Transparency = Math.Max(0, Math.Min(100, (int)transparencyD));
                 }
 
                 // Smoothness (column 38): 0-100
                 string smoothStr = GetCol(cols, ColSmoothness);
                 if (!string.IsNullOrEmpty(smoothStr) &&
-                    int.TryParse(smoothStr.Replace(".0", ""), out int smoothness))
+                    double.TryParse(smoothStr, out double smoothnessD))
                 {
-                    mat.Smoothness = Math.Max(0, Math.Min(100, smoothness));
+                    mat.Smoothness = Math.Max(0, Math.Min(100, (int)smoothnessD));
                 }
 
                 // Shininess (column 39): 0-128
                 string shinyStr = GetCol(cols, ColShininess);
                 if (!string.IsNullOrEmpty(shinyStr) &&
-                    int.TryParse(shinyStr.Replace(".0", ""), out int shininess))
+                    double.TryParse(shinyStr, out double shininessD))
                 {
-                    mat.Shininess = Math.Max(0, Math.Min(128, shininess));
+                    mat.Shininess = Math.Max(0, Math.Min(128, (int)shininessD));
                 }
 
                 // --- Identity properties (populates Material Browser fields) ---
@@ -289,14 +344,11 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Populate ALL material properties from CSV data using:
+        /// Populate material properties from CSV data using:
         /// 1. Revit BuiltInParameters (Identity tab: Description, Manufacturer, Cost, etc.)
         /// 2. ThermalAsset properties (thermal conductivity, specific heat, density)
         /// 3. StructuralAsset properties (density, compressive/tensile strength)
-        ///
-        /// NOTE: OST_Materials does NOT support AllowsBoundParameters in Revit API,
-        /// so shared parameter binding to the Material category is impossible. Instead,
-        /// physical/thermal properties are written to the material's native asset elements.
+        /// Shared parameters are populated separately by PopulateSharedParameters().
         /// </summary>
         private static void ApplyIdentityProperties(Material mat, string[] cols)
         {
@@ -343,8 +395,8 @@ namespace StingTools.Temp
 
         /// <summary>
         /// Build an enriched Description string that includes key physical properties.
-        /// Since we cannot bind custom shared params to Materials, we embed the most
-        /// important data into the Description BuiltInParameter for visibility.
+        /// Embeds important data into the Description BuiltInParameter for quick
+        /// visibility in the Material Browser alongside the shared parameter values.
         /// </summary>
         private static string BuildEnrichedDescription(string[] cols, string baseDesc)
         {
@@ -522,8 +574,7 @@ namespace StingTools.Temp
                     // Set Young's modulus via PropertySetElement (not available on StructuralAsset directly)
                     if (hasComp)
                     {
-                        // Approximate: E ≈ 1000 × fck (rough), MPa → Pa
-                        double youngsPa = compVal * 1000.0 * 1e6;
+                        double youngsPa = EstimateYoungsModulusPa(assetClass, compVal);
                         SetAssetParamByName(structPse, "Young's Modulus X", youngsPa);
                     }
                 }
@@ -535,7 +586,7 @@ namespace StingTools.Temp
                     if (hasComp)
                     {
                         SetAssetParamByName(structPse, "Minimum Yield Stress", compVal * 1e6);
-                        SetAssetParamByName(structPse, "Young's Modulus X", compVal * 1000.0 * 1e6);
+                        SetAssetParamByName(structPse, "Young's Modulus X", EstimateYoungsModulusPa(assetClass, compVal));
                     }
                     if (hasTens)
                         SetAssetParamByName(structPse, "Minimum Tensile Strength", tensVal * 1e6);
@@ -564,6 +615,39 @@ namespace StingTools.Temp
             if (combined.Contains("plastic") || combined.Contains("polymer"))
                 return StructuralAssetClass.Plastic;
             return StructuralAssetClass.Generic;
+        }
+
+        /// <summary>
+        /// Estimate Young's modulus (Pa) from compressive strength (MPa) using
+        /// material-class-specific formulas instead of a blanket E=1000×fck.
+        /// Concrete: Ecm = 22000 × (fck/10)^0.3 per EC2 Table 3.1.
+        /// Steel/Metal: 210 GPa (BS EN 1993). Timber: 11 GPa (BS EN 1995 C24 mean).
+        /// Plastic: 2.5 GPa typical. Generic fallback: E = 1000 × fck.
+        /// </summary>
+        private static double EstimateYoungsModulusPa(StructuralAssetClass assetClass, double compStrengthMPa)
+        {
+            double eMPa;
+            switch (assetClass)
+            {
+                case StructuralAssetClass.Concrete:
+                    // EC2 Table 3.1: Ecm = 22000 × (fcm/10)^0.3 where fcm = fck + 8
+                    double fcm = compStrengthMPa + 8.0;
+                    eMPa = 22000.0 * Math.Pow(fcm / 10.0, 0.3);
+                    break;
+                case StructuralAssetClass.Metal:
+                    eMPa = 210000.0; // 210 GPa for structural steel per BS EN 1993-1-1
+                    break;
+                case StructuralAssetClass.Wood:
+                    eMPa = 11000.0; // C24 mean modulus per BS EN 338
+                    break;
+                case StructuralAssetClass.Plastic:
+                    eMPa = 2500.0; // typical engineering plastic
+                    break;
+                default:
+                    eMPa = compStrengthMPa * 1000.0; // generic fallback
+                    break;
+            }
+            return eMPa * 1e6; // MPa → Pa
         }
 
         /// <summary>Set a double parameter on a PropertySetElement by parameter name.</summary>
@@ -628,6 +712,52 @@ namespace StingTools.Temp
                     p.Set(value);
             }
             catch (Exception ex) { StingLog.Warn($"param not available on this material: {ex.Message}"); }
+        }
+
+        // ── SHARED PARAMETER VALUE WRITER ─────────────────────────────────
+
+        /// <summary>
+        /// Write CSV column values to material shared parameters using the
+        /// SharedParamMappings array.  Parameters must already be bound to
+        /// OST_Materials (via LoadSharedParamsCommand / CleanMaterialBindings).
+        /// </summary>
+        private static void ApplySharedParamValues(Material mat, string[] cols)
+        {
+            if (mat == null) return;
+
+            foreach (var (col, paramName) in SharedParamMappings)
+            {
+                string value = GetCol(cols, col);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                try
+                {
+                    Parameter p = mat.LookupParameter(paramName);
+                    if (p == null || p.IsReadOnly) continue;
+
+                    switch (p.StorageType)
+                    {
+                        case StorageType.String:
+                            p.Set(value);
+                            break;
+
+                        case StorageType.Double:
+                            if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+                                p.Set(dVal);
+                            break;
+
+                        case StorageType.Integer:
+                            if (int.TryParse(value, out int iVal))
+                                p.Set(iVal);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SharedParam '{paramName}' on '{mat.Name}': {ex.Message}");
+                }
+            }
         }
 
         // ── READ helpers (for export CSV round-trip) ──────────────────────
@@ -894,6 +1024,7 @@ namespace StingTools.Temp
                                 if (newMat != null)
                                 {
                                     ApplyMaterialProperties(newMat, cols, doc, fillPatternCache);
+                                    ApplySharedParamValues(newMat, cols);
 
                                     string baseMatName = GetCol(cols, ColBaseMaterial);
                                     if (!string.IsNullOrEmpty(baseMatName) &&
@@ -1033,6 +1164,59 @@ namespace StingTools.Temp
         public static string GetCol(string[] cols, int index)
         {
             return (index >= 0 && index < cols.Length) ? cols[index].Trim() : "";
+        }
+
+        /// <summary>
+        /// Populate shared parameters on a Material element from CSV column data.
+        /// Uses the SharedParamMappings array to write all 43 mapped CSV columns
+        /// to their corresponding shared parameters via LookupParameter.
+        /// Requires shared parameters to be Instance-bound to OST_Materials.
+        /// </summary>
+        public static void PopulateSharedParameters(Material mat, string[] cols)
+        {
+            int written = 0;
+            foreach (var (col, paramName) in SharedParamMappings)
+            {
+                string value = GetCol(cols, col);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                try
+                {
+                    Parameter p = mat.LookupParameter(paramName);
+                    if (p == null || p.IsReadOnly) continue;
+
+                    if (p.StorageType == StorageType.String)
+                    {
+                        p.Set(value);
+                        written++;
+                    }
+                    else if (p.StorageType == StorageType.Double)
+                    {
+                        if (double.TryParse(value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double dVal))
+                        {
+                            p.Set(dVal);
+                            written++;
+                        }
+                    }
+                    else if (p.StorageType == StorageType.Integer)
+                    {
+                        if (int.TryParse(value, out int iVal))
+                        {
+                            p.Set(iVal);
+                            written++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Material '{mat.Name}' param '{paramName}': {ex.Message}");
+                }
+            }
+
+            if (written > 0)
+                StingLog.Info($"Material '{mat.Name}': populated {written} shared parameters");
         }
     }
 

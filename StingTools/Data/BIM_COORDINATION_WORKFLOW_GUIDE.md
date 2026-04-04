@@ -488,7 +488,7 @@ Run **Check Data Files** (TEMP → Setup) to verify all 43 runtime data files ar
 | MR_PARAMETERS.txt | Shared parameter definitions | 2,307 params |
 | BLE_MATERIALS.csv | Building element materials | 815 rows |
 | MEP_MATERIALS.csv | MEP materials | 464 rows |
-| MR_SCHEDULES.csv | Schedule definitions | 168 rows |
+| MR_SCHEDULES.csv | Schedule definitions + TPL metadata | 168 schedules + 21 TPL entries |
 | PARAMETER_REGISTRY.json | Master parameter registry | 638+ params |
 | LABEL_DEFINITIONS.json | Label/legend definitions | 10,775 lines |
 | TAG_CONFIG_v5_0_*.csv | Tag configuration (4 files) | 480+ rows |
@@ -497,6 +497,36 @@ Run **Check Data Files** (TEMP → Setup) to verify all 43 runtime data files ar
 | cost_rates_5d.csv | 5D cost rates | 50+ rows |
 | TAG_STYLE_RULES.json | Tag style rules | 128 combinations |
 | WORKFLOW_*.json | Workflow presets | 3+ presets |
+
+### 4.2 Schedule Column Alignment (TPL_Schedule_Metadata)
+
+`MR_SCHEDULES.csv` includes **TPL_Schedule_Metadata** entries that define human-readable column headers for Revit schedules. When batch-creating schedules, these metadata entries map internal STING parameter names to display-friendly column aliases.
+
+**Format**: Each alias field uses `PARAM_NAME=Column Header` syntax:
+
+```
+TPL_Schedule_Metadata,Text Style Schedule,...,TS_NAME_TXT=Style Name,TS_FONT_NAME_TXT=Font Name,...
+```
+
+**21 TPL_Schedule_Metadata entries** covering:
+
+| Schedule | Key Aliases |
+|----------|-------------|
+| Text Style Schedule | `TS_NAME_TXT=Style Name`, `TS_FONT_NAME_TXT=Font Name` |
+| Workset Schedule | `WS_NAME_TXT=Workset Name`, `WS_EDITABLE_DEFAULT_BOOL=Editable by Default` |
+| Fill Pattern Schedule | `FP_NAME_TXT=Pattern Name`, `FP_PATTERN_TYPE_TXT=Pattern Type` |
+| Line Style Schedule | `LS_NAME_TXT=Line Style`, `LS_LINE_WEIGHT_TXT=Line Weight` |
+| View Template Schedule | `VT_NAME_TXT=Template Name`, `VT_DISCIPLINE_TXT=Discipline` |
+| Arrowhead Schedule | `AH_NAME_TXT=Arrowhead Name` |
+| Line Pattern Schedule | `LP_NAME_TXT=Pattern Name` |
+| Line Weight Schedule | `LW_MODEL_WEIGHT_1_TXT=Model Weight 1` |
+| Phase Filter Schedule | `PF_NEW_TXT=New`, `PF_EXISTING_TXT=Existing` |
+| Schedule Parameter Schedule | `SP_NAME_TXT=Parameter Name` |
+| Schedule Template Schedule | `ST_NAME_TXT=Template Name` |
+
+These aliases are consumed by `ScheduleCommands.cs` to set `ScheduleField.ColumnHeading` during batch schedule creation, replacing cryptic parameter names with BIM-coordinator-friendly headers.
+
+**Command**: TEMP → Schedules → Batch Create Schedules
 
 ---
 
@@ -1658,7 +1688,7 @@ KPI metrics:
 | Load Parameters | Bind shared parameters |
 | Check Data Files | Verify data file integrity |
 | Create Materials | BLE (815) + MEP (464) |
-| Batch Create Schedules | 168 schedule definitions |
+| Batch Create Schedules | 168 schedule definitions with column aliases |
 | Create Filters/Worksets/Templates | Standard project templates |
 
 #### Tagging (CREATE tab)

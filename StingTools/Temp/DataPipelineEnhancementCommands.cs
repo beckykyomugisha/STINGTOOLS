@@ -230,7 +230,13 @@ namespace StingTools.Temp
                     return Result.Failed;
                 }
 
-                var lines = File.ReadAllLines(path);
+                string[] lines;
+                try { lines = File.ReadAllLines(path); }
+                catch (Exception ioEx)
+                {
+                    TaskDialog.Show("STING", $"Failed to read PARAMETER__CATEGORIES.csv: {ioEx.Message}");
+                    return Result.Failed;
+                }
                 if (lines.Length == 0)
                 {
                     TaskDialog.Show("STING", "PARAMETER__CATEGORIES.csv is empty.");
@@ -427,6 +433,8 @@ namespace StingTools.Temp
                 var currentHashes = new Dictionary<string, string>();
                 int changed = 0;
 
+                // SHA256 reused across files — safe because ComputeHash(Stream) calls Initialize() internally.
+                // Do NOT change to incremental TransformBlock/TransformFinalBlock without per-file Initialize().
                 using var sha = SHA256.Create();
 
                 foreach (var file in files)
@@ -516,20 +524,27 @@ namespace StingTools.Temp
                     sb.AppendLine($"  Status: ✓ Loaded at startup by ParamRegistry.cs");
                 }
 
+                // Helper to count CSV data rows safely
+                int CountCsvRows(string path)
+                {
+                    try { return File.ReadLines(path).Count() - 1; }
+                    catch (Exception ex) { StingLog.Warn($"Count lines in '{Path.GetFileName(path)}': {ex.Message}"); return -1; }
+                }
+
                 // CATEGORY_BINDINGS.csv
                 var catPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
                 if (!string.IsNullOrEmpty(catPath))
                 {
-                    int rows = File.ReadLines(catPath).Count() - 1;
+                    int rows = CountCsvRows(catPath);
                     sb.AppendLine($"\n[ACTIVE] CATEGORY_BINDINGS.csv — {rows} bindings");
                     sb.AppendLine($"  Used by: LoadSharedParamsCommand, DynamicBindingsCommand");
                 }
 
                 // BINDING_COVERAGE_MATRIX.csv
-                var matPath = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
-                if (!string.IsNullOrEmpty(matPath))
+                var matPath2 = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
+                if (!string.IsNullOrEmpty(matPath2))
                 {
-                    int rows = File.ReadLines(matPath).Count() - 1;
+                    int rows = CountCsvRows(matPath2);
                     sb.AppendLine($"\n[VALIDATION] BINDING_COVERAGE_MATRIX.csv — {rows} parameters");
                     sb.AppendLine($"  Used by: ValidateTemplateCommand only");
                 }
@@ -538,7 +553,7 @@ namespace StingTools.Temp
                 var famPath = StingToolsApp.FindDataFile("FAMILY_PARAMETER_BINDINGS.csv");
                 if (!string.IsNullOrEmpty(famPath))
                 {
-                    int rows = File.ReadLines(famPath).Count() - 1;
+                    int rows = CountCsvRows(famPath);
                     sb.AppendLine($"\n[ACTIVE] FAMILY_PARAMETER_BINDINGS.csv — {rows} bindings");
                     sb.AppendLine($"  Used by: BatchAddFamilyParamsCommand");
                 }
@@ -547,7 +562,7 @@ namespace StingTools.Temp
                 var pcPath = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
                 if (!string.IsNullOrEmpty(pcPath))
                 {
-                    int rows = File.ReadLines(pcPath).Count() - 1;
+                    int rows = CountCsvRows(pcPath);
                     sb.AppendLine($"\n[REFERENCE] PARAMETER__CATEGORIES.csv — {rows} parameters");
                     sb.AppendLine($"  Used by: ViewParameterMetadataCommand (human-readable reference)");
                 }
@@ -593,13 +608,11 @@ namespace StingTools.Temp
         {
             try
             {
-                var saveDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Title = "Export Unified Parameter Registry",
-                    Filter = "JSON Files (*.json)|*.json",
-                    FileName = "STING_UNIFIED_REGISTRY.json"
-                };
-                if (saveDialog.ShowDialog() != true) return Result.Cancelled;
+                var _ctx = ParameterHelpers.GetContext(commandData);
+                Document doc = _ctx?.Doc;
+                string exportPath = OutputLocationHelper.PromptForExportPath(
+                    doc, "STING_UNIFIED_REGISTRY.json", "JSON Files (*.json)|*.json", "UnifiedRegistry");
+                if (string.IsNullOrEmpty(exportPath)) return Result.Cancelled;
 
                 var registry = new Dictionary<string, object>();
 
@@ -636,10 +649,10 @@ namespace StingTools.Temp
                 registry["export_date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 registry["version"] = "1.0.0";
 
-                File.WriteAllText(saveDialog.FileName, JsonConvert.SerializeObject(registry, Formatting.Indented));
+                File.WriteAllText(exportPath, JsonConvert.SerializeObject(registry, Formatting.Indented));
 
                 TaskDialog.Show("STING Unified Registry",
-                    $"Registry exported to:\n{saveDialog.FileName}\n\n" +
+                    $"Registry exported to:\n{exportPath}\n\n" +
                     $"Parameters: {parameters.Count}\n" +
                     $"Format: JSON");
 

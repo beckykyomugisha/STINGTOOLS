@@ -95,6 +95,7 @@ namespace StingTools.Temp
             BuiltInCategory.OST_Conduit, BuiltInCategory.OST_ConduitFitting,
             BuiltInCategory.OST_CableTray, BuiltInCategory.OST_CableTrayFitting,
             BuiltInCategory.OST_GenericModel, BuiltInCategory.OST_SpecialityEquipment,
+            BuiltInCategory.OST_Rooms, BuiltInCategory.OST_StructuralStiffener,
         };
 
         /// <summary>
@@ -602,6 +603,8 @@ namespace StingTools.Temp
             { "STING - Fire Protection", new Color(255, 100, 0) },  // Orange
             { "STING - Low Voltage", new Color(160, 0, 200) },      // Purple
             { "STING - Conduits & Cable Trays", new Color(180, 180, 0) }, // Olive
+            { "STING - Rooms & Spaces", new Color(100, 200, 255) }, // Light Blue
+            { "STING - Generic & Specialty", new Color(128, 128, 128) }, // Mid Grey
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -640,38 +643,38 @@ namespace StingTools.Temp
 
             // Find base views for each view type to duplicate as template bases.
             // Different view types require different base views.
+            // Single collector pass for all view types to avoid repeated scans.
             var baseViews = new Dictionary<ViewType, View>();
 
-            // Floor plan base
-            var basePlan = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan);
-            if (basePlan != null) baseViews[ViewType.FloorPlan] = basePlan;
-
-            // Ceiling plan base
-            var baseRcp = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.CeilingPlan);
-            if (baseRcp != null) baseViews[ViewType.CeilingPlan] = baseRcp;
-
-            // Section base
-            var baseSection = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
-                .FirstOrDefault(v => !v.IsTemplate &&
-                    (v.ViewType == ViewType.Section || v.ViewType == ViewType.Detail));
-            if (baseSection != null) baseViews[ViewType.Section] = baseSection;
-
-            // 3D view base
-            var base3D = new FilteredElementCollector(doc)
-                .OfClass(typeof(View3D)).Cast<View3D>()
-                .FirstOrDefault(v => !v.IsTemplate);
-            if (base3D != null) baseViews[ViewType.ThreeD] = base3D;
-
-            // Elevation base
-            var baseElev = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSection)).Cast<ViewSection>()
-                .FirstOrDefault(v => !v.IsTemplate && v.ViewType == ViewType.Elevation);
-            if (baseElev != null) baseViews[ViewType.Elevation] = baseElev;
+            foreach (View v in new FilteredElementCollector(doc)
+                .OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate))
+            {
+                switch (v.ViewType)
+                {
+                    case ViewType.FloorPlan:
+                        if (!baseViews.ContainsKey(ViewType.FloorPlan))
+                            baseViews[ViewType.FloorPlan] = v;
+                        break;
+                    case ViewType.CeilingPlan:
+                        if (!baseViews.ContainsKey(ViewType.CeilingPlan))
+                            baseViews[ViewType.CeilingPlan] = v;
+                        break;
+                    case ViewType.Section:
+                    case ViewType.Detail:
+                        if (!baseViews.ContainsKey(ViewType.Section))
+                            baseViews[ViewType.Section] = v;
+                        break;
+                    case ViewType.ThreeD:
+                        if (!baseViews.ContainsKey(ViewType.ThreeD))
+                            baseViews[ViewType.ThreeD] = v;
+                        break;
+                    case ViewType.Elevation:
+                        if (!baseViews.ContainsKey(ViewType.Elevation))
+                            baseViews[ViewType.Elevation] = v;
+                        break;
+                }
+            }
 
             if (!baseViews.ContainsKey(ViewType.FloorPlan))
             {
@@ -953,7 +956,12 @@ namespace StingTools.Temp
                         try
                         {
                             template.AddFilter(kvp.Value.Id);
-                            if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
+                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
+                            {
+                                // Arch/Struct filters shown as halftone in MEP 3D views
+                                template.SetFilterOverrides(kvp.Value.Id, halftone);
+                            }
+                            else if (DisciplineColors.TryGetValue(kvp.Key, out Color col3d))
                             {
                                 var colorOgs3d = new OverrideGraphicSettings();
                                 colorOgs3d.SetProjectionLineColor(col3d);
@@ -964,8 +972,6 @@ namespace StingTools.Temp
                                 }
                                 template.SetFilterOverrides(kvp.Value.Id, colorOgs3d);
                             }
-                            if (kvp.Key.Contains("Architectural") || kvp.Key.Contains("Structural"))
-                                template.SetFilterOverrides(kvp.Value.Id, halftone);
                         }
                         catch (Exception ex) { StingLog.Warn($"Add/override MEP 3D filter '{kvp.Key}': {ex.Message}"); }
                     }
@@ -1052,7 +1058,9 @@ namespace StingTools.Temp
                 }
 
                 // Presentation templates: set to Fine detail, no filter overrides
-                if (discipline.StartsWith("PRES") || discipline.StartsWith("SEC_P"))
+                // MED-04: Removed dead SEC_P check — SEC_P is already handled and returned
+                // in the elevation/section block above, so it never reaches here.
+                if (discipline.StartsWith("PRES"))
                 {
                     template.DetailLevel = ViewDetailLevel.Fine;
                     // Presentation: halftone MEP, show architectural

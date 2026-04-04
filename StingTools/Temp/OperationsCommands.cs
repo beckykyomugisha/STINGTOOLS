@@ -36,8 +36,7 @@ namespace StingTools.Temp
             ["Full Setup"] = new[] { "LoadParams", "CreateMaterials", "CreateFamilies", "CreateSchedules", "ViewTemplates", "MasterSetup" },
             ["Tag Pipeline"] = new[] { "LoadParams", "FamilyStagePopulate", "PreTagAudit", "BatchTag", "Validate", "CombineParams" },
             ["Export Package"] = new[] { "SheetNamingCheck", "Validate", "ExportCSV", "TransmittalReport" },
-            ["Quality Check"] = new[] { "Validate", "PreTagAudit", "HighlightInvalid", "FindDuplicates", "CompletenessDash" },
-            ["MEP Audit"] = new[] { "MEPSystemAudit", "MEPSizingCheck", "CibseVelocityCheck" },
+            ["Quality Check"] = new[] { "Validate", "PreTagAudit", "HighlightInvalid", "FindDuplicates", "CompletenessDash", "MEPSystemAudit", "MEPSizingCheck", "CibseVelocityCheck" },
         };
 
         public Result Execute(ExternalCommandData commandData,
@@ -82,7 +81,28 @@ namespace StingTools.Temp
                     try
                     {
                         foreach (string step in steps)
-                            stepResults.Add($"  [{step}] Queued");
+                        {
+                            try
+                            {
+                                var cmd = WorkflowEngine.ResolveCommandPublic(step);
+                                if (cmd != null)
+                                {
+                                    string msg = "";
+                                    var res = cmd.Execute(commandData, ref msg, elements);
+                                    stepResults.Add($"  [{step}] {res}");
+                                }
+                                else
+                                {
+                                    stepResults.Add($"  [{step}] SKIPPED (unknown command)");
+                                    StingLog.Warn($"Workflow '{preset}': unknown step '{step}'");
+                                }
+                            }
+                            catch (Exception stepEx)
+                            {
+                                stepResults.Add($"  [{step}] FAILED: {stepEx.Message}");
+                                StingLog.Error($"Workflow step '{step}' failed: {stepEx.Message}");
+                            }
+                        }
 
                         tg.Assimilate();
                     }
@@ -98,7 +118,7 @@ namespace StingTools.Temp
 
                 sw.Stop();
                 var report = new StringBuilder();
-                report.AppendLine($"Workflow '{preset}' Prepared");
+                report.AppendLine($"Workflow '{preset}' Complete");
                 report.AppendLine(new string('=', 50));
                 report.AppendLine($"  Steps: {string.Join(" -> ", steps)}");
                 report.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
@@ -201,7 +221,7 @@ namespace StingTools.Temp
     /// <summary>
     /// Export project to IFC with IFCExportOptions, maps STING params to Psets.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class IFCExportEnhancedCommand : IExternalCommand
     {
@@ -245,7 +265,7 @@ namespace StingTools.Temp
                 {
                     t.Start();
                     doc.Export(outputDir, fileName, ifcOptions);
-                    t.RollBack();
+                    t.Commit();
                 }
 
                 var report = new StringBuilder();
@@ -365,7 +385,13 @@ namespace StingTools.Temp
                         taggedColl.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
                     var tagged = taggedColl
                         .Where(e => !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
-                        .Take(10000).ToList();
+                        .Take(10001).ToList();
+                    bool truncated = tagged.Count > 10000;
+                    if (truncated)
+                    {
+                        tagged = tagged.Take(10000).ToList();
+                        StingLog.Warn("COBie export: Component list truncated to 10,000 elements");
+                    }
                     componentCount = tagged.Count;
                     row = 2;
                     foreach (var el in tagged)
@@ -536,17 +562,55 @@ namespace StingTools.Temp
                     .Concat(CollectWithBB(doc, BuiltInCategory.OST_Floors))
                     .ToList();
 
+                // Spatial grid pre-filter: partition structural elements into cells
+                // to reduce O(n*m) to O(n * avg_candidates_per_cell)
+                const double cellSize = 10.0; // ~3m cells in Revit internal feet
+                var structGrid = new Dictionary<(int, int, int), List<(Element El, BoundingBoxXYZ BB)>>();
+                foreach (var item in structural)
+                {
+                    int minX = (int)Math.Floor(item.BB.Min.X / cellSize);
+                    int minY = (int)Math.Floor(item.BB.Min.Y / cellSize);
+                    int minZ = (int)Math.Floor(item.BB.Min.Z / cellSize);
+                    int maxX = (int)Math.Floor(item.BB.Max.X / cellSize);
+                    int maxY = (int)Math.Floor(item.BB.Max.Y / cellSize);
+                    int maxZ = (int)Math.Floor(item.BB.Max.Z / cellSize);
+                    for (int x = minX; x <= maxX; x++)
+                        for (int y = minY; y <= maxY; y++)
+                            for (int z = minZ; z <= maxZ; z++)
+                            {
+                                var key = (x, y, z);
+                                if (!structGrid.TryGetValue(key, out var list))
+                                { list = new List<(Element, BoundingBoxXYZ)>(); structGrid[key] = list; }
+                                list.Add(item);
+                            }
+                }
+
                 var clashes = new List<(Element Mep, Element Str, XYZ Point)>();
+                var seenPairs = new HashSet<long>();
                 foreach (var (mep, mepBB) in mepElements)
                 {
-                    foreach (var (str, strBB) in structural)
-                    {
-                        if (BoxesIntersect(mepBB, strBB))
-                        {
-                            XYZ mid = (mepBB.Min + mepBB.Max) / 2.0;
-                            clashes.Add((mep, str, mid));
-                        }
-                    }
+                    int minX = (int)Math.Floor(mepBB.Min.X / cellSize);
+                    int minY = (int)Math.Floor(mepBB.Min.Y / cellSize);
+                    int minZ = (int)Math.Floor(mepBB.Min.Z / cellSize);
+                    int maxX = (int)Math.Floor(mepBB.Max.X / cellSize);
+                    int maxY = (int)Math.Floor(mepBB.Max.Y / cellSize);
+                    int maxZ = (int)Math.Floor(mepBB.Max.Z / cellSize);
+                    for (int x = minX; x <= maxX; x++)
+                        for (int y = minY; y <= maxY; y++)
+                            for (int z = minZ; z <= maxZ; z++)
+                            {
+                                if (!structGrid.TryGetValue((x, y, z), out var candidates)) continue;
+                                foreach (var (str, strBB) in candidates)
+                                {
+                                    long pairKey = ((long)mep.Id.Value << 32) | (uint)str.Id.Value;
+                                    if (!seenPairs.Add(pairKey)) continue;
+                                    if (BoxesIntersect(mepBB, strBB))
+                                    {
+                                        XYZ mid = (mepBB.Min + mepBB.Max) / 2.0;
+                                        clashes.Add((mep, str, mid));
+                                    }
+                                }
+                            }
                 }
 
                 sw.Stop();
@@ -672,15 +736,21 @@ namespace StingTools.Temp
                 report.AppendLine($"  Families: {families.Count} ({inPlace} in-place)");
                 if (inPlace > 20) { score -= 10; issues.Add($"High in-place families: {inPlace}"); }
 
-                // Tag coverage
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                var taggable = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                // Tag coverage — use ElementMulticategoryFilter for Revit API-level filtering
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                var taggable = (catEnums != null && catEnums.Length > 0)
+                    ? new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(
+                            (ICollection<BuiltInCategory>)catEnums))
+                        .ToList()
+                    : new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(e);
+                            return !string.IsNullOrEmpty(cat) && TagConfig.DiscMap.ContainsKey(cat);
+                        }).ToList();
                 int taggedCount = taggable.Count(e =>
                     !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
                 double tagCoverage = taggable.Count > 0 ? (double)taggedCount / taggable.Count : 0;
@@ -693,11 +763,15 @@ namespace StingTools.Temp
                 report.AppendLine($"  Design options: {designOpts}");
                 if (designOpts > 0) { score -= 5; issues.Add($"Design options: {designOpts}"); }
 
-                // Sheets, schedules, levels, links
-                int sheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount();
-                int schedules = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).GetElementCount();
-                int levelCount = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount();
-                int links = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance)).GetElementCount();
+                // Sheets, schedules, levels, links — single collector pass with type counting
+                int sheets = 0, schedules = 0, levelCount = 0, links = 0;
+                foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    if (e is ViewSheet) sheets++;
+                    else if (e is ViewSchedule) schedules++;
+                    else if (e is Level) levelCount++;
+                    else if (e is RevitLinkInstance) links++;
+                }
                 report.AppendLine($"  Sheets: {sheets}");
                 report.AppendLine($"  Schedules: {schedules}");
                 report.AppendLine($"  Levels: {levelCount}");
@@ -845,15 +919,28 @@ namespace StingTools.Temp
                 report.AppendLine($"  Project: {proj?.Name ?? "Unnamed"}");
                 report.AppendLine($"  File: {doc.PathName ?? "Not saved"}");
 
-                // Element counts
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
-                var allElems = new FilteredElementCollector(doc)
-                    .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                // Element counts — use ElementMulticategoryFilter for API-level filtering
+                var catEnums = SharedParamGuids.AllCategoryEnums;
+                List<Element> allElems;
+                if (catEnums != null && catEnums.Length > 0)
+                {
+                    allElems = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(
+                            (ICollection<BuiltInCategory>)catEnums))
+                        .ToList();
+                }
+                else
+                {
+                    var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
+                    allElems = new FilteredElementCollector(doc)
+                        .WhereElementIsNotElementType()
+                        .Where(e =>
+                        {
+                            string cat = ParameterHelpers.GetCategoryName(e);
+                            return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
+                        }).ToList();
+                }
 
                 report.AppendLine($"\n-- Elements ({allElems.Count} taggable) --");
                 var byCat = allElems.GroupBy(e => ParameterHelpers.GetCategoryName(e))
@@ -861,28 +948,36 @@ namespace StingTools.Temp
                 foreach (var g in byCat.Take(15))
                     report.AppendLine($"  {g.Key}: {g.Count()}");
 
-                // Tag coverage
-                int tagged = allElems.Count(e =>
-                    !string.IsNullOrEmpty(ParameterHelpers.GetString(e, ParamRegistry.TAG1)));
+                // Tag coverage + discipline counts in a single pass
+                int tagged = 0;
+                var discCounts = new Dictionary<string, int>();
+                foreach (var el in allElems)
+                {
+                    string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+                    if (!string.IsNullOrEmpty(tag1)) tagged++;
+                    string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
+                    if (!string.IsNullOrEmpty(disc))
+                    {
+                        discCounts.TryGetValue(disc, out int cnt);
+                        discCounts[disc] = cnt + 1;
+                    }
+                }
                 double cov = allElems.Count > 0 ? (double)tagged / allElems.Count * 100 : 0;
                 report.AppendLine($"\n-- Tag Coverage: {cov:F1}% ({tagged}/{allElems.Count}) --");
 
-                // By discipline
                 report.AppendLine("\n-- By Discipline --");
-                var byDisc = allElems
-                    .GroupBy(e => ParameterHelpers.GetString(e, ParamRegistry.DISC))
-                    .Where(g => !string.IsNullOrEmpty(g.Key))
-                    .OrderByDescending(g => g.Count());
-                foreach (var g in byDisc)
-                    report.AppendLine($"  {g.Key}: {g.Count()}");
+                foreach (var kvp in discCounts.OrderByDescending(k => k.Value))
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}");
 
-                // Document metrics
-                int viewCount = new FilteredElementCollector(doc)
-                    .OfClass(typeof(View)).Cast<View>()
-                    .Count(v => !v.IsTemplate && v.ViewType != ViewType.Internal);
-                int sheetCount = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).GetElementCount();
-                int schedCount = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).GetElementCount();
-                int levelCount = new FilteredElementCollector(doc).OfClass(typeof(Level)).GetElementCount();
+                // Document metrics — single collector pass for views/sheets/schedules/levels
+                int viewCount = 0, sheetCount = 0, schedCount = 0, levelCount = 0;
+                foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+                {
+                    if (e is ViewSheet) { sheetCount++; continue; }
+                    if (e is ViewSchedule) { schedCount++; continue; }
+                    if (e is Level) { levelCount++; continue; }
+                    if (e is View v && !v.IsTemplate && v.ViewType != ViewType.Internal) viewCount++;
+                }
                 int warnCount = doc.GetWarnings()?.Count() ?? 0;
 
                 report.AppendLine($"\n-- Document Metrics --");
@@ -929,14 +1024,10 @@ namespace StingTools.Temp
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = _ctx.Doc;
 
-                var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var allElements = new FilteredElementCollector(doc)
+                    .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                     .WhereElementIsNotElementType()
-                    .Where(e =>
-                    {
-                        string cat = ParameterHelpers.GetCategoryName(e);
-                        return !string.IsNullOrEmpty(cat) && knownCats.Contains(cat);
-                    }).ToList();
+                    .ToList();
 
                 if (allElements.Count == 0)
                 {
@@ -1005,6 +1096,8 @@ namespace StingTools.Temp
                         return Result.Cancelled;
                     }
 
+                    // TransactionGroup used ONLY for rollback-on-cancel; Assimilate merges committed chunks.
+                    // Individual Transaction.Commit() per chunk is the real commit — Assimilate just closes the group.
                     tg.Assimilate();
                 }
 
@@ -1150,7 +1243,7 @@ namespace StingTools.Temp
                 }
                 catch (Exception pdfEx)
                 {
-                    StingLog.Warn($"PDF export API failed: {pdfEx.Message}");
+                    StingLog.Error($"PDF export API failed: {pdfEx.Message}");
                     TaskDialog.Show("PDF Export",
                         $"PDF export is not available in this Revit version.\n\n" +
                         $"Found {sheetIds.Count} sheet(s) for export.\n" +

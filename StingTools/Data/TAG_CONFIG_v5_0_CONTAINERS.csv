@@ -136,7 +136,7 @@ TIEIN,ASS_TIEIN_SIZE_TXT,TEXT,Size at point: DN50 / 400×250 / 32mm conduit
 TIEIN,ASS_TIEIN_ELEV_TXT,TEXT,Elevation AFFL or AFF (e.g. 3450 AFFL)
 TIEIN,ASS_TIEIN_FLOW_DIR_TXT,TEXT,Flow direction: SUP / RET / BIDIR / UNKWN
 TIEIN,ASS_TIEIN_IFC_REF_TXT,TEXT,IFC/Interface Control Document reference
-TIEIN,ASS_TIEIN_CONNECTED_BOOL,YESNO,Resolved flag: 0=open / 1=connected
+TIEIN,ASS_TIEIN_CONNECTED_BOOL,TEXT,Resolved flag: 0=open / 1=connected
 TIEIN,ASS_TIEIN_TAG_1_TXT,TEXT,Assembled tie-in display tag (auto-populated)
 #
 # TIE-IN TAG7 PARAGRAPH CONTAINERS (discipline-specific)

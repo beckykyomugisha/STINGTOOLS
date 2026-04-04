@@ -113,6 +113,7 @@ namespace StingTools.Temp
             int stepNum = 0;
             int passed = 0;
             int failed = 0;
+            int skipped = 0;
             var totalSw = Stopwatch.StartNew();
             using var _perfOp = PerformanceTracker.Track("MasterSetup");
 
@@ -166,6 +167,7 @@ namespace StingTools.Temp
                 if (userCancelled) return 0;
                 int result = RunStep(ref stepNum, report, label, action);
                 if (result == -1) { userCancelled = true; return 0; }
+                if (result == -2) { skipped++; return 0; }
                 return result;
             }
 
@@ -279,11 +281,13 @@ namespace StingTools.Temp
                 return passed > 0 ? Result.Succeeded : Result.Cancelled;
             }
 
-            failed = stepNum - passed;
+            failed = stepNum - passed - skipped;
             totalSw.Stop();
             report.AppendLine(new string('─', 45));
             report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+            if (skipped > 0)
+                report.AppendLine($"  Skipped: {skipped} (optional steps not applicable)");
             if (failed > 0)
                 report.AppendLine($"  Failed: {failed} — check StingTools.log for details");
 
@@ -292,13 +296,14 @@ namespace StingTools.Temp
             {
                 var validator = new ValidateTemplateCommand();
                 string valMsg = "";
-                validator.Execute(commandData, ref valMsg, elements);
-                // Validation results shown by ValidateTemplateCommand itself
-                StingLog.Info("Master Setup: post-setup validation completed");
+                var valResult = validator.Execute(commandData, ref valMsg, elements);
+                string valStatus = valResult == Result.Succeeded ? "PASSED" : "ISSUES DETECTED";
+                report.AppendLine($"  Post-validation: {valStatus}");
+                StingLog.Info($"Master Setup: post-setup validation {valStatus}");
             }
             catch (Exception valEx)
             {
-                StingLog.Warn($"Master Setup post-validation: {valEx.Message}");
+                StingLog.Error($"Master Setup post-validation failed: {valEx.Message}");
                 report.AppendLine($"  Post-validation: skipped ({valEx.Message})");
             }
 
@@ -362,10 +367,14 @@ namespace StingTools.Temp
             {
                 Result result = action();
                 sw.Stop();
-                string status = result == Result.Succeeded ? "OK" : "WARN";
+                string status = result == Result.Succeeded ? "OK"
+                    : result == Result.Cancelled ? "SKIPPED"
+                    : "WARN";
                 report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 StingLog.Info($"Master Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-                return result == Result.Succeeded ? 1 : 0;
+                return result == Result.Succeeded ? 1
+                    : result == Result.Cancelled ? -2  // Distinguish SKIPPED from FAILED
+                    : 0;
             }
             catch (Exception ex)
             {

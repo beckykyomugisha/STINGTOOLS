@@ -966,9 +966,14 @@ namespace StingTools.Core
                     {
                         try
                         {
-                            JoinGeometryUtils.UnjoinGeometry(doc,
-                                doc.GetElement(ids[0]), doc.GetElement(ids[1]));
-                            return true;
+                            // R1-WM-02: Null-guard both elements before UnjoinGeometry
+                            var el0 = doc.GetElement(ids[0]);
+                            var el1 = doc.GetElement(ids[1]);
+                            if (el0 != null && el1 != null)
+                            {
+                                JoinGeometryUtils.UnjoinGeometry(doc, el0, el1);
+                                return true;
+                            }
                         }
                         catch (Exception ex2) { StingLog.Warn($"Unjoin failed: {ex2.Message}"); }
                     }
@@ -1513,11 +1518,14 @@ namespace StingTools.Core
                 int count = doc.GetWarnings()?.Count ?? 0;
                 string json = $"{{\"version\":2,\"total\":{count},\"date\":\"{DateTime.Now:o}\",\"user\":\"{Environment.UserName}\"}}";
 
-                // Atomic write: temp file then rename to prevent mid-write corruption
+                // Atomic write: temp file then replace to prevent mid-write corruption
                 string tempPath = path + ".tmp";
                 File.WriteAllText(tempPath, json, Encoding.UTF8);
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(tempPath, path);
+                // R1-WM-01: Use File.Replace for atomic swap (Delete+Move has crash window)
+                if (File.Exists(path))
+                    File.Replace(tempPath, path, path + ".bak");
+                else
+                    File.Move(tempPath, path);
 
                 StingLog.Info($"Warning baseline saved: {count} warnings");
             }
@@ -2192,11 +2200,11 @@ namespace StingTools.Core
                 sb.Append("]");
                 sb.Append("}");
 
-                // Atomic write
+                // R2-FIX: Atomic write using File.Replace (no crash window between Delete and Move)
                 string tempPath = path + ".tmp";
                 File.WriteAllText(tempPath, sb.ToString(), Encoding.UTF8);
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(tempPath, path);
+                try { File.Replace(tempPath, path, path + ".bak"); }
+                catch { if (File.Exists(tempPath)) { File.Copy(tempPath, path, true); try { File.Delete(tempPath); } catch { } } }
 
                 StingLog.Info($"Extended warning baseline saved: {count} warnings, {typeEntries.Count} types with first-seen timestamps");
             }

@@ -179,7 +179,8 @@ namespace StingTools.Temp
                     if (scopeId != ElementId.InvalidElementId)
                     {
                         Element scopeBox = view.Document.GetElement(scopeId);
-                        if (scopeBox != null)
+                        // R3-FIX-05: Also check IsValidObject — element may be stale/deleted
+                        if (scopeBox != null && scopeBox.IsValidObject)
                         {
                             string scopeName = scopeBox.Name ?? "";
                             foreach (var (pattern, templateName, viewType) in AssignmentRules)
@@ -246,24 +247,46 @@ namespace StingTools.Temp
             // ToLowerInvariant() is not called per (template × iteration) combination.
             var loweredTemplates = allTemplates.Select(kv => (original: kv.Key, lower: kv.Key.ToLowerInvariant())).ToList();
 
+            // HIGH-06: Helper to check if a template name is compatible with the view's ViewType.
+            // Prevents e.g. a section view named "Mechanical Section" from matching "Mechanical Plan".
+            bool IsTemplateCompatibleWithViewType(string tpl, ViewType vt)
+            {
+                bool tplIsPlan = tpl.Contains("plan") && !tpl.Contains("ceiling");
+                bool tplIsCeiling = tpl.Contains("ceiling") || tpl.Contains("rcp");
+                bool tplIsSection = tpl.Contains("section");
+                bool tplIsElevation = tpl.Contains("elevation");
+                bool tplIs3D = tpl.Contains("3d");
+                bool tplIsDetail = tpl.Contains("detail");
+
+                // If template name implies a specific view type, enforce it
+                if (tplIsPlan) return vt == ViewType.FloorPlan || vt == ViewType.AreaPlan || vt == ViewType.EngineeringPlan;
+                if (tplIsCeiling) return vt == ViewType.CeilingPlan;
+                if (tplIsSection) return vt == ViewType.Section;
+                if (tplIsElevation) return vt == ViewType.Elevation;
+                if (tplIs3D) return vt == ViewType.ThreeD;
+                if (tplIsDetail) return vt == ViewType.Detail;
+                // Template name has no view-type keyword — compatible with anything
+                return true;
+            }
+
             foreach (var (original, tplName) in loweredTemplates)
             {
-                // Match templates that share keywords with the view name
-                // e.g. view "Mechanical Floor Plan" matches template "Mechanical Plan"
-                if (viewName.Contains("mechanical") && tplName.Contains("mechanical")) return original;
-                if (viewName.Contains("electrical") && tplName.Contains("electrical")) return original;
-                if (viewName.Contains("plumbing") && tplName.Contains("plumbing")) return original;
-                if (viewName.Contains("structural") && tplName.Contains("structural")) return original;
-                if (viewName.Contains("architectural") && tplName.Contains("architectural")) return original;
-                if (viewName.Contains("fire") && tplName.Contains("fire")) return original;
-                if (viewName.Contains("coordination") && tplName.Contains("coordination")) return original;
-                if (viewName.Contains("hvac") && tplName.Contains("hvac")) return original;
-                if (viewName.Contains("lighting") && tplName.Contains("lighting")) return original;
-                if (viewName.Contains("ceiling") && tplName.Contains("ceiling")) return original;
-                if (viewName.Contains("section") && tplName.Contains("section")) return original;
-                if (viewName.Contains("elevation") && tplName.Contains("elevation")) return original;
-                if (viewName.Contains("detail") && tplName.Contains("detail")) return original;
-                if (viewName.Contains("3d") && tplName.Contains("3d")) return original;
+                // Match templates that share keywords with the view name,
+                // but only if the template is compatible with the view's ViewType
+                if (viewName.Contains("mechanical") && tplName.Contains("mechanical") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("electrical") && tplName.Contains("electrical") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("plumbing") && tplName.Contains("plumbing") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("structural") && tplName.Contains("structural") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("architectural") && tplName.Contains("architectural") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("fire") && tplName.Contains("fire") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("coordination") && tplName.Contains("coordination") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("hvac") && tplName.Contains("hvac") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("lighting") && tplName.Contains("lighting") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("ceiling") && tplName.Contains("ceiling") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("section") && tplName.Contains("section") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("elevation") && tplName.Contains("elevation") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("detail") && tplName.Contains("detail") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
+                if (viewName.Contains("3d") && tplName.Contains("3d") && IsTemplateCompatibleWithViewType(tplName, view.ViewType)) return original;
             }
 
             // Fall back to view type matching against template names
@@ -430,9 +453,9 @@ namespace StingTools.Temp
                         break;
                     case "CorrectDiscipline":
                         string match = FindMatchingTemplate(view);
-                        if (hasTemplate)
+                        if (hasTemplate && templateView != null)
                         {
-                            earned = (templateView != null && match != null &&
+                            earned = (match != null &&
                                 string.Equals(templateView.Name, match, StringComparison.OrdinalIgnoreCase))
                                 ? weight : weight * 0.3;
                         }
@@ -447,7 +470,41 @@ namespace StingTools.Temp
                         catch (Exception ex) { StingLog.Warn($"Read view phase parameter: {ex.Message}"); }
                         break;
                     case "VGConsistent":
-                        earned = hasTemplate ? weight * 0.7 : 0;
+                        // HIGH-01: Compare view's filters against template's filters
+                        // instead of returning a fixed 0.7 stub score.
+                        if (hasTemplate && templateView != null)
+                        {
+                            try
+                            {
+                                var templateFilterIds = templateView.GetFilters();
+                                var viewFilterIds = view.GetFilters();
+                                if (templateFilterIds.Count == 0)
+                                {
+                                    // Template has no filters — view is consistent by default
+                                    earned = weight;
+                                }
+                                else
+                                {
+                                    var tplSet = new HashSet<ElementId>(templateFilterIds);
+                                    int matching = 0;
+                                    foreach (var fid in viewFilterIds)
+                                    {
+                                        if (tplSet.Contains(fid)) matching++;
+                                    }
+                                    double ratio = (double)matching / templateFilterIds.Count;
+                                    earned = weight * ratio;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"VGConsistent scoring: {ex.Message}");
+                                earned = weight * 0.5; // partial credit on error
+                            }
+                        }
+                        else
+                        {
+                            earned = 0;
+                        }
                         break;
                     case "NoOrphans":
                         earned = weight; // assume good until proven otherwise
@@ -1521,20 +1578,20 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            // Sort templates alphabetically for consistent ordering
+            // Let user pick the base template to compare against
             var sortedNames = stingTemplates.Keys.OrderBy(k => k).ToList();
 
-            // Compare all adjacent pairs, or first vs all others
+            string baseName = Select.StingListPicker.Show("Template Diff — Select Base",
+                "Select the BASE template to compare others against:", sortedNames);
+            if (baseName == null) return Result.Cancelled;
+
             var report = new StringBuilder();
             report.AppendLine("STING Template VG Comparison");
             report.AppendLine(new string('═', 55));
-
-            // Compare first template with each other
-            string baseName = sortedNames[0];
             var baseSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[baseName]);
 
             int totalDiffs = 0;
-            foreach (string otherName in sortedNames.Skip(1))
+            foreach (string otherName in sortedNames.Where(n => n != baseName))
             {
                 var otherSnap = TemplateManager.CaptureVGSnapshot(doc, stingTemplates[otherName]);
                 var diffs = TemplateManager.DiffSnapshots(baseSnap, otherSnap);
@@ -2330,53 +2387,12 @@ namespace StingTools.Temp
                                     target.SetFilterVisibility(kvp.Value.Id, true);
                                 }
 
-                                // Layer 1: Discipline colour override
-                                if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
-                                {
-                                    var ogs = new OverrideGraphicSettings();
-                                    ogs.SetProjectionLineColor(col);
-                                    ogs.SetProjectionLineWeight(2);
-                                    if (solidFill != null)
-                                    {
-                                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                        ogs.SetSurfaceForegroundPatternColor(col);
-                                    }
-                                    ogs.SetSurfaceTransparency(20);
-                                    target.SetFilterOverrides(kvp.Value.Id, ogs);
-                                    filtersApplied++;
-                                }
-
-                                // Layer 2: QA highlighting — missing tags = red
-                                if (kvp.Key.Contains("Untagged") || kvp.Key.Contains("Missing"))
-                                {
-                                    var qaOgs = new OverrideGraphicSettings();
-                                    qaOgs.SetProjectionLineColor(new Color(255, 0, 0));
-                                    qaOgs.SetProjectionLineWeight(4);
-                                    if (solidFill != null)
-                                    {
-                                        qaOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                        qaOgs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
-                                    }
-                                    target.SetFilterOverrides(kvp.Value.Id, qaOgs);
-                                }
-
-                                // Layer 2: QA highlighting — incomplete tags = orange
-                                if (kvp.Key.Contains("Incomplete"))
-                                {
-                                    var warnOgs = new OverrideGraphicSettings();
-                                    warnOgs.SetProjectionLineColor(new Color(255, 165, 0));
-                                    warnOgs.SetProjectionLineWeight(3);
-                                    if (solidFill != null)
-                                    {
-                                        warnOgs.SetSurfaceForegroundPatternId(solidFill.Id);
-                                        warnOgs.SetSurfaceForegroundPatternColor(new Color(255, 235, 200));
-                                    }
-                                    target.SetFilterOverrides(kvp.Value.Id, warnOgs);
-                                }
-
-                                // Layer 3: Status — demolished = red + crosshatch
+                                // VG override layers — mutually exclusive to prevent
+                                // later layers silently overwriting earlier ones.
+                                // Priority: Status > QA > Discipline colour.
                                 if (kvp.Key.Contains("Status: Demolished"))
                                 {
+                                    // Status — demolished = red + crosshatch
                                     var demoOgs = new OverrideGraphicSettings();
                                     demoOgs.SetProjectionLineColor(new Color(255, 0, 0));
                                     demoOgs.SetProjectionLineWeight(3);
@@ -2391,25 +2407,64 @@ namespace StingTools.Temp
                                     }
                                     target.SetFilterOverrides(kvp.Value.Id, demoOgs);
                                 }
-
-                                // Layer 3: Status — existing = halftone + transparent
-                                if (kvp.Key.Contains("Status: Existing"))
+                                else if (kvp.Key.Contains("Status: Existing"))
                                 {
+                                    // Status — existing = halftone + transparent
                                     var existOgs = new OverrideGraphicSettings();
                                     existOgs.SetHalftone(true);
                                     existOgs.SetSurfaceTransparency(50);
                                     existOgs.SetProjectionLineColor(new Color(180, 180, 180));
                                     target.SetFilterOverrides(kvp.Value.Id, existOgs);
                                 }
-
-                                // Layer 3: Status — temporary = dashed + yellow
-                                if (kvp.Key.Contains("Status: Temporary"))
+                                else if (kvp.Key.Contains("Status: Temporary"))
                                 {
+                                    // Status — temporary = dashed + yellow
                                     var tempOgs = new OverrideGraphicSettings();
                                     tempOgs.SetProjectionLineColor(new Color(200, 200, 0));
                                     tempOgs.SetProjectionLineWeight(1);
                                     tempOgs.SetSurfaceTransparency(40);
                                     target.SetFilterOverrides(kvp.Value.Id, tempOgs);
+                                }
+                                else if (kvp.Key.Contains("Untagged") || kvp.Key.Contains("Missing"))
+                                {
+                                    // QA highlighting — missing tags = red
+                                    var qaOgs = new OverrideGraphicSettings();
+                                    qaOgs.SetProjectionLineColor(new Color(255, 0, 0));
+                                    qaOgs.SetProjectionLineWeight(4);
+                                    if (solidFill != null)
+                                    {
+                                        qaOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        qaOgs.SetSurfaceForegroundPatternColor(new Color(255, 200, 200));
+                                    }
+                                    target.SetFilterOverrides(kvp.Value.Id, qaOgs);
+                                }
+                                else if (kvp.Key.Contains("Incomplete"))
+                                {
+                                    // QA highlighting — incomplete tags = orange
+                                    var warnOgs = new OverrideGraphicSettings();
+                                    warnOgs.SetProjectionLineColor(new Color(255, 165, 0));
+                                    warnOgs.SetProjectionLineWeight(3);
+                                    if (solidFill != null)
+                                    {
+                                        warnOgs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        warnOgs.SetSurfaceForegroundPatternColor(new Color(255, 235, 200));
+                                    }
+                                    target.SetFilterOverrides(kvp.Value.Id, warnOgs);
+                                }
+                                else if (DisciplineColors.TryGetValue(kvp.Key, out Color col))
+                                {
+                                    // Discipline colour override (lowest priority)
+                                    var ogs = new OverrideGraphicSettings();
+                                    ogs.SetProjectionLineColor(col);
+                                    ogs.SetProjectionLineWeight(2);
+                                    if (solidFill != null)
+                                    {
+                                        ogs.SetSurfaceForegroundPatternId(solidFill.Id);
+                                        ogs.SetSurfaceForegroundPatternColor(col);
+                                    }
+                                    ogs.SetSurfaceTransparency(20);
+                                    target.SetFilterOverrides(kvp.Value.Id, ogs);
+                                    filtersApplied++;
                                 }
                             }
                             catch (Exception ex)
@@ -2470,6 +2525,7 @@ namespace StingTools.Temp
                                         byte sr = 0, sg = 0, sb = 0;
                                         int transp = 0;
                                         bool halftone = false;
+                                        bool hasExplicitColor = false;
 
                                         foreach (string p in schFields.Split(','))
                                         {
@@ -2483,7 +2539,7 @@ namespace StingTools.Temp
                                                     byte.TryParse(parts[0], out byte pr) &&
                                                     byte.TryParse(parts[1], out byte pg) &&
                                                     byte.TryParse(parts[2], out byte pb))
-                                                { sr = pr; sg = pg; sb = pb; }
+                                                { sr = pr; sg = pg; sb = pb; hasExplicitColor = true; }
                                             }
                                             else if (pt.StartsWith("Transp="))
                                             {
@@ -2499,7 +2555,8 @@ namespace StingTools.Temp
 
                                         // Apply per-category overrides
                                         var catOgs = new OverrideGraphicSettings();
-                                        if (sr > 0 || sg > 0 || sb > 0)
+                                        // HIGH-02: Use explicit flag so black (0,0,0) is not skipped
+                                        if (hasExplicitColor)
                                         {
                                             catOgs.SetProjectionLineColor(new Color(sr, sg, sb));
                                             if (solidFill != null)
@@ -2608,14 +2665,17 @@ namespace StingTools.Temp
                 return Result.Failed;
             }
 
-            // Open shared parameter file
+            // Open shared parameter file — save/restore original path
+            string originalSpfPath = null;
             DefinitionFile defFile;
             try
             {
+                originalSpfPath = ctx.App.Application.SharedParametersFilename;
                 ctx.App.Application.SharedParametersFilename = spfPath;
                 defFile = ctx.App.Application.OpenSharedParameterFile();
                 if (defFile == null)
                 {
+                    ctx.App.Application.SharedParametersFilename = originalSpfPath ?? "";
                     TaskDialog.Show("Batch Add Family Params",
                         "Failed to open shared parameter file.");
                     return Result.Failed;
@@ -2623,6 +2683,8 @@ namespace StingTools.Temp
             }
             catch (Exception ex)
             {
+                try { ctx.App.Application.SharedParametersFilename = originalSpfPath ?? ""; }
+                catch (Exception ex2) { StingLog.Warn($"Restore SharedParametersFilename: {ex2.Message}"); }
                 StingLog.Error("Failed to open shared parameter file", ex);
                 TaskDialog.Show("Batch Add Family Params",
                     $"Error opening parameter file: {ex.Message}");
@@ -2807,6 +2869,10 @@ namespace StingTools.Temp
                     report.AppendLine($"  {kvp.Value,3} params → {kvp.Key}");
             }
 
+            // Restore original shared parameter file path
+            try { ctx.App.Application.SharedParametersFilename = originalSpfPath ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"Restore SharedParametersFilename: {ex.Message}"); }
+
             TaskDialog.Show("Batch Add Family Params", report.ToString());
             StingLog.Info($"Batch Family Params: {totalBound} bound, " +
                 $"{totalSkipped} skipped, {totalFailed} failed");
@@ -2865,13 +2931,13 @@ namespace StingTools.Temp
 
             string previousSpf = app.SharedParametersFilename;
             app.SharedParametersFilename = spfPath;
+            try
+            {
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
             {
                 TaskDialog.Show("Family Parameter Processor",
                     "Failed to open shared parameter file.");
-                // Restore to MR_PARAMETERS.txt (not the previous file which may be wrong)
-                app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2894,8 +2960,6 @@ namespace StingTools.Temp
             {
                 TaskDialog.Show("Family Parameter Processor",
                     "FAMILY_PARAMETER_BINDINGS.csv not found or empty.");
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Failed;
             }
 
@@ -2987,16 +3051,12 @@ namespace StingTools.Temp
             }
             else
             {
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
             if (familyPaths.Count == 0)
             {
                 TaskDialog.Show("Family Parameter Processor", "No family files selected.");
-                if (!string.IsNullOrEmpty(previousSpf))
-                    app.SharedParametersFilename = spfPath;
                 return Result.Cancelled;
             }
 
@@ -3237,10 +3297,6 @@ namespace StingTools.Temp
                 }
             }
 
-            // Restore previous shared parameter file
-            if (!string.IsNullOrEmpty(previousSpf))
-                app.SharedParametersFilename = spfPath;
-
             // ── Step 5: Report ──────────────────────────────────────────────
             var report = new StringBuilder();
             report.AppendLine("Family Parameter Processor");
@@ -3263,6 +3319,12 @@ namespace StingTools.Temp
             StingLog.Info($"Family Processor: {processed} families, {paramsAdded} params, {formulasApplied} formulas");
 
             return processed > 0 ? Result.Succeeded : Result.Failed;
+            }
+            finally
+            {
+                // Restore the original shared parameter file path
+                app.SharedParametersFilename = previousSpf;
+            }
         }
 
         /// <summary>
@@ -3571,13 +3633,14 @@ namespace StingTools.Temp
                                     var paramMap = TPLMetadataLoader.GetParamMapping(sourceTable);
                                     if (paramMap == null || paramMap.Count == 0) continue;
 
-                                    foreach (var row in rows)
+                                    for (int ri = 0; ri < rows.Count; ri++)
                                     {
+                                        var row = rows[ri];
                                         try
                                         {
-                                            // Create Generic Model instance at origin
+                                            // Create Generic Model instance — offset each row to avoid stacking
                                             FamilyInstance fi = doc.Create.NewFamilyInstance(
-                                                new XYZ(0, 0, 0), gmSymbol, lvl,
+                                                new XYZ(ri * 3.0, 0, 0), gmSymbol, lvl,
                                                 Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
 
                                             if (fi == null) continue;
@@ -3589,7 +3652,11 @@ namespace StingTools.Temp
                                                 int csvCol = mapping.Key;
                                                 string stingParam = mapping.Value;
 
-                                                if (csvCol >= row.Length) continue;
+                                                if (csvCol >= row.Length)
+                                                {
+                                                    StingLog.Warn($"TPL metadata: column {csvCol} ({stingParam}) exceeds row length {row.Length}");
+                                                    continue;
+                                                }
                                                 string val = row[csvCol]?.Trim() ?? "";
                                                 if (string.IsNullOrEmpty(val)) continue;
 
@@ -3856,10 +3923,12 @@ namespace StingTools.Temp
                     report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
                     report.AppendLine("  Use Ctrl+Z to undo individual steps if needed.");
                 }
-
-            report.AppendLine(new string('─', 55));
-            report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
-            report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+                else
+                {
+                    report.AppendLine(new string('─', 55));
+                    report.AppendLine($"  Complete: {passed}/{stepNum} steps succeeded");
+                    report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
+                }
 
             TaskDialog td = new TaskDialog("STING Template Setup Wizard");
             td.MainInstruction = $"Template Setup: {passed}/{stepNum} steps complete";
@@ -4400,9 +4469,17 @@ namespace StingTools.Temp
 
     internal static class TPLMetadataLoader
     {
-        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).</summary>
+        // Cache to avoid re-reading the CSV on every call
+        private static string _cachedPath;
+        private static Dictionary<string, List<string[]>> _cachedGroups;
+
+        /// <summary>Parse TPL_SCHEDULE_METADATA.csv and group rows by Source_Table (col 1).
+        /// Results are cached per file path to avoid redundant I/O.</summary>
         public static Dictionary<string, List<string[]>> LoadGrouped(string path)
         {
+            if (_cachedGroups != null && string.Equals(_cachedPath, path, StringComparison.OrdinalIgnoreCase))
+                return _cachedGroups;
+
             var groups = new Dictionary<string, List<string[]>>(StringComparer.OrdinalIgnoreCase);
             var lines = System.IO.File.ReadAllLines(path);
             if (lines.Length < 2) return groups;
@@ -4419,21 +4496,34 @@ namespace StingTools.Temp
                     groups[sourceTable] = new List<string[]>();
                 groups[sourceTable].Add(cols);
             }
+
+            _cachedPath = path;
+            _cachedGroups = groups;
             return groups;
         }
+
+        /// <summary>Invalidate the LoadGrouped cache (call after CSV edits).</summary>
+        public static void InvalidateCache() { _cachedPath = null; _cachedGroups = null; }
 
         /// <summary>Maps Source_Table names to their MR_SCHEDULES schedule names.</summary>
         public static Dictionary<string, string> BuildTableScheduleMap()
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                { "dimension_styles", "Dimension Style Schedule" },
-                { "filters",          "Filter Schedule" },
-                { "line_styles",      "Line Style Schedule" },
-                { "object_styles",    "Object Style Schedule" },
-                { "phases",           "Phase Schedule" },
-                { "text_styles",      "Text Style Schedule" },
-                { "worksets",         "Workset Schedule" },
+                { "dimension_styles",    "Dimension Style Schedule" },
+                { "filters",             "Filter Schedule" },
+                { "line_styles",         "Line Style Schedule" },
+                { "object_styles",       "Object Style Schedule" },
+                { "phases",              "Phase Schedule" },
+                { "text_styles",         "Text Style Schedule" },
+                { "worksets",            "Workset Schedule" },
+                { "arrowheads",          "Arrowhead Schedule" },
+                { "line_patterns",       "Line Pattern Schedule" },
+                { "line_weights",        "Line Weight Schedule" },
+                { "phase_filters",       "Phase Filter Schedule" },
+                { "schedule_parameters", "Schedule Parameter Schedule" },
+                { "schedule_templates",  "Schedule Template Schedule" },
+                { "view_templates",      "View Template Schedule" },
             };
         }
 
@@ -4477,7 +4567,7 @@ namespace StingTools.Temp
                 int b = Convert.ToInt32(hex.Substring(4, 2), 16);
                 return (r.ToString(), g.ToString(), b.ToString());
             }
-            catch (Exception ex) { StingLog.Warn($"ParseHexColor: {ex.Message}"); return null; }
+            catch (Exception ex) { StingLog.Warn($"ParseColorHex: invalid hex '{(row[11] ?? "")}': {ex.Message}"); return null; }
         }
 
         /// <summary>Combines Rule_Parameter(37) + Rule_Operator(38) + Rule_Value(39) into a single rules string.</summary>
@@ -4593,7 +4683,7 @@ namespace StingTools.Temp
 
         // ── text_styles → Text Style Schedule ──
         // Schedule fields: TS_NAME_TXT, TS_FONT_NAME_TXT, TS_FONT_SIZE_NR,
-        //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_UNDERLINE_BOOL, TS_WIDTH_FACTOR_NR,
+        //   TS_BOLD_BOOL, TS_ITALIC_BOOL, TS_WIDTH_FACTOR_NR,
         //   USAGE_TXT, TS_STATUS_TXT
         private static Dictionary<int, string> TextStylesMapping()
         {
