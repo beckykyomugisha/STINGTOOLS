@@ -3690,6 +3690,26 @@ namespace StingTools.Core
                                     double slaHours = pri == "CRITICAL" ? 4 : pri == "HIGH" ? 24 : pri == "MEDIUM" ? 168 : 336;
                                     if (st == "OPEN" && (DateTime.Now - cDate).TotalHours > slaHours) { overdue = true; issuesOverdue++; }
                                 }
+                                // Multi-assignee: read "assignees" JSON array, fallback to single "assignee"
+                                var assigneeList = new List<string>();
+                                var assigneesArr = item["assignees"] as Newtonsoft.Json.Linq.JArray;
+                                if (assigneesArr != null && assigneesArr.Count > 0)
+                                {
+                                    foreach (var a in assigneesArr)
+                                    {
+                                        string av = a.Value<string>();
+                                        if (!string.IsNullOrWhiteSpace(av)) assigneeList.Add(av.Trim());
+                                    }
+                                }
+                                string singleAssignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "";
+                                if (assigneeList.Count == 0 && !string.IsNullOrWhiteSpace(singleAssignee))
+                                    assigneeList.Add(singleAssignee.Trim());
+
+                                // Element count from element_ids array
+                                int elemCount = 0;
+                                var elemArr = item["element_ids"] as Newtonsoft.Json.Linq.JArray;
+                                if (elemArr != null) elemCount = elemArr.Count;
+
                                 issueRows.Add(new UI.BIMCoordinationCenter.IssueRow
                                 {
                                     Id = item.Value<string>("id") ?? "",
@@ -3697,7 +3717,12 @@ namespace StingTools.Core
                                     Type = item.Value<string>("type") ?? "",
                                     Priority = item.Value<string>("priority") ?? "",
                                     Status = st,
-                                    Assignee = item.Value<string>("assignee") ?? item.Value<string>("created_by") ?? "",
+                                    Assignee = singleAssignee,
+                                    AssigneeList = assigneeList,
+                                    Assignees = string.Join(", ", assigneeList),
+                                    Discipline = item.Value<string>("discipline") ?? "",
+                                    Revision = item.Value<string>("revision") ?? "",
+                                    ElementCount = elemCount,
                                     Created = created.Length > 10 ? created.Substring(0, 10) : created,
                                     IsOverdue = overdue,
                                     DaysOpen = daysOpen
@@ -3784,6 +3809,19 @@ namespace StingTools.Core
                     WarningSLAViolations = warningReport.SLAViolations,
                     WarningTopByCategory = warningReport.TopWarningsByCategory
                         .ToDictionary(x => x.Key, x => x.Value.Select(v => (v.Desc, v.Count)).ToList()),
+                    // Phase 87: Extended warning data for Ideate-level Warnings tab
+                    WarningManualReview = warningReport.ManualReview,
+                    WarningAvgCriticalAgeHours = warningReport.AvgCriticalAgeHours,
+                    WarningByWorkset = warningReport.ByWorkset ?? new Dictionary<string, int>(),
+                    WarningRootCauseGroups = (warningReport.RootCauseGroups ?? new List<RootCauseGroup>())
+                        .Select(g => (g.Description, g.Category, g.Severity, g.Count, g.CanAutoFix, g.FixStrategy ?? ""))
+                        .ToList(),
+                    WarningImpactCOBie = warningReport.DeliverableImpact?.AffectsCOBie ?? 0,
+                    WarningImpactIFC = warningReport.DeliverableImpact?.AffectsIFC ?? 0,
+                    WarningImpactHandover = warningReport.DeliverableImpact?.AffectsHandover ?? 0,
+                    WarningImpactSchedules = warningReport.DeliverableImpact?.AffectsSchedules ?? 0,
+                    WarningImpactClash = warningReport.DeliverableImpact?.AffectsClash ?? 0,
+                    WarningHighestImpactArea = warningReport.DeliverableImpact?.HighestImpactArea ?? "",
                     IssuesOpen = openIssues,
                     IssuesCritical = criticalIssues,
                     IssuesOverdue = issuesOverdue,
