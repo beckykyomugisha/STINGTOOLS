@@ -1175,7 +1175,10 @@ namespace StingTools.Temp
                         }
                     }
 
-                    tx.Commit();
+                    if (cancelled)
+                        tx.RollBack();
+                    else
+                        tx.Commit();
                 }
             }
             finally

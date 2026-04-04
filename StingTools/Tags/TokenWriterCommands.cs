@@ -816,25 +816,31 @@ namespace StingTools.Tags
 
                 var pDlg = StingProgressDialog.Show("Tag Sheets", allSheets.Count);
 
-                foreach (var sheet in allSheets)
+                try
                 {
-                    if (EscapeChecker.IsEscapePressed())
+                    foreach (var sheet in allSheets)
                     {
-                        tx.RollBack();
-                        pDlg.Close();
-                        TaskDialog.Show("STING", $"Sheet tagging cancelled.\n{sheetsProcessed} sheets tagged before cancel.");
-                        return Result.Cancelled;
+                        if (EscapeChecker.IsEscapePressed())
+                        {
+                            tx.RollBack();
+                            pDlg.Close();
+                            TaskDialog.Show("STING", $"Sheet tagging cancelled.\n{sheetsProcessed} sheets tagged before cancel.");
+                            return Result.Cancelled;
+                        }
+
+                        pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
+
+                        int written = NativeParamMapper.SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                        tokensWritten += written;
+                        sheetsProcessed++;
                     }
 
-                    pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
-
-                    int written = NativeParamMapper.SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
-                    tokensWritten += written;
-                    sheetsProcessed++;
+                    tx.Commit();
                 }
-
-                pDlg.Close();
-                tx.Commit();
+                finally
+                {
+                    pDlg.Close();
+                }
             }
 
             sw.Stop();

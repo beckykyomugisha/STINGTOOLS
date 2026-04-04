@@ -163,6 +163,8 @@ namespace StingTools.Tags
             // The current in-progress batch is rolled back. User is notified of partial completion.
             var progress = StingProgressDialog.Show("Batch Tag", totalTaggable);
 
+            try
+            {
             for (int batchStart = 0; batchStart < sorted.Count; batchStart += TagBatchSize)
             {
                 if (cancelled) break;
@@ -223,8 +225,11 @@ namespace StingTools.Tags
                     }
                 }
             }
-
-            progress.Close();
+            }
+            finally
+            {
+                progress.Close();
+            }
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "BatchTag");

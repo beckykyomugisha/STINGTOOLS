@@ -213,7 +213,10 @@ namespace StingTools.Temp
                         StingLog.Info($"Formula evaluator: {elementsProcessed} elements processed...");
                 }
 
-                tx.Commit();
+                if (cancelled)
+                    tx.RollBack();
+                else
+                    tx.Commit();
             }
 
             var report = new StringBuilder();

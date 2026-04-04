@@ -116,6 +116,9 @@ namespace StingTools.Tags
             int BatchSize = TagConfig.ResolveBatchSize;
             int processed = 0;
             var progress = StingProgressDialog.Show("Resolve All Issues", totalTaggable);
+
+            try
+            {
             progress.SetStatus($"Sorting {totalTaggable} elements by level/discipline...");
 
             // Phase 3: Smart sort for contiguous SEQ (progress visible during sort)
@@ -271,7 +274,11 @@ namespace StingTools.Tags
                 }
             }
 
-            progress.Close();
+            }
+            finally
+            {
+                progress.Close();
+            }
 
             // Save SEQ sidecar once after all batches are committed (or cancelled)
             try { TagConfig.SaveSeqSidecar(doc, sequenceCounters); }
