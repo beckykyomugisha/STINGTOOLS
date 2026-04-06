@@ -3959,6 +3959,30 @@ namespace StingTools.Core
                 coordData.CurrentUserName = Environment.UserName;
                 coordData.FilePath = doc.PathName ?? "";
 
+                // Phase 76: Restore permissions from project_config.json "permissions" key
+                try
+                {
+                    if (!string.IsNullOrEmpty(doc.PathName))
+                    {
+                        string cfgPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                        if (File.Exists(cfgPath))
+                        {
+                            var cfgObj = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cfgPath));
+                            var perms = cfgObj["permissions"];
+                            if (perms != null)
+                            {
+                                var rolesArr = perms["roles"] as Newtonsoft.Json.Linq.JArray;
+                                if (rolesArr != null && rolesArr.Count > 0)
+                                    coordData.Roles = rolesArr.ToObject<List<UI.BIMCoordinationCenter.RoleDefinition>>();
+                                var foldersArr = perms["folders"] as Newtonsoft.Json.Linq.JArray;
+                                if (foldersArr != null && foldersArr.Count > 0)
+                                    coordData.FolderPermissions = foldersArr.ToObject<List<UI.BIMCoordinationCenter.FolderPermission>>();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildCoordData: permissions restore failed: {ex.Message}"); }
+
                 StingLog.Info($"BIMCoordCenter built: health={healthScore}, warnings={warningReport.Total}, compliance={tagPct:F1}%");
                 return coordData;
             }
@@ -4151,12 +4175,33 @@ namespace StingTools.Core
                     case "EditUserRole":
                         EditUserRoleInline(doc);
                         return;
+                    case "SavePermissions":
+                        SavePermissionsInline(doc);
+                        return;
                     case "TakeSnapshot":
                         TakeModelSnapshot(doc);
                         return;
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
+                    case "WarningsSelectElements":
+                    {
+                        var uiDoc = app?.ActiveUIDocument;
+                        if (uiDoc == null) return;
+                        var rawIds = UI.BIMCoordinationCenter.SelectedWarningIds;
+                        if (rawIds != null && rawIds.Count > 0)
+                        {
+                            var ids = rawIds.Select(v => new ElementId(v)).ToList();
+                            uiDoc.Selection.SetElementIds(ids);
+                            try { uiDoc.ShowElements(ids); } catch { }
+                        }
+                        else
+                        {
+                            // Fallback: run via command dispatch
+                            DispatchCoordAction("WarningsSelectElements", null);
+                        }
+                        return;
+                    }
                 }
 
                 // Dispatch through command resolution
@@ -4166,6 +4211,35 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"ProcessAction({action}): {ex.Message}");
             }
+        }
+
+        /// <summary>Save permissions (roles + folder matrix) to project_config.json "permissions" key.</summary>
+        private static void SavePermissionsInline(Document doc)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(doc?.PathName)) { TaskDialog.Show("STING", "Save the Revit project before saving permissions."); return; }
+                string configPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                Newtonsoft.Json.Linq.JObject cfg = File.Exists(configPath)
+                    ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath))
+                    : new Newtonsoft.Json.Linq.JObject();
+
+                var roles    = UI.BIMCoordinationCenter.GetLastPermissionsRoles();
+                var folders  = UI.BIMCoordinationCenter.GetLastPermissionsFolders();
+
+                cfg["permissions"] = new Newtonsoft.Json.Linq.JObject
+                {
+                    ["roles"]   = Newtonsoft.Json.Linq.JToken.FromObject(roles),
+                    ["folders"] = Newtonsoft.Json.Linq.JToken.FromObject(folders),
+                    ["saved_by"] = Environment.UserName,
+                    ["saved_at"] = DateTime.Now.ToString("o")
+                };
+                Directory.CreateDirectory(Path.GetDirectoryName(configPath));
+                File.WriteAllText(configPath, cfg.ToString(Newtonsoft.Json.Formatting.Indented));
+                TaskDialog.Show("STING", $"Permissions saved to:\n{configPath}");
+                StingLog.Info($"SavePermissions: wrote {roles.Count} roles, {folders.Count} folders to project_config.json");
+            }
+            catch (Exception ex) { StingLog.Error("SavePermissionsInline failed", ex); TaskDialog.Show("STING", $"Save failed:\n{ex.Message}"); }
         }
 
         /// <summary>Edit user role inline — WPF dialog for role selection with CDE permission preview.</summary>
@@ -4745,11 +4819,15 @@ namespace StingTools.Core
                 { "MilestoneRegister", "MilestoneRegister" },
                 { "PhaseSummary", "PhaseSummary" },
 
-                // Permission actions (handled inline)
-                { "SavePermissions", "ConfigEditor" },
+                // Permission actions (SavePermissions handled inline in ProcessAction)
                 { "CreateFolders", "CreateFolders" },
                 { "ExportPermissionMatrix", "ExportModelHealth" },
                 { "EditUserRole", "ConfigEditor" },
+
+                // 4D/5D extended scheduling commands (dispatched from BCC 4D/5D tab)
+                { "WorkingCalendar", "WorkingCalendar" },
+                { "NavisworksTimeLiner", "NavisworksTimeLiner" },
+                { "ElementCostTrace", "ElementCostTrace" },
 
                 // Deliverables actions
                 { "AddDocument", "AddDocument" },

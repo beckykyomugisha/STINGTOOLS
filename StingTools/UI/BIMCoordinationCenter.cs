@@ -83,6 +83,22 @@ namespace StingTools.UI
         // Phase 75: Persist last-viewed tab across dialog reopens
         private static string _lastViewedTab = TabOverview;
 
+        // Phase 76: Static warning element IDs selected from BCC Warnings DataGrid (stored as long values)
+        public static IReadOnlyList<long> SelectedWarningIds { get; private set; } = new List<long>();
+
+        internal static void SetSelectedWarningIds(IEnumerable<long> ids)
+            => SelectedWarningIds = new List<long>(ids ?? Array.Empty<long>());
+
+        // Phase 76: Last shown permissions (for SavePermissionsInline)
+        private static List<RoleDefinition>   _lastPermissionsRoles   = new();
+        private static List<FolderPermission> _lastPermissionsFolders = new();
+
+        internal static List<RoleDefinition>   GetLastPermissionsRoles()   => _lastPermissionsRoles.Count   > 0 ? _lastPermissionsRoles   : GetDefaultRoles();
+        internal static List<FolderPermission> GetLastPermissionsFolders() => _lastPermissionsFolders.Count > 0 ? _lastPermissionsFolders : GetDefaultFolderPermissions();
+
+        // Phase 76: Singleton for modeless BCC
+        public static BIMCoordinationCenter CurrentInstance { get; private set; }
+
         // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
         private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
 
@@ -462,6 +478,10 @@ namespace StingTools.UI
 
             // Phase 75: Restore last-viewed tab across dialog reopens (preserves user context)
             NavigateTo(_lastViewedTab ?? TabOverview);
+
+            // Phase 76: Register singleton instance
+            CurrentInstance = this;
+            Closed += (s, e) => { CurrentInstance = null; };
         }
 
         private string BuildStatusText()
@@ -4397,6 +4417,10 @@ namespace StingTools.UI
         {
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
             var stack = new StackPanel();
+
+            // Phase 76: Cache current role/folder data for SavePermissionsInline
+            _lastPermissionsRoles   = _data.Roles.Count   > 0 ? _data.Roles   : GetDefaultRoles();
+            _lastPermissionsFolders = _data.FolderPermissions.Count > 0 ? _data.FolderPermissions : GetDefaultFolderPermissions();
 
             // ── Current User ──
             stack.Children.Add(MakeSectionHeader("CURRENT USER"));
