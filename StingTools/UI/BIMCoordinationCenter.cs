@@ -105,6 +105,9 @@ namespace StingTools.UI
         // Phase 76 Item 8: Revisions inline panel area
         private ContentControl _revPanelArea;
 
+        // Phase 76 Item 9: Workflow tab preset panel area
+        private ContentControl _workflowPanelArea;
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -2945,47 +2948,77 @@ namespace StingTools.UI
                 "5 steps: PreTagAudit → ValidateTags → CompletenessDashboard → TagRegister → ValidateTemplate"));
             stack.Children.Add(quickWrap);
 
-            // ── Available Preset Cards ──
+            // ── Workflow Preset Tabs (Phase 76 Item 9 — ToggleButton tab strip) ──
             stack.Children.Add(MakeSectionHeader("ALL WORKFLOW PRESETS"));
-            string[][] presets =
+            stack.Children.Add(new TextBlock
             {
-                new[] { "Morning Health Check", "Daily coordinator routine: stale fix, warnings, compliance, templates", "8" },
-                new[] { "Daily QA Sync", "Adaptive daily sync — skips steps meeting compliance thresholds", "13" },
-                new[] { "Quick Fix Cycle", "Rapid quality improvement: auto-fix, resolve, re-tag, validate", "6" },
-                new[] { "Coordination Meeting Prep", "Prepare for BIM coordination meeting: compliance, warnings, reports", "7" },
-                new[] { "Clash Coordination", "Cross-discipline: detect clashes, export BCF, create issues", "5" },
-                new[] { "Handover Readiness", "Pre-handover: validate, COBie, register, BEP, revision", "9" },
-                new[] { "End of Stage Gate", "RIBA stage transition: full validation, COBie, BEP, register", "11" },
-                new[] { "Weekly Data Drop", "ISO 19650 information exchange: validate, export, package", "8" },
-                new[] { "Project Kickoff", "Full setup: params, materials, types, tags, schedules, views", "28" },
-                new[] { "Post-Tagging QA", "Validate results: ISO compliance, tokens, containers, register", "5" },
-                new[] { "Document Package", "Batch views, sheets, register, BOQ export", "7" },
-                new[] { "BEP Package", "BIM Execution Plan: create, enrich, export, COBie, briefcase", "5" },
+                Text = "Select a preset to configure steps, discipline filters, and schedule options.",
+                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            // Preset definitions: [name, description, steps...]
+            var workflowPresets = new (string Name, string Desc, string[] Steps)[]
+            {
+                ("Morning Check",   "Daily coordinator routine",
+                    new[] { "Retag Stale Elements", "Auto-Fix Warnings", "Tag New Elements", "Pre-Tag Audit", "Validate Tags", "Assign Templates", "Tag Sheets", "Revision Check" }),
+                ("Daily QA",        "Adaptive daily sync with compliance gates",
+                    new[] { "Compliance Check", "Retag Stale", "Auto-Fix Anomalies", "Tag New Elements", "Validate Tags", "BOQ Update", "Register Export", "Completeness Dashboard", "Issue Tracking", "Meeting Minutes", "Template Check", "Revision Sync", "Final Compliance" }),
+                ("Quick Fix",       "Rapid quality improvement cycle",
+                    new[] { "Auto-Fix Anomalies", "Resolve All Warnings", "Retag Stale", "Validate Tags", "Completeness Report", "Register Update" }),
+                ("Meeting Prep",    "BIM coordination meeting preparation",
+                    new[] { "Compliance Check", "Warnings Summary", "Issue Export", "Clashes Report", "Revision Status", "BCF Export", "Meeting Pack" }),
+                ("Clash Coord",     "Cross-discipline clash coordination",
+                    new[] { "Detect Clashes", "Export BCF", "Create Issues", "Assign To Teams", "Link BCF to Tags" }),
+                ("Handover",        "Pre-handover readiness check",
+                    new[] { "Tag Stale Elements", "Full Tag Run", "Validate Tags", "Assign Templates", "COBie Export", "Document Register", "BOQ Export", "Update BEP", "Revision Check" }),
+                ("Stage Gate",      "RIBA stage transition — full validation",
+                    new[] { "Full Validation", "COBie Export", "Document Register", "BEP Update", "Revision Schedule", "Compliance Report", "BCF Archive", "Tag Register", "Stage Gate Check", "Client Package", "RIBA Sign-off" }),
+                ("Weekly Drop",     "ISO 19650 weekly information exchange",
+                    new[] { "Validate Tags", "Export Register", "COBie Package", "Document Pack", "Revision Check", "Naming Validate", "CDE Upload", "Delta Report" }),
+                ("Kickoff",         "Full project setup from scratch",
+                    new[] { "Load Shared Params", "Create Materials", "Create Wall Types", "Create Floor Types", "Create Ceiling Types", "Create Roof Types", "Create Duct Types", "Create Pipe Types", "Create Worksets", "Create View Templates", "Batch Schedules", "Auto-Populate Schedules", "Full Tag Run", "Validate Tags" }),
+                ("Post-Tag QA",     "Post-tagging validation suite",
+                    new[] { "Pre-Tag Audit", "Validate Tags", "Completeness Dashboard", "Tag Register", "Validate Template" }),
+                ("Doc Package",     "Batch views, sheets, register, BOQ export",
+                    new[] { "Batch Views", "Organise Sheets", "Sheet Index", "Document Register", "BOQ Export", "Transmittal", "Archive" }),
+                ("BEP Package",     "BIM Execution Plan creation and export",
+                    new[] { "Create BEP", "Enrich BEP Data", "Export BEP", "COBie Export", "Deliverables Package" }),
             };
 
-            foreach (var p in presets)
+            // ToggleButton tab strip
+            var tabStrip = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var toggleButtons = new List<ToggleButton>();
+            _workflowPanelArea = new ContentControl { MinHeight = 280, Margin = new Thickness(0, 4, 0, 0) };
+
+            foreach (var preset in workflowPresets)
             {
-                var card = MakeCard();
-                var cardGrid = new Grid();
-                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftStack = new StackPanel();
-                leftStack.Children.Add(new TextBlock { Text = p[0], FontSize = 13, FontWeight = FontWeights.Bold });
-                leftStack.Children.Add(new TextBlock { Text = p[1], FontSize = 11, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), TextWrapping = TextWrapping.Wrap });
-                leftStack.Children.Add(new TextBlock { Text = $"{p[2]} steps", FontSize = 10, Foreground = Br(CAccent), Margin = new Thickness(0, 2, 0, 0) });
-                cardGrid.Children.Add(leftStack);
-
-                var runBtn = MakeActionButton("Run", $"RunWorkflow_{p[0].Replace(" ", "")}", Br(CHeaderBg),
-                    $"Execute '{p[0]}' workflow ({p[2]} steps)\n{p[1]}");
-                runBtn.VerticalAlignment = VerticalAlignment.Center;
-                Grid.SetColumn(runBtn, 1);
-                cardGrid.Children.Add(runBtn);
-
-                card.Child = cardGrid;
-                card.ToolTip = $"{p[0]}\n{p[1]}\nSteps: {p[2]}";
-                stack.Children.Add(card);
+                var localPreset = preset; // capture for closure
+                var tb = new ToggleButton
+                {
+                    Content = localPreset.Name,
+                    Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                    Margin = new Thickness(0, 0, 4, 4),
+                    FontSize = 11, Cursor = Cursors.Hand,
+                    ToolTip = $"{localPreset.Desc} ({localPreset.Steps.Length} steps)"
+                };
+                // Style: navy when checked, lighter when unchecked
+                tb.Checked += (s, e) =>
+                {
+                    foreach (var other in toggleButtons) if (!ReferenceEquals(other, tb)) other.IsChecked = false;
+                    tb.Background = Br(CHeaderBg);
+                    tb.Foreground = Brushes.White;
+                    _workflowPanelArea.Content = BuildWorkflowPanel(localPreset.Name, localPreset.Desc, localPreset.Steps);
+                };
+                tb.Unchecked += (s, e) =>
+                {
+                    tb.Background = SystemColors.ControlBrush;
+                    tb.Foreground = SystemColors.ControlTextBrush;
+                };
+                toggleButtons.Add(tb);
+                tabStrip.Children.Add(tb);
             }
+            stack.Children.Add(tabStrip);
+            stack.Children.Add(_workflowPanelArea);
 
             // ── Execution History DataGrid ──
             stack.Children.Add(new Border { Height = 12 });
@@ -3813,6 +3846,100 @@ namespace StingTools.UI
             public string RateUGX  { get; set; }
             public string RateUSD  { get; set; }
             public string Unit     { get; set; }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  WORKFLOW PRESET PANEL  (Phase 76 Item 9)
+        // ════════════════════════════════════════════════════════════════
+
+        private FrameworkElement BuildWorkflowPanel(string name, string desc, string[] steps)
+        {
+            var navyBrush = Br(CHeaderBg);
+            var panelBorder = new Border
+            {
+                Background = Br(CCardBg),
+                BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 4, 0, 8)
+            };
+
+            var sp = new StackPanel();
+            // Header
+            sp.Children.Add(new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 2) });
+            sp.Children.Add(new TextBlock { Text = desc, FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap });
+
+            // Discipline filter row
+            var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            filterRow.Children.Add(new TextBlock { Text = "Discipline filter:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), FontSize = 11 });
+            var discCb = new ComboBox { Width = 180, FontSize = 11 };
+            foreach (var d in new[] { "All Disciplines", "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)", "Fire Protection (FP)", "Civil (C)" })
+                discCb.Items.Add(d);
+            discCb.SelectedIndex = 0;
+            filterRow.Children.Add(discCb);
+            sp.Children.Add(filterRow);
+
+            // Step checkboxes (two-column grid)
+            sp.Children.Add(new TextBlock { Text = "Steps to execute:", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+            var stepGrid = new UniformGrid { Columns = 2 };
+            var stepCheckBoxes = new List<CheckBox>();
+            foreach (var step in steps)
+            {
+                var cb = new CheckBox
+                {
+                    Content = step, IsChecked = true,
+                    Margin = new Thickness(0, 2, 16, 2), FontSize = 11
+                };
+                stepCheckBoxes.Add(cb);
+                stepGrid.Children.Add(cb);
+            }
+            sp.Children.Add(stepGrid);
+
+            // Select All / Deselect All links
+            var selRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 8) };
+            var selAllBtn = new Button { Content = "Select All", Height = 22, Padding = new Thickness(8, 0, 8, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
+            selAllBtn.Click += (s, e) => { foreach (var cb in stepCheckBoxes) cb.IsChecked = true; };
+            var deselBtn = new Button { Content = "Deselect All", Height = 22, Padding = new Thickness(8, 0, 8, 0), FontSize = 10, Cursor = Cursors.Hand };
+            deselBtn.Click += (s, e) => { foreach (var cb in stepCheckBoxes) cb.IsChecked = false; };
+            selRow.Children.Add(selAllBtn);
+            selRow.Children.Add(deselBtn);
+            sp.Children.Add(selRow);
+
+            // Run / Schedule buttons
+            var actionTag = $"RunWorkflow_{name.Replace(" ", "")}";
+            var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var runBtn = new Button
+            {
+                Content = $"\u25B6  Run {name}", Height = 34, Padding = new Thickness(18, 0, 18, 0),
+                Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            runBtn.Click += (s, e) => DispatchAction(actionTag);
+            btnRow.Children.Add(runBtn);
+
+            var scheduleTag = $"ScheduleWorkflow_{name.Replace(" ", "")}";
+            var schedBtn = new Button
+            {
+                Content = "\uD83D\uDD52  Schedule", Height = 34, Padding = new Thickness(14, 0, 14, 0),
+                Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontSize = 12, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0)
+            };
+            schedBtn.Click += (s, e) => DispatchAction(scheduleTag);
+            btnRow.Children.Add(schedBtn);
+
+            var stepsLabel = new TextBlock
+            {
+                Text = $"{steps.Length} steps  |  {name}",
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 10, Foreground = Br(CAccent), Margin = new Thickness(8, 0, 0, 0)
+            };
+            btnRow.Children.Add(stepsLabel);
+
+            sp.Children.Add(btnRow);
+            panelBorder.Child = sp;
+            return panelBorder;
         }
 
         // ════════════════════════════════════════════════════════════════
