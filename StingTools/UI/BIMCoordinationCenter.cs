@@ -418,17 +418,23 @@ namespace StingTools.UI
 
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });   // Header
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(34) });   // Share toolbar
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Body
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });   // Status
 
             // ── HEADER ──
             root.Children.Add(BuildHeader());
 
+            // ── SHARE TOOLBAR ──
+            var shareToolbar = BuildShareToolbar();
+            Grid.SetRow(shareToolbar, 1);
+            root.Children.Add(shareToolbar);
+
             // ── BODY (Nav + Content) ──
             var body = new Grid();
             body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) }); // Nav
             body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Content
-            Grid.SetRow(body, 1);
+            Grid.SetRow(body, 2);
 
             _navPanel = BuildNavPanel();
             body.Children.Add(_navPanel);
@@ -452,7 +458,7 @@ namespace StingTools.UI
                 Text = BuildStatusText()
             };
             statusBorder.Child = _statusBar;
-            Grid.SetRow(statusBorder, 2);
+            Grid.SetRow(statusBorder, 3);
             root.Children.Add(statusBorder);
 
             Content = root;
@@ -555,6 +561,65 @@ namespace StingTools.UI
             header.Child = hGrid;
             Grid.SetRow(header, 0);
             return header;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SHARE TOOLBAR — snapshot / export strip below the header
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildShareToolbar()
+        {
+            var toolbar = new Border
+            {
+                Background = Br(Color.FromRgb(0xF8, 0xF9, 0xFB)),
+                BorderBrush = Br(Color.FromRgb(0xD0, 0xD5, 0xE0)),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(8, 0, 8, 0)
+            };
+            var wrap = new WrapPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Orientation = Orientation.Horizontal
+            };
+
+            var shareLabel = new TextBlock
+            {
+                Text = "Share:",
+                FontSize = 10,
+                Foreground = Br(Color.FromRgb(0x88, 0x88, 0x99)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            wrap.Children.Add(shareLabel);
+            wrap.Children.Add(MakeShareButton("📷 Snapshot", "BCCSnapshot"));
+            wrap.Children.Add(MakeShareButton("📄 PDF",      "BCCExportPDF"));
+            wrap.Children.Add(MakeShareButton("📊 Excel",    "BCCExportExcel"));
+            wrap.Children.Add(MakeShareButton("📝 Word",     "BCCExportWord"));
+
+            toolbar.Child = wrap;
+            return toolbar;
+        }
+
+        private Button MakeShareButton(string label, string tag)
+        {
+            var btn = new Button
+            {
+                Content = label,
+                Tag = tag,
+                Height = 22,
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 4, 4, 4),
+                Background = Brushes.White,
+                Foreground = Br(Color.FromRgb(0x33, 0x44, 0x66)),
+                BorderBrush = Br(Color.FromRgb(0xC0, 0xC8, 0xD8)),
+                BorderThickness = new Thickness(1),
+                FontSize = 10,
+                Cursor = Cursors.Hand
+            };
+            btn.Click += ActionBtn_Click;
+            btn.MouseEnter += (s, e) => { btn.Background = Br(Color.FromRgb(0xE8, 0xF0, 0xFF)); };
+            btn.MouseLeave += (s, e) => { btn.Background = Brushes.White; };
+            return btn;
         }
 
         // ════════════════════════════════════════════════════════════════

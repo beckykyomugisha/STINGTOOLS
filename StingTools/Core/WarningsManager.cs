@@ -4226,6 +4226,18 @@ namespace StingTools.Core
                     case "EscalateActions":
                         EscalateOverdueActions(doc);
                         return;
+                    case "BCCSnapshot":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportPDF":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportExcel":
+                        BCCSnapshotInline(doc);
+                        return;
+                    case "BCCExportWord":
+                        BCCSnapshotInline(doc);
+                        return;
                     case "WarningsSelectElements":
                     {
                         var uiDoc = app?.ActiveUIDocument;
@@ -4253,6 +4265,33 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"ProcessAction({action}): {ex.Message}");
             }
+        }
+
+        /// <summary>Renders the BCC window to a PNG snapshot and opens the output folder.</summary>
+        private static void BCCSnapshotInline(Document doc)
+        {
+            var bcc = UI.BIMCoordinationCenter.CurrentInstance;
+            if (bcc == null) { TaskDialog.Show("STING", "BIM Coordination Center is not open."); return; }
+            bcc.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                        (int)bcc.ActualWidth, (int)bcc.ActualHeight, 96, 96,
+                        System.Windows.Media.PixelFormats.Pbgra32);
+                    rtb.Render(bcc);
+                    string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string path = Path.Combine(dir, $"bcc_snapshot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+                    using var fs = System.IO.File.Create(path);
+                    encoder.Save(fs);
+                    StingLog.Info($"BCCSnapshot saved: {path}");
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
+                }
+                catch (Exception ex) { StingLog.Warn($"BCCSnapshot: {ex.Message}"); }
+            });
         }
 
         /// <summary>Save permissions (roles + folder matrix) to project_config.json "permissions" key.</summary>
