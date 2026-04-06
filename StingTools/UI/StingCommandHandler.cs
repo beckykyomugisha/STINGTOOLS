@@ -709,7 +709,8 @@ namespace StingTools.UI
                     // ── Materials ──
                     case "CreateBLEMaterials": RunCommand<Temp.CreateBLEMaterialsCommand>(app); break;
                     case "CreateMEPMaterials": RunCommand<Temp.CreateMEPMaterialsCommand>(app); break;
-                    case "MaterialManager": RunCommand<Temp.StingMaterialManagerCommand>(app); break;
+                    case "MaterialManager":     RunCommand<Temp.StingMaterialManagerCommand>(app); break;
+                    case "MaterialManagerFull": RunCommand<Temp.MaterialManagerCommand>(app); break;
 
                     // ── Family types ──
                     case "CreateWalls": RunCommand<Temp.CreateWallsCommand>(app); break;

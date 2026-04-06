@@ -1233,6 +1233,7 @@
                             <WrapPanel>
                                 <Button Style="{StaticResource ActionBtn}" Content="BLE (815)" Tag="CreateBLEMaterials" Click="Cmd_Click" ToolTip="815 building materials"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="MEP (464)" Tag="CreateMEPMaterials" Click="Cmd_Click" ToolTip="464 MEP materials"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Material Manager" Tag="MaterialManagerFull" Click="Cmd_Click" ToolTip="7-tab Material Manager: Library, Editor, Layers, Paint, Audit, Import/Export, BOQ Link"/>
                             </WrapPanel>
                         </Border>
 
