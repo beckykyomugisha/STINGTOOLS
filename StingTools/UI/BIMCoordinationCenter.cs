@@ -69,9 +69,10 @@ namespace StingTools.UI
         private const string Tab4D5D         = "4D/5D";
         private const string TabDeliverables = "DELIVERABLES";
         private const string TabMeetings     = "MEETINGS";
-        private const string TabPermissions  = "PERMISSIONS";
-        private const string TabCoordLog     = "COORD LOG";
-        private const string TabTeam         = "TEAM";
+        private const string TabPermissions    = "PERMISSIONS";    // legacy alias → PROJECT MEMBERS
+        private const string TabTeam           = "TEAM";           // legacy alias → PROJECT MEMBERS
+        private const string TabProjectMembers = "PROJECT MEMBERS";
+        private const string TabCoordLog       = "COORD LOG";
 
         // ── Data ──
         private CoordData _data;
@@ -643,7 +644,8 @@ namespace StingTools.UI
             var nav = new StackPanel { Background = Br(CNavBg) };
             nav.Children.Add(new Border { Height = 8 }); // top spacer
 
-            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabPermissions, TabCoordLog, TabTeam };
+            string[] tabs = { TabOverview, TabModelHealth, TabWarnings, TabIssues, TabRevisions, TabPlatform, TabWorkflows, TabQA, Tab4D5D, TabDeliverables, TabMeetings, TabProjectMembers, TabCoordLog };
+            int memberCount = _data.Roles.Count + _data.TeamMembers.Count;
             string[] badges = {
                 "", $"{_data.ModelHealthScore}/100",
                 _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
@@ -655,9 +657,8 @@ namespace StingTools.UI
                 _data.ScheduledTasks > 0 ? _data.ScheduledTasks.ToString() : "",
                 _data.DeliverablesOverdue > 0 ? _data.DeliverablesOverdue.ToString() : $"{_data.DeliverablesApproved}/{_data.Deliverables.Count}",
                 "", // MEETINGS
-                _data.Roles.Count > 0 ? _data.Roles.Count.ToString() : "", // PERMISSIONS
-                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : "",
-                _data.TeamMembers.Count > 0 ? _data.TeamMembers.Count.ToString() : ""
+                memberCount > 0 ? memberCount.ToString() : "", // PROJECT MEMBERS
+                _data.CoordLog.Count > 0 ? _data.CoordLog.Count.ToString() : ""
             };
 
             for (int i = 0; i < tabs.Length; i++)
@@ -764,9 +765,10 @@ namespace StingTools.UI
                     Tab4D5D         => Build4D5DTab(),
                     TabDeliverables => BuildDeliverablesTab(),
                     TabMeetings     => BuildMeetingsTab(),
-                    TabPermissions  => BuildPermissionsTab(),
-                    TabCoordLog     => BuildCoordLogTab(),
-                    TabTeam         => BuildTeamTab(),
+                    TabPermissions    => BuildProjectMembersTab(),  // legacy alias
+                    TabTeam           => BuildProjectMembersTab(),  // legacy alias
+                    TabProjectMembers => BuildProjectMembersTab(),
+                    TabCoordLog       => BuildCoordLogTab(),
                     _               => new TextBlock { Text = $"Unknown tab: {tabName}" }
                 };
                 _tabCache[tabName] = tabContent;
@@ -4970,6 +4972,195 @@ namespace StingTools.UI
                 root.Children.Add(infoCard);
             }
             return root;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  PROJECT MEMBERS TAB  (Phase 76 Item 12)
+        //  Replaces separate PERMISSIONS + TEAM navigation buttons with
+        //  a unified view: Member Directory, Permission Groups,
+        //  CDE Access Matrix, Workload Overview, Activity Log.
+        // ════════════════════════════════════════════════════════════════
+
+        private UIElement BuildProjectMembersTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
+            var stack = new StackPanel();
+
+            // ── KPI strip ──
+            int totalMembers = _data.Roles.Count + _data.TeamMembers.Count;
+            var kpiRow = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
+            kpiRow.Children.Add(MakeKPICard("MEMBERS",      totalMembers.ToString(),            Br(CHeaderBg), "Total project team members"));
+            kpiRow.Children.Add(MakeKPICard("ROLES",        _data.Roles.Count.ToString(),        Br(CGreen),    "Defined permission roles"));
+            kpiRow.Children.Add(MakeKPICard("TEAM",         _data.TeamMembers.Count.ToString(), Br(CAccent),   "Named team members"));
+            kpiRow.Children.Add(MakeKPICard("DISCIPLINES",  "8",                                Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Active disciplines on project"));
+            stack.Children.Add(kpiRow);
+
+            // ── Member Directory ──
+            stack.Children.Add(MakeSectionHeader("MEMBER DIRECTORY"));
+            if (_data.TeamMembers.Count > 0)
+            {
+                var dg = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    CanUserSortColumns = true, FontSize = 11,
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 180
+                };
+                dg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Role", Binding = new Binding("Role"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Company", Binding = new Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Discipline", Binding = new Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg.Columns.Add(new DataGridTextColumn { Header = "Email", Binding = new Binding("Email"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                dg.ItemsSource = _data.TeamMembers;
+                stack.Children.Add(dg);
+            }
+            else
+            {
+                var noMemberCard = MakeCard();
+                noMemberCard.Child = new TextBlock
+                {
+                    Text = "No team members defined. Use 'Add Member' to populate the project directory.",
+                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(noMemberCard);
+            }
+            var memberBtnWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            memberBtnWrap.Children.Add(MakeActionButton("Add Member",    "AddTeamMember",    Br(CGreen),    "Add a new project team member"));
+            memberBtnWrap.Children.Add(MakeActionButton("Edit Member",   "EditTeamMember",   Br(CHeaderBg), "Edit selected member details"));
+            memberBtnWrap.Children.Add(MakeActionButton("Remove Member", "RemoveTeamMember", Br(CRed),      "Remove selected team member"));
+            memberBtnWrap.Children.Add(MakeActionButton("Import CSV",    "ImportTeamCSV",    Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Import team from CSV file"));
+            stack.Children.Add(memberBtnWrap);
+
+            // ── Permission Groups ──
+            stack.Children.Add(MakeSectionHeader("PERMISSION GROUPS"));
+            if (_data.Roles.Count > 0)
+            {
+                var dg2 = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    CanUserSortColumns = true, FontSize = 11,
+                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 160
+                };
+                dg2.Columns.Add(new DataGridTextColumn { Header = "Role Code",   Binding = new Binding("Code"),       Width = 80 });
+                dg2.Columns.Add(new DataGridTextColumn { Header = "Name",         Binding = new Binding("Name"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg2.Columns.Add(new DataGridTextColumn { Header = "Discipline",   Binding = new Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg2.Columns.Add(new DataGridTextColumn { Header = "CDE Access",   Binding = new Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg2.Columns.Add(new DataGridTextColumn { Header = "Can Approve",  Binding = new Binding("CanApprove"), Width = 85 });
+                dg2.Columns.Add(new DataGridTextColumn { Header = "Can Issue",    Binding = new Binding("CanIssue"),   Width = 75 });
+                dg2.ItemsSource = _data.Roles;
+                stack.Children.Add(dg2);
+            }
+            else
+            {
+                var noRoleCard = MakeCard();
+                noRoleCard.Child = new TextBlock
+                {
+                    Text = "No permission roles defined. Use the buttons below to configure access groups.",
+                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(noRoleCard);
+            }
+            var roleBtnWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            roleBtnWrap.Children.Add(MakeActionButton("Add Role",          "AddRole",          Br(CGreen),    "Define a new permission role"));
+            roleBtnWrap.Children.Add(MakeActionButton("Edit Role",         "EditRole",         Br(CHeaderBg), "Modify selected role"));
+            roleBtnWrap.Children.Add(MakeActionButton("Delete Role",       "DeleteRole",       Br(CRed),      "Remove selected role"));
+            roleBtnWrap.Children.Add(MakeActionButton("Save Permissions",  "SavePermissions",  Br(CAccent),   "Persist permission configuration to project_config.json"));
+            roleBtnWrap.Children.Add(MakeActionButton("Export Matrix",     "ExportPermissionMatrix", Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Export roles and folder permissions to XLSX"));
+            stack.Children.Add(roleBtnWrap);
+
+            // ── CDE Access Matrix ──
+            stack.Children.Add(MakeSectionHeader("CDE ACCESS MATRIX"));
+            if (_data.FolderPermissions.Count > 0)
+            {
+                var dg3 = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    FontSize = 11, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 160
+                };
+                dg3.Columns.Add(new DataGridTextColumn { Header = "Folder",       Binding = new Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) });
+                dg3.Columns.Add(new DataGridTextColumn { Header = "CDE State",    Binding = new Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                dg3.Columns.Add(new DataGridTextColumn { Header = "Read Roles",   Binding = new Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                dg3.Columns.Add(new DataGridTextColumn { Header = "Write Roles",  Binding = new Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                dg3.Columns.Add(new DataGridTextColumn { Header = "Approve Roles",Binding = new Binding("ApproveRoles"),Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                dg3.ItemsSource = _data.FolderPermissions;
+                stack.Children.Add(dg3);
+            }
+            else
+            {
+                var noFolderCard = MakeCard();
+                noFolderCard.Child = new TextBlock
+                {
+                    Text = "No folder permissions configured.\nCDE Access Matrix maps roles to WIP/Shared/Published/Archive folders per ISO 19650.",
+                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(noFolderCard);
+            }
+
+            // ── Workload Overview ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("WORKLOAD OVERVIEW"));
+            var workloadCard = MakeCard();
+            var workloadStack = new StackPanel();
+            string[] disciplines = { "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)", "Fire Protection (FP)" };
+            int[] loads = { 42, 18, 35, 29, 12, 8 }; // placeholder counts
+            for (int i = 0; i < disciplines.Length; i++)
+            {
+                var discRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                discRow.Children.Add(new TextBlock { Text = disciplines[i], Width = 170, FontSize = 11 });
+                var bar = new Border
+                {
+                    Height = 14, Width = Math.Max(4, loads[i] * 3),
+                    Background = Br(CHeaderBg), Margin = new Thickness(4, 0, 4, 0),
+                    CornerRadius = new CornerRadius(2)
+                };
+                discRow.Children.Add(bar);
+                discRow.Children.Add(new TextBlock { Text = $"{loads[i]} items", FontSize = 10, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
+                workloadStack.Children.Add(discRow);
+            }
+            workloadCard.Child = workloadStack;
+            stack.Children.Add(workloadCard);
+
+            // ── Activity Log ──
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("ACTIVITY LOG"));
+            if (_data.CoordLog.Count > 0)
+            {
+                var actDg = new DataGrid
+                {
+                    AutoGenerateColumns = false, IsReadOnly = true,
+                    HeadersVisibility = DataGridHeadersVisibility.Column,
+                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                    FontSize = 11, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    RowHeaderWidth = 0, MaxHeight = 160
+                };
+                actDg.Columns.Add(new DataGridTextColumn { Header = "Time",   Binding = new Binding("Timestamp"), Width = 130 });
+                actDg.Columns.Add(new DataGridTextColumn { Header = "User",   Binding = new Binding("User"),      Width = 100 });
+                actDg.Columns.Add(new DataGridTextColumn { Header = "Action", Binding = new Binding("Action"),    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                actDg.Columns.Add(new DataGridTextColumn { Header = "Details",Binding = new Binding("Details"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                actDg.ItemsSource = _data.CoordLog;
+                stack.Children.Add(actDg);
+            }
+            else
+            {
+                var noLogCard = MakeCard();
+                noLogCard.Child = new TextBlock
+                {
+                    Text = "No activity logged yet. Member actions (add/edit/role changes) are recorded here.",
+                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(noLogCard);
+            }
+
+            scroll.Content = stack;
+            return scroll;
         }
 
         // ════════════════════════════════════════════════════════════════
