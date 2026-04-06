@@ -112,6 +112,9 @@ namespace StingTools.UI
         // Phase 76 Item 14: Issues tab dynamic context area
         private ContentControl _issueContextArea;
 
+        // Phase 77 Item 4: Platform tab detail area
+        private ContentControl _platformDetailArea;
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -194,6 +197,8 @@ namespace StingTools.UI
             public int WarningImpactSchedules;
             public int WarningImpactClash;
             public string WarningHighestImpactArea = "";
+            // Phase 77: Structured warning list for inline tree view
+            public List<WarningRow> Warnings = new();
 
             // Issues
             public int IssuesOpen;
@@ -366,6 +371,15 @@ namespace StingTools.UI
             public int CompletedTasks { get; set; }
             public double CompliancePct { get; set; }
             public string LastActivity { get; set; }
+            // Phase 77: Extended member directory fields
+            public string Company     { get; set; }
+            public string Discipline  { get; set; }
+            public string Email       { get; set; }
+            public string Phone       { get; set; }
+            public string CDEUsername { get; set; }
+            public bool   CanApprove  { get; set; }
+            public bool   CanIssue    { get; set; }
+            public bool   Active      { get; set; } = true;
         }
 
         /// <summary>ISO 19650 folder permission definition.</summary>
@@ -390,6 +404,7 @@ namespace StingTools.UI
             public string CanApprove { get; set; }      // "true"/"false" — can approve transitions
             public string CanIssue { get; set; }        // "true"/"false" — can issue transmittals
             public string Members { get; set; }         // Comma-separated team member names
+            public string SLAHours { get; set; }        // Phase 77: SLA hours for this role (e.g. "24")
         }
 
         /// <summary>Workflow execution history row.</summary>
@@ -405,6 +420,19 @@ namespace StingTools.UI
             public double CompBefore { get; set; }
             public double CompAfter { get; set; }
             public string User { get; set; }
+        }
+
+        /// <summary>Phase 77: Structured Revit warning row for inline Warnings tree.</summary>
+        internal class WarningRow
+        {
+            public string Id          { get; set; }   // Revit FailureDefinitionId or GUID
+            public string Description { get; set; }   // Warning message text
+            public string Category    { get; set; }   // Matches WarningCategory enum name
+            public string Severity    { get; set; }   // Critical / High / Medium / Low / Info
+            public int    ElementCount{ get; set; }   // Number of affected elements
+            public bool   AutoFixable { get; set; }   // Can be auto-fixed
+            public string FixStrategy { get; set; }   // Description of fix strategy
+            public List<long> ElementIds { get; set; } = new List<long>(); // Affected element IDs
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -2758,151 +2786,153 @@ namespace StingTools.UI
 
         private UIElement BuildPlatformTab()
         {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
-            var stack = new StackPanel();
+            // Phase 77: Two-column layout with platform tiles + inline detail area
+            _platformDetailArea = new ContentControl { Margin = new Thickness(8, 0, 0, 0) };
+            // Show placeholder message initially
+            _platformDetailArea.Content = new Border
+            {
+                Background = Br(Color.FromRgb(0xF8, 0xF9, 0xFB)),
+                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(20),
+                Child = new TextBlock
+                {
+                    Text = "Select a platform to configure the connection.",
+                    FontSize = 12, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center
+                }
+            };
 
-            // ── SYNC STATUS ──
-            stack.Children.Add(MakeSectionHeader("PLATFORM SYNC STATUS"));
-            var syncCard = MakeCard();
-            var syncStack = new StackPanel();
-            var syncGrid = new Grid();
-            syncGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            syncGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var syncLeft = new StackPanel();
-            syncLeft.Children.Add(new TextBlock
+            // Platform definitions: name, connected (placeholder)
+            var platforms = new[]
             {
-                Text = string.IsNullOrEmpty(_data.LastSyncTime) ? "No sync performed yet" : $"Last sync: {_data.LastSyncTime}",
-                FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4)
-            });
-            syncLeft.Children.Add(new TextBlock
-            {
-                Text = $"Changes detected: {_data.SyncChanges}",
-                FontSize = 12, Foreground = _data.SyncChanges > 0 ? Br(CAccent) : Br(CGreen)
-            });
-            syncLeft.Children.Add(new TextBlock
-            {
-                Text = "Sync compares local model against CDE platform, detects added/modified/deleted files,\n" +
-                       "validates ISO 19650 naming convention, and reports delta for review before push.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
-            });
-            syncGrid.Children.Add(syncLeft);
-            var syncBtn = MakeActionButton("Sync Now", "PlatformSync", Br(CHeaderBg),
-                "Bidirectional sync: detect changes, validate naming, generate delta report");
-            syncBtn.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(syncBtn, 1);
-            syncGrid.Children.Add(syncBtn);
-            syncCard.Child = syncGrid;
-            stack.Children.Add(syncCard);
+                ("ACC", false), ("SharePoint", false), ("Procore", false), ("Aconex", false),
+                ("Trimble Connect", false), ("Bentley iTwin", false), ("Viewpoint 4P", false), ("BCF Server", false)
+            };
 
-            // ── CDE ──
-            stack.Children.Add(new Border { Height = 12 });
-            stack.Children.Add(MakeSectionHeader("CDE — COMMON DATA ENVIRONMENT"));
-            stack.Children.Add(new TextBlock
+            var leftPanel = new StackPanel { Width = 200, Margin = new Thickness(0, 0, 0, 0) };
+            leftPanel.Children.Add(MakeSectionHeader("PLATFORMS"));
+            foreach (var (pName, connected) in platforms)
             {
-                Text = "ISO 19650-2 Common Data Environment: manage document status lifecycle (WIP → SHARED → PUBLISHED → ARCHIVE) with suitability codes and approval gates.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var cdeWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            cdeWrap.Children.Add(MakeActionButton("CDE Package", "CDEPackage", Br(CGreen),
-                "Package deliverables into ISO 19650 CDE folder structure (WIP/Shared/Published/Archive)"));
-            cdeWrap.Children.Add(MakeActionButton("Set CDE Status", "CDEStatus", Br(CAccent),
-                "Transition document CDE status with lifecycle validation (one-way: WIP→SHARED→PUBLISHED→ARCHIVE)"));
-            cdeWrap.Children.Add(MakeActionButton("Validate Naming", "ValidateDocNaming", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "Check all document names against ISO 19650 naming convention: Project-Originator-Volume-Level-Type-Role-Number"));
-            cdeWrap.Children.Add(MakeActionButton("Document Register", "DocumentRegister", Br(CHeaderBg),
-                "View/manage ISO 19650 document register with status tracking"));
-            stack.Children.Add(cdeWrap);
+                var pName2 = pName; // capture for closure
+                var tile = new Border
+                {
+                    Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 8, 10, 8),
+                    Margin = new Thickness(0, 0, 0, 4), Cursor = Cursors.Hand
+                };
+                var tileGrid = new Grid();
+                tileGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                tileGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                tileGrid.Children.Add(new TextBlock { Text = pName2, FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+                var statusDot = new Ellipse { Width = 10, Height = 10, Fill = connected ? Br(CGreen) : Br(Color.FromRgb(0xBB, 0xBB, 0xBB)), VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(statusDot, 1); tileGrid.Children.Add(statusDot);
+                tile.Child = tileGrid;
+                tile.MouseLeftButtonDown += (s, e) => ShowPlatformDetail(pName2);
+                tile.MouseEnter += (s2, e2) => tile.Background = Br(Color.FromRgb(0xEE, 0xF2, 0xFF));
+                tile.MouseLeave += (s2, e2) => tile.Background = Br(CCardBg);
+                leftPanel.Children.Add(tile);
+            }
 
-            // ── BCF ──
-            stack.Children.Add(MakeSectionHeader("BCF — BIM COLLABORATION FORMAT"));
-            stack.Children.Add(new TextBlock
-            {
-                Text = "BCF 2.1 issue exchange for clash detection and coordination with Navisworks, Solibri, BIMcollab, Trimble Connect, and other BCF-compatible platforms.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var bcfWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            bcfWrap.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent),
-                "Export issues as BCF 2.1 XML with viewpoints for Navisworks/Solibri/BIMcollab"));
-            bcfWrap.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent),
-                "Import BCF issues from external clash detection tools (with duplicate detection)"));
-            bcfWrap.Children.Add(MakeActionButton("Create Transmittal", "CreateTransmittal", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
-                "Create ISO 19650 transmittal record with document list and recipient tracking"));
-            stack.Children.Add(bcfWrap);
+            // Two-column layout
+            var twoColGrid = new Grid { Margin = new Thickness(16, 8, 16, 8) };
+            twoColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+            twoColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            twoColGrid.Children.Add(leftPanel);
+            Grid.SetColumn(_platformDetailArea, 1);
+            twoColGrid.Children.Add(_platformDetailArea);
 
-            // ── DATA EXCHANGE ──
-            stack.Children.Add(MakeSectionHeader("DATA EXCHANGE"));
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Bidirectional data exchange via Excel (30+ columns), COBie V2.4 (FM handover), and IFC (openBIM). Includes validation rules, change tracking, and audit trail.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var dataWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            dataWrap.Children.Add(MakeActionButton("Excel Export", "ExportToExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
-                "Export element data to Excel: tags, identity, spatial, MEP data (30+ columns)"));
-            dataWrap.Children.Add(MakeActionButton("Excel Import", "ImportFromExcel", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
-                "Import validated data from Excel with change preview and audit trail"));
-            dataWrap.Children.Add(MakeActionButton("Excel Round-Trip", "ExcelRoundTrip", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
-                "One-click export → edit in Excel → import cycle with change tracking"));
-            dataWrap.Children.Add(MakeActionButton("Export Template", "ExportTemplate", Br(Color.FromRgb(0x2E, 0x7D, 0x32)),
-                "Generate blank Excel template with PROD code dropdown validation"));
-            dataWrap.Children.Add(MakeActionButton("COBie Export", "COBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Export COBie V2.4 FM handover (19 worksheets, 22 project presets)"));
-            dataWrap.Children.Add(MakeActionButton("COBie Stream", "StreamingCOBieExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Streaming COBie for 100K+ element models — batched low-memory processing"));
-            dataWrap.Children.Add(MakeActionButton("IFC Export", "IFCExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Export IFC with STING property mapping for openBIM exchange"));
-            dataWrap.Children.Add(MakeActionButton("BOQ Export", "BOQExport", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Export Bill of Quantities with section headings and subtotals (XLSX)"));
-            stack.Children.Add(dataWrap);
+            var outerStack = new StackPanel();
+            outerStack.Children.Add(twoColGrid);
 
-            // ── CLOUD PLATFORMS ──
-            stack.Children.Add(MakeSectionHeader("CLOUD PLATFORMS & INTEGRATIONS"));
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Publish deliverables to cloud coordination platforms. Supports Autodesk Construction Cloud (ACC/BIM 360), SharePoint/Teams, and local CDE folders.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var cloudWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            cloudWrap.Children.Add(MakeActionButton("ACC / BIM 360", "ACCPublish", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
-                "Package for Autodesk Construction Cloud / BIM 360: model, drawings, COBie, BEP"));
-            cloudWrap.Children.Add(MakeActionButton("SharePoint / Teams", "SharePointExport", Br(Color.FromRgb(0x00, 0x78, 0xD4)),
-                "Export to corporate SharePoint / Microsoft Teams document library"));
-            cloudWrap.Children.Add(MakeActionButton("Procore", "PlatformSync", Br(Color.FromRgb(0xF4, 0x7E, 0x20)),
-                "Sync deliverables with Procore construction management platform"));
-            cloudWrap.Children.Add(MakeActionButton("Aconex / Oracle", "PlatformSync", Br(Color.FromRgb(0xC6, 0x28, 0x28)),
-                "Sync with Oracle Aconex document management (ISO 19650 folder mapping)"));
-            cloudWrap.Children.Add(MakeActionButton("Trimble Connect", "PlatformSync", Br(Color.FromRgb(0x00, 0x57, 0xA8)),
-                "Sync with Trimble Connect for openBIM coordination"));
-            cloudWrap.Children.Add(MakeActionButton("Bentley iTwin", "PlatformSync", Br(Color.FromRgb(0x00, 0x84, 0x53)),
-                "Exchange with Bentley iTwin / ProjectWise infrastructure platform"));
-            cloudWrap.Children.Add(MakeActionButton("Viewpoint 4P", "PlatformSync", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "Sync with Viewpoint For Projects (4Projects) document control"));
-            cloudWrap.Children.Add(MakeActionButton("Document Center", "DocumentManager", Br(CHeaderBg),
-                "Open Document Management Center — folders, issues, revisions, CDE"));
-            stack.Children.Add(cloudWrap);
+            // ── Handover & Export section ──
+            outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 8, 16, 8) });
+            var handoverHeader = MakeSectionHeader("HANDOVER & EXPORT");
+            handoverHeader.Margin = new Thickness(16, 4, 16, 4);
+            outerStack.Children.Add(handoverHeader);
+            var handoverWrap2 = new WrapPanel { Margin = new Thickness(16, 0, 16, 8) };
+            handoverWrap2.Children.Add(MakeActionButton("FM Handover",   "FMHandover",           Br(CGreen),                          "Generate FM handover manual"));
+            handoverWrap2.Children.Add(MakeActionButton("Stage Gate",    "StageGate",            Br(Color.FromRgb(0x45, 0x50, 0x6E)), "RIBA stage-gated compliance check"));
+            handoverWrap2.Children.Add(MakeActionButton("Tag Register",  "TagRegisterExport",    Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Export 40+ column asset register"));
+            handoverWrap2.Children.Add(MakeActionButton("Sheet Register","SheetRegister",        Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Export sheet register CSV"));
+            handoverWrap2.Children.Add(MakeActionButton("BOQ Export",    "BOQExport",            Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Export Bill of Quantities XLSX"));
+            handoverWrap2.Children.Add(MakeActionButton("COBie Stream",  "COBieExport",          Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "COBie V2.4 FM handover export"));
+            outerStack.Children.Add(handoverWrap2);
 
-            // ── HANDOVER & EXPORT ──
-            stack.Children.Add(MakeSectionHeader("HANDOVER & BULK EXPORT"));
-            stack.Children.Add(new TextBlock
-            {
-                Text = "ISO 19650 information exchange packages for FM handover, stage gate deliverables, and multi-format bulk export.",
-                FontSize = 10, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
-            });
-            var handoverWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
-            handoverWrap.Children.Add(MakeActionButton("FM Handover", "HandoverManual", Br(CGreen),
-                "Generate FM handover manual: asset register, spatial summary, system descriptions, compliance"));
-            handoverWrap.Children.Add(MakeActionButton("Bulk Export", "BulkBIMExport", Br(CAccent),
-                "Export all: BEP + COBie + 4D/5D + Sheet Register + Model Health"));
-            handoverWrap.Children.Add(MakeActionButton("Stage Gate", "StageComplianceGate", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "RIBA stage-gated compliance check: verify tag completeness meets data drop requirements"));
-            handoverWrap.Children.Add(MakeActionButton("Tag Register", "TagRegisterExport", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "Export comprehensive 40+ column asset register CSV"));
-            handoverWrap.Children.Add(MakeActionButton("Sheet Register", "ExportSheetRegister", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
-                "Export sheet register CSV with ISO 19650 compliance status"));
-            stack.Children.Add(handoverWrap);
+            // ── BCF section ──
+            outerStack.Children.Add(new Border { Height = 1, Background = Br(CBorder), Margin = new Thickness(16, 0, 16, 8) });
+            var bcfHeader = MakeSectionHeader("BCF — BIM COLLABORATION FORMAT");
+            bcfHeader.Margin = new Thickness(16, 4, 16, 4);
+            outerStack.Children.Add(bcfHeader);
+            var bcfOuter = new StackPanel { Margin = new Thickness(16, 0, 16, 8) };
+            var bcfRow1 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            bcfRow1.Children.Add(new TextBlock { Text = "BCF Server URL:", Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            bcfRow1.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Margin = new Thickness(4, 0, 12, 0), FontSize = 11 });
+            var bcfCountBadge = new Border { Background = Br(CAccent), CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = "0 issues", FontSize = 10, Foreground = Brushes.White, FontWeight = FontWeights.Bold } };
+            bcfRow1.Children.Add(bcfCountBadge);
+            bcfOuter.Children.Add(bcfRow1);
+            var bcfBtnRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            bcfBtnRow.Children.Add(MakeActionButton("BCF Export", "BCFExport", Br(CAccent), "Export BCF 2.1 XML with viewpoints"));
+            bcfBtnRow.Children.Add(MakeActionButton("BCF Import", "BCFImport", Br(CAccent), "Import BCF issues from external tools"));
+            bcfOuter.Children.Add(bcfBtnRow);
+            outerStack.Children.Add(bcfOuter);
 
-            scroll.Content = stack;
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            scroll.Content = outerStack;
             return scroll;
+        }
+
+        // ── Phase 77: ShowPlatformDetail helper ──────────────────────────
+        private void ShowPlatformDetail(string platformName)
+        {
+            if (_platformDetailArea == null) return;
+            var navyBrush = Br(CHeaderBg);
+            var detailStack = new StackPanel { Margin = new Thickness(8) };
+            detailStack.Children.Add(new TextBlock { Text = platformName + " — Connection", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 10) });
+
+            var urlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+            urlRow.Children.Add(new TextBlock { Text = "Connection URL:", Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            urlRow.Children.Add(new System.Windows.Controls.TextBox { Width = 280, FontSize = 11, Margin = new Thickness(4, 0, 0, 0) });
+            detailStack.Children.Add(urlRow);
+
+            var userRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+            userRow.Children.Add(new TextBlock { Text = "Username:", Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            userRow.Children.Add(new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0) });
+            detailStack.Children.Add(userRow);
+
+            var tokenRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+            tokenRow.Children.Add(new TextBlock { Text = "API Token:", Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            tokenRow.Children.Add(new System.Windows.Controls.PasswordBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0) });
+            detailStack.Children.Add(tokenRow);
+
+            detailStack.Children.Add(new TextBlock { Text = "Sync Options:", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+            var syncOpts = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var opt in new[] { "Auto-sync on open", "Sync on close", "Notify on changes", "Validate names" })
+                syncOpts.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 12, 4), FontSize = 11 });
+            detailStack.Children.Add(syncOpts);
+
+            var btnRow2 = new StackPanel { Orientation = Orientation.Horizontal };
+            var syncNowBtn = new Button { Content = "Sync Now", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0) };
+            var disconnBtn = new Button { Content = "Disconnect", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0) };
+            var logsBtn   = new Button { Content = "View Logs",  Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand };
+            syncNowBtn.Click += (s, e) => DispatchAction("PlatformSync");
+            disconnBtn.Click += (s, e) => DispatchAction($"Disconnect_{platformName}");
+            logsBtn.Click    += (s, e) => DispatchAction($"ViewLogs_{platformName}");
+            btnRow2.Children.Add(syncNowBtn); btnRow2.Children.Add(disconnBtn); btnRow2.Children.Add(logsBtn);
+            detailStack.Children.Add(btnRow2);
+
+            var detailBorder = new Border
+            {
+                Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16), Child = detailStack
+            };
+            _platformDetailArea.Content = detailBorder;
+        }
+
+        // ── Phase 77: Legacy platform code removed ──────────────────────
+        private void _PlatformTab_LegacyFragment_REMOVED()
+        {
+            // Intentionally empty — old BuildPlatformTab legacy code removed in Phase 77.
+            // Platform tab is now fully inline via BuildPlatformTab() + ShowPlatformDetail().
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -3810,6 +3840,335 @@ namespace StingTools.UI
                     return panelBorder;
                 }
 
+                case "ImportMSProject":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Import MS Project", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var fileRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    fileRow.Children.Add(new TextBlock { Text = "Project File:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var fileTb = new System.Windows.Controls.TextBox { Width = 280, Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+                    var browseBtn = new Button { Content = "Browse...", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE8)), BorderThickness = new Thickness(1) };
+                    browseBtn.Click += (s, e) => {
+                        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "MS Project Files|*.mpp;*.xml;*.csv|All Files|*.*", Title = "Open MS Project File" };
+                        if (dlg.ShowDialog(this) == true) fileTb.Text = dlg.FileName;
+                    };
+                    fileRow.Children.Add(fileTb); fileRow.Children.Add(browseBtn);
+                    sp.Children.Add(fileRow);
+
+                    sp.Children.Add(new TextBlock { Text = "Column Mapping:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var mappings = new[] { "Task Name", "Start", "Finish", "Duration", "WBS" };
+                    foreach (var m in mappings)
+                    {
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                        row.Children.Add(new TextBlock { Text = m + ":", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                        var cb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
+                        foreach (var c in new[] { "(auto-detect)", "Column A", "Column B", "Column C", "Column D", "Column E" }) cb.Items.Add(c);
+                        cb.SelectedIndex = 0;
+                        row.Children.Add(cb);
+                        sp.Children.Add(row);
+                    }
+
+                    sp.Children.Add(new TextBlock { Text = "Preview (first 10 rows):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var previewDg = MakeExcelDataGrid(120);
+                    previewDg.CanUserAddRows = false; previewDg.CanUserDeleteRows = false;
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Task Name", Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Start",     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Finish",    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "Duration",  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    previewDg.Columns.Add(new DataGridTextColumn { Header = "WBS",       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    sp.Children.Add(previewDg);
+
+                    var importBtn = new Button { Content = "Import", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    importBtn.Click += (s, e) => DispatchAction("ImportMSProject");
+                    sp.Children.Add(importBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "MilestoneRegister":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Milestone Register", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+                    var addRowBtn = new Button { Content = "+ Add Row", Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    var delRowBtn = new Button { Content = "Delete Row", Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    var exportBtn = new Button { Content = "Export Excel", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    toolbar.Children.Add(addRowBtn); toolbar.Children.Add(delRowBtn); toolbar.Children.Add(exportBtn);
+                    sp.Children.Add(toolbar);
+
+                    var mileDg = MakeExcelDataGrid(180);
+                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Milestone",   Binding = new System.Windows.Data.Binding("Milestone"),   Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Date",        Binding = new System.Windows.Data.Binding("Date"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Status",      Binding = new System.Windows.Data.Binding("Status"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mileDg.Columns.Add(new DataGridTextColumn { Header = "Notes",       Binding = new System.Windows.Data.Binding("Notes"),       Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    var mileSource = new System.Collections.ObjectModel.ObservableCollection<MilestoneEditRow>();
+                    foreach (var m in _data.Milestones.Take(20))
+                        mileSource.Add(new MilestoneEditRow { Milestone = m.Name, Date = "", Discipline = "", Status = m.IsComplete ? "Complete" : "In Progress", Notes = "" });
+                    mileDg.ItemsSource = mileSource;
+
+                    addRowBtn.Click += (s, e) => mileSource.Add(new MilestoneEditRow());
+                    delRowBtn.Click += (s, e) => { if (mileDg.SelectedItem is MilestoneEditRow mr) mileSource.Remove(mr); };
+                    exportBtn.Click += (s, e) => DispatchAction("ExportMilestones");
+                    sp.Children.Add(mileDg);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "CashFlow5D":
+                {
+                    var sv5D = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 440 };
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "5D Cash Flow Analysis", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var rangeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    rangeRow.Children.Add(new TextBlock { Text = "From:", Width = 50, VerticalAlignment = VerticalAlignment.Center });
+                    rangeRow.Children.Add(new DatePicker { Width = 140, SelectedDate = DateTime.Today.AddMonths(-3), Margin = new Thickness(4, 0, 12, 0) });
+                    rangeRow.Children.Add(new TextBlock { Text = "To:", Width = 30, VerticalAlignment = VerticalAlignment.Center });
+                    rangeRow.Children.Add(new DatePicker { Width = 140, SelectedDate = DateTime.Today.AddMonths(9) });
+                    sp.Children.Add(rangeRow);
+
+                    var discRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    discRow.Children.Add(new TextBlock { Text = "Disciplines: ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                    foreach (var d in new[] { "Architecture", "Structure", "Mechanical", "Electrical", "Plumbing" })
+                        discRow.Children.Add(new CheckBox { Content = d, IsChecked = true, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+                    sp.Children.Add(discRow);
+
+                    // Simple bar chart on Canvas
+                    sp.Children.Add(new TextBlock { Text = "Cash Flow Chart:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
+                    var chartCanvas = new Canvas { Height = 120, Background = Br(Color.FromRgb(0xF8, 0xF9, 0xFB)), Margin = new Thickness(0, 0, 0, 8) };
+                    chartCanvas.Loaded += (s, e) =>
+                    {
+                        chartCanvas.Children.Clear();
+                        var data = _data.CashFlowForecast.Take(12).ToList();
+                        if (data.Count == 0) return;
+                        double maxVal = data.Max(d2 => Math.Max(d2.Planned, d2.Actual));
+                        if (maxVal <= 0) maxVal = 1;
+                        double canvasW = chartCanvas.ActualWidth > 10 ? chartCanvas.ActualWidth : 500;
+                        double barW = Math.Max(10, (canvasW - 20) / (data.Count * 2 + 1));
+                        double x = 10;
+                        for (int i = 0; i < data.Count; i++)
+                        {
+                            double hP = data[i].Planned / maxVal * 100;
+                            double hA = data[i].Actual / maxVal * 100;
+                            var rP = new System.Windows.Shapes.Rectangle { Width = barW, Height = hP, Fill = Br(CHeaderBg), VerticalAlignment = VerticalAlignment.Bottom };
+                            Canvas.SetLeft(rP, x); Canvas.SetBottom(rP, 0); chartCanvas.Children.Add(rP);
+                            x += barW + 1;
+                            var rA = new System.Windows.Shapes.Rectangle { Width = barW, Height = hA, Fill = Br(CAccent), VerticalAlignment = VerticalAlignment.Bottom };
+                            Canvas.SetLeft(rA, x); Canvas.SetBottom(rA, 0); chartCanvas.Children.Add(rA);
+                            x += barW + 4;
+                        }
+                    };
+                    sp.Children.Add(chartCanvas);
+
+                    var exportCsvBtn = new Button { Content = "Export CSV", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                    exportCsvBtn.Click += (s, e) => DispatchAction("ExportCashFlow");
+                    sp.Children.Add(exportCsvBtn);
+                    sv5D.Content = sp;
+                    panelBorder.Child = sv5D;
+                    return panelBorder;
+                }
+
+                case "ExportSchedule4D":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Export 4D Schedule", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var fmtRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    fmtRow.Children.Add(new TextBlock { Text = "Format:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var fmtCb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var f in new[] { "CSV", "Navisworks TimeLiner", "Synchro Pro", "Primavera P6 XER" }) fmtCb.Items.Add(f);
+                    fmtCb.SelectedIndex = 0;
+                    fmtRow.Children.Add(fmtCb);
+                    sp.Children.Add(fmtRow);
+
+                    var scopeRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    scopeRow.Children.Add(new TextBlock { Text = "Scope: ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                    foreach (var sc in new[] { "All phases", "Current phase only", "Selected elements" })
+                        scopeRow.Children.Add(new CheckBox { Content = sc, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center });
+                    sp.Children.Add(scopeRow);
+
+                    var outRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    outRow.Children.Add(new TextBlock { Text = "Output Path:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var outTb = new System.Windows.Controls.TextBox { Width = 260, Margin = new Thickness(4, 0, 4, 0) };
+                    var outBrowse = new Button { Content = "...", Width = 28, Height = 26, Background = Br(Color.FromRgb(0xE0, 0xE0, 0xE8)), BorderThickness = new Thickness(1) };
+                    outBrowse.Click += (s, e) =>
+                    {
+                        var dlg2 = new Microsoft.Win32.SaveFileDialog { Filter = "All Files|*.*", Title = "Save Schedule Export" };
+                        if (dlg2.ShowDialog(this) == true) outTb.Text = dlg2.FileName;
+                    };
+                    outRow.Children.Add(outTb); outRow.Children.Add(outBrowse);
+                    sp.Children.Add(outRow);
+
+                    var expBtn2 = new Button { Content = "Export", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    expBtn2.Click += (s, e) => DispatchAction("ExportSchedule4D");
+                    sp.Children.Add(expBtn2);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "WorkingCalendar":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Working Calendar", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var calMonthYear = DateTime.Today;
+                    var navRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+                    var prevBtn = new Button { Content = "<", Width = 30, Height = 28, Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+                    var monthLabel = new TextBlock { Text = calMonthYear.ToString("MMMM yyyy"), FontWeight = FontWeights.Bold, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 12, 0), Width = 130, TextAlignment = TextAlignment.Center };
+                    var nextBtn = new Button { Content = ">", Width = 30, Height = 28, Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+                    navRow.Children.Add(prevBtn); navRow.Children.Add(monthLabel); navRow.Children.Add(nextBtn);
+                    sp.Children.Add(navRow);
+
+                    // 7-column UniformGrid for days
+                    var calGrid = new UniformGrid { Columns = 7, Margin = new Thickness(0, 0, 0, 8) };
+                    foreach (var d in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+                        calGrid.Children.Add(new Border { Background = Br(CHeaderBg), Padding = new Thickness(4), Child = new TextBlock { Text = d, FontWeight = FontWeights.Bold, FontSize = 10, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center } });
+
+                    // Fill days
+                    var firstDay = new DateTime(calMonthYear.Year, calMonthYear.Month, 1);
+                    int offset = ((int)firstDay.DayOfWeek + 6) % 7; // Monday=0
+                    for (int i = 0; i < offset; i++) calGrid.Children.Add(new Border());
+                    int daysInMonth = DateTime.DaysInMonth(calMonthYear.Year, calMonthYear.Month);
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dt = new DateTime(calMonthYear.Year, calMonthYear.Month, d);
+                        bool isWeekend = dt.DayOfWeek == DayOfWeek.Saturday || dt.DayOfWeek == DayOfWeek.Sunday;
+                        var dayBg = isWeekend ? Br(Color.FromRgb(0xE0, 0xE0, 0xE0)) : Br(Color.FromRgb(0xE8, 0xF5, 0xE9));
+                        calGrid.Children.Add(new Border { Background = dayBg, Margin = new Thickness(1), Padding = new Thickness(4), CornerRadius = new CornerRadius(2), Child = new TextBlock { Text = d.ToString(), FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center } });
+                    }
+                    sp.Children.Add(calGrid);
+
+                    var calBtnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                    var addHolidayBtn = new Button { Content = "+ Add Holiday", Height = 28, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAmber), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0) };
+                    var saveCalBtn = new Button { Content = "Save Calendar", Height = 28, Padding = new Thickness(8, 0, 8, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    saveCalBtn.Click += (s, e) => DispatchAction("SaveWorkingCalendar");
+                    calBtnRow.Children.Add(addHolidayBtn); calBtnRow.Children.Add(saveCalBtn);
+                    sp.Children.Add(calBtnRow);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "ElementCostTrace":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Element Cost Trace", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    filterRow.Children.Add(new TextBlock { Text = "Category:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
+                    var catCb = new ComboBox { Width = 160, Margin = new Thickness(4, 0, 16, 0) };
+                    foreach (var c in new[] { "All", "Walls", "Floors", "Ceilings", "Roofs", "Mechanical Equipment", "Electrical Fixtures", "Plumbing Fixtures" }) catCb.Items.Add(c);
+                    catCb.SelectedIndex = 0;
+                    filterRow.Children.Add(catCb);
+                    filterRow.Children.Add(new TextBlock { Text = "Discipline:", Width = 80, VerticalAlignment = VerticalAlignment.Center });
+                    var discCb2 = new ComboBox { Width = 120, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var d in new[] { "All", "A", "S", "M", "E", "P", "FP" }) discCb2.Items.Add(d);
+                    discCb2.SelectedIndex = 0;
+                    filterRow.Children.Add(discCb2);
+                    sp.Children.Add(filterRow);
+
+                    sp.Children.Add(new TextBlock { Text = "Cost Rates (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+                    var rateDg = MakeExcelDataGrid(160);
+                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Category",    Binding = new System.Windows.Data.Binding("Category"),    Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Unit",        Binding = new System.Windows.Data.Binding("Unit"),        Width = 60 });
+                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",    Binding = new System.Windows.Data.Binding("RateUGX"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",    Binding = new System.Windows.Data.Binding("RateUSD"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    rateDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new System.Windows.Data.Binding("Description"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    rateDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ElementCostRow>
+                    {
+                        new ElementCostRow { Category = "Walls",   Unit = "m²", RateUGX = "850000",  RateUSD = "230",  Description = "Masonry / Blockwork" },
+                        new ElementCostRow { Category = "Floors",  Unit = "m²", RateUGX = "650000",  RateUSD = "175",  Description = "RC Slab" },
+                        new ElementCostRow { Category = "MEP",     Unit = "m²", RateUGX = "1200000", RateUSD = "325",  Description = "Mechanical, Electrical & Plumbing" }
+                    };
+                    sp.Children.Add(rateDg);
+
+                    var ectBtnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                    var recalcBtn = new Button { Content = "Recalculate", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0) };
+                    var expExcelBtn = new Button { Content = "Export Excel", Height = 30, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    recalcBtn.Click += (s, e) => DispatchAction("ElementCostTrace");
+                    expExcelBtn.Click += (s, e) => ExportDataGridToXlsx(rateDg, "ElementCostRates");
+                    ectBtnRow.Children.Add(recalcBtn); ectBtnRow.Children.Add(expExcelBtn);
+                    sp.Children.Add(ectBtnRow);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "PhaseSummary":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Phase Summary", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var phaseDg = new DataGrid
+                    {
+                        AutoGenerateColumns = false, IsReadOnly = true,
+                        CanUserSortColumns = true, CanUserResizeColumns = true,
+                        HeadersVisibility = DataGridHeadersVisibility.Column,
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                        FontSize = 11, RowHeaderWidth = 0, MaxHeight = 200, Margin = new Thickness(0, 0, 0, 8)
+                    };
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "Phase",           Binding = new System.Windows.Data.Binding("Phase"),        Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "Element Count",   Binding = new System.Windows.Data.Binding("ElementCount"),  Width = 100 });
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",      Binding = new System.Windows.Data.Binding("Discipline"),    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "Completion %",    Binding = new System.Windows.Data.Binding("CompletionPct"), Width = 90 });
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "Start",           Binding = new System.Windows.Data.Binding("Start"),         Width = 80 });
+                    phaseDg.Columns.Add(new DataGridTextColumn { Header = "End",             Binding = new System.Windows.Data.Binding("End"),           Width = 80 });
+
+                    // Progress bar template column
+                    var progTemplate = new DataGridTemplateColumn { Header = "Progress", Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) };
+                    var cellTemplate = new DataTemplate();
+                    var factory = new FrameworkElementFactory(typeof(ProgressBar));
+                    factory.SetBinding(ProgressBar.ValueProperty, new System.Windows.Data.Binding("CompletionPct") { StringFormat = "F0" });
+                    factory.SetValue(ProgressBar.MinimumProperty, 0.0);
+                    factory.SetValue(ProgressBar.MaximumProperty, 100.0);
+                    factory.SetValue(FrameworkElement.HeightProperty, 16.0);
+                    cellTemplate.VisualTree = factory;
+                    progTemplate.CellTemplate = cellTemplate;
+                    phaseDg.Columns.Add(progTemplate);
+
+                    var phaseSrc = new System.Collections.ObjectModel.ObservableCollection<PhaseSummaryRow>();
+                    foreach (var kv in _data.ByPhase.Take(10))
+                        phaseSrc.Add(new PhaseSummaryRow { Phase = kv.Key, ElementCount = kv.Value.Total, Discipline = "All", CompletionPct = kv.Value.Pct, Start = "", End = "" });
+                    phaseDg.ItemsSource = phaseSrc;
+                    sp.Children.Add(phaseDg);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "NavisworksTimeLiner":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Navisworks TimeLiner Export", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var fmtPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    fmtPanel.Children.Add(new TextBlock { Text = "Output Format:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var nwdRb = new System.Windows.Controls.RadioButton { Content = "NWD", GroupName = "NavFmt", IsChecked = true, Margin = new Thickness(4, 0, 12, 0) };
+                    var nwfRb = new System.Windows.Controls.RadioButton { Content = "NWF", GroupName = "NavFmt", Margin = new Thickness(0, 0, 12, 0) };
+                    var fbxRb = new System.Windows.Controls.RadioButton { Content = "FBX", GroupName = "NavFmt" };
+                    fmtPanel.Children.Add(nwdRb); fmtPanel.Children.Add(nwfRb); fmtPanel.Children.Add(fbxRb);
+                    sp.Children.Add(fmtPanel);
+
+                    sp.Children.Add(new TextBlock { Text = "Element-to-Task Mapping:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
+                    var mapDg = MakeExcelDataGrid(160);
+                    mapDg.Columns.Add(new DataGridTextColumn { Header = "Revit Category", Binding = new System.Windows.Data.Binding("RevitCategory"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    mapDg.Columns.Add(new DataGridTextColumn { Header = "Task Name",      Binding = new System.Windows.Data.Binding("TaskName"),      Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    mapDg.Columns.Add(new DataGridTextColumn { Header = "Phase",          Binding = new System.Windows.Data.Binding("Phase"),          Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    mapDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<NavisTaskRow>
+                    {
+                        new NavisTaskRow { RevitCategory = "Walls",   TaskName = "Wall Construction",   Phase = "Phase 1" },
+                        new NavisTaskRow { RevitCategory = "Floors",  TaskName = "Floor Installation",  Phase = "Phase 1" },
+                        new NavisTaskRow { RevitCategory = "Roofs",   TaskName = "Roofing Works",       Phase = "Phase 2" }
+                    };
+                    sp.Children.Add(mapDg);
+
+                    var navExpBtn = new Button { Content = "Export to Navisworks", Height = 32, Padding = new Thickness(16, 0, 16, 0), Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+                    navExpBtn.Click += (s, e) => DispatchAction("NavisworksTimeLiner");
+                    sp.Children.Add(navExpBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
                 default:
                 {
                     var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
@@ -3849,6 +4208,41 @@ namespace StingTools.UI
             public string RateUGX  { get; set; }
             public string RateUSD  { get; set; }
             public string Unit     { get; set; }
+        }
+
+        private class MilestoneEditRow
+        {
+            public string Milestone  { get; set; }
+            public string Date       { get; set; }
+            public string Discipline { get; set; }
+            public string Status     { get; set; }
+            public string Notes      { get; set; }
+        }
+
+        private class ElementCostRow
+        {
+            public string Category    { get; set; }
+            public string Unit        { get; set; }
+            public string RateUGX     { get; set; }
+            public string RateUSD     { get; set; }
+            public string Description { get; set; }
+        }
+
+        private class PhaseSummaryRow
+        {
+            public string Phase         { get; set; }
+            public int    ElementCount  { get; set; }
+            public string Discipline    { get; set; }
+            public double CompletionPct { get; set; }
+            public string Start         { get; set; }
+            public string End           { get; set; }
+        }
+
+        private class NavisTaskRow
+        {
+            public string RevitCategory { get; set; }
+            public string TaskName      { get; set; }
+            public string Phase         { get; set; }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -4688,6 +5082,97 @@ namespace StingTools.UI
             return rag == "GREEN" ? Br(CGreen) : rag == "AMBER" ? Br(CAmber) : Br(CRed);
         }
 
+        // ── Phase 77: Excel-grade DataGrid helper ──────────────────────
+        private static DataGrid MakeExcelDataGrid(int height = 160)
+        {
+            var dg = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                CanUserAddRows = true,
+                CanUserDeleteRows = true,
+                CanUserResizeColumns = true,
+                CanUserSortColumns = true,
+                SelectionMode = DataGridSelectionMode.Extended,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+                FontSize = 11,
+                RowHeaderWidth = 0,
+                MaxHeight = height,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            var ctx = new ContextMenu();
+            var copyItem = new MenuItem { Header = "Copy Row" };
+            copyItem.Click += (s, e) =>
+            {
+                if (dg.SelectedItem != null)
+                    Clipboard.SetText(dg.SelectedItem.ToString());
+            };
+            var deleteItem = new MenuItem { Header = "Delete Row" };
+            deleteItem.Click += (s, e) =>
+            {
+                var items = dg.ItemsSource as System.Collections.IList;
+                if (items != null && dg.SelectedItem != null)
+                    items.Remove(dg.SelectedItem);
+            };
+            var insertItem = new MenuItem { Header = "Insert Row Above" };
+            insertItem.Click += (s, e) =>
+            {
+                // Handled by CanUserAddRows — user adds at bottom; insert above is advisory
+            };
+            ctx.Items.Add(copyItem);
+            ctx.Items.Add(deleteItem);
+            ctx.Items.Add(insertItem);
+            dg.ContextMenu = ctx;
+            return dg;
+        }
+
+        /// <summary>Phase 77: Export DataGrid rows to XLSX using StingExcelExporter.</summary>
+        private void ExportDataGridToXlsx(DataGrid dg, string title)
+        {
+            try
+            {
+                string outDir = System.IO.Path.GetDirectoryName(_data?.FilePath ?? "");
+                if (string.IsNullOrEmpty(outDir)) outDir = System.IO.Path.GetTempPath();
+                string path = System.IO.Path.Combine(outDir,
+                    $"{title}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+
+                // Build headers from column headers
+                var headers = new List<string>();
+                foreach (DataGridColumn col in dg.Columns)
+                {
+                    headers.Add(col.Header?.ToString() ?? "");
+                }
+
+                // Build rows from ItemsSource
+                var rows = new List<List<string>>();
+                var items = dg.ItemsSource as System.Collections.IEnumerable;
+                if (items != null)
+                {
+                    foreach (var item in items)
+                    {
+                        var rowData = new List<string>();
+                        foreach (DataGridColumn col in dg.Columns)
+                        {
+                            try
+                            {
+                                if (col is DataGridTextColumn tc && tc.Binding is System.Windows.Data.Binding b)
+                                {
+                                    var prop = item?.GetType().GetProperty(b.Path.Path);
+                                    rowData.Add(prop?.GetValue(item)?.ToString() ?? "");
+                                }
+                                else { rowData.Add(""); }
+                            }
+                            catch { rowData.Add(""); }
+                        }
+                        rows.Add(rowData);
+                    }
+                }
+
+                Core.StingExcelExporter.ExportTable(path, title, headers, rows, openFolder: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"ExportDataGridToXlsx({title}): {ex.Message}"); }
+        }
+
         // BCC-HIGH-02: Return the TextBlock so callers can reference it directly
         // instead of doing Cast<UIElement>().LastOrDefault() over all children.
         private TextBlock AddCellToGrid(Grid grid, string text, int row, int col, bool isHeader = false,
@@ -5193,184 +5678,122 @@ namespace StingTools.UI
 
         private UIElement BuildProjectMembersTab()
         {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
-            var stack = new StackPanel();
+            // Phase 77: Replaced with 3-sub-tab inline editable spreadsheet layout
+            var outerStack = new StackPanel { Margin = new Thickness(16) };
 
             // ── KPI strip ──
             int totalMembers = _data.Roles.Count + _data.TeamMembers.Count;
             var kpiRow = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
-            kpiRow.Children.Add(MakeKPICard("MEMBERS",      totalMembers.ToString(),            Br(CHeaderBg), "Total project team members"));
-            kpiRow.Children.Add(MakeKPICard("ROLES",        _data.Roles.Count.ToString(),        Br(CGreen),    "Defined permission roles"));
-            kpiRow.Children.Add(MakeKPICard("TEAM",         _data.TeamMembers.Count.ToString(), Br(CAccent),   "Named team members"));
-            kpiRow.Children.Add(MakeKPICard("DISCIPLINES",  "8",                                Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Active disciplines on project"));
-            stack.Children.Add(kpiRow);
+            kpiRow.Children.Add(MakeKPICard("MEMBERS",     totalMembers.ToString(),           Br(CHeaderBg), "Total project team members"));
+            kpiRow.Children.Add(MakeKPICard("ROLES",       _data.Roles.Count.ToString(),       Br(CGreen),    "Defined permission roles"));
+            kpiRow.Children.Add(MakeKPICard("TEAM",        _data.TeamMembers.Count.ToString(), Br(CAccent),   "Named team members"));
+            kpiRow.Children.Add(MakeKPICard("DISCIPLINES", "8",                               Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Active disciplines on project"));
+            outerStack.Children.Add(kpiRow);
 
-            // ── Member Directory ──
-            stack.Children.Add(MakeSectionHeader("MEMBER DIRECTORY"));
-            if (_data.TeamMembers.Count > 0)
-            {
-                var dg = new DataGrid
-                {
-                    AutoGenerateColumns = false, IsReadOnly = true,
-                    HeadersVisibility = DataGridHeadersVisibility.Column,
-                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                    CanUserSortColumns = true, FontSize = 11,
-                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 180
-                };
-                dg.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new Binding("Name"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Role", Binding = new Binding("Role"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Company", Binding = new Binding("Company"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Discipline", Binding = new Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg.Columns.Add(new DataGridTextColumn { Header = "Email", Binding = new Binding("Email"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                dg.ItemsSource = _data.TeamMembers;
-                stack.Children.Add(dg);
-            }
-            else
-            {
-                var noMemberCard = MakeCard();
-                noMemberCard.Child = new TextBlock
-                {
-                    Text = "No team members defined. Use 'Add Member' to populate the project directory.",
-                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
-                };
-                stack.Children.Add(noMemberCard);
-            }
-            var memberBtnWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
-            memberBtnWrap.Children.Add(MakeActionButton("Add Member",    "AddTeamMember",    Br(CGreen),    "Add a new project team member"));
-            memberBtnWrap.Children.Add(MakeActionButton("Edit Member",   "EditTeamMember",   Br(CHeaderBg), "Edit selected member details"));
-            memberBtnWrap.Children.Add(MakeActionButton("Remove Member", "RemoveTeamMember", Br(CRed),      "Remove selected team member"));
-            memberBtnWrap.Children.Add(MakeActionButton("Import CSV",    "ImportTeamCSV",    Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Import team from CSV file"));
-            stack.Children.Add(memberBtnWrap);
+            // ── 3-sub-tab TabControl ──
+            var tc = new System.Windows.Controls.TabControl { Margin = new Thickness(0, 0, 0, 8) };
 
-            // ── Permission Groups ──
-            stack.Children.Add(MakeSectionHeader("PERMISSION GROUPS"));
-            if (_data.Roles.Count > 0)
-            {
-                var dg2 = new DataGrid
-                {
-                    AutoGenerateColumns = false, IsReadOnly = true,
-                    HeadersVisibility = DataGridHeadersVisibility.Column,
-                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                    CanUserSortColumns = true, FontSize = 11,
-                    BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 160
-                };
-                dg2.Columns.Add(new DataGridTextColumn { Header = "Role Code",   Binding = new Binding("Code"),       Width = 80 });
-                dg2.Columns.Add(new DataGridTextColumn { Header = "Name",         Binding = new Binding("Name"),       Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg2.Columns.Add(new DataGridTextColumn { Header = "Discipline",   Binding = new Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg2.Columns.Add(new DataGridTextColumn { Header = "CDE Access",   Binding = new Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg2.Columns.Add(new DataGridTextColumn { Header = "Can Approve",  Binding = new Binding("CanApprove"), Width = 85 });
-                dg2.Columns.Add(new DataGridTextColumn { Header = "Can Issue",    Binding = new Binding("CanIssue"),   Width = 75 });
-                dg2.ItemsSource = _data.Roles;
-                stack.Children.Add(dg2);
-            }
-            else
-            {
-                var noRoleCard = MakeCard();
-                noRoleCard.Child = new TextBlock
-                {
-                    Text = "No permission roles defined. Use the buttons below to configure access groups.",
-                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
-                };
-                stack.Children.Add(noRoleCard);
-            }
-            var roleBtnWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
-            roleBtnWrap.Children.Add(MakeActionButton("Add Role",          "AddRole",          Br(CGreen),    "Define a new permission role"));
-            roleBtnWrap.Children.Add(MakeActionButton("Edit Role",         "EditRole",         Br(CHeaderBg), "Modify selected role"));
-            roleBtnWrap.Children.Add(MakeActionButton("Delete Role",       "DeleteRole",       Br(CRed),      "Remove selected role"));
-            roleBtnWrap.Children.Add(MakeActionButton("Save Permissions",  "SavePermissions",  Br(CAccent),   "Persist permission configuration to project_config.json"));
-            roleBtnWrap.Children.Add(MakeActionButton("Export Matrix",     "ExportPermissionMatrix", Br(Color.FromRgb(0x45, 0x50, 0x6E)), "Export roles and folder permissions to XLSX"));
-            stack.Children.Add(roleBtnWrap);
+            // ══ Sub-tab 3A: Member Directory ══════════════════════════════
+            var tabA = new System.Windows.Controls.TabItem { Header = "Member Directory" };
+            var tabAStack = new StackPanel { Margin = new Thickness(8) };
 
-            // ── CDE Access Matrix ──
-            stack.Children.Add(MakeSectionHeader("CDE ACCESS MATRIX"));
-            if (_data.FolderPermissions.Count > 0)
-            {
-                var dg3 = new DataGrid
-                {
-                    AutoGenerateColumns = false, IsReadOnly = true,
-                    HeadersVisibility = DataGridHeadersVisibility.Column,
-                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                    FontSize = 11, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                    RowHeaderWidth = 0, Margin = new Thickness(0, 0, 0, 8), MaxHeight = 160
-                };
-                dg3.Columns.Add(new DataGridTextColumn { Header = "Folder",       Binding = new Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) });
-                dg3.Columns.Add(new DataGridTextColumn { Header = "CDE State",    Binding = new Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                dg3.Columns.Add(new DataGridTextColumn { Header = "Read Roles",   Binding = new Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                dg3.Columns.Add(new DataGridTextColumn { Header = "Write Roles",  Binding = new Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                dg3.Columns.Add(new DataGridTextColumn { Header = "Approve Roles",Binding = new Binding("ApproveRoles"),Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                dg3.ItemsSource = _data.FolderPermissions;
-                stack.Children.Add(dg3);
-            }
-            else
-            {
-                var noFolderCard = MakeCard();
-                noFolderCard.Child = new TextBlock
-                {
-                    Text = "No folder permissions configured.\nCDE Access Matrix maps roles to WIP/Shared/Published/Archive folders per ISO 19650.",
-                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
-                };
-                stack.Children.Add(noFolderCard);
-            }
+            // Toolbar
+            var memberToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var addMemberBtn = new Button { Content = "+ Add Row",    Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CGreen),                          Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var delMemberBtn = new Button { Content = "Delete Row",   Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CRed),                           Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var impCsvBtn    = new Button { Content = "Import CSV",   Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var expExlBtn    = new Button { Content = "Export Excel", Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var saveMembBtn  = new Button { Content = "Save",         Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CAccent),                        Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            memberToolbar.Children.Add(addMemberBtn); memberToolbar.Children.Add(delMemberBtn);
+            memberToolbar.Children.Add(impCsvBtn); memberToolbar.Children.Add(expExlBtn); memberToolbar.Children.Add(saveMembBtn);
+            tabAStack.Children.Add(memberToolbar);
 
-            // ── Workload Overview ──
-            stack.Children.Add(new Border { Height = 8 });
-            stack.Children.Add(MakeSectionHeader("WORKLOAD OVERVIEW"));
-            var workloadCard = MakeCard();
-            var workloadStack = new StackPanel();
-            string[] disciplines = { "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)", "Fire Protection (FP)" };
-            int[] loads = { 42, 18, 35, 29, 12, 8 }; // placeholder counts
-            for (int i = 0; i < disciplines.Length; i++)
-            {
-                var discRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-                discRow.Children.Add(new TextBlock { Text = disciplines[i], Width = 170, FontSize = 11 });
-                var bar = new Border
-                {
-                    Height = 14, Width = Math.Max(4, loads[i] * 3),
-                    Background = Br(CHeaderBg), Margin = new Thickness(4, 0, 4, 0),
-                    CornerRadius = new CornerRadius(2)
-                };
-                discRow.Children.Add(bar);
-                discRow.Children.Add(new TextBlock { Text = $"{loads[i]} items", FontSize = 10, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
-                workloadStack.Children.Add(discRow);
-            }
-            workloadCard.Child = workloadStack;
-            stack.Children.Add(workloadCard);
+            var memberDg = MakeExcelDataGrid(180);
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Name",         Binding = new System.Windows.Data.Binding("Name"),         Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Company",      Binding = new System.Windows.Data.Binding("Company"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Role",         Binding = new System.Windows.Data.Binding("Role"),         Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",   Binding = new System.Windows.Data.Binding("Discipline"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Email",        Binding = new System.Windows.Data.Binding("Email"),        Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "Phone",        Binding = new System.Windows.Data.Binding("Phone"),        Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridTextColumn { Header = "CDE Username", Binding = new System.Windows.Data.Binding("CDEUsername"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            memberDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Can Approve", Binding = new System.Windows.Data.Binding("CanApprove"), Width = 90 });
+            memberDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Can Issue",   Binding = new System.Windows.Data.Binding("CanIssue"),   Width = 80 });
+            memberDg.Columns.Add(new DataGridCheckBoxColumn { Header = "Active",      Binding = new System.Windows.Data.Binding("Active"),     Width = 60 });
+            var memberSrc = new System.Collections.ObjectModel.ObservableCollection<TeamMemberRow>(_data.TeamMembers);
+            memberDg.ItemsSource = memberSrc;
+            addMemberBtn.Click += (s, e) => memberSrc.Add(new TeamMemberRow { Active = true });
+            delMemberBtn.Click += (s, e) => { if (memberDg.SelectedItem is TeamMemberRow mr2) memberSrc.Remove(mr2); };
+            impCsvBtn.Click    += (s, e) => DispatchAction("ImportTeamCSV");
+            expExlBtn.Click    += (s, e) => ExportDataGridToXlsx(memberDg, "MemberDirectory");
+            saveMembBtn.Click  += (s, e) => { _data.TeamMembers = new List<TeamMemberRow>(memberSrc); DispatchAction("SaveProjectMembers"); };
+            tabAStack.Children.Add(memberDg);
+            tabA.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabAStack };
 
-            // ── Activity Log ──
-            stack.Children.Add(new Border { Height = 8 });
-            stack.Children.Add(MakeSectionHeader("ACTIVITY LOG"));
-            if (_data.CoordLog.Count > 0)
-            {
-                var actDg = new DataGrid
-                {
-                    AutoGenerateColumns = false, IsReadOnly = true,
-                    HeadersVisibility = DataGridHeadersVisibility.Column,
-                    GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                    FontSize = 11, BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
-                    RowHeaderWidth = 0, MaxHeight = 160
-                };
-                actDg.Columns.Add(new DataGridTextColumn { Header = "Time",   Binding = new Binding("Timestamp"), Width = 130 });
-                actDg.Columns.Add(new DataGridTextColumn { Header = "User",   Binding = new Binding("User"),      Width = 100 });
-                actDg.Columns.Add(new DataGridTextColumn { Header = "Action", Binding = new Binding("Action"),    Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-                actDg.Columns.Add(new DataGridTextColumn { Header = "Details",Binding = new Binding("Details"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
-                actDg.ItemsSource = _data.CoordLog;
-                stack.Children.Add(actDg);
-            }
-            else
-            {
-                var noLogCard = MakeCard();
-                noLogCard.Child = new TextBlock
-                {
-                    Text = "No activity logged yet. Member actions (add/edit/role changes) are recorded here.",
-                    FontSize = 12, Foreground = Brushes.Gray, TextWrapping = TextWrapping.Wrap
-                };
-                stack.Children.Add(noLogCard);
-            }
+            // ══ Sub-tab 3B: Permission Groups ════════════════════════════
+            var tabB = new System.Windows.Controls.TabItem { Header = "Permission Groups" };
+            var tabBStack = new StackPanel { Margin = new Thickness(8) };
 
-            scroll.Content = stack;
-            return scroll;
+            var roleToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var addRoleBtn  = new Button { Content = "Add Role",       Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CGreen),                          Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var delRoleBtn  = new Button { Content = "Delete Role",    Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CRed),                           Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var expMatBtn   = new Button { Content = "Export Matrix",  Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var savePermBtn = new Button { Content = "Save Permissions",Height = 26,Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CAccent),                        Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            roleToolbar.Children.Add(addRoleBtn); roleToolbar.Children.Add(delRoleBtn);
+            roleToolbar.Children.Add(expMatBtn); roleToolbar.Children.Add(savePermBtn);
+            tabBStack.Children.Add(roleToolbar);
+
+            var roleDg = MakeExcelDataGrid(180);
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "Role Code",   Binding = new System.Windows.Data.Binding("Code"),       Width = 80 });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "Name",        Binding = new System.Windows.Data.Binding("Name"),       Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "Discipline",  Binding = new System.Windows.Data.Binding("Discipline"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "CDE Access",  Binding = new System.Windows.Data.Binding("CDEAccess"),  Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Approve", Binding = new System.Windows.Data.Binding("CanApprove"), Width = 85 });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "Can Issue",   Binding = new System.Windows.Data.Binding("CanIssue"),   Width = 75 });
+            roleDg.Columns.Add(new DataGridTextColumn { Header = "SLA Hours",   Binding = new System.Windows.Data.Binding("SLAHours"),   Width = 70 });
+            var roleSrc = new System.Collections.ObjectModel.ObservableCollection<RoleDefinition>(_data.Roles);
+            roleDg.ItemsSource = roleSrc;
+            addRoleBtn.Click  += (s, e) => roleSrc.Add(new RoleDefinition());
+            delRoleBtn.Click  += (s, e) => { if (roleDg.SelectedItem is RoleDefinition rd) roleSrc.Remove(rd); };
+            expMatBtn.Click   += (s, e) => DispatchAction("ExportPermissionMatrix");
+            savePermBtn.Click += (s, e) => { _data.Roles = new List<RoleDefinition>(roleSrc); DispatchAction("SavePermissions"); };
+            tabBStack.Children.Add(roleDg);
+            tabB.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabBStack };
+
+            // ══ Sub-tab 3C: CDE Access Matrix ════════════════════════════
+            var tabC = new System.Windows.Controls.TabItem { Header = "CDE Access Matrix" };
+            var tabCStack = new StackPanel { Margin = new Thickness(8) };
+
+            var cdeToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var addCdeBtn = new Button { Content = "Add Row",     Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CGreen),                          Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var delCdeBtn = new Button { Content = "Delete Row",  Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(CRed),                           Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            var expCdeBtn = new Button { Content = "Export Excel",Height = 26, Padding = new Thickness(8, 0, 8, 0), Margin = new Thickness(0, 0, 4, 0), Background = Br(Color.FromRgb(0x2E, 0x7D, 0x32)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+            cdeToolbar.Children.Add(addCdeBtn); cdeToolbar.Children.Add(delCdeBtn); cdeToolbar.Children.Add(expCdeBtn);
+            tabCStack.Children.Add(cdeToolbar);
+
+            var cdeDg = MakeExcelDataGrid(180);
+            // Folder ComboBox column
+            var folderCol = new DataGridTextColumn { Header = "Folder",        Binding = new System.Windows.Data.Binding("Folder"),       Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) };
+            cdeDg.Columns.Add(folderCol);
+            cdeDg.Columns.Add(new DataGridTextColumn { Header = "CDE State",   Binding = new System.Windows.Data.Binding("CDEState"),     Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Read Roles",  Binding = new System.Windows.Data.Binding("ReadRoles"),    Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Write Roles", Binding = new System.Windows.Data.Binding("WriteRoles"),   Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            cdeDg.Columns.Add(new DataGridTextColumn { Header = "Approve Roles",Binding = new System.Windows.Data.Binding("ApproveRoles"),Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+            var cdeSrc = new System.Collections.ObjectModel.ObservableCollection<FolderPermission>(_data.FolderPermissions.Count > 0 ? _data.FolderPermissions : GetDefaultFolderPermissions());
+            cdeDg.ItemsSource = cdeSrc;
+            addCdeBtn.Click += (s, e) => cdeSrc.Add(new FolderPermission());
+            delCdeBtn.Click += (s, e) => { if (cdeDg.SelectedItem is FolderPermission fp) cdeSrc.Remove(fp); };
+            expCdeBtn.Click += (s, e) => ExportDataGridToXlsx(cdeDg, "CDEAccessMatrix");
+            tabCStack.Children.Add(cdeDg);
+            tabC.Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = tabCStack };
+
+            tc.Items.Add(tabA);
+            tc.Items.Add(tabB);
+            tc.Items.Add(tabC);
+            outerStack.Children.Add(tc);
+
+            var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            sv.Content = outerStack;
+            return sv;
         }
 
         // ════════════════════════════════════════════════════════════════
