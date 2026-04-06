@@ -3113,17 +3113,80 @@ namespace StingTools.UI
                 accessGrid.ItemsSource = _data.TeamMembers;
                 detailStack.Children.Add(accessGrid);
 
-                // Sync settings
-                detailStack.Children.Add(new TextBlock { Text = "SYNC SETTINGS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 8, 0, 4) });
+                // ── Server Connection ────────────────────────────────────────
+                bool sbConnected = BIMManager.StingBIMServerClient.Instance.IsConnected;
+                var connStatus = new TextBlock
+                {
+                    Text = sbConnected
+                        ? $"🟢 Connected — {BIMManager.StingBIMServerClient.Instance.ConnectedUser}  |  {BIMManager.StingBIMServerClient.Instance.TierName}"
+                        : "🔴 Not connected",
+                    FontSize = 11, FontWeight = FontWeights.SemiBold,
+                    Foreground = sbConnected ? Br(CGreen) : Br(CRed),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+                detailStack.Children.Add(connStatus);
+
+                detailStack.Children.Add(new TextBlock { Text = "SERVER CONNECTION", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
+
+                var sbUrlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                sbUrlRow.Children.Add(new TextBlock { Text = "Server URL:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+                var sbUrlBox = new System.Windows.Controls.TextBox
+                {
+                    Width = 270, FontSize = 11, Margin = new Thickness(4, 0, 0, 0),
+                    Text = BIMManager.StingBIMServerClient.Instance.IsConnected
+                        ? BIMManager.StingBIMServerClient.Instance.ServerUrl
+                        : "https://stingbim-api.onrender.com",
+                    ToolTip = "StingBIM API server URL (your Render.com deployment)"
+                };
+                sbUrlRow.Children.Add(sbUrlBox);
+                detailStack.Children.Add(sbUrlRow);
+
+                var sbEmailRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                sbEmailRow.Children.Add(new TextBlock { Text = "Email:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+                var sbEmailBox = new System.Windows.Controls.TextBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Your StingBIM account email" };
+                sbEmailRow.Children.Add(sbEmailBox);
+                detailStack.Children.Add(sbEmailRow);
+
+                var sbPassRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+                sbPassRow.Children.Add(new TextBlock { Text = "Password:", Width = 90, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+                var sbPassBox = new System.Windows.Controls.PasswordBox { Width = 200, FontSize = 11, Margin = new Thickness(4, 0, 0, 0), ToolTip = "Password is never saved to disk — only held in memory for this session" };
+                sbPassRow.Children.Add(sbPassBox);
+                detailStack.Children.Add(sbPassRow);
+
+                var sbConnBtnRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+                var sbConnBtn  = new Button { Content = "Connect", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CGreen),          Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
+                var sbDiscoBtn = new Button { Content = "Disconnect", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CRed),          Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), IsEnabled = sbConnected };
+                sbConnBtn.Click += (s, e) =>
+                {
+                    StingCommandHandler.SetExtraParam("StingBIMServerUrl", sbUrlBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("StingBIMEmail", sbEmailBox.Text.Trim());
+                    StingCommandHandler.SetExtraParam("StingBIMPassword", sbPassBox.Password);
+                    DispatchAction("StingBIMConnect");
+                };
+                sbDiscoBtn.Click += (s, e) => DispatchAction("StingBIMDisconnect");
+                sbConnBtnRow.Children.Add(sbConnBtn); sbConnBtnRow.Children.Add(sbDiscoBtn);
+                detailStack.Children.Add(sbConnBtnRow);
+
+                // ── Sync settings ────────────────────────────────────────────
+                detailStack.Children.Add(new TextBlock { Text = "SYNC OPTIONS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 4, 0, 4) });
                 var syncOptsStingBIM = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-                foreach (var opt in new[] { "Auto-export on model save", "Include model snapshots", "Compress attachments", "Notify on new issues", "Send weekly digest" })
+                foreach (var opt in new[] { "Auto-sync on model save", "Include model snapshots", "Notify on new issues", "Send weekly digest" })
                     syncOptsStingBIM.Children.Add(new CheckBox { Content = opt, Margin = new Thickness(0, 0, 14, 4), FontSize = 11 });
                 detailStack.Children.Add(syncOptsStingBIM);
 
                 var stingBIMBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
-                var syncNowBtnS = new Button { Content = "Sync Now", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(navyBrush.Color), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
-                var viewDashBtn = new Button { Content = "View Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
-                syncNowBtnS.Click += (s, e) => DispatchAction("PlatformSync");
+                var syncNowBtnS = new Button
+                {
+                    Content = "⬆ Sync Elements to Server", Height = 28, Padding = new Thickness(12, 0, 12, 0),
+                    Background = Br(navyBrush.Color), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                    FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0),
+                    IsEnabled = sbConnected,
+                    ToolTip = sbConnected
+                        ? "Push all tagged elements (ASS_TAG_1 parameters) to the StingBIM server"
+                        : "Connect to the StingBIM server first"
+                };
+                var viewDashBtn = new Button { Content = "📊 HTML Dashboard", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Export standalone HTML dashboard (no login required — share with anyone)" };
+                syncNowBtnS.Click += (s, e) => DispatchAction("StingBIMSyncNow");
                 viewDashBtn.Click += (s, e) => DispatchAction("StingBIMHTML");
                 stingBIMBtnRow.Children.Add(syncNowBtnS); stingBIMBtnRow.Children.Add(viewDashBtn);
                 detailStack.Children.Add(stingBIMBtnRow);

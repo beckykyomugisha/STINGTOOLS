@@ -9,7 +9,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.11" />
-    <!-- SignalR.Core is built into ASP.NET Core 8 — explicit reference removed to avoid version conflicts -->
+    <!-- SignalR and Authorization types needed in class libraries (not auto-included, unlike in web projects) -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <PackageReference Include="Hangfire.Core" Version="1.8.17" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.20.10" />
@@ -18,6 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StingBIM.Core\StingBIM.Core.csproj" />
+    <ProjectReference Include="..\StingBIM.MIM\StingBIM.MIM.csproj" />
     <ProjectReference Include="..\StingBIM.Shared\StingBIM.Shared.csproj" />
   </ItemGroup>
 </Project>

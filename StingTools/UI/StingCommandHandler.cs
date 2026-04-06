@@ -1868,7 +1868,13 @@ namespace StingTools.UI
                     }
                     case "BCFExport": RunCommand<BIMManager.BCFExportCommand>(app); break;
                     case "BCFImport": RunCommand<BIMManager.BCFImportCommand>(app); break;
-                    case "PlatformSync": RunCommand<BIMManager.PlatformSyncCommand>(app); break;
+                    case "PlatformSync":
+                        // Route to StingBIM server sync if connected; otherwise local delta sync
+                        if (BIMManager.StingBIMServerClient.Instance.IsConnected)
+                            BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app);
+                        else
+                            RunCommand<BIMManager.PlatformSyncCommand>(app);
+                        break;
                     case "SharePointExport": RunCommand<BIMManager.SharePointExportCommand>(app); break;
                     // Third-party platform integrations — route to CDE Package which
                     // generates ISO 19650 folder structure compatible with any CDE platform
@@ -2751,15 +2757,19 @@ namespace StingTools.UI
                     // SaveProjectMembers and EscalateActions are already wired above
 
                     // ── StingBIM platform ──
-                    case "StingBIMCopyLink": StingBIMCopyLink(app); break;
-                    case "StingBIMEmail": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "StingBIMTeams": StingBIMGenerateTeamsMessage(app); break;
-                    case "StingBIMWhatsApp": StingBIMGenerateWhatsApp(app); break;
-                    case "StingBIMQR": RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "StingBIMHTML": StingBIMExportHtml(app); break;
-                    case "SendMeetingInvites": TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
+                    case "StingBIMCopyLink":       StingBIMCopyLink(app); break;
+                    case "StingBIMEmail":          RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "StingBIMTeams":          StingBIMGenerateTeamsMessage(app); break;
+                    case "StingBIMWhatsApp":       StingBIMGenerateWhatsApp(app); break;
+                    case "StingBIMQR":             RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "StingBIMHTML":           StingBIMExportHtml(app); break;
+                    case "StingBIMConnect":        RunCommand<BIMManager.StingBIMConnectCommand>(app); break;
+                    case "StingBIMDisconnect":     BIMManager.StingBIMServerClient.Instance.Disconnect();
+                                                   TaskDialog.Show("StingBIM", "Disconnected from StingBIM server."); break;
+                    case "StingBIMSyncNow":        BIMManager.PlatformSyncCommand.SyncToStingBIMServer(app); break;
+                    case "SendMeetingInvites":     TaskDialog.Show("STING — Meeting Invites", "Invite generation requires email integration.\nConfigure SMTP settings in Settings > Notifications to enable automatic email invites.\n\nFor now, use the 'Copy List' button to get email addresses."); break;
                     case "ExportMeetingAnalytics": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
-                    case "MeetingRSVP": TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
+                    case "MeetingRSVP":            TaskDialog.Show("STING — RSVP", "RSVP tracking requires CDE integration.\nConnect StingBIM or configure email in Settings > Notifications."); break;
 
                     // ── Unmapped command tag ──
                     default:

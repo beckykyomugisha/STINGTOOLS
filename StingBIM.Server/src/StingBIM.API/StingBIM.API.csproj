@@ -6,6 +6,7 @@
     <RootNamespace>StingBIM.API</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <!-- SignalR is built into ASP.NET Core 8 — no separate package needed -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />

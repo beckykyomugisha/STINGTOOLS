@@ -93,6 +93,7 @@ public class AuthController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("tenant_id", user.TenantId.ToString()),
+            new Claim("tenant_slug", user.Tenant?.Slug ?? ""),
             new Claim("role", user.Role.ToString()),
             new Claim("iso_role", user.Iso19650Role),
             new Claim("display_name", user.DisplayName)
@@ -109,9 +110,11 @@ public class AuthController : ControllerBase
     }
 
     private static bool BCryptVerify(string password, string hash)
-    {
-        // Simplified — use BCrypt.Net-Next in production
-        return hash == Convert.ToBase64String(
-            System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(password)));
-    }
+        => BCrypt.Net.BCrypt.Verify(password, hash);
+
+    /// <summary>
+    /// Hashes a password using BCrypt (work factor 12).
+    /// </summary>
+    public static string HashPassword(string password)
+        => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
 }

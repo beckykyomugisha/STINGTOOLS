@@ -230,7 +230,7 @@ public class SyncClient : IDisposable
 
     // Internal response models
     private record LoginResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
-    private record LicenseResult(bool Valid, string Tier, bool MimEnabled, string? ServerUrl, DateTime? ExpiresAt, string? Message);
+    public record LicenseResult(bool Valid, string Tier, bool MimEnabled, string? ServerUrl, DateTime? ExpiresAt, string? Message);
     private record TagSyncResult(int Received, int Created, int Updated, double CompliancePercent, string RagStatus);
     private record SeqSyncResult(int Merged, int Total);
 }
