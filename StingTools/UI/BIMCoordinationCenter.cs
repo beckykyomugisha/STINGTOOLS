@@ -606,6 +606,7 @@ namespace StingTools.UI
             wrap.Children.Add(MakeShareButton("📄 PDF",      "BCCExportPDF"));
             wrap.Children.Add(MakeShareButton("📊 Excel",    "BCCExportExcel"));
             wrap.Children.Add(MakeShareButton("📝 Word",     "BCCExportWord"));
+            wrap.Children.Add(MakeShareButton("📖 Code Legend", "CodeLegend"));
 
             toolbar.Child = wrap;
             return toolbar;

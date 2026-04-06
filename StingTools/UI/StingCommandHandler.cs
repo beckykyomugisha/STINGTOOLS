@@ -368,6 +368,9 @@ namespace StingTools.UI
                     // ── QR Codes ──
                     case "QRCode": RunCommand<Tags.QRCodeCommand>(app); break;
 
+                    // ── Code Legend ──
+                    case "CodeLegend": RunCommand<Tags.CodeLegendCommand>(app); break;
+
                     // ── QA ──
                     case "ValidateTags": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "HighlightInvalid": RunCommand<Organise.HighlightInvalidCommand>(app); break;
