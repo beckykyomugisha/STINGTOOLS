@@ -99,6 +99,9 @@ namespace StingTools.UI
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
 
+        // Phase 76: 4D/5D inline panel area
+        private ContentControl _4dPanelArea;
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -3481,14 +3484,16 @@ namespace StingTools.UI
             stack.Children.Add(new Border { Height = 12 });
             stack.Children.Add(MakeSectionHeader("SCHEDULING OPERATIONS"));
             var actionsWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            actionsWrap.Children.Add(MakeActionButton("Auto Schedule 4D", "AutoSchedule4D", Br(CHeaderBg),
-                "Generate 4D timeline from model phases, levels, and trade sequence (32 trades)"));
-            actionsWrap.Children.Add(MakeActionButton("Auto Cost 5D", "AutoCost5D", Br(CGreen),
-                "Calculate 5D cost estimate using cost_rates_5d.csv rate model"));
-            actionsWrap.Children.Add(MakeActionButton("View Timeline", "ViewTimeline4D", Br(CAccent),
-                "Display interactive Gantt timeline with phase/trade breakdown"));
-            actionsWrap.Children.Add(MakeActionButton("Cost Report", "CostReport5D", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
-                "Detailed 5D cost report: by category, discipline, phase with subtotals"));
+
+            // Phase 76: Key 4D/5D buttons show inline configuration panels instead of dispatching immediately
+            actionsWrap.Children.Add(Make4DPanelButton("Auto Schedule 4D", "AutoSchedule4D", Br(CHeaderBg),
+                "Configure and generate 4D timeline from model phases, levels, and trade sequence"));
+            actionsWrap.Children.Add(Make4DPanelButton("Auto Cost 5D", "AutoCost5D", Br(CGreen),
+                "Configure and calculate 5D cost estimate using cost_rates_5d.csv rate model"));
+            actionsWrap.Children.Add(Make4DPanelButton("View Timeline", "ViewTimeline4D", Br(CAccent),
+                "Configure and display interactive Gantt timeline with phase/trade breakdown"));
+            actionsWrap.Children.Add(Make4DPanelButton("Cost Report", "CostReport5D", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+                "Configure detailed 5D cost report: by category, discipline, phase with subtotals"));
             actionsWrap.Children.Add(MakeActionButton("Cash Flow", "CashFlow5D", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "S-curve cash flow forecast with monthly planned vs actual spend"));
             actionsWrap.Children.Add(MakeActionButton("Export Schedule", "ExportSchedule4D", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
@@ -3507,8 +3512,298 @@ namespace StingTools.UI
                 "Trace cost allocation per element: material + labour + plant rates"));
             stack.Children.Add(actionsWrap);
 
+            // Phase 76: Inline panel area — populated when a configuration button is clicked
+            _4dPanelArea = new ContentControl { MinHeight = 300 };
+            stack.Children.Add(_4dPanelArea);
+
             scroll.Content = stack;
             return scroll;
+        }
+
+        /// <summary>Creates a button that shows an inline configuration panel for 4D/5D operations.</summary>
+        private Button Make4DPanelButton(string label, string tag, SolidColorBrush bg, string tooltip = null)
+        {
+            var btn = new Button
+            {
+                Content = label, Tag = tag,
+                Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = bg, Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = tooltip
+            };
+            var origBg = bg;
+            var c0 = origBg.Color;
+            var hoverBrush = Br(Color.FromRgb(
+                (byte)Math.Min(255, c0.R + 30),
+                (byte)Math.Min(255, c0.G + 30),
+                (byte)Math.Min(255, c0.B + 30)));
+            btn.MouseEnter += (s, e) => { btn.Background = hoverBrush; };
+            btn.MouseLeave += (s, e) => { btn.Background = origBg; };
+            btn.Click += (s, e) => { Show4DPanel(tag); };
+            return btn;
+        }
+
+        /// <summary>Shows the inline configuration panel for a given 4D/5D action tag.</summary>
+        private void Show4DPanel(string tag)
+        {
+            if (_4dPanelArea != null)
+                _4dPanelArea.Content = Build4DPanelFor(tag);
+        }
+
+        /// <summary>Builds an inline configuration panel for the given 4D/5D action tag.</summary>
+        private FrameworkElement Build4DPanelFor(string tag)
+        {
+            var navyBrush = Br(CHeaderBg);
+            var panelBorder = new Border
+            {
+                Background = Br(CCardBg),
+                BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
+            switch (tag)
+            {
+                case "AutoSchedule4D":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Auto-Schedule Configuration", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    // Phase combo
+                    var phaseRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    phaseRow.Children.Add(new TextBlock { Text = "Phase:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var phaseCb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    phaseCb.Items.Add("Phase 1"); phaseCb.Items.Add("Phase 2"); phaseCb.Items.Add("New Construction");
+                    phaseCb.SelectedIndex = 0;
+                    phaseRow.Children.Add(phaseCb);
+                    sp.Children.Add(phaseRow);
+
+                    // Start date
+                    var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    dateRow.Children.Add(new TextBlock { Text = "Start Date:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var datePicker = new DatePicker { Width = 200, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today };
+                    dateRow.Children.Add(datePicker);
+                    sp.Children.Add(dateRow);
+
+                    sp.Children.Add(new TextBlock { Text = "Trade Sequence (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) });
+
+                    var dg = new DataGrid
+                    {
+                        AutoGenerateColumns = false,
+                        CanUserAddRows = true,
+                        Height = 120,
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Phase", Binding = new System.Windows.Data.Binding("Phase"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Trade", Binding = new System.Windows.Data.Binding("Trade"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Duration Days", Binding = new System.Windows.Data.Binding("DurationDays"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ScheduleRow>
+                    {
+                        new ScheduleRow { Phase = "Phase 1", Trade = "Groundworks",    DurationDays = "14" },
+                        new ScheduleRow { Phase = "Phase 1", Trade = "Structure",       DurationDays = "28" },
+                        new ScheduleRow { Phase = "Phase 2", Trade = "MEP Rough-in",    DurationDays = "21" }
+                    };
+                    sp.Children.Add(dg);
+
+                    var usePhasesCb = new CheckBox { Content = "Use model phases", Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(usePhasesCb);
+
+                    var runBtn = new Button
+                    {
+                        Content = "Run Auto-Schedule", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0)
+                    };
+                    runBtn.Click += (s, e) => DispatchAction("AutoSchedule4D");
+                    sp.Children.Add(runBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "ViewTimeline4D":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Timeline Viewer", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var fromRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    fromRow.Children.Add(new TextBlock { Text = "From:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
+                    fromRow.Children.Add(new DatePicker { Width = 160, Margin = new Thickness(4, 0, 12, 0), SelectedDate = DateTime.Today });
+                    fromRow.Children.Add(new TextBlock { Text = "To:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                    fromRow.Children.Add(new DatePicker { Width = 160, SelectedDate = DateTime.Today.AddMonths(12) });
+                    sp.Children.Add(fromRow);
+
+                    var groupRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    groupRow.Children.Add(new TextBlock { Text = "Grouping:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
+                    var groupCb = new ComboBox { Width = 160, Margin = new Thickness(4, 0, 0, 0) };
+                    groupCb.Items.Add("By Phase"); groupCb.Items.Add("By Trade"); groupCb.Items.Add("By Level"); groupCb.Items.Add("By Discipline");
+                    groupCb.SelectedIndex = 0;
+                    groupRow.Children.Add(groupCb);
+                    sp.Children.Add(groupRow);
+
+                    var zoomRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    zoomRow.Children.Add(new TextBlock { Text = "Zoom:", Width = 90, VerticalAlignment = VerticalAlignment.Center });
+                    var zoomSlider = new Slider { Minimum = 1, Maximum = 10, Value = 5, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    zoomRow.Children.Add(zoomSlider);
+                    sp.Children.Add(zoomRow);
+
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = "(Timeline renders when data is available)",
+                        FontSize = 11, Foreground = Brushes.Gray, FontStyle = FontStyles.Italic,
+                        Margin = new Thickness(0, 8, 0, 8)
+                    });
+
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    var viewBtn = new Button
+                    {
+                        Content = "View Timeline", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 8, 0)
+                    };
+                    viewBtn.Click += (s, e) => DispatchAction("ViewTimeline4D");
+                    var exportPngBtn = new Button
+                    {
+                        Content = "Export PNG", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, Cursor = Cursors.Hand
+                    };
+                    exportPngBtn.Click += (s, e) => DispatchAction("ExportTimeline4DPNG");
+                    btnRow.Children.Add(viewBtn);
+                    btnRow.Children.Add(exportPngBtn);
+                    sp.Children.Add(btnRow);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "AutoCost5D":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "5D Cost Configuration", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    sp.Children.Add(new TextBlock { Text = "Cost Rates:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    var dg = new DataGrid
+                    {
+                        AutoGenerateColumns = false,
+                        CanUserAddRows = true,
+                        Height = 150,
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Category",  Binding = new System.Windows.Data.Binding("Category"),  Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate UGX",  Binding = new System.Windows.Data.Binding("RateUGX"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Rate USD",  Binding = new System.Windows.Data.Binding("RateUSD"),   Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Unit",      Binding = new System.Windows.Data.Binding("Unit"),      Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<CostRateRow>
+                    {
+                        new CostRateRow { Category = "Walls",       RateUGX = "850000",  RateUSD = "230",  Unit = "m²" },
+                        new CostRateRow { Category = "Floors",      RateUGX = "650000",  RateUSD = "175",  Unit = "m²" },
+                        new CostRateRow { Category = "Roofs",       RateUGX = "950000",  RateUSD = "260",  Unit = "m²" },
+                        new CostRateRow { Category = "MEP Systems",  RateUGX = "1200000", RateUSD = "325",  Unit = "m²" },
+                        new CostRateRow { Category = "Finishes",    RateUGX = "420000",  RateUSD = "115",  Unit = "m²" }
+                    };
+                    sp.Children.Add(dg);
+
+                    var contingencyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    contingencyRow.Children.Add(new TextBlock { Text = "Contingency %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var contingencySlider = new Slider { Minimum = 0, Maximum = 25, Value = 10, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    contingencyRow.Children.Add(contingencySlider);
+                    sp.Children.Add(contingencyRow);
+
+                    var overheadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    overheadRow.Children.Add(new TextBlock { Text = "Overhead %:", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var overheadSlider = new Slider { Minimum = 0, Maximum = 20, Value = 8, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                    overheadRow.Children.Add(overheadSlider);
+                    sp.Children.Add(overheadRow);
+
+                    var runBtn = new Button
+                    {
+                        Content = "Run Cost Estimate", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0)
+                    };
+                    runBtn.Click += (s, e) => DispatchAction("AutoCost5D");
+                    sp.Children.Add(runBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "CostReport5D":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "5D Cost Report", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8), Foreground = navyBrush });
+
+                    var breakdownRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    breakdownRow.Children.Add(new TextBlock { Text = "Breakdown:", Width = 100, VerticalAlignment = VerticalAlignment.Center });
+                    var breakdownCb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
+                    breakdownCb.Items.Add("By Category"); breakdownCb.Items.Add("By Level"); breakdownCb.Items.Add("By Phase"); breakdownCb.Items.Add("By Discipline");
+                    breakdownCb.SelectedIndex = 0;
+                    breakdownRow.Children.Add(breakdownCb);
+                    sp.Children.Add(breakdownRow);
+
+                    var includeXlsx = new CheckBox { Content = "Include XLSX", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
+                    var includeDocx = new CheckBox { Content = "Include DOCX", Margin = new Thickness(0, 2, 0, 2) };
+                    var includeContingency = new CheckBox { Content = "Include contingency", Margin = new Thickness(0, 2, 0, 8) };
+                    sp.Children.Add(includeXlsx);
+                    sp.Children.Add(includeDocx);
+                    sp.Children.Add(includeContingency);
+
+                    var generateBtn = new Button
+                    {
+                        Content = "Generate Report", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0)
+                    };
+                    generateBtn.Click += (s, e) => DispatchAction("CostReport5D");
+                    sp.Children.Add(generateBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                default:
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 8, 0, 8) };
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = $"Panel for: {tag}",
+                        FontSize = 13, FontWeight = FontWeights.Bold,
+                        Margin = new Thickness(0, 0, 0, 8),
+                        Foreground = navyBrush
+                    });
+                    var runBtn = new Button
+                    {
+                        Content = "Run", Height = 32, Padding = new Thickness(16, 0, 16, 0),
+                        Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left
+                    };
+                    runBtn.Click += (s, e) => DispatchAction(tag);
+                    sp.Children.Add(runBtn);
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+            }
+        }
+
+        // Helper row classes for 4D/5D DataGrids
+        private class ScheduleRow
+        {
+            public string Phase        { get; set; }
+            public string Trade        { get; set; }
+            public string DurationDays { get; set; }
+        }
+
+        private class CostRateRow
+        {
+            public string Category { get; set; }
+            public string RateUGX  { get; set; }
+            public string RateUSD  { get; set; }
+            public string Unit     { get; set; }
         }
 
         // ════════════════════════════════════════════════════════════════
