@@ -102,6 +102,9 @@ namespace StingTools.UI
         // Phase 76: 4D/5D inline panel area
         private ContentControl _4dPanelArea;
 
+        // Phase 76 Item 8: Revisions inline panel area
+        private ContentControl _revPanelArea;
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -312,8 +315,10 @@ namespace StingTools.UI
         {
             public string Id { get; set; }
             public string Name { get; set; }
+            public string Number { get; set; }   // Phase 76: revision sequence code e.g. P01
             public string Date { get; set; }
             public string Description { get; set; }
+            public string Author { get; set; }   // Phase 76: author name
             public int Clouds { get; set; }
             public string Status { get; set; }
         }
@@ -2697,11 +2702,11 @@ namespace StingTools.UI
             stack.Children.Add(new Border { Height = 12 });
             stack.Children.Add(MakeSectionHeader("REVISION MANAGEMENT"));
             var createWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            createWrap.Children.Add(MakeActionButton("Create Revision", "CreateRevision", Br(CGreen),
+            createWrap.Children.Add(MakeRevPanelButton("Create Revision", "CreateRevision", Br(CGreen),
                 "Create a new revision with ISO 19650 naming and compliance gate check"));
             createWrap.Children.Add(MakeActionButton("Auto Revision Clouds", "AutoRevisionCloud", Br(CAccent),
                 "Automatically place revision clouds on elements changed since last revision"));
-            createWrap.Children.Add(MakeActionButton("Bulk Revision Stamp", "BulkRevisionStamp", Br(CRed),
+            createWrap.Children.Add(MakeRevPanelButton("Bulk Revision Stamp", "BulkRevisionStamp", Br(CRed),
                 "Stamp revision information across multiple sheets in batch"));
             createWrap.Children.Add(MakeActionButton("Auto Rev on Tag Change", "AutoRevisionOnTagChange", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Automatically create revision when tag data changes on elements"));
@@ -2711,27 +2716,31 @@ namespace StingTools.UI
             var trackWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             trackWrap.Children.Add(MakeActionButton("Take Snapshot", "TakeSnapshot", Br(Color.FromRgb(0x00, 0x69, 0x7C)),
                 "Capture current tag state as a snapshot for later comparison"));
-            trackWrap.Children.Add(MakeActionButton("Compare Revisions", "RevisionCompare", Br(CHeaderBg),
+            trackWrap.Children.Add(MakeRevPanelButton("Compare Revisions", "RevisionCompare", Br(CHeaderBg),
                 "Compare two revision snapshots: see added/changed/removed tags per element"));
             trackWrap.Children.Add(MakeActionButton("Track Elements", "TrackElementRevisions", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
                 "Track per-element revision history across all snapshots"));
-            trackWrap.Children.Add(MakeActionButton("Tag Revision Diff", "TagRevisionDiff", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
+            trackWrap.Children.Add(MakeRevPanelButton("Tag Revision Diff", "TagRevisionDiff", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Token-level diff between two snapshots: which tokens changed, old vs new values"));
             stack.Children.Add(trackWrap);
 
             stack.Children.Add(MakeSectionHeader("ISSUANCE & EXPORT"));
             var issueWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            issueWrap.Children.Add(MakeActionButton("Issue Sheets", "IssueSheetsForRevision", Br(CAmber),
+            issueWrap.Children.Add(MakeRevPanelButton("Issue Sheets", "IssueSheetsForRevision", Br(CAmber),
                 "Issue selected sheets for the latest revision — adds to revision schedule"));
             issueWrap.Children.Add(MakeActionButton("Naming Enforce", "RevisionNamingEnforce", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Enforce ISO 19650 / BS 1192 revision naming conventions"));
             issueWrap.Children.Add(MakeActionButton("Tag Integration", "RevisionTagIntegration", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Integrate revision data with STING tags: stamp REV token on elements"));
-            issueWrap.Children.Add(MakeActionButton("Revision Schedule", "RevisionSchedule", Br(Color.FromRgb(0x15, 0x65, 0xC0)),
+            issueWrap.Children.Add(MakeRevPanelButton("Revision Schedule", "RevisionSchedule", Br(Color.FromRgb(0x15, 0x65, 0xC0)),
                 "Create/view Revit revision schedule showing all revisions and sheets"));
             issueWrap.Children.Add(MakeActionButton("Export CSV", "RevisionExport", Br(Color.FromRgb(0x45, 0x50, 0x6E)),
                 "Export revision register to CSV for external tracking"));
             stack.Children.Add(issueWrap);
+
+            // ── Inline panel area (Phase 76 Item 8) ──
+            _revPanelArea = new ContentControl { MinHeight = 300 };
+            stack.Children.Add(_revPanelArea);
 
             scroll.Content = stack;
             return scroll;
@@ -3804,6 +3813,363 @@ namespace StingTools.UI
             public string RateUGX  { get; set; }
             public string RateUSD  { get; set; }
             public string Unit     { get; set; }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  REVISIONS INLINE PANELS  (Phase 76 Item 8)
+        // ════════════════════════════════════════════════════════════════
+
+        private Button MakeRevPanelButton(string label, string tag, SolidColorBrush bg, string tooltip = null)
+        {
+            var btn = new Button
+            {
+                Content = label, Tag = tag,
+                Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                Margin = new Thickness(0, 0, 6, 6),
+                Background = bg, Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = tooltip
+            };
+            var origBg = bg;
+            var c0 = origBg.Color;
+            var hoverBrush = Br(Color.FromRgb(
+                (byte)Math.Min(255, c0.R + 30),
+                (byte)Math.Min(255, c0.G + 30),
+                (byte)Math.Min(255, c0.B + 30)));
+            btn.MouseEnter += (s, e) => { btn.Background = hoverBrush; };
+            btn.MouseLeave += (s, e) => { btn.Background = origBg; };
+            btn.Click += (s, e) => { ShowRevPanel(tag); };
+            return btn;
+        }
+
+        private void ShowRevPanel(string tag)
+        {
+            if (_revPanelArea != null)
+                _revPanelArea.Content = BuildRevPanelFor(tag);
+        }
+
+        private FrameworkElement BuildRevPanelFor(string tag)
+        {
+            var navyBrush = Br(CHeaderBg);
+            var panelBorder = new Border
+            {
+                Background = Br(CCardBg),
+                BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
+            switch (tag)
+            {
+                case "CreateRevision":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Create Revision", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    var descRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    descRow.Children.Add(new TextBlock { Text = "Description:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var descBox = new TextBox { Width = 260, Margin = new Thickness(4, 0, 0, 0) };
+                    descRow.Children.Add(descBox);
+                    sp.Children.Add(descRow);
+
+                    var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    dateRow.Children.Add(new TextBlock { Text = "Date:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var datePicker = new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today };
+                    dateRow.Children.Add(datePicker);
+                    sp.Children.Add(dateRow);
+
+                    var revNumRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    revNumRow.Children.Add(new TextBlock { Text = "Revision #:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var revNumBox = new TextBox { Width = 80, Margin = new Thickness(4, 0, 0, 0), Text = "P01" };
+                    revNumRow.Children.Add(revNumBox);
+                    sp.Children.Add(revNumRow);
+
+                    var authorRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    authorRow.Children.Add(new TextBlock { Text = "Author:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var authorBox = new TextBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    authorRow.Children.Add(authorBox);
+                    sp.Children.Add(authorRow);
+
+                    var createBtn = new Button
+                    {
+                        Content = "Create", Height = 32, Padding = new Thickness(20, 0, 20, 0),
+                        Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0)
+                    };
+                    createBtn.Click += (s, e) => DispatchAction("CreateRevision");
+                    sp.Children.Add(createBtn);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "RevisionCompare":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Compare Revisions", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    var revARow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    revARow.Children.Add(new TextBlock { Text = "Revision A (Base):", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var revACb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var r in _data.Revisions) revACb.Items.Add(r.Number ?? r.Description ?? "Rev");
+                    if (revACb.Items.Count == 0) { revACb.Items.Add("P01"); revACb.Items.Add("P02"); }
+                    revACb.SelectedIndex = 0;
+                    revARow.Children.Add(revACb);
+                    sp.Children.Add(revARow);
+
+                    var revBRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    revBRow.Children.Add(new TextBlock { Text = "Revision B (Compare):", Width = 130, VerticalAlignment = VerticalAlignment.Center });
+                    var revBCb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var r in _data.Revisions) revBCb.Items.Add(r.Number ?? r.Description ?? "Rev");
+                    if (revBCb.Items.Count == 0) { revBCb.Items.Add("P01"); revBCb.Items.Add("P02"); }
+                    revBCb.SelectedIndex = Math.Min(1, revBCb.Items.Count - 1);
+                    revBRow.Children.Add(revBCb);
+                    sp.Children.Add(revBRow);
+
+                    var diffBtn = new Button
+                    {
+                        Content = "Show Diff", Height = 32, Padding = new Thickness(20, 0, 20, 0),
+                        Background = navyBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 8)
+                    };
+                    diffBtn.Click += (s, e) => DispatchAction("RevisionCompare");
+                    sp.Children.Add(diffBtn);
+
+                    sp.Children.Add(new TextBlock { Text = "Diff Results:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
+                    var dg = new DataGrid
+                    {
+                        AutoGenerateColumns = false, IsReadOnly = true,
+                        Height = 140, Margin = new Thickness(0, 0, 0, 4),
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal
+                    };
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Element", Binding = new System.Windows.Data.Binding("Element"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Changed Param", Binding = new System.Windows.Data.Binding("ChangedParam"), Width = new DataGridLength(1.5, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Old", Binding = new System.Windows.Data.Binding("OldValue"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "New", Binding = new System.Windows.Data.Binding("NewValue"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<RevDiffRow>();
+                    sp.Children.Add(dg);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "IssueSheetsForRevision":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Issue Sheets", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    sp.Children.Add(new TextBlock { Text = "Select sheets to issue:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    var sheetDg = new DataGrid
+                    {
+                        AutoGenerateColumns = false, CanUserAddRows = false,
+                        Height = 130, Margin = new Thickness(0, 0, 0, 8),
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal
+                    };
+                    var sheetCheckCol = new DataGridTemplateColumn { Header = "Include", Width = 60 };
+                    var chkFactory = new FrameworkElementFactory(typeof(CheckBox));
+                    chkFactory.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, new System.Windows.Data.Binding("Include") { Mode = System.Windows.Data.BindingMode.TwoWay });
+                    sheetCheckCol.CellTemplate = new DataTemplate { VisualTree = chkFactory };
+                    sheetDg.Columns.Add(sheetCheckCol);
+                    sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Number", Binding = new System.Windows.Data.Binding("SheetNumber"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    sheetDg.Columns.Add(new DataGridTextColumn { Header = "Sheet Name", Binding = new System.Windows.Data.Binding("SheetName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    sheetDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<SheetIssueRow>
+                    {
+                        new SheetIssueRow { Include = true, SheetNumber = "A-001", SheetName = "Site Plan" },
+                        new SheetIssueRow { Include = true, SheetNumber = "A-100", SheetName = "Ground Floor Plan" },
+                        new SheetIssueRow { Include = false, SheetNumber = "S-001", SheetName = "Foundation Plan" }
+                    };
+                    sp.Children.Add(sheetDg);
+
+                    var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    dateRow.Children.Add(new TextBlock { Text = "Issue Date:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    dateRow.Children.Add(new DatePicker { Width = 160, Margin = new Thickness(4, 0, 0, 0), SelectedDate = DateTime.Today });
+                    sp.Children.Add(dateRow);
+
+                    var suitRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    suitRow.Children.Add(new TextBlock { Text = "Suitability:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var suitCb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var s in new[] { "S0 - Work in Progress", "S1 - Suitable for Coordination", "S2 - Suitable for Information", "S3 - Suitable for Review", "S4 - Suitable for Construction", "S5 - Suitable for Manufacture/Install", "A1 - Approved for Construction" })
+                        suitCb.Items.Add(s);
+                    suitCb.SelectedIndex = 1;
+                    suitRow.Children.Add(suitCb);
+                    sp.Children.Add(suitRow);
+
+                    var issueBtn = new Button
+                    {
+                        Content = "Issue Sheets", Height = 32, Padding = new Thickness(20, 0, 20, 0),
+                        Background = Br(CAmber), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left
+                    };
+                    issueBtn.Click += (s, e) => DispatchAction("IssueSheetsForRevision");
+                    sp.Children.Add(issueBtn);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "BulkRevisionStamp":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Bulk Revision Stamp", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    var revRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    revRow.Children.Add(new TextBlock { Text = "Revision:", Width = 110, VerticalAlignment = VerticalAlignment.Center });
+                    var revCb = new ComboBox { Width = 200, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var r in _data.Revisions) revCb.Items.Add(r.Number ?? r.Description ?? "Rev");
+                    if (revCb.Items.Count == 0) { revCb.Items.Add("P01"); revCb.Items.Add("P02"); }
+                    revCb.SelectedIndex = 0;
+                    revRow.Children.Add(revCb);
+                    sp.Children.Add(revRow);
+
+                    sp.Children.Add(new TextBlock { Text = "Stamp Position:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
+                    var posStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+                    var rb1 = new RadioButton { Content = "Title Block (Bottom Right)", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
+                    var rb2 = new RadioButton { Content = "Title Block (Bottom Left)", Margin = new Thickness(0, 2, 0, 2) };
+                    var rb3 = new RadioButton { Content = "Custom Position", Margin = new Thickness(0, 2, 0, 2) };
+                    posStack.Children.Add(rb1);
+                    posStack.Children.Add(rb2);
+                    posStack.Children.Add(rb3);
+                    sp.Children.Add(posStack);
+
+                    var applyBtn = new Button
+                    {
+                        Content = "Apply Stamp", Height = 32, Padding = new Thickness(20, 0, 20, 0),
+                        Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                        FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left
+                    };
+                    applyBtn.Click += (s, e) => DispatchAction("BulkRevisionStamp");
+                    sp.Children.Add(applyBtn);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "RevisionSchedule":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Revision Schedule", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    sp.Children.Add(new TextBlock { Text = "Revision Register (editable):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+                    var dg = new DataGrid
+                    {
+                        AutoGenerateColumns = false, CanUserAddRows = true,
+                        Height = 150, Margin = new Thickness(0, 0, 0, 10),
+                        GridLinesVisibility = DataGridGridLinesVisibility.Horizontal
+                    };
+                    dg.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding("Number"), Width = 50 });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Date", Binding = new System.Windows.Data.Binding("Date"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new System.Windows.Data.Binding("Description"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Author", Binding = new System.Windows.Data.Binding("Author"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new System.Windows.Data.Binding("Status"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                    dg.ItemsSource = _data.Revisions.Count > 0
+                        ? (System.Collections.IEnumerable)_data.Revisions
+                        : new System.Collections.ObjectModel.ObservableCollection<RevisionRow>();
+                    sp.Children.Add(dg);
+
+                    var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    var createRevBtn = new Button
+                    {
+                        Content = "Create Schedule in Revit", Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                        Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    };
+                    createRevBtn.Click += (s, e) => DispatchAction("RevisionSchedule");
+                    btnRow.Children.Add(createRevBtn);
+
+                    var exportXlsxBtn = new Button
+                    {
+                        Content = "Export XLSX", Height = 30, Padding = new Thickness(14, 0, 14, 0),
+                        Background = Br(CGreen), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand
+                    };
+                    exportXlsxBtn.Click += (s, e) => DispatchAction("RevisionExportXlsx");
+                    btnRow.Children.Add(exportXlsxBtn);
+                    sp.Children.Add(btnRow);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                case "TagRevisionDiff":
+                {
+                    var sp = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
+                    sp.Children.Add(new TextBlock { Text = "Tag Revision Diff", FontSize = 13, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10), Foreground = navyBrush });
+
+                    var fromRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+                    fromRow.Children.Add(new TextBlock { Text = "From Revision:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var fromCb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var r in _data.Revisions) fromCb.Items.Add(r.Number ?? r.Description ?? "Rev");
+                    if (fromCb.Items.Count == 0) { fromCb.Items.Add("P01"); fromCb.Items.Add("P02"); }
+                    fromCb.SelectedIndex = 0;
+                    fromRow.Children.Add(fromCb);
+                    sp.Children.Add(fromRow);
+
+                    var toRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    toRow.Children.Add(new TextBlock { Text = "To Revision:", Width = 120, VerticalAlignment = VerticalAlignment.Center });
+                    var toCb = new ComboBox { Width = 180, Margin = new Thickness(4, 0, 0, 0) };
+                    foreach (var r in _data.Revisions) toCb.Items.Add(r.Number ?? r.Description ?? "Rev");
+                    if (toCb.Items.Count == 0) { toCb.Items.Add("P01"); toCb.Items.Add("P02"); }
+                    toCb.SelectedIndex = Math.Min(1, toCb.Items.Count - 1);
+                    toRow.Children.Add(toCb);
+                    sp.Children.Add(toRow);
+
+                    sp.Children.Add(new TextBlock { Text = "Highlight Mode:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
+                    var modeStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+                    var rbAdded   = new RadioButton { Content = "Added elements",   IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
+                    var rbChanged = new RadioButton { Content = "Changed tokens",   Margin = new Thickness(0, 0, 16, 0) };
+                    var rbRemoved = new RadioButton { Content = "Removed elements", Margin = new Thickness(0, 0, 0, 0) };
+                    modeStack.Children.Add(rbAdded);
+                    modeStack.Children.Add(rbChanged);
+                    modeStack.Children.Add(rbRemoved);
+                    sp.Children.Add(modeStack);
+
+                    var runBtn = new Button
+                    {
+                        Content = "Run Diff", Height = 32, Padding = new Thickness(20, 0, 20, 0),
+                        Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0), FontSize = 12, FontWeight = FontWeights.SemiBold,
+                        Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left
+                    };
+                    runBtn.Click += (s, e) => DispatchAction("TagRevisionDiff");
+                    sp.Children.Add(runBtn);
+
+                    panelBorder.Child = sp;
+                    return panelBorder;
+                }
+
+                default:
+                {
+                    panelBorder.Child = new TextBlock
+                    {
+                        Text = $"Select an action above to configure options.",
+                        FontSize = 12, Foreground = Brushes.Gray, Margin = new Thickness(0, 8, 0, 8)
+                    };
+                    return panelBorder;
+                }
+            }
+        }
+
+        // ── Helper DTOs for revision diff and sheet issue DataGrids ──
+        private class RevDiffRow
+        {
+            public string Element      { get; set; }
+            public string ChangedParam { get; set; }
+            public string OldValue     { get; set; }
+            public string NewValue     { get; set; }
+        }
+        private class SheetIssueRow
+        {
+            public bool   Include     { get; set; }
+            public string SheetNumber { get; set; }
+            public string SheetName   { get; set; }
         }
 
         // ════════════════════════════════════════════════════════════════
