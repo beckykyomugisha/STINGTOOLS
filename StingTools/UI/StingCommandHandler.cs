@@ -2654,6 +2654,71 @@ namespace StingTools.UI
                     case "StickyNoteExport": RunCommand<ExLink.StickyNoteExportCommand>(app); break;
                     case "StickyNoteBulkUpdate": RunCommand<ExLink.StickyNoteBulkUpdateCommand>(app); break;
 
+                    // ── Project Members / Permissions ──
+                    case "SaveProjectMembers":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("SaveProjectMembers");
+                        break;
+                    case "AddTeamMember":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("AddTeamMember");
+                        break;
+                    case "EditTeamMember":
+                    case "EditMember":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("EditMember");
+                        break;
+                    case "RemoveTeamMember":
+                    case "RemoveMember":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("RemoveMember");
+                        break;
+                    case "AddRole":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("AddRole");
+                        break;
+                    case "EditRole":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("EditRole");
+                        break;
+                    case "DeleteRole":
+                        BIMCoordinationCenter.CurrentInstance?.HandleProjectMembersAction("DeleteRole");
+                        break;
+                    case "SavePermissionsInline":
+                    case "SavePermissions":
+                        RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
+
+                    // ── Meetings / Actions ──
+                    case "BulkCloseActions": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "EscalateActions":
+                    case "EscalateOverdueActions": RunCommand<Core.BIMCoordinationCenterCommand>(app); break;
+                    case "ExportMeetingMinutes": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMeetingsPDF": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMinutesWord": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportMinutesPDF": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ComplianceGateTransmittal": RunCommand<Docs.TransmittalCommand>(app); break;
+                    case "ScheduleMeetingFollowUp": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
+                    // ── Deliverables ──
+                    case "BulkDeliverableStatus": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportDeliverablesRegister": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
+                    // ── Platform ──
+                    case "FMHandover": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "StageGate": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "SheetRegister": RunCommand<Docs.SheetIndexCommand>(app); break;
+                    case "ViewPlatformLogs": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
+                    // ── QR Codes ──
+                    case "GenerateQRCode": RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "GenerateQRSheet": RunCommand<Tags.QRCodeCommand>(app); break;
+                    case "PrintQRTags": RunCommand<Tags.QRCodeCommand>(app); break;
+
+                    // ── 4D/5D ──
+                    case "ExportMilestones": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ExportCashFlow": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "SaveWorkingCalendar": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
+                    // ── Model Health ──
+                    case "FixContainers": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+
+                    // ── Meetings ──
+                    case "NewMeeting": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+
                     // ── Unmapped command tag ──
                     default:
                         StingLog.Warn($"Unrecognised command tag: {tag}");
