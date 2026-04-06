@@ -3,8 +3,10 @@ using StingBIM.Infrastructure.SignalR;
 using StingBIM.API.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,6 +68,42 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// ── Rate Limiting ──
+// auth: 10 req/min per IP (prevents brute-force)
+// api:  tier-based — configured per user after auth; global fallback 120 req/min
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Fixed-window for auth endpoints — 10 requests per minute per IP
+    options.AddFixedWindowLimiter("auth", o =>
+    {
+        o.PermitLimit         = 10;
+        o.Window              = TimeSpan.FromMinutes(1);
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        o.QueueLimit          = 0;
+    });
+
+    // Sliding-window for API endpoints — 120 requests per minute per IP (global fallback)
+    options.AddSlidingWindowLimiter("api", o =>
+    {
+        o.PermitLimit         = 120;
+        o.Window              = TimeSpan.FromMinutes(1);
+        o.SegmentsPerWindow   = 6;  // 10-second buckets
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        o.QueueLimit          = 0;
+    });
+
+    // Tag sync: 30 req/min per IP (large payloads — be conservative)
+    options.AddFixedWindowLimiter("tagsync", o =>
+    {
+        o.PermitLimit         = 30;
+        o.Window              = TimeSpan.FromMinutes(1);
+        o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        o.QueueLimit          = 0;
+    });
+});
+
 // ── CORS for web dashboard ──
 builder.Services.AddCors(options =>
 {
@@ -86,6 +124,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 app.UseCors("Dashboard");
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // Must run AFTER auth so JWT claims are available

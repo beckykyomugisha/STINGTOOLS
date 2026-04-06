@@ -21,6 +21,7 @@ public class StingBimDbContext : DbContext
     public DbSet<MeetingActionItem> MeetingActionItems => Set<MeetingActionItem>();
     public DbSet<Transmittal> Transmittals => Set<Transmittal>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
     // StingMIM entities (loaded when MIM is enabled)
     public DbSet<MIM.Entities.Asset> Assets => Set<MIM.Entities.Asset>();
@@ -144,6 +145,15 @@ public class StingBimDbContext : DbContext
             e.HasKey(a => a.Id);
             e.HasIndex(a => new { a.TenantId, a.Timestamp });
             e.HasIndex(a => new { a.ProjectId, a.Timestamp });
+        });
+
+        // ── ProjectMember ──
+        modelBuilder.Entity<ProjectMember>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasIndex(m => new { m.ProjectId, m.UserId }).IsUnique();
+            e.HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── StingMIM Entities ──
