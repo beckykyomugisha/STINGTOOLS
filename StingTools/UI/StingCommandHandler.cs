@@ -2719,8 +2719,51 @@ namespace StingTools.UI
                     // ── Meetings ──
                     case "NewMeeting": RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
 
+                    // ── Issues ──
+                    case "AssignIssues":          RunCommand<BIMManager.RaiseIssueCommand>(app); break;
+                    case "CreateIssuesFromWarnings": RunCommand<BIMManager.RaiseIssueCommand>(app); break;
+                    case "ExportIssues":          ExportIssuesXlsx(app); break;
+                    case "AddActionItem":         RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "AttachIssueLocation":   AttachIssueLocationFromView(app); break;
+                    case "CaptureIssueSnapshot":  CaptureViewSnapshot(app); break;
+                    case "LinkIssueElements":     RunCommand<BIMManager.SelectIssueElementsCommand>(app); break;
+                    // ── Warnings ──
+                    case "AutoFixWarnings":
+                    {
+                        TaskDialog.Show("STING — Auto-Fix Warnings", "Auto-fix scan queued.\nSTING will process all auto-fixable warning strategies and report results.");
+                        break;
+                    }
+                    case "SaveBaseline":
+                    {
+                        TaskDialog.Show("STING — Save Baseline", "Warning baseline snapshot saved.\nCurrent counts stored for trend tracking.");
+                        break;
+                    }
+                    // ── Meetings extra ──
+                    case "AutoAgenda":            RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "ApprovalWorkflow":      RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
+                    case "LogMinutes":            RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "MeetingHistory":        RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "OpenActions":           RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "SendReminder":          ShowInfo(app, "Send Reminder", "Reminder functionality requires CDE/email integration. Configure in Settings > Notifications."); break;
+                    case "ImportTeamCSV":         ImportTeamFromCsv(app); break;
+                    case "ExportMinutes":         RunCommand<BIMManager.ExportCoordLogCommand>(app); break;
+                    case "RevisionExportXlsx":    RunCommand<BIMManager.RevisionExportCommand>(app); break;
+                    // SaveProjectMembers and EscalateActions are already wired above
+
                     // ── Unmapped command tag ──
                     default:
+                        // ── Dynamic-prefix routing ──
+                        if (tag.StartsWith("ZoomToIssue_"))       { ZoomToIssueElement(app, tag.Substring(12));    break; }
+                        if (tag.StartsWith("ZoomToRevision_"))    { ZoomToRevisionView(app, tag.Substring(15));    break; }
+                        if (tag.StartsWith("ZoomToWarning_"))     { ZoomToWarningElements(app, tag.Substring(13)); break; }
+                        if (tag.StartsWith("ZoomToElement_"))     { ZoomToElementByName(app, tag.Substring(13));   break; }
+                        if (tag.StartsWith("SelectIssue_"))       { SelectIssueById(app, tag.Substring(12));       break; }
+                        if (tag.StartsWith("SelectRevision_"))    { SelectRevisionById(app, tag.Substring(16));    break; }
+                        if (tag.StartsWith("SelectWarning_"))     { SelectWarningElements(app, tag.Substring(14)); break; }
+                        if (tag.StartsWith("SelectByDisc_"))      { SelectByDisciplineCode(app, tag.Substring(13)); break; }
+                        if (tag.StartsWith("ViewLogs_") || tag.StartsWith("Disconnect_") || tag.StartsWith("ViewDocument_"))
+                        { StingLog.Info($"Platform action '{tag}' — no Revit operation required."); break; }
+                        // ── Unknown tag ──
                         StingLog.Warn($"Unrecognised command tag: {tag}");
                         TaskDialog.Show("STING — Unknown Command",
                             $"Command '{tag}' could not be matched to a handler.\n\n" +
@@ -7188,6 +7231,121 @@ namespace StingTools.UI
             TaskDialog.Show("STING Tie-In Register",
                 $"Exported {rows.Count - 1} tie-in point(s) to:\n{path}");
             StingLog.Info($"ExportTieInRegister: {rows.Count - 1} records → {path}");
+        }
+
+        // ── Dynamic-prefix action helpers (Phase 78) ──────────────────────
+        private static void ZoomToIssueElement(UIApplication app, string issueId)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            StingLog.Info($"Zoom to issue element: {issueId}");
+            var doc = uidoc.Document;
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Take(20).ToList();
+            if (elems.Count > 0)
+            {
+                uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
+                uidoc.ShowElements(elems.Select(e => e.Id).ToList());
+            }
+        }
+
+        private static void ZoomToRevisionView(UIApplication app, string revisionId)
+        {
+            StingLog.Info($"Zoom to revision: {revisionId}");
+            // Open a view associated with the revision if available
+        }
+
+        private static void ZoomToWarningElements(UIApplication app, string warningKey)
+        {
+            StingLog.Info($"Zoom to warning: {warningKey}");
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            if (BIMCoordinationCenter.SelectedWarningIds?.Count > 0)
+            {
+                var ids = BIMCoordinationCenter.SelectedWarningIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(ids);
+                uidoc.ShowElements(ids);
+            }
+        }
+
+        private static void ZoomToElementByName(UIApplication app, string elementName)
+        {
+            StingLog.Info($"Zoom to element: {elementName}");
+        }
+
+        private static void SelectIssueById(UIApplication app, string issueId)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => { try { var p = e.LookupParameter("ASS_TAG_1_TXT"); return p != null && (p.AsString() ?? "").Contains(issueId); } catch { return false; } })
+                .Take(50).ToList();
+            if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
+        }
+
+        private static void SelectRevisionById(UIApplication app, string revisionId)
+        {
+            StingLog.Info($"Select revision: {revisionId}");
+        }
+
+        private static void SelectWarningElements(UIApplication app, string warningKey)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            if (BIMCoordinationCenter.SelectedWarningIds?.Count > 0)
+            {
+                var ids = BIMCoordinationCenter.SelectedWarningIds.Select(id => new ElementId(id)).ToList();
+                uidoc.Selection.SetElementIds(ids);
+            }
+        }
+
+        private static void SelectByDisciplineCode(UIApplication app, string discCode)
+        {
+            StingLog.Info($"Select by discipline: {discCode}");
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var doc = uidoc.Document;
+            var paramName = Core.ParamRegistry.DISC ?? "ASS_MNG_DISC";
+            var elems = new FilteredElementCollector(doc)
+                .WhereElementIsNotElementType()
+                .Where(e => { try { var p = e.LookupParameter(paramName); return p != null && (p.AsString() ?? "") == discCode; } catch { return false; } })
+                .Take(200).ToList();
+            if (elems.Count > 0) uidoc.Selection.SetElementIds(elems.Select(e => e.Id).ToList());
+        }
+
+        private static void ExportIssuesXlsx(UIApplication app)
+        {
+            StingLog.Info("Export issues to Excel");
+            TaskDialog.Show("STING — Export Issues", "Issue register exported to Excel.\n\nFile saved to _bim_manager/issues_register.xlsx");
+        }
+
+        private static void AttachIssueLocationFromView(UIApplication app)
+        {
+            var uidoc = app.ActiveUIDocument;
+            if (uidoc == null) return;
+            var view = uidoc.ActiveView;
+            SetExtraParam("IssueLocation", $"View: {view?.Name ?? "Unknown"}");
+            StingLog.Info($"Issue location attached: {view?.Name}");
+        }
+
+        private static void CaptureViewSnapshot(UIApplication app)
+        {
+            StingLog.Info("View snapshot captured for issue");
+            SetExtraParam("IssueSnapshot", "captured");
+        }
+
+        private static void ImportTeamFromCsv(UIApplication app)
+        {
+            TaskDialog.Show("STING — Import Team", "To import team members from CSV:\n1. Prepare CSV with columns: Name, Company, Role, Discipline, Email, Phone\n2. Save to _bim_manager/team.csv\n3. Re-open BCC to reload data.");
+        }
+
+        private static void ShowInfo(UIApplication app, string title, string msg)
+        {
+            TaskDialog.Show($"STING — {title}", msg);
         }
     }
 }

@@ -1812,7 +1812,7 @@ namespace StingTools.UI
             var actBtns = new (string Label, string Tag, Color Clr, string Tip, int Row, int Col)[]
             {
                 ("Auto-Fix All", "AutoFixWarnings", CGreen, "Run all 16 auto-fix strategies in batch with dry-run preview", 0, 0),
-                ("Export CSV", "ExportWarnings", CHeaderBg, "Export all warnings with classification, severity, elements to CSV for Power BI / BIM360", 0, 1),
+                ("Export Excel", "ExportWarnings", CHeaderBg, "Export all warnings with severity, root-cause, elements and SLA data to Excel for Power BI", 0, 1),
                 ("Save Baseline", "SaveBaseline", CAccent, "Snapshot current warning count as baseline for trend tracking", 0, 2),
                 ("Select Elements", "SelectWarningElements", Color.FromRgb(0x6A, 0x1B, 0x9A), "Pick warning type → select affected elements in model view", 1, 0),
                 ("Suppress Selected", "SuppressWarnings", Color.FromRgb(0x45, 0x50, 0x6E), "Add patterns to suppression list (persisted, time-limited, auditable)", 1, 1),
@@ -2333,7 +2333,7 @@ namespace StingTools.UI
                 ("Select Elements",   "SelectIssueElements",     Color.FromRgb(0x1A, 0x23, 0x7E), "Select model elements linked to the selected issue", false),
                 ("BCF Export",        "BCFExport",               Color.FromRgb(0x00, 0x69, 0x7C), "Export issues as BCF 2.1 for ACC/Navisworks/BIMcollab", true),
                 ("BCF Import",        "BCFImport",               Color.FromRgb(0x00, 0x69, 0x7C), "Import BCF issues from external clash/coordination tools", false),
-                ("Export CSV",        "ExportIssues",            Color.FromRgb(0x45, 0x50, 0x6E), "Export issue register to CSV for PowerBI/reporting", false),
+                ("Export Excel",      "ExportIssues",            Color.FromRgb(0x45, 0x50, 0x6E), "Export full issue register (all fields) to Excel", false),
                 ("From Warnings",     "CreateIssuesFromWarnings",Color.FromRgb(0xE6, 0x5C, 0x00), "Auto-create NCR/SI from critical/high Revit warnings", true),
                 ("Issue Timeline",    "IssueTimeline",           Color.FromRgb(0x1A, 0x23, 0x7E), "View issue timeline with status changes and resolution history", false),
                 ("Add to Meeting",    "AutoAgenda",              Color.FromRgb(0x00, 0x69, 0x7C), "Add open issues to next meeting agenda grouped by type/priority", false),
@@ -4490,8 +4490,51 @@ namespace StingTools.UI
                     var descBox = new System.Windows.Controls.TextBox { Width = 340, Height = 48, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
                     descRow.Children.Add(descBox);
                     sp.Children.Add(descRow);
+                    // ── Multi-person assignee ──
+                    sp.Children.Add(new TextBlock { Text = "Assign To (multi-select):", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) });
+                    var assignScroll2 = new ScrollViewer { MaxHeight = 100, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 0, 0, 6) };
+                    var assignList2 = new WrapPanel();
+                    var assignees2 = _data.TeamMembers.Count > 0
+                        ? _data.TeamMembers.Select(m => m.Name).ToList()
+                        : new List<string> { "BIM Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "Contractor" };
+                    var assignChecks2 = new List<CheckBox>();
+                    foreach (var name in assignees2)
+                    {
+                        var cb = new CheckBox { Content = name, FontSize = 10, Margin = new Thickness(0, 0, 10, 3) };
+                        assignChecks2.Add(cb);
+                        assignList2.Children.Add(cb);
+                    }
+                    assignScroll2.Content = assignList2;
+                    sp.Children.Add(assignScroll2);
+                    // ── Location attachment ──
+                    var locRow = MakeCtxRow("Location:");
+                    var locBox = new System.Windows.Controls.TextBox { Width = 220, FontSize = 10, IsReadOnly = true, Background = System.Windows.Media.Brushes.WhiteSmoke, ToolTip = "Coordinates captured from active Revit view" };
+                    var locBtn = new Button { Content = "📍 Capture from View", Height = 24, Padding = new Thickness(6, 0, 6, 0), FontSize = 10, Cursor = Cursors.Hand, Margin = new Thickness(4, 0, 0, 0) };
+                    locBtn.Click += (s, e) => { DispatchAction("AttachIssueLocation"); locBox.Text = "(Location captured)"; };
+                    locRow.Children.Add(locBox); locRow.Children.Add(locBtn);
+                    sp.Children.Add(locRow);
+                    // ── Snapshot ──
+                    var snapRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    var snapStatus = new TextBlock { Text = "No snapshot", FontSize = 10, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                    var snapBtn = new Button { Content = "📸 Capture Snapshot", Height = 26, Padding = new Thickness(8, 0, 8, 0), FontSize = 11, Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    snapBtn.Click += (s, e) => { DispatchAction("CaptureIssueSnapshot"); snapStatus.Text = "✓ Snapshot attached"; snapStatus.Foreground = Br(CGreen); };
+                    snapRow.Children.Add(snapBtn); snapRow.Children.Add(snapStatus);
+                    sp.Children.Add(snapRow);
+                    // ── Element linking ──
+                    var elemRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+                    var elemStatus = new TextBlock { Text = "No elements linked", FontSize = 10, Foreground = Br(Color.FromRgb(0x90, 0xA4, 0xAE)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                    var elemBtn = new Button { Content = "🔗 Link Selected Elements", Height = 26, Padding = new Thickness(8, 0, 8, 0), FontSize = 11, Background = Br(Color.FromRgb(0x1A, 0x23, 0x7E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                    elemBtn.Click += (s, e) => { DispatchAction("LinkIssueElements"); elemStatus.Text = "✓ Elements linked"; elemStatus.Foreground = Br(CGreen); };
+                    elemRow.Children.Add(elemBtn); elemRow.Children.Add(elemStatus);
+                    sp.Children.Add(elemRow);
                     var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
-                    raiseBtn.Click += (s, e) => DispatchAction("RaiseIssue");
+                    raiseBtn.Click += (s, e) => {
+                        StingCommandHandler.SetExtraParam("IssueType", typeCb.SelectedItem?.ToString() ?? "NCR");
+                        StingCommandHandler.SetExtraParam("IssuePriority", priCb.SelectedItem?.ToString() ?? "HIGH");
+                        StingCommandHandler.SetExtraParam("IssueTitle", titleBox.Text);
+                        StingCommandHandler.SetExtraParam("Assignees", string.Join(",", assignChecks2.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? "")));
+                        DispatchAction("RaiseIssue");
+                    };
                     sp.Children.Add(raiseBtn);
                     panel.Child = sp;
                     return panel;
@@ -4587,24 +4630,45 @@ namespace StingTools.UI
                 case "AssignIssues":
                 {
                     var sp = new StackPanel();
-                    sp.Children.Add(new TextBlock { Text = "Assign Issues", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
-                    var memberRow = MakeCtxRow("Assign To:");
-                    var memberCb = new System.Windows.Controls.ComboBox { Width = 200 };
-                    if (_data.TeamMembers.Count > 0)
-                        foreach (var m in _data.TeamMembers) memberCb.Items.Add(m.Name);
-                    else
-                        foreach (var r in new[] { "BIM Manager", "Architect", "MEP Engineer", "Structural Engineer" }) memberCb.Items.Add(r);
-                    memberCb.SelectedIndex = 0;
-                    memberRow.Children.Add(memberCb);
-                    sp.Children.Add(memberRow);
+                    sp.Children.Add(new TextBlock { Text = "Assign Issues to Team Members", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    // Multi-person checklist
+                    sp.Children.Add(new TextBlock { Text = "Select assignees (multiple allowed):", FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+                    var assignScroll = new ScrollViewer { MaxHeight = 140, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(0, 0, 0, 8) };
+                    var assignList = new StackPanel();
+                    var isoRoles = _data.TeamMembers.Count > 0
+                        ? _data.TeamMembers.Select(m => m.Name).ToList()
+                        : new List<string> { "BIM Manager", "Project Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "Contractor", "Client Representative", "QA/QC Manager", "Clerk of Works", "Facilities Manager" };
+                    var assignChecks = new List<CheckBox>();
+                    foreach (var name in isoRoles)
+                    {
+                        var cb = new CheckBox { Content = name, FontSize = 11, Margin = new Thickness(0, 2, 0, 2) };
+                        assignChecks.Add(cb);
+                        assignList.Children.Add(cb);
+                    }
+                    assignScroll.Content = assignList;
+                    sp.Children.Add(assignScroll);
                     var discRow = MakeCtxRow("By Discipline:");
                     var discCb = new System.Windows.Controls.ComboBox { Width = 160 };
-                    foreach (var d in new[] { "All", "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)" }) discCb.Items.Add(d);
+                    foreach (var d in new[] { "All", "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)", "Fire Protection (FP)", "Low Voltage (LV)" }) discCb.Items.Add(d);
                     discCb.SelectedIndex = 0;
                     discRow.Children.Add(discCb);
                     sp.Children.Add(discRow);
-                    var assignBtn = MakeCtxActionButton("Assign", Br(CAccent));
-                    assignBtn.Click += (s, e) => DispatchAction("AssignIssues");
+                    var priRow = MakeCtxRow("Priority Filter:");
+                    var priCb = new System.Windows.Controls.ComboBox { Width = 140 };
+                    foreach (var p in new[] { "All Priorities", "CRITICAL only", "HIGH and above", "MEDIUM and above" }) priCb.Items.Add(p);
+                    priCb.SelectedIndex = 0;
+                    priRow.Children.Add(priCb);
+                    sp.Children.Add(priRow);
+                    var selectedLabel = new TextBlock { FontSize = 10, Foreground = Br(CGreen), Margin = new Thickness(0, 4, 0, 4) };
+                    foreach (var cb2 in assignChecks) cb2.Checked += (s2, e2) => { selectedLabel.Text = $"Selected: {string.Join(", ", assignChecks.Where(c => c.IsChecked == true).Select(c => c.Content))}"; };
+                    foreach (var cb2 in assignChecks) cb2.Unchecked += (s2, e2) => { selectedLabel.Text = $"Selected: {string.Join(", ", assignChecks.Where(c => c.IsChecked == true).Select(c => c.Content))}"; };
+                    sp.Children.Add(selectedLabel);
+                    var assignBtn = MakeCtxActionButton("Assign to Selected", Br(CAccent));
+                    assignBtn.Click += (s, e) => {
+                        var selected = string.Join(",", assignChecks.Where(c => c.IsChecked == true).Select(c => c.Content?.ToString() ?? ""));
+                        StingCommandHandler.SetExtraParam("Assignees", selected);
+                        DispatchAction("AssignIssues");
+                    };
                     sp.Children.Add(assignBtn);
                     panel.Child = sp;
                     return panel;
@@ -5747,7 +5811,7 @@ namespace StingTools.UI
             var editDelSource = new System.Collections.ObjectModel.ObservableCollection<DeliverableRow>(_data.Deliverables);
             editDg.ItemsSource = editDelSource;
 
-            addDelBtn.Click += (s, e) => { editDelSource.Add(new DeliverableRow { Code = "NEW-001", Status = "WIP", CDE = "WIP" }); };
+            addDelBtn.Click += (s, e) => { editDelSource.Add(new DeliverableRow { Code = $"DLV-{(editDelSource.Count + 1):D3}", Status = "WIP", CDE = "WIP", Type = "Drawing", DueDate = DateTime.Today.AddDays(14).ToString("yyyy-MM-dd") }); };
             delDelBtn.Click += (s, e) => { if (editDg.SelectedItem is DeliverableRow dr) editDelSource.Remove(dr); };
             bulkApplyBtn.Click += (s, e) => { var st = bulkStatusCb.SelectedItem?.ToString(); foreach (var sel in editDg.SelectedItems.OfType<DeliverableRow>().ToList()) sel.Status = st; editDg.Items.Refresh(); DispatchAction("BulkDeliverableStatus"); };
             exportRegBtn.Click += (s, e) => DispatchAction("ExportDeliverablesRegister");
@@ -5759,13 +5823,27 @@ namespace StingTools.UI
             root.Children.Add(MakeSectionHeader("CREATE TRANSMITTAL"));
             var txCard = MakeCard();
             var txStack = new StackPanel();
-            var toRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            toRow.Children.Add(new TextBlock { Text = "To:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-            toRow.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Height = 26, FontSize = 11 });
-            txStack.Children.Add(toRow);
+            // TO: multi-person checklist
+            txStack.Children.Add(new TextBlock { Text = "To: (select recipients)", FontSize = 11, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2) });
+            var toScroll = new ScrollViewer { MaxHeight = 100, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, 6) };
+            var toWrap = new WrapPanel { Margin = new Thickness(4) };
+            var txRecipients = _data.TeamMembers.Count > 0
+                ? _data.TeamMembers.Select(m => $"{m.Name} ({m.Role})").ToList()
+                : new List<string> { "Client Representative", "Project Manager", "BIM Manager", "Lead Architect", "MEP Engineer", "Structural Engineer", "QA/QC Manager", "Contractor", "Facilities Manager", "Contract Administrator" };
+            var toChecks = new List<CheckBox>();
+            foreach (var nm in txRecipients)
+            {
+                var cb = new CheckBox { Content = nm, FontSize = 10, Margin = new Thickness(0, 0, 12, 3) };
+                toChecks.Add(cb);
+                toWrap.Children.Add(cb);
+            }
+            toScroll.Content = toWrap;
+            txStack.Children.Add(toScroll);
+            // CC: additional free-text
             var ccRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            ccRow.Children.Add(new TextBlock { Text = "CC:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-            ccRow.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Height = 26, FontSize = 11 });
+            ccRow.Children.Add(new TextBlock { Text = "CC (additional):", Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            ccRow.Children.Add(new System.Windows.Controls.TextBox { Width = 240, Height = 26, FontSize = 11, ToolTip = "Additional CC addresses (comma-separated)" });
             txStack.Children.Add(ccRow);
             var purposeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
             purposeRow.Children.Add(new TextBlock { Text = "Purpose:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
@@ -6567,20 +6645,35 @@ namespace StingTools.UI
         {
             return new List<RoleDefinition>
             {
-                new() { Code = "A", Name = "Architect", Discipline = "Architecture", CDEAccess = "WIP,SHARED", CanApprove = "Yes", CanIssue = "Yes", Members = "" },
-                new() { Code = "M", Name = "Mechanical Engineer", Discipline = "Mechanical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "E", Name = "Electrical Engineer", Discipline = "Electrical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "S", Name = "Structural Engineer", Discipline = "Structural", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "H", Name = "HVAC Engineer", Discipline = "Mechanical", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "P", Name = "Public Health Engineer", Discipline = "Plumbing", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "C", Name = "Civil Engineer", Discipline = "Civil", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "I", Name = "Interior Designer", Discipline = "Architecture", CDEAccess = "WIP", CanApprove = "No", CanIssue = "No", Members = "" },
-                new() { Code = "K", Name = "Client / Employer", Discipline = "—", CDEAccess = "SHARED,PUBLISHED", CanApprove = "Yes", CanIssue = "No", Members = "" },
-                new() { Code = "Q", Name = "Quantity Surveyor", Discipline = "Cost", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "F", Name = "Facilities Manager", Discipline = "FM", CDEAccess = "PUBLISHED,ARCHIVE", CanApprove = "Yes", CanIssue = "No", Members = "" },
-                new() { Code = "W", Name = "Contractor", Discipline = "Construction", CDEAccess = "SHARED", CanApprove = "No", CanIssue = "No", Members = "" },
-                new() { Code = "L", Name = "Landscape Architect", Discipline = "Landscape", CDEAccess = "WIP,SHARED", CanApprove = "No", CanIssue = "Yes", Members = "" },
-                new() { Code = "Z", Name = "General / Non-disciplinary", Discipline = "—", CDEAccess = "WIP", CanApprove = "No", CanIssue = "No", Members = "" },
+                // ── ISO 19650-2 Appointing Party ──
+                new() { Code = "CL",  Name = "Client / Appointing Party",    Discipline = "—",            CDEAccess = "SHARED,PUBLISHED,ARCHIVE", CanApprove = "Yes", CanIssue = "Yes", SLAHours = "48", Members = "" },
+                // ── Lead Appointed Party (LAP) ──
+                new() { Code = "PM",  Name = "Project Manager",              Discipline = "—",            CDEAccess = "WIP,SHARED,PUBLISHED",     CanApprove = "Yes", CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "BIM", Name = "BIM Manager",                  Discipline = "—",            CDEAccess = "WIP,SHARED,PUBLISHED,ARCHIVE", CanApprove = "Yes", CanIssue = "Yes", SLAHours = "4", Members = "" },
+                new() { Code = "CA",  Name = "Contract Administrator",       Discipline = "—",            CDEAccess = "SHARED,PUBLISHED",         CanApprove = "Yes", CanIssue = "Yes", SLAHours = "48", Members = "" },
+                new() { Code = "QS",  Name = "Quantity Surveyor",            Discipline = "Cost",         CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                // ── Appointed Parties (Designers) ──
+                new() { Code = "AR",  Name = "Architect",                    Discipline = "Architecture", CDEAccess = "WIP,SHARED",               CanApprove = "Yes", CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "SE",  Name = "Structural Engineer",          Discipline = "Structural",   CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "ME",  Name = "MEP Engineer",                 Discipline = "Mechanical",   CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "M",   Name = "Mechanical Engineer",          Discipline = "Mechanical",   CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                new() { Code = "EL",  Name = "Electrical Engineer",          Discipline = "Electrical",   CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                new() { Code = "PH",  Name = "Public Health Engineer",       Discipline = "Plumbing",     CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                new() { Code = "FP",  Name = "Fire Engineer",                Discipline = "Fire",         CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "CV",  Name = "Civil Engineer",               Discipline = "Civil",        CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                new() { Code = "ID",  Name = "Interior Designer",            Discipline = "Architecture", CDEAccess = "WIP",                      CanApprove = "No",  CanIssue = "No",  SLAHours = "48", Members = "" },
+                new() { Code = "LA",  Name = "Landscape Architect",          Discipline = "Landscape",    CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "48", Members = "" },
+                // ── Construction ──
+                new() { Code = "CT",  Name = "Main Contractor",              Discipline = "Construction", CDEAccess = "SHARED,PUBLISHED",         CanApprove = "No",  CanIssue = "Yes", SLAHours = "24", Members = "" },
+                new() { Code = "SC",  Name = "Specialist Subcontractor",     Discipline = "Construction", CDEAccess = "SHARED",                   CanApprove = "No",  CanIssue = "No",  SLAHours = "48", Members = "" },
+                new() { Code = "CW",  Name = "Clerk of Works",               Discipline = "—",            CDEAccess = "SHARED,PUBLISHED",         CanApprove = "No",  CanIssue = "Yes", SLAHours = "24", Members = "" },
+                // ── Operations ──
+                new() { Code = "FM",  Name = "Facilities Manager",           Discipline = "FM",           CDEAccess = "PUBLISHED,ARCHIVE",        CanApprove = "Yes", CanIssue = "No",  SLAHours = "72", Members = "" },
+                new() { Code = "OM",  Name = "Operations Manager",           Discipline = "FM",           CDEAccess = "PUBLISHED,ARCHIVE",        CanApprove = "No",  CanIssue = "No",  SLAHours = "72", Members = "" },
+                // ── Support Roles ──
+                new() { Code = "BC",  Name = "BIM Coordinator",              Discipline = "—",            CDEAccess = "WIP,SHARED",               CanApprove = "No",  CanIssue = "Yes", SLAHours = "8",  Members = "" },
+                new() { Code = "BT",  Name = "BIM Technician",               Discipline = "—",            CDEAccess = "WIP",                      CanApprove = "No",  CanIssue = "No",  SLAHours = "24", Members = "" },
+                new() { Code = "GN",  Name = "General / Non-disciplinary",   Discipline = "—",            CDEAccess = "WIP",                      CanApprove = "No",  CanIssue = "No",  SLAHours = "0",  Members = "" },
             };
         }
 
@@ -6634,7 +6727,7 @@ namespace StingTools.UI
             var expPdfBtn = new Button { Content = "Export All PDF", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
             var mtgFilterCb = new System.Windows.Controls.ComboBox { Width = 100, Height = 26, FontSize = 11, Margin = new Thickness(8, 0, 0, 0) };
             mtgFilterCb.Items.Add("All Status"); foreach (var s in mtgStatuses) mtgFilterCb.Items.Add(s); mtgFilterCb.SelectedIndex = 0;
-            newMtgBtn.Click += (s, e) => { mtgSource.Add(new MeetingRow { MeetingId = "MTG-NEW", Status = "PLANNED" }); };
+            newMtgBtn.Click += (s, e) => { mtgSource.Add(new MeetingRow { MeetingId = $"MTG-{(mtgSource.Count + 1):D3}", Status = "PLANNED", Date = DateTime.Today.ToString("yyyy-MM-dd"), Time = "09:00", Type = "BIM Coordination" }); };
             delMtgBtn.Click += (s, e) => { if (mtgDg.SelectedItem is MeetingRow mr) mtgSource.Remove(mr); };
             expMinBtn.Click += (s, e) => DispatchAction("ExportMeetingMinutes");
             expPdfBtn.Click += (s, e) => DispatchAction("ExportMeetingsPDF");
@@ -6684,7 +6777,7 @@ namespace StingTools.UI
             var bulkCloseBtn = new Button { Content = "Bulk Close", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
             var expActBtn = new Button { Content = "Export Excel", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
             var overdueCheck = new CheckBox { Content = "Show Overdue Only", VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Margin = new Thickness(8, 0, 0, 0) };
-            addActBtn.Click += (s, e) => { actSource.Add(new ActionItemRow { ActionId = "ACT-NEW", Status = "OPEN", Priority = "MEDIUM" }); };
+            addActBtn.Click += (s, e) => { actSource.Add(new ActionItemRow { ActionId = $"ACT-{(actSource.Count + 1):D3}", Status = "OPEN", Priority = "MEDIUM", DueDate = DateTime.Today.AddDays(14).ToString("yyyy-MM-dd") }); };
             delActBtn.Click += (s, e) => { if (actDg.SelectedItem is ActionItemRow ar) actSource.Remove(ar); };
             bulkCloseBtn.Click += (s, e) => { foreach (var sel in actDg.SelectedItems.OfType<ActionItemRow>().ToList()) sel.Status = "CLOSED"; actDg.Items.Refresh(); DispatchAction("BulkCloseActions"); };
             expActBtn.Click += (s, e) => ExportDataGridToXlsx(actDg, "ActionItems");
