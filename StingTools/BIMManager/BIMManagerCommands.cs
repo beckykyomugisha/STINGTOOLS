@@ -6754,9 +6754,75 @@ namespace StingTools.BIMManager
         }
     }
 
-    /// <summary>
-    /// Export model health report to CSV file for tracking over time.
-    /// </summary>
+    /// <summary>Phase 76: Export permission matrix to XLSX using StingExcelExporter.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportPermissionMatrixCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+
+                var roles   = UI.BIMCoordinationCenter.GetLastPermissionsRoles();
+                var folders = UI.BIMCoordinationCenter.GetLastPermissionsFolders();
+
+                string outDir = Core.OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+                string path = Core.StingExcelExporter.ExportPermissionMatrix(
+                    outDir,
+                    roles.Select(r   => (r.Code, r.Name, r.Discipline, r.CDEAccess, r.CanApprove, r.CanIssue)).ToList(),
+                    folders.Select(f => (f.Folder, f.CDEState, f.ReadRoles, f.WriteRoles, f.ApproveRoles)).ToList());
+
+                TaskDialog.Show("STING", $"Permission matrix exported:\n{path}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    /// <summary>Phase 76: Export coordination log to XLSX.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ExportCoordLogCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) return Result.Failed;
+                Document doc = ctx.Doc;
+
+                string logPath = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "", ".sting_coord_log.json");
+                if (!System.IO.File.Exists(logPath))
+                { TaskDialog.Show("STING", "No coordination log found."); return Result.Succeeded; }
+
+                var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<
+                    List<UI.BIMCoordinationCenter.CoordLogEntry>>(System.IO.File.ReadAllText(logPath));
+                if (entries == null || entries.Count == 0)
+                { TaskDialog.Show("STING", "Coordination log is empty."); return Result.Succeeded; }
+
+                string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
+                string xlPath = System.IO.Path.Combine(outDir, $"coord_log_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+
+                var headers = new List<string> { "Timestamp", "User", "Action", "Category", "Detail", "Impact" };
+                var rows = entries.Select(e => new List<string>
+                {
+                    e.Timestamp ?? "", e.User ?? "", e.Action ?? "", e.Category ?? "", e.Detail ?? "", e.Impact ?? ""
+                }).ToList();
+
+                Core.StingExcelExporter.ExportTable(xlPath, "Coord Log", headers, rows);
+                TaskDialog.Show("STING", $"Coordination log exported ({entries.Count} entries):\n{xlPath}");
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { message = ex.Message; return Result.Failed; }
+        }
+    }
+
+    /// <summary>Export model health report to CSV file for tracking over time.</summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class ExportModelHealthCommand : IExternalCommand
@@ -8182,6 +8248,35 @@ namespace StingTools.BIMManager
 
             File.WriteAllText(path, sb.ToString());
             StingLog.Info($"4DTimeline: exported {elements.Count} elements to {path}");
+
+            // Phase 76: XLSX mirror
+            try
+            {
+                string xlsxPath = Path.ChangeExtension(path, ".xlsx");
+                var headers = new List<string> { "ElementId","Category","Tag","Phase","Level","Discipline","StartDate","EndDate","Predecessors","Duration_Days" };
+                var xlRows = elements.Select(el =>
+                {
+                    string catN = el.Category?.Name ?? "";
+                    string pn = "";
+                    var pp = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                    if (pp?.HasValue == true) pn = (doc.GetElement(pp.AsElementId()) as Phase)?.Name ?? "";
+                    return new List<string>
+                    {
+                        el.Id.ToString(), catN,
+                        ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "",
+                        pn,
+                        ParameterHelpers.GetString(el, ParamRegistry.LVL) ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "",
+                        ParameterHelpers.GetString(el, "STING_4D_START_DATE_TXT") ?? "",
+                        ParameterHelpers.GetString(el, "STING_4D_END_DATE_TXT") ?? "",
+                        ParameterHelpers.GetString(el, "STING_PREDECESSOR_TAGS_TXT") ?? "",
+                        EstimateDuration(catN).ToString()
+                    };
+                }).ToList();
+                Core.StingExcelExporter.ExportTable(xlsxPath, "4D Timeline", headers, xlRows, openFolder: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"4DTimeline XLSX: {ex.Message}"); }
+
             return path;
         }
 
@@ -8225,6 +8320,31 @@ namespace StingTools.BIMManager
 
             File.WriteAllText(path, sb.ToString());
             StingLog.Info($"5DCostData: exported {elements.Count} elements to {path}");
+
+            // Phase 76: XLSX mirror
+            try
+            {
+                string xlsxPath = Path.ChangeExtension(path, ".xlsx");
+                var headers = new List<string> { "ElementId","Category","Tag","Discipline","Family","Type","Quantity","Unit","EstimatedCost_GBP" };
+                var xlRows = elements.Select(el =>
+                {
+                    string catN = el.Category?.Name ?? "";
+                    (double qty, string unit) = ExtractQuantity(el);
+                    double cost = EstimateCost(catN, qty);
+                    return new List<string>
+                    {
+                        el.Id.ToString(), catN,
+                        ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "",
+                        ParameterHelpers.GetFamilyName(el) ?? "",
+                        ParameterHelpers.GetFamilySymbolName(el) ?? "",
+                        qty.ToString("F2"), unit, cost.ToString("F2")
+                    };
+                }).ToList();
+                Core.StingExcelExporter.ExportTable(xlsxPath, "5D Cost Data", headers, xlRows, openFolder: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"5DCostData XLSX: {ex.Message}"); }
+
             return path;
         }
 
