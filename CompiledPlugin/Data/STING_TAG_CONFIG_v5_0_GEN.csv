@@ -1,0 +1,476 @@
+#SCHEMA_VERSION=5.1,CREATED=2026-03-16,UPDATED=2026-03-19,NOTES=all_params_verified_against_MR_PARAMETERS
+STING Tag Configuration v5.0 - GEN (COMPLETE with Warnings)
+6E — Generic / Site / Specialty
+Tag Family #1: STING - Generic Models Tag
+TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Generic Models
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_PRODCT_COD_TXT,Prod:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")"
+5,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,ASS_TAG_7_PARA_EQUIPMENT_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7_PARA_EQUIPMENT_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+9,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_GEN_TAG_INCOMPLETE_TXT,Primary tag ASS_TAG_1_TXT empty,ISO 19650-2,Common,Text,⚠ Warning: Tag Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_TAG_INCOMPLETE_TXT, """")"
+2,MEDIUM,WARN_GEN_NO_MANUFACTURER,Manufacturer not specified,ISO 19650-2 / COBie V2.4,Common,Text,⚠ Warning: No Manufacturer,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_NO_MANUFACTURER, """")"
+3,MEDIUM,WARN_GEN_NO_EXPECTED_LIFE,Expected life not specified for asset management,BS 15686 / ISO 19650-3,Common,Text,⚠ Warning: No Expected Life,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_NO_EXPECTED_LIFE, """")"
+
+Tag Family #2: STING - Specialty Equipment Tag
+TAG7: GEN_TAG_7_PARA_EQUIP_TXT  •  Category: Specialty Equipment
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_PRODCT_COD_TXT,Prod:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")"
+5,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+6,T2,ASS_FUNC_TXT,Func:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_FUNC_TXT, """")"
+7,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+8,T3,ASS_TAG_7_PARA_EQUIPMENT_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_TAG_7_PARA_EQUIPMENT_TXT, """")"
+9,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+10,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_GEN_SPEC_EQUIP_NO_SYS,ASS_SYSTEM_TYPE_TXT empty — system not assigned,ISO 19650-2 / CIBSE,Common,Text,⚠ Warning: No System Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, """")"
+2,MEDIUM,WARN_GEN_SPEC_EQUIP_NO_COMMISSION,Commissioning requirements not specified,BSRIA BG 8/2009 / CIBSE Commissioning Code,Common,Text,⚠ Warning: No Commissioning Req,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, """")"
+3,MEDIUM,WARN_GEN_SPEC_EQUIP_LEAD_TIME,Lead time > 12 weeks — procurement risk,ISO 19650-3 / PAS 1192-2,Common,Text,⚠ Warning: Long Lead Time,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_LEAD_TIME, """")"
+
+Tag Family #3: STING - Site Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Site
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_LOC_TXT,Loc:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_LOC_TXT, """")"
+5,T2,ASS_ZONE_TXT,| Zone:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_ZONE_TXT, """")"
+6,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+8,T2,GEN_ROAD_TYPE_TXT,Road:,,0,✓,Common,Text,Road type,"if(TAG_PARA_STATE_2_BOOL, GEN_ROAD_TYPE_TXT, "")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_LOC_MISSING,ASS_LOC_TXT empty — location not defined,ISO 19650-2,Common,Text,⚠ Warning: Site Location Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_LOC_MISSING, """")"
+2,HIGH,WARN_SITE_ROAD_GRADIENT,Road gradient > 1:20 — accessibility issue,BS 7263 / Part M,Common,Text,⚠ Warning: Road Gradient,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_ROAD_GRADIENT, """")"
+3,MEDIUM,WARN_SITE_PARKING_WIDTH,Parking bay width < 2400mm,BS 8300 / Part M,Common,Text,⚠ Warning: Parking Width,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PARKING_WIDTH, """")"
+
+Tag Family #4: STING - Planting Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Planting
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,GEN_SPECIES_TXT,Species:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, GEN_SPECIES_TXT, """")"
+5,T2,GEN_HEIGHT_AT_MATURITY_M,,m (H),,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, GEN_HEIGHT_AT_MATURITY_M, """")"
+6,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_PLANTING_SPEC_MISSING,GEN_SPECIES_TXT empty — plant species not specified,Landscape Specification,Common,Text,⚠ Warning: Species Not Specified,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PLANTING_SPEC_MISSING, """")"
+
+Tag Family #5: STING - Hardscape Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Hardscape
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_WALL_EXTERIOR_FINISH_TXT,Fin:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_EXTERIOR_FINISH_TXT, """")"
+5,T2,BLE_WALL_THICKNESS_MM,Depth:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")"
+6,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_HARDSCAPE_SPEC_MISSING,BLE_WALL_EXTERIOR_FINISH_TXT empty — surface finish not specified,Landscape Specification,Common,Text,⚠ Warning: Surface Finish Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_HARDSCAPE_SPEC_MISSING, """")"
+
+Tag Family #6: STING - Roads Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Roads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,GEN_ROAD_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, GEN_ROAD_TYPE_TXT, """")"
+5,T2,BLE_WALL_THICKNESS_MM,Depth:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")"
+6,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_ROAD_SPEC_MISSING,GEN_ROAD_TYPE_TXT empty — road classification not specified,Highway Standards,Common,Text,⚠ Warning: Road Type Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_ROAD_SPEC_MISSING, """")"
+
+Tag Family #7: STING - Pads Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Pads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_WALL_THICKNESS_MM,Thickness:,mm,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_WALL_THICKNESS_MM, """")"
+5,T2,STR_BEARING_CAPACITY_KN_M2,Bearing:,kN/m²,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BEARING_CAPACITY_KN_M2, """")"
+6,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_SITE_PAD_BEARING_MISSING,STR_BEARING_CAPACITY_KN_M2 empty — bearing capacity not specified,BS EN 1997-1 / EC7,Common,Text,⚠ Warning: Bearing Capacity Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PAD_BEARING_MISSING, """")"
+
+Tag Family #8: STING - Toposolid Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,BLE_MAT_ELEM_TYPE_TXT,Mat:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, BLE_MAT_ELEM_TYPE_TXT, """")"
+5,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+6,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_TOPOSOLID_MATERIAL_MISSING,BLE_MAT_ELEM_TYPE_TXT empty — ground material not defined,Ground Investigation Report,Common,Text,⚠ Warning: Ground Material Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_TOPOSOLID_MATERIAL_MISSING, """")"
+
+Tag Family #9: STING - Parts Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Parts
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_PRODCT_COD_TXT,Prod:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")"
+5,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+6,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_GEN_PARTS_HOST_MISSING,Part host element tag missing — host not tagged,ISO 19650-2,Common,Text,⚠ Warning: Host Element Not Tagged,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_PARTS_HOST_MISSING, """")"
+
+Tag Family #10: STING - Assemblies Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Assemblies
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ASS_PRODCT_COD_TXT,Code:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ASS_PRODCT_COD_TXT, """")"
+5,T2,ASS_MANUFACTURER_TXT,Mfr:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")"
+6,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_GEN_ASSEMBLY_CODE_MISSING,ASS_PRODCT_COD_TXT empty — assembly code not assigned,ISO 19650-2,Common,Text,⚠ Warning: Assembly Code Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_ASSEMBLY_CODE_MISSING, """")"
+
+Tag Family #11: STING - Detail Items Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Detail Items
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,LOW,WARN_ARCH_DETAIL_CODE_MISSING,ASS_TAG_1_TXT empty — detail reference not tagged,ISO 19650-2 / Drawing Standards,Common,Text,⚠ Warning: Detail Reference Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ARCH_DETAIL_CODE_MISSING, """")"
+
+Tag Family #12: STING - Profiles Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Profiles
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,LOW,WARN_GEN_PROFILE_DIM_MISSING,Profile dimensional parameters not populated,Drawing Standards,Common,Text,⚠ Warning: Profile Dimensions Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_PROFILE_DIM_MISSING, """")"
+
+Tag Family #13: STING - Materials Tag
+TAG7: PROP_TAG_7_PARA_MATERIALS_TXT  •  Category: Materials
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T1,MAT_NAME,,,,✓,Common,Text,Show Tier 1 - 2,Add directly
+3,T1,MAT_CATEGORY,,,,✓,Common,Text,Show Tier 1 - 3,Add directly
+4,T2,MAT_MANUFACTURER,Mfr:,,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, MAT_MANUFACTURER, """")"
+5,T2,MAT_STANDARD,Std:,,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, MAT_STANDARD, """")"
+6,T2,MAT_CODE,Code:,,,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, MAT_CODE, """")"
+7,T2,PROP_DENSITY_KG_M3,ρ:,kg/m³,,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, PROP_DENSITY_KG_M3, """")"
+8,T2,PROP_FIRE_RATING,Fire:,,,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, PROP_FIRE_RATING, """")"
+9,T2,PROP_THERMAL_COND_W_MK,λ:,W/mK,,✓,Common,Text,Show Tier 2 - 9,"if(TAG_PARA_STATE_2_BOOL, PROP_THERMAL_COND_W_MK, """")"
+10,T3,PROP_THERMAL_RES_M2K_W,R:,m²K/W,,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, PROP_THERMAL_RES_M2K_W, """")"
+11,T3,PROP_SPECIFIC_HEAT_J_KGK,Cp:,J/kgK,,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, PROP_SPECIFIC_HEAT_J_KGK, """")"
+12,T3,PROP_ACOUSTIC_ABS,α:,,,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, PROP_ACOUSTIC_ABS, """")"
+13,T3,PROP_SOUND_RED_DB,Rw:,dB,,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, PROP_SOUND_RED_DB, """")"
+14,T3,PROP_CARBON_KG_M3,EC:,kgCO₂/m³,,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PROP_CARBON_KG_M3, """")"
+15,T3,PROP_COMP_STRENGTH_MPA,fc:,MPa,,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, PROP_COMP_STRENGTH_MPA, """")"
+16,T3,PROP_TENS_STRENGTH_MPA,ft:,MPa,,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, PROP_TENS_STRENGTH_MPA, """")"
+17,T3,MAT_DURABILITY,Durability:,,,,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, MAT_DURABILITY, """")"
+18,T3,MAT_APPLICATION,Use:,,,✓,Common,Text,Show Tier 3 - 18,"if(TAG_PARA_STATE_3_BOOL, MAT_APPLICATION, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_GEN_MATERIAL_SPEC_MISSING,MAT_MANUFACTURER empty — material source not specified,Procurement Standards,Common,Text,⚠ Warning: Material Source Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_MATERIAL_SPEC_MISSING, """")"
+2,MEDIUM,WARN_PROP_FIRE_RATING_MATERIALS,PROP_FIRE_RATING empty — fire rating not specified,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Material Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_FIRE_RATING_MATERIALS, """")"
+3,MEDIUM,WARN_PROP_THERMAL_COND_MATERIALS,PROP_THERMAL_COND_W_MK empty — thermal conductivity not specified,BS 5422 / CIBSE Guide A,Common,Text,⚠ Warning: Material Thermal Conductivity,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_THERMAL_COND_MATERIALS, """")"
+4,LOW,WARN_PROP_CARBON_MATERIALS,PROP_CARBON_KG_M3 empty — embodied carbon not specified,BS EN 15978 / ICE Database,Common,Text,⚠ Warning: Material Carbon Data,"if(TAG_WARN_VISIBLE_BOOL, WARN_PROP_CARBON_MATERIALS, """")"
+
+6F — Structural Loads
+Tag Family #14: STING - Point Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Point Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_POINT_LOAD_KN,,kN,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_POINT_LOAD_KN, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_PT,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_PT, """")"
+
+Tag Family #15: STING - Line Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Line Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_LINE_LOAD_KN_M,,kN/m,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LINE_LOAD_KN_M, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_LN,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_LN, """")"
+
+Tag Family #16: STING - Area Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Area Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_AREA_LOAD_KN_M2,,kN/m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_AREA_LOAD_KN_M2, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_AR,STR_LOAD_CASE_TXT empty — load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_AR, """")"
+
+Tag Family #17: STING - Internal Point Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Point Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_POINT_LOAD_KN,,kN,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_POINT_LOAD_KN, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_PT,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_PT, """")"
+
+Tag Family #18: STING - Internal Line Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Line Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_LINE_LOAD_KN_M,,kN/m,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_LINE_LOAD_KN_M, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_LN,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1990 / EC0,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_LN, """")"
+
+Tag Family #19: STING - Internal Area Loads Tag
+TAG7: STR_TAG_7_PARA_LOAD_TXT  •  Category: Internal Area Loads
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_AREA_LOAD_KN_M2,,kN/m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_AREA_LOAD_KN_M2, """")"
+5,T2,STR_LOAD_CASE_TXT,LC:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_LOAD_CASE_TXT, """")"
+6,T3,STR_TAG_7_PARA_LOAD_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_LOAD_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_LOAD_CASE_MISSING_INT_AR,STR_LOAD_CASE_TXT empty — internal load case not specified,BS EN 1991-1-1 / EC1,Common,Text,⚠ Warning: Internal Load Case Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_LOAD_CASE_MISSING_INT_AR, """")"
+
+6G — Analytical Model
+Tag Family #20: STING - Analytical Members Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Members
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_SECTION_PROFILE_TXT,Section:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_SECTION_PROFILE_TXT, """")"
+5,T2,STR_MATERIAL_GRADE_TXT,Grade:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_MATERIAL_GRADE_TXT, """")"
+6,T3,STR_TAG_7_PARA_ANLYT_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")"
+7,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_ANLYT_NO_HOST,Analytical member has no physical host element,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: No Physical Host,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NO_HOST, """")"
+
+Tag Family #21: STING - Analytical Nodes Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Nodes
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_STR_ANLYT_NODE_UNCONNECTED,Analytical node not connected to any member,BS EN 1992-1-1 / Structural Analysis,Common,Text,⚠ Warning: Unconnected Node,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_NODE_UNCONNECTED, """")"
+
+Tag Family #22: STING - Analytical Panels Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Panels
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_MATERIAL_GRADE_TXT,Grade:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_MATERIAL_GRADE_TXT, """")"
+5,T3,STR_TAG_7_PARA_ANLYT_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")"
+6,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_ANLYT_PANEL_MATERIAL,STR_MATERIAL_GRADE_TXT empty — panel material grade not assigned,BS EN 1992-1-1 / BS EN 1993-1-1,Common,Text,⚠ Warning: Panel Material Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_PANEL_MATERIAL, """")"
+
+Tag Family #23: STING - Analytical Openings Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Openings
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_ANLYT_OPENING_OVERSIZED,Analytical opening exceeds structural limits,BS EN 1992-1-1 / EC2,Common,Text,⚠ Warning: Opening May Be Oversized,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_OPENING_OVERSIZED, """")"
+
+Tag Family #24: STING - Analytical Links Tag
+TAG7: STR_TAG_7_PARA_ANLYT_TXT  •  Category: Analytical Links
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,STR_TAG_7_PARA_ANLYT_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_ANLYT_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_STR_ANLYT_LINK_RIGIDITY,Analytical link rigidity not defined — defaults to rigid,BS EN 1992-1-1 / Structural Analysis,Common,Text,⚠ Warning: Link Rigidity Undefined,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_ANLYT_LINK_RIGIDITY, """")"
+
+6H — Miscellaneous
+Tag Family #25: STING - Model Groups Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: Model Groups
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_GEN_GROUP_EXCLUDED_MEMBERS,Model group contains excluded members not in BIM scope,BIM Execution Plan / ISO 19650,Common,Text,⚠ Warning: Excluded Members in Group,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_GROUP_EXCLUDED_MEMBERS, """")"
+
+Tag Family #26: STING - RVT Links Tag
+TAG7: GEN_TAG_7_PARA_MISC_TXT  •  Category: RVT Links
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,GEN_TAG_7_PARA_MISC_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, GEN_TAG_7_PARA_MISC_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_GEN_LINK_NOT_LOADED,RVT Link file not loaded or path broken,Revit Collaboration / ISO 19650,Common,Text,⚠ Warning: Link Not Loaded,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_LINK_NOT_LOADED, """")"
+
+Tag Family #27: STING - Property Lines Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Lines
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,RGL_PLOT_AREA_SQ_M,,m²,,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, RGL_PLOT_AREA_SQ_M, """")"
+5,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+6,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 6,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_SITE_PROPERTY_AREA_MISSING,RGL_PLOT_AREA_SQ_M not set — plot area not defined,Land Registry / Boundary Survey,Common,Text,⚠ Warning: Property Area Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PROPERTY_AREA_MISSING, """")"
+
+Tag Family #28: STING - Property Line Segments Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Property Line Segments
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_PROPERTY_BEARING_MISSING,Bearing and distance not defined for segment,Land Registry / Boundary Survey Standards,Common,Text,⚠ Warning: Bearing/Distance Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_PROPERTY_BEARING_MISSING, """")"
+
+Tag Family #29: STING - Bolt Tag
+TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Bolt
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_BOLT_GRADE_TXT,Grade:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_BOLT_GRADE_TXT, """")"
+5,T2,STR_BOLT_DIAMETER_MM,Ø:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_BOLT_DIAMETER_MM, """")"
+6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,STR_TAG_7_PARA_CONN_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_CONN_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_BOLT_GRADE_MISSING,STR_BOLT_GRADE_TXT empty — bolt grade not specified,BS EN 14399 / BS 4190,Common,Text,⚠ Warning: Bolt Grade Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_BOLT_GRADE_MISSING, """")"
+
+Tag Family #30: STING - Toposolid Links Tag
+TAG7: GEN_TAG_7_PARA_SITE_TXT  •  Category: Toposolid Links
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T3,ARCH_TAG_7_PARA_SITE_TXT,,,,✓,Common,Text,Show Tier 3 - 4,"if(TAG_PARA_STATE_3_BOOL, ARCH_TAG_7_PARA_SITE_TXT, """")"
+5,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 5,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,MEDIUM,WARN_SITE_TOPOSOLID_LINK_MISSING,Toposolid link target not found or unresolved,Revit 2024+ Toposolid API,Common,Text,⚠ Warning: Toposolid Link Unresolved,"if(TAG_WARN_VISIBLE_BOOL, WARN_SITE_TOPOSOLID_LINK_MISSING, """")"
+
+Tag Family #31: STING - Weld Tag
+TAG7: STR_TAG_7_PARA_CONN_TXT  •  Category: Weld
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,STR_WELD_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_WELD_TYPE_TXT, """")"
+5,T2,STR_WELD_SIZE_MM,Weld:,mm,,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, STR_WELD_SIZE_MM, """")"
+6,T2,RGL_STD_TXT,Std:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")"
+7,T3,STR_TAG_7_PARA_CONN_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_CONN_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_STR_WELD_SPEC_MISSING,STR_WELD_TYPE_TXT empty — weld specification not defined,BS EN ISO 5817 / AWS D1.1,Common,Text,⚠ Warning: Weld Spec Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WELD_SPEC_MISSING, """")"
+
+Tag Family #32: STING - Wire Tag
+TAG7: ELC_TAG_7_PARA_CIRC_TXT  •  Category: Wire
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,ASS_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,ASS_TAG_2_TXT,,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")"
+3,T2,ASS_DESCRIPTION_TXT,,,,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")"
+4,T2,ELC_WIRE_SIZE_TXT,Size:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, ELC_WIRE_SIZE_TXT, """")"
+5,T2,ELC_CBL_INS_TYPE_TXT,Type:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, ELC_CBL_INS_TYPE_TXT, """")"
+6,T2,ELC_VOLTAGE_V,,V,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ELC_VOLTAGE_V, """")"
+7,T3,ELC_TAG_7_PARA_CIRCUIT_TXT,,,,✓,Common,Text,Show Tier 3 - 7,"if(TAG_PARA_STATE_3_BOOL, ELC_TAG_7_PARA_CIRCUIT_TXT, """")"
+8,T3,ASS_STATUS_TXT,,,,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,CRITICAL,WARN_ELC_WIRE_AMPACITY_MISSING,ELC_WIRE_SIZE_TXT empty — wire ampacity not specified,BS 7671 / IEE Wiring Regs 18th Ed,Common,Text,⚠ Warning: Wire Ampacity Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_WIRE_AMPACITY_MISSING, """")"
+
+Tag Family #33: STING - Sheet Document Tag
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula
+1,T1,SHT_TAG_1_TXT,,,,✓,---,---,---,Add directly
+2,T2,SHT_DISC_TXT,Disc:,,,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")"
+3,T2,SHT_FORM_TXT,Form:,,,,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, SHT_FORM_TXT, """")"
+4,T2,SHT_LEVEL_TXT,Level:,,,,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, SHT_LEVEL_TXT, """")"
+5,T2,SHT_ORIGINATOR_TXT,Orig:,,,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, SHT_ORIGINATOR_TXT, """")"
+6,T2,SHT_REV_TXT,Rev:,,,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, SHT_REV_TXT, """")"
+7,T2,SHT_NUMBER_TXT,No:,,,,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, SHT_NUMBER_TXT, """")"
+8,T2,SHT_NAME_TXT,Name:,,,,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, SHT_NAME_TXT, """")"
+9,T3,SHT_TAG_7_TXT,,,,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, SHT_TAG_7_TXT, """")"
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_SHT_DISC_MISSING,SHT_DISC_TXT empty — sheet discipline not derived from viewport contents,ISO 19650-2 Clause 11.2,Common,Text,⚠ Warning: Sheet Discipline Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_DISC_MISSING, """")"
+2,MEDIUM,WARN_SHT_TAG1_EMPTY,SHT_TAG_1_TXT empty — ISO 19650 document code not assembled,ISO 19650-2 / BS 1192,Common,Text,⚠ Warning: Sheet Tag Not Assembled,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_TAG1_EMPTY, """")"
+3,HIGH,WARN_SHT_REV_MISSING,SHT_REV_TXT empty — revision code not set on sheet,ISO 19650-2 Clause 11.3,Common,Text,⚠ Warning: Sheet Revision Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_REV_MISSING, """")"

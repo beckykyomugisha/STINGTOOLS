@@ -1,0 +1,1217 @@
+2026-03-18 11:36:22 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 11:36:22 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 11:36:22 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 11:36:22 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 11:36:22 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 11:36:22 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 11:36:22 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 11:36:22 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 11:36:22 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 11:36:22 [INFO] Dockable panel registered successfully
+2026-03-18 11:36:22 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 11:36:22 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 11:36:22 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 11:36:22 [INFO] ParamRegistry: supplemented 1736 GUIDs from MR_PARAMETERS.txt
+2026-03-18 11:36:22 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2244 GUIDs
+2026-03-18 11:36:22 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 11:36:22 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 11:36:22 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 11:36:22 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 11:36:22 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 11:45:07 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 11:45:54 [INFO] ThemeManager: applied 'Grey' theme
+2026-03-18 11:46:03 [INFO] Tab 6 content loaded (lazy)
+2026-03-18 11:46:04 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 11:46:08 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 11:46:18 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 11:46:23 [INFO] Tab 3 content loaded (lazy)
+2026-03-18 11:46:55 [INFO] ThemeManager: applied 'Dark' theme
+2026-03-18 11:46:59 [INFO] Tab 4 content loaded (lazy)
+2026-03-18 11:47:02 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 11:47:34 [INFO] Tab 5 content loaded (lazy)
+2026-03-18 11:47:44 [INFO] Tab 7 content loaded (lazy)
+2026-03-18 11:52:55 [INFO] RunCommand<CreateTagFamiliesCommand>: start
+2026-03-18 11:52:56 [INFO] Tag family templates directory: C:\ProgramData\Autodesk\RVT 2025\Family Templates\English\Annotations (19 .rft files, 10 tag templates)
+2026-03-18 11:53:20 [INFO] RunCommand<CreateTagFamiliesCommand>: done
+2026-03-18 11:53:21 [INFO] RunCommand<LoadSharedParamsCommand>: start
+2026-03-18 11:53:21 [INFO] LoadSharedParams: step 1 — locating MR_PARAMETERS.txt
+2026-03-18 11:53:21 [INFO] Set shared parameter file: C:\Dev\STINGTOOLS\CompiledPlugin\data\MR_PARAMETERS.txt
+2026-03-18 11:53:21 [INFO] LoadSharedParams: step 2 — opening definition file
+2026-03-18 11:53:21 [INFO] LoadSharedParams: 2244 definitions in 17 groups
+2026-03-18 11:53:21 [INFO] LoadSharedParams: step 3 — scanning existing bindings
+2026-03-18 11:53:21 [INFO] Pre-scan: 14 parameters already bound
+2026-03-18 11:53:21 [INFO] To bind: 2244, already bound: 0
+2026-03-18 11:53:21 [INFO] LoadSharedParams: step 4 — building category sets
+2026-03-18 11:53:21 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-18 11:53:21 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-18 11:53:21 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-18 11:53:21 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-18 11:53:21 [INFO] BuildCategorySet: 123/129 categories resolved
+2026-03-18 11:53:21 [INFO] Core CategorySet: 119 categories
+2026-03-18 11:53:21 [INFO] Binding 2244 params across 17 groups
+2026-03-18 11:53:21 [INFO] Group [1/17] 'ASS_MNG': 173 params → 119 categories
+2026-03-18 11:53:31 [INFO]   → committed: 173 bound, 0 skipped
+2026-03-18 11:53:31 [INFO] Group [2/17] 'CST_PROC': 215 params → 119 categories
+2026-03-18 11:54:08 [INFO]   → committed: 215 bound, 0 skipped
+2026-03-18 11:54:08 [INFO] Group [3/17] 'COM_DAT': 185 params → 119 categories
+2026-03-18 11:55:14 [INFO]   → committed: 185 bound, 0 skipped
+2026-03-18 11:55:14 [INFO] Group [4/17] 'ELC_PWR': 111 params → 26 categories
+2026-03-18 11:56:07 [INFO]   → committed: 111 bound, 0 skipped
+2026-03-18 11:56:07 [INFO] Group [5/17] 'HVC_SYSTEMS': 86 params → 26 categories
+2026-03-18 11:56:57 [INFO]   → committed: 86 bound, 0 skipped
+2026-03-18 11:56:57 [INFO] Group [6/17] 'PLM_DRN': 123 params → 26 categories
+2026-03-18 11:57:54 [INFO]   → committed: 123 bound, 0 skipped
+2026-03-18 11:57:54 [INFO] Group [7/17] 'LTG_CONTROLS': 23 params → 26 categories
+2026-03-18 11:58:05 [INFO]   → committed: 23 bound, 0 skipped
+2026-03-18 11:58:05 [INFO] Group [8/17] 'FLS_LIFE_SFTY': 53 params → 26 categories
+2026-03-18 11:58:32 [INFO]   → committed: 53 bound, 0 skipped
+2026-03-18 11:58:32 [INFO] Group [9/17] 'PER_SUST': 92 params → 119 categories
+2026-03-18 11:59:27 [INFO]   → committed: 92 bound, 0 skipped
+2026-03-18 11:59:27 [INFO] Group [10/17] 'BLE_ELES': 147 params → 20 categories
+2026-03-18 12:00:55 [INFO]   → committed: 147 bound, 0 skipped
+2026-03-18 12:00:55 [INFO] Group [11/17] 'TPL_TRACKING': 175 params → 119 categories
+2026-03-18 12:02:58 [INFO]   → committed: 175 bound, 0 skipped
+2026-03-18 12:02:58 [INFO] Group [12/17] 'MAT_INFO': 48 params → 1 categories
+2026-03-18 12:03:40 [INFO]   → committed: 48 bound, 0 skipped
+2026-03-18 12:03:40 [INFO] Group [13/17] 'PRJ_INFORMATION': 44 params → 119 categories
+2026-03-18 12:04:11 [INFO]   → committed: 44 bound, 0 skipped
+2026-03-18 12:04:11 [INFO] Group [14/17] 'PROP_PHYSICAL': 13 params → 1 categories
+2026-03-18 12:04:20 [INFO]   → committed: 13 bound, 0 skipped
+2026-03-18 12:04:20 [INFO] Group [15/17] 'RGL_CMPL': 80 params → 119 categories
+2026-03-18 12:05:26 [INFO]   → committed: 80 bound, 0 skipped
+2026-03-18 12:05:26 [INFO] Group [16/17] 'BLE_STRUCTURE': 137 params → 20 categories
+2026-03-18 12:07:30 [INFO]   → committed: 137 bound, 0 skipped
+2026-03-18 12:07:30 [INFO] Group [17/17] 'STINGTags_ISO19650': 539 params → 119 categories
+2026-03-18 12:18:08 [INFO]   → committed: 539 bound, 0 skipped
+2026-03-18 12:22:13 [INFO] LoadSharedParams complete: 2244 bound, 0 already present, 0 skipped
+2026-03-18 12:22:13 [INFO] RunCommand<LoadSharedParamsCommand>: done
+2026-03-18 13:07:09 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 13:07:09 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 13:07:09 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 13:07:09 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 13:07:09 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 13:07:09 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 13:07:09 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 13:07:09 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 13:07:09 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 13:07:09 [INFO] Dockable panel registered successfully
+2026-03-18 13:07:09 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 13:07:09 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 13:07:09 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 13:07:09 [INFO] ParamRegistry: supplemented 1736 GUIDs from MR_PARAMETERS.txt
+2026-03-18 13:07:09 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2244 GUIDs
+2026-03-18 13:07:09 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 13:07:09 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 13:07:09 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 13:07:09 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 13:07:09 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 13:07:38 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 13:07:48 [INFO] ThemeManager: applied 'Grey' theme
+2026-03-18 13:07:55 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 13:08:03 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 13:08:15 [INFO] STING Tools shutting down
+2026-03-18 13:08:15 [INFO] StingAutoTagger: unregistered
+2026-03-18 13:09:46 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 13:09:46 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 13:09:46 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 13:09:46 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 13:09:46 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 13:09:46 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 13:09:46 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 13:09:46 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 13:09:46 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 13:09:46 [INFO] Dockable panel registered successfully
+2026-03-18 13:09:46 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 13:09:46 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 13:09:46 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 13:09:46 [INFO] ParamRegistry: supplemented 1736 GUIDs from MR_PARAMETERS.txt
+2026-03-18 13:09:46 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2244 GUIDs
+2026-03-18 13:09:46 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 13:09:46 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 13:09:46 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 13:09:46 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 13:09:46 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 13:10:26 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 13:20:18 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 13:20:21 [INFO] STING Tools shutting down
+2026-03-18 13:20:21 [INFO] StingAutoTagger: unregistered
+2026-03-18 13:21:14 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 13:21:14 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 13:21:14 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 13:21:14 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 13:21:14 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 13:21:14 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 13:21:14 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 13:21:14 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 13:21:14 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 13:21:14 [INFO] Dockable panel registered successfully
+2026-03-18 13:21:14 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 13:21:14 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 13:21:14 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 13:21:14 [INFO] ParamRegistry: supplemented 1736 GUIDs from MR_PARAMETERS.txt
+2026-03-18 13:21:14 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2244 GUIDs
+2026-03-18 13:21:14 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 13:21:14 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 13:21:14 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 13:21:14 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 13:21:14 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 13:21:55 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 13:22:07 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 13:22:09 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 13:22:57 [INFO] Tab 3 content loaded (lazy)
+2026-03-18 13:23:00 [INFO] Tab 4 content loaded (lazy)
+2026-03-18 13:23:08 [INFO] ThemeManager: applied 'Grey' theme
+2026-03-18 13:23:11 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 13:23:35 [INFO] Tab 5 content loaded (lazy)
+2026-03-18 13:23:36 [INFO] Tab 6 content loaded (lazy)
+2026-03-18 13:24:00 [INFO] Tab 7 content loaded (lazy)
+2026-03-18 13:24:02 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 13:46:48 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 13:46:54 [INFO] STING Tools shutting down
+2026-03-18 13:46:54 [INFO] StingAutoTagger: unregistered
+2026-03-18 13:48:39 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 13:48:39 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 13:48:39 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 13:48:39 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 13:48:39 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 13:48:39 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 13:48:39 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 13:48:39 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 13:48:39 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 13:48:39 [INFO] Dockable panel registered successfully
+2026-03-18 13:48:39 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 13:48:39 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 13:48:39 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 13:48:40 [INFO] ParamRegistry: supplemented 1736 GUIDs from MR_PARAMETERS.txt
+2026-03-18 13:48:40 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2244 GUIDs
+2026-03-18 13:48:40 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 13:48:40 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 13:48:40 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 13:48:40 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 13:48:40 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 13:49:02 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 13:49:13 [INFO] ThemeManager: applied 'Grey' theme
+2026-03-18 13:49:16 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 13:49:39 [INFO] ThemeManager: applied 'Dark' theme
+2026-03-18 13:50:01 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 13:50:08 [INFO] ThemeManager: applied 'Grey' theme
+2026-03-18 13:50:10 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 13:50:12 [INFO] ThemeManager: applied 'Dark' theme
+2026-03-18 13:50:28 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 13:50:45 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 13:50:47 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 13:50:51 [INFO] Tab 7 content loaded (lazy)
+2026-03-18 13:50:57 [INFO] Tab 6 content loaded (lazy)
+2026-03-18 14:01:43 [INFO] Tab 4 content loaded (lazy)
+2026-03-18 14:20:17 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 14:20:27 [INFO] STING Tools shutting down
+2026-03-18 14:20:27 [INFO] StingAutoTagger: unregistered
+2026-03-18 14:20:55 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 14:20:55 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 14:20:55 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 14:20:55 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 14:20:55 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 14:20:55 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 14:20:55 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 14:20:55 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 14:20:55 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:20:55 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 14:20:55 [INFO] Dockable panel registered successfully
+2026-03-18 14:20:55 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 14:20:55 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 14:20:55 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 14:20:55 [INFO] ParamRegistry: supplemented 1748 GUIDs from MR_PARAMETERS.txt
+2026-03-18 14:20:55 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2256 GUIDs
+2026-03-18 14:20:55 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 14:20:55 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 14:20:55 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 14:20:55 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 14:20:55 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 14:21:19 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:22:10 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:22:12 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:22:28 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:22:29 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:22:30 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:22:30 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:22:31 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:22:32 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:22:35 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:22:37 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:22:42 [INFO] Dropdowns populated with 2272 params
+2026-03-18 14:22:50 [INFO] RefreshParamList: 2272 params for Elevations
+2026-03-18 14:23:23 [INFO] Dropdowns populated with 2272 params
+2026-03-18 14:23:25 [INFO] RefreshParamList: 2272 params for Elevations
+2026-03-18 14:24:06 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 14:24:31 [INFO] TagStudioTabs frozen: active sub-tab=1
+2026-03-18 14:24:31 [INFO] RunCommand<SetArrowheadStyleCommand>: start
+2026-03-18 14:24:31 [WARN] SetArrowheadStyle: The Revit API does not expose IndependentTag.ArrowheadType directly. Providing line weight control on annotation categories as alternative.
+2026-03-18 14:24:41 [INFO] SetArrowheadStyle: set pen 1 on 160 annotation categories
+2026-03-18 14:24:41 [INFO] RunCommand<SetArrowheadStyleCommand>: done
+2026-03-18 14:24:41 [INFO] TagStudioTabs unfrozen.
+2026-03-18 14:24:47 [INFO] TagStudioTabs frozen: active sub-tab=1
+2026-03-18 14:24:47 [INFO] RunCommand<AdjustElbowsCommand>: start
+2026-03-18 14:24:48 [INFO] AdjustElbows: adjusted=0, skipped=0, mode=Straight
+2026-03-18 14:24:48 [INFO] RunCommand<AdjustElbowsCommand>: done
+2026-03-18 14:24:48 [INFO] TagStudioTabs unfrozen.
+2026-03-18 14:28:50 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:28:56 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:29:01 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 14:29:04 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:29:07 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:29:12 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:29:14 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:29:15 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:29:16 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:29:17 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:29:17 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:29:18 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:29:18 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:29:19 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 14:32:24 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:32:26 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 14:32:26 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 14:35:07 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 14:35:15 [INFO] RunCommand<RenumberViewportsCommand>: start
+2026-03-18 14:35:17 [INFO] RunCommand<RenumberViewportsCommand>: done
+2026-03-18 14:35:54 [INFO] RunCommand<SelectCustomCategoryCommand>: start
+2026-03-18 14:36:23 [INFO] RunCommand<SelectCustomCategoryCommand>: done
+2026-03-18 14:36:24 [INFO] SelectByCategory 'Views': 5 elements
+2026-03-18 14:36:26 [INFO] RunCommand<SelectCustomCategoryCommand>: start
+2026-03-18 14:36:28 [INFO] RunCommand<SelectCustomCategoryCommand>: done
+2026-03-18 14:36:32 [INFO] RunCommand<SelectAllTaggableCommand>: start
+2026-03-18 14:36:37 [INFO] RunCommand<SelectAllTaggableCommand>: done
+2026-03-18 14:37:43 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 14:37:47 [INFO] STING Tools shutting down
+2026-03-18 14:37:47 [INFO] StingAutoTagger: unregistered
+2026-03-18 14:40:47 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 14:40:47 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 14:40:47 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 14:40:47 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 14:40:47 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 14:40:47 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 14:40:47 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 14:40:48 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 14:40:48 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 14:40:48 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 14:40:48 [INFO] Dockable panel registered successfully
+2026-03-18 14:40:48 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 14:40:48 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 14:40:48 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 14:40:48 [INFO] ParamRegistry: supplemented 1748 GUIDs from MR_PARAMETERS.txt
+2026-03-18 14:40:48 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2256 GUIDs
+2026-03-18 14:40:48 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 14:40:48 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 14:40:48 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 14:40:48 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 14:40:48 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 14:42:52 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:42:52 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 14:42:53 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 14:42:53 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 14:42:53 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 14:46:12 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:46:12 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 14:46:12 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 14:46:12 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 14:46:12 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 14:47:23 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:47:26 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 14:47:26 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:50:24 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:50:59 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:55:07 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:55:07 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 14:55:07 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 14:55:07 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 14:55:07 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 14:55:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 14:55:54 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:55:58 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:56:22 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:57:42 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:57:46 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:57:52 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:57:59 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:58:01 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:58:05 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:58:13 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:58:57 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 14:59:01 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 15:00:06 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 15:00:08 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 15:00:09 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 15:00:10 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 15:00:10 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 15:00:11 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 15:00:11 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 15:00:12 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 15:00:13 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 15:00:13 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 15:00:23 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 15:00:40 [INFO] Tab 4 content loaded (lazy)
+2026-03-18 15:01:00 [INFO] RunCommand<LoadSharedParamsCommand>: start
+2026-03-18 15:01:00 [INFO] LoadSharedParams: step 1 — locating MR_PARAMETERS.txt
+2026-03-18 15:01:00 [INFO] Set shared parameter file: C:\Dev\STINGTOOLS\CompiledPlugin\data\MR_PARAMETERS.txt
+2026-03-18 15:01:00 [INFO] LoadSharedParams: step 2 — opening definition file
+2026-03-18 15:01:00 [INFO] LoadSharedParams: 2256 definitions in 17 groups
+2026-03-18 15:01:00 [INFO] LoadSharedParams: step 3 — scanning existing bindings
+2026-03-18 15:01:00 [INFO] Pre-scan: 2 parameters already bound
+2026-03-18 15:01:00 [INFO] To bind: 2256, already bound: 0
+2026-03-18 15:01:00 [INFO] LoadSharedParams: step 4 — building category sets
+2026-03-18 15:01:00 [INFO] SharedParamGuids.AllCategoryEnums: resolving (first access)
+2026-03-18 15:01:00 [INFO] ResolveUniversalCategoryEnums: resolving 141 categories
+2026-03-18 15:01:00 [INFO] ResolveUniversalCategoryEnums: resolved to 129 BuiltInCategory enums
+2026-03-18 15:01:00 [INFO] SharedParamGuids.AllCategoryEnums: 129 categories resolved
+2026-03-18 15:01:00 [INFO] BuildCategorySet: 123/129 categories resolved
+2026-03-18 15:01:00 [INFO] Core CategorySet: 119 categories
+2026-03-18 15:01:00 [INFO] Binding 2256 params across 17 groups
+2026-03-18 15:01:00 [INFO] Group [1/17] 'ASS_MNG': 175 params → 119 categories
+2026-03-18 15:01:10 [INFO]   → committed: 175 bound, 0 skipped
+2026-03-18 15:01:10 [INFO] Group [2/17] 'CST_PROC': 215 params → 119 categories
+2026-03-18 15:01:47 [INFO]   → committed: 215 bound, 0 skipped
+2026-03-18 15:01:47 [INFO] Group [3/17] 'COM_DAT': 186 params → 119 categories
+2026-03-18 15:02:49 [INFO]   → committed: 186 bound, 0 skipped
+2026-03-18 15:02:49 [INFO] Group [4/17] 'ELC_PWR': 112 params → 26 categories
+2026-03-18 15:03:35 [INFO]   → committed: 112 bound, 0 skipped
+2026-03-18 15:03:35 [INFO] Group [5/17] 'HVC_SYSTEMS': 86 params → 26 categories
+2026-03-18 15:04:10 [INFO]   → committed: 86 bound, 0 skipped
+2026-03-18 15:04:10 [INFO] Group [6/17] 'PLM_DRN': 124 params → 26 categories
+2026-03-18 15:05:13 [INFO]   → committed: 124 bound, 0 skipped
+2026-03-18 15:05:13 [INFO] Group [7/17] 'LTG_CONTROLS': 24 params → 26 categories
+2026-03-18 15:05:24 [INFO]   → committed: 24 bound, 0 skipped
+2026-03-18 15:05:24 [INFO] Group [8/17] 'FLS_LIFE_SFTY': 55 params → 26 categories
+2026-03-18 15:05:49 [INFO]   → committed: 55 bound, 0 skipped
+2026-03-18 15:05:49 [INFO] Group [9/17] 'PER_SUST': 95 params → 119 categories
+2026-03-18 15:06:41 [INFO]   → committed: 95 bound, 0 skipped
+2026-03-18 15:06:41 [INFO] Group [10/17] 'BLE_ELES': 147 params → 20 categories
+2026-03-18 15:08:07 [INFO]   → committed: 147 bound, 0 skipped
+2026-03-18 15:08:07 [INFO] Group [11/17] 'TPL_TRACKING': 175 params → 119 categories
+2026-03-18 15:10:08 [INFO]   → committed: 175 bound, 0 skipped
+2026-03-18 15:10:08 [INFO] Group [12/17] 'MAT_INFO': 48 params → 1 categories
+2026-03-18 15:10:39 [INFO]   → committed: 48 bound, 0 skipped
+2026-03-18 15:10:39 [INFO] Group [13/17] 'PRJ_INFORMATION': 44 params → 119 categories
+2026-03-18 15:11:14 [INFO]   → committed: 44 bound, 0 skipped
+2026-03-18 15:11:14 [INFO] Group [14/17] 'PROP_PHYSICAL': 13 params → 1 categories
+2026-03-18 15:11:26 [INFO]   → committed: 13 bound, 0 skipped
+2026-03-18 15:11:26 [INFO] Group [15/17] 'RGL_CMPL': 80 params → 119 categories
+2026-03-18 15:12:32 [INFO]   → committed: 80 bound, 0 skipped
+2026-03-18 15:12:32 [INFO] Group [16/17] 'BLE_STRUCTURE': 138 params → 20 categories
+2026-03-18 15:14:36 [INFO]   → committed: 138 bound, 0 skipped
+2026-03-18 15:14:36 [INFO] Group [17/17] 'STINGTags_ISO19650': 539 params → 119 categories
+2026-03-18 15:25:00 [INFO]   → committed: 539 bound, 0 skipped
+2026-03-18 15:25:16 [INFO] LoadSharedParams complete: 2256 bound, 0 already present, 0 skipped
+2026-03-18 15:25:16 [INFO] RunCommand<LoadSharedParamsCommand>: done
+2026-03-18 15:26:38 [INFO] RunCommand<CreateTagFamiliesCommand>: start
+2026-03-18 15:26:38 [INFO] Tag family templates directory: C:\ProgramData\Autodesk\RVT 2025\Family Templates\English\Annotations (19 .rft files, 10 tag templates)
+2026-03-18 15:28:14 [INFO] Added 79 shared parameters to tag family
+2026-03-18 15:28:15 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:28:15 [INFO] Loaded tag family: STING - Mechanical Equipment Tag
+2026-03-18 15:28:32 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:28:32 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:28:32 [INFO] Loaded tag family: STING - Mechanical Equipment Sets Tag
+2026-03-18 15:28:49 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:28:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:28:50 [INFO] Loaded tag family: STING - Mechanical Control Devices Tag
+2026-03-18 15:28:56 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:29:09 [INFO] Added 80 shared parameters to tag family
+2026-03-18 15:29:09 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:29:10 [INFO] Loaded tag family: STING - Ducts Tag
+2026-03-18 15:29:15 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:29:27 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:29:27 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:29:28 [INFO] Loaded tag family: STING - Duct Fittings Tag
+2026-03-18 15:29:33 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:29:45 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:29:45 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:29:46 [INFO] Loaded tag family: STING - Duct Accessories Tag
+2026-03-18 15:30:04 [INFO] Added 75 shared parameters to tag family
+2026-03-18 15:30:04 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:30:05 [INFO] Loaded tag family: STING - Air Terminals Tag
+2026-03-18 15:30:22 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:30:22 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:30:23 [INFO] Loaded tag family: STING - Duct Insulation Tag
+2026-03-18 15:30:40 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:30:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:30:40 [INFO] Loaded tag family: STING - Duct Lining Tag
+2026-03-18 15:30:46 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:30:58 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:30:58 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:30:59 [INFO] Loaded tag family: STING - Flex Ducts Tag
+2026-03-18 15:31:05 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:31:19 [INFO] Added 81 shared parameters to tag family
+2026-03-18 15:31:19 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:31:19 [INFO] Loaded tag family: STING - Pipes Tag
+2026-03-18 15:31:24 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:31:37 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:31:37 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:31:37 [INFO] Loaded tag family: STING - Pipe Fittings Tag
+2026-03-18 15:31:42 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:31:55 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:31:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:31:55 [INFO] Loaded tag family: STING - Pipe Accessories Tag
+2026-03-18 15:32:13 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:32:13 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:32:13 [INFO] Loaded tag family: STING - Pipe Insulation Tag
+2026-03-18 15:32:19 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:32:32 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:32:32 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:32:32 [INFO] Loaded tag family: STING - Flex Pipes Tag
+2026-03-18 15:32:49 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:32:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:32:50 [INFO] Loaded tag family: STING - Plumbing Equipment Tag
+2026-03-18 15:33:08 [INFO] Added 74 shared parameters to tag family
+2026-03-18 15:33:08 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:33:08 [INFO] Loaded tag family: STING - Plumbing Fixtures Tag
+2026-03-18 15:33:27 [INFO] Added 76 shared parameters to tag family
+2026-03-18 15:33:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:33:28 [INFO] Loaded tag family: STING - Sprinklers Tag
+2026-03-18 15:33:47 [INFO] Added 75 shared parameters to tag family
+2026-03-18 15:33:47 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:33:47 [INFO] Loaded tag family: STING - Fire Alarm Devices Tag
+2026-03-18 15:34:04 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:34:04 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:34:05 [INFO] Loaded tag family: STING - Fire Protection Tag
+2026-03-18 15:34:27 [INFO] Added 88 shared parameters to tag family
+2026-03-18 15:34:27 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:34:27 [INFO] Loaded tag family: STING - Electrical Equipment Tag
+2026-03-18 15:34:46 [INFO] Added 76 shared parameters to tag family
+2026-03-18 15:34:46 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:34:46 [INFO] Loaded tag family: STING - Electrical Fixtures Tag
+2026-03-18 15:35:07 [INFO] Added 82 shared parameters to tag family
+2026-03-18 15:35:07 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:35:07 [INFO] Loaded tag family: STING - Lighting Fixtures Tag
+2026-03-18 15:35:26 [INFO] Added 74 shared parameters to tag family
+2026-03-18 15:35:26 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:35:26 [INFO] Loaded tag family: STING - Lighting Devices Tag
+2026-03-18 15:35:32 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:35:45 [INFO] Added 77 shared parameters to tag family
+2026-03-18 15:35:45 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:35:45 [INFO] Loaded tag family: STING - Conduits Tag
+2026-03-18 15:35:50 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:36:03 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:36:03 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:36:03 [INFO] Loaded tag family: STING - Conduit Fittings Tag
+2026-03-18 15:36:09 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:36:22 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:36:22 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:36:22 [INFO] Loaded tag family: STING - Cable Trays Tag
+2026-03-18 15:36:27 [WARN] Shared parameter 'MEP_TIE_POINT_ID_TXT' not found in file
+2026-03-18 15:36:40 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:36:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:36:40 [INFO] Loaded tag family: STING - Cable Tray Fittings Tag
+2026-03-18 15:36:57 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:36:58 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:36:58 [INFO] Loaded tag family: STING - Electrical Connectors Tag
+2026-03-18 15:37:17 [INFO] Added 74 shared parameters to tag family
+2026-03-18 15:37:17 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:37:17 [INFO] Loaded tag family: STING - Communication Devices Tag
+2026-03-18 15:37:37 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:37:37 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:37:38 [INFO] Loaded tag family: STING - Data Devices Tag
+2026-03-18 15:37:58 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:37:58 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:37:58 [INFO] Loaded tag family: STING - Nurse Call Devices Tag
+2026-03-18 15:38:17 [INFO] Added 74 shared parameters to tag family
+2026-03-18 15:38:17 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:38:17 [INFO] Loaded tag family: STING - Security Devices Tag
+2026-03-18 15:38:35 [INFO] Added 73 shared parameters to tag family
+2026-03-18 15:38:35 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:38:35 [INFO] Loaded tag family: STING - Telephone Devices Tag
+2026-03-18 15:38:52 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:38:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:38:53 [INFO] Loaded tag family: STING - Audio Visual Devices Tag
+2026-03-18 15:39:10 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:39:10 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:39:10 [INFO] Loaded tag family: STING - MEP Fabrication Containment Tag
+2026-03-18 15:39:27 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:39:27 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:39:27 [INFO] Loaded tag family: STING - MEP Fabrication Ductwork Tag
+2026-03-18 15:39:44 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:39:44 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:39:45 [INFO] Loaded tag family: STING - MEP Fabrication Ductwork Stiffeners Tag
+2026-03-18 15:40:03 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:40:03 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:40:03 [INFO] Loaded tag family: STING - MEP Fabrication Hangers Tag
+2026-03-18 15:40:20 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:40:20 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:40:21 [INFO] Loaded tag family: STING - MEP Fabrication Pipework Tag
+2026-03-18 15:40:38 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:40:38 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:40:38 [INFO] Loaded tag family: STING - Spaces Tag
+2026-03-18 15:40:55 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:40:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:40:56 [INFO] Loaded tag family: STING - Zones Tag
+2026-03-18 15:41:16 [INFO] Added 82 shared parameters to tag family
+2026-03-18 15:41:16 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:41:16 [INFO] Loaded tag family: STING - Doors Tag
+2026-03-18 15:41:35 [INFO] Added 79 shared parameters to tag family
+2026-03-18 15:41:36 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:41:36 [INFO] Loaded tag family: STING - Windows Tag
+2026-03-18 15:41:59 [INFO] Added 92 shared parameters to tag family
+2026-03-18 15:41:59 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:41:59 [INFO] Loaded tag family: STING - Walls Tag
+2026-03-18 15:42:20 [INFO] Added 82 shared parameters to tag family
+2026-03-18 15:42:20 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:42:20 [INFO] Loaded tag family: STING - Floors Tag
+2026-03-18 15:42:39 [INFO] Added 78 shared parameters to tag family
+2026-03-18 15:42:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:42:40 [INFO] Loaded tag family: STING - Ceilings Tag
+2026-03-18 15:43:02 [INFO] Added 83 shared parameters to tag family
+2026-03-18 15:43:02 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:43:02 [INFO] Loaded tag family: STING - Roofs Tag
+2026-03-18 15:43:22 [INFO] Added 76 shared parameters to tag family
+2026-03-18 15:43:22 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:43:22 [INFO] Loaded tag family: STING - Rooms Tag
+2026-03-18 15:43:40 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:43:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:43:40 [INFO] Loaded tag family: STING - Areas Tag
+2026-03-18 15:43:59 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:43:59 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:43:59 [INFO] Loaded tag family: STING - Curtain Panels Tag
+2026-03-18 15:44:16 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:44:17 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:44:17 [INFO] Loaded tag family: STING - Curtain Wall Mullions Tag
+2026-03-18 15:44:35 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:44:35 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:44:35 [INFO] Loaded tag family: STING - Wall Sweeps Tag
+2026-03-18 15:44:53 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:44:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:44:53 [INFO] Loaded tag family: STING - Slab Edges Tag
+2026-03-18 15:45:10 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:45:10 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:45:10 [INFO] Loaded tag family: STING - Roof Soffits Tag
+2026-03-18 15:45:27 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:45:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:45:28 [INFO] Loaded tag family: STING - Fascia Tag
+2026-03-18 15:45:45 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:45:45 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:45:45 [INFO] Loaded tag family: STING - Gutter Tag
+2026-03-18 15:46:02 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:46:02 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:46:03 [INFO] Loaded tag family: STING - Mass Tag
+2026-03-18 15:46:20 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:46:21 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:46:21 [INFO] Loaded tag family: STING - Furniture Tag
+2026-03-18 15:46:38 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:46:39 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:46:39 [INFO] Loaded tag family: STING - Furniture Systems Tag
+2026-03-18 15:46:57 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:46:57 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:46:57 [INFO] Loaded tag family: STING - Casework Tag
+2026-03-18 15:47:14 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:47:14 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:47:14 [INFO] Loaded tag family: STING - Food Service Equipment Tag
+2026-03-18 15:47:31 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:47:31 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:47:32 [INFO] Loaded tag family: STING - Medical Equipment Tag
+2026-03-18 15:47:49 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:47:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:47:49 [INFO] Loaded tag family: STING - Signage Tag
+2026-03-18 15:48:06 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:48:06 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:48:06 [INFO] Loaded tag family: STING - Entourage Tag
+2026-03-18 15:48:25 [INFO] Added 78 shared parameters to tag family
+2026-03-18 15:48:25 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:48:25 [INFO] Loaded tag family: STING - Stairs Tag
+2026-03-18 15:48:43 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:48:43 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:48:43 [INFO] Loaded tag family: STING - Stair Runs Tag
+2026-03-18 15:49:00 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:49:01 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:49:01 [INFO] Loaded tag family: STING - Stair Landings Tag
+2026-03-18 15:49:18 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:49:18 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:49:18 [INFO] Loaded tag family: STING - Stair Supports Tag
+2026-03-18 15:49:37 [INFO] Added 76 shared parameters to tag family
+2026-03-18 15:49:37 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:49:37 [INFO] Loaded tag family: STING - Ramps Tag
+2026-03-18 15:49:55 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:49:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:49:55 [INFO] Loaded tag family: STING - Railings Tag
+2026-03-18 15:50:13 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:50:13 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:50:13 [INFO] Loaded tag family: STING - Top Rails Tag
+2026-03-18 15:50:31 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:50:31 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:50:31 [INFO] Loaded tag family: STING - Handrails Tag
+2026-03-18 15:50:48 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:50:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:50:49 [INFO] Loaded tag family: STING - Vertical Circulation Tag
+2026-03-18 15:51:08 [INFO] Added 79 shared parameters to tag family
+2026-03-18 15:51:08 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:51:08 [INFO] Loaded tag family: STING - Structural Columns Tag
+2026-03-18 15:51:28 [INFO] Added 79 shared parameters to tag family
+2026-03-18 15:51:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:51:28 [INFO] Loaded tag family: STING - Structural Framing Tag
+2026-03-18 15:51:47 [INFO] Added 78 shared parameters to tag family
+2026-03-18 15:51:47 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:51:48 [INFO] Loaded tag family: STING - Structural Foundations Tag
+2026-03-18 15:52:05 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:52:05 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:52:05 [INFO] Loaded tag family: STING - Columns Tag
+2026-03-18 15:52:22 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:52:22 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:52:23 [INFO] Loaded tag family: STING - Structural Trusses Tag
+2026-03-18 15:52:40 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:52:40 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:52:40 [INFO] Loaded tag family: STING - Structural Stiffeners Tag
+2026-03-18 15:52:57 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:52:57 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:52:58 [INFO] Loaded tag family: STING - Structural Connections Tag
+2026-03-18 15:53:15 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:53:15 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:53:15 [INFO] Loaded tag family: STING - Structural Beam Systems Tag
+2026-03-18 15:53:32 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:53:33 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:53:33 [INFO] Loaded tag family: STING - Structural Rebar Tag
+2026-03-18 15:53:50 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:53:50 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:53:51 [INFO] Loaded tag family: STING - Structural Rebar Couplers Tag
+2026-03-18 15:54:08 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:54:08 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:54:08 [INFO] Loaded tag family: STING - Structural Fabric Reinforcement Tag
+2026-03-18 15:54:25 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:54:26 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:54:26 [INFO] Loaded tag family: STING - Structural Area Reinforcement Tag
+2026-03-18 15:54:43 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:54:43 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:54:43 [INFO] Loaded tag family: STING - Structural Path Reinforcement Tag
+2026-03-18 15:55:01 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:55:01 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:55:01 [INFO] Loaded tag family: STING - Generic Models Tag
+2026-03-18 15:55:19 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:55:19 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:55:20 [INFO] Loaded tag family: STING - Specialty Equipment Tag
+2026-03-18 15:55:37 [INFO] Added 71 shared parameters to tag family
+2026-03-18 15:55:37 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:55:37 [INFO] Loaded tag family: STING - Parking Tag
+2026-03-18 15:55:55 [INFO] Added 72 shared parameters to tag family
+2026-03-18 15:55:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:55:55 [INFO] Loaded tag family: STING - Site Tag
+2026-03-18 15:56:12 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:56:12 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:56:13 [INFO] Loaded tag family: STING - Planting Tag
+2026-03-18 15:56:30 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:56:30 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:56:30 [INFO] Loaded tag family: STING - Hardscape Tag
+2026-03-18 15:56:48 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:56:48 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:56:48 [INFO] Loaded tag family: STING - Roads Tag
+2026-03-18 15:57:05 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:57:05 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:57:06 [INFO] Loaded tag family: STING - Pads Tag
+2026-03-18 15:57:23 [INFO] Added 70 shared parameters to tag family
+2026-03-18 15:57:23 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:57:23 [INFO] Loaded tag family: STING - Toposolid Tag
+2026-03-18 15:57:41 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:57:41 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:57:41 [INFO] Loaded tag family: STING - Parts Tag
+2026-03-18 15:57:58 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:57:58 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:57:59 [INFO] Loaded tag family: STING - Assemblies Tag
+2026-03-18 15:58:16 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:58:16 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:58:16 [INFO] Loaded tag family: STING - Detail Items Tag
+2026-03-18 15:58:33 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:58:33 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:58:33 [INFO] Loaded tag family: STING - Profiles Tag
+2026-03-18 15:58:51 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:58:51 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:58:51 [INFO] Loaded tag family: STING - Materials Tag
+2026-03-18 15:59:08 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:59:08 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:59:08 [INFO] Loaded tag family: STING - Point Loads Tag
+2026-03-18 15:59:25 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:59:26 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:59:26 [INFO] Loaded tag family: STING - Line Loads Tag
+2026-03-18 15:59:43 [INFO] Added 69 shared parameters to tag family
+2026-03-18 15:59:43 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 15:59:43 [INFO] Loaded tag family: STING - Area Loads Tag
+2026-03-18 16:00:00 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:00:01 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:00:01 [INFO] Loaded tag family: STING - Internal Point Loads Tag
+2026-03-18 16:00:18 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:00:18 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:00:18 [INFO] Loaded tag family: STING - Internal Line Loads Tag
+2026-03-18 16:00:35 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:00:36 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:00:36 [INFO] Loaded tag family: STING - Internal Area Loads Tag
+2026-03-18 16:00:53 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:00:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:00:53 [INFO] Loaded tag family: STING - Analytical Members Tag
+2026-03-18 16:01:10 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:01:10 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:01:11 [INFO] Loaded tag family: STING - Analytical Nodes Tag
+2026-03-18 16:01:28 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:01:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:01:28 [INFO] Loaded tag family: STING - Analytical Panels Tag
+2026-03-18 16:01:45 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:01:46 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:01:46 [INFO] Loaded tag family: STING - Analytical Openings Tag
+2026-03-18 16:02:03 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:02:04 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:02:04 [INFO] Loaded tag family: STING - Analytical Links Tag
+2026-03-18 16:02:21 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:02:21 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:02:22 [INFO] Loaded tag family: STING - Model Groups Tag
+2026-03-18 16:02:39 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:02:39 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:02:39 [INFO] Loaded tag family: STING - RVT Links Tag
+2026-03-18 16:02:56 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:02:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:02:57 [INFO] Loaded tag family: STING - Property Lines Tag
+2026-03-18 16:03:13 [WARN] Shared parameter 'STR_TAG_7_PARA_BOLT_TXT' not found in file
+2026-03-18 16:03:13 [INFO] Added 68 shared parameters to tag family
+2026-03-18 16:03:14 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:03:14 [INFO] Loaded tag family: STING - Bolt Tag
+2026-03-18 16:03:31 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:03:31 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:03:31 [INFO] Loaded tag family: STING - Property Line Segments Tag
+2026-03-18 16:03:48 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:03:48 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:03:49 [INFO] Loaded tag family: STING - Toposolid Links Tag
+2026-03-18 16:04:06 [WARN] Shared parameter 'STR_TAG_7_PARA_WELD_TXT' not found in file
+2026-03-18 16:04:06 [INFO] Added 69 shared parameters to tag family
+2026-03-18 16:04:06 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:06 [INFO] Loaded tag family: STING - Weld Tag
+2026-03-18 16:04:13 [WARN] Shared parameter 'WARN_STR_WIR_TENSILE_MPA' not found in file
+2026-03-18 16:04:23 [WARN] Shared parameter 'STR_TAG_7_PARA_WIRE_TXT' not found in file
+2026-03-18 16:04:23 [INFO] Added 67 shared parameters to tag family
+2026-03-18 16:04:23 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:23 [INFO] Loaded tag family: STING - Wire Tag
+2026-03-18 16:04:28 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:33 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:38 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:43 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:48 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:04:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:05:35 [INFO] CreateTagFamilies: created=126, loaded=126, skipped=0, missing=0, failed=0
+2026-03-18 16:05:35 [INFO] RunCommand<CreateTagFamiliesCommand>: done
+2026-03-18 16:05:58 [INFO] RunCommand<ConfigureTagLabelsCommand>: start
+2026-03-18 16:11:01 [INFO] ConfigureTagLabels: configured=126, skipped=0
+2026-03-18 16:11:01 [INFO] RunCommand<ConfigureTagLabelsCommand>: done
+2026-03-18 16:12:56 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:13:02 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:13:05 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:14:52 [INFO] RunCommand<LoadTagFamiliesCommand>: start
+2026-03-18 16:15:29 [INFO] LoadTagFamilies: loaded=126, skipped=0, failed=0
+2026-03-18 16:15:29 [INFO] RunCommand<LoadTagFamiliesCommand>: done
+2026-03-18 16:43:17 [INFO] Tab 5 content loaded (lazy)
+2026-03-18 16:44:31 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 16:46:21 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 16:47:10 [INFO] Tab 6 content loaded (lazy)
+2026-03-18 16:47:25 [INFO] TagStudioTabs frozen: active sub-tab=0
+2026-03-18 16:47:25 [INFO] RunCommand<ArrangeTagsCommand>: start
+2026-03-18 16:47:29 [INFO] RunCommand<ArrangeTagsCommand>: done
+2026-03-18 16:47:29 [INFO] TagStudioTabs unfrozen.
+2026-03-18 16:47:31 [INFO] TagStudioTabs frozen: active sub-tab=0
+2026-03-18 16:47:31 [INFO] RunCommand<AlignTagBandsCommand>: start
+2026-03-18 16:47:35 [INFO] RunCommand<AlignTagBandsCommand>: done
+2026-03-18 16:47:35 [INFO] TagStudioTabs unfrozen.
+2026-03-18 16:47:47 [INFO] Tab 7 content loaded (lazy)
+2026-03-18 16:48:12 [INFO] RunCommand<RaiseIssueCommand>: start
+2026-03-18 16:48:23 [INFO] BIMManager: saved issues.json
+2026-03-18 16:48:44 [INFO] Issue raised: CLASH-0001 (CLASH, HIGH)
+2026-03-18 16:48:44 [INFO] RunCommand<RaiseIssueCommand>: done
+2026-03-18 16:49:55 [INFO] Tab 3 content loaded (lazy)
+2026-03-18 16:50:15 [WARN] Unrecognised command tag: COBieZoneTypes
+2026-03-18 16:53:49 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:50 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:53:50 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:50 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:51 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:53:51 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:51 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:53:51 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:51 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:52 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:53 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:54 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:55 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:53:56 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 16:56:26 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 16:56:26 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 16:56:26 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 16:56:26 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 16:56:26 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 16:56:26 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 16:56:26 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 16:56:26 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 16:56:26 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 16:56:26 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 16:56:26 [INFO] Dockable panel registered successfully
+2026-03-18 16:56:26 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 16:56:26 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 16:56:26 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 16:56:26 [INFO] ParamRegistry: supplemented 1748 GUIDs from MR_PARAMETERS.txt
+2026-03-18 16:56:26 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2256 GUIDs
+2026-03-18 16:56:26 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 16:56:26 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 16:56:26 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 16:56:26 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 16:56:26 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 16:57:11 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 16:57:11 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 16:57:11 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 16:57:11 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 16:57:11 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 16:57:40 [INFO] Tab 8 content loaded (lazy)
+2026-03-18 16:57:49 [INFO] Tab 7 content loaded (lazy)
+2026-03-18 16:58:01 [INFO] Tab 6 content loaded (lazy)
+2026-03-18 16:58:14 [INFO] Tab 5 content loaded (lazy)
+2026-03-18 16:58:16 [INFO] Tab 4 content loaded (lazy)
+2026-03-18 16:58:20 [INFO] Tab 3 content loaded (lazy)
+2026-03-18 16:59:17 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 16:59:29 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 17:00:23 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 17:00:24 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 17:00:25 [INFO] ThemeManager: applied 'Corporate' theme
+2026-03-18 17:00:46 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 17:00:47 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 17:00:48 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 17:20:20 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 17:26:00 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 17:26:00 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 17:26:00 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 17:26:00 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 17:26:00 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 20:33:15 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 20:33:15 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 20:33:15 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 20:33:15 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 20:33:15 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 22:42:31 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 22:42:31 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-18 22:42:36 [INFO] STING Tools shutting down
+2026-03-18 22:42:36 [INFO] StingAutoTagger: unregistered
+2026-03-18 22:43:05 [INFO] Data validation passed: all 9 critical files found in C:\Dev\STINGTOOLS\CompiledPlugin\data
+2026-03-18 22:43:05 [INFO] STING Tools v1.0.0.0 loaded from C:\Dev\STINGTOOLS\CompiledPlugin\StingTools.dll
+2026-03-18 22:43:05 [INFO] Assembly: WindowsBase v8.0.0.0
+2026-03-18 22:43:05 [INFO] Assembly: System.IO.Packaging v8.0.0.0
+2026-03-18 22:43:05 [INFO] Assembly: RevitAPI v25.4.30.0
+2026-03-18 22:43:05 [INFO] Assembly: Newtonsoft.Json v13.0.0.0
+2026-03-18 22:43:05 [INFO] Assembly: RevitAPIUI v25.4.30.0
+2026-03-18 22:43:05 [INFO] Assembly pre-flight: no version conflicts detected.
+2026-03-18 22:43:05 [INFO] ThemeManager: applied 'Light' theme
+2026-03-18 22:43:05 [INFO] DeferNonActiveTabContent: deferred 8 tabs, active tab=0
+2026-03-18 22:43:05 [INFO] Dockable panel registered successfully
+2026-03-18 22:43:05 [INFO] StingAutoTagger: registered (disabled by default, no triggers)
+2026-03-18 22:43:05 [INFO] ParamRegistry.EnsureLoaded: first-time load starting
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: starting
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: found at C:\Dev\STINGTOOLS\CompiledPlugin\data\PARAMETER_REGISTRY.json
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: reading file
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: read 216887 chars, parsing JSON
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: JSON parsed OK
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: tag_format loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 8 source tokens loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: support params loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 7 token presets loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 23 container groups loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 141 category enum mappings loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 141 universal categories loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 323 extended params loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 8 required params loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 99 warning thresholds loaded
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: building GUID maps
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 508 GUIDs mapped
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: building universal params list
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: 240 universal params
+2026-03-18 22:43:05 [INFO] ParamRegistry.LoadFromFile: building discipline category names
+2026-03-18 22:43:05 [INFO] ParamRegistry: supplemented 1748 GUIDs from MR_PARAMETERS.txt
+2026-03-18 22:43:05 [INFO] ParamRegistry loaded: 8 tokens, 23 groups, 59 containers, 2256 GUIDs
+2026-03-18 22:43:05 [INFO] ParamRegistry.EnsureLoaded: LoadFromFile completed successfully
+2026-03-18 22:43:05 [INFO] ParamRegistry pre-loaded at startup successfully
+2026-03-18 22:43:05 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 22:43:05 [INFO] TagConfig: supplemented 308 additional warning refs from tag config CSVs
+2026-03-18 22:43:05 [INFO] STING Tools dockable panel loaded successfully
+2026-03-18 22:44:45 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 22:44:54 [INFO] ThemeManager: applied 'Warm' theme
+2026-03-18 22:44:55 [INFO] ThemeManager: applied 'Cool' theme
+2026-03-18 22:45:10 [INFO] Tab 1 content loaded (lazy)
+2026-03-18 22:45:12 [INFO] Tab 2 content loaded (lazy)
+2026-03-18 23:20:48 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 23:20:48 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 23:20:48 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 23:20:48 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 23:20:48 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-18 23:22:12 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-18 23:22:12 [INFO] Tag format override applied: sep='-', pad=4, segments=8
+2026-03-18 23:22:12 [INFO] TagConfig: loaded 209 warning refs across categories, 126 paragraph containers from LABEL_DEFINITIONS.json
+2026-03-18 23:22:12 [INFO] TagConfig: supplemented 287 additional warning refs from tag config CSVs
+2026-03-18 23:22:12 [INFO] DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig
+2026-03-19 00:11:29 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-19 00:11:30 [INFO] ViewActivated: document switch detected — caches invalidated
+2026-03-19 00:11:32 [INFO] DocumentClosing: cleared parameter, compliance, formula, and selection caches
+2026-03-19 00:11:32 [INFO] ViewActivated: document switch detected — caches invalidated

@@ -1,0 +1,103 @@
+{
+  "name": "Default",
+  "createdFrom": "Built-in",
+  "created": "2026-03-15",
+  "rules": {
+    "Mechanical Equipment": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0
+    },
+    "Ducts": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Pipes": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Air Terminals": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Lighting Fixtures": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.0
+    },
+    "Electrical Equipment": {
+      "preferredSide": 1,
+      "addLeader": true,
+      "offsetX": 1.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 2.0
+    },
+    "Sprinklers": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 0.8
+    },
+    "Doors": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Windows": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Rooms": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0
+    },
+    "Furniture Systems": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    },
+    "Generic Models": {
+      "preferredSide": 0,
+      "addLeader": true,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5
+    }
+  }
+}
