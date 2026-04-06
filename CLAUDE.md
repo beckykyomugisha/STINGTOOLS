@@ -8,17 +8,18 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **169 source files** (166 C# + 3 XAML, ~214,000 lines of code) across 10 directories
-- **750+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
-- **49 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard + 1 BIM Coordination Center (13 tabs)
+- **173 source files** (170 C# + 3 XAML, ~220,000 lines of code) across 10 directories
+- **755+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
+- **51 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
+- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard + 1 BIM Coordination Center (14 tabs, Phase 76) + 1 Material Manager (7 tabs, Phase 76)
+- **Phase 76 additions**: Revisions inline panels, Workflow ToggleButton tabs, QR code generation (ZXing.Net), Code Legend (120+ entries), Project Members unified tab, Material Manager 7-tab dialog, Issues dynamic context panels
 
 ## Technology Stack
 
 - **Platform**: Autodesk Revit 2025/2026/2027 (BIM software)
 - **Language**: C# / .NET 8.0 (`net8.0-windows`)
 - **Plugin type**: `IExternalApplication` + `IExternalEventHandler` + `IDockablePaneProvider` + `IUpdater` with `IExternalCommand` classes
-- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
+- **Dependencies**: `Newtonsoft.Json` 13.0.3, `ClosedXML` 0.104.2 (XLSX/BOQ export), `ZXing.Net` 0.16.9 (QR code generation), Revit API assemblies (`RevitAPI.dll`, `RevitAPIUI.dll`)
 - **Data formats**: CSV and JSON files for configuration data (materials, parameters, schedules)
 - **Deployment**: `StingTools.addin` (XML manifest) + `extract_plugin.sh` (Bash)
 

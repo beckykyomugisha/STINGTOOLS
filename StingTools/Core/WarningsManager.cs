@@ -5061,7 +5061,7 @@ namespace StingTools.Core
             else
             {
                 StingLog.Warn($"DispatchCoordAction: unrecognised action '{action}'");
-                TaskDialog.Show("STING", $"Action '{action}' is not yet available.");
+                TaskDialog.Show("STING", $"Action '{action}' is not handled. Check StingCommandHandler for the command binding.");
             }
         }
     }
