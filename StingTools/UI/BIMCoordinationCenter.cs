@@ -109,6 +109,9 @@ namespace StingTools.UI
         // Phase 76 Item 9: Workflow tab preset panel area
         private ContentControl _workflowPanelArea;
 
+        // Phase 76 Item 14: Issues tab dynamic context area
+        private ContentControl _issueContextArea;
+
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
@@ -2101,27 +2104,43 @@ namespace StingTools.UI
             root.Children.Add(gateCard);
 
             // ── ACTION BUTTONS (3 rows) ──────────────────────────────────
+            // Phase 76 Item 14: contextual buttons show inline panel in _issueContextArea
+            var refreshBtn = new Button
+            {
+                Content = "↻ Refresh", Height = 26, Padding = new Thickness(10, 0, 10, 0),
+                Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 0, 4), HorizontalAlignment = HorizontalAlignment.Left
+            };
+            refreshBtn.Click += (s, e) => { if (_tabCache.ContainsKey(TabIssues)) { _tabCache.Remove(TabIssues); } NavigateTo(TabIssues); };
+            root.Children.Add(refreshBtn);
+
             root.Children.Add(MakeSectionHeader("ACTIONS"));
             var actionGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             for (int i = 0; i < 4; i++) actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             for (int i = 0; i < 3; i++) actionGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var actions = new (string Label, string Tag, Color Clr, string Tip)[] {
-                ("Raise Issue", "RaiseIssue", Color.FromRgb(0xC6, 0x28, 0x28), "Create new RFI/NCR/SI/Clash issue with element linking and BCF integration"),
-                ("Update Status", "UpdateIssue", Color.FromRgb(0xE8, 0x91, 0x2D), "Update issue status, priority, or assignees"),
-                ("Bulk Close", "IssuesBulkClose", Color.FromRgb(0x6A, 0x1B, 0x9A), "Close multiple resolved issues at once"),
-                ("Select Elements", "SelectIssueElements", Color.FromRgb(0x1A, 0x23, 0x7E), "Select model elements linked to the selected issue"),
-                ("BCF Export", "BCFExport", Color.FromRgb(0x00, 0x69, 0x7C), "Export issues as BCF 2.1 for ACC/Navisworks/BIMcollab"),
-                ("BCF Import", "BCFImport", Color.FromRgb(0x00, 0x69, 0x7C), "Import BCF issues from external clash/coordination tools"),
-                ("Export CSV", "ExportIssues", Color.FromRgb(0x45, 0x50, 0x6E), "Export issue register to CSV for PowerBI/reporting"),
-                ("From Warnings", "CreateIssuesFromWarnings", Color.FromRgb(0xE6, 0x5C, 0x00), "Auto-create NCR/SI from critical/high Revit warnings"),
-                ("Issue Timeline", "IssueTimeline", Color.FromRgb(0x1A, 0x23, 0x7E), "View issue timeline with status changes and resolution history"),
-                ("Add to Meeting", "AutoAgenda", Color.FromRgb(0x00, 0x69, 0x7C), "Add open issues to next meeting agenda grouped by type/priority"),
-                ("Create Transmittal", "CreateTransmittal", Color.FromRgb(0x6A, 0x1B, 0x9A), "Create ISO 19650 transmittal linking issues to document exchange"),
-                ("Assign Issues", "AssignIssues", Color.FromRgb(0xE8, 0x91, 0x2D), "Multi-assign issues to team members by role/discipline")
+            var actions = new (string Label, string Tag, Color Clr, string Tip, bool HasCtx)[] {
+                ("Raise Issue",       "RaiseIssue",              Color.FromRgb(0xC6, 0x28, 0x28), "Create new RFI/NCR/SI/Clash issue with element linking and BCF integration", true),
+                ("Update Status",     "UpdateIssue",             Color.FromRgb(0xE8, 0x91, 0x2D), "Update issue status, priority, or assignees", true),
+                ("Bulk Close",        "IssuesBulkClose",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Close multiple resolved issues at once", true),
+                ("Select Elements",   "SelectIssueElements",     Color.FromRgb(0x1A, 0x23, 0x7E), "Select model elements linked to the selected issue", false),
+                ("BCF Export",        "BCFExport",               Color.FromRgb(0x00, 0x69, 0x7C), "Export issues as BCF 2.1 for ACC/Navisworks/BIMcollab", true),
+                ("BCF Import",        "BCFImport",               Color.FromRgb(0x00, 0x69, 0x7C), "Import BCF issues from external clash/coordination tools", false),
+                ("Export CSV",        "ExportIssues",            Color.FromRgb(0x45, 0x50, 0x6E), "Export issue register to CSV for PowerBI/reporting", false),
+                ("From Warnings",     "CreateIssuesFromWarnings",Color.FromRgb(0xE6, 0x5C, 0x00), "Auto-create NCR/SI from critical/high Revit warnings", true),
+                ("Issue Timeline",    "IssueTimeline",           Color.FromRgb(0x1A, 0x23, 0x7E), "View issue timeline with status changes and resolution history", false),
+                ("Add to Meeting",    "AutoAgenda",              Color.FromRgb(0x00, 0x69, 0x7C), "Add open issues to next meeting agenda grouped by type/priority", false),
+                ("Create Transmittal","CreateTransmittal",       Color.FromRgb(0x6A, 0x1B, 0x9A), "Create ISO 19650 transmittal linking issues to document exchange", false),
+                ("Assign Issues",     "AssignIssues",            Color.FromRgb(0xE8, 0x91, 0x2D), "Multi-assign issues to team members by role/discipline", true)
             };
             for (int i = 0; i < actions.Length; i++)
             {
-                var btn = MakeActionButton(actions[i].Label, actions[i].Tag, Br(actions[i].Clr), actions[i].Tip);
+                var a = actions[i];
+                Button btn;
+                if (a.HasCtx)
+                    btn = MakeIssueContextButton(a.Label, a.Tag, Br(a.Clr), a.Tip);
+                else
+                    btn = MakeActionButton(a.Label, a.Tag, Br(a.Clr), a.Tip);
                 btn.Margin = new Thickness(2);
                 Grid.SetRow(btn, i / 4);
                 Grid.SetColumn(btn, i % 4);
@@ -2275,41 +2294,22 @@ namespace StingTools.UI
                 root.Children.Add(assignCard);
             }
 
-            // ── AEC/FM ROLE REFERENCE ────────────────────────────────────
-            root.Children.Add(MakeSectionHeader("AEC/FM ROLE CATEGORIES"));
-            var rolesCard = MakeCard();
-            var rolesGrid = new Grid { Margin = new Thickness(0) };
-            rolesGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            rolesGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            rolesGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            // AEC/FM role categories for multi-assign
-            var roleCategories = new (string Category, string[] Roles)[] {
-                ("CLIENT / EMPLOYER", new[] { "Client Rep", "Employer's Agent", "Project Sponsor", "End User Rep" }),
-                ("DESIGN TEAM", new[] { "Architect", "Structural Engineer", "MEP Engineer", "Civil Engineer", "Landscape Architect", "Interior Designer", "Lighting Designer", "Acoustic Consultant", "Fire Engineer", "Sustainability Consultant" }),
-                ("BIM / DIGITAL", new[] { "BIM Manager", "BIM Coordinator", "BIM Technician", "Information Manager", "Digital Engineer", "Data Manager" }),
-                ("CONSTRUCTION", new[] { "Main Contractor", "Site Manager", "Quantity Surveyor", "Construction Manager", "Planning Engineer", "Temporary Works Coordinator", "Health & Safety Manager" }),
-                ("SPECIALIST TRADES", new[] { "MEP Subcontractor", "Steelwork Fabricator", "Cladding Contractor", "Piling Contractor", "Curtain Wall Installer", "Electrical Contractor", "Mechanical Contractor", "Plumbing Contractor", "Fire Protection Contractor" }),
-                ("FM / OPERATIONS", new[] { "Facilities Manager", "Building Manager", "Maintenance Manager", "Energy Manager", "Space Planner", "Asset Manager", "CAFM Administrator", "Helpdesk Manager" }),
-                ("COMPLIANCE / QA", new[] { "CDM Coordinator", "Building Control", "Planning Officer", "Quality Manager", "Clerk of Works", "Approved Inspector", "Environmental Consultant" }),
-                ("SPECIALIST CONSULTANT", new[] { "Access Consultant", "Heritage Consultant", "Transport Planner", "Ecology Consultant", "Geotechnical Engineer", "Facade Engineer", "Vibration Specialist" }),
-                ("PROJECT MANAGEMENT", new[] { "Project Manager", "Programme Manager", "Contract Administrator", "Cost Consultant", "Risk Manager", "Procurement Manager" })
-            };
-            int rolesPerCol = (roleCategories.Length + 2) / 3;
-            for (int col = 0; col < 3; col++)
+            // ── DYNAMIC CONTEXT AREA (Phase 76 Item 14) ─────────────────
+            // Replaced static AEC/FM role taxonomy with per-action contextual UI
+            root.Children.Add(MakeSectionHeader("ACTION CONTEXT"));
+            _issueContextArea = new ContentControl { MinHeight = 160 };
+            // Default prompt
+            _issueContextArea.Content = new Border
             {
-                var colStack = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
-                for (int i = col * rolesPerCol; i < Math.Min((col + 1) * rolesPerCol, roleCategories.Length); i++)
-                {
-                    var (cat, roles) = roleCategories[i];
-                    colStack.Children.Add(new TextBlock { Text = cat, FontWeight = FontWeights.Bold, FontSize = 10, Foreground = Br(CAccent), Margin = new Thickness(0, 6, 0, 2) });
-                    foreach (var role in roles)
-                        colStack.Children.Add(new TextBlock { Text = $"  • {role}", FontSize = 10, Foreground = Br(Color.FromRgb(0x42, 0x42, 0x42)) });
-                }
-                Grid.SetColumn(colStack, col);
-                rolesGrid.Children.Add(colStack);
-            }
-            rolesCard.Child = rolesGrid;
-            root.Children.Add(rolesCard);
+                Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4), Padding = new Thickness(14, 10, 14, 10)
+            };
+            (_issueContextArea.Content as Border).Child = new TextBlock
+            {
+                Text = "Click an action button above to see configuration options here.",
+                FontSize = 12, Foreground = Brushes.Gray
+            };
+            root.Children.Add(_issueContextArea);
 
             // ── SLA STATUS ───────────────────────────────────────────────
             if (_data.Issues.Any(i => i.Status == "OPEN"))
@@ -3850,6 +3850,216 @@ namespace StingTools.UI
             public string RateUSD  { get; set; }
             public string Unit     { get; set; }
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  ISSUES DYNAMIC CONTEXT PANELS  (Phase 76 Item 14)
+        // ════════════════════════════════════════════════════════════════
+
+        private Button MakeIssueContextButton(string label, string actionTag, SolidColorBrush bg, string tooltip = null)
+        {
+            var btn = new Button
+            {
+                Content = label, Tag = actionTag,
+                Height = 30, Padding = new Thickness(10, 0, 10, 0),
+                Background = bg, Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand,
+                ToolTip = tooltip
+            };
+            var origBg = bg;
+            var c0 = origBg.Color;
+            var hoverBrush = Br(Color.FromRgb(
+                (byte)Math.Min(255, c0.R + 30),
+                (byte)Math.Min(255, c0.G + 30),
+                (byte)Math.Min(255, c0.B + 30)));
+            btn.MouseEnter += (s, e) => btn.Background = hoverBrush;
+            btn.MouseLeave += (s, e) => btn.Background = origBg;
+            btn.Click += (s, e) =>
+            {
+                if (_issueContextArea != null)
+                    _issueContextArea.Content = BuildIssueContextPanelFor(actionTag);
+            };
+            return btn;
+        }
+
+        private FrameworkElement BuildIssueContextPanelFor(string tag)
+        {
+            var navyBrush = Br(CHeaderBg);
+            var panel = new Border
+            {
+                Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16), Margin = new Thickness(0, 4, 0, 4)
+            };
+
+            switch (tag)
+            {
+                case "RaiseIssue":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    var typeRow = MakeCtxRow("Issue Type:");
+                    var typeCb = new System.Windows.Controls.ComboBox { Width = 180 };
+                    foreach (var t in new[] { "RFI", "NCR", "Site Instruction", "Clash", "Snagging", "Design Issue", "Change Request" }) typeCb.Items.Add(t);
+                    typeCb.SelectedIndex = 0;
+                    typeRow.Children.Add(typeCb);
+                    sp.Children.Add(typeRow);
+                    var priRow = MakeCtxRow("Priority:");
+                    var priCb = new System.Windows.Controls.ComboBox { Width = 120 };
+                    foreach (var p in new[] { "LOW", "MEDIUM", "HIGH", "CRITICAL" }) priCb.Items.Add(p);
+                    priCb.SelectedIndex = 2;
+                    priRow.Children.Add(priCb);
+                    sp.Children.Add(priRow);
+                    var titleRow = MakeCtxRow("Title:");
+                    var titleBox = new System.Windows.Controls.TextBox { Width = 340 };
+                    titleRow.Children.Add(titleBox);
+                    sp.Children.Add(titleRow);
+                    var descRow = MakeCtxRow("Description:");
+                    var descBox = new System.Windows.Controls.TextBox { Width = 340, Height = 48, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
+                    descRow.Children.Add(descBox);
+                    sp.Children.Add(descRow);
+                    var raiseBtn = MakeCtxActionButton("Raise Issue", Br(CRed));
+                    raiseBtn.Click += (s, e) => DispatchAction("RaiseIssue");
+                    sp.Children.Add(raiseBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                case "UpdateIssue":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "Update Issue Status", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    var statusRow = MakeCtxRow("New Status:");
+                    var statusCb = new System.Windows.Controls.ComboBox { Width = 160 };
+                    foreach (var s in new[] { "OPEN", "IN PROGRESS", "PENDING INFO", "RESOLVED", "CLOSED", "REJECTED" }) statusCb.Items.Add(s);
+                    statusCb.SelectedIndex = 0;
+                    statusRow.Children.Add(statusCb);
+                    sp.Children.Add(statusRow);
+                    var noteRow = MakeCtxRow("Resolution Note:");
+                    var noteBox = new System.Windows.Controls.TextBox { Width = 340, Height = 40, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
+                    noteRow.Children.Add(noteBox);
+                    sp.Children.Add(noteRow);
+                    var updateBtn = MakeCtxActionButton("Apply Update", Br(CAccent));
+                    updateBtn.Click += (s, e) => DispatchAction("UpdateIssue");
+                    sp.Children.Add(updateBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                case "IssuesBulkClose":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "Bulk Close Issues", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    sp.Children.Add(new TextBlock { Text = "Filter issues to close:", FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+                    var filterRow = MakeCtxRow("Status Filter:");
+                    var filterCb = new System.Windows.Controls.ComboBox { Width = 140 };
+                    foreach (var s in new[] { "All Resolved", "RESOLVED only", "PENDING INFO only" }) filterCb.Items.Add(s);
+                    filterCb.SelectedIndex = 0;
+                    filterRow.Children.Add(filterCb);
+                    sp.Children.Add(filterRow);
+                    var noteRow = MakeCtxRow("Closure Note:");
+                    var noteBox = new System.Windows.Controls.TextBox { Width = 300, Height = 36, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
+                    noteRow.Children.Add(noteBox);
+                    sp.Children.Add(noteRow);
+                    var closeBtn = MakeCtxActionButton("Bulk Close", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)));
+                    closeBtn.Click += (s, e) => DispatchAction("IssuesBulkClose");
+                    sp.Children.Add(closeBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                case "BCFExport":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "BCF 2.1 Export", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    var platformRow = MakeCtxRow("Target Platform:");
+                    var platCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var p in new[] { "Generic BCF 2.1", "Autodesk Construction Cloud (ACC)", "Navisworks", "BIMcollab", "Solibri", "Trimble Connect" }) platCb.Items.Add(p);
+                    platCb.SelectedIndex = 0;
+                    platformRow.Children.Add(platCb);
+                    sp.Children.Add(platformRow);
+                    var inclRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                    inclRow.Children.Add(new CheckBox { Content = "Open issues only", IsChecked = true, Margin = new Thickness(0, 0, 16, 0) });
+                    inclRow.Children.Add(new CheckBox { Content = "Include viewpoints", IsChecked = true });
+                    sp.Children.Add(inclRow);
+                    var expBtn = MakeCtxActionButton("Export BCF", Br(Color.FromRgb(0x00, 0x69, 0x7C)));
+                    expBtn.Click += (s, e) => DispatchAction("BCFExport");
+                    sp.Children.Add(expBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                case "CreateIssuesFromWarnings":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "Create Issues from Warnings", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    var sevRow = MakeCtxRow("Min Severity:");
+                    var sevCb = new System.Windows.Controls.ComboBox { Width = 140 };
+                    foreach (var s in new[] { "CRITICAL", "HIGH and above", "MEDIUM and above", "All" }) sevCb.Items.Add(s);
+                    sevCb.SelectedIndex = 1;
+                    sevRow.Children.Add(sevCb);
+                    sp.Children.Add(sevRow);
+                    var typeRow = MakeCtxRow("Issue Type:");
+                    var typeCb = new System.Windows.Controls.ComboBox { Width = 160 };
+                    foreach (var t in new[] { "NCR", "Site Instruction", "Design Issue" }) typeCb.Items.Add(t);
+                    typeCb.SelectedIndex = 0;
+                    typeRow.Children.Add(typeCb);
+                    sp.Children.Add(typeRow);
+                    var createBtn = MakeCtxActionButton("Create Issues", Br(Color.FromRgb(0xE6, 0x5C, 0x00)));
+                    createBtn.Click += (s, e) => DispatchAction("CreateIssuesFromWarnings");
+                    sp.Children.Add(createBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                case "AssignIssues":
+                {
+                    var sp = new StackPanel();
+                    sp.Children.Add(new TextBlock { Text = "Assign Issues", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
+                    var memberRow = MakeCtxRow("Assign To:");
+                    var memberCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    if (_data.TeamMembers.Count > 0)
+                        foreach (var m in _data.TeamMembers) memberCb.Items.Add(m.Name);
+                    else
+                        foreach (var r in new[] { "BIM Manager", "Architect", "MEP Engineer", "Structural Engineer" }) memberCb.Items.Add(r);
+                    memberCb.SelectedIndex = 0;
+                    memberRow.Children.Add(memberCb);
+                    sp.Children.Add(memberRow);
+                    var discRow = MakeCtxRow("By Discipline:");
+                    var discCb = new System.Windows.Controls.ComboBox { Width = 160 };
+                    foreach (var d in new[] { "All", "Architecture (A)", "Structure (S)", "Mechanical (M)", "Electrical (E)", "Plumbing (P)" }) discCb.Items.Add(d);
+                    discCb.SelectedIndex = 0;
+                    discRow.Children.Add(discCb);
+                    sp.Children.Add(discRow);
+                    var assignBtn = MakeCtxActionButton("Assign", Br(CAccent));
+                    assignBtn.Click += (s, e) => DispatchAction("AssignIssues");
+                    sp.Children.Add(assignBtn);
+                    panel.Child = sp;
+                    return panel;
+                }
+
+                default:
+                {
+                    panel.Child = new TextBlock { Text = $"Select an action button above to see configuration options.", FontSize = 12, Foreground = Brushes.Gray };
+                    return panel;
+                }
+            }
+        }
+
+        private static StackPanel MakeCtxRow(string label)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+            row.Children.Add(new TextBlock { Text = label, Width = 120, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            return row;
+        }
+
+        private static Button MakeCtxActionButton(string label, SolidColorBrush bg)
+            => new Button
+            {
+                Content = label, Height = 30, Padding = new Thickness(18, 0, 18, 0),
+                Background = bg, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontSize = 12, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0)
+            };
 
         // ════════════════════════════════════════════════════════════════
         //  WORKFLOW PRESET PANEL  (Phase 76 Item 9)
