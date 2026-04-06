@@ -365,6 +365,9 @@ namespace StingTools.UI
                     case "SelectByDiscipline": RunCommand<Organise.SelectByDisciplineCommand>(app); break;
                     case "TagRegisterExport": RunCommand<Organise.TagRegisterExportCommand>(app); break;
 
+                    // ── QR Codes ──
+                    case "QRCode": RunCommand<Tags.QRCodeCommand>(app); break;
+
                     // ── QA ──
                     case "ValidateTags": RunCommand<Tags.ValidateTagsCommand>(app); break;
                     case "HighlightInvalid": RunCommand<Organise.HighlightInvalidCommand>(app); break;

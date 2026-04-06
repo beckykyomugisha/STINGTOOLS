@@ -665,7 +665,7 @@ namespace StingTools.BIMManager
             ["Component"] = new[] { "Name", "CreatedBy", "CreatedOn", "TypeName", "Space",
                 "Description", "ExternalSystem", "ExternalObject", "ExternalIdentifier",
                 "SerialNumber", "InstallationDate", "WarrantyStartDate", "TagNumber",
-                "BarCode", "AssetIdentifier" },
+                "BarCode", "AssetIdentifier", "QR_URL" },
             ["System"] = new[] { "Name", "CreatedBy", "CreatedOn", "Category", "ComponentNames",
                 "ExternalSystem", "ExternalObject", "ExternalIdentifier", "Description" },
             ["Assembly"] = new[] { "Name", "CreatedBy", "CreatedOn", "SheetName", "ParentName",
@@ -2741,6 +2741,9 @@ namespace StingTools.BIMManager
                     ["BarCode"] = !string.IsNullOrEmpty(barCode) ? barCode
                         : (!string.IsNullOrEmpty(assetId) ? $"{doc.Title}_{assetId}" : el.UniqueId),
                     ["AssetIdentifier"] = assetId,
+                    ["QR_URL"] = !string.IsNullOrEmpty(assetId)
+                        ? StingQRHelper.BuildAssetUrl(doc.Title, assetId)
+                        : string.Empty,
                     ["Category"] = cat,
                     ["AssetType"] = assetType,
                     ["Discipline"] = tagDisc,

@@ -1523,6 +1523,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Find Duplicates" Tag="FindDuplicates" Click="Cmd_Click"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Select Stale" Tag="SelectStale" Click="Cmd_Click" ToolTip="Select elements with stale tags (moved/changed since tagging)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Container Check" Tag="ContainerPreCheck" Click="Cmd_Click" ToolTip="Verify all container parameters are bound and writable"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="QR Code" Tag="QRCode" Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
