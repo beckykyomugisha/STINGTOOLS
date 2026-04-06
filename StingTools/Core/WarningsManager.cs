@@ -3306,26 +3306,68 @@ namespace StingTools.Core
     /// <summary>Phase 47: Open unified BIM Coordination Center with all dashboards merged.</summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
+    /// <summary>ExternalEvent handler for BCC modeless action dispatch.</summary>
+    internal class BCCActionEventHandler : IExternalEventHandler
+    {
+        private volatile string _pendingAction = null;
+        internal void Post(string action) => _pendingAction = action;
+
+        public void Execute(UIApplication app)
+        {
+            string action = System.Threading.Interlocked.Exchange(ref _pendingAction, null);
+            if (!string.IsNullOrEmpty(action))
+            {
+                var doc = app?.ActiveUIDocument?.Document;
+                if (doc != null)
+                    BIMCoordinationCenterCommand.ProcessAction(action, doc, app);
+            }
+        }
+        public string GetName() => "BCCAction";
+    }
+
     public class BIMCoordinationCenterCommand : IExternalCommand
     {
+        private static BCCActionEventHandler _bccHandler;
+        private static ExternalEvent _bccEvent;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
             {
-                var uidoc = ParameterHelpers.GetApp(commandData)?.ActiveUIDocument;
+                var uiApp = ParameterHelpers.GetApp(commandData);
+                var uidoc = uiApp?.ActiveUIDocument;
                 Document doc = uidoc?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
-                // Keep-dialog-open loop: re-open after each dispatched command
-                while (true)
+                // Phase 76: Singleton — if BCC is already open, just activate it
+                if (UI.BIMCoordinationCenter.CurrentInstance != null)
                 {
-                    var coordData = BuildCoordData(doc);
-                    if (coordData == null) break;
-                    string action = UI.BIMCoordinationCenter.Show(coordData);
-                    if (string.IsNullOrEmpty(action)) break;
-                    ProcessAction(action, doc, ParameterHelpers.GetApp(commandData));
+                    UI.BIMCoordinationCenter.CurrentInstance.Dispatcher.Invoke(() =>
+                    {
+                        UI.BIMCoordinationCenter.CurrentInstance.Activate();
+                        UI.BIMCoordinationCenter.CurrentInstance.Focus();
+                    });
+                    return Result.Succeeded;
                 }
 
+                // Create ExternalEvent for modeless dispatch (once per Revit session)
+                if (_bccHandler == null)
+                {
+                    _bccHandler = new BCCActionEventHandler();
+                    _bccEvent   = ExternalEvent.Create(_bccHandler);
+                }
+
+                // Wire ActionDispatcher so BCC button clicks go through ExternalEvent
+                UI.BIMCoordinationCenter.ActionDispatcher = action =>
+                {
+                    _bccHandler.Post(action);
+                    _bccEvent.Raise();
+                };
+
+                var coordData = BuildCoordData(doc);
+                if (coordData == null) { message = "Could not build coordination data."; return Result.Failed; }
+
+                UI.BIMCoordinationCenter.Show(coordData);
                 return Result.Succeeded;
             }
             catch (Exception ex)

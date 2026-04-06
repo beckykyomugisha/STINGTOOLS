@@ -1564,33 +1564,10 @@ namespace StingTools.UI
                     }
 
                     // Phase 47: BIM Coordination Center (unified dashboard)
-                    // Keep-dialog-open loop: re-open after each dispatched command
+                    // Phase 76: BCC is modeless — single instance, ExternalEvent dispatch
                     case "BIMCoordinationCenter":
-                    {
-                        var ccDoc = app.ActiveUIDocument?.Document;
-                        if (ccDoc != null)
-                        {
-                            // NOTE: Blocking loop on API thread is intentional for keep-dialog-open
-                            // pattern within ExternalEvent handler. The ExternalEvent handler IS the
-                            // Revit API thread — blocking here is safe and expected for modal dialogs.
-                            while (true)
-                            {
-                                try
-                                {
-                                    var ccData = Core.BIMCoordinationCenterCommand.BuildCoordData(ccDoc);
-                                    if (ccData == null) break;
-                                    string ccAction = UI.BIMCoordinationCenter.Show(ccData);
-                                    if (string.IsNullOrEmpty(ccAction)) break; // User closed
-                                    Core.BIMCoordinationCenterCommand.ProcessAction(ccAction, ccDoc, app);
-                                }
-                                catch (Exception ex)
-                                {
-                                    StingLog.Warn($"BIM Coordination Center action failed: {ex.Message}");
-                                }
-                            }
-                        }
+                        RunCommand<Core.BIMCoordinationCenterCommand>(app);
                         break;
-                    }
 
                     // MIDP & Compliance
                     case "MidpTracker": RunCommand<BIMManager.MidpTrackerCommand>(app); break;

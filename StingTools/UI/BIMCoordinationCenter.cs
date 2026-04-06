@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -98,6 +98,16 @@ namespace StingTools.UI
 
         // Phase 76: Singleton for modeless BCC
         public static BIMCoordinationCenter CurrentInstance { get; private set; }
+
+        // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
+        internal static Action<string> ActionDispatcher { get; set; }
+
+        private void DispatchAction(string action)
+        {
+            ActionDispatcher?.Invoke(action);
+            Dispatcher.BeginInvoke(new Action(() => { Activate(); Focus(); }),
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
 
         // BCC-HIGH-01: Cache built tab content — avoids rebuilding full visual tree on every NavigateTo
         private readonly Dictionary<string, UIElement> _tabCache = new Dictionary<string, UIElement>();
@@ -776,7 +786,7 @@ namespace StingTools.UI
                     arRow.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = color, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
                     var arText = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center,
                         ToolTip = $"Click to execute: {action}\n{GetActionTooltip(action) ?? "Run this action to resolve the issue"}" };
-                    arText.MouseLeftButtonDown += (s, e) => { ResultAction = action; DialogResult = true; Close(); };
+                    arText.MouseLeftButtonDown += (s, e) => { DispatchAction(action); };
                     arText.MouseEnter += (s, e) => arText.TextDecorations = TextDecorations.Underline;
                     arText.MouseLeave += (s, e) => arText.TextDecorations = null;
                     arRow.Children.Add(arText);
@@ -831,7 +841,7 @@ namespace StingTools.UI
                         tb.ToolTip = $"Double-click to select all {disc} elements ({kv.Value.Total} total, {kv.Value.Untagged} untagged)";
                         tb.MouseLeftButtonDown += (s, e) =>
                         {
-                            if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{disc}"; DialogResult = true; Close(); }
+                            if (e.ClickCount == 2) { DispatchAction($"SelectByDisc_{disc}"); }
                         };
                         tb.MouseEnter += (s, e) => tb.Background = RowHoverBrush;
                         tb.MouseLeave += (s, e) => tb.Background = rowIdx % 2 == 0 ? Brushes.Transparent : RowAltBrush;
@@ -911,7 +921,7 @@ namespace StingTools.UI
                         Child = new TextBlock { Text = priority, FontSize = 8, Foreground = Brushes.White, FontWeight = FontWeights.Bold }
                     });
                     var sugBtn = new TextBlock { Text = text, FontSize = 12, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
-                    sugBtn.MouseLeftButtonDown += (s, e) => { ResultAction = action; DialogResult = true; Close(); };
+                    sugBtn.MouseLeftButtonDown += (s, e) => { DispatchAction(action); };
                     sugBtn.MouseEnter += (s, e) => sugBtn.TextDecorations = TextDecorations.Underline;
                     sugBtn.MouseLeave += (s, e) => sugBtn.TextDecorations = null;
                     sugRow.Children.Add(sugBtn);
@@ -1167,7 +1177,7 @@ namespace StingTools.UI
                     };
                     chipBorder.Child = new TextBlock { Text = kv.Key, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg) };
                     string discCode = kv.Key;
-                    chipBorder.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{discCode}"; DialogResult = true; Close(); } };
+                    chipBorder.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { DispatchAction($"SelectByDisc_{discCode}"); } };
                     Grid.SetRow(chipBorder, discRow); Grid.SetColumn(chipBorder, 0);
                     discGrid.Children.Add(chipBorder);
 
@@ -1263,7 +1273,7 @@ namespace StingTools.UI
                 {
                     var fixMi = new MenuItem { Header = $"Fix: {check}" };
                     string fa = checkAction;
-                    fixMi.Click += (s, e) => { ResultAction = fa; DialogResult = true; Close(); };
+                    fixMi.Click += (s, e) => { DispatchAction(fa); };
                     checkCm.Items.Add(fixMi);
                 }
                 var detailsMi = new MenuItem { Header = "Show Details" };
@@ -1631,13 +1641,13 @@ namespace StingTools.UI
                     rcRow.ToolTip = $"Category: {cat}\nSeverity: {sev}\nCount: {count}\nFix strategy: {(string.IsNullOrEmpty(fix) ? "Manual review" : fix)}\nDouble-click to select affected elements";
                     rcRow.MouseLeftButtonDown += (s, e) =>
                     {
-                        if (e.ClickCount == 2) { ResultAction = $"SelectWarning_{cat}|{desc}"; DialogResult = true; Close(); }
+                        if (e.ClickCount == 2) { DispatchAction($"SelectWarning_{cat}|{desc}"); }
                     };
                     var rcCtx = new ContextMenu();
                     var rcZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    rcZoom.Click += (s2, e2) => { ResultAction = $"ZoomToWarning_{cat}|{desc}"; DialogResult = true; Close(); };
+                    rcZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{cat}|{desc}"); };
                     var rcSelect = new MenuItem { Header = "Select Elements in Model" };
-                    rcSelect.Click += (s2, e2) => { ResultAction = $"SelectWarning_{cat}|{desc}"; DialogResult = true; Close(); };
+                    rcSelect.Click += (s2, e2) => { DispatchAction($"SelectWarning_{cat}|{desc}"); };
                     rcCtx.Items.Add(rcZoom); rcCtx.Items.Add(rcSelect);
                     rcRow.ContextMenu = rcCtx;
 
@@ -1685,14 +1695,14 @@ namespace StingTools.UI
                         };
                         descNode.MouseDoubleClick += (s, e) =>
                         {
-                            if (descNode.Tag is string tag) { ResultAction = "ZoomToWarning_" + tag.Substring("SelectWarning_".Length); DialogResult = true; Close(); }
+                            if (descNode.Tag is string tag) { DispatchAction("ZoomToWarning_" + tag.Substring("SelectWarning_".Length)); }
                             e.Handled = true;
                         };
                         var ctx = new ContextMenu();
                         var zoomItem = new MenuItem { Header = "Zoom to 3D Section Box" };
-                        zoomItem.Click += (s2, e2) => { if (descNode.Tag is string t) { ResultAction = "ZoomToWarning_" + t.Substring("SelectWarning_".Length); DialogResult = true; Close(); } };
+                        zoomItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction("ZoomToWarning_" + t.Substring("SelectWarning_".Length)); } };
                         var selectItem = new MenuItem { Header = "Select Elements in Model" };
-                        selectItem.Click += (s2, e2) => { if (descNode.Tag is string t) { ResultAction = t; DialogResult = true; Close(); } };
+                        selectItem.Click += (s2, e2) => { if (descNode.Tag is string t) { DispatchAction(t); } };
                         ctx.Items.Add(zoomItem); ctx.Items.Add(selectItem);
                         descNode.ContextMenu = ctx;
                         catNode.Items.Add(descNode);
@@ -1891,13 +1901,13 @@ namespace StingTools.UI
                     hotRow.ToolTip = $"Element: {name}\nWarnings: {count}\nDouble-click to zoom to 3D section box";
                     hotRow.MouseLeftButtonDown += (s, e) =>
                     {
-                        if (e.ClickCount == 2) { ResultAction = $"ZoomToWarning_{name}"; DialogResult = true; Close(); }
+                        if (e.ClickCount == 2) { DispatchAction($"ZoomToWarning_{name}"); }
                     };
                     var hotCtx = new ContextMenu();
                     var hotZoom = new MenuItem { Header = "Zoom to 3D Section Box" };
-                    hotZoom.Click += (s2, e2) => { ResultAction = $"ZoomToWarning_{name}"; DialogResult = true; Close(); };
+                    hotZoom.Click += (s2, e2) => { DispatchAction($"ZoomToWarning_{name}"); };
                     var hotSelect = new MenuItem { Header = "Select Element" };
-                    hotSelect.Click += (s2, e2) => { ResultAction = $"ZoomToElement_{name}"; DialogResult = true; Close(); };
+                    hotSelect.Click += (s2, e2) => { DispatchAction($"ZoomToElement_{name}"); };
                     hotCtx.Items.Add(hotZoom); hotCtx.Items.Add(hotSelect);
                     hotRow.ContextMenu = hotCtx;
                     hotStack.Children.Add(hotRow);
@@ -1931,7 +1941,7 @@ namespace StingTools.UI
                     dRow.ToolTip = $"Discipline: {kv.Key} — {kv.Value} warnings\nDouble-click to select all elements of this discipline";
                     dRow.MouseLeftButtonDown += (s, e) =>
                     {
-                        if (e.ClickCount == 2) { ResultAction = $"SelectByDisc_{kv.Key}"; DialogResult = true; Close(); }
+                        if (e.ClickCount == 2) { DispatchAction($"SelectByDisc_{kv.Key}"); }
                     };
                     discStack.Children.Add(dRow);
                 }
@@ -2318,7 +2328,7 @@ namespace StingTools.UI
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is IssueRow issue)
-                    { ResultAction = $"ZoomToIssue_{issue.Id}"; DialogResult = true; Close(); }
+                    { DispatchAction($"ZoomToIssue_{issue.Id}"); }
                 };
                 dg.ToolTip = "Double-click: zoom to 3D section box  |  Right-click: context menu  |  Hover assignee to see all assignees";
 
@@ -2340,17 +2350,17 @@ namespace StingTools.UI
                 // Context menu
                 var issueCtx = new ContextMenu();
                 var zoomMi = new MenuItem { Header = "Zoom to 3D Section Box" };
-                zoomMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { ResultAction = $"ZoomToIssue_{iss.Id}"; DialogResult = true; Close(); } };
+                zoomMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"ZoomToIssue_{iss.Id}"); } };
                 var selectMi = new MenuItem { Header = "Select Linked Elements" };
-                selectMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { ResultAction = $"SelectIssue_{iss.Id}"; DialogResult = true; Close(); } };
+                selectMi.Click += (s2, e2) => { if (dg.SelectedItem is IssueRow iss) { DispatchAction($"SelectIssue_{iss.Id}"); } };
                 var updateMi = new MenuItem { Header = "Update Issue Status" };
-                updateMi.Click += (s2, e2) => { ResultAction = "UpdateIssue"; DialogResult = true; Close(); };
+                updateMi.Click += (s2, e2) => { DispatchAction("UpdateIssue"); };
                 var assignMi = new MenuItem { Header = "Assign / Reassign" };
-                assignMi.Click += (s2, e2) => { ResultAction = "AssignIssues"; DialogResult = true; Close(); };
+                assignMi.Click += (s2, e2) => { DispatchAction("AssignIssues"); };
                 var meetingMi = new MenuItem { Header = "Add to Meeting Agenda" };
-                meetingMi.Click += (s2, e2) => { ResultAction = "AutoAgenda"; DialogResult = true; Close(); };
+                meetingMi.Click += (s2, e2) => { DispatchAction("AutoAgenda"); };
                 var transmitMi = new MenuItem { Header = "Link to Transmittal" };
-                transmitMi.Click += (s2, e2) => { ResultAction = "CreateTransmittal"; DialogResult = true; Close(); };
+                transmitMi.Click += (s2, e2) => { DispatchAction("CreateTransmittal"); };
                 issueCtx.Items.Add(zoomMi);
                 issueCtx.Items.Add(selectMi);
                 issueCtx.Items.Add(new Separator());
@@ -2564,7 +2574,7 @@ namespace StingTools.UI
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { ResultAction = $"SelectRevision_{rev.Id}"; DialogResult = true; Close(); }
+                    { DispatchAction($"SelectRevision_{rev.Id}"); }
                 };
                 // Right-click context menu
                 var revCtx = new ContextMenu();
@@ -2572,24 +2582,24 @@ namespace StingTools.UI
                 revSelectItem.Click += (s2, e2) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { ResultAction = $"SelectRevision_{rev.Id}"; DialogResult = true; Close(); }
+                    { DispatchAction($"SelectRevision_{rev.Id}"); }
                 };
                 var revZoomItem = new MenuItem { Header = "Zoom to Revision Clouds (3D)" };
                 revZoomItem.Click += (s2, e2) =>
                 {
                     if (dg.SelectedItem is RevisionRow rev)
-                    { ResultAction = $"ZoomToRevision_{rev.Id}"; DialogResult = true; Close(); }
+                    { DispatchAction($"ZoomToRevision_{rev.Id}"); }
                 };
                 var revIssueItem = new MenuItem { Header = "Issue Sheets for This Revision" };
                 revIssueItem.Click += (s2, e2) =>
                 {
                     if (dg.SelectedItem is RevisionRow)
-                    { ResultAction = "IssueSheetsForRevision"; DialogResult = true; Close(); }
+                    { DispatchAction("IssueSheetsForRevision"); }
                 };
                 var revExportItem = new MenuItem { Header = "Export Revision Report" };
                 revExportItem.Click += (s2, e2) =>
                 {
-                    ResultAction = "RevisionExport"; DialogResult = true; Close();
+                    DispatchAction("RevisionExport");
                 };
                 revCtx.Items.Add(revSelectItem);
                 revCtx.Items.Add(revZoomItem);
@@ -3479,7 +3489,7 @@ namespace StingTools.UI
             {
                 card.MouseLeftButtonDown += (s, e) =>
                 {
-                    if (e.ClickCount == 2) { ResultAction = clickAction; DialogResult = true; Close(); }
+                    if (e.ClickCount == 2) { DispatchAction(clickAction); }
                 };
                 // Hover effect
                 card.MouseEnter += (s, e) => { card.BorderBrush = Br(CAccent); card.BorderThickness = new Thickness(2); };
@@ -3579,9 +3589,7 @@ namespace StingTools.UI
         {
             if (sender is Button btn && btn.Tag is string action)
             {
-                ResultAction = action;
-                DialogResult = true;
-                Close();
+                DispatchAction(action);
             }
         }
 
@@ -3704,7 +3712,7 @@ namespace StingTools.UI
                 ddCard.Child = ddStack;
                 // Double-click to filter DataGrid to this drop
                 string ddName = ddNames[i];
-                ddCard.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { ResultAction = "DataDropReadiness"; DialogResult = true; Close(); } };
+                ddCard.MouseLeftButtonDown += (s, e) => { if (e.ClickCount == 2) { DispatchAction("DataDropReadiness"); } };
                 ddGrid.Children.Add(ddCard);
             }
             root.Children.Add(ddGrid);
@@ -3900,26 +3908,26 @@ namespace StingTools.UI
                 dg.MouseDoubleClick += (s, e) =>
                 {
                     if (dg.SelectedItem is DeliverableRow del)
-                    { ResultAction = "ViewDocument_" + del.Code; DialogResult = true; Close(); }
+                    { DispatchAction("ViewDocument_" + del.Code); }
                 };
 
                 // Right-click context menu
                 var dgCtx = new ContextMenu();
                 var ctxView = new MenuItem { Header = "View Document Details" };
-                ctxView.Click += (s, e) => { if (dg.SelectedItem is DeliverableRow d2) { ResultAction = "ViewDocument_" + d2.Code; DialogResult = true; Close(); } };
+                ctxView.Click += (s, e) => { if (dg.SelectedItem is DeliverableRow d2) { DispatchAction("ViewDocument_" + d2.Code); } };
                 dgCtx.Items.Add(ctxView);
                 var ctxCDE = new MenuItem { Header = "Update CDE Status" };
-                ctxCDE.Click += (s, e) => { ResultAction = "CDEStatus"; DialogResult = true; Close(); };
+                ctxCDE.Click += (s, e) => { DispatchAction("CDEStatus"); };
                 dgCtx.Items.Add(ctxCDE);
                 var ctxTransmit = new MenuItem { Header = "Create Transmittal for Selection" };
-                ctxTransmit.Click += (s, e) => { ResultAction = "CreateTransmittal"; DialogResult = true; Close(); };
+                ctxTransmit.Click += (s, e) => { DispatchAction("CreateTransmittal"); };
                 dgCtx.Items.Add(ctxTransmit);
                 dgCtx.Items.Add(new Separator());
                 var ctxApprove = new MenuItem { Header = "Submit for Approval" };
-                ctxApprove.Click += (s, e) => { ResultAction = "ApprovalWorkflow"; DialogResult = true; Close(); };
+                ctxApprove.Click += (s, e) => { DispatchAction("ApprovalWorkflow"); };
                 dgCtx.Items.Add(ctxApprove);
                 var ctxExport = new MenuItem { Header = "Export to Register CSV" };
-                ctxExport.Click += (s, e) => { ResultAction = "DocumentRegister"; DialogResult = true; Close(); };
+                ctxExport.Click += (s, e) => { DispatchAction("DocumentRegister"); };
                 dgCtx.Items.Add(ctxExport);
                 dg.ContextMenu = dgCtx;
 
@@ -4717,20 +4725,20 @@ namespace StingTools.UI
                 row.MouseEnter += (s, e) => { row.Background = Br(Color.FromRgb(0xE3, 0xF2, 0xFD)); };
                 row.MouseLeave += (s, e) => { row.Background = Brushes.Transparent; };
                 // Click → meeting history
-                row.MouseLeftButtonDown += (s, e) => { ResultAction = "MeetingHistory"; DialogResult = true; Close(); };
+                row.MouseLeftButtonDown += (s, e) => { DispatchAction("MeetingHistory"); };
                 // Context menu
                 var mtgCtx = new ContextMenu();
                 var logMin = new MenuItem { Header = "Log Minutes" };
-                logMin.Click += (s, e) => { ResultAction = "LogMinutes"; DialogResult = true; Close(); };
+                logMin.Click += (s, e) => { DispatchAction("LogMinutes"); };
                 mtgCtx.Items.Add(logMin);
                 var addAct = new MenuItem { Header = "Add Action Item" };
-                addAct.Click += (s, e) => { ResultAction = "AddActionItem"; DialogResult = true; Close(); };
+                addAct.Click += (s, e) => { DispatchAction("AddActionItem"); };
                 mtgCtx.Items.Add(addAct);
                 var expMin = new MenuItem { Header = "Export Minutes" };
-                expMin.Click += (s, e) => { ResultAction = "ExportMinutes"; DialogResult = true; Close(); };
+                expMin.Click += (s, e) => { DispatchAction("ExportMinutes"); };
                 mtgCtx.Items.Add(expMin);
                 var sendRem = new MenuItem { Header = "Send Reminder" };
-                sendRem.Click += (s, e) => { ResultAction = "SendReminder"; DialogResult = true; Close(); };
+                sendRem.Click += (s, e) => { DispatchAction("SendReminder"); };
                 mtgCtx.Items.Add(sendRem);
                 row.ContextMenu = mtgCtx;
                 ucStack.Children.Add(row);
@@ -4878,28 +4886,28 @@ namespace StingTools.UI
                 // Click to view open actions
                 actBorder.MouseLeftButtonDown += (s, e) =>
                 {
-                    ResultAction = "OpenActions"; DialogResult = true; Close();
+                    DispatchAction("OpenActions");
                 };
 
                 // Context menu
                 var ctxMenu = new ContextMenu();
                 var markDone = new MenuItem { Header = "Mark as Completed" };
-                markDone.Click += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                markDone.Click += (s, e) => { DispatchAction("OpenActions"); };
                 ctxMenu.Items.Add(markDone);
 
                 if (act.IsOverdue)
                 {
                     var escalate = new MenuItem { Header = "Escalate to NCR Issue", Foreground = Br(CRed) };
-                    escalate.Click += (s, e) => { ResultAction = "EscalateActions"; DialogResult = true; Close(); };
+                    escalate.Click += (s, e) => { DispatchAction("EscalateActions"); };
                     ctxMenu.Items.Add(escalate);
                 }
 
                 var reassign = new MenuItem { Header = "Reassign..." };
-                reassign.Click += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                reassign.Click += (s, e) => { DispatchAction("OpenActions"); };
                 ctxMenu.Items.Add(reassign);
 
                 var addNote = new MenuItem { Header = "Add to Meeting Agenda" };
-                addNote.Click += (s, e) => { ResultAction = "AutoAgenda"; DialogResult = true; Close(); };
+                addNote.Click += (s, e) => { DispatchAction("AutoAgenda"); };
                 ctxMenu.Items.Add(addNote);
 
                 actBorder.ContextMenu = ctxMenu;
@@ -4917,7 +4925,7 @@ namespace StingTools.UI
                     Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)),
                     Margin = new Thickness(0, 4, 0, 0), Cursor = Cursors.Hand
                 };
-                moreText.MouseLeftButtonDown += (s, e) => { ResultAction = "OpenActions"; DialogResult = true; Close(); };
+                moreText.MouseLeftButtonDown += (s, e) => { DispatchAction("OpenActions"); };
                 moreText.MouseEnter += (s, e) => moreText.TextDecorations = TextDecorations.Underline;
                 moreText.MouseLeave += (s, e) => moreText.TextDecorations = null;
                 actStack.Children.Add(moreText);
@@ -5175,14 +5183,19 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Show the unified BIM Coordination Center dialog.
-        /// Returns an action tag string (e.g., "RunDailyQA", "AutoFixWarnings") or null if closed.
+        /// Show the BIM Coordination Center as a modeless window.
+        /// Actions are dispatched via ActionDispatcher (ExternalEvent).
         /// </summary>
-        internal static string Show(CoordData data)
+        internal static void Show(CoordData data)
         {
+            if (CurrentInstance != null)
+            {
+                CurrentInstance.Activate();
+                CurrentInstance.Focus();
+                return;
+            }
             var dlg = new BIMCoordinationCenter(data);
-            bool? result = dlg.ShowDialog();
-            return (result == true) ? dlg.ResultAction : null;
+            dlg.Show();
         }
     }
 }
