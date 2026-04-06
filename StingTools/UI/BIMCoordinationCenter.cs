@@ -84,6 +84,9 @@ namespace StingTools.UI
         // Phase 75: Persist last-viewed tab across dialog reopens
         private static string _lastViewedTab = TabOverview;
 
+        // Phase 77 Item 11A: Current tab name for keyboard F5 refresh
+        private string _currentTab;
+
         // Phase 76: Static warning element IDs selected from BCC Warnings DataGrid (stored as long values)
         public static IReadOnlyList<long> SelectedWarningIds { get; private set; } = new List<long>();
 
@@ -114,6 +117,9 @@ namespace StingTools.UI
 
         // Phase 77 Item 4: Platform tab detail area
         private ContentControl _platformDetailArea;
+
+        // Phase 77 Item 7: Model Health action panel area
+        private ContentControl _modelHealthActionArea;
 
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
@@ -296,6 +302,37 @@ namespace StingTools.UI
             public int SLACriticalViolations;
             public int SLAHighViolations;
             public double AvgCriticalAgeHours;
+
+            // Phase 77 Item 6: Meetings and action items
+            public List<MeetingRow> Meetings { get; set; } = new();
+            public List<ActionItemRow> ActionItems { get; set; } = new();
+        }
+
+        /// <summary>Phase 77 Item 6: Meeting data row for inline grid.</summary>
+        internal class MeetingRow
+        {
+            public string MeetingId { get; set; }
+            public string Title { get; set; }
+            public string Type { get; set; }
+            public string Date { get; set; }
+            public string Time { get; set; }
+            public string Location { get; set; }
+            public string Status { get; set; }
+            public string Agenda { get; set; }
+            public int Attendees { get; set; }
+        }
+
+        /// <summary>Phase 77 Item 6: Action item data row for inline grid.</summary>
+        internal class ActionItemRow
+        {
+            public string ActionId { get; set; }
+            public string Description { get; set; }
+            public string Owner { get; set; }
+            public string DueDate { get; set; }
+            public string Priority { get; set; }
+            public string Status { get; set; }
+            public string MeetingRef { get; set; }
+            public bool IsOverdue { get; set; }
         }
 
         /// <summary>Phase 48: Issue data row for DataGrid display. Multi-assignee support.</summary>
@@ -506,11 +543,27 @@ namespace StingTools.UI
 
             Content = root;
 
-            // Keyboard shortcuts
+            // Keyboard shortcuts (Phase 77 Item 11A)
             KeyDown += (s, e) =>
             {
-                if (e.Key == Key.Escape) Close();
-                if (e.Key == Key.F5) { NavigateTo(TabOverview); e.Handled = true; }
+                if (e.Key == Key.Escape)
+                {
+                    // Clear any active inline panel areas
+                    _4dPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _revPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _workflowPanelArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _modelHealthActionArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    _issueContextArea?.SetCurrentValue(ContentControl.ContentProperty, null);
+                    e.Handled = true;
+                }
+                if (e.Key == Key.F5)
+                {
+                    // Refresh current tab
+                    if (_currentTab != null && _tabCache.ContainsKey(_currentTab))
+                        _tabCache.Remove(_currentTab);
+                    if (_currentTab != null) NavigateTo(_currentTab);
+                    e.Handled = true;
+                }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.E)
                 { ResultAction = "ExportReport"; Close(); e.Handled = true; }
                 if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Q)
@@ -755,6 +808,8 @@ namespace StingTools.UI
         {
             // Phase 75: Remember tab for cross-reopen persistence
             _lastViewedTab = tabName;
+            // Phase 77 Item 11A: Track current tab for F5 refresh
+            _currentTab = tabName;
 
             // Reset all nav buttons
             foreach (var child in _navPanel.Children)
@@ -844,8 +899,17 @@ namespace StingTools.UI
             stack.Children.Add(MakeRAGBar("Strict (Fully Resolved)", _data.StrictPct));
             stack.Children.Add(new Border { Height = 12 });
 
-            // Quick Actions
+            // Phase 77 Item 11E: Quick Actions toolbar
             stack.Children.Add(MakeSectionHeader("QUICK ACTIONS"));
+            var qaWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            qaWrap.Children.Add(MakeActionButton("▶ Morning Check",    "RunWorkflow_MorningHealthCheck", Br(CHeaderBg), "Run Morning Check workflow (8 steps)"));
+            qaWrap.Children.Add(MakeActionButton("⚡ Auto-Fix Warnings", "AutoFixWarnings", Br(CAccent), "Auto-fix all auto-fixable warnings"));
+            qaWrap.Children.Add(MakeActionButton("✓ Run Compliance",   "CompletenessDashboard", Br(CGreen), "Run tag completeness compliance check"));
+            qaWrap.Children.Add(MakeActionButton("⚑ Create Issue",    "RaiseIssue", Br(CRed), "Raise a new issue"));
+            qaWrap.Children.Add(MakeActionButton("📅 New Meeting",     "NewMeeting", Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), "Schedule a new BIM coordination meeting"));
+            stack.Children.Add(qaWrap);
+
+            // Extended Quick Actions
             var actionsWrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 12) };
             actionsWrap.Children.Add(MakeActionButton("Run Morning Check", "RunMorningCheck", Br(CHeaderBg)));
             actionsWrap.Children.Add(MakeActionButton("Run Daily QA", "RunDailyQA", Br(CHeaderBg)));
@@ -1154,6 +1218,19 @@ namespace StingTools.UI
                 forecastCard.Child = forecastStack;
                 stack.Children.Add(forecastCard);
             }
+
+            // Phase 77 Item 8: QR Codes section
+            stack.Children.Add(new Border { Height = 12 });
+            stack.Children.Add(MakeSectionHeader("QR CODES"));
+            var qrWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            qrWrap.Children.Add(MakeActionButton("Generate QR for Selected", "GenerateQRCode", Br(CHeaderBg), "Generate QR code PNG for selected elements (encodes ASS_TAG_1_TXT)"));
+            qrWrap.Children.Add(MakeActionButton("QR Sheet Register", "GenerateQRSheet", Br(CGreen), "Generate a sheet of QR codes for all tagged elements"));
+            qrWrap.Children.Add(MakeActionButton("Print QR Tags", "PrintQRTags", Br(CAccent), "Print QR code label sheet for FM/handover use"));
+            stack.Children.Add(qrWrap);
+            var qrResultArea = new System.Windows.Controls.Image { Width = 150, Height = 150, Margin = new Thickness(0, 4, 0, 0), Stretch = System.Windows.Media.Stretch.Uniform };
+            var qrCard = MakeCard();
+            qrCard.Child = qrResultArea;
+            stack.Children.Add(qrCard);
 
             scroll.Content = stack;
             return scroll;
@@ -1541,8 +1618,110 @@ namespace StingTools.UI
                 "Load/bind STING shared parameters from MR_PARAMETERS.txt"));
             stack.Children.Add(tagWrap);
 
+            // Phase 77 Item 7: Quick access buttons to show inline action panels
+            stack.Children.Add(new Border { Height = 8 });
+            stack.Children.Add(MakeSectionHeader("INLINE REPAIR PANELS"));
+            var inlineActWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var fixWarnPnlBtn = new Button { Content = "Fix Warnings Panel", Height = 28, Padding = new Thickness(10, 0, 10, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var fixStalePanel = new Button { Content = "Fix Stale Panel", Height = 28, Padding = new Thickness(10, 0, 10, 0), Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var valTagsPanel = new Button { Content = "Validate Tags Panel", Height = 28, Padding = new Thickness(10, 0, 10, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var fixContPanel = new Button { Content = "Fix Containers Panel", Height = 28, Padding = new Thickness(10, 0, 10, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand };
+            fixWarnPnlBtn.Click += (s, e) => ShowModelHealthAction("FixWarnings");
+            fixStalePanel.Click += (s, e) => ShowModelHealthAction("FixStaleElements");
+            valTagsPanel.Click += (s, e) => ShowModelHealthAction("ValidateTags");
+            fixContPanel.Click += (s, e) => ShowModelHealthAction("FixContainers");
+            inlineActWrap.Children.Add(fixWarnPnlBtn);
+            inlineActWrap.Children.Add(fixStalePanel);
+            inlineActWrap.Children.Add(valTagsPanel);
+            inlineActWrap.Children.Add(fixContPanel);
+            stack.Children.Add(inlineActWrap);
+
+            // Phase 77 Item 7: Inline action panel area
+            _modelHealthActionArea = new ContentControl { MinHeight = 160 };
+            stack.Children.Add(_modelHealthActionArea);
+
             scroll.Content = stack;
             return scroll;
+        }
+
+        /// <summary>Phase 77 Item 7: Show inline action panel in Model Health tab.</summary>
+        private void ShowModelHealthAction(string action)
+        {
+            if (_modelHealthActionArea == null) return;
+            var panel = new Border
+            {
+                Background = Br(CCardBg), BorderBrush = Br(CBorder),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16), Margin = new Thickness(0, 4, 0, 4)
+            };
+            var sp = new StackPanel();
+            switch (action)
+            {
+                case "FixWarnings":
+                {
+                    sp.Children.Add(new TextBlock { Text = "Auto-Fix Warnings", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), Margin = new Thickness(0, 0, 0, 8) });
+                    sp.Children.Add(new TextBlock { Text = $"Auto-fixable warnings: {_data.WarningAutoFixable} of {_data.WarningTotal} total", FontSize = 11, Margin = new Thickness(0, 0, 0, 6) });
+                    var warnChecks = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                    foreach (var wt in new[] { "Critical", "High", "Medium", "Low" })
+                        warnChecks.Children.Add(new CheckBox { Content = wt, IsChecked = true, FontSize = 11, Margin = new Thickness(0, 0, 12, 4) });
+                    sp.Children.Add(warnChecks);
+                    var fixBtn = new Button { Content = "Run Auto-Fix", Height = 28, Padding = new Thickness(14, 0, 14, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                    fixBtn.Click += (s, e) => DispatchAction("AutoFixWarnings");
+                    sp.Children.Add(fixBtn);
+                    break;
+                }
+                case "FixStaleElements":
+                {
+                    sp.Children.Add(new TextBlock { Text = "Retag Stale Elements", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), Margin = new Thickness(0, 0, 0, 8) });
+                    sp.Children.Add(new TextBlock { Text = $"Stale elements: {_data.StaleCount}", FontSize = 11, Margin = new Thickness(0, 0, 0, 6) });
+                    var discChecks = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                    foreach (var disc in new[] { "A", "S", "M", "E", "P", "FP" })
+                        discChecks.Children.Add(new CheckBox { Content = disc, IsChecked = true, FontSize = 11, Margin = new Thickness(0, 0, 12, 4) });
+                    sp.Children.Add(discChecks);
+                    var retagBtn = new Button { Content = "Re-tag Stale", Height = 28, Padding = new Thickness(14, 0, 14, 0), Background = Br(Color.FromRgb(0x6A, 0x1B, 0x9A)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                    retagBtn.Click += (s, e) => DispatchAction("RetagStale");
+                    sp.Children.Add(retagBtn);
+                    break;
+                }
+                case "ValidateTags":
+                {
+                    sp.Children.Add(new TextBlock { Text = "Validate Tags", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), Margin = new Thickness(0, 0, 0, 8) });
+                    sp.Children.Add(new TextBlock { Text = $"Tag coverage: {_data.TagPct:F1}%  |  Strict: {_data.StrictPct:F1}%", FontSize = 11, Margin = new Thickness(0, 0, 0, 6) });
+                    var valDg = new DataGrid { AutoGenerateColumns = false, IsReadOnly = true, CanUserAddRows = false, MaxHeight = 120, FontSize = 11, HeadersVisibility = DataGridHeadersVisibility.Column };
+                    valDg.Columns.Add(new DataGridTextColumn { Header = "Discipline", Binding = new Binding("Key"), Width = 80 });
+                    valDg.Columns.Add(new DataGridTextColumn { Header = "Coverage %", Binding = new Binding("Value.CompliancePct"), Width = 90 });
+                    valDg.ItemsSource = _data.ByDisc;
+                    sp.Children.Add(valDg);
+                    var valBtn = new Button { Content = "Run Validation", Height = 28, Padding = new Thickness(14, 0, 14, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
+                    valBtn.Click += (s, e) => DispatchAction("ValidateTags");
+                    sp.Children.Add(valBtn);
+                    break;
+                }
+                case "FixContainers":
+                {
+                    sp.Children.Add(new TextBlock { Text = "Fix Container Completion", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), Margin = new Thickness(0, 0, 0, 8) });
+                    sp.Children.Add(new TextBlock { Text = $"Container completion: {_data.ContainerCompletePct:F0}%", FontSize = 11, Margin = new Thickness(0, 0, 0, 6) });
+                    foreach (var disc in new[] { "Architecture", "Structural", "Mechanical", "Electrical" })
+                    {
+                        var barRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+                        barRow.Children.Add(new TextBlock { Text = disc, Width = 100, FontSize = 10, VerticalAlignment = VerticalAlignment.Center });
+                        var pb = new ProgressBar { Width = 200, Height = 14, Value = _data.ContainerCompletePct, Maximum = 100 };
+                        barRow.Children.Add(pb);
+                        sp.Children.Add(barRow);
+                    }
+                    var fixCBtn = new Button { Content = "Fix Containers", Height = 28, Padding = new Thickness(14, 0, 14, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
+                    fixCBtn.Click += (s, e) => DispatchAction("FixContainers");
+                    sp.Children.Add(fixCBtn);
+                    break;
+                }
+                default:
+                {
+                    sp.Children.Add(new TextBlock { Text = action, FontSize = 12 });
+                    break;
+                }
+            }
+            panel.Child = sp;
+            _modelHealthActionArea.Content = panel;
         }
 
         private static string GetHealthCheckAction(string check) => check switch
@@ -4292,8 +4471,8 @@ namespace StingTools.UI
                     var sp = new StackPanel();
                     sp.Children.Add(new TextBlock { Text = "Raise New Issue", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 8) });
                     var typeRow = MakeCtxRow("Issue Type:");
-                    var typeCb = new System.Windows.Controls.ComboBox { Width = 180 };
-                    foreach (var t in new[] { "RFI", "NCR", "Site Instruction", "Clash", "Snagging", "Design Issue", "Change Request" }) typeCb.Items.Add(t);
+                    var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -4393,8 +4572,8 @@ namespace StingTools.UI
                     sevRow.Children.Add(sevCb);
                     sp.Children.Add(sevRow);
                     var typeRow = MakeCtxRow("Issue Type:");
-                    var typeCb = new System.Windows.Controls.ComboBox { Width = 160 };
-                    foreach (var t in new[] { "NCR", "Site Instruction", "Design Issue" }) typeCb.Items.Add(t);
+                    var typeCb = new System.Windows.Controls.ComboBox { Width = 200 };
+                    foreach (var t in new[] { "NCR", "RFI", "CLASH", "DATA", "COMPLIANCE", "DESIGN", "COORDINATION", "SAFETY", "STRUCTURAL", "MEP", "FIRE", "ACCESSIBILITY", "ENVIRONMENTAL", "PROGRAMME", "COST", "HANDOVER", "BIM", "CLIENT", "AUTHORITY", "SITE" }) typeCb.Items.Add(t);
                     typeCb.SelectedIndex = 0;
                     typeRow.Children.Add(typeCb);
                     sp.Children.Add(typeRow);
@@ -5082,6 +5261,19 @@ namespace StingTools.UI
             return rag == "GREEN" ? Br(CGreen) : rag == "AMBER" ? Br(CAmber) : Br(CRed);
         }
 
+        /// <summary>Phase 77 Item 9: Color brush for each issue type.</summary>
+        private static SolidColorBrush GetIssueTypeBrush(string type) => type switch
+        {
+            "NCR" or "COMPLIANCE" => Br(CRed),
+            "RFI" or "SITE" => Br(Color.FromRgb(0xE6, 0x5C, 0x00)),
+            "CLASH" => Br(Color.FromRgb(0x6A, 0x1B, 0x9A)),
+            "DATA" or "PROGRAMME" or "COST" => Br(CAmber),
+            "DESIGN" or "MEP" or "STRUCTURAL" => Br(CHeaderBg),
+            "COORDINATION" or "BIM" or "HANDOVER" => Br(Color.FromRgb(0x1A, 0x23, 0x7E)),
+            "SAFETY" or "FIRE" => Br(Color.FromRgb(0xB7, 0x1C, 0x1C)),
+            _ => Br(Color.FromRgb(0x45, 0x50, 0x6E))
+        };
+
         // ── Phase 77: Excel-grade DataGrid helper ──────────────────────
         private static DataGrid MakeExcelDataGrid(int height = 160)
         {
@@ -5510,6 +5702,81 @@ namespace StingTools.UI
                 infoCard.Child = infoStack;
                 root.Children.Add(infoCard);
             }
+
+            // ── INLINE EDITABLE DELIVERABLE REGISTER ───────────────────
+            root.Children.Add(new Border { Height = 8 });
+            root.Children.Add(MakeSectionHeader("EDITABLE DELIVERABLE REGISTER"));
+
+            // Toolbar
+            var delToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var addDelBtn = new Button { Content = "+ Add Deliverable", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var delDelBtn = new Button { Content = "✕ Delete", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var bulkStatusCb = new System.Windows.Controls.ComboBox { Width = 130, Height = 26, FontSize = 11, Margin = new Thickness(0, 0, 4, 0) };
+            foreach (var st in new[] { "WIP", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "SUPERSEDED" }) bulkStatusCb.Items.Add(st);
+            bulkStatusCb.SelectedIndex = 0;
+            var bulkApplyBtn = new Button { Content = "Bulk Status", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var exportRegBtn = new Button { Content = "Export Register", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var filterStatusCb2 = new System.Windows.Controls.ComboBox { Width = 110, Height = 26, FontSize = 11, Margin = new Thickness(8, 0, 0, 0) };
+            filterStatusCb2.Items.Add("All Status");
+            foreach (var st in new[] { "WIP", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "SUPERSEDED" }) filterStatusCb2.Items.Add(st);
+            filterStatusCb2.SelectedIndex = 0;
+            delToolbar.Children.Add(addDelBtn);
+            delToolbar.Children.Add(delDelBtn);
+            delToolbar.Children.Add(bulkStatusCb);
+            delToolbar.Children.Add(bulkApplyBtn);
+            delToolbar.Children.Add(exportRegBtn);
+            delToolbar.Children.Add(new TextBlock { Text = "  Filter: ", VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            delToolbar.Children.Add(filterStatusCb2);
+            root.Children.Add(delToolbar);
+
+            // Inline editable DataGrid
+            var editDg = MakeExcelDataGrid(200);
+            editDg.IsReadOnly = false;
+            var delTypes = new List<string> { "Drawing", "Specification", "Report", "Model", "Schedule", "COBie" };
+            var delDiscs = new List<string> { "A", "S", "M", "E", "P", "FP", "LV", "C", "G", "All" };
+            var delStatuses = new List<string> { "WIP", "FOR REVIEW", "FOR APPROVAL", "APPROVED", "SUPERSEDED" };
+            editDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("Code"), Width = 80 });
+            editDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = delTypes, SelectedItemBinding = new Binding("Type"), Width = 95 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Disc", ItemsSource = delDiscs, SelectedItemBinding = new Binding("Suitability"), Width = 55 });
+            editDg.Columns.Add(new DataGridTextColumn { Header = "Rev", Binding = new Binding("DataDrop"), Width = 45 });
+            editDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = delStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
+            editDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
+            editDg.Columns.Add(new DataGridTextColumn { Header = "Assigned To", Binding = new Binding("Owner"), Width = 90 });
+            editDg.Columns.Add(new DataGridTextColumn { Header = "CDE State", Binding = new Binding("CDE"), Width = 70 });
+            var editDelSource = new System.Collections.ObjectModel.ObservableCollection<DeliverableRow>(_data.Deliverables);
+            editDg.ItemsSource = editDelSource;
+
+            addDelBtn.Click += (s, e) => { editDelSource.Add(new DeliverableRow { Code = "NEW-001", Status = "WIP", CDE = "WIP" }); };
+            delDelBtn.Click += (s, e) => { if (editDg.SelectedItem is DeliverableRow dr) editDelSource.Remove(dr); };
+            bulkApplyBtn.Click += (s, e) => { var st = bulkStatusCb.SelectedItem?.ToString(); foreach (var sel in editDg.SelectedItems.OfType<DeliverableRow>().ToList()) sel.Status = st; editDg.Items.Refresh(); DispatchAction("BulkDeliverableStatus"); };
+            exportRegBtn.Click += (s, e) => DispatchAction("ExportDeliverablesRegister");
+            filterStatusCb2.SelectionChanged += (s, e) => { var f = filterStatusCb2.SelectedItem?.ToString(); editDg.ItemsSource = f == "All Status" ? (System.Collections.IEnumerable)editDelSource : editDelSource.Where(d => d.Status == f).ToList(); };
+            root.Children.Add(editDg);
+
+            // ── TRANSMITTAL SECTION ─────────────────────────────────────
+            root.Children.Add(new Border { Height = 8 });
+            root.Children.Add(MakeSectionHeader("CREATE TRANSMITTAL"));
+            var txCard = MakeCard();
+            var txStack = new StackPanel();
+            var toRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            toRow.Children.Add(new TextBlock { Text = "To:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            toRow.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Height = 26, FontSize = 11 });
+            txStack.Children.Add(toRow);
+            var ccRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            ccRow.Children.Add(new TextBlock { Text = "CC:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            ccRow.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Height = 26, FontSize = 11 });
+            txStack.Children.Add(ccRow);
+            var purposeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            purposeRow.Children.Add(new TextBlock { Text = "Purpose:", Width = 60, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
+            purposeRow.Children.Add(new System.Windows.Controls.TextBox { Width = 300, Height = 26, FontSize = 11 });
+            txStack.Children.Add(purposeRow);
+            txStack.Children.Add(new TextBlock { Text = "Revision list auto-populated from selected deliverables", FontSize = 10, Foreground = Br(Color.FromRgb(0x75, 0x75, 0x75)), FontStyle = FontStyles.Italic, Margin = new Thickness(0, 4, 0, 6) });
+            var createTxBtn = new Button { Content = "Create Transmittal", Height = 28, Padding = new Thickness(14, 0, 14, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+            createTxBtn.Click += (s, e) => DispatchAction("CreateTransmittal");
+            txStack.Children.Add(createTxBtn);
+            txCard.Child = txStack;
+            root.Children.Add(txCard);
 
             // ── ACTION BUTTONS ──────────────────────────────────────────
             root.Children.Add(MakeSectionHeader("ACTIONS"));
@@ -6342,6 +6609,167 @@ namespace StingTools.UI
 
         private UIElement BuildMeetingsTab()
         {
+            var outerTabs = new TabControl { Background = Br(CPageBg), BorderThickness = new Thickness(0), Padding = new Thickness(0) };
+
+            // ── Sub-tab 6A: Meetings List ──────────────────────────────────
+            var mtgListPanel = new StackPanel { Margin = new Thickness(12) };
+            var mtgSource = new System.Collections.ObjectModel.ObservableCollection<MeetingRow>(_data.Meetings);
+            var mtgDg = MakeExcelDataGrid(200);
+            mtgDg.IsReadOnly = false;
+            var mtgTypes = new List<string> { "BIM Coordination", "Design Review", "Site Progress", "Technical", "Client", "Clash", "Close-out" };
+            var mtgStatuses = new List<string> { "PLANNED", "IN PROGRESS", "COMPLETED", "CANCELLED" };
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "ID", Binding = new Binding("MeetingId"), Width = 70 });
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Title", Binding = new Binding("Title"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Type", ItemsSource = mtgTypes, SelectedItemBinding = new Binding("Type"), Width = 130 });
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Date", Binding = new Binding("Date"), Width = 75 });
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Time", Binding = new Binding("Time"), Width = 55 });
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Location", Binding = new Binding("Location"), Width = 90 });
+            mtgDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = mtgStatuses, SelectedItemBinding = new Binding("Status"), Width = 100 });
+            mtgDg.Columns.Add(new DataGridTextColumn { Header = "Attendees", Binding = new Binding("Attendees"), Width = 65 });
+            mtgDg.ItemsSource = mtgSource;
+            var mtgToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var newMtgBtn = new Button { Content = "+ New Meeting", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var delMtgBtn = new Button { Content = "✕ Delete", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var expMinBtn = new Button { Content = "Export Minutes", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var expPdfBtn = new Button { Content = "Export All PDF", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var mtgFilterCb = new System.Windows.Controls.ComboBox { Width = 100, Height = 26, FontSize = 11, Margin = new Thickness(8, 0, 0, 0) };
+            mtgFilterCb.Items.Add("All Status"); foreach (var s in mtgStatuses) mtgFilterCb.Items.Add(s); mtgFilterCb.SelectedIndex = 0;
+            newMtgBtn.Click += (s, e) => { mtgSource.Add(new MeetingRow { MeetingId = "MTG-NEW", Status = "PLANNED" }); };
+            delMtgBtn.Click += (s, e) => { if (mtgDg.SelectedItem is MeetingRow mr) mtgSource.Remove(mr); };
+            expMinBtn.Click += (s, e) => DispatchAction("ExportMeetingMinutes");
+            expPdfBtn.Click += (s, e) => DispatchAction("ExportMeetingsPDF");
+            mtgFilterCb.SelectionChanged += (s, e) => { var f = mtgFilterCb.SelectedItem?.ToString(); mtgDg.ItemsSource = f == "All Status" ? (System.Collections.IEnumerable)mtgSource : mtgSource.Where(m => m.Status == f).ToList(); };
+            mtgToolbar.Children.Add(newMtgBtn); mtgToolbar.Children.Add(delMtgBtn); mtgToolbar.Children.Add(expMinBtn); mtgToolbar.Children.Add(expPdfBtn);
+            mtgToolbar.Children.Add(new TextBlock { Text = "Filter:", VerticalAlignment = VerticalAlignment.Center, FontSize = 11 }); mtgToolbar.Children.Add(mtgFilterCb);
+            // Detail card for selected meeting
+            var mtgDetailCard = MakeCard();
+            var mtgDetailStack = new StackPanel();
+            var agendaLabel = new TextBlock { Text = "Agenda:", FontWeight = FontWeights.SemiBold, FontSize = 11, Margin = new Thickness(0, 0, 0, 2) };
+            var agendaBox = new System.Windows.Controls.TextBox { Height = 48, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontSize = 11 };
+            var attendeesLabel = new TextBlock { Text = "Attendees: —", FontSize = 11, Margin = new Thickness(0, 4, 0, 0) };
+            mtgDg.SelectionChanged += (s, e) => { if (mtgDg.SelectedItem is MeetingRow sel) { agendaBox.Text = sel.Agenda ?? ""; attendeesLabel.Text = $"Attendees: {sel.Attendees}"; } };
+            mtgDetailStack.Children.Add(agendaLabel); mtgDetailStack.Children.Add(agendaBox); mtgDetailStack.Children.Add(attendeesLabel);
+            mtgDetailCard.Child = mtgDetailStack;
+            mtgListPanel.Children.Add(mtgToolbar); mtgListPanel.Children.Add(mtgDg); mtgListPanel.Children.Add(mtgDetailCard);
+            var sv6A = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = mtgListPanel };
+
+            // ── Sub-tab 6B: Action Items ───────────────────────────────────
+            var actItemsPanel = new StackPanel { Margin = new Thickness(12) };
+            var actSource = new System.Collections.ObjectModel.ObservableCollection<ActionItemRow>(_data.ActionItems);
+            var actDg = MakeExcelDataGrid(220);
+            actDg.IsReadOnly = false;
+            var actPriorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW" };
+            var actStatuses = new List<string> { "OPEN", "IN PROGRESS", "PENDING INFO", "CLOSED" };
+            actDg.Columns.Add(new DataGridTextColumn { Header = "Action ID", Binding = new Binding("ActionId"), Width = 80 });
+            actDg.Columns.Add(new DataGridTextColumn { Header = "Description", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            actDg.Columns.Add(new DataGridTextColumn { Header = "Owner", Binding = new Binding("Owner"), Width = 90 });
+            actDg.Columns.Add(new DataGridTextColumn { Header = "Due Date", Binding = new Binding("DueDate"), Width = 75 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Priority", ItemsSource = actPriorities, SelectedItemBinding = new Binding("Priority"), Width = 80 });
+            actDg.Columns.Add(new DataGridComboBoxColumn { Header = "Status", ItemsSource = actStatuses, SelectedItemBinding = new Binding("Status"), Width = 95 });
+            actDg.Columns.Add(new DataGridTextColumn { Header = "Mtg Ref", Binding = new Binding("MeetingRef"), Width = 70 });
+            actDg.ItemsSource = actSource;
+            // Row styles
+            var actRowStyle = new Style(typeof(DataGridRow));
+            // Note: DataTrigger on multiple bindings requires MultiBinding; use simple approach
+            var actOpenOverdueT = new DataTrigger { Binding = new Binding("IsOverdue"), Value = true };
+            actOpenOverdueT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF, 0xEB, 0xEE))));
+            actRowStyle.Triggers.Add(actOpenOverdueT);
+            var actInProgT = new DataTrigger { Binding = new Binding("Status"), Value = "IN PROGRESS" };
+            actInProgT.Setters.Add(new Setter(DataGridRow.BackgroundProperty, Br(Color.FromRgb(0xFF, 0xF8, 0xE1))));
+            actRowStyle.Triggers.Add(actInProgT);
+            actDg.RowStyle = actRowStyle;
+            var actToolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var addActBtn = new Button { Content = "+ Add Action", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var delActBtn = new Button { Content = "✕ Delete", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CRed), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var bulkCloseBtn = new Button { Content = "Bulk Close", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var expActBtn = new Button { Content = "Export Excel", Height = 26, Padding = new Thickness(8, 0, 8, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 4, 0) };
+            var overdueCheck = new CheckBox { Content = "Show Overdue Only", VerticalAlignment = VerticalAlignment.Center, FontSize = 11, Margin = new Thickness(8, 0, 0, 0) };
+            addActBtn.Click += (s, e) => { actSource.Add(new ActionItemRow { ActionId = "ACT-NEW", Status = "OPEN", Priority = "MEDIUM" }); };
+            delActBtn.Click += (s, e) => { if (actDg.SelectedItem is ActionItemRow ar) actSource.Remove(ar); };
+            bulkCloseBtn.Click += (s, e) => { foreach (var sel in actDg.SelectedItems.OfType<ActionItemRow>().ToList()) sel.Status = "CLOSED"; actDg.Items.Refresh(); DispatchAction("BulkCloseActions"); };
+            expActBtn.Click += (s, e) => ExportDataGridToXlsx(actDg, "ActionItems");
+            overdueCheck.Checked += (s, e) => actDg.ItemsSource = actSource.Where(a => a.IsOverdue).ToList();
+            overdueCheck.Unchecked += (s, e) => actDg.ItemsSource = actSource;
+            actToolbar.Children.Add(addActBtn); actToolbar.Children.Add(delActBtn); actToolbar.Children.Add(bulkCloseBtn); actToolbar.Children.Add(expActBtn); actToolbar.Children.Add(overdueCheck);
+            actItemsPanel.Children.Add(actToolbar); actItemsPanel.Children.Add(actDg);
+            var sv6B = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = actItemsPanel };
+
+            // ── Sub-tab 6C: Minutes Editor ─────────────────────────────────
+            var minutesPanel = new StackPanel { Margin = new Thickness(12) };
+            minutesPanel.Children.Add(MakeSectionHeader("SELECT MEETING"));
+            var meetingSelCb = new System.Windows.Controls.ComboBox { Height = 28, FontSize = 11, Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var mr in _data.Meetings) meetingSelCb.Items.Add($"{mr.MeetingId} — {mr.Title}");
+            if (_data.Meetings.Count == 0) meetingSelCb.Items.Add("(No meetings)");
+            meetingSelCb.SelectedIndex = 0;
+            minutesPanel.Children.Add(meetingSelCb);
+            minutesPanel.Children.Add(MakeSectionHeader("AGENDA ITEMS"));
+            var agendaDg = MakeExcelDataGrid(160);
+            agendaDg.IsReadOnly = false;
+            agendaDg.Columns.Add(new DataGridTextColumn { Header = "No.", Binding = new Binding("ActionId"), Width = 40 });
+            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Topic", Binding = new Binding("Description"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Discussion", Binding = new Binding("Owner"), Width = 150 });
+            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Decision", Binding = new Binding("Status"), Width = 120 });
+            agendaDg.Columns.Add(new DataGridTextColumn { Header = "Action Ref", Binding = new Binding("MeetingRef"), Width = 80 });
+            agendaDg.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<ActionItemRow>();
+            minutesPanel.Children.Add(agendaDg);
+            minutesPanel.Children.Add(MakeSectionHeader("ATTENDEES"));
+            var attendeesWrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            foreach (var tm in _data.TeamMembers)
+                attendeesWrap.Children.Add(new CheckBox { Content = tm.Name, FontSize = 11, Margin = new Thickness(0, 0, 12, 4) });
+            if (_data.TeamMembers.Count == 0)
+                attendeesWrap.Children.Add(new TextBlock { Text = "(No team members configured)", FontSize = 11, Foreground = Brushes.Gray, FontStyle = FontStyles.Italic });
+            minutesPanel.Children.Add(attendeesWrap);
+            var minutesBtnRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var autoMinBtn = new Button { Content = "Auto-generate Minutes", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
+            var expWordBtn = new Button { Content = "Export to Word", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CGreen), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 6, 0) };
+            var expPdfMinBtn = new Button { Content = "Export to PDF", Height = 28, Padding = new Thickness(12, 0, 12, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand };
+            autoMinBtn.Click += (s, e) => DispatchAction("AutoMeetingMinutes");
+            expWordBtn.Click += (s, e) => DispatchAction("ExportMinutesWord");
+            expPdfMinBtn.Click += (s, e) => DispatchAction("ExportMinutesPDF");
+            minutesBtnRow.Children.Add(autoMinBtn); minutesBtnRow.Children.Add(expWordBtn); minutesBtnRow.Children.Add(expPdfMinBtn);
+            minutesPanel.Children.Add(minutesBtnRow);
+            var sv6C = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = minutesPanel };
+
+            // ── Sub-tab 6D: Automation ─────────────────────────────────────
+            var autoPanel = new StackPanel { Margin = new Thickness(12) };
+            var autoRules = new[]
+            {
+                ("Overdue Action → Issue Escalation", "Auto-create HIGH-priority NCR issues from overdue meeting actions with element linking", "EscalateOverdueActions"),
+                ("Open Issues → Next Meeting Agenda",  "Auto-generate meeting agenda from open issues grouped by type and priority", "AutoAgenda"),
+                ("Compliance Gate → Transmittal Trigger", "Auto-create SHARED transmittal when compliance ≥80%, containers ≥80%, and 0 critical warnings", "ComplianceGateTransmittal"),
+                ("Meeting Closure → Follow-up Scheduling", "Auto-schedule follow-up meeting carrying forward open actions and unresolved issues", "ScheduleMeetingFollowUp"),
+            };
+            foreach (var (ruleTitle, ruleDesc, ruleAction) in autoRules)
+            {
+                string capturedAction = ruleAction;
+                var ruleCard = new Border { Background = Br(CCardBg), BorderBrush = Br(CBorder), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 8) };
+                var ruleStack = new StackPanel();
+                var ruleTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+                ruleTitleRow.Children.Add(new TextBlock { Text = ruleTitle, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Br(CHeaderBg), VerticalAlignment = VerticalAlignment.Center });
+                var ruleTog = new CheckBox { Content = "Enabled", FontSize = 11, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                ruleTitleRow.Children.Add(ruleTog);
+                ruleStack.Children.Add(ruleTitleRow);
+                ruleStack.Children.Add(new TextBlock { Text = ruleDesc, FontSize = 11, Foreground = Br(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
+                var ruleResultBlock = new TextBlock { FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 4, 0, 0) };
+                var runNowBtn = new Button { Content = "Run Now", Height = 26, Padding = new Thickness(10, 0, 10, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+                runNowBtn.Click += (s, e) => { DispatchAction(capturedAction); ruleResultBlock.Text = $"Running {capturedAction}..."; };
+                ruleStack.Children.Add(runNowBtn); ruleStack.Children.Add(ruleResultBlock);
+                ruleCard.Child = ruleStack;
+                autoPanel.Children.Add(ruleCard);
+            }
+            var sv6D = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = autoPanel };
+
+            // Build sub-tabs
+            outerTabs.Items.Add(new TabItem { Header = "Meetings List", Content = sv6A });
+            outerTabs.Items.Add(new TabItem { Header = "Action Items", Content = sv6B });
+            outerTabs.Items.Add(new TabItem { Header = "Minutes Editor", Content = sv6C });
+            outerTabs.Items.Add(new TabItem { Header = "Automation", Content = sv6D });
+
+            return outerTabs;
+        }
+
+        private UIElement BuildMeetingsTab_Legacy_UNUSED()
+        {
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(20) };
             var stack = new StackPanel();
 
@@ -6859,6 +7287,50 @@ namespace StingTools.UI
         // ════════════════════════════════════════════════════════════════
         //  STATIC SHOW METHOD
         // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Phase 77 Item 10: Handle project members actions dispatched from StingCommandHandler.</summary>
+        public void HandleProjectMembersAction(string action)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _statusBar.Text = $"Action: {action}";
+            });
+        }
+
+        /// <summary>Phase 77 Item 11B: Show inline status message with 3-second auto-reset.</summary>
+        private void ShowStatus(string message)
+        {
+            _statusBar.Text = message;
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            timer.Tick += (s, e) => { _statusBar.Text = "Ready"; timer.Stop(); };
+            timer.Start();
+        }
+
+        /// <summary>Phase 77 Item 11C: Refresh nav panel badge counts from live data.</summary>
+        public void RefreshBadges()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                foreach (var child in _navPanel.Children.OfType<Button>())
+                {
+                    var tag = child.Tag as string;
+                    if (tag == null) continue;
+                    string badge = tag switch
+                    {
+                        "WARNINGS"  => _data.WarningTotal > 0 ? _data.WarningTotal.ToString() : "",
+                        "ISSUES"    => _data.IssuesOpen > 0 ? _data.IssuesOpen.ToString() : "",
+                        "REVISIONS" => _data.RevisionCount.ToString(),
+                        _ => ""
+                    };
+                    if (child.Content is StackPanel sp)
+                    {
+                        var badgeBlock = sp.Children.OfType<Border>().FirstOrDefault();
+                        if (badgeBlock?.Child is TextBlock tb && !string.IsNullOrEmpty(badge))
+                            tb.Text = badge;
+                    }
+                }
+            });
+        }
 
         /// <summary>
         /// Show the BIM Coordination Center as a modeless window.
