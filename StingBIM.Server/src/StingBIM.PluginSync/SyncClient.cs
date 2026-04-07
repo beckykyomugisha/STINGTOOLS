@@ -176,7 +176,24 @@ public class SyncClient : IDisposable
         if (IsAuthenticated) return true;
         if (!string.IsNullOrEmpty(_refreshToken))
         {
-            // TODO: implement refresh token flow
+            try
+            {
+                var response = await PostAsync<RefreshResponse>("/api/auth/refresh",
+                    new { refreshToken = _refreshToken });
+                if (response != null && !string.IsNullOrEmpty(response.AccessToken))
+                {
+                    _accessToken = response.AccessToken;
+                    _refreshToken = response.RefreshToken;
+                    _tokenExpiresAt = response.ExpiresAt;
+                    _http.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", _accessToken);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                LastError = $"Token refresh failed: {ex.Message}";
+            }
         }
         return false;
     }
@@ -231,6 +248,7 @@ public class SyncClient : IDisposable
     // Internal response models
     private record LoginResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
     public record LicenseResult(bool Valid, string Tier, bool MimEnabled, string? ServerUrl, DateTime? ExpiresAt, string? Message);
+    private record RefreshResponse(string AccessToken, string RefreshToken, DateTime ExpiresAt);
     private record TagSyncResult(int Received, int Created, int Updated, double CompliancePercent, string RagStatus);
     private record SeqSyncResult(int Merged, int Total);
 }

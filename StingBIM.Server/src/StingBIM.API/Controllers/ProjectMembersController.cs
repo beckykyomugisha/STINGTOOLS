@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StingBIM.Core.Entities;
+using StingBIM.Core.Interfaces;
 using StingBIM.Infrastructure.Data;
 
 namespace StingBIM.API.Controllers;
@@ -17,8 +18,13 @@ namespace StingBIM.API.Controllers;
 public class ProjectMembersController : ControllerBase
 {
     private readonly StingBimDbContext _db;
+    private readonly IEmailService _emailService;
 
-    public ProjectMembersController(StingBimDbContext db) => _db = db;
+    public ProjectMembersController(StingBimDbContext db, IEmailService emailService)
+    {
+        _db = db;
+        _emailService = emailService;
+    }
 
     // ── GET all members for a project ─────────────────────────────────────────
 
@@ -129,7 +135,10 @@ public class ProjectMembersController : ControllerBase
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            // TODO: send invite email with password-reset link (requires SMTP config)
+            // Send invite email with password-reset link
+            await _emailService.SendInviteEmailAsync(
+                user.Email, user.DisplayName, GetCurrentUserName(),
+                project.Name, $"{Request.Scheme}://{Request.Host}");
         }
 
         // Add to project
@@ -159,7 +168,7 @@ public class ProjectMembersController : ControllerBase
             message    = $"Invitation recorded for {req.Email}",
             userId     = user.Id,
             isPending  = !user.IsActive,
-            note       = user.IsActive ? null : "User account created with temporary credentials. Send them the server URL and their email to set a password."
+            note       = user.IsActive ? null : "An invitation email has been sent with instructions to set a password."
         });
     }
 

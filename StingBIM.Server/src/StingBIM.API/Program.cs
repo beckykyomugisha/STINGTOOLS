@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
 using Serilog;
+using Hangfire;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +55,13 @@ builder.Services.AddAuthorization();
 
 // ── Services ──
 builder.Services.AddScoped<StingBIM.Core.Interfaces.ITenantContext, StingBIM.Infrastructure.Services.TenantContext>();
+
+// ── Email ──
+if (!string.IsNullOrEmpty(builder.Configuration["Email:Host"]))
+    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.SmtpEmailService>();
+else
+    builder.Services.AddSingleton<StingBIM.Core.Interfaces.IEmailService, StingBIM.Infrastructure.Services.NullEmailService>();
+
 builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

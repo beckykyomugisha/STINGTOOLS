@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **173 source files** (170 C# + 3 XAML, ~220,000 lines of code) across 10 directories
+- **193 source files** (190 C# + 3 XAML, ~250,000 lines of code) across 12 directories
 - **755+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 1 `IDockablePaneProvider` + 2 `IUpdater`s
 - **51 runtime data files** (CSV, JSON, TXT, XLSX, PY, MD)
-- **6 ribbon panels** with 23 pulldown groups + 1 WPF dockable panel (9 tabs) + 1 WPF project setup wizard + 1 BIM Coordination Center (14 tabs, Phase 76) + 1 Material Manager (7 tabs, Phase 76)
+- **WPF dockable panel** (9 tabs, primary UI) + 1 BIM Coordination Center (13 tabs) + 1 Material Manager (7 tabs) + 1 Document Management Center (8 tabs) + ribbon retained for legacy compat
 - **Phase 76 additions**: Revisions inline panels, Workflow ToggleButton tabs, QR code generation (ZXing.Net), Code Legend (120+ entries), Project Members unified tab, Material Manager 7-tab dialog, Issues dynamic context panels
 - **Phase 77 additions**: BCC complete UX overhaul — Deliverables inline editable grid + transmittal section, Meetings 4-sub-tab inline panel (Meetings List, Action Items, Minutes Editor, Automation), Model Health inline action panels, QR Codes section in Overview, 20 issue types with color coding, StingCommandHandler wired for all BCC action tags, keyboard navigation (Escape/F5), ShowStatus helper, RefreshBadges method, Overview quick actions toolbar
 
@@ -68,7 +68,7 @@ STINGTOOLS/
     │   ├── ColorCommands.cs            # 5 color-by-parameter commands + ColorHelper (10 palettes, presets, filter gen)
     │   └── TagSelectorCommands.cs      # Multi-criteria tag selector (text, size, arrowhead, leader, family, host category, orientation, discipline)
     │
-    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (30 C# files + 3 XAML, ~30,000 lines)
+    ├── UI/                             # WPF dockable panel UI + wizards + theme engine (40 C# files + 3 XAML, ~35,000 lines)
     │   ├── StingDockPanel.xaml         # WPF markup for 9-tab dockable panel (SELECT/ORGANISE/DOCS/TEMP/CREATE/VIEW/MODEL/BIM/TAGS)
     │   ├── StingDockPanel.xaml.cs      # Code-behind: button dispatch, colour swatches, status bar
     │   ├── StingCommandHandler.cs      # IExternalEventHandler — dispatches 1100+ button tags to 750+ command classes + inline helpers
